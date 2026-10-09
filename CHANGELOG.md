@@ -1479,6 +1479,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **`make install-deps-*` names the next real step.** It ended with `Next:
+  check the host, with script/system-preflight`, a step the quick start no
+  longer has, after an upgrade's install too. A checkout not set up yet is
+  told to run `bin/gpforum setup --environment development` (with `sudo`
+  but on macOS), a production host `sudo …/bin/gpforum setup` as before,
+  and a host whose environment file is in place, upgrading, nothing:
+  `gpforum upgrade` printed the steps after it.
+
 - **A drill no longer removes a directory it did not make.**
   `script/pitr-drill` and `script/standby-drill` delete their working
   directory when they end; `--dir` naming one that already held files took

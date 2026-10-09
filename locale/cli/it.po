@@ -3179,14 +3179,15 @@ msgstr ""
 "Poi: make install-deps-postgres, oppure sudo make install-deps-production "
 "su un server"
 
-msgctxt "system.next_preflight"
-msgid "Next: check the host, with script/system-preflight"
-msgstr "Prossimo passo: controlla l'host, con script/system-preflight"
-
 #, python-brace-format
 msgctxt "system.next_setup"
 msgid "Next: set this host up, with sudo {gpforum} setup"
 msgstr "Prossimo passo: prepara questo host, con sudo {gpforum} setup"
+
+#, python-brace-format
+msgctxt "system.next_setup_checkout"
+msgid "Next: set this checkout up, with {command}"
+msgstr "Prossimo passo: prepara questa copia di lavoro, con {command}"
 
 #, python-brace-format
 msgctxt "system.perl_manager"

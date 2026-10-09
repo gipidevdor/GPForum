@@ -52,7 +52,7 @@ subtest 'make install-deps-* ends with the next step' => sub {
         [ sort keys %english ],
         [
             qw(system.deps_dry_run system.deps_for_setup system.deps_installed
-              system.next_preflight system.next_setup)
+              system.next_setup system.next_setup_checkout)
         ],
         'one sentence for a production host, one for a checkout, and'
           . q{ setup's own, which installs them first}
@@ -75,12 +75,41 @@ subtest 'make install-deps-* ends with the next step' => sub {
         'install-deps-production: setup, by the path that works before the'
           . ' link'
     );
+    my $sudo = GPForum::OS->detect->name eq 'darwin' ? q{} : 'sudo ';
+    is(
+        _ending( $ending, 'en_US.UTF-8', production => 0 ),
+        "\nNext: set this checkout up, with ${sudo}bin/gpforum setup"
+          . " --environment development\n",
+        q{install-deps-postgres: the quick start's setup, as the README types}
+          . ' it'
+    );
     is(
         _ending( $ending, 'it_IT.UTF-8', production => 0 ),
-        "\nProssimo passo: controlla l'host, con script/system-preflight\n",
-        q{install-deps-postgres: the host's check, as the README goes on, in}
-          . ' Italian'
+"\nProssimo passo: prepara questa copia di lavoro, con ${sudo}bin/gpforum"
+          . " setup --environment development\n",
+        'in Italian'
     );
+    unlike(
+        join( q{},
+            map { _ending( $ending, 'en_US.UTF-8', production => $_ ) } 0, 1 ),
+        qr/system-preflight/msx,
+        'never script/system-preflight, a step the quick start no longer has'
+    );
+
+    # Walkthrough 4 (friction 4): gpforum upgrade's first line runs the
+    # install, which went on to a step of a first install. A host set up
+    # already, its environment file in place, is upgrading.
+    for my $production ( 0, 1 ) {
+        is(
+            _ending(
+                $ending, 'en_US.UTF-8',
+                production => $production,
+                set_up     => 1
+            ),
+            q{},
+            "nothing after the install of an upgrade ($production)"
+        );
+    }
     is( _ending( $ending, 'en_US.UTF-8', production => 0, update => 1 ),
         q{}, q{and nothing after a maintainer's lock refresh} );
 };
@@ -142,6 +171,7 @@ sub _ending ( $ending, $language, %set ) {
     my $program = join "\n",
       'root=' . path(q{.})->to_abs,
       "update=@{[ $set{update} // 0 ]}",
+      "set_up=@{[ $set{set_up} // 0 ]}",
       "production=@{[ $set{production} // 0 ]}",
       $ending;
     local $ENV{LC_ALL} = $language;

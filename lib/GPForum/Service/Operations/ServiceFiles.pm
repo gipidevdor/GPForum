@@ -546,11 +546,8 @@ sub certificate_command ($self) {
 # of its programs is not installed, and the certificate, when it is not
 # there yet.
 sub _needed ( $self, $place ) {
-    my @steps;
-    if ( any { !$self->found->($_) } @{ $place->{needs} // [] } ) {
-        push @steps, $place->{packages};
-    }
-    my $host = $self->_public_host;
+    my @steps = $self->_packages($place);
+    my $host  = $self->_public_host;
     if (   defined $place->{certificate}
         && defined $host
         && !$self->exists->( $self->_letsencrypt . "/live/$host/fullchain.pem" )
@@ -560,6 +557,21 @@ sub _needed ( $self, $place ) {
     }
 
     return @steps;
+}
+
+# The command that installs what a proxy needs on this host -- brew install
+# nginx certbot, apt's, pkg's -- when one of its programs is not installed;
+# undef when they all are.
+sub packages_step ( $self, $proxy ) {
+    my ($step) = $self->_packages( $self->_proxy_place($proxy) );
+
+    return $step;
+}
+
+sub _packages ( $self, $place ) {
+    return () if !any { !$self->found->($_) } @{ $place->{needs} // [] };
+
+    return ( $place->{packages} );
 }
 
 # Where certbot keeps its certificates on this host.
@@ -957,6 +969,13 @@ where GPForum ships none.
 
 The command that takes the certificate the nginx site names, for the
 forum's own name on this operating system, or undef.
+
+=head2 packages_step
+
+Takes a proxy, C<nginx> or C<caddy>, and returns the command that installs
+what it needs on this operating system -- C<brew install nginx certbot>,
+C<sudo apt install ...> -- when one of its programs is not installed, or
+undef when they all are.
 
 =head2 print_command
 

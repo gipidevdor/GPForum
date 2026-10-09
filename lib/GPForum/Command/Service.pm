@@ -57,6 +57,9 @@ has words => sub { return GPForum::Command::Support::Words->new; };
 # directory.
 has directory => sub { return getcwd(); };
 
+# Who runs it; a test gives its own.
+has effective_uid => sub { return $EFFECTIVE_USER_ID; };
+
 has output => sub { return \*STDOUT; };
 has errors => sub { return \*STDERR; };
 
@@ -222,6 +225,7 @@ sub _written ( $self, $request, $files, $notes ) {
     my $in_place = $self->_in_place( $request->{target}, $into );
 
     my $refused = $self->_refused( $request, $into, $typed, $in_place )
+      // $self->_needs_root( $request, $into, $files, $in_place, $typed )
       // ( $in_place ? $self->_uncertified($files) : undef );
     return $self->_failed( $request, $refused ) if defined $refused;
 
@@ -292,6 +296,49 @@ sub _in_place ( $self, $target, $into ) {
           @{ $self->files->files($target) } ) ? 1 : 0;
 }
 
+# Why the files cannot be written by this account, or undef: a directory
+# they go in, or the one that would hold it, is root's -- /Library/
+# LaunchDaemons, /etc/systemd/system. File::Temp's own error came out
+# instead, "Error in tempfile() using template ...: Permission denied"; the
+# sentence says to run it with sudo, as typed.
+sub _needs_root ( $self, $request, $into, $files, $in_place, $typed ) {
+    return undef if $self->effective_uid == 0;
+
+    my @directories =
+      $in_place ? map { path( $_->{destination} ) } @{$files} : ($into);
+    my ($closed) = grep { !-w } map { _nearest_existing($_) } @directories;
+    return undef if !defined $closed;
+
+    my $command = join q{ }, 'sudo gpforum service print', $request->{target},
+      @{ $request->{names} }, '--to', _shell_word($typed);
+    return $self->_said(
+        'cli.service.needs_root',
+        {
+            directory => $closed->to_string,
+            command   =>
+              GPForum::Command::Support::ServiceEnvironment->as_read($command),
+        }
+    );
+}
+
+# The directory itself, or the nearest one above it that is there: the one
+# make_path writes into.
+sub _nearest_existing ($directory) {
+    my $here = $directory;
+    while ( !-e $here && $here->dirname ne $here ) {
+        $here = $here->dirname;
+    }
+
+    return $here;
+}
+
+# A directory as a shell takes it: bare, or single-quoted.
+sub _shell_word ($word) {
+    return $word if $word =~ m{\A [\w/.,:@%+=-]+ \z}msx;
+
+    return q{'} . ( $word =~ s/'/'\\''/grmsx ) . q{'};
+}
+
 # Why a proxy's site is not put in place, or undef: nginx refuses a site
 # whose certificate is not there yet, and a reload with it would take every
 # site the proxy serves down, so the certificate comes first.
@@ -301,12 +348,17 @@ sub _uncertified ( $self, $files ) {
           $file->{text} =~ /^ \s* ssl_certificate \s+ ([^;\s]+) ;/msx;
         next if !defined $certificate || $self->files->exists->($certificate);
 
+        # Before certbot is installed, the packages that bring it come
+        # first, as the bare print names them.
+        my $take     = $self->files->certificate_command // 'certbot certonly';
+        my $packages = $self->files->packages_step('nginx');
         return $self->_said(
             'cli.service.no_certificate',
             {
                 certificate => $certificate,
-                command     => $self->files->certificate_command
-                  // 'certbot certonly',
+                command     => defined $packages
+                ? "$packages && $take"
+                : $take,
             }
         );
     }
@@ -543,12 +595,19 @@ Takes the command line and returns the exit status: 0 printed or written,
 
 Class method. The C<--help> text.
 
+=head2 effective_uid
+
+The user id it runs as; a test gives its own.
+
 =head1 DIAGNOSTICS
 
 A directory that holds anything but the target's files, or a link or a
 directory under one of their names, one another account can change, one
 that is a file, or one that cannot be written is refused with a sentence
-that says so, and exit status 1. Each file is written beside its name and
+that says so, and exit status 1: one only root can write into names the
+command again with C<sudo>, and an nginx site without its certificate the
+packages that bring certbot, when it is not installed, before the command
+that takes it. Each file is written beside its name and
 renamed onto it, so a link is replaced, never followed.
 
 =head1 CONFIGURATION AND ENVIRONMENT

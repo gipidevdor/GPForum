@@ -345,6 +345,8 @@ q{Would make {username} ({email}) the forum's owner; nothing was written.},
     'cli.service.no_certificate' => 'There is no {certificate} yet, and nginx'
       . ' refuses a site without its certificate: take it first, with'
       . ' {command}, then print the site again.',
+    'cli.service.needs_root' => 'Only root can write into {directory}: run'
+      . ' it with sudo, as {command}',
     'cli.service.next_read_one'  => 'read it, then put it in place:',
     'cli.service.next_read_many' =>
       'read them, then put them in place and start them:',

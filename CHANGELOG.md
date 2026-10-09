@@ -1479,6 +1479,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **`gpforum service print --to` says what it needs.** Into a directory only
+  root can write, such as `/Library/LaunchDaemons` without `sudo`, it
+  answered with Perl's own `Error in tempfile() using template ...:
+  Permission denied`; it now says `Only root can write into DIR: run it with
+  sudo, as sudo gpforum service print TARGET --to DIR`. An nginx site
+  refused before certbot is installed names the packages first, `brew
+  install nginx certbot && sudo certbot certonly ...` (apt's or pkg's on
+  Debian and FreeBSD), as the bare print does.
+
 - **`gpforum upgrade`'s backup line makes its directory first.** It named
   `gpforum backup --to /var/backups/gpforum`, whose parent is root's on
   macOS and which a fresh Debian host lacks, and the backup, run as

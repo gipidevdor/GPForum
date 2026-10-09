@@ -267,7 +267,7 @@ sub settings ( $self, $environment, $findings ) {
           ]
         : [ 'doctor.settings_shell', { environment => $config->environment } ],
     );
-    $self->_sizing( $findings, $config );
+    $self->_sizing( $findings, $config, $host );
     $self->_open_file( $findings, $host );
     for my $variable ( @{ $config->retired_settings } ) {
         $findings->add(
@@ -347,15 +347,19 @@ sub _set_fix ( $self, $host, $variable, $message ) {
 # How the node is sized for this host: its CPUs and memory, and the web
 # processes and cache it runs at their size (audit D1'). Nothing when the
 # operator set both.
-sub _sizing ( $self, $findings, $config ) {
+sub _sizing ( $self, $findings, $config, $host ) {
     my $sizing = $self->_probe( 'sizing', $config );
     my $sizes  = $sizing->{sizes};
     my @parts;
     if ( defined( my $web = $sizes->{web_processes} ) ) {
-        push @parts,
-          $self->catalog->text(
-            $web == 1 ? 'doctor.size_web_one' : 'doctor.size_web',
-            { count => $web } );
+
+        # In development the forum runs as gpforum start --foreground runs
+        # it, one process: the line said 14 for a 10-CPU laptop.
+        my $key =
+           !$host->is_deployed ? 'doctor.size_web_foreground'
+          : $web == 1          ? 'doctor.size_web_one'
+          :                      'doctor.size_web';
+        push @parts, $self->catalog->text( $key, { count => $web } );
     }
     if ( defined( my $cache = $sizes->{local_cache_max_entries} ) ) {
         push @parts,

@@ -1479,6 +1479,10 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **Doctor's sizing line in development counts the one process** `gpforum
+  start --foreground` runs: `1 web process (gpforum start --foreground)`,
+  where it said 14 on a 10-CPU laptop. A server's line is as before.
+
 - **macOS production is eight commands from the clone, in one document.**
   `sudo gpforum service print --to /Library/LaunchDaemons` makes the
   directory the launchd jobs log to, the `gpforum` account's, 0750, so the

@@ -64,8 +64,8 @@ subtest 'a healthy development checkout is check marks only' => sub {
         $text,
         join( "\n",
 "\N{CHECK MARK} settings: development, from the shell's environment",
-            "\N{CHECK MARK} sized for 2 CPUs, 2 GB: 4 web processes, 4096"
-              . ' cache entries a process',
+            "\N{CHECK MARK} sized for 2 CPUs, 2 GB: 1 web process (gpforum"
+              . ' start --foreground), 4096 cache entries a process',
             "\N{CHECK MARK} host: Linux with epoll, 2 CPUs",
             "\N{CHECK MARK} open files: up to 65536",
 "\N{CHECK MARK} database: PostgreSQL 18.6, gpforum at 127.0.0.1:5432",

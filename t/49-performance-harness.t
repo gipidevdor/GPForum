@@ -82,18 +82,18 @@ is(
     'seed includes feed items'
 );
 
-my $medium_json =
-  _capture_command( 'script/seed-benchmark', '--dry-run', '--json',
-    '--profile', 'medium' );
+my $medium_json = _capture_command(
+    'bin/gpforum', 'performance-seed', '--dry-run', '--json',
+    '--profile',   'medium'
+);
 my $medium_seed = decode_json($medium_json);
-is( $medium_seed->{profile}, 'medium', 'seed alias supports profiles' );
+is( $medium_seed->{profile}, 'medium', 'the front door seeds a profile' );
 is( $medium_seed->{dataset}{users},
     $MEDIUM_USERS, 'medium profile sizes users' );
 
 my $hot_thread_json = _capture_command(
-    'bin/gpforum-seed-benchmark', '--dry-run',
-    '--json',                     '--profile',
-    'hot-thread'
+    'bin/gpforum', 'performance-seed', '--dry-run', '--json',
+    '--profile',   'hot-thread'
 );
 my $hot_thread_seed = decode_json($hot_thread_json);
 is( $hot_thread_seed->{dataset}{posts_per_thread},
@@ -124,10 +124,13 @@ my ($autocomplete_endpoint) =
 is( $autocomplete_endpoint->{endpoint},
     'autocomplete', 'query plan evidence includes autocomplete' );
 
-my $hotpaths =
-  _capture_command( 'script/bench-hotpaths', '--iterations', '1', '--warmup',
-    '0', '--route', '/health', );
-like( $hotpaths, qr/mode=fixture/msx, 'bench-hotpaths runs fixture gate' );
+my $front_door = _capture_command(
+    'bin/gpforum', 'benchmark', '--fixture', '--iterations',
+    '1',           '--warmup',  '0',         '--route',
+    '/health'
+);
+like( $front_door, qr/mode=fixture/msx,
+    'gpforum benchmark --fixture runs the fixture benchmark' );
 
 my $threshold_json = _capture_command(
     'script/benchmark-http', '--fixture',

@@ -401,7 +401,7 @@ Forbidden:
   `RuntimePolicy`, `RuntimeEvidence`)
 - `lib/GPForum/Config.pm` (`os_*` feature settings)
 - `bin/gpforum-os-preflight`, `bin/gpforum-platform-check`,
-  `script/system-preflight`, `script/profile-nytprof`, `script/profile`,
+  `script/system-preflight`, `script/profile-nytprof`,
   `script/query-plan-check`
 - `docs/PERFORMANCE.md#os-tuning`, `docs/OS_RUNTIME_ENFORCEMENT.md`,
   `docs/OS_RUNTIME_EVIDENCE.md`, `docs/PERFORMANCE.md#profiling`, `docs/PERFORMANCE.md`

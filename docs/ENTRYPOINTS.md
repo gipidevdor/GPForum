@@ -56,16 +56,11 @@ cd "$root"
 exec script/gpforum-carton exec bin/gpforum-example "$@"
 ```
 
-Every wrapper now follows this shape. The ones this paragraph used to list as
-calling bare `carton exec` without changing to the repository root
-(`query-budget`, `seed-benchmark`, `seed-performance-data`, `bench-http`,
-`bench-hypnotoad`, `bench-hypnotoad-scaling`, `outbox-dispatch`,
-`scheduled-jobs`, `query-plan-evidence`) have all been moved to
-`script/gpforum-carton`; the only script that invokes `carton` directly is
-`script/gpforum-carton` itself. Bare `carton` would bypass the system-Perl gate
-in `script/gpforum-system-perl`, and on macOS the `carton` found first on
-`PATH` can belong to another Perl, so documentation uses
-`script/gpforum-carton exec` throughout.
+The only script that invokes `carton` directly is `script/gpforum-carton`
+itself. Bare `carton` would bypass the system-Perl gate in
+`script/gpforum-system-perl`, and on macOS the `carton` found first on `PATH`
+can belong to another Perl, so documentation uses `script/gpforum-carton exec`
+throughout.
 
 ## Legacy collisions
 
@@ -73,10 +68,3 @@ None. Every `script/` wrapper now uses the unprefixed name, so no basename
 exists in both directories and `ENTRYPOINT_COLLISION_ALLOWLIST` in
 `script/architecture-check` is empty. It may not grow again: a new basename
 in both directories fails the check.
-
-## Known duplicate
-
-`bin/gpforum-seed-benchmark` and `bin/gpforum-seed-performance-data` are
-byte-identical (both run `GPForum::Command::PerformanceSeed`), and each has its
-own wrapper. Collapsing them requires updating `t/49-performance-harness.t` and
-`t/18-github-project.t` together.

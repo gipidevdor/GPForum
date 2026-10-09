@@ -47,7 +47,6 @@ the command, or says `none`.
 | `bin/gpforum-query-plan-evidence` | none | Evidence tooling: EXPLAIN on a seeded database. Developer tooling. |
 | `bin/gpforum-scheduled-jobs` | none | Run by its timer (`gpforum-scheduled-jobs.service`). Running a pass from a web request would race the timer. |
 | `bin/gpforum-search-rebuild` | `admin_jobs` `admin_search_rebuild` | **Rebuild search index** on `/admin/jobs` rebuilds through the outbox and audits the request (`admin.search_rebuild_requested`). |
-| `bin/gpforum-seed-benchmark` | none | Seeds benchmark data. Never on a live forum. |
 | `bin/gpforum-seed-performance-data` | none | Seeds performance data. Never on a live forum. |
 | `bin/gpforum-staging-drill` | none | Staging drill, for release evidence. Operator's shell. |
 | `bin/gpforum-staging-drill-attachments` | none | Staging drill for attachments, for release evidence. Operator's shell. |

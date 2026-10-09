@@ -373,14 +373,14 @@ script/coverage
 Profile a route:
 
 ```sh
-script/profile-route /categories
+script/profile-nytprof --route /categories
 nytprofhtml -f var/profile/route-nytprof.out.*
 ```
 
 Profile an existing Perl command:
 
 ```sh
-script/profile -Ilib t/32-forum-web.t
+script/profile-nytprof -- -Ilib t/32-forum-web.t
 ```
 
 Apply migrations:

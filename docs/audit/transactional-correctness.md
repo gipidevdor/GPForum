@@ -828,8 +828,8 @@ Proposed baseline:
 1. Prepare a staging PostgreSQL with the migrations and seed data:
 
 ```sh
-script/seed-benchmark --profile medium
-script/seed-benchmark --profile hot-thread
+bin/gpforum performance-seed --profile medium
+bin/gpforum performance-seed --profile hot-thread
 ```
 
 2. Start Hypnotoad with a production small/medium profile and metrics enabled.

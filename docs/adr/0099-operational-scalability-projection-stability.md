@@ -323,7 +323,7 @@ If these answers do not exist, the implementation is incomplete.
   ADR 0119),
   `migrations/014_hot_path_indexes.sql`
 - `bin/gpforum-query-budget`, `bin/gpforum-query-plan-evidence`,
-  `script/query-plan-check`, `script/bench-hotpaths`
+  `script/query-plan-check`, `script/benchmark-http`
 - `docs/PERFORMANCE.md#query-budgets`, `docs/PERFORMANCE.md#database`,
   `docs/OUTBOX_LIFECYCLE.md`, `docs/OBSERVABILITY.md`,
   `docs/architecture/partition-lifecycle.md`

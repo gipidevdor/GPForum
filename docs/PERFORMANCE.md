@@ -480,10 +480,8 @@ the process id.
 ```sh
 # one route through the benchmark harness (3 iterations, 1 warmup)
 script/profile-nytprof --route /t/thread-1 --fixture
-# one GET through Test::Mojo, as performance.yml does
-script/profile-route /categories
 # any Perl program
-script/profile script/bench-outbox-dispatcher --messages 10000 --workers 4
+script/profile-nytprof -- script/bench-outbox-dispatcher --messages 10000 --workers 4
 
 script/gpforum-carton exec nytprofcsv -f var/profile/route-nytprof.out.<pid> \
   --out var/profile/route-nytprof.csv
@@ -576,7 +574,7 @@ units in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Datasets
 
-`script/seed-benchmark --profile NAME` writes a deterministic dataset:
+`bin/gpforum performance-seed --profile NAME` writes a deterministic dataset:
 users, roles, permissions and bindings, sessions, categories, threads,
 posts with bodies and revisions, counters, search documents, read state,
 bookmarks, subscriptions, notifications, feed items, reports and moderation
@@ -606,7 +604,7 @@ a 1,500-thread category).
 ```sh
 script/bootstrap-deps --postgres
 script/gpforum-carton exec bin/gpforum-migrate --apply
-script/seed-benchmark --profile medium
+bin/gpforum performance-seed --profile medium
 script/query-budget --sync
 
 script/query-plan-check                  # static half; the plans too when GPFORUM_DATABASE_DSN is set
@@ -629,8 +627,8 @@ the default set exits 1 there: run the fixture gate with explicit routes, as
 CI does. In configured or production mode an anonymous `/health` answers
 the status alone, without the OS, socket and process snapshots, so `/health`
 figures measured since 2026-10-03 time that fast path and do not compare with
-older ones; fixture runs without a token still time the full summary. `script/bench-hotpaths` is `benchmark-http --fixture --check` with
-your arguments. Thresholds by endpoint:
+older ones; fixture runs without a token still time the full summary. Thresholds by
+endpoint:
 
 | Endpoint | p95 | p99 | Minimum req/s |
 | --- | ---: | ---: | ---: |

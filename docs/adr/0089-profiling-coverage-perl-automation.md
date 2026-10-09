@@ -134,7 +134,7 @@ Profiling readiness is an operational requirement, not a luxury.
   engineering), 0059 (CI/CD), 0084 (test strategy), 0086 (packaging).
 - Scripts: `script/bootstrap-deps`, `script/gpforum-carton`,
   `script/system-preflight`, `script/test`, `script/coverage`,
-  `script/profile`, `script/profile-nytprof`, `script/profile-route`,
+  `script/profile-nytprof`,
   `script/perlcritic`, `script/perltidy-check`, `Makefile`,
   `.github/workflows/ci.yml`.
 - Dependencies: `cpanfile`, `cpanfile.postgres`, `cpanfile.snapshot`,

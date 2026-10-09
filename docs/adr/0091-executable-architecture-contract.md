@@ -791,4 +791,4 @@ invariants. This contract is mandatory.
   `docs/OUTBOX_LIFECYCLE.md`, `docs/PERFORMANCE.md#query-budgets`,
   `docs/audit/failure-modes.md`, `docs/architecture/partition-lifecycle.md`.
 - Scripts: `script/test`, `script/coverage`, `script/perlcritic`,
-  `script/profile`, `bin/gpforum-migrate`.
+  `script/profile-nytprof`, `bin/gpforum-migrate`.

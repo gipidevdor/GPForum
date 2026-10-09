@@ -1479,6 +1479,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **A start with old names in the environment file warns of each once.**
+  `gpforum start --service` logged each, then ran Hypnotoad in its place,
+  which built the application again and logged each a second time, 0.9 s
+  later. It now tells Hypnotoad, in `GPFORUM_SETTINGS_WARNED`, that they
+  were said.
 - **`gpforum help secret` names this host's environment file**, Homebrew's
   on macOS, where it named `/etc/gpforum/gpforum.env` on every host.
 

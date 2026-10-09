@@ -1479,6 +1479,9 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **`gpforum help secret` names this host's environment file**, Homebrew's
+  on macOS, where it named `/etc/gpforum/gpforum.env` on every host.
+
 - **Doctor's sizing line in development counts the one process** `gpforum
   start --foreground` runs: `1 web process (gpforum start --foreground)`,
   where it said 14 on a 10-CPU laptop. A server's line is as before.

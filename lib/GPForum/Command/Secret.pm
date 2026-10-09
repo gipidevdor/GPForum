@@ -173,8 +173,12 @@ sub usage_text ($class) {
     return _usage();
 }
 
+# The help names this host's file: on macOS it is Homebrew's, and the help
+# named /etc/gpforum/gpforum.env on every host.
 sub _usage {
-    return <<'USAGE';
+    my $file = GPForum::Command::Support::ServiceEnvironment->new->default_file;
+
+    return <<"USAGE";
 Usage: gpforum secret rotate session|metrics [--finish] [--dry-run] [--json]
 
 Rotates a secret in the environment file the service reads, in two steps, so
@@ -196,10 +200,13 @@ a month for sessions, the scrapers' next deploy for the token -- finish:
   --json           one JSON object on stdout instead of sentences
   --help           show this help
 
-The file is the one gpforum reads (/etc/gpforum/gpforum.env, or the one
-given with gpforum --env-file FILE secret ...). Its owner and mode are kept,
-a file every account can read is said with the chmod that closes it, and no
-secret is printed.
+The file is the one gpforum reads, on this host
+
+  $file
+
+or the one given with gpforum --env-file FILE secret .... Its owner and mode
+are kept, a file every account can read is said with the chmod that closes
+it, and no secret is printed.
 
 Exit status: 0 done, 1 the file could not be read or written, 2 usage error.
 USAGE

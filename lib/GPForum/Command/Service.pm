@@ -32,6 +32,14 @@ const my $STAT_MODE    => 2;
 const my $STAT_OWNER   => 4;
 const my $OTHERS_WRITE => oct '002';
 
+# The account the services run as, and the mode of the directory they log to.
+const my $SERVICE_USER => 'gpforum';
+const my $LOG_MODE     => oct '750';
+
+# Where getpwnam puts the uid and the gid.
+const my $PW_UID => 2;
+const my $PW_GID => 3;
+
 # `gpforum service print`: the service files deploy/ ships, written for this
 # host -- its code directory, its environment file, the forum's public name
 # and the address the application listens on -- printed for the operator
@@ -57,8 +65,13 @@ has words => sub { return GPForum::Command::Support::Words->new; };
 # directory.
 has directory => sub { return getcwd(); };
 
-# Who runs it; a test gives its own.
-has effective_uid => sub { return $EFFECTIVE_USER_ID; };
+# Who runs it, and the uid and gid of the account the services run as, or
+# undef when there is none; a test gives its own.
+has effective_uid   => sub { return $EFFECTIVE_USER_ID; };
+has service_account => sub {
+    my ( $uid, $gid ) = ( getpwnam $SERVICE_USER )[ $PW_UID, $PW_GID ];
+    return defined $uid ? [ $uid, $gid ] : undef;
+};
 
 has output => sub { return \*STDOUT; };
 has errors => sub { return \*STDERR; };
@@ -231,6 +244,9 @@ sub _written ( $self, $request, $files, $notes ) {
 
     try {
         _write_all( $into, $files, $in_place );
+        if ($in_place) {
+            $self->_make_logs( $request->{target} );
+        }
     }
     catch ($error) {
         return $self->_failed(
@@ -364,6 +380,25 @@ sub _uncertified ( $self, $files ) {
     }
 
     return undef;
+}
+
+# The directory the services log to, put in place with them: launchd opens
+# it before a job starts, and refuses the job without it. It was a command
+# of its own, after service print --to; as root, which writes into
+# /Library/LaunchDaemons, it is made here, the account's, 0750, as that
+# command made it. Without the account, or root, the step stays.
+sub _make_logs ( $self, $target ) {
+    my $logs = $self->files->log_directory($target);
+    return if !defined $logs || -d $logs || $self->effective_uid != 0;
+
+    my ( $uid, $gid ) = @{ $self->service_account // [] };
+    return if !defined $uid;
+
+    path($logs)->make_path;
+    chown $uid, $gid, $logs or croak "chown $logs: $OS_ERROR";
+    chmod $LOG_MODE, $logs or croak "chmod $logs: $OS_ERROR";
+
+    return;
 }
 
 # Each file written into the directory, or, in place, into the directory it
@@ -582,7 +617,9 @@ host's code directory, environment file, public name and listen address in
 place of the templates' own
 (L<GPForum::Service::Operations::ServiceFiles>), followed by the commands
 that put them in place and start them. With C<--to DIR> it writes them into
-a directory to read first. It installs nothing.
+a directory to read first. Into the directory this host reads them from,
+as root, it also makes the directory the launchd jobs log to, the
+C<gpforum> account's; it installs and starts nothing.
 
 =head1 SUBROUTINES/METHODS
 
@@ -598,6 +635,11 @@ Class method. The C<--help> text.
 =head2 effective_uid
 
 The user id it runs as; a test gives its own.
+
+=head2 service_account
+
+The uid and gid of the C<gpforum> account, as an array reference, or undef
+when the host has none; a test gives its own.
 
 =head1 DIAGNOSTICS
 

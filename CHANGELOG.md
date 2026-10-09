@@ -1479,6 +1479,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **macOS production is eight commands from the clone, in one document.**
+  `sudo gpforum service print --to /Library/LaunchDaemons` makes the
+  directory the launchd jobs log to, the `gpforum` account's, 0750, so the
+  `install -d` step after it goes, and is printed only while the directory
+  is not there. DEPLOYMENT's macOS section carries the packages line, with
+  `nginx certbot`, the clone and `sudo /opt/gpforum/bin/gpforum setup`,
+  where it typed `sudo gpforum setup` before anything had linked `gpforum`.
+
 - **`gpforum service print --to` says what it needs.** Into a directory only
   root can write, such as `/Library/LaunchDaemons` without `sudo`, it
   answered with Perl's own `Error in tempfile() using template ...:

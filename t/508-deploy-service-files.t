@@ -89,8 +89,9 @@ subtest 'every launchd job runs as the service account' => sub {
       /^\#\# [ ] macOS [ ] With [ ] launchd \n (.*?) ^\#\# [ ]/msx;
     like(
         $macos,
-        qr{^sudo [ ] gpforum [ ] setup$}msx,
-        'setup makes the account, and var/ under the checkout'
+        qr{^sudo [ ] /opt/gpforum/bin/gpforum [ ] setup$}msx,
+        'setup makes the account, and var/ under the checkout, by the path'
+          . ' that works before it links gpforum'
     );
 
     # The plists log under Homebrew's prefix, which gpforum service print
@@ -101,10 +102,11 @@ subtest 'every launchd job runs as the service account' => sub {
         'the template logs under the Intel prefix, which is rendered'
     );
     ok(
-        index( $macos,
-q{install -d -o gpforum -g gpforum -m 0750 "$(brew --prefix)/var/log/gpforum"}
+        index(
+            $macos =~ s/\s+/ /grmsx,
+q{makes the directory they log to, `$(brew --prefix)/var/log/gpforum`}
         ) >= 0,
-        q{and the guide makes the directory under Homebrew's prefix}
+        q{and service print --to makes the directory under Homebrew's prefix}
     );
 };
 

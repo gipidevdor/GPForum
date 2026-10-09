@@ -1479,6 +1479,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **`gpforum upgrade`'s backup line makes its directory first.** It named
+  `gpforum backup --to /var/backups/gpforum`, whose parent is root's on
+  macOS and which a fresh Debian host lacks, and the backup, run as
+  `gpforum`, could not make it. Until the directory is there, the line
+  begins `sudo install -d -o gpforum -m 700 /var/backups/gpforum &&`, as
+  `docs/ops/upgrade.md` now shows.
+
 - **`make install-deps-*` names the next real step.** It ended with `Next:
   check the host, with script/system-preflight`, a step the quick start no
   longer has, after an upgrade's install too. A checkout not set up yet is

@@ -35,6 +35,10 @@ our $VERSION = '0.001';
 const my $EXIT_USAGE => 2;
 const my $CODE       => '/opt/gpforum';
 const my $STEPS      => 3;
+const my $BACKUPS    => '/var/backups/gpforum';
+
+# What makes the backups' directory, before the first backup.
+const my $MAKE_BACKUPS => "sudo install -d -o gpforum -m 700 $BACKUPS";
 
 # The title, a blank line, then the three steps.
 const my $LAST_STEP_LINE => 4;
@@ -66,11 +70,34 @@ subtest 'a Debian host: the three lines upgrade.md gives' => sub {
     );
     is(
         $plan->{backup},
-        'sudo -u gpforum gpforum backup --to /var/backups/gpforum',
-        'and the backup to take first is upgrade.md\'s'
+        "$MAKE_BACKUPS && sudo -u gpforum gpforum backup --to $BACKUPS",
+        'and the backup to take first is upgrade.md\'s, after its directory'
     );
     like( path('docs/ops/upgrade.md')->slurp,
         qr/\Q$plan->{backup}\E/msx, 'which it names' );
+};
+
+# Walkthrough 4 (friction 11): the backup line named /var/backups/gpforum,
+# whose parent is root's on macOS and which a fresh Debian host lacks, and
+# no step that makes it: gpforum backup, run as gpforum, could not.
+subtest 'the backup line makes its directory first, until it is there' => sub {
+    is(
+        _upgrade( 'linux', 'production' )->plan->{backup},
+        "$MAKE_BACKUPS && sudo -u gpforum gpforum backup --to $BACKUPS",
+        'a host without it: made for gpforum, private to it, then the backup'
+    );
+    is(
+        _upgrade( 'linux', 'production', 'en', 1 )->plan->{backup},
+        "sudo -u gpforum gpforum backup --to $BACKUPS",
+        'once it is there, the backup alone'
+    );
+    my $output = _run( _upgrade( 'linux', 'production', 'it' ) );
+    like(
+        $output->{stdout},
+        qr{^Prima, [ ] un [ ] backup [ ] a [ ] cui [ ] tornare: [ ]
+          \Q$MAKE_BACKUPS\E}msx,
+        'in Italian'
+    );
 };
 
 subtest 'each host its own restart' => sub {
@@ -134,11 +161,12 @@ subtest 'its --json and its misuse' => sub {
 
 done_testing();
 
-sub _upgrade ( $os, $environment, $language = 'en' ) {
+sub _upgrade ( $os, $environment, $language = 'en', $backups_ready = 0 ) {
     my $system = GPForum::OS->from_name($os);
 
     return GPForum::Command::Upgrade->new(
-        host => GPForum::Service::Operations::Host->new(
+        backups_ready => $backups_ready,
+        host          => GPForum::Service::Operations::Host->new(
             os          => $system,
             environment => $environment,
         ),

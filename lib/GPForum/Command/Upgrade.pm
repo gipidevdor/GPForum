@@ -5,6 +5,7 @@ package GPForum::Command::Upgrade;
 
 use Carp qw(croak);
 use Const::Fast;
+use English qw(-no_match_vars);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::Util qw(encode);
@@ -26,6 +27,9 @@ const my $INDENT  => q{  };
 # backup-and-restore.md name it.
 const my $BACKUPS => '/var/backups/gpforum';
 
+# The account the services run as, which backs the forum up on a server.
+const my $SERVICE_USER => 'gpforum';
+
 # Walkthrough 3, friction 5: gpforum help named no upgrade, and the three
 # commands lived in docs/ops/upgrade.md alone. gpforum upgrade prints them,
 # written for this host -- its code directory, its service manager's
@@ -42,6 +46,12 @@ has dependencies =>
   sub { return GPForum::Service::Operations::Dependencies->new; };
 
 has words => sub { return GPForum::Command::Support::Words->new; };
+
+# Whether the backups' directory is there already; a test says. Its parent
+# is root's -- 0700 on macOS, missing on a fresh Debian host -- so the
+# backup, run as the service's account, could not make it, and the line
+# named no step that does.
+has backups_ready => sub { return -d $BACKUPS ? 1 : 0; };
 
 sub run ( $self, @arguments ) {
     return GPForum::Command::Usage->help( \*STDOUT, _usage() )
@@ -116,10 +126,23 @@ sub plan ($self) {
     return {
         steps   => [ map { _as_read($_) } @steps ],
         restart => _as_read($apart),
-        backup  => $deployed
-        ? _as_read("${runner}gpforum backup --to $BACKUPS")
-        : undef,
+        backup  => $deployed ? _as_read( $self->_backup($runner) ) : undef,
     };
+}
+
+# The backup, after the directory it goes in when that is not there yet:
+# made by root for the account the backup runs as, private to it, as
+# gpforum backup asks when it cannot make it.
+sub _backup ( $self, $runner ) {
+    my $backup = "${runner}gpforum backup --to $BACKUPS";
+    return $backup if $self->backups_ready;
+
+    my $owner =
+      length $runner
+      ? $SERVICE_USER
+      : $ENV{SUDO_USER} // scalar getpwuid $EFFECTIVE_USER_ID;
+
+    return "sudo install -d -o $owner -m 700 $BACKUPS && $backup";
 }
 
 sub _print ( $self, $plan ) {
@@ -218,7 +241,13 @@ Runs the command line. Returns 0, or 2 on misuse.
 The commands, as C<< { steps, restart, backup } >>: the three lines in
 order, the restart said apart when there is no command for it to follow
 C<gpforum migrate> (undef otherwise), and the backup to take first on a
-server (undef in development).
+server (undef in development), after the C<install -d> that makes its
+directory when that is not there yet.
+
+=head2 backups_ready
+
+True when F</var/backups/gpforum> is there, so the backup line needs no
+C<install -d> before it.
 
 =head2 host
 

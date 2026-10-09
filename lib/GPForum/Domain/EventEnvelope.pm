@@ -92,10 +92,6 @@ sub idempotency_key ( $self, %input ) {
       _required( aggregate_id => $input{aggregate_id} );
 }
 
-sub contract_name {
-    return $CONTRACT_NAME;
-}
-
 sub contract_version {
     return $CONTRACT_VERSION;
 }

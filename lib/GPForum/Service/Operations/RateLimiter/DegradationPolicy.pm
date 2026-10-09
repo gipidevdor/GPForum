@@ -25,10 +25,6 @@ sub new ( $class, @arguments ) {
     return $self;
 }
 
-sub fail_closed_mode { return $MODE_FAIL_CLOSED; }
-
-sub permissive_mode { return $MODE_PERMISSIVE; }
-
 sub from_environment ( $class, $environment ) {
     my $name = defined $environment ? $environment : q{};
 
@@ -134,14 +130,6 @@ to ask for it.
 Builds the policy and croaks when C<mode> is not one of C<fail_closed> or
 C<permissive>. An invalid mode fails at wiring time rather than on the first
 throwing request.
-
-=head2 fail_closed_mode
-
-Class constant for the C<fail_closed> mode name.
-
-=head2 permissive_mode
-
-Class constant for the C<permissive> mode name.
 
 =head2 from_environment
 

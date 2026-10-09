@@ -11,7 +11,7 @@ use Test::More;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 198;
+const my $EXPECTED_TESTS => 196;
 const my $CURLY_CLASS    => '[{]';
 const my $LAUNCHD_FRONT_DOOR =>
   qr{<string>/opt/gpforum/bin/gpforum</string> \s*}msx;
@@ -123,8 +123,6 @@ for my $required_file (
     script/evidence-validate
     script/evidence-meta
     script/dead-letter-check
-    script/dead-letter-replay
-    script/search-rebuild
     script/mail-lifecycle-check
     )
   )

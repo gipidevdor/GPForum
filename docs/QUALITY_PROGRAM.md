@@ -1487,7 +1487,7 @@ already listed both. What neither surface could do was the other half of ADR
 work "from a canonical write", which for a failed notification means nothing
 an operator can do. Replay now exists on both sides, over one service
 (`Service::Outbox::DeadLetterReplay`): a Replay button per dead letter on
-`/admin/jobs`, and `script/dead-letter-replay --list | --id ID` on the host.
+`/admin/jobs`, and `gpforum dead-letters --list | --id ID` on the host.
 It keeps the runbook's two rules — a cancelled message is never revived and
 `dead_letters` stays append-only — by enqueueing a **new** message for the
 same envelope under the key `dead-letter-replay:<id>`, and it records the

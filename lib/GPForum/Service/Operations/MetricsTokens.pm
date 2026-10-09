@@ -38,6 +38,9 @@ const my $STAT_MODE => 2;
 # choosing: it is not read again, as the FreeBSD rc scripts refuse it.
 const my $WRITABLE_BY_OTHERS => oct '022';
 
+# The server whose manager forks the workers that answer the checks.
+const my $PREFORK => 'Mojo::Server::Prefork';
+
 # The tokens each configuration the service started with follows: one, made
 # before Hypnotoad forks, for the application's configuration. A field hash
 # lets a configuration go when nothing else holds it.
@@ -86,6 +89,22 @@ sub for_config ( $class, $config ) {
 # Whether the tokens follow the file, which watch decided once.
 sub following ($self) {
     return $self->{following} ? 1 : 0;
+}
+
+# A pre-forking server's manager serves no request, so a check never made it
+# read the file, and each worker it forked later -- after its accepts, or a
+# missed heartbeat -- started from the tokens the service started with: one
+# forked while the file could not be used kept them, a token --finish had
+# dropped among them. The manager reads the file at each turn of its loop
+# instead, on the server's wait event, so a worker starts from the list the
+# manager accepted last. Returns whether it does: a service that does not
+# follow the file, or a server that does not fork, has nothing to read.
+sub follow_in_manager ( $self, $server ) {
+    return 0 if !$self->{following} || !$server->isa($PREFORK);
+
+    $server->on( wait => sub { $self->_refresh } );
+
+    return 1;
 }
 
 # The tokens accepted now, the one in use first: the file's, read again
@@ -252,11 +271,13 @@ Version 0.001.
 =head1 SYNOPSIS
 
     # Once, before Hypnotoad forks (GPForum::Bootstrap::Operations):
-    GPForum::Service::Operations::MetricsTokens->watch(
+    my $tokens = GPForum::Service::Operations::MetricsTokens->watch(
         $config,
         parser => 'GPForum::Command::Support::ServiceEnvironment',
         log    => $app->log,
     );
+    $app->hook( before_server_start =>
+          sub ( $server, $ ) { $tokens->follow_in_manager($server) } );
 
     # On each token check (GPForum::Web::OperationsAccess):
     my $tokens = GPForum::Service::Operations::MetricsTokens->for_config(
@@ -285,6 +306,12 @@ the tokens never become none, so C</metrics> never opens to anyone. The
 comparison of a presented token stays L<GPForum::Web::OperationsAccess>'s,
 in constant time.
 
+Hypnotoad's manager answers no check, so it reads the file at each turn of
+its loop instead, on L<Mojo::Server::Prefork>'s C<wait> event. A worker it
+forks later -- after its accepts, or a missed heartbeat -- starts from the
+list the manager accepted last, so a token C<--finish> dropped never comes
+back in it, even when the file cannot be used at that moment.
+
 =head1 SUBROUTINES/METHODS
 
 =head2 watch
@@ -304,6 +331,14 @@ does not change.
 =head2 following
 
 True when the tokens follow the file.
+
+=head2 follow_in_manager
+
+Takes the server about to start, from a C<before_server_start> hook. For a
+L<Mojo::Server::Prefork> (Hypnotoad's) and a followed file, subscribes the
+manager's C<wait> event, so the manager reads the file at each turn of its
+loop and the workers it forks start from the list it accepted last.
+Returns whether it did.
 
 =head2 accepted_metrics_tokens
 
@@ -346,7 +381,8 @@ other setting (ADR 0120).
 =head1 DEPENDENCIES
 
 L<GPForum::Base>, L<Hash::Util::FieldHash>, L<Time::HiRes>, L<GPForum::Config>,
-L<GPForum::Service::I18N::CliCatalog>.
+L<GPForum::Service::I18N::CliCatalog>; L<Mojo::Server::Prefork>'s C<wait>
+event.
 
 =head1 INCOMPATIBILITIES
 
@@ -354,9 +390,17 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Each Hypnotoad worker reads the file on its own, and logs its own line. A
-service whose file is not the host's, started from a service file without
-C<GPFORUM_ENV_FILE>, keeps the tokens it started with until it restarts.
+Each Hypnotoad worker reads the file on its own, and logs its own line; so
+does the manager. A service whose file is not the host's, started from a
+service file without C<GPFORUM_ENV_FILE>, keeps the tokens it started with
+until it restarts.
+
+The manager reads at each turn of its loop, a second apart at most (it waits
+a second for the workers' heartbeats). A worker forked within that second
+after a change starts from the list before it and reads the file at its
+first check; only when the file was changed again, into one it cannot use,
+within the same second does that worker keep the list before, until the file
+can be used again.
 
 =head1 AUTHOR
 

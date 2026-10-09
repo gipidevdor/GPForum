@@ -201,6 +201,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- A metrics token `gpforum secret rotate metrics --finish` dropped could
+  come back in a worker Hypnotoad forked later. The tokens follow the
+  environment file in each process that answers a check, and the manager
+  answers none: it kept the tokens the service started with, and a worker
+  forked from it -- after its accepts, or a missed heartbeat -- while the
+  file could not be used (a line that is not `NAME=value`, a mode another
+  account may write, no token) kept them too, and took the dropped token
+  while it refused the one in use. The manager now reads the file at each
+  turn of its loop, on Hypnotoad's `wait` event, so a new worker starts from
+  the list it accepted last (ADR 0124, amended).
+
 - A password change could undo the reset that took an account back. The
   change verifies the current password before its transaction; a reset that
   committed in between replaced that password, and the change rotated the

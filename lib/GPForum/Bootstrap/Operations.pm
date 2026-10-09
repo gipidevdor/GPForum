@@ -112,12 +112,22 @@ sub register ( $, %input ) {
 
     # The metrics tokens follow the environment file the service started
     # with, so a rotation needs no restart (ADR 0124). Whether they do is
-    # decided here, once, before Hypnotoad forks its workers.
-    GPForum::Service::Operations::MetricsTokens->watch(
+    # decided here, once, before Hypnotoad forks its workers. Its manager
+    # reads the file at each turn of its loop, so a worker it forks later
+    # starts from the tokens accepted last, not those the service started
+    # with.
+    my $metrics_tokens = GPForum::Service::Operations::MetricsTokens->watch(
         $config,
         parser => 'GPForum::Command::Support::ServiceEnvironment',
         log    => $application->log,
     );
+    if ( $metrics_tokens->following ) {
+        $application->hook(
+            before_server_start => sub ( $server, $ ) {
+                $metrics_tokens->follow_in_manager($server);
+            }
+        );
+    }
     if ( $runtime_policy->outdated_unit ) {
         $application->log->warn(
             GPForum::Service::I18N::CliCatalog->new->text(

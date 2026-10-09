@@ -13,6 +13,8 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::Post;
+use GPForum::Infrastructure::ResultRow::Thread;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::Schema;
@@ -241,6 +243,19 @@ subtest 'a function\'s row reads as the DBIx::Class row it replaces' => sub {
     is( $row->get_column('slug'),             undef, 'and reads as undef' );
     is( GPForum::Infrastructure::ResultRow->from(undef),
         undef, 'no row is undef' );
+
+    my $post = GPForum::Infrastructure::ResultRow::Post->from(
+        { position => 2, post_id => $id } );
+    is( $post->position,   2, 'a post row has the Post columns\' accessors' );
+    is( $post->deleted_at, undef, 'one the function did not return is undef' );
+    is(
+        GPForum::Infrastructure::ResultRow::Thread->from( { title => 'T' } )
+          ->title,
+        'T',
+        'and a thread row the Thread columns\''
+    );
+    ok( !GPForum::Infrastructure::ResultRow::Post->can('author'),
+        'but no relationship' );
 };
 
 done_testing();

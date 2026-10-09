@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
-use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::Thread;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
@@ -66,7 +66,7 @@ sub find_thread_row ( $self, $thread_id ) {
     return undef if !defined $thread_id || !length $thread_id;
 
     if ( my $functions = $self->functions ) {
-        return GPForum::Infrastructure::ResultRow->from(
+        return GPForum::Infrastructure::ResultRow::Thread->from(
             $functions->row( @{ $self->thread_row_call($thread_id) } ) );
     }
 
@@ -287,8 +287,8 @@ C<last_activity_at>, C<deleted_at>) plus C<author_username>,
 C<author_display_name>, C<category_title>, C<category_visibility>,
 C<space_id> and C<space_visibility>, without any visibility check. Returns
 C<undef> for an undefined or empty id or a missing thread. From the function
-the row is a L<GPForum::Infrastructure::ResultRow>, which answers
-C<get_column> as the C<Thread> row does.
+the row is a L<GPForum::Infrastructure::ResultRow::Thread>, which answers
+C<get_column> and the column accessors as the C<Thread> row does.
 
 =head2 post_scope
 
@@ -319,7 +319,7 @@ None.
 L<GPForum::Service::Forum::PostReader>, L<GPForum::Service::Forum::Viewer>,
 L<GPForum::Service::Forum::Visibility>, L<GPForum::Base>,
 L<GPForum::Infrastructure::PreparedQuery>,
-L<GPForum::Infrastructure::ResultRow>,
+L<GPForum::Infrastructure::ResultRow::Thread>,
 L<GPForum::Infrastructure::SqlFunction>.
 
 =head1 INCOMPATIBILITIES

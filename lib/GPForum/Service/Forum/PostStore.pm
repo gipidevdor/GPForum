@@ -12,6 +12,7 @@ use GPForum::Domain::Post;
 use GPForum::Domain::Thread;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::PreparedQuery;
+use GPForum::Infrastructure::ResultRow::Post;
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::UniqueConflict;
@@ -23,6 +24,34 @@ our $VERSION = '0.001';
 
 const my $FIRST_POSITION     => 1;
 const my $COUNTER_CONSTRAINT => 'thread_counters_pkey';
+
+# ADR 0126: what api.forum_create_reply_v1 takes of a reply command for the
+# store's write (api.core_forum_store_reply_v1), by part, the parameter
+# named after the column (a body's and a revision's post_id and body_id with
+# their part's name in front), and the post columns it answers with.
+const my @REPLY_POST => qw(
+  post_id thread_id author_user_id current_body_id current_revision_id
+  position visibility moderation_state version visibility_version
+  permission_version hidden_at locked_at deleted_at deleted_by
+);
+const my %REPLY_PART => (
+    body => {
+        body_format        => 'body_format',
+        body_id            => 'body_id',
+        body_rendered_safe => 'body_rendered_safe',
+        body_source        => 'body_source',
+        post_id            => 'body_post_id',
+        source_hash        => 'source_hash',
+    },
+    revision => {
+        body_id         => 'revision_body_id',
+        edit_reason     => 'edit_reason',
+        editor_user_id  => 'editor_user_id',
+        post_id         => 'revision_post_id',
+        revision_id     => 'revision_id',
+        revision_number => 'revision_number',
+    },
+);
 
 # The rows a post's write inserts by id, each with its result source, its
 # primary key constraint, and the parts of a command that carry its id.
@@ -87,7 +116,8 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has events   => sub { return GPForum::Service::Forum::Event->new; };
+has events => sub { return GPForum::Service::Forum::Event->new; };
+
 has recorder => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         id_service => $self->id_service,
@@ -108,6 +138,66 @@ sub create_post ( $self, $command ) {
         ok      => 1,
         post    => $result->{post},
         skipped => $result->{skipped},
+    };
+}
+
+# The store's parameters of api.forum_create_reply_v1: the command's
+# values, and the ids and the time this store draws while it writes, in its
+# order -- the write's correlation id, the event's id, the outbox row's, the
+# audit row's -- and the time the recorder stamps the event and the audit
+# row with. Every key of the composer's command is taken.
+sub reply_parameters ( $self, $command ) {
+    my %parameter = (
+        idempotency_key => $command->{idempotency_key},
+        map { $_ => $command->{post}{$_} } @REPLY_POST,
+    );
+    for my $part ( sort keys %REPLY_PART ) {
+        for my $name ( keys %{ $REPLY_PART{$part} } ) {
+            $parameter{ $REPLY_PART{$part}{$name} } = $command->{$part}{$name};
+        }
+    }
+
+    my $recorder = $self->recorder;
+    $parameter{correlation_id} = $self->id_service->uuid;
+    $parameter{event_id}       = $recorder->id_service->uuid;
+    $parameter{outbox_id}      = $recorder->outbox_builder->id_service->uuid;
+    $parameter{audit_id}       = $recorder->audit_record->id_service->uuid;
+    $parameter{recorded_at}    = $recorder->audit_record->now_iso8601;
+
+    return \%parameter;
+}
+
+# The names reply_parameters gives values for: what a reply refused before
+# the store sends, every one undefined.
+sub reply_parameter_names ($self) {
+    my @names = (
+        @REPLY_POST,
+        ( map { values %{ $REPLY_PART{$_} } } sort keys %REPLY_PART ),
+        qw(idempotency_key correlation_id event_id outbox_id audit_id
+          recorded_at),
+    );
+
+    return @names;
+}
+
+# The store's answer from the function's row: its refusal in the words of
+# GPForum::Domain::Thread, or the post, skipped when an earlier run of the
+# command had stored it whole.
+sub reply_answer ( $self, $row ) {
+    if ( defined $row->{refusal} ) {
+        return {
+            ok    => 0,
+            error =>
+              GPForum::Domain::Thread->reply_refusal_words( $row->{refusal} ),
+        };
+    }
+
+    return {
+        ok   => 1,
+        post => GPForum::Infrastructure::ResultRow::Post->from(
+            { map { $_ => $row->{$_} } @REPLY_POST }
+        ),
+        skipped => $row->{skipped} ? 1 : undef,
     };
 }
 
@@ -727,6 +817,32 @@ thread whose body is stored too, that post is returned with C<skipped> 1 and
 nothing is written or recorded; when its body is missing, the body,
 revision, count and pointers are completed and recorded. Otherwise
 C<skipped> is undefined.
+
+=head2 reply_parameters
+
+Takes a reply command, as for L</create_post>. Returns the store's
+parameters of C<api.forum_create_reply_v1> (ADR 0126), by name: the
+command's post, body and revision, its C<idempotency_key>, and the ids and
+the time L</create_post> draws as it writes -- the write's correlation id
+from C<id_service>, then the event's, the outbox row's and the audit row's
+ids from the C<recorder>'s id services, and the time the recorder stamps
+the event and the audit row with. The function runs this store's write
+(C<api.core_forum_store_reply_v1>) inside the reply command; this store's
+L</create_post> stays the Perl path for the callers that use the store
+alone.
+
+=head2 reply_parameter_names
+
+The names L</reply_parameters> gives values for: what a reply the workflow
+refused before the store sends for them, every one undefined.
+
+=head2 reply_answer
+
+Takes the row C<api.forum_create_reply_v1> answers with. Returns the
+store's answer as L</create_post> gives it: a refusal by its code in the
+words of L<GPForum::Domain::Thread/reply_refusal_words>, or
+C<< { ok => 1, post => $post, skipped => $skipped } >>, the post a
+L<GPForum::Infrastructure::ResultRow::Post>.
 
 =head2 edit_post
 

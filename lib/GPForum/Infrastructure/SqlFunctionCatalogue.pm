@@ -19,6 +19,45 @@ our $VERSION = '0.001';
 # functions share are not listed: Perl never calls them.
 # t/integration/postgres-sql-function-catalogue.t checks every entry against
 # pg_proc on a migrated database.
+# A reply command's post, body and revision as api.forum_create_reply_v1
+# takes them, and the ids and the time the write records under.
+const my @REPLY_COMMAND => (
+    post_id             => 'text',
+    thread_id           => 'text',
+    author_user_id      => 'text',
+    current_body_id     => 'text',
+    current_revision_id => 'text',
+    position            => 'bigint',
+    visibility          => 'text',
+    moderation_state    => 'text',
+    version             => 'bigint',
+    visibility_version  => 'bigint',
+    permission_version  => 'bigint',
+    hidden_at           => 'text',
+    locked_at           => 'text',
+    deleted_at          => 'text',
+    deleted_by          => 'text',
+    body_id             => 'text',
+    body_post_id        => 'text',
+    body_format         => 'text',
+    body_source         => 'text',
+    body_rendered_safe  => 'text',
+    source_hash         => 'text',
+    revision_id         => 'text',
+    revision_post_id    => 'text',
+    revision_body_id    => 'text',
+    editor_user_id      => 'text',
+    revision_number     => 'integer',
+    edit_reason         => 'text',
+);
+const my @REPLY_RECORD => (
+    correlation_id => 'text',
+    event_id       => 'text',
+    outbox_id      => 'text',
+    audit_id       => 'text',
+    recorded_at    => 'text',
+);
+
 const my %FUNCTION => (
     forum_thread_page_head => {
         version    => 1,
@@ -34,6 +73,23 @@ const my %FUNCTION => (
             after_post_id  => 'uuid',
             row_limit      => 'integer',
         ],
+    },
+    forum_create_reply => {
+        version    => 1,
+        parameters => [
+            idempotency_key        => 'text',
+            command_type           => 'text',
+            actor_id               => 'text',
+            request_hash           => 'text',
+            command_id             => 'text',
+            command_correlation_id => 'text',
+            command_at             => 'text',
+            answer                 => 'jsonb',
+            store_refusals         => 'jsonb',
+            @REPLY_COMMAND,
+            @REPLY_RECORD,
+        ],
+        json => ['response'],
     },
 );
 

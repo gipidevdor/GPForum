@@ -9,7 +9,7 @@ use v5.40;
 
 use GPForum::Infrastructure::Keyset;
 use GPForum::Infrastructure::PreparedQuery;
-use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::Post;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
@@ -69,7 +69,8 @@ sub _function_posts ( $self, $functions, $request, $plan ) {
     my $rows =
       $functions->rows( @{ $self->thread_posts_call( $request, $plan ) } );
 
-    return [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
+    return [ map { GPForum::Infrastructure::ResultRow::Post->from($_) }
+          @{$rows} ];
 }
 
 # The call list_thread_posts makes on PostgreSQL: the function's catalogue
@@ -408,8 +409,8 @@ a schema that has none; undef keeps the prepared statements.
 Takes a hash reference with C<thread_id>, C<viewer_scope>,
 C<viewer_user_id>, C<limit> and C<after>. Returns
 C<< { items, has_next, next_cursor } >> with the post rows; from the
-function each is a L<GPForum::Infrastructure::ResultRow>, which answers
-C<get_column> as the C<Post> row does.
+function each is a L<GPForum::Infrastructure::ResultRow::Post>, which
+answers C<get_column> and the column accessors as the C<Post> row does.
 
 =head2 thread_posts_call
 
@@ -457,7 +458,7 @@ None.
 
 L<GPForum::Base>, L<GPForum::Infrastructure::Keyset>,
 L<GPForum::Infrastructure::PreparedQuery>,
-L<GPForum::Infrastructure::ResultRow>,
+L<GPForum::Infrastructure::ResultRow::Post>,
 L<GPForum::Infrastructure::SqlFunction>,
 L<GPForum::Service::Forum::Viewer>, L<GPForum::Service::Forum::Visibility>,
 L<GPForum::Service::Forum::PageWindow>.

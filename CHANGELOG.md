@@ -865,6 +865,25 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **Three OS settings that changed nothing are gone**:
+  `GPFORUM_OS_SENDFILE`, `GPFORUM_OS_STATIC_XSENDFILE` and
+  `GPFORUM_OS_WORKER_PRIORITY` only changed a mode, a flag and an action in
+  the reports, and nothing acted on them. An environment file that still
+  sets them is read as before, and they are ignored. The runtime evidence
+  calls static transfer `configurable` only when
+  `GPFORUM_ATTACHMENT_ACCEL_REDIRECT` names a prefix. The reports no longer
+  carry the retired affinity flag or the retired worker and realtime process
+  counts.
+
+- **No profile says whether GlifiStore is required**: the
+  `requires_glifistore` key, always 0 since GlifiStore became optional, is
+  gone from the operational profile in `/health/ready`, and ADR 0048
+  ("Mandatory GlifiStore L2 Cache") is marked Superseded.
+
+- **`script/antivirus-check`, `script/dead-letter-replay` and
+  `script/search-rebuild` are gone**: type `gpforum antivirus-check`,
+  `gpforum dead-letters` and `gpforum search-rebuild`.
+
 - **`gpforum setup` writes the decisions alone**: the ten settings an
   installation decides, each under one line saying what it is, and the SMTP
   lines commented out under the mail -- 41 lines where it wrote 258. A file
@@ -2389,6 +2408,18 @@ CI, evidence and internal refactors with no change in behaviour.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- Deleted the duplicate and redundant scripts: `bin/gpforum-seed-benchmark`
+  and `script/seed-benchmark` (use `bin/gpforum performance-seed`),
+  `script/bench-http` (`bin/gpforum benchmark --fixture`),
+  `script/bench-hotpaths` (`script/benchmark-http --fixture --check`),
+  `script/profile` and `script/profile-route` (`script/profile-nytprof --
+  PROGRAM` and `--route PATH`), `script/scheduled-jobs` and
+  `script/outbox-dispatch`.
+- Deleted twelve subs that nothing called (in `PlatformCheck`,
+  `Identity::Base`, `EventEnvelope`, `BatchPurge`, `Findings` and
+  `DegradationPolicy`), `Config::requires_glifistore`,
+  `Config::environment_requires_glifistore` and `Config::smtp_ssl`.
 
 - ADR 0126 records the owner's decision to move every SQL statement into
   PostgreSQL functions created by migrations, with Perl binding parameters

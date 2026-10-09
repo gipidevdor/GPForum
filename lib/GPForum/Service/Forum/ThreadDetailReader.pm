@@ -8,6 +8,8 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
 
@@ -51,10 +53,22 @@ sub find_thread ( $self, $thread_id, $viewer = undef ) {
 
 has prepared => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 
+# ADR 0126: on PostgreSQL the row is api.forum_thread_page_head_v1's, the
+# statement below transplanted into a function. A schema that has no
+# function layer -- an in-memory double -- keeps the prepared statement.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 # One shape, one statement for the life of the process
 # (Infrastructure::PreparedQuery): only the thread's id changes.
 sub find_thread_row ( $self, $thread_id ) {
     return undef if !defined $thread_id || !length $thread_id;
+
+    if ( my $functions = $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $functions->row( @{ $self->thread_row_call($thread_id) } ) );
+    }
 
     my $rows = $self->prepared->rows(
         schema    => $self->schema,
@@ -70,6 +84,13 @@ sub find_thread_row ( $self, $thread_id ) {
     );
 
     return $rows->[0];
+}
+
+# The call find_thread_row makes on PostgreSQL: the function's catalogue
+# name and its parameters. Public so the query-plan evidence explains what
+# runs.
+sub thread_row_call ( $self, $thread_id ) {
+    return [ 'forum_thread_page_head', { thread_id => $thread_id } ];
 }
 
 # The resultset find_thread_row runs. Public so the query-plan evidence
@@ -223,6 +244,12 @@ private thread, when the viewer is a member, reads every reply in it.
 A thread the viewer may not read and a thread that does not exist give the
 same answer, so a page does not reveal that a hidden thread is there.
 
+On PostgreSQL the thread row is read through
+C<api.forum_thread_page_head_v1> (ADR 0126), the statement this reader
+prepared moved into a function: one call, a plain row. A schema without the
+function layer (L<GPForum::Infrastructure::SqlFunction/for_schema>), such as
+an in-memory double, runs the prepared statement as before.
+
 =head1 SUBROUTINES/METHODS
 
 =head2 new
@@ -230,6 +257,9 @@ same answer, so a page does not reveal that a hidden thread is there.
 Constructor (L<GPForum::Base>). C<schema>, the DBIx::Class schema, is
 required: without it C<new> throws L<GPForum::X::Argument>;
 C<post_reader> defaults to a L<GPForum::Service::Forum::PostReader> on it.
+C<functions> defaults to the schema's
+L<GPForum::Infrastructure::SqlFunction>, undef for a schema that has none;
+undef keeps the prepared statement.
 
 =head2 find_thread
 
@@ -237,6 +267,11 @@ Takes a thread id and an optional viewer (a
 L<GPForum::Service::Forum::Viewer>, a user id, or nothing for an anonymous
 reader). Returns the thread row from L</find_thread_row> when the viewer may
 read it, otherwise C<undef>.
+
+=head2 thread_row_call
+
+The call C<find_thread_row> makes on PostgreSQL, for the query-plan
+evidence: C<[ 'forum_thread_page_head', { thread_id => $thread_id } ]>.
 
 =head2 thread_row_resultset
 
@@ -251,7 +286,9 @@ C<pinned>, C<visibility>, C<moderation_state>, C<locked_at>,
 C<last_activity_at>, C<deleted_at>) plus C<author_username>,
 C<author_display_name>, C<category_title>, C<category_visibility>,
 C<space_id> and C<space_visibility>, without any visibility check. Returns
-C<undef> for an undefined or empty id or a missing thread.
+C<undef> for an undefined or empty id or a missing thread. From the function
+the row is a L<GPForum::Infrastructure::ResultRow>, which answers
+C<get_column> as the C<Thread> row does.
 
 =head2 post_scope
 
@@ -280,7 +317,10 @@ None.
 =head1 DEPENDENCIES
 
 L<GPForum::Service::Forum::PostReader>, L<GPForum::Service::Forum::Viewer>,
-L<GPForum::Service::Forum::Visibility>, L<GPForum::Base>.
+L<GPForum::Service::Forum::Visibility>, L<GPForum::Base>,
+L<GPForum::Infrastructure::PreparedQuery>,
+L<GPForum::Infrastructure::ResultRow>,
+L<GPForum::Infrastructure::SqlFunction>.
 
 =head1 INCOMPATIBILITIES
 

@@ -70,6 +70,14 @@ sub row ( $self, $name, $values ) {
     return $self->rows( $name, $values )->[0];
 }
 
+# The statement a call sends and its values, as rows binds them: for the
+# query-plan evidence, which runs what the readers run.
+sub statement ( $self, $name, $values ) {
+    my $entry = $self->catalogue->function($name);
+
+    return [ $entry->{sql}, _bound( $entry, $values ) ];
+}
+
 # The values in the order of the function's parameters. A parameter left out
 # or one the function does not have is the caller's mistake: an undefined
 # value is a NULL, a missing one is a typo.
@@ -255,6 +263,11 @@ row.
 =head2 row
 
 As L</rows>, the first row or undef.
+
+=head2 statement
+
+As L</rows> takes its arguments, the statement the call would send and its
+values as they would be bound, in an array reference, without sending it.
 
 =head1 DIAGNOSTICS
 

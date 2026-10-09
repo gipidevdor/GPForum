@@ -19,7 +19,23 @@ our $VERSION = '0.001';
 # functions share are not listed: Perl never calls them.
 # t/integration/postgres-sql-function-catalogue.t checks every entry against
 # pg_proc on a migrated database.
-const my %FUNCTION => ();
+const my %FUNCTION => (
+    forum_thread_page_head => {
+        version    => 1,
+        parameters => [ thread_id => 'uuid' ],
+    },
+    forum_thread_page_posts => {
+        version    => 1,
+        parameters => [
+            thread_id      => 'uuid',
+            standing       => 'text',
+            viewer_user_id => 'uuid',
+            after_position => 'bigint',
+            after_post_id  => 'uuid',
+            row_limit      => 'integer',
+        ],
+    },
+);
 
 has entries => sub { return \%FUNCTION; };
 
@@ -52,7 +68,7 @@ sub _built ( $name, $entries ) {
 
     return {
         function => $function,
-        json     => { map { $_ => 1 } @{ $entry->{json} // [] } },
+        json     => { map { $_ => 1 } @{ _listed( $entry, 'json' ) } },
         name     => $name,
         names    => \@names,
         sql      => "SELECT * FROM $function("
@@ -60,6 +76,12 @@ sub _built ( $name, $entries ) {
         types   => \@types,
         version => $entry->{version},
     };
+}
+
+# A list an entry may leave out. The default entries are a Const::Fast hash,
+# where reading a key that is not there dies.
+sub _listed ( $entry, $key ) {
+    return exists $entry->{$key} ? $entry->{$key} : [];
 }
 
 1;

@@ -56,8 +56,21 @@ subtest 'the catalogue names the version and builds the statement' => sub {
     is_deeply( $catalogue->names, ['probe_lookup'], 'the names listed' );
     throws_ok { $catalogue->function('missing') }
     'GPForum::X::Argument', 'an unlisted name is the caller\'s mistake';
-    is_deeply( GPForum::Infrastructure::SqlFunctionCatalogue->new->names,
-        [], 'the release lists no function before its migration' );
+    my $release = GPForum::Infrastructure::SqlFunctionCatalogue->new;
+
+    for my $name ( @{ $release->names } ) {
+        my $listed = $release->function($name);
+        like(
+            $listed->{function},
+            qr/\A api [.] \Q$name\E _v [1-9]\d* \z/msx,
+            "the release's $name is a version of it"
+        );
+        is(
+            scalar @{ $listed->{names} },
+            scalar @{ $listed->{types} },
+            'and names each of its parameters'
+        );
+    }
 };
 
 subtest 'values are bound by name, in order, with their types' => sub {
@@ -89,6 +102,19 @@ subtest 'values are bound by name, in order, with their types' => sub {
         [ { document => { a => undef, b => [1] }, item_id => $id } ],
         'plain rows, with the json column decoded'
     );
+};
+
+subtest 'the statement a call would send, without sending it' => sub {
+    my $handle = GPForum::Test::SqlFunctionHandle->new;
+    is_deeply(
+        _layer($handle)->statement( 'probe_lookup', _values() ),
+        [
+            $catalogue->function('probe_lookup')->{sql},
+            $id, 'probe', 1, '{}', [],
+        ],
+        'the catalogue\'s statement and the values as rows binds them'
+    );
+    is_deeply( $handle->executed, [], 'and nothing is sent' );
 };
 
 subtest 'a parameter left out or unknown is refused before any call' => sub {

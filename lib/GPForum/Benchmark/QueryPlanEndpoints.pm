@@ -16,6 +16,7 @@ use GPForum::Service::Community::FeedReader;
 use GPForum::Service::Forum::CategoryReader;
 use GPForum::Service::Forum::PostReader;
 use GPForum::Service::Forum::Readability;
+use GPForum::Service::Forum::ThreadDetailReader;
 use GPForum::Service::Forum::ThreadReader;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Moderation::ReportStore;
@@ -28,8 +29,10 @@ use GPForum::Service::Search::Searcher;
 
 our $VERSION = '0.001';
 
-our @EXPORT_OK =
-  qw(endpoint_definition endpoint_names page_rows read_deep_page);
+our @EXPORT_OK = qw(
+  endpoint_definition endpoint_names function_endpoint_names page_rows
+  read_deep_page
+);
 
 # The benchmark's seeded ids: the first category, thread and user, and a
 # second category the signed-in reader holds a grant on.
@@ -120,6 +123,18 @@ const my @ENDPOINT_NAMES => qw(
   thread_view_signed_in
   thread_view_deep
   thread_view_deep_signed_in
+);
+
+# ADR 0126: the statements the forum's functions run, which EXPLAIN cannot
+# reach from outside them. The evidence reads their plans through
+# auto_explain, inside the call the reader makes, on the same pages as the
+# endpoints above.
+const my @FUNCTION_ENDPOINT_NAMES => qw(
+  thread_head_function
+  thread_view_function
+  thread_view_function_signed_in
+  thread_view_function_deep
+  thread_view_function_deep_signed_in
 );
 
 # What each endpoint EXPLAINs: its purpose and label, and the resultset lib/
@@ -292,6 +307,44 @@ my %ENDPOINT = (
         sql_label => 'outbox_claim_ready',
         statement => \&_claim_statement,
     },
+    thread_head_function => {
+        purpose   => 'thread head through its function',
+        sql_label => 'forum_thread_page_head_v1',
+        call      => sub ( $schema, $page = _seeded_page() ) {
+            return GPForum::Service::Forum::ThreadDetailReader->new(
+                schema => $schema )->thread_row_call( $page->{thread_id} );
+        },
+    },
+    thread_view_function => {
+        purpose   => 'thread post page through its function',
+        sql_label => 'forum_thread_page_posts_v1',
+        call      => sub ($schema) {
+            return _thread_posts_call( $schema, _seeded_page() );
+        },
+    },
+    thread_view_function_signed_in => {
+        purpose   => 'thread post page through its function, signed in',
+        sql_label => 'forum_thread_page_posts_v1_viewer',
+        call      => sub ($schema) {
+            return _thread_posts_call( $schema, _seeded_page(),
+                _member_viewer() );
+        },
+    },
+    thread_view_function_deep => {
+        purpose   => 'thread post page through its function, halfway down',
+        sql_label => 'forum_thread_page_posts_v1_keyset',
+        deep      => 'thread',
+        call      => \&_thread_posts_call,
+    },
+    thread_view_function_deep_signed_in => {
+        purpose =>
+          'thread post page through its function, halfway down, signed in',
+        sql_label => 'forum_thread_page_posts_v1_viewer_keyset',
+        deep      => 'thread',
+        call      => sub ( $schema, $page ) {
+            return _thread_posts_call( $schema, $page, _member_viewer() );
+        },
+    },
 );
 
 # The feed and the inbox filter on what the benchmark user can read, as they
@@ -357,6 +410,18 @@ sub _thread_posts ( $schema, $page, $viewer = undef ) {
       );
 }
 
+# The call PostReader makes on PostgreSQL for the same request.
+sub _thread_posts_call ( $schema, $page, $viewer = undef ) {
+    return GPForum::Service::Forum::PostReader->new( schema => $schema )
+      ->thread_posts_call(
+        {
+            after     => $page->{after},
+            thread_id => $page->{thread_id},
+            _signed_in( $page, $viewer ),
+        }
+      );
+}
+
 sub _signed_in ( $page, $viewer ) {
     return if !$viewer;
 
@@ -404,6 +469,12 @@ sub _claim_statement {
 
 sub endpoint_names {
     return @ENDPOINT_NAMES;
+}
+
+# The endpoints whose statements run inside a function: not in a report's
+# default list, which --functions or --endpoint selects them from.
+sub function_endpoint_names {
+    return @FUNCTION_ENDPOINT_NAMES;
 }
 
 # The endpoint's definition, undef for a name it does not know.
@@ -472,13 +543,20 @@ EXPLAINed. A deep endpoint reads the page halfway down its list.
 
 The endpoint names, in the order a report lists them.
 
+=head2 function_endpoint_names
+
+The endpoints whose statements run inside a PostgreSQL function (ADR 0126),
+in the order a report lists them. They are not among L</endpoint_names>.
+
 =head2 endpoint_definition
 
 Given a name, a hash reference with the endpoint's C<purpose>, C<sql_label>,
 and either a C<resultset> sub (given the schema and, for a C<deep> endpoint,
-the page) or a C<statement> sub answering C<[ $sql, @bind ]>; optionally
-C<deep> (C<category>, C<latest> or C<thread>), C<ranked_relation> and
-C<allow_seq_scan>. Undef for a name it does not know.
+the page), a C<statement> sub answering C<[ $sql, @bind ]>, or, for a
+function endpoint, a C<call> sub answering the reader's call
+C<[ $name, \%parameters ]>; optionally C<deep> (C<category>, C<latest> or
+C<thread>), C<ranked_relation> and C<allow_seq_scan>. Undef for a name it
+does not know.
 
 =head2 read_deep_page
 

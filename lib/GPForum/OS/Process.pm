@@ -18,10 +18,10 @@ const my %PROCESS_CLASSES => (
     maintenance_worker => 10,
 );
 
-sub snapshot ( $self, $features ) {
+sub snapshot ($self) {
     my %classes;
     for my $class ( sort keys %PROCESS_CLASSES ) {
-        $classes{$class} = $self->priority_plan( $class, $features );
+        $classes{$class} = $self->priority_plan($class);
     }
 
     return {
@@ -32,28 +32,16 @@ sub snapshot ( $self, $features ) {
 
 # A plan, never applied here: nothing in GPForum calls setpriority. The
 # supervisor sets the nice value (the shipped scheduled-jobs units set 10).
-# GPFORUM_OS_WORKER_PRIORITY=on says the supervisor is expected to apply the
-# delta; the action used to read 'setpriority-if-permitted', which claimed a
-# call the code never made.
-sub priority_plan ( $self, $class, $features ) {
-    my $known   = exists $PROCESS_CLASSES{$class} ? 1 : 0;
-    my $delta   = $known ? $PROCESS_CLASSES{$class}   : $DEFAULT_NICE_DELTA;
-    my $enabled = _worker_priority_enabled($features);
+# GPFORUM_OS_WORKER_PRIORITY, which only relabelled this plan in the report,
+# is gone.
+sub priority_plan ( $self, $class ) {
+    my $known = exists $PROCESS_CLASSES{$class} ? 1 : 0;
 
     return {
         class      => $class,
         known      => $known,
-        nice_delta => $delta,
-        enabled    => $enabled,
-        action     => $enabled ? 'supervisor-nice' : 'observe',
+        nice_delta => $known ? $PROCESS_CLASSES{$class} : $DEFAULT_NICE_DELTA,
     };
-}
-
-sub _worker_priority_enabled ($features) {
-    return 0 if !$features;
-    return 0 if !exists $features->{worker_priority};
-
-    return $features->{worker_priority}{enabled} ? 1 : 0;
 }
 
 1;

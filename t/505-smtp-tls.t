@@ -83,10 +83,6 @@ subtest 'the old GPFORUM_SMTP_SSL still reads' => sub {
         ],
         'and the configuration notes the old name, with what it now holds'
     );
-    is( $config->smtp_ssl, 1,
-        'smtp_ssl, for the callers that still ask, says it is encrypted' );
-    is( GPForum::Config->new( smtp_tls => 'off' )->smtp_ssl,
-        0, 'and that off is not' );
     is_deeply( GPForum::Config->from_environment( {} )->renamed_settings,
         [], 'an environment without it notes nothing' );
 };

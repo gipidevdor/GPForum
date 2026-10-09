@@ -158,10 +158,7 @@ const my @SECTIONS => (
     {
         name     => 'operating_system',
         settings => [
-            [ GPFORUM_OS_REUSEPORT        => 'os_reuseport' ],
-            [ GPFORUM_OS_SENDFILE         => 'os_sendfile' ],
-            [ GPFORUM_OS_WORKER_PRIORITY  => 'os_worker_priority' ],
-            [ GPFORUM_OS_STATIC_XSENDFILE => 'os_static_xsendfile' ],
+            [ GPFORUM_OS_REUSEPORT => 'os_reuseport' ],
             [
                 GPFORUM_OS_MIN_RECOMMENDED_WORKERS =>
                   'os_min_recommended_workers'

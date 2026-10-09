@@ -92,7 +92,7 @@ sub report ($self) {
                 'tcp_nodelay', 'IPPROTO_TCP', 'TCP_NODELAY'
             ),
         },
-        static_transfer => $self->_static_transfer_report($runtime_report),
+        static_transfer => $self->_static_transfer_report,
         postgresql      => $self->_postgresql_report,
         filesystem      => $self->_filesystem_report,
     };
@@ -185,10 +185,11 @@ sub _hypnotoad_report ( $self, $runtime_report ) {
 # The controller emits X-Accel-Redirect only when a prefix is configured, so
 # x_accel_redirect_implemented reports what the running process would
 # actually do rather than a constant. It read 0 for as long as nothing
-# emitted the header at all.
-sub _static_transfer_report ( $self, $runtime_report ) {
-    my $transfer = $runtime_report->{static_transfer} || {};
-    my $config   = $self->config;
+# emitted the header at all. It is the one way GPForum hands a file to the
+# proxy: the sendfile and X-Sendfile settings only ever changed a reported
+# mode, and are gone.
+sub _static_transfer_report ($self) {
+    my $config = $self->config;
     my $prefix;
     ## no critic (BuiltinFunctions::ProhibitUniversalCan)
     # Deliberate, as in Attachment::Delivery: a config double is free to
@@ -198,15 +199,12 @@ sub _static_transfer_report ( $self, $runtime_report ) {
     }
     ## use critic
 
+    my $accel = defined $prefix && length $prefix ? 1 : 0;
+
     return {
-        %{$transfer},
-        status => $transfer->{mode} && $transfer->{mode} eq 'delegated'
-        ? $STATUS_CONFIGURABLE
-        : $STATUS_UNAVAILABLE,
-        xsendfile_header_implemented => 0,
-        x_accel_redirect_implemented => defined $prefix
-          && length $prefix ? 1 : 0,
-        materialized_in_benchmark => 0,
+        status => $accel ? $STATUS_CONFIGURABLE : $STATUS_UNAVAILABLE,
+        x_accel_redirect_implemented => $accel,
+        materialized_in_benchmark    => 0,
     };
 }
 

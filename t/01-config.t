@@ -39,7 +39,7 @@ const my %PRODUCTION_ENV => (
     GPFORUM_SESSION_SECRET  => $PRODUCTION_SECRET,
 );
 
-const my $EXPECTED_TESTS             => 322;
+const my $EXPECTED_TESTS             => 313;
 const my $DEFAULT_LOG_LEVEL          => 'info';
 const my $DEFAULT_RUNTIME_LISTEN     => 'http://127.0.0.1:8080';
 const my $DEFAULT_RUNTIME_BACKLOG    => 256;
@@ -112,9 +112,6 @@ my %environment = (
     GPFORUM_RUNTIME_PROXY                => 0,
     GPFORUM_RUNTIME_PID_FILE             => '/tmp/gpforum-test.pid',
     GPFORUM_OS_REUSEPORT                 => 'off',
-    GPFORUM_OS_SENDFILE                  => 'on',
-    GPFORUM_OS_WORKER_PRIORITY           => 'auto',
-    GPFORUM_OS_STATIC_XSENDFILE          => 'off',
     GPFORUM_OS_AFFINITY                  => 'manual',
     GPFORUM_OS_MIN_RECOMMENDED_WORKERS   => $CUSTOM_MIN_OS_WORKERS,
     GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS => $CUSTOM_MAX_OPEN_FDS,
@@ -209,12 +206,8 @@ is(
 );
 is( $config->runtime_pid_file, '/tmp/gpforum-test.pid',
     'runtime pid file loads from env' );
-is( $config->os_reuseport, 'off', 'OS reuseport flag loads from env' );
-is( $config->os_sendfile,  'on',  'OS sendfile flag loads from env' );
-is( $config->os_worker_priority,
-    'auto', 'OS worker priority flag loads from env' );
-is( $config->os_static_xsendfile, 'off', 'OS xsendfile flag loads from env' );
-is( $config->os_affinity,         'manual', 'OS affinity flag loads from env' );
+is( $config->os_reuseport, 'off',    'OS reuseport flag loads from env' );
+is( $config->os_affinity,  'manual', 'OS affinity flag loads from env' );
 is( $config->os_min_recommended_workers,
     $CUSTOM_MIN_OS_WORKERS, 'OS minimum worker threshold loads from env' );
 is( $config->os_max_open_file_descriptors,
@@ -936,11 +929,8 @@ my @every_setting   = (
         runtime_trusted_proxies => 'GPFORUM_RUNTIME_TRUSTED_PROXIES',
         '127.0.0.1,::1', '10.0.0.1'
     ],
-    [ os_reuseport        => 'GPFORUM_OS_REUSEPORT',        'auto', 'on' ],
-    [ os_sendfile         => 'GPFORUM_OS_SENDFILE',         'auto', 'off' ],
-    [ os_worker_priority  => 'GPFORUM_OS_WORKER_PRIORITY',  'auto', 'on' ],
-    [ os_static_xsendfile => 'GPFORUM_OS_STATIC_XSENDFILE', 'auto', 'off' ],
-    [ os_affinity         => 'GPFORUM_OS_AFFINITY',         'off',  'manual' ],
+    [ os_reuseport => 'GPFORUM_OS_REUSEPORT', 'auto', 'on' ],
+    [ os_affinity  => 'GPFORUM_OS_AFFINITY',  'off',  'manual' ],
     [
         os_min_recommended_workers => 'GPFORUM_OS_MIN_RECOMMENDED_WORKERS',
         '2', '3'

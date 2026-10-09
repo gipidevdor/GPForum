@@ -99,7 +99,7 @@ sub _os_sections ($self) {
         os           => $profile->snapshot,
         os_features  => $profile->feature_snapshot($settings),
         os_sockets   => $profile->socket_snapshot($settings),
-        os_processes => $profile->process_snapshot($settings),
+        os_processes => $profile->process_snapshot,
         os_preflight => GPForum::Service::Operations::OSPreflight->new(
             runtime => $runtime,
             %{ $runtime->os_preflight_settings || {} },

@@ -531,9 +531,6 @@ actual reactor is in [ops/reactor-backend.md](ops/reactor-backend.md).
 | Setting | Values | Meaning |
 | --- | --- | --- |
 | `GPFORUM_OS_REUSEPORT` | `auto`, `on`, `off` | `SO_REUSEPORT` on the listen URL where supported |
-| `GPFORUM_OS_SENDFILE` | `auto`, `on`, `off` | sendfile, delegated to the reverse proxy |
-| `GPFORUM_OS_STATIC_XSENDFILE` | `auto`, `on`, `off` | static transfer through the proxy |
-| `GPFORUM_OS_WORKER_PRIORITY` | `auto`, `on`, `off` | report the nice plan below as one the supervisor applies (`supervisor-nice`) rather than observed (`observe`) |
 | `GPFORUM_OS_AFFINITY` | retired | accepted and ignored, with a warning at start (it was a declaration, never applied) |
 | `GPFORUM_OS_MIN_RECOMMENDED_WORKERS` | integer | floor for the worker recommendation |
 | `GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS` | integer | the descriptor floor, 65,536 by default |
@@ -552,10 +549,8 @@ pipes all draw on it.
 | `mail_worker` | 8 |
 | `maintenance_worker` | 10 |
 
-The plan is a declaration, whatever the setting: nothing in GPForum calls
-`setpriority`, and the report says so: policy `declared-for-the-supervisor`,
-action `supervisor-nice` when enabled (it used to read
-`setpriority-if-permitted`, a call nothing made). No GPForum process starts
+The plan is a declaration: nothing in GPForum calls `setpriority`, and the
+report says so: policy `declared-for-the-supervisor`. No GPForum process starts
 knowing its class -- the web workers run under Hypnotoad, the outbox
 dispatcher and the scheduled jobs under their own units -- so there is no
 start hook that could pick a delta. The supervisor sets the nice value;

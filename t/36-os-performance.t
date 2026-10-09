@@ -21,7 +21,7 @@ use GPForum::Test::OperationsClock;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS         => 54;
+const my $EXPECTED_TESTS         => 51;
 const my $WEB_PROCESSES          => 2;
 const my $MAINTENANCE_NICE_DELTA => 10;
 
@@ -64,29 +64,13 @@ ok( $unknown->feature_enabled( 'reuseport', 'on' ),
     'explicit on enables feature flag' );
 ok( !$unknown->feature_enabled( 'reuseport', 'off' ),
     'explicit off disables feature flag' );
-my $unknown_features = $unknown->feature_snapshot(
-    {
-        reuseport        => 'on',
-        sendfile         => 'off',
-        worker_priority  => 'auto',
-        static_xsendfile => 'auto',
-        affinity         => 'manual',
-    }
-);
+my $unknown_features = $unknown->feature_snapshot( { reuseport => 'on' } );
 ok(
     $unknown_features->{reuseport}{enabled},
     'explicit reuseport on enables effective feature'
 );
-ok(
-    !$unknown_features->{sendfile}{enabled},
-    'explicit sendfile off disables effective feature'
-);
-ok(
-    !$unknown_features->{worker_priority}{enabled},
-    'unknown OS does not enable worker priority automatically'
-);
-ok( $unknown_features->{affinity}{enabled},
-    'manual affinity is exposed as enabled deployment control' );
+is_deeply( [ sort keys %{$unknown_features} ],
+    ['reuseport'], 'reuseport is the one OS feature setting' );
 ok(
     !$unknown->socket_snapshot( { reuseport => 'on' } )->{reuseport}{enabled},
     'unknown OS does not enable unsupported reuseport socket'
@@ -117,19 +101,13 @@ my $runtime = GPForum::Runtime->new(
     worker_processes    => 1,
     realtime_processes  => 1,
     os_profile          => $linux,
-    os_feature_settings => {
-        reuseport        => 'auto',
-        sendfile         => 'off',
-        worker_priority  => 'off',
-        static_xsendfile => 'auto',
-        affinity         => 'off',
-    },
+    os_feature_settings => { reuseport => 'off' },
 );
 my $runtime_hash = $runtime->as_hash;
 is( $runtime_hash->{os}{name}, 'linux', 'runtime hash includes OS profile' );
 is( $runtime_hash->{os}{event_backend},
     'epoll', 'runtime hash includes event backend' );
-is( $runtime_hash->{os_features}{sendfile}{setting},
+is( $runtime_hash->{os_features}{reuseport}{setting},
     'off', 'runtime hash includes OS feature setting' );
 ok(
     exists $runtime_hash->{os_sockets}{reuseaddr},
@@ -137,8 +115,8 @@ ok(
 );
 ok( exists $runtime_hash->{os_processes}{classes}{web_worker},
     'runtime hash includes process class policy' );
-is( $runtime_hash->{os_processes}{classes}{maintenance_worker}{action},
-    'observe', 'disabled worker priority remains descriptive' );
+is( $runtime_hash->{os_processes}{classes}{maintenance_worker}{nice_delta},
+    $MAINTENANCE_NICE_DELTA, 'runtime hash carries the nice plan' );
 
 my $metrics = GPForum::Service::Operations::MetricsSnapshot->new(
     clock   => GPForum::Test::OperationsClock->new,
@@ -148,7 +126,7 @@ is( $metrics->{os}{name}, 'linux', 'metrics expose OS profile' );
 is( $metrics->{os}{supports_sendfile},
     1, 'metrics expose OS sendfile capability' );
 ok( exists $metrics->{os}{resources}, 'metrics expose OS resource snapshot' );
-is( $metrics->{os_features}{sendfile}{enabled},
+is( $metrics->{os_features}{reuseport}{enabled},
     0, 'metrics expose effective OS feature state' );
 ok(
     exists $metrics->{os}{resources}{open_file_descriptors},
@@ -167,13 +145,8 @@ ok(
     'resource probe returns file descriptor key'
 );
 
-my $socket_policy = GPForum::OS::Socket->new->snapshot(
-    $linux,
-    {
-        reuseport => { enabled => 1 },
-        sendfile  => { enabled => 1 },
-    }
-);
+my $socket_policy = GPForum::OS::Socket->new->snapshot( $linux,
+    { reuseport => { enabled => 1 } } );
 ok( $socket_policy->{reuseaddr}{enabled}, 'socket policy enables reuseaddr' );
 ok(
     $socket_policy->{reuseport}{enabled},
@@ -185,21 +158,16 @@ ok(
     'socket policy enables tcp_nodelay'
 );
 ok(
-    $socket_policy->{sendfile}{enabled},
-    'socket policy enables supported sendfile'
+    !exists $socket_policy->{sendfile},
+    'socket policy reports no sendfile option'
 );
 
 my $process_policy = GPForum::OS::Process->new;
-my $process_plan   = $process_policy->priority_plan( 'maintenance_worker',
-    { worker_priority => { enabled => 1 } } );
+my $process_plan   = $process_policy->priority_plan('maintenance_worker');
 is( $process_plan->{nice_delta},
     $MAINTENANCE_NICE_DELTA,
     'maintenance worker receives lower scheduling priority plan' );
-is( $process_plan->{action},
-    'supervisor-nice',
-    'enabled worker priority asks the supervisor for the nice delta' );
-my $unknown_process_plan = $process_policy->priority_plan( 'custom_worker',
-    { worker_priority => { enabled => 0 } } );
+my $unknown_process_plan = $process_policy->priority_plan('custom_worker');
 ok( !$unknown_process_plan->{known},
     'unknown process class is reported explicitly' );
 is( $unknown_process_plan->{nice_delta},

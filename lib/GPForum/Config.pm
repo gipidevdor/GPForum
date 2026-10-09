@@ -613,31 +613,6 @@ const my @SETTINGS => map {
         summary => 'SO_REUSEPORT on the listen socket: auto, on or off.',
     },
     {
-        name    => 'os_sendfile',
-        env     => 'GPFORUM_OS_SENDFILE',
-        default => 'auto',
-        one_of  => [qw(auto on off)],
-        section => 'operating_system',
-        summary => 'sendfile for static files: auto, on or off.',
-    },
-    {
-        name    => 'os_worker_priority',
-        env     => 'GPFORUM_OS_WORKER_PRIORITY',
-        default => 'auto',
-        one_of  => [qw(auto on off)],
-        section => 'operating_system',
-        summary => 'A lower priority for background work: auto, on or off.',
-    },
-    {
-        name    => 'os_static_xsendfile',
-        env     => 'GPFORUM_OS_STATIC_XSENDFILE',
-        default => 'auto',
-        one_of  => [qw(auto on off)],
-        section => 'operating_system',
-        summary => q{Static files through the proxy's X-Sendfile: auto, on or}
-          . ' off.',
-    },
-    {
         name    => 'os_affinity',
         env     => 'GPFORUM_OS_AFFINITY',
         default => 'off',
@@ -1094,12 +1069,6 @@ sub accepted_metrics_tokens ($self) {
     return _unique_head( $self->metrics_token, $self->previous_metrics_tokens );
 }
 
-# GPFORUM_SMTP_SSL's old reading, for the callers that still ask: 1 when the
-# SMTP connection is encrypted, either way.
-sub smtp_ssl ($self) {
-    return $self->smtp_tls eq 'off' ? 0 : 1;
-}
-
 # Mail sent by smtp with TLS on, from a Perl that cannot load the TLS module,
 # fails at the first message -- a sign-up's confirmation, a password reset --
 # long after the start. It is not one of problems(): what this Perl has
@@ -1228,13 +1197,7 @@ sub sizing ($self) {
 }
 
 sub os_feature_settings ($self) {
-    return {
-        reuseport        => $self->os_reuseport,
-        sendfile         => $self->os_sendfile,
-        worker_priority  => $self->os_worker_priority,
-        static_xsendfile => $self->os_static_xsendfile,
-        affinity         => $self->os_affinity,
-    };
+    return { reuseport => $self->os_reuseport, };
 }
 
 sub os_preflight_settings ($self) {
@@ -1962,12 +1925,6 @@ Staging and production refuse to start without C<GPFORUM_METRICS_TOKEN>, so
 the list is never empty there and C</metrics> cannot fail open. Development
 and test may leave it unset and keep C</metrics> unauthenticated.
 
-=head2 smtp_ssl
-
-1 when the SMTP connection is encrypted (C<smtp_tls> is C<starttls> or
-C<implicit>), 0 when it is C<off>: what C<GPFORUM_SMTP_SSL> used to say,
-for the callers that still ask.
-
 =head2 smtp_tls_problem
 
 Takes, optionally, whether this Perl can speak TLS to an SMTP server (by
@@ -2027,7 +1984,7 @@ operator set to another number is left out.
 
 =head2 os_feature_settings
 
-The C<os_*> feature switches, keyed without the prefix.
+The OS feature switch, C<GPFORUM_OS_REUSEPORT>, keyed without the prefix.
 
 =head2 os_preflight_settings
 

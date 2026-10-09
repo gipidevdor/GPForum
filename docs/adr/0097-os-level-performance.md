@@ -313,11 +313,12 @@ validate -> authorize -> write canonical row/event -> commit -> respond -> enque
 ### 32. OS Feature Flags
 
 - Every OS-specific optimization SHOULD be controllable:
-  - `gpforum.os.reuseport = auto|on|off`;
-  - `gpforum.os.sendfile = auto|on|off`;
-  - `gpforum.os.worker_priority = auto|on|off`;
-  - `gpforum.os.affinity = off|manual`;
-  - `gpforum.os.static_xsendfile = auto|on|off`.
+  - `gpforum.os.reuseport = auto|on|off`.
+- Amended 2026-10-09: `sendfile`, `worker_priority`, `affinity` and
+  `static_xsendfile` were declared here too. None changed what a process did,
+  only what a report said, and they are gone. The reverse proxy serves the
+  static files, `X-Accel-Redirect` hands it the attachments, and the
+  supervisor sets the nice values of the process plan.
 - Defaults MUST be conservative `auto`.
 
 ### 33. Controlled Degradation

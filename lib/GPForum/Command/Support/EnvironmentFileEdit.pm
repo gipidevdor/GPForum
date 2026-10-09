@@ -6,6 +6,7 @@ package GPForum::Command::Support::EnvironmentFileEdit;
 use Carp qw(croak);
 use Const::Fast;
 use English    qw(-no_match_vars);
+use Fcntl      qw(:flock);
 use File::Temp ();
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -23,10 +24,46 @@ our $VERSION = '0.001';
 
 const my $MODE_BITS => oct '7777';
 
-# Where stat puts the mode, the owner and the group.
-const my $STAT_MODE => 2;
-const my $STAT_UID  => 4;
-const my $STAT_GID  => 5;
+# Where stat puts the device, the inode, the mode, the owner and the group.
+const my $STAT_DEVICE => 0;
+const my $STAT_INODE  => 1;
+const my $STAT_MODE   => 2;
+const my $STAT_UID    => 4;
+const my $STAT_GID    => 5;
+
+# How many times an edit opens the file again when another edit replaced it
+# while this one waited for it: far more than edits at once ever make.
+const my $LOCK_ATTEMPTS => 1_000;
+
+# Runs code -- a read, an edit and a replace -- while no other edit runs:
+# two rotations at once each read the file, and the second rename dropped
+# the first one's token. The lock is the file's own, open now, so no lock
+# file is left beside it; each rename puts another file in its place, so
+# it holds only while the name still leads to the file locked, and one
+# replaced while this waited is opened and locked again. A file it cannot
+# open is left to the code, which says why it cannot read it. Returns what
+# the code returns.
+sub locked ( $class, $file, $code ) {
+    for ( 1 .. $LOCK_ATTEMPTS ) {
+        open my $handle, '<', $file or return $code->();
+        flock $handle, LOCK_EX or croak "lock $file: $OS_ERROR";
+        return $code->() if _still( $handle, $file );
+        close $handle or croak "close $file: $OS_ERROR";
+    }
+
+    croak "lock $file: replaced $LOCK_ATTEMPTS times while waiting";
+}
+
+# Whether the name still leads to the file a handle holds.
+sub _still ( $handle, $file ) {
+    my @held = stat $handle;
+    my @now  = stat $file;
+
+    return
+         @now
+      && $held[$STAT_DEVICE] == $now[$STAT_DEVICE]
+      && $held[$STAT_INODE] == $now[$STAT_INODE] ? 1 : 0;
+}
 
 # The last assignment of each name, as the service reads the file.
 sub values_of ( $class, $lines ) {
@@ -165,6 +202,15 @@ keeping its owner, group and mode.
 
 =head1 SUBROUTINES/METHODS
 
+=head2 locked
+
+Class method. Takes the file and a code reference, and runs the code while
+holding an exclusive C<flock> on the file, so two edits -- two C<gpforum
+secret rotate> at once -- never read the same file and drop each other's
+change. The lock is taken again on the file a rename put in place while
+this waited. A file that cannot be opened runs the code unlocked, for it to
+say why. Returns what the code returns.
+
 =head2 values_of
 
 Class method. Takes the file's lines and returns a hash reference of each
@@ -194,7 +240,8 @@ are given. Croaks with the system's reason when it cannot write.
 =head1 DIAGNOSTICS
 
 C<replace> croaks with what the system said: the directory not writable, the
-owner not one this process may give.
+owner not one this process may give. C<locked> croaks when the lock cannot
+be taken.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -202,7 +249,8 @@ None.
 
 =head1 DEPENDENCIES
 
-L<File::Temp>, L<GPForum::Command::Support::ServiceEnvironment>,
+L<Fcntl> (C<flock>), L<File::Temp>,
+L<GPForum::Command::Support::ServiceEnvironment>,
 L<GPForum::Config::Report> (to write an assignment as the file holds it).
 
 =head1 INCOMPATIBILITIES
@@ -211,7 +259,9 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Changing the owner needs root.
+Changing the owner needs root. The lock is advisory: an editor that writes
+the file by hand does not wait for it, nor does C<gpforum secret rotate>
+for the editor.
 
 =head1 AUTHOR
 

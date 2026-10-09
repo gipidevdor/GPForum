@@ -232,7 +232,14 @@ sub _request ( $self, @arguments ) {
     return \%request;
 }
 
+# One rotation at a time: each reads the file, edits it and renames the
+# edit over it, and two at once lost the first one's new secret.
 sub _rotate ( $self, $request, $file ) {
+    return $EDIT->locked( $file,
+        sub { return $self->_rotate_held( $request, $file ) } );
+}
+
+sub _rotate_held ( $self, $request, $file ) {
     my $names = $SECRET{ $request->{kind} };
     my @lines = split /^/msx, $self->_slurp( $request, $file );
     my %found = %{ $EDIT->values_of( \@lines ) };
@@ -610,7 +617,9 @@ it is replaced, not kept, since the list of those still accepted refuses it
 too.
 
 The file keeps its owner, group and mode and every other line; it is
-replaced in one rename. When every account on the host may read it, the
+replaced in one rename, and two rotations at once take turns
+(L<GPForum::Command::Support::EnvironmentFileEdit/locked>), so neither
+drops the other's secret. When every account on the host may read it, the
 report says so with the C<chmod 0640> that closes it, leaving the mode to the
 operator. When an account other than its owner may write it, the running
 service does not read the metrics tokens from it again: a metrics rotation

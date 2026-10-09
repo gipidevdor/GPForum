@@ -201,6 +201,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- Two `gpforum secret rotate` at once lost one's new secret. Each read the
+  environment file, edited it and renamed the edit over it, so the second
+  rename dropped the token the first had written, one a scraper may already
+  have been given. Rotations now take turns on an advisory `flock` of the
+  file itself, taken again on the file a rename put in place while one
+  waited, so no lock file is left beside it.
+
 - `gpforum secret rotate metrics` promised a re-read the service refused.
   The running service does not read the tokens again from an environment
   file an account other than its owner may write (`mode & 022`), while the

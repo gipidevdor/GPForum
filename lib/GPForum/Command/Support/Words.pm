@@ -250,6 +250,9 @@ q{Would make {username} ({email}) the forum's owner; nothing was written.},
       'Cannot write {file} ({reason}): run it as root: {command}',
     'cli.secret.world_readable' => 'Every account on this host can read'
       . ' {file}, secrets included: {command}',
+    'cli.secret.writable' => 'Accounts other than its owner can write'
+      . ' {file}, so the running service does not read the metrics tokens'
+      . ' from it again: {command}',
     'cli.secret.nothing_to_finish' =>
       '{file} lists no previous one in {list}: there is nothing to finish.',
     'cli.secret.session.rotated' => 'A new session secret is in {file}.'

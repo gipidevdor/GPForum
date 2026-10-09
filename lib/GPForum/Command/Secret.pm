@@ -19,6 +19,7 @@ use GPForum::Command::Support::Words;
 use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::Service::Operations::Host;
+use GPForum::Service::Operations::MetricsTokens;
 use GPForum::Service::Operations::ServiceFiles;
 use GPForum::X::Usage;
 
@@ -55,7 +56,9 @@ const my $SESSION_DAYS => 30;
 const my $CHECK_MARK => "\N{CHECK MARK} ";
 
 # What every other account on the host may do with the file, and how a line
-# that warns begins, as the checks' findings begin one.
+# that warns begins, as the checks' findings begin one. Whether an account
+# other than its owner may write it is the service's own rule
+# (GPForum::Service::Operations::MetricsTokens->others_may_write).
 const my $OTHERS_BITS  => oct '007';
 const my $WARNING_MARK => q{! };
 
@@ -387,13 +390,29 @@ sub _report ( $self, $request, $file, $outcome, $changed ) {
         return 0;
     }
 
-    if ( $kind eq 'metrics' && $self->metrics_reread ) {
+    # A file another account may write is one the running service does not
+    # read the tokens from again, whatever its unit names: "with no
+    # restart" would be false, so the restart is named, after the chmod.
+    my $refused = $kind eq 'metrics'
+      && GPForum::Service::Operations::MetricsTokens->others_may_write($file);
+    if ( $kind eq 'metrics' && $self->metrics_reread && !$refused ) {
         return $self->_report_live( $file, $LIVE{$outcome}, \%parameters );
     }
 
     $self->_say( $CHECK_MARK
           . $self->_said( "cli.secret.$kind.$outcome", \%parameters ) );
-    $self->_say_if_open($file);
+    if ($refused) {
+        $self->_say(
+            $WARNING_MARK
+              . $self->_said(
+                'cli.secret.writable',
+                { file => $file, command => _chmod($file) }
+              )
+        );
+    }
+    else {
+        $self->_say_if_open($file);
+    }
     $self->_say( $self->_said( 'cli.next', { step => $self->_restart } ) );
 
     # The step after: finishing, once a rotation left a previous one to
@@ -438,15 +457,21 @@ sub _say_if_open ( $self, $file ) {
     my $mode = ( stat $file )[$STAT_MODE];
     return if !defined $mode || !( $mode & $OTHERS_BITS );
 
-    my $command = ( -O $file ? q{} : 'sudo ' ) . "chmod 0640 $file";
     $self->_say(
         $WARNING_MARK
           . $self->_said(
-            'cli.secret.world_readable', { file => $file, command => $command }
+            'cli.secret.world_readable',
+            { file => $file, command => _chmod($file) }
           )
     );
 
     return;
+}
+
+# What closes the file to every account but its owner and the service's
+# group: with sudo, when it is not this account's.
+sub _chmod ($file) {
+    return ( -O $file ? q{} : 'sudo ' ) . "chmod 0640 $file";
 }
 
 # A file's name as a service file writes it: a whole word of a unit line,
@@ -587,7 +612,9 @@ too.
 The file keeps its owner, group and mode and every other line; it is
 replaced in one rename. When every account on the host may read it, the
 report says so with the C<chmod 0640> that closes it, leaving the mode to the
-operator. No secret is printed, under C<--json> either.
+operator. When an account other than its owner may write it, the running
+service does not read the metrics tokens from it again: a metrics rotation
+says so, with the same C<chmod 0640>, and names the restart. No secret is printed, under C<--json> either.
 
 =head1 SUBROUTINES/METHODS
 
@@ -616,7 +643,11 @@ it, so the step after a rotation is a restart.
 True when the running web service reads the metrics tokens from the file
 again by itself, so a metrics rotation names no restart: the installed web
 unit names the file -- the host's own, or the one given with
-C<gpforum --env-file FILE service print>.
+C<gpforum --env-file FILE service print>. A file an account other than its
+owner may write is refused by the service all the same
+(L<GPForum::Service::Operations::MetricsTokens/others_may_write>): its
+rotation names the restart, after a warning with the C<chmod 0640> that
+closes it.
 
 =head2 usage_text
 

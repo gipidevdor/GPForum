@@ -27,6 +27,7 @@ use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::HttpProbe;
 use GPForum::Service::Operations::MailCheck;
+use GPForum::Service::Operations::MetricsTokens;
 use GPForum::Service::Operations::OSPreflight;
 use GPForum::Service::Operations::QueryBudget;
 use GPForum::Service::Operations::Readiness;
@@ -398,17 +399,28 @@ sub _memory ($bytes) {
 # A deployed host's environment file holds its secrets, so every account on
 # the host reading it is a problem: said with the chmod that closes it, as
 # gpforum secret rotate says it (the FreeBSD rc scripts refuse such a file).
+# One another account may write is worse, and the running service does not
+# read its metrics tokens from it again (the service's own rule, which
+# secret rotate follows too): said first, with the same chmod, which closes
+# it to reading as well.
 sub _open_file ( $self, $findings, $host ) {
     my $file = $self->file;
     return if !defined $file || !$host->is_deployed;
 
     my $mode = ( stat $file )[$STAT_MODE];
-    return if !defined $mode || !( $mode & $OTHERS_BITS );
+    return if !defined $mode;
+
+    my $key =
+      GPForum::Service::Operations::MetricsTokens->others_may_write($file)
+      ? 'doctor.settings_writable'
+      : $mode & $OTHERS_BITS ? 'doctor.settings_open'
+      :                        undef;
+    return if !defined $key;
 
     $findings->add(
         name    => 'settings',
         status  => 'degraded',
-        message => [ 'doctor.settings_open', { file => $file } ],
+        message => [ $key, { file => $file } ],
         fixes   => [ ( -O $file ? q{} : 'sudo ' ) . "chmod 0640 $file" ],
     );
 

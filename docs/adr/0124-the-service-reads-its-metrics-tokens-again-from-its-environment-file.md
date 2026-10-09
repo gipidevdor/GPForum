@@ -160,6 +160,14 @@ Prossimo passo: dai a ogni scraper il nuovo GPFORUM_METRICS_TOKEN da /etc/gpforu
 ✓ I token delle metriche precedenti non sono più in /etc/gpforum/gpforum.env, e il servizio in esecuzione li rifiuta già, senza riavvio.
 ```
 
+A file an account other than its owner may write is one the service
+refuses (section 4), so its rotation does not say "with no restart": it
+says, with the `chmod 0640` that closes the file, that the service does not
+read it again, and names the restart. `gpforum doctor` lists such a file
+under `!`, with the same fix. All three judge the mode by one rule,
+`MetricsTokens->others_may_write` (amended 2026-10-11; walkthrough 4,
+friction 2, found a `0660` file promised a re-read the service refused).
+
 A file named with `--env-file` that is not the host's own keeps the
 restart line, because the service is not known to follow it until its
 units export `GPFORUM_ENV_FILE`. A host without service files keeps its
@@ -206,4 +214,6 @@ unchanged.
   answered the dropped token 401 and the current one 200.
 - `t/601-secret-rotate-metrics-no-restart.t`: the three steps in English
   and Italian with no restart command, and the restart kept for a session
-  secret and for a file that is not the host's own.
+  secret and for a file that is not the host's own; a `0660` and a `0620`
+  file name the chmod and the restart, in both languages, and doctor lists
+  them under `!`.

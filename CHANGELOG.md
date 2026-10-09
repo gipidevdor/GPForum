@@ -201,6 +201,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- `gpforum secret rotate metrics` promised a re-read the service refused.
+  The running service does not read the tokens again from an environment
+  file an account other than its owner may write (`mode & 022`), while the
+  rotation and `gpforum doctor` checked only what every account may read: a
+  `0660` file got "accepts both now, with no restart" and `--finish` "refuses
+  them now", while the service kept the old token and refused the new one,
+  and doctor said the settings were fine. One rule now judges the file for
+  all three (`MetricsTokens->others_may_write`): the rotation says so with
+  `chmod 0640 FILE` and names the restart, and doctor lists it under `!`
+  with the same fix.
+
 - A metrics token `gpforum secret rotate metrics --finish` dropped could
   come back in a worker Hypnotoad forked later. The tokens follow the
   environment file in each process that answers a check, and the manager

@@ -20,6 +20,8 @@ use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Command::Support::Words;
 use GPForum::OS;
 use GPForum::Service::I18N::CliCatalog;
+use GPForum::Service::Operations::Doctor;
+use GPForum::Service::Operations::Findings;
 
 our $VERSION = '0.001';
 
@@ -31,6 +33,9 @@ our $VERSION = '0.001';
 # signs cookies and is read at start only: its rotation keeps the restart.
 
 const my $SECRET_FILE_MODE => oct '640';
+const my $GROUP_WRITABLE   => oct '660';
+const my $OTHERS_WRITABLE  => oct '620';
+const my $WORLD_READABLE   => oct '644';
 const my $LONG             => 'x' x 64;
 const my $RESTART => 'Next: sudo systemctl restart gpforum gpforum-outbox';
 
@@ -165,7 +170,143 @@ subtest 'the file the installed web unit names is the one it follows' => sub {
         'nor a host whose services are not installed' );
 };
 
+# Walkthrough 4 (friction 2): MetricsTokens refuses a file an account other
+# than its owner may write (mode & 022), while secret rotate and doctor
+# checked & 007 only. A 0660 file got "accepts both now, with no restart",
+# and --finish "refuses them now", while the service kept the old token and
+# refused the new one; doctor said settings were fine. One rule now judges
+# the file for all three.
+subtest 'a file another account may write names the restart and the chmod' =>
+  sub {
+    for my $mode ( $GROUP_WRITABLE, $OTHERS_WRITABLE ) {
+        my $octal = sprintf '%04o', $mode;
+        _template();
+        _rotate( 1, 'en', 'metrics' );
+        chmod $mode, "$file" or croak "chmod: $ERRNO";
+        my $warning =
+            "! Accounts other than its owner can write $file, so"
+          . ' the running service does not read the metrics tokens from it'
+          . " again: chmod 0640 $file";
+
+        my $rotated = _lines( _rotate( 1, 'en', 'metrics' )->{output} );
+        is_deeply(
+            [ @{$rotated}[ 0 .. 2 ] ],
+            [
+                "\N{CHECK MARK} A new metrics token is in $file. The one"
+                  . ' before stays in GPFORUM_METRICS_TOKENS, so no scraper is'
+                  . ' refused.',
+                $warning,
+                $RESTART,
+            ],
+            "$octal: no promise of no restart, the chmod, then the restart"
+        );
+        my $finished =
+          _lines( _rotate( 1, 'en', 'metrics', '--finish' )->{output} );
+        is_deeply(
+            $finished,
+            [
+                "\N{CHECK MARK} The previous metrics tokens are gone from"
+                  . " $file; a scraper that sends one is refused.",
+                $warning,
+                $RESTART,
+            ],
+            "$octal: --finish names the restart that makes it true"
+        );
+        unlike(
+            join( "\n", @{$rotated}, @{$finished} ),
+            qr/with [ ] no [ ] restart/msx,
+            "$octal: never 'with no restart'"
+        );
+        is( ( stat $file )[2] & oct '777', $mode, "$octal: the mode is kept" );
+    }
+
+    _template();
+    _rotate( 1, 'it', 'metrics' );
+    chmod $GROUP_WRITABLE, "$file" or croak "chmod: $ERRNO";
+    my $italian = _lines( _rotate( 1, 'it', 'metrics' )->{output} );
+    is(
+        $italian->[1],
+        "! Account diversi dal proprietario possono scrivere $file, quindi il"
+          . ' servizio in esecuzione non ne rilegge i token delle metriche:'
+          . " chmod 0640 $file",
+        'in Italian'
+    );
+    unlike(
+        $italian->[0],
+        qr/senza [ ] riavvio/msx,
+        'with no promise of no restart'
+    );
+  };
+
+subtest 'doctor says it under !, with the chmod' => sub {
+    _template();
+    chmod $GROUP_WRITABLE, "$file" or croak "chmod: $ERRNO";
+    my $writable = _settings_findings('en');
+    my ($finding) =
+      grep { $_->{message} =~ /can [ ] write/msx } @{$writable};
+    ok( $finding, 'a group-writable file is a finding' )
+      or diag explain $writable;
+    is( $finding->{status}, 'degraded', 'under !' );
+    is(
+        $finding->{message},
+        "settings: accounts other than its owner can write $file, so the"
+          . ' running service does not read the metrics tokens from it again',
+        'saying what it costs'
+    );
+    is_deeply( $finding->{fixes}, ["chmod 0640 $file"], 'with the chmod' );
+    like(
+        join( "\n", map { $_->{message} } @{ _settings_findings('it') } ),
+        qr/impostazioni: [ ] account [ ] diversi [ ] dal [ ] proprietario/msx,
+        'in Italian too'
+    );
+
+    chmod $WORLD_READABLE, "$file" or croak "chmod: $ERRNO";
+    my ($open) =
+      grep { $_->{status} eq 'degraded' && $_->{message} =~ /\Q$file\E/msx }
+      @{ _settings_findings('en') };
+    like(
+        $open->{message},
+        qr/can [ ] read/msx,
+        'a file only every account may read is said as before'
+    );
+
+    chmod $SECRET_FILE_MODE, "$file" or croak "chmod: $ERRNO";
+    is(
+        scalar(
+            grep {
+                $_->{status} eq 'degraded' && $_->{message} =~ /\Q$file\E/msx
+            } @{ _settings_findings('en') }
+        ),
+        0,
+        '0640 is fine'
+    );
+};
+
 done_testing();
+
+# Doctor's settings findings for the file, as a production host's.
+sub _settings_findings ($language) {
+    my $catalog =
+      GPForum::Service::I18N::CliCatalog->new( language => $language );
+    my %environment = (
+        GPFORUM_ENV             => 'production',
+        GPFORUM_MAIL_FROM       => 'forum@forum.gpforum.net',
+        GPFORUM_METRICS_TOKEN   => $LONG,
+        GPFORUM_PUBLIC_BASE_URL => 'https://forum.gpforum.net',
+        GPFORUM_SESSION_SECRET  => $LONG,
+    );
+    my $findings =
+      GPForum::Service::Operations::Findings->new( catalog => $catalog );
+    GPForum::Service::Operations::Doctor->new(
+        catalog     => $catalog,
+        environment => \%environment,
+        file        => "$file",
+        os          => GPForum::OS->from_name('linux'),
+        probes      => { tls => sub { return 1 } },
+    )->settings( \%environment, $findings );
+
+    return $findings->document;
+}
 
 sub _template {
     $file->spew( path('deploy/gpforum.env.example')->slurp );

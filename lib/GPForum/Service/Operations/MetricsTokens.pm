@@ -36,6 +36,8 @@ const my $STAT_MODE => 2;
 
 # A file another account may write could hand /metrics a token of its
 # choosing: it is not read again, as the FreeBSD rc scripts refuse it.
+# gpforum secret rotate and doctor judge a file by the same rule
+# (others_may_write), so neither promises a re-read the service refuses.
 const my $WRITABLE_BY_OTHERS => oct '022';
 
 # The server whose manager forks the workers that answer the checks.
@@ -105,6 +107,19 @@ sub follow_in_manager ( $self, $server ) {
     $server->on( wait => sub { $self->_refresh } );
 
     return 1;
+}
+
+# Whether an account other than a file's owner may write it, its group or
+# every other: then the running service does not read the tokens from it
+# again. False for a file stat cannot see.
+sub others_may_write ( $class, $file ) {
+    my $mode = ( stat $file )[$STAT_MODE];
+
+    return defined $mode && _writable_mode($mode) ? 1 : 0;
+}
+
+sub _writable_mode ($mode) {
+    return $mode & $WRITABLE_BY_OTHERS ? 1 : 0;
 }
 
 # The tokens accepted now, the one in use first: the file's, read again
@@ -181,7 +196,7 @@ sub _read ($self) {
     my @before = Time::HiRes::stat($file);
     my %read   = ( signature => _signature_of(@before), settled => 1 );
     return { %read, problem => _unreadable() } if !@before;
-    if ( $before[$STAT_MODE] & $WRITABLE_BY_OTHERS ) {
+    if ( _writable_mode( $before[$STAT_MODE] ) ) {
         return { %read, problem => [ 'runtime.metrics_tokens_writable', {} ] };
     }
 
@@ -339,6 +354,13 @@ L<Mojo::Server::Prefork> (Hypnotoad's) and a followed file, subscribes the
 manager's C<wait> event, so the manager reads the file at each turn of its
 loop and the workers it forks start from the list it accepted last.
 Returns whether it did.
+
+=head2 others_may_write
+
+Class method. True when an account other than the file's owner, its group or
+every other, may write the file: the service does not read the tokens from
+such a file again. L<GPForum::Command::Secret> and C<gpforum doctor> judge
+the file by it.
 
 =head2 accepted_metrics_tokens
 

@@ -1153,6 +1153,15 @@ msgstr ""
 "Ogni account di questo host può leggere {file}, segreti compresi: "
 "{command}"
 
+#, python-brace-format
+msgctxt "cli.secret.writable"
+msgid ""
+"Accounts other than its owner can write {file}, so the running service does "
+"not read the metrics tokens from it again: {command}"
+msgstr ""
+"Account diversi dal proprietario possono scrivere {file}, quindi il "
+"servizio in esecuzione non ne rilegge i token delle metriche: {command}"
+
 msgctxt "cli.service.caddy_whole"
 msgid ""
 "The Caddyfile is the whole of Caddy's configuration: if Caddy serves other "
@@ -2090,6 +2099,15 @@ msgstr "impostazioni: ogni account di questo host può leggere {file}, segreti c
 msgctxt "doctor.settings_shell"
 msgid "settings: {environment}, from the shell's environment"
 msgstr "impostazioni: {environment}, dall'ambiente della shell"
+
+#, python-brace-format
+msgctxt "doctor.settings_writable"
+msgid ""
+"settings: accounts other than its owner can write {file}, so the running "
+"service does not read the metrics tokens from it again"
+msgstr ""
+"impostazioni: account diversi dal proprietario possono scrivere {file}, "
+"quindi il servizio in esecuzione non ne rilegge i token delle metriche"
 
 #, python-brace-format
 msgctxt "doctor.size_cache"

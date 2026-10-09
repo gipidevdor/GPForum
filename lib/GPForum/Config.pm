@@ -1077,12 +1077,6 @@ sub settings ($class) {
     return [ map { +{ %{$_} } } @SETTINGS ];
 }
 
-# GlifiStore is optional everywhere (D2). Kept, always false, for the callers
-# that still ask.
-sub requires_glifistore ($self) {
-    return 0;
-}
-
 sub requires_secure_transport ($self) {
     return _is_deployed( $self->environment );
 }
@@ -1098,10 +1092,6 @@ sub signing_secrets ($self) {
 
 sub accepted_metrics_tokens ($self) {
     return _unique_head( $self->metrics_token, $self->previous_metrics_tokens );
-}
-
-sub environment_requires_glifistore ( $, $environment ) {
-    return 0;
 }
 
 # GPFORUM_SMTP_SSL's old reading, for the callers that still ask: 1 when the
@@ -1945,11 +1935,6 @@ C<aliases>, in table order. Each alias is an old variable (C<env>, with the C<va
 read as) or an old value (C<value>, read C<as> the current one), with
 C<read_until>, the release that stops reading it.
 
-=head2 requires_glifistore
-
-Always false: GlifiStore is optional in every environment. Kept for callers
-that still ask.
-
 =head2 requires_secure_transport
 
 True for staging and production profiles. Those environments require a
@@ -1976,10 +1961,6 @@ C<GPFORUM_METRICS_TOKENS>. Scrapers may present either during rotation.
 Staging and production refuse to start without C<GPFORUM_METRICS_TOKEN>, so
 the list is never empty there and C</metrics> cannot fail open. Development
 and test may leave it unset and keep C</metrics> unauthenticated.
-
-=head2 environment_requires_glifistore
-
-Class helper for the same answer as L</requires_glifistore>: always false.
 
 =head2 smtp_ssl
 

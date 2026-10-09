@@ -39,7 +39,7 @@ const my %PRODUCTION_ENV => (
     GPFORUM_SESSION_SECRET  => $PRODUCTION_SECRET,
 );
 
-const my $EXPECTED_TESTS             => 325;
+const my $EXPECTED_TESTS             => 322;
 const my $DEFAULT_LOG_LEVEL          => 'info';
 const my $DEFAULT_RUNTIME_LISTEN     => 'http://127.0.0.1:8080';
 const my $DEFAULT_RUNTIME_BACKLOG    => 256;
@@ -256,15 +256,6 @@ is( $default_config->mail_transport,
     'test', 'mail transport defaults to the test adapter' );
 is( $default_config->mail_from,
     'noreply@localhost', 'mail from defaults to a local sender' );
-ok( $default_config->requires_glifistore == 0,
-    'development does not require an explicit GlifiStore URL' );
-ok(
-    !GPForum::Config->new( environment => 'production-small' )
-      ->requires_glifistore,
-    'production-small does not require GlifiStore'
-);
-ok( !GPForum::Config->environment_requires_glifistore('staging'),
-    'staging does not require GlifiStore' );
 ok(
     $default_config->requires_secure_transport == 0,
     'development does not require secure transport'
@@ -1109,14 +1100,8 @@ is_deeply(
     [qw(http://a:1 http://b:2)],
     'listen locations are trimmed and empty ones dropped'
 );
-is_deeply(
-    [
-        map { $built_default->$_ }
-          qw(requires_secure_transport requires_glifistore)
-    ],
-    [ 0, 0 ],
-    'development requires neither secure transport nor GlifiStore, as 0'
-);
+is( $built_default->requires_secure_transport,
+    0, 'development does not require secure transport, as 0' );
 my %connect_attributes =
   %{ ( $built_default->database_connect_info )[$CONNECT_ATTR_INDEX] };
 delete $connect_attributes{on_connect_do};

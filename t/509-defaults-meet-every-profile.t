@@ -64,17 +64,15 @@ subtest 'the default cache meets every profile' => sub {
     }
 };
 
-subtest 'without GlifiStore the cache is local, whatever is asked' => sub {
-    my $insistent = GPForum::Config->new(
+subtest 'without GlifiStore the cache is local' => sub {
+    my $production = GPForum::Config->new(
         environment    => 'production',
         glifistore_url => q{},
     );
-    no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- a configuration that still claims to need GlifiStore
-    local *GPForum::Config::requires_glifistore = sub { return 1 };
     isa_ok(
-        GPForum::Service::Operations::CacheFactory->build($insistent),
+        GPForum::Service::Operations::CacheFactory->build($production),
         'GPForum::Service::Operations::LocalCache',
-        'a configuration that claims to need GlifiStore still gets L1, no throw'
+        'production without GlifiStore gets L1, no throw'
     );
 
     my $source = path('lib/GPForum/Service/Operations/CacheFactory.pm')->slurp;

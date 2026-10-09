@@ -71,7 +71,7 @@ changes; ordinary fixes do not need an ADR of their own.
 | [0045](0045-privacy-access.md) | Privacy Page Limits And HTTP Policy | Accepted |
 | [0046](0046-admin-access.md) | Admin Page Limits And HTTP Policy | Accepted |
 | [0047](0047-metrics-token-access.md) | Metrics Token Access Decisions | Accepted |
-| [0048](0048-mandatory-glifistore-l2.md) | Mandatory GlifiStore L2 Cache | Accepted |
+| [0048](0048-mandatory-glifistore-l2.md) | Mandatory GlifiStore L2 Cache | Superseded |
 | [0049](0049-foundational-architecture.md) | Foundational Architecture | Accepted |
 | [0050](0050-infrastructure-distributed-systems.md) | Infrastructure and Distributed Systems | Accepted |
 | [0051](0051-database-architecture.md) | Database Architecture | Accepted |

@@ -8,10 +8,11 @@ The extreme job has no push or pull-request trigger and never publishes commits 
 `main`. Results are a Job Summary and an immutable artifact for each run/attempt,
 retained for 14 days.
 
-The first deployment is **manual only** until a reduced live trial verifies
-setup, measurements, cleanup and artifact upload. The commented schedule is
-`0 3 * * 0` with `timezone: Europe/Rome`; after that verification, enabling those
-three lines schedules Sundays at 03:00 Italian local time. GitHub supports IANA
+The schedule is enabled after the real reduced trial
+[38158309753](https://github.com/gpicchiarelli/GPForum/actions/runs/38158309753)
+verified setup, measurements, recovery, cleanup, schema and artifact upload.
+`0 3 * * 0` with `timezone: Europe/Rome` requests Sundays at 03:00 Italian
+local time. GitHub supports IANA
 timezones directly, including daylight-saving changes, so no paired UTC cron or
 duplicate benchmark is needed. This local time is outside the repeated autumn
 hour and is valid at the spring transition. Hosted scheduling may start late;
@@ -126,8 +127,8 @@ gh run view <run-id> --log
 gh run download <run-id> --name gpforum-extreme-<run-id>-<attempt>
 ```
 
-After the reduced run verifies the complete lifecycle, use `-f profile=full`
-for the full manual trial and enable the commented Sunday schedule. Optional
+Use `-f profile=full` for a full manual trial; scheduled runs already select
+that profile. Optional
 weights use `-f mixed_weights='thread=50,category=20,home=15,search=10,other=5'`.
 
 For a local disposable environment with the project's locked dependencies,
@@ -145,7 +146,48 @@ script/gpforum-carton exec prove -I script/lib -I t/lib -lr t/performance
 actionlint
 ```
 
-No live extreme run or measured duration is claimed by this initial document.
-The real trial and its artifact will provide those values before scheduling is
-enabled. The existing ordinary Linux run validates reused primitives but does
-not validate this new mixed/soak workflow.
+## Verified evidence on 2026-10-11
+
+The reduced [Linux trial](https://github.com/gpicchiarelli/GPForum/actions/runs/38158309753)
+measured commit `dd08edc9a7d5486ddfe6d2ae22f8acbfe6d33112` on four vCPUs
+(AMD EPYC 7763), approximately 16 GB RAM, Ubuntu 26.04, Perl 5.40.1,
+Mojolicious 9.49 and PostgreSQL 16.15. Both serving workers verified EV with
+epoll backend 4. The seed actually contained 25 users, eight categories,
+240 threads and 4,800 posts. Thirty-nine real samples completed with zero
+HTTP, transport or timeout errors. Setup, mixed/soak/spike, recovery and
+cleanup completed; progression remains **partial** because homepage and
+cache-miss degradation at 50 connections caused explicit inconclusive stops.
+The Actions job succeeded in **2 minutes 45 seconds**; this is a successful
+evidence lifecycle, not a claim that saturation or every full-profile cell passed.
+
+| Reduced scenario | Requested connections | Median RPS | Median p95 ms |
+| --- | ---: | ---: | ---: |
+| HTTP health (two one-second samples) | 10 | 2,282.6 | 5.7 |
+| Home (two one-second samples) | 10 | 196.1 | 81.3 |
+| Thread (two one-second samples) | 10 | 1,583.9 | 9.4 |
+| Search (two one-second samples) | 10 | 111.4 | 128.1 |
+| Weighted mix (three five-second samples) | 50 | 468.0 | 270.5 |
+| Soak mix (three five-second samples) | 50 | 491.2 | 243.5 |
+
+Mixed server CPU was about 164% summed across processes (about 1.64 CPU cores),
+with sampled RSS around 376 MiB; shared pages can be counted more than once.
+Recovery completed three successful health/thread/search rounds in 0.52 seconds.
+The job clock used its explicit conservative fallback, including the 120-second
+deduction; `extreme.json` records 277.45 seconds for that accounting clock.
+The immutable artifact is `gpforum-extreme-38158309753-1` (53,644 compressed
+bytes, expires 2026-10-25). Its schema was validated again after download;
+diagnostics were checked for DSNs/tokens/password fields without findings.
+
+The full 96,000-post profile, long soak and 100–1,000 connection levels have
+not been executed by this trial. No cross-revision regression or production
+capacity is established. The ordinary workflow retains its own paired/history
+baselines and SQL/outbox/worker/reactor comparisons.
+
+Port validation used ten Perl contract suites (249 top-level tests), 402
+application suites (16,167 tests), four real PostgreSQL suites (221 tests),
+workflow YAML parsing/actionlint, the architecture gate, strict Perl::Critic
+and syntax checks. No new critic baseline entry or CPAN dependency was added.
+The first ordinary CI trial preserved an infrastructure failure when a test
+assumed the caller's password could not equal `postgres`; the test was isolated
+and the complete contracts rerun with the real CI environment. Historical
+archived files were not rewritten during the language migration.

@@ -1,11 +1,11 @@
 name: Weekly extreme performance
 
-# Enable the native timezone schedule only after a real reduced manual trial.
+# Reduced live trial 38158309753 verified measurements, recovery and cleanup.
 # No push/PR trigger, publisher, personal credential or external service.
 on:
-  # schedule:
-  #   - cron: '0 3 * * 0'
-  #     timezone: Europe/Rome
+  schedule:
+    - cron: '0 3 * * 0'
+      timezone: Europe/Rome
   workflow_dispatch:
     inputs:
       profile:

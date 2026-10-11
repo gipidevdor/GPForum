@@ -44,8 +44,8 @@ unlike(
 );
 like(
     $triggers,
-    qr/^[ ]{2}(?:\#[ ])?schedule:$/msx,
-    'Sunday schedule is declared'
+    qr/^[ ]{2}schedule:$/msx,
+    'verified Sunday schedule is enabled'
 );
 like(
     $triggers,

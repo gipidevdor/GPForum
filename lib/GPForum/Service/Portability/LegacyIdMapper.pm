@@ -7,11 +7,19 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 our $VERSION = '0.001';
 
@@ -94,12 +102,31 @@ sub _create_mapping ( $self, $input ) {
         native_type      => $input->{native_type},
         visibility       => $input->{visibility},
     };
-    $self->schema->resultset('LegacyIdMap')->create($mapping);
+    if ( $self->functions ) {
+        $self->functions->row( 'portability_insert',
+            { source => 'LegacyIdMap', row => $mapping } );
+    }
+    else {
+        $self->schema->resultset('LegacyIdMap')->create($mapping);
+    }
 
     return $mapping;
 }
 
 sub find_native ( $self, $legacy_type, $legacy_id ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row(
+            'portability_find',
+            {
+                source => 'LegacyIdMap',
+                query  =>
+                  { legacy_type => $legacy_type, legacy_id => $legacy_id }
+            }
+        );
+        return GPForum::Infrastructure::ResultRow->from(
+            $row ? $row->{document} : undef );
+    }
+
     return $self->schema->resultset('LegacyIdMap')->find(
         {
             legacy_id   => $legacy_id,
@@ -109,6 +136,12 @@ sub find_native ( $self, $legacy_type, $legacy_id ) {
 }
 
 sub _existing_mapping ( $self, $input ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'portability_find',
+            { source => 'LegacyIdMap', query => $input } );
+        return $row ? $row->{document} : undef;
+    }
+
     my $search = $self->schema->resultset('LegacyIdMap')->search_rs(
         {
             legacy_id   => $input->{legacy_id},

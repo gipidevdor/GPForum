@@ -10,6 +10,7 @@ use v5.40;
 use Mojo::File qw(path);
 
 use GPForum::Config;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Config::Report;
 use GPForum::Migration::Plan;
 use GPForum::Migration::Runner;
@@ -1063,6 +1064,11 @@ sub _probe_readiness ( $self, $config, $schema ) {
 }
 
 sub _probe_outbox ( $self, $schema ) {
+    if ( my $functions =
+        GPForum::Infrastructure::SqlFunction->for_schema($schema) )
+    {
+        return $functions->row( 'ops_doctor_outbox', {} );
+    }
     my $dbh = $schema->storage->dbh;
     my ( $waiting, $oldest ) = $dbh->selectrow_array($PENDING_SQL);
     my ($sent) = $dbh->selectrow_array($LAST_SENT_SQL);

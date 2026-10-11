@@ -7,6 +7,9 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Service::Admin::RoleBindingStore;
 use GPForum::Service::Admin::RoleCatalog;
 use GPForum::Service::Clock;
@@ -49,6 +52,10 @@ has identity_store => sub ($self) {
     );
 };
 __PACKAGE__->requires(qw(schema));
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub bootstrap ( $self, $input ) {
     $input ||= {};
@@ -338,6 +345,26 @@ sub _ensure_global_binding ( $self, $user_id, $role_id, $actor_user_id ) {
 }
 
 sub _single_row ( $self, $resultset_name, $query ) {
+    if ( $self->functions ) {
+        if ( $resultset_name eq 'User' ) {
+            return $self->functions->row(
+                'identity_user_by_identifier',
+                {
+                    by_email   => exists $query->{email_normalized} ? 1 : 0,
+                    identifier => $query->{email_normalized}
+                      // $query->{username}
+                }
+            );
+        }
+        my %operation = (
+            Role           => 'admin_lookup_role',
+            Permission     => 'admin_lookup_permission',
+            RolePermission => 'admin_lookup_role_permission',
+            RoleBinding    => 'admin_lookup_binding',
+        );
+        return $self->functions->row( $operation{$resultset_name},
+            { query => $query } );
+    }
     my $search = $self->schema->resultset($resultset_name)
       ->search_rs( $query, { rows => $ROW_LIMIT_ONE } );
 

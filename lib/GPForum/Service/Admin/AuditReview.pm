@@ -8,6 +8,9 @@ use MIME::Base64 qw(decode_base64url encode_base64url);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow::Audit;
+
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Keyset;
 
@@ -26,7 +29,19 @@ const my $CURSOR_PARTS => 2;
 __PACKAGE__->requires(qw(schema));
 
 # The dashboard's recent activity.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub recent ( $self, $options ) {
+    if ( $self->functions ) {
+        return [
+            map { GPForum::Infrastructure::ResultRow::Audit->from($_) } @{
+                $self->functions->rows( 'admin_audit_recent',
+                    { row_limit => $options->{limit} || $DEFAULT_LIMIT } )
+            }
+        ];
+    }
     return [
         _rows(
             $self->schema->resultset('AuditLog')->search_rs(
@@ -68,7 +83,19 @@ sub filters ( $class, $input ) {
 # One page, newest first, and the cursor of the next page if there is one.
 sub page ( $self, $filters, $page ) {
     my $limit = $page->{limit} || $DEFAULT_LIMIT;
-    my @rows  = _rows( $self->page_resultset( $filters, $page ) );
+    my @rows =
+      $self->functions
+      ? map { GPForum::Infrastructure::ResultRow::Audit->from($_) } @{
+        $self->functions->rows(
+            'admin_audit_page',
+            {
+                filters   => $filters,
+                after     => scalar _decode_cursor( $page->{after} ),
+                row_limit => $limit + 1
+            }
+        )
+      }
+      : _rows( $self->page_resultset( $filters, $page ) );
 
     my $next;
     if ( @rows > $limit ) {

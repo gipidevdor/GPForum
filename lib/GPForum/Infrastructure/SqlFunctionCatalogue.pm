@@ -59,12 +59,1061 @@ const my @REPLY_RECORD => (
 );
 
 const my %FUNCTION => (
+    ops_doctor_outbox => {
+        version    => 2,
+        parameters => [],
+    },
+
+    search_ranked => {
+        version    => 2,
+        parameters => [
+            permission_mode   => 'text',
+            visibility_values => 'text[]',
+            member            => 'boolean',
+            global_read       => 'boolean',
+            viewer_user_id    => 'uuid',
+            category_ids      => 'uuid[]',
+            space_ids         => 'uuid[]',
+            query             => 'text',
+            like_pattern      => 'text',
+            config            => 'text',
+            candidate_limit   => 'integer',
+            category_filter   => 'uuid',
+            author_filter     => 'uuid',
+            from_at           => 'timestamp with time zone',
+            to_at             => 'timestamp with time zone',
+            to_exclusive      => 'boolean',
+            row_limit         => 'integer'
+        ]
+    },
+    search_autocomplete => {
+        version    => 2,
+        parameters => [
+            permission_mode   => 'text',
+            visibility_values => 'text[]',
+            member            => 'boolean',
+            global_read       => 'boolean',
+            viewer_user_id    => 'uuid',
+            category_ids      => 'uuid[]',
+            space_ids         => 'uuid[]',
+            like_pattern      => 'text',
+            row_limit         => 'integer'
+        ]
+    },
+    search_set_timeout => { version => 2, parameters => [ timeout => 'text' ] },
+    search_index_entity => {
+        version    => 2,
+        parameters => [
+            entity_type => 'text',
+            entity_id   => 'uuid',
+            document_id => 'uuid',
+            indexed_at  => 'text'
+        ],
+        json => ['result']
+    },
+    search_remove_document => {
+        version    => 2,
+        parameters => [ entity_type => 'text', entity_id => 'uuid' ],
+        json       => ['result']
+    },
+    search_thread_post_batch => {
+        version    => 2,
+        parameters => [
+            thread_id      => 'uuid',
+            after_position => 'bigint',
+            row_limit      => 'integer'
+        ]
+    },
+    search_live_ids => {
+        version    => 2,
+        parameters =>
+          [ entity_type => 'text', after_id => 'uuid', row_limit => 'integer' ]
+    },
+    search_prune_candidates =>
+      { version => 2, parameters => [ entity_type => 'text' ] },
+    search_remove_post_batch => {
+        version    => 2,
+        parameters => [ thread_id => 'uuid', post_ids => 'uuid[]' ]
+    },
+    search_observe_lag    => { version => 2, parameters => [] },
+    search_latest_rebuild => { version => 2, parameters => [] },
+
+    ops_partition_horizon => {
+        version    => 2,
+        parameters => [],
+    },
+
+    forum_next_position =>
+      { version => 2, parameters => [ thread_id => 'uuid' ] },
+
+    privacy_insert => {
+        version    => 2,
+        parameters => [ source => 'text', row => 'jsonb' ],
+        json       => ['document']
+    },
+    portability_insert => {
+        version    => 2,
+        parameters => [ source => 'text', row => 'jsonb' ],
+        json       => ['document']
+    },
+    plugin_insert => {
+        version    => 2,
+        parameters => [ source => 'text', row => 'jsonb' ],
+        json       => ['document']
+    },
+    privacy_find => {
+        version    => 2,
+        parameters => [ source => 'text', id => 'uuid', lock_row => 'boolean' ],
+        json       => ['document']
+    },
+    privacy_latest => {
+        version    => 2,
+        parameters => [ source => 'text', query => 'jsonb' ],
+        json       => ['document']
+    },
+    privacy_review => {
+        version    => 2,
+        parameters => [
+            source    => 'text',
+            query     => 'jsonb',
+            row_limit => 'integer',
+            oldest    => 'boolean'
+        ],
+        json => ['document']
+    },
+    privacy_update => {
+        version    => 2,
+        parameters => [ source => 'text', id => 'uuid', changes => 'jsonb' ],
+        json       => ['document']
+    },
+    privacy_revoke_user => {
+        version    => 2,
+        parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
+    },
+    privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
+    privacy_discard_exports => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+        json       => ['document']
+    },
+    portability_find => {
+        version    => 2,
+        parameters => [ source => 'text', query => 'jsonb' ],
+        json       => ['document']
+    },
+    portability_progress => {
+        version    => 2,
+        parameters => [ job_id => 'uuid', progress => 'jsonb' ],
+        json       => ['document']
+    },
+    plugin_find => {
+        version    => 2,
+        parameters => [ source => 'text', query => 'jsonb' ],
+        json       => ['document']
+    },
+    plugin_status => {
+        version    => 2,
+        parameters => [ plugin_id => 'uuid', status => 'text', at => 'text' ],
+        json       => ['document']
+    },
+    plugin_hooks => { version => 2, parameters => [ hook_name => 'text' ] },
+    portability_export_parts => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+        json       => ['document']
+    },
+
+    ops_publish_notification =>
+      { version => 2, parameters => [ channel => 'text', payload => 'text' ] },
+    ops_retention_purge => {
+        version    => 2,
+        parameters =>
+          [ source => 'text', cutoff => 'timestamptz', row_limit => 'integer' ]
+    },
+    ops_outbox_metrics =>
+      { version => 2, parameters => [ now => 'timestamptz' ] },
+    ops_readiness_probe => { version => 2, parameters => [ source => 'text' ] },
+    ops_query_budget_list =>
+      { version => 2, parameters => [ row_limit => 'integer' ] },
+    ops_query_budget_sync => {
+        version    => 2,
+        parameters => [ rows => 'jsonb', endpoint_names => 'text[]' ]
+    },
+    ops_partition_registry => { version => 2, parameters => [] },
+    ops_realtime_settled   =>
+      { version => 2, parameters => [ settle_seconds => 'integer' ] },
+    ops_realtime_poll => {
+        version    => 2,
+        json       => ['payload'],
+        parameters => [
+            after_next_at    => 'timestamptz',
+            after_created_at => 'timestamptz',
+            after_id         => 'uuid',
+            settled_at       => 'timestamptz',
+            settle_seconds   => 'integer',
+            row_limit        => 'integer'
+        ]
+    },
+    ops_replication_recovery => { version => 2, parameters => [] },
+    ops_replication_standbys => { version => 2, parameters => [] },
+    ops_replication_slots    =>
+      { version => 2, parameters => [ standby => 'boolean' ] },
+    ops_replication_position => { version => 2, parameters => [] },
+
+    admin_lookup_role => {
+        version    => 2,
+        parameters => [ query => 'jsonb' ],
+    },
+    admin_lookup_permission => {
+        version    => 2,
+        parameters => [ query => 'jsonb' ],
+    },
+    admin_lookup_role_permission => {
+        version    => 2,
+        parameters => [ query => 'jsonb' ],
+    },
+    admin_lookup_audit => {
+        version    => 2,
+        parameters => [ query => 'jsonb' ],
+    },
+    admin_lookup_binding => {
+        version    => 2,
+        parameters => [ query => 'jsonb' ],
+    },
+    admin_attachment_audits => {
+        version    => 2,
+        parameters =>
+          [ action => 'text', target_id => 'uuid', target_type => 'text' ],
+        json => ['metadata'],
+    },
+    admin_insert_role => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    admin_insert_permission => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    admin_insert_role_permission => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    admin_insert_binding => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    admin_insert_space => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    admin_insert_category => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    admin_update_category => {
+        version    => 2,
+        parameters => [ category_id => 'uuid', values => 'jsonb' ],
+    },
+    admin_lock_binding => {
+        version    => 2,
+        parameters => [ binding_id => 'uuid' ],
+    },
+    admin_revoke_binding => {
+        version    => 2,
+        parameters => [ binding_id => 'uuid', revoked_at => 'timestamptz' ],
+    },
+    admin_list_roles => {
+        version    => 2,
+        parameters => [ row_limit => 'integer' ],
+    },
+    admin_list_permissions => {
+        version    => 2,
+        parameters => [ row_limit => 'integer' ],
+    },
+    admin_list_categories => {
+        version    => 2,
+        parameters => [ row_limit => 'integer' ],
+    },
+    admin_roles_for_user => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', row_limit => 'integer' ],
+    },
+    admin_permissions_for_role => {
+        version    => 2,
+        parameters => [ role_id => 'uuid', row_limit => 'integer' ],
+    },
+    admin_space_by_id => {
+        version    => 2,
+        parameters => [ space_id => 'uuid' ],
+    },
+    admin_space_by_slug => {
+        version    => 2,
+        parameters => [ slug => 'text' ],
+    },
+    admin_first_live_space => {
+        version    => 2,
+        parameters => [],
+    },
+    admin_category_by_id => {
+        version    => 2,
+        parameters => [ category_id => 'uuid' ],
+    },
+    admin_live_category_by_slug => {
+        version    => 2,
+        parameters => [ space_id => 'uuid', slug => 'text' ],
+    },
+    admin_console_users => {
+        version    => 2,
+        parameters => [ status => 'text', row_limit => 'integer' ],
+    },
+    admin_console_reports => {
+        version    => 2,
+        parameters => [ status => 'text', row_limit => 'integer' ],
+    },
+    admin_console_outbox => {
+        version    => 2,
+        parameters => [ status => 'text', row_limit => 'integer' ],
+    },
+    admin_console_email => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+    },
+    admin_console_counts => {
+        version    => 2,
+        parameters => [ dead_letters => 'boolean' ],
+    },
+    admin_console_dead_letters => {
+        version    => 2,
+        parameters => [ row_limit => 'integer' ],
+    },
+    admin_audit_recent => {
+        version    => 2,
+        parameters => [ row_limit => 'integer' ],
+    },
+    admin_audit_page => {
+        version    => 2,
+        parameters =>
+          [ filters => 'jsonb', after => 'jsonb', row_limit => 'integer' ],
+    },
+    admin_allow_slow_answer => {
+        version    => 2,
+        parameters => [ idle_ms => 'integer' ],
+    },
+
+    forum_read_state => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', thread_id => 'uuid' ]
+    },
+    forum_mark_read =>
+      { version => 2, parameters => [ row => 'jsonb' ], json => ['result'] },
+
+    attachment_find => {
+        version    => 2,
+        parameters =>
+          [ attachment_id => 'uuid', object_key => 'text', hold => 'boolean' ]
+    },
+    attachment_links => {
+        version    => 2,
+        parameters => [
+            attachment_id => 'uuid',
+            target_type   => 'text',
+            target_id     => 'uuid',
+            post_ids      => 'uuid[]',
+            row_limit     => 'integer'
+        ]
+    },
+    attachment_variants => {
+        version    => 2,
+        parameters => [
+            attachment_id => 'uuid',
+            variant_type  => 'text',
+            object_key    => 'text',
+            row_limit     => 'integer'
+        ]
+    },
+    attachment_insert => { version => 2, parameters => [ values => 'jsonb' ] },
+    attachment_link_insert =>
+      { version => 2, parameters => [ values => 'jsonb' ] },
+    attachment_variant_insert =>
+      { version => 2, parameters => [ values => 'jsonb' ] },
+    attachment_update => {
+        version    => 2,
+        parameters => [ attachment_id => 'uuid', changes => 'jsonb' ]
+    },
+    attachment_scan_verdict => {
+        version    => 2,
+        parameters => [ attachment_id => 'uuid', changes => 'jsonb' ]
+    },
+    attachment_scan_queue => {
+        version    => 2,
+        parameters => [ pending => 'boolean', row_limit => 'integer' ]
+    },
+    attachment_confirm_clean => {
+        version    => 2,
+        parameters => [
+            attachment_id => 'uuid',
+            scan_engine   => 'text',
+            scanned_at    => 'timestamptz'
+        ]
+    },
+    attachment_scan_failure => {
+        version    => 2,
+        parameters => [ attachment_id => 'uuid', error => 'text' ]
+    },
+    attachment_orphans => {
+        version    => 2,
+        parameters => [ cutoff => 'timestamptz', row_limit => 'integer' ]
+    },
+    attachment_source_post =>
+      { version => 2, parameters => [ target_id => 'uuid' ] },
+    attachment_source_thread =>
+      { version => 2, parameters => [ target_id => 'uuid' ] },
+
+    community_list_bookmarks => {
+        version    => 2,
+        parameters => [
+            user_id          => 'uuid',
+            filter_sources   => 'boolean',
+            member           => 'boolean',
+            global_read      => 'boolean',
+            viewer_user_id   => 'uuid',
+            category_ids     => 'uuid[]',
+            space_ids        => 'uuid[]',
+            target_type      => 'text',
+            after_created_at => 'timestamp with time zone',
+            after_id         => 'uuid',
+            row_limit        => 'integer'
+        ]
+    },
+    community_list_feed => {
+        version    => 2,
+        parameters => [
+            user_id          => 'uuid',
+            filter_sources   => 'boolean',
+            member           => 'boolean',
+            global_read      => 'boolean',
+            viewer_user_id   => 'uuid',
+            category_ids     => 'uuid[]',
+            space_ids        => 'uuid[]',
+            after_created_at => 'timestamp with time zone',
+            after_id         => 'uuid',
+            row_limit        => 'integer'
+        ]
+    },
+    community_list_mentions => {
+        version    => 2,
+        parameters => [
+            user_id          => 'uuid',
+            filter_sources   => 'boolean',
+            member           => 'boolean',
+            global_read      => 'boolean',
+            viewer_user_id   => 'uuid',
+            category_ids     => 'uuid[]',
+            space_ids        => 'uuid[]',
+            after_created_at => 'timestamp with time zone',
+            after_id         => 'uuid',
+            row_limit        => 'integer'
+        ]
+    },
+    community_save_bookmark => {
+        version    => 2,
+        parameters => [ row => 'jsonb', restore => 'boolean' ],
+        json       => ['result']
+    },
+    community_find_bookmark => {
+        version    => 2,
+        parameters =>
+          [ user_id => 'uuid', target_type => 'text', target_id => 'uuid' ]
+    },
+    community_stamp_bookmark => {
+        version    => 2,
+        parameters => [
+            id          => 'uuid',
+            by_target   => 'boolean',
+            user_id     => 'uuid',
+            target_type => 'text',
+            target_id   => 'uuid',
+            column      => 'text',
+            stamped_at  => 'text'
+        ],
+        json => ['result']
+    },
+    notification_save_subscription => {
+        version    => 2,
+        parameters => [ row => 'jsonb', restore => 'boolean' ],
+        json       => ['result']
+    },
+    notification_find_subscription => {
+        version    => 2,
+        parameters =>
+          [ user_id => 'uuid', target_type => 'text', target_id => 'uuid' ]
+    },
+    notification_stamp_subscription => {
+        version    => 2,
+        parameters => [
+            id          => 'uuid',
+            by_target   => 'boolean',
+            user_id     => 'uuid',
+            target_type => 'text',
+            target_id   => 'uuid',
+            column      => 'text',
+            stamped_at  => 'text'
+        ],
+        json => ['result']
+    },
+    notification_subscribers => {
+        version    => 2,
+        parameters => [
+            target_type       => 'text',
+            target_id         => 'uuid',
+            notification_type => 'text'
+        ]
+    },
+    notification_list_preferences =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
+    notification_set_preference =>
+      { version => 2, parameters => [ row => 'jsonb' ], json => ['result'] },
+    community_project_feed => {
+        version    => 2,
+        parameters => [ row => 'jsonb', user_ids => 'uuid[]' ],
+        json       => ['result']
+    },
+    community_remove_feed => {
+        version    => 2,
+        parameters => [ item_type => 'text', item_id => 'uuid' ],
+        json       => ['result']
+    },
+    community_remove_thread_feed => {
+        version    => 2,
+        parameters => [ thread_id => 'uuid' ],
+        json       => ['result']
+    },
+    community_resolve_mention_users =>
+      { version => 2, parameters => [ usernames => 'text[]' ] },
+    community_create_mention =>
+      { version => 2, parameters => [ row => 'jsonb' ], json => ['result'] },
+    community_record_reputation =>
+      { version => 2, parameters => [ row => 'jsonb' ], json => ['result'] },
+    notification_deliver => {
+        version    => 2,
+        parameters => [
+            notification    => 'jsonb',
+            inbox           => 'jsonb',
+            idempotency_key => 'text'
+        ],
+        json => ['result']
+    },
+    notification_mark_read => {
+        version    => 2,
+        parameters => [
+            notification_id   => 'uuid',
+            recipient_user_id => 'uuid',
+            read_at           => 'text'
+        ],
+        json => ['result']
+    },
+    notification_mark_all_read => {
+        version    => 2,
+        parameters => [
+            user_id        => 'uuid',
+            filter_sources => 'boolean',
+            member         => 'boolean',
+            global_read    => 'boolean',
+            viewer_user_id => 'uuid',
+            category_ids   => 'uuid[]',
+            space_ids      => 'uuid[]',
+            read_at        => 'text'
+        ],
+        json => ['result']
+    },
+
+    moderation_target => {
+        version    => 2,
+        parameters => [ kind => 'text', target_id => 'uuid', hold => 'boolean' ]
+    },
+    moderation_target_update => {
+        version    => 2,
+        parameters =>
+          [ kind => 'text', target_id => 'uuid', changes => 'jsonb' ]
+    },
+    moderation_action_find => {
+        version    => 2,
+        parameters => [
+            action_id   => 'uuid',
+            command_id  => 'uuid',
+            action_type => 'text',
+            target_type => 'text',
+            target_id   => 'uuid'
+        ]
+    },
+    moderation_action_update => {
+        version    => 2,
+        parameters => [ action_id => 'uuid', changes => 'jsonb' ]
+    },
+    moderation_report_find => {
+        version    => 2,
+        parameters => [
+            report_id        => 'uuid',
+            reporter_user_id => 'uuid',
+            target_type      => 'text',
+            target_id        => 'uuid',
+            hold             => 'boolean'
+        ]
+    },
+    moderation_report_update => {
+        version    => 2,
+        parameters => [ report_id => 'uuid', changes => 'jsonb' ]
+    },
+    moderation_report_queue => {
+        version    => 2,
+        parameters => [ status => 'text', row_limit => 'integer' ]
+    },
+    moderation_suspension_find =>
+      { version => 2, parameters => [ suspension_id => 'uuid' ] },
+    moderation_suspension_update => {
+        version    => 2,
+        parameters => [ suspension_id => 'uuid', revoked_at => 'timestamptz' ]
+    },
+    moderation_action_insert =>
+      { version => 2, parameters => [ values => 'jsonb' ] },
+    moderation_report_insert =>
+      { version => 2, parameters => [ values => 'jsonb' ] },
+    moderation_suspension_insert =>
+      { version => 2, parameters => [ values => 'jsonb' ] },
+    moderation_action_list => {
+        version    => 2,
+        parameters => [
+            target_type => 'text',
+            target_id   => 'uuid',
+            after_at    => 'timestamptz',
+            after_id    => 'uuid',
+            row_limit   => 'integer'
+        ]
+    },
+    moderation_suspension_list => {
+        version    => 2,
+        parameters => [
+            user_id     => 'uuid',
+            active_only => 'boolean',
+            now         => 'timestamptz',
+            after_at    => 'timestamptz',
+            after_id    => 'uuid',
+            row_limit   => 'integer'
+        ]
+    },
+
+    ops_record_event => {
+        version    => 2,
+        parameters => [
+            event         => 'jsonb',
+            outbox_id     => 'text',
+            outbox_extras => 'jsonb',
+            explicit      => 'boolean'
+        ],
+        json => ['event']
+    },
+    ops_record_audit => {
+        version    => 2,
+        parameters => [ audit => 'jsonb', explicit => 'boolean' ],
+        json       => ['audit']
+    },
+    ops_event_recorded => { version => 2, parameters => [ key => 'text' ] },
+    ops_command_lookup => {
+        version    => 2,
+        parameters => [ key => 'text', command_id => 'uuid' ],
+        json       => ['document']
+    },
+    ops_command_insert => {
+        version    => 2,
+        parameters => [ command => 'jsonb' ],
+        json       => ['document']
+    },
+    ops_command_finish => {
+        version    => 2,
+        parameters => [ command_id => 'uuid', changes => 'jsonb' ]
+    },
+    ops_event_claim => {
+        version    => 2,
+        parameters => [
+            operation      => 'text',
+            key            => 'text',
+            event_id       => 'text',
+            now            => 'text',
+            expired_before => 'text'
+        ]
+    },
+    outbox_claim_ready => {
+        version    => 2,
+        parameters => [
+            now          => 'text',
+            locked_until => 'text',
+            worker_id    => 'text',
+            row_limit    => 'integer'
+        ],
+        json => ['payload']
+    },
+    outbox_owned_write => {
+        version    => 2,
+        parameters =>
+          [ outbox_id => 'uuid', worker_id => 'text', changes => 'jsonb' ]
+    },
+    outbox_dead_letter =>
+      { version => 2, parameters => [ letter => 'jsonb' ], json => ['letter'] },
+    outbox_replay_dead_letter => {
+        version    => 2,
+        parameters => [ input => 'jsonb', ids => 'jsonb', now => 'text' ],
+        json       => ['result']
+    },
+    projection_offset_get => {
+        version    => 2,
+        parameters => [ projection_name => 'text' ],
+        json       => ['document']
+    },
+    projection_offset_write =>
+      { version => 2, parameters => [ row => 'jsonb' ], json => ['document'] },
+    projection_generation_start =>
+      { version => 2, parameters => [ row => 'jsonb' ], json => ['document'] },
+    projection_generation_update => {
+        version    => 2,
+        parameters => [ generation_id => 'uuid', status => 'text' ],
+        json       => ['document']
+    },
+    projection_generation_activate => {
+        version    => 2,
+        parameters => [ generation_id => 'uuid', now => 'text' ],
+        json       => ['document']
+    },
+    ops_worker_aggregate => {
+        version    => 2,
+        parameters => [ aggregate_type => 'text', aggregate_id => 'uuid' ]
+    },
+    ops_thread_activity =>
+      { version => 2, parameters => [ thread_id => 'uuid', at => 'text' ] },
+
+    identity_user_by_id => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+    },
+    identity_user_by_identifier => {
+        version    => 2,
+        parameters => [ identifier => 'text', by_email => 'boolean' ],
+    },
+    identity_registration_duplicates => {
+        version    => 2,
+        parameters => [ username => 'text', email => 'text' ],
+    },
+    identity_insert_user => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    identity_update_user => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', changes => 'jsonb' ],
+    },
+    identity_insert_credential => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    identity_credential_by_id => {
+        version    => 2,
+        parameters => [ credential_id => 'uuid' ],
+    },
+    identity_active_password => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+    },
+    identity_hold_password => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', credential_id => 'uuid' ],
+    },
+    identity_lock_passwords => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+    },
+    identity_revoke_passwords => {
+        version    => 2,
+        parameters => [ ids => 'jsonb', revoked_at => 'timestamptz' ],
+    },
+    identity_insert_token => {
+        version    => 2,
+        parameters => [ values => 'jsonb' ],
+    },
+    identity_token_by_id => {
+        version    => 2,
+        parameters => [ token_id => 'uuid' ],
+    },
+    identity_unused_token => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', token_type => 'text' ],
+    },
+    identity_rotate_token => {
+        version    => 2,
+        parameters => [ token_id => 'uuid', values => 'jsonb' ],
+    },
+    identity_consume_token => {
+        version    => 2,
+        parameters => [
+            token_hash => 'text',
+            token_type => 'text',
+            now        => 'timestamptz',
+            now_epoch  => 'bigint'
+        ],
+        json => ['token_row'],
+    },
+    identity_profile_trust => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+    },
+    identity_profile_counts => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+    },
+    identity_profile_threads => {
+        version    => 2,
+        parameters => [
+            user_id   => 'uuid',
+            after_at  => 'timestamptz',
+            after_id  => 'uuid',
+            row_limit => 'integer'
+        ],
+    },
+    identity_profile_replies => {
+        version    => 2,
+        parameters => [
+            user_id   => 'uuid',
+            after_at  => 'timestamptz',
+            after_id  => 'uuid',
+            row_limit => 'integer'
+        ],
+    },
+
+    forum_thread_page_posts_scoped => {
+        version    => 2,
+        parameters => [
+            thread_id      => 'uuid',
+            standing       => 'text',
+            scope_user_id  => 'uuid',
+            viewer_user_id => 'uuid',
+            after_position => 'bigint',
+            after_post_id  => 'uuid',
+            row_limit      => 'integer'
+        ],
+    },
+    session_lookup => {
+        version    => 2,
+        parameters => [
+            session_id => 'uuid',
+            user_id    => 'uuid',
+        ],
+    },
+    session_create => {
+        version    => 2,
+        parameters => [
+            session_id      => 'uuid',
+            user_id         => 'uuid',
+            session_hash    => 'text',
+            created_at      => 'timestamptz',
+            last_seen_at    => 'timestamptz',
+            expires_at      => 'timestamptz',
+            revoked_at      => 'timestamptz',
+            ip_hash         => 'text',
+            user_agent_hash => 'text',
+            retry           => 'boolean',
+        ],
+    },
+    session_validate => {
+        version    => 2,
+        parameters => [
+            session_id             => 'uuid',
+            user_id                => 'uuid',
+            token_hash             => 'text',
+            now                    => 'timestamptz',
+            touch_interval_seconds => 'integer',
+        ],
+    },
+    session_revoke => {
+        version    => 2,
+        parameters => [
+            session_id => 'uuid',
+            user_id    => 'uuid',
+            revoked_at => 'timestamptz',
+        ],
+    },
+    session_revoke_user => {
+        version    => 2,
+        parameters => [
+            user_id         => 'uuid',
+            revoked_at      => 'timestamptz',
+            keep_session_id => 'uuid',
+        ],
+    },
+    forum_resolve_viewer => {
+        version    => 2,
+        parameters => [
+            user_id => 'uuid',
+        ],
+        json => ['grants'],
+    },
+    ops_rate_limit_check => {
+        version    => 2,
+        parameters => [
+            scope          => 'text',
+            actor_hash     => 'text',
+            action         => 'text',
+            window_start   => 'timestamptz',
+            window_seconds => 'integer',
+            limit          => 'integer',
+            now            => 'timestamptz',
+            expires_at     => 'timestamptz',
+        ],
+    },
+    ops_rate_limit_snapshot => {
+        version    => 2,
+        parameters => [
+            now => 'timestamptz',
+        ],
+    },
+    moderation_active_suspension => {
+        version    => 2,
+        parameters => [
+            user_id => 'uuid',
+            now     => 'text',
+        ],
+    },
+    moderation_can_participate => {
+        version    => 2,
+        parameters => [
+            user_id => 'uuid',
+            now     => 'text',
+        ],
+    },
+    admin_permission_allowed => {
+        version    => 2,
+        parameters => [
+            user_id       => 'uuid',
+            resource_type => 'text',
+            action        => 'text',
+            resource_id   => 'uuid',
+            space_id      => 'uuid',
+        ],
+    },
+    notification_list_inbox => {
+        version    => 2,
+        parameters => [
+            recipient_user_id     => 'uuid',
+            filter_sources        => 'boolean',
+            member                => 'boolean',
+            global_read           => 'boolean',
+            viewer_user_id        => 'uuid',
+            category_ids          => 'uuid[]',
+            space_ids             => 'uuid[]',
+            after_created_at      => 'timestamptz',
+            after_notification_id => 'uuid',
+            row_limit             => 'integer'
+        ],
+    },
+    notification_unread_count => {
+        version    => 2,
+        parameters => [
+            recipient_user_id => 'uuid',
+            filter_sources    => 'boolean',
+            member            => 'boolean',
+            global_read       => 'boolean',
+            viewer_user_id    => 'uuid',
+            category_ids      => 'uuid[]',
+            space_ids         => 'uuid[]'
+        ]
+    },
+    forum_store_write => {
+        version    => 2,
+        parameters =>
+          [ store_type => 'text', command => 'jsonb', record => 'jsonb' ],
+        json => ['stored'],
+    },
+    forum_write_command => {
+        version    => 2,
+        parameters => [
+            log        => 'jsonb',
+            answer     => 'jsonb',
+            store_type => 'text',
+            command    => 'jsonb',
+            record     => 'jsonb'
+        ],
+        json => [qw(response stored)],
+    },
+    forum_find_category => {
+        version    => 2,
+        parameters => [ category_id => 'uuid' ],
+    },
+    forum_list_categories => {
+        version    => 2,
+        parameters => [
+            member       => 'boolean',
+            global_read  => 'boolean',
+            category_ids => 'uuid[]',
+            space_ids    => 'uuid[]',
+            row_limit    => 'integer'
+        ],
+    },
+    forum_list_category_threads => {
+        version    => 2,
+        parameters => [
+            category_id     => 'uuid',
+            member          => 'boolean',
+            global_read     => 'boolean',
+            scope_user_id   => 'uuid',
+            viewer_user_id  => 'uuid',
+            after_pinned    => 'boolean',
+            after_activity  => 'timestamptz',
+            after_thread_id => 'uuid',
+            row_limit       => 'integer'
+        ],
+    },
+    forum_list_public_threads => {
+        version    => 2,
+        parameters => [
+            member          => 'boolean',
+            global_read     => 'boolean',
+            category_ids    => 'uuid[]',
+            space_ids       => 'uuid[]',
+            after_activity  => 'timestamptz',
+            after_thread_id => 'uuid',
+            row_limit       => 'integer'
+        ],
+    },
+    forum_find_post => {
+        version    => 2,
+        parameters => [ post_id => 'uuid' ],
+    },
+    forum_find_visible_post => {
+        version    => 2,
+        parameters => [ post_id => 'uuid' ],
+    },
+    forum_find_listed_post => {
+        version    => 2,
+        parameters => [
+            post_id        => 'uuid',
+            thread_id      => 'uuid',
+            member         => 'boolean',
+            global_read    => 'boolean',
+            scope_user_id  => 'uuid',
+            viewer_user_id => 'uuid'
+        ],
+    },
+    forum_thread_placement => {
+        version    => 2,
+        parameters => [ source_id => 'uuid' ],
+    },
+    forum_post_placement => {
+        version    => 2,
+        parameters => [ source_id => 'uuid' ],
+    },
     forum_thread_page_head => {
-        version    => 1,
+        version    => 2,
         parameters => [ thread_id => 'uuid' ],
     },
     forum_thread_page_posts => {
-        version    => 1,
+        version    => 2,
         parameters => [
             thread_id      => 'uuid',
             standing       => 'text',
@@ -75,7 +1124,7 @@ const my %FUNCTION => (
         ],
     },
     forum_create_reply => {
-        version    => 1,
+        version    => 2,
         parameters => [
             idempotency_key        => 'text',
             command_type           => 'text',

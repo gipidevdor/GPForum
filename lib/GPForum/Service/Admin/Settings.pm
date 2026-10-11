@@ -79,9 +79,12 @@ const my @SECTIONS => (
     {
         name     => 'database',
         settings => [
-            [ GPFORUM_DATABASE_DSN      => 'database_dsn' ],
-            [ GPFORUM_DATABASE_USER     => 'database_user' ],
-            [ GPFORUM_DATABASE_PASSWORD => 'database_password' ],
+            [ GPFORUM_DATABASE_DSN            => 'database_dsn' ],
+            [ GPFORUM_DATABASE_USER           => 'database_user' ],
+            [ GPFORUM_ADMIN_DATABASE_DSN      => 'admin_database_dsn' ],
+            [ GPFORUM_ADMIN_DATABASE_USER     => 'admin_database_user' ],
+            [ GPFORUM_ADMIN_DATABASE_PASSWORD => 'admin_database_password' ],
+            [ GPFORUM_DATABASE_PASSWORD       => 'database_password' ],
             [
                 GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS =>
                   'database_statement_timeout_ms'

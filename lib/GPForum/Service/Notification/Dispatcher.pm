@@ -9,6 +9,8 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow::NotificationInbox;
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Admin::Settings;
@@ -81,6 +83,9 @@ has realtime_notifier => undef;    # optional: no realtime badge
 # private or the recipient lost their grant.
 has readability => undef;    # optional: every source counts as readable
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 has subscription_store => undef;    # optional: only fan-out reads it
 has stats              => sub { return \%PROCESS_STATS; };
 
@@ -126,6 +131,25 @@ sub _create_notification ( $self, $input ) {
     my $idempotency_key = _idempotency_key($input);
     my $notification_id = $input->{notification_id}
       || _notification_id_for($idempotency_key);
+    if ( $self->functions ) {
+        my $at = $self->clock->now_iso8601;
+        return $self->functions->row(
+            'notification_deliver',
+            {
+                idempotency_key => $idempotency_key,
+                notification    => _notification_row(
+                    $input, $idempotency_key, $notification_id, $at
+                ),
+                inbox => {
+                    created_at        => $at,
+                    notification_id   => $notification_id,
+                    recipient_user_id => $input->{recipient_user_id},
+                    rank_score        => $input->{rank_score} || $DEFAULT_RANK,
+                    read_at           => undef
+                },
+            }
+        )->{result};
+    }
     my $inbox_key = {
         notification_id   => $notification_id,
         recipient_user_id => $input->{recipient_user_id},
@@ -294,6 +318,10 @@ sub fanout_to_subscribers ( $self, $input ) {
 }
 
 sub list_for_user ( $self, $user_id, $limit ) {
+    if ( $self->functions ) {
+        return $self->_inbox_by_function( $user_id,
+            { limit => $limit || $DEFAULT_LIMIT } );
+    }
     return [
         _rows(
             $self->inbox_resultset(
@@ -304,7 +332,19 @@ sub list_for_user ( $self, $user_id, $limit ) {
 }
 
 sub list_page_for_user ( $self, $user_id, $options ) {
-    my $page   = $self->page_window->plan($options);
+    my $page = $self->page_window->plan($options);
+    if ( $self->functions ) {
+        my $rows = $self->_inbox_by_function(
+            $user_id,
+            {
+                %{ $options || {} },
+                limit => $page->{fetch_rows},
+                after => $page->{after},
+            }
+        );
+        return $self->page_window->page( $rows, $page->{limit},
+            \@CURSOR_COLUMNS );
+    }
     my $search = $self->inbox_resultset(
         $user_id,
         {
@@ -328,6 +368,16 @@ sub mark_read ( $self, $notification_id, $recipient_user_id ) {
             return { ok => 0, error => 'not_found' }
               if !GPForum::Infrastructure::Id->is_uuid($notification_id);
 
+            if ( $self->functions ) {
+                return $self->functions->row(
+                    'notification_mark_read',
+                    {
+                        notification_id   => $notification_id,
+                        recipient_user_id => $recipient_user_id,
+                        read_at           => $self->clock->now_iso8601,
+                    }
+                )->{result};
+            }
             my $inbox = $self->_find_inbox(
                 {
                     notification_id   => $notification_id,
@@ -360,6 +410,15 @@ sub mark_all_read ( $self, $recipient_user_id ) {
         $recipient_user_id,
         sub {
             my $read_at = $self->clock->now_iso8601;
+            if ( $self->functions ) {
+                my $values =
+                  $self->_source_parameters( $recipient_user_id, undef );
+                $values->{user_id} = delete $values->{recipient_user_id};
+                return $self->functions->row(
+                    'notification_mark_all_read',
+                    { %{$values}, read_at => $read_at }
+                )->{result};
+            }
             my $search =
               $self->schema->resultset('NotificationInbox')->search_rs(
                 {
@@ -416,6 +475,11 @@ sub _read_payload ( $inbox, $read_at ) {
 }
 
 sub unread_count_for_user ( $self, $user_id, $viewer = undef ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'notification_unread_count',
+            $self->_source_parameters( $user_id, $viewer ) );
+        return $row ? $row->{unread_count} : 0;
+    }
     my $search = $self->unread_resultset( $user_id, $viewer );
 
     return $search->count if $search->can('count');
@@ -581,6 +645,41 @@ sub snapshot ($self) {
 
 sub _find_inbox ( $self, $query ) {
     return $self->schema->resultset('NotificationInbox')->find($query);
+}
+
+sub _inbox_by_function ( $self, $user_id, $options ) {
+    my $after = $options->{after} || {};
+    my $rows  = $self->functions->rows(
+        'notification_list_inbox',
+        {
+            %{ $self->_source_parameters( $user_id, $options->{viewer} ) },
+            after_created_at      => $after->{sort_value},
+            after_notification_id => $after->{id},
+            row_limit             => $options->{limit} || $DEFAULT_LIMIT,
+        }
+    );
+    return [
+        map {
+            GPForum::Infrastructure::ResultRow::NotificationInbox->from( $_,
+                $self->readability ? 1 : 0 )
+        } @{$rows}
+    ];
+}
+
+sub _source_parameters ( $self, $user_id, $viewer ) {
+    my $readability = $self->readability;
+    if ( $readability && !ref $viewer ) {
+        $viewer = $readability->viewer_resolver->resolve($user_id);
+    }
+    return {
+        recipient_user_id => $user_id,
+        filter_sources    => $readability ? 1                     : 0,
+        member            => $viewer      ? $viewer->member       : 0,
+        global_read       => $viewer      ? $viewer->global_read  : 0,
+        viewer_user_id    => $viewer      ? $viewer->user_id      : undef,
+        category_ids      => $viewer      ? $viewer->category_ids : [],
+        space_ids         => $viewer      ? $viewer->space_ids    : [],
+    };
 }
 
 # The resultset an inbox page executes.

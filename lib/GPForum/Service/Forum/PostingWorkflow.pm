@@ -519,6 +519,7 @@ sub _refused ($error) {
 # answered from the response, and another request under the same id is a
 # conflict.
 sub _run ( $self, $type, $input, $run ) {
+    return $self->_run_by_function( $type, $input, $run ) if $self->functions;
     my $command_id = _command_id($input);
     return _missing_command_id_result($input) if !length $command_id;
     return $run->()                           if !$self->command_idempotency;
@@ -551,6 +552,125 @@ sub _run ( $self, $type, $input, $run ) {
     return $guarded->{result};
 }
 
+# Reuse the workflow's validation and composition before the database call.
+# During preparation the store handoff is deferred. The function then owns
+# the command row, store locks and event/audit/outbox writes atomically.
+sub _run_by_function ( $self, $type, $input, $run ) {
+    my $key = _command_id($input);
+    return _missing_command_id_result($input) if !length $key;
+    my ( $call, $prepared );
+    try {
+        my $log         = $self->command_idempotency;
+        my $command_log = {
+            actor_id               => _nullable( $input->{author_user_id} ),
+            command_id             => $log->id_service->uuid,
+            command_correlation_id => $log->id_service->uuid,
+            command_at             => $log->clock->now_iso8601,
+            command_type           => $type,
+            idempotency_key        => $key,
+            request_hash           =>
+              $log->request_hash( $self->codec->request( $type, $input ) ),
+        };
+        my $answer;
+        {
+            # This handoff flag is scoped to preparation and restored on errors.
+            ## no critic (Variables::ProhibitLocalVars)
+            local $self->{preparing_function} = 1;
+            ## use critic
+            $answer = $run->();
+        }
+        $prepared = $answer->{prepared};
+        my $store = $self->_function_store($type);
+        my $values =
+          $answer->{pending}
+          ? $store->function_parameters( _function_type($type),
+            $answer->{command} )
+          : {
+            store_type => _function_type($type),
+            command    => undef,
+            record     => undef
+          };
+        $call = {
+            %{$values},
+            log    => $command_log,
+            answer => $answer->{pending}
+            ? undef
+            : $self->codec->response( $type, $answer )
+        };
+    }
+    catch ($error) {
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+    my $execute = sub {
+        my $row     = $self->functions->row( 'forum_write_command', $call );
+        my $outcome = $row->{outcome} // q{};
+        return $self->codec->replay( $type, $row->{response} )
+          if $outcome eq 'replayed';
+        return _result(
+            status => 'conflict',
+            error  =>
+              GPForum::Service::Operations::CommandIdempotency->refusal_error(
+                $outcome)
+        ) if $outcome ne 'recorded';
+        my $response = $row->{response};
+        return _result( status => 'invalid', prepared => $prepared )
+          if $response->{status} eq 'invalid';
+        return _result(
+            status => $response->{status},
+            error  => $response->{error}
+        ) if !$response->{ok};
+        my $stored =
+          $self->_function_store($type)->function_answer( $row->{stored} );
+        my $result =
+          _result( status => 'ok', stored => $stored, prepared => $prepared );
+        my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
+
+        if ($mentions) {
+            $self->_record_post_mentions( $stored, $call->{command} );
+        }
+        return $result;
+    };
+    my $result;
+    try {
+        my $body =
+            $call->{command}
+          ? $call->{command}{body}{body_source} // q{}
+          : q{};
+        $result =
+          index( $body, $MENTION_SIGN ) < 0
+          ? $execute->()
+          : $self->_function_store($type)->schema->txn_do($execute);
+    }
+    catch ($error) {
+        my ( $noun, undef, $label ) = @{ $STORE{$type} };
+        if ( "$error" =~ /\bapi[.]core_forum_\w+_v1\b/msx ) {
+            $self->_log( error => "$label failed: $error" );
+            return _result( status => 'failed', error => "$noun store failed" );
+        }
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+    return $result;
+}
+
+sub _function_store ( $self, $type ) {
+    my $method = $STORE{$type}[0] . '_store';
+    return $self->$method;
+}
+
+sub _function_type ($type) {
+    my ( $noun, $verb ) = split /[.]/msx, $type;
+    my %event = (
+        create  => 'created',
+        edit    => 'updated',
+        move    => 'moved',
+        delete  => 'deleted',
+        restore => 'undeleted',
+    );
+    return "$noun.$event{$verb}";
+}
+
 # A composer's answer: invalid, or its command stored, and then the mentions
 # in the stored post recorded.
 sub _store_composed ( $self, $type, $prepared ) {
@@ -558,6 +678,9 @@ sub _store_composed ( $self, $type, $prepared ) {
       if !$prepared->{ok};
 
     my $stored = $self->_call_store( $type, $prepared->{command} );
+    if ( $stored->{pending} ) {
+        $stored->{prepared} = $prepared;
+    }
     return $stored if !$stored->{ok};
 
     my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
@@ -576,6 +699,8 @@ sub _store_composed ( $self, $type, $prepared ) {
 # command and replayed with it. A death, or an answer that is neither, is a
 # failure.
 sub _call_store ( $self, $type, $command ) {
+    return { pending => 1, command => $command }
+      if $self->{preparing_function};
     my ( $noun, $method, $label, undef, $refusals ) = @{ $STORE{$type} };
     my $store   = "${noun}_store";
     my $failure = "$noun store failed";

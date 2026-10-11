@@ -18,7 +18,13 @@ use GPForum::Service::Operations::Profile;
 use GPForum::Service::Operations::QueryBudget;
 use GPForum::Service::Operations::Replication;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $MILLISECONDS_PER_SECOND => 1000;
 const my $MAX_ERROR_LENGTH        => 240;
@@ -160,12 +166,17 @@ sub _resultset_check ( $self, $name ) {
     my $started = time;
 
     try {
-        my $probe = $self->probe_resultset($name);
-        if ( $probe && $probe->can('next') ) {
-            $probe->next;
+        if ( $self->functions ) {
+            $self->functions->row( 'ops_readiness_probe', { source => $name } );
         }
-        elsif ( $probe && $probe->can('single') ) {
-            $probe->single;
+        else {
+            my $probe = $self->probe_resultset($name);
+            if ( $probe && $probe->can('next') ) {
+                $probe->next;
+            }
+            elsif ( $probe && $probe->can('single') ) {
+                $probe->single;
+            }
         }
     }
     catch ($error) {

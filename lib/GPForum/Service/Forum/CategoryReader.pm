@@ -8,6 +8,8 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
 
@@ -22,6 +24,9 @@ __PACKAGE__->requires('schema');
 has cache    => undef;    # optional: without it nothing is cached
 has prepared => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has cache_ttl_seconds => sub { return $DEFAULT_CACHE_TTL_SECONDS; };
+has functions         => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # ADR 0102: only the categories the viewer can read, judged on the category
 # and its space in the query. A request without a viewer reads as anonymous.
@@ -40,6 +45,16 @@ sub list_categories ( $self, $request ) {
 # so the caller answers 404 and existence is not confirmed.
 sub find_category ( $self, $category_id, $viewer = undef ) {
     return undef if !defined $category_id || !length $category_id;
+
+    if ( my $functions = $self->functions ) {
+        my $row = GPForum::Infrastructure::ResultRow->from(
+            $functions->row(
+                'forum_find_category', { category_id => $category_id }
+            )
+        );
+        return undef if !$row || defined $row->get_column('deleted_at');
+        return _readable_category( $row, $viewer ) ? $row : undef;
+    }
 
     my $categories = $self->schema->resultset('Category');
     my $with_space = {
@@ -107,11 +122,35 @@ sub _cached_categories ( $self, $limit ) {
 }
 
 sub _list_categories ( $self, $limit, $viewer = undef ) {
+    if ( my $functions = $self->functions ) {
+        my $scope = $viewer || GPForum::Service::Forum::Viewer->anonymous;
+        return [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $functions->rows(
+                    @{ $self->categories_call( $limit, $scope ) }
+                )
+            }
+        ];
+    }
     return [ _rows( $self->categories_resultset( $limit, $viewer ) ) ];
 }
 
-# The resultset the category index executes.
-# Public so the query-plan evidence EXPLAINs what actually runs.
+# The PostgreSQL call, shared with the nested plan evidence.
+sub categories_call ( $self, $limit, $viewer = undef ) {
+    my $scope = $viewer || GPForum::Service::Forum::Viewer->anonymous;
+    return [
+        'forum_list_categories',
+        {
+            category_ids => $scope->category_ids,
+            global_read  => $scope->global_read,
+            member       => $scope->member,
+            row_limit    => $limit,
+            space_ids    => $scope->space_ids,
+        }
+    ];
+}
+
+# The original resultset, retained for doubles and differential plan tests.
 sub categories_resultset ( $self, $limit, $viewer = undef ) {
     my $readable = GPForum::Service::Forum::Visibility->readable_condition(
         $viewer || GPForum::Service::Forum::Viewer->anonymous,
@@ -190,6 +229,13 @@ L<GPForum::Service::Forum::Visibility>. The list applies that rule in the
 query, before the row limit, so a page is never short of readable
 categories. A deleted category (C<deleted_at> set) is never returned.
 
+On PostgreSQL the list and lookup call C<api.forum_list_categories_v1> and
+C<api.forum_find_category_v1>. The list returns plain column rows, with
+visibility filtered before its limit; the lookup retains the existing
+visibility check on its returned columns. C<functions =E<gt> undef> keeps
+the original path for differential tests and schemas without a function
+layer, including the in-memory doubles.
+
 Only the anonymous list is cached: it is the one list every anonymous reader
 shares, while a signed-in viewer's list depends on their grants. Each limit
 is its own entry, under C<categories:list:anonymous:E<lt>limitE<gt>>, tagged
@@ -250,6 +296,12 @@ ordered by position, title and category id, with the limit as its row
 count. The limit is used as given, not bounded. Public so that the query
 plan evidence (L<GPForum::Command::QueryPlanEvidence>) EXPLAINs the query
 that actually runs.
+
+=head2 categories_call
+
+Takes a limit and an optional viewer. Returns the catalogue name and bound
+parameters the PostgreSQL category list executes, so nested plan evidence
+can inspect the same call.
 
 =head1 DIAGNOSTICS
 

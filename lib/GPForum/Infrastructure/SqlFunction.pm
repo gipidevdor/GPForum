@@ -40,11 +40,12 @@ has catalogue => sub { return $CATALOGUE; };
 sub for_schema ( $class, $schema ) {
     return undef if !blessed $schema || !$schema->isa('DBIx::Class::Schema');
 
-    my $info;
-    try { $info = $schema->storage->connect_info; }
-    catch ($error) { return undef; };
-    return undef
-      if ref $info ne 'ARRAY' || ( $info->[0] // q{} ) !~ $POSTGRESQL_DSN;
+    my $info = $schema->storage->connect_info;
+    if ( ref $info ne 'ARRAY' || !defined $info->[0] || ref $info->[0] ) {
+        GPForum::X::Argument->throw(
+            message => 'SQL function routing needs a configured database DSN' );
+    }
+    return undef if $info->[0] !~ $POSTGRESQL_DSN;
 
     return $class->new( schema => $schema );
 }
@@ -116,10 +117,18 @@ sub _typed ( $type, $value ) {
 # rows, as Infrastructure::PreparedQuery does for its statements.
 sub _malformed_id ( $entry, $bound ) {
     for my $index ( 0 .. $#{$bound} ) {
-        next if $entry->{types}[$index] ne 'uuid';
+        next
+          if $entry->{types}[$index] ne 'uuid'
+          && $entry->{types}[$index] ne 'uuid[]';
         next if !defined $bound->[$index];
-        return 1
-          if !GPForum::Infrastructure::Id->is_uuid_spelling( $bound->[$index] );
+        for my $value (
+            ref $bound->[$index] eq 'ARRAY'
+            ? @{ $bound->[$index] }
+            : $bound->[$index]
+          )
+        {
+            return 1 if !GPForum::Infrastructure::Id->is_uuid_spelling($value);
+        }
     }
 
     return 0;
@@ -132,7 +141,8 @@ sub _execute ( $self, $entry, $bound ) {
     my $storage = $self->schema->storage;
     my $stats   = $storage->debug ? $storage->debugobj : undef;
     if ($stats) {
-        $stats->query_start( $entry->{sql}, @{$bound} );
+        $stats->query_start( $entry->{sql},
+            map { defined $_ ? $_ : 'NULL' } @{$bound} );
     }
     my $rows = $storage->dbh_do(
         sub ( $, $dbh ) {
@@ -140,7 +150,8 @@ sub _execute ( $self, $entry, $bound ) {
         }
     );
     if ($stats) {
-        $stats->query_end( $entry->{sql}, @{$bound} );
+        $stats->query_end( $entry->{sql},
+            map { defined $_ ? $_ : 'NULL' } @{$bound} );
     }
 
     return $rows;

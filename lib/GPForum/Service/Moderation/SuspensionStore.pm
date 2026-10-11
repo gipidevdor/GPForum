@@ -8,6 +8,9 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
@@ -39,6 +42,9 @@ has recorder => sub {
     );
 };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 has events => sub { return GPForum::Service::Moderation::Event->new; };
 
 sub create_suspension ( $self, $input ) {
@@ -53,7 +59,7 @@ sub create_suspension ( $self, $input ) {
 # stored is minted once more, unless a concurrent request suspended the
 # member meanwhile.
 sub _create_or_reuse ( $self, $input ) {
-    my $user = $self->schema->resultset('User')->find( $input->{user_id} );
+    my $user = $self->_user( $input->{user_id} );
     if ( !$user ) {
         return undef;
     }
@@ -106,7 +112,13 @@ sub _insert_suspension ( $self, $input, $user ) {
             source          => $input->{source} || 'moderation',
         },
     };
-    $self->schema->resultset('Suspension')->create($suspension);
+    if ( $self->functions ) {
+        $self->functions->row( 'moderation_suspension_insert',
+            { values => $suspension } );
+    }
+    else {
+        $self->schema->resultset('Suspension')->create($suspension);
+    }
     $user->update(
         {
             status     => $STATUS_SUSPEND,
@@ -154,8 +166,7 @@ sub revoke_suspension ( $self, $suspension_id, $actor_user_id, $reason ) {
 # A suspension already revoked is answered as it stands, its member restored
 # if an earlier attempt left them suspended.
 sub _revoke_in_txn ( $self, $input ) {
-    my $suspension =
-      $self->schema->resultset('Suspension')->find( $input->{suspension_id} );
+    my $suspension = $self->_suspension( $input->{suspension_id} );
     if ( !$suspension ) {
         return undef;
     }
@@ -171,7 +182,19 @@ sub _revoke_in_txn ( $self, $input ) {
 
     my $timestamp = $self->clock->now_iso8601;
     my $changes   = { revoked_at => $timestamp };
-    $suspension->update($changes);
+    if ( $self->functions ) {
+        $self->functions->row(
+            'moderation_suspension_update',
+            {
+                suspension_id => $input->{suspension_id},
+                revoked_at    => $timestamp
+            }
+        );
+        %{$suspension} = ( %{$suspension}, %{$changes} );
+    }
+    else {
+        $suspension->update($changes);
+    }
     $self->_restore_user_if_needed( $user_id, $timestamp );
     $self->_record_event_and_audit(
         {
@@ -195,6 +218,25 @@ sub _revoke_in_txn ( $self, $input ) {
     return { suspension_id => $input->{suspension_id}, %{$changes} };
 }
 
+sub _user ( $self, $user_id ) {
+    return $self->schema->resultset('User')->find($user_id)
+      if !$self->functions;
+    return GPForum::Infrastructure::ResultRow::IdentityUser->from(
+        $self->functions->row( 'identity_user_by_id', { user_id => $user_id } ),
+        $self->functions
+    );
+}
+
+sub _suspension ( $self, $suspension_id ) {
+    return $self->schema->resultset('Suspension')->find($suspension_id)
+      if !$self->functions;
+    return GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'moderation_suspension_find', { suspension_id => $suspension_id }
+        )
+    );
+}
+
 sub _suspension_hash ($suspension) {
     return {
         suspension_id => _column( $suspension, 'suspension_id' ),
@@ -210,6 +252,15 @@ sub _suspension_hash ($suspension) {
 
 sub active_for_user ( $self, $user_id ) {
     return undef if !defined $user_id || !length $user_id;
+
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'moderation_active_suspension',
+                { user_id => $user_id, now => $self->clock->now_iso8601 }
+            )
+        );
+    }
 
     my $search = $self->schema->resultset('Suspension')->search_rs(
         {
@@ -231,7 +282,21 @@ sub active_for_user ( $self, $user_id ) {
 }
 
 sub can_participate ( $self, $user_id ) {
-    my $user = $self->schema->resultset('User')->find($user_id);
+    if ( $self->functions ) {
+        my $row =
+          $self->functions->row( 'moderation_can_participate',
+            { user_id => $user_id, now => $self->clock->now_iso8601 } )
+          || { ok => 0, reason => 'user_not_found' };
+        if ( !defined $row->{reason} ) {
+            delete $row->{reason};
+        }
+        if ( !defined $row->{suspension_id} ) {
+            delete $row->{suspension_id};
+        }
+        return $row;
+    }
+
+    my $user = $self->_user($user_id);
     return { ok => 0, reason => 'user_not_found' } if !$user;
 
     my $status = _column( $user, 'status' ) || $STATUS_ACTIVE;
@@ -254,7 +319,7 @@ sub _restore_user_if_needed ( $self, $user_id, $timestamp ) {
     if ( !defined $user_id || !length $user_id ) {
         return;
     }
-    my $user = $self->schema->resultset('User')->find($user_id);
+    my $user = $self->_user($user_id);
     if ( !$user || ( _column( $user, 'status' ) || q{} ) eq $STATUS_ACTIVE ) {
         return;
     }

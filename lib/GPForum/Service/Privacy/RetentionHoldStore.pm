@@ -13,6 +13,14 @@ use GPForum::X::Conflict;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 our $VERSION = '0.001';
 
 const my $ACTIVE_CONSTRAINT => 'idx_retention_holds_active_resource_unique';
@@ -29,6 +37,7 @@ has recorder => sub {
     return GPForum::Infrastructure::EventRecorder->new(
         id_service => $self->id_service,
         schema     => $self->schema,
+        functions  => $self->functions,
     );
 };
 __PACKAGE__->requires(qw(schema));
@@ -100,6 +109,24 @@ sub _active_hold_hash ( $self, $input ) {
 }
 
 sub active_holds_for ( $self, $resource_type, $resource_id, $limit ) {
+    if ( $self->functions ) {
+        my $rows = $self->functions->rows(
+            'privacy_review',
+            {
+                source => 'RetentionHold',
+                query  => {
+                    resource_type => $resource_type,
+                    resource_id   => $resource_id
+                },
+                row_limit => $limit,
+                oldest    => 0
+            }
+        );
+        return [
+            map { GPForum::Infrastructure::ResultRow->from( $_->{document} ) }
+              @{$rows} ];
+    }
+
     my $search = $self->schema->resultset('RetentionHold')->search_rs(
         {
             ends_at       => undef,
@@ -127,7 +154,13 @@ sub _insert_hold ( $self, $input ) {
         retention_hold_id => $self->id_service->uuid,
         starts_at         => $input->{starts_at} || $timestamp,
     };
-    $self->schema->resultset('RetentionHold')->create($hold);
+    if ( $self->functions ) {
+        $self->functions->row( 'privacy_insert',
+            { source => 'RetentionHold', row => $hold } );
+    }
+    else {
+        $self->schema->resultset('RetentionHold')->create($hold);
+    }
     $self->_record_event_and_audit( $hold, $input->{created_by} );
 
     return $hold;

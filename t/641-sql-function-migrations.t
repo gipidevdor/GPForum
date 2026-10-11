@@ -27,7 +27,7 @@ our $VERSION = '0.001';
 const my $FIRST_API_MIGRATION => '052';
 const my @AREAS => qw(
   admin attachment community core forum identity moderation notification ops
-  outbox partition privacy search session
+  outbox partition portability privacy projection search session worker plugin
 );
 const my $AREA   => join q{|}, @AREAS;
 const my $WORD   => qr/[[:lower:]] [[:lower:][:digit:]_]*/msx;
@@ -131,8 +131,9 @@ sub _function_problems ( $label, $function, $code ) {
     my %rule    = (
         'CREATE OR REPLACE'                   => defined $function->{replace},
         'EXECUTE revoked from PUBLIC nowhere' => $code !~ $revoked,
-        'SECURITY DEFINER' => ( $head =~ /SECURITY \s+ DEFINER/imsx ) ? 1 : 0,
-        'dynamic SQL'      => ( $body =~ /\b EXECUTE \b/imsx )        ? 1 : 0,
+        'SECURITY DEFINER' => ( $head =~ /SECURITY \s+ DEFINER/imsx )
+          && !_boundary( $name, $head, $body ) ? 1 : 0,
+        'dynamic SQL' => ( $body =~ /\b EXECUTE \b/imsx ) ? 1 : 0,
         'no version suffix or area'  => $name !~ $NAME,
         'plan_cache_mode not pinned' => $head !~ $PLAN_MODE,
         'search_path not pinned'     => $head !~ $SEARCH_PATH,
@@ -146,6 +147,23 @@ sub _function_problems ( $label, $function, $code ) {
     }
 
     return map { "$label: $_" } sort grep { $rule{$_} } keys %rule;
+}
+
+# ADR 0127 allows only a typed, versioned forwarding boundary to acquire
+# the owner's rights; helper bodies and arbitrary SQL remain INVOKER.
+sub _boundary ( $name, $head, $body ) {
+    return 0 if $name =~ /\A core_/msx || $name !~ /_v2\z/msx;
+    return 0 if !$catalogued{"api.$name"};
+    return 0 if $head !~ /LANGUAGE\s+sql\b/imsx;
+    my $implementation = $name =~ s/_v2\z/_v1/rmsx;
+    my $argument       = qr/p_\w+\s*/msx;
+    my $arguments      = qr/(?:$argument(?:,\s*$argument)*)?/msx;
+    my $opening =
+      qr/\A\s*SELECT\s+[*]\s+FROM\s+api[.]\Q$implementation\E\s*[(]\s*/imsx;
+    my $closing = qr/[)]\s*;?\s*\z/msx;
+    return $body =~ /$opening$arguments$closing/imsx
+      ? 1
+      : 0;
 }
 
 # The tables the migrations create, which a function names as public.NAME.

@@ -10,6 +10,8 @@ use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::PreparedQuery;
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Attachment::DownloadAccess;
 use GPForum::Service::Attachment::Event;
@@ -55,6 +57,9 @@ has recorder => sub {
     );
 };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 has record      => sub { return GPForum::Service::Attachment::Record->new; };
 has readability => undef;    # optional: DownloadAccess's, optional there
 
@@ -124,7 +129,14 @@ sub _persist_intent ( $self, $intent ) {
     return $self->_insert_once(
         {
             create => sub {
-                my $attachment = $self->_attachments->create($intent);
+                my $attachment =
+                  $self->functions
+                  ? GPForum::Infrastructure::ResultRow->from(
+                    $self->functions->row(
+                        'attachment_insert', { values => $intent }
+                    )
+                  )
+                  : $self->_attachments->create($intent);
                 $self->_write_intent_event($intent);
                 return { attachment => $attachment };
             },
@@ -236,7 +248,16 @@ sub _create_row ( $self, $resultset, $id_column, $columns ) {
         $id_column => $self->id_service->uuid,
         created_at => $self->clock->now_iso8601,
     };
-    $self->schema->resultset($resultset)->create($row);
+    if ( $self->functions ) {
+        my $name =
+          $resultset eq 'AttachmentLink'
+          ? 'attachment_link_insert'
+          : 'attachment_variant_insert';
+        $self->functions->row( $name, { values => $row } );
+    }
+    else {
+        $self->schema->resultset($resultset)->create($row);
+    }
 
     return $row;
 }
@@ -252,7 +273,7 @@ sub mark_uploaded ( $self, $attachment_id ) {
         state       => $STATE_UPLOADED,
         uploaded_at => $self->clock->now_iso8601,
     };
-    $attachment->update($changes);
+    $self->_update_attachment( $attachment, $changes );
 
     return { attachment_id => $attachment_id, %{$changes} };
 }
@@ -275,7 +296,12 @@ sub record_scan ( $self, $input ) {
             return undef if !$self->find_attachment($attachment_id);
 
             my $changes = $self->lifecycle->scan_changes($input);
-            my $updated = $self->_attachments->search_rs(
+            my $updated =
+              $self->functions
+              ? $self->functions->row( 'attachment_scan_verdict',
+                { attachment_id => $attachment_id, changes => $changes } )
+              ->{changed_count}
+              : $self->_attachments->search_rs(
                 {
                     attachment_id => $attachment_id,
                     deleted_at    => undef,
@@ -283,7 +309,7 @@ sub record_scan ( $self, $input ) {
                         $input->{scan_status}
                     ),
                 }
-            )->update($changes);
+              )->update($changes);
 
             # Numeric: DBI reports "no rows" as "0E0", which is true.
             if ( !( $updated + 0 ) ) {
@@ -376,6 +402,18 @@ sub _idempotent_row ( $self, $existing ) {
 sub find_attachment ( $self, $attachment_id ) {
     return undef if !defined $attachment_id || !length $attachment_id;
 
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'attachment_find',
+                {
+                    attachment_id => $attachment_id,
+                    object_key    => undef,
+                    hold          => 0
+                }
+            )
+        );
+    }
     my $attachments = $self->_attachments;
 
     return $self->prepared->row(
@@ -422,29 +460,48 @@ sub download_for ( $self, $input ) {
 sub attachments_for_posts ( $self, $post_ids, $input ) {
     my %requested = map { $_ => 1 } @{$post_ids};
     my @ids       = sort keys %requested;
-    my $links     = $self->schema->resultset('AttachmentLink');
-    my $listed    = sub {
-        return $links->search_rs(
-            {
-                'me.target_id'   => { -in => \@ids },
-                'me.target_type' => $self->lifecycle->post_link_target,
-            },
-            { rows => $self->lifecycle->post_link_rows( \@ids ) },
-        );
-    };
+    my $rows;
+    if ( $self->functions ) {
+        $rows = [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows(
+                    'attachment_links',
+                    {
+                        attachment_id => undef,
+                        target_type   => $self->lifecycle->post_link_target,
+                        target_id     => undef,
+                        post_ids      => \@ids,
+                        row_limit => $self->lifecycle->post_link_rows( \@ids )
+                    }
+                )
+            }
+        ];
+    }
+    else {
+        my $links  = $self->schema->resultset('AttachmentLink');
+        my $listed = sub {
+            return $links->search_rs(
+                {
+                    'me.target_id'   => { -in => \@ids },
+                    'me.target_type' => $self->lifecycle->post_link_target,
+                },
+                { rows => $self->lifecycle->post_link_rows( \@ids ) },
+            );
+        };
 
-    # One statement per page size: the page's post ids fill the IN list.
-    my $rows = $self->prepared->rows(
-        schema    => $self->schema,
-        shape     => 'attachment_links:posts:' . scalar @ids,
-        source    => 'AttachmentLink',
-        resultset => $listed,
-        fallback  => sub { return [ $self->record->rows( $listed->() ) ]; },
-        values    => {
-            'me.target_id' => \@ids,
-            limit          => $self->lifecycle->post_link_rows( \@ids ),
-        },
-    );
+        # One statement per page size: the page's post ids fill the IN list.
+        $rows = $self->prepared->rows(
+            schema    => $self->schema,
+            shape     => 'attachment_links:posts:' . scalar @ids,
+            source    => 'AttachmentLink',
+            resultset => $listed,
+            fallback  => sub { return [ $self->record->rows( $listed->() ) ]; },
+            values    => {
+                'me.target_id' => \@ids,
+                limit          => $self->lifecycle->post_link_rows( \@ids ),
+            },
+        );
+    }
     my %by_post;
     for my $link ( @{$rows} ) {
         my $post_id = $self->record->column( $link, 'target_id' );
@@ -491,16 +548,32 @@ sub cleanup_orphans ( $self, $input ) {
         };
     }
 
-    my $candidates = $self->_attachments->search_rs(
-        {
-            %{ $self->lifecycle->orphan_where },
-            created_at => { $LTE => $self->lifecycle->orphan_cutoff($input) },
-            -and       => [ \$UNLINKED ],
-        },
-        $self->lifecycle->orphan_search_attrs($input),
-    );
+    my @candidates;
+    if ( $self->functions ) {
+        @candidates = map { GPForum::Infrastructure::ResultRow->from($_) } @{
+            $self->functions->rows(
+                'attachment_orphans',
+                {
+                    cutoff    => $self->lifecycle->orphan_cutoff($input),
+                    row_limit => $self->lifecycle->orphan_limit($input)
+                }
+            )
+        };
+    }
+    else {
+        my $candidates = $self->_attachments->search_rs(
+            {
+                %{ $self->lifecycle->orphan_where },
+                created_at =>
+                  { $LTE => $self->lifecycle->orphan_cutoff($input) },
+                -and => [ \$UNLINKED ],
+            },
+            $self->lifecycle->orphan_search_attrs($input),
+        );
+        @candidates = $self->record->rows($candidates);
+    }
     my ( @deleted, @errors );
-    for my $attachment ( $self->record->rows($candidates) ) {
+    for my $attachment (@candidates) {
         try {
             my $row = $self->_purge_orphan( $attachment, $input );
             if ($row) {
@@ -568,18 +641,48 @@ sub _purge_orphan ( $self, $attachment, $input ) {
     return $self->schema->txn_do(
         sub {
             my $locked =
-              $self->_attachments->find( $attachment_id, { for => 'update' } );
+              $self->functions
+              ? GPForum::Infrastructure::ResultRow->from(
+                $self->functions->row(
+                    'attachment_find',
+                    {
+                        attachment_id => $attachment_id,
+                        object_key    => undef,
+                        hold          => 1
+                    }
+                )
+              )
+              : $self->_attachments->find( $attachment_id,
+                { for => 'update' } );
             return undef
               if !$locked || !$self->lifecycle->still_intent($locked);
             my @links = $self->_attachment_links($attachment_id);
             return undef if @links;
 
-            my $variants =
-              $self->schema->resultset('AttachmentVariant')->search_rs(
-                { attachment_id => $attachment_id },
-                { columns       => ['object_key'] }
-              );
-            for my $object ( $self->record->rows($variants), $locked ) {
+            my @variants;
+            if ( $self->functions ) {
+                @variants =
+                  map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                    $self->functions->rows(
+                        'attachment_variants',
+                        {
+                            attachment_id => $attachment_id,
+                            variant_type  => undef,
+                            object_key    => undef,
+                            row_limit     => undef
+                        }
+                    )
+                  };
+            }
+            else {
+                my $variants =
+                  $self->schema->resultset('AttachmentVariant')->search_rs(
+                    { attachment_id => $attachment_id },
+                    { columns       => ['object_key'] }
+                  );
+                @variants = $self->record->rows($variants);
+            }
+            for my $object ( @variants, $locked ) {
                 $self->storage->delete_object(
                     $self->record->column( $object, 'object_key' ) );
             }
@@ -609,7 +712,7 @@ sub _delete_attachment ( $self, $attachment, $actor_id, $reason ) {
     my $timestamp     = $self->clock->now_iso8601;
     my $attachment_id = $self->record->column( $attachment, 'attachment_id' );
     my $deletion      = { deleted_at => $timestamp, state => $STATE_DELETED };
-    $attachment->update($deletion);
+    $self->_update_attachment( $attachment, $deletion );
 
     my $row = { %{ $self->lifecycle->row_columns($attachment) }, %{$deletion} };
     $self->_record(
@@ -665,6 +768,20 @@ sub _record ( $self, $event, $audit = undef ) {
 }
 
 sub _attachment_links ( $self, $attachment_id ) {
+    if ( $self->functions ) {
+        return map { GPForum::Infrastructure::ResultRow->from($_) } @{
+            $self->functions->rows(
+                'attachment_links',
+                {
+                    attachment_id => $attachment_id,
+                    target_type   => undef,
+                    target_id     => undef,
+                    post_ids      => undef,
+                    row_limit     => $self->lifecycle->link_lookup_rows
+                }
+            )
+        };
+    }
     my $search = $self->schema->resultset('AttachmentLink')->search_rs(
         { attachment_id => $attachment_id },
         { rows          => $self->lifecycle->link_lookup_rows },
@@ -675,7 +792,14 @@ sub _attachment_links ( $self, $attachment_id ) {
 
 sub _target_row ( $self, $target_type, $target_id ) {
     return undef if !exists $TARGET_RESULTSET{$target_type};
-
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'attachment_source_' . $target_type,
+                { target_id => $target_id }
+            )
+        );
+    }
     my $resultset;
     try {
         $resultset =
@@ -688,7 +812,60 @@ sub _target_row ( $self, $target_type, $target_id ) {
     return $resultset ? $resultset->find($target_id) : undef;
 }
 
+sub _update_attachment ( $self, $row, $changes ) {
+    return $row->update($changes) if !$self->functions;
+    $self->functions->row(
+        'attachment_update',
+        {
+            attachment_id => $self->record->column( $row, 'attachment_id' ),
+            changes       => $changes
+        }
+    );
+    %{$row} = ( %{$row}, %{$changes} );
+    return $row;
+}
+
+sub _single_function_row ( $self, $source, $query ) {
+    my ( $name, $params );
+    if ( $source eq 'EventLog' ) {
+        return $self->recorder->event_recorded( $query->{idempotency_key} )
+          ? { recorded => 1 }
+          : undef;
+    }
+    elsif ( $source eq 'Attachment' ) {
+        $name = 'attachment_find';
+        $params =
+          { attachment_id => undef, object_key => undef, hold => 0, %{$query} };
+    }
+    elsif ( $source eq 'AttachmentLink' ) {
+        $name   = 'attachment_links';
+        $params = {
+            attachment_id => undef,
+            target_type   => undef,
+            target_id     => undef,
+            post_ids      => undef,
+            row_limit     => 1,
+            %{$query}
+        };
+    }
+    else {
+        $name   = 'attachment_variants';
+        $params = {
+            attachment_id => undef,
+            variant_type  => undef,
+            object_key    => undef,
+            row_limit     => 1,
+            %{$query}
+        };
+    }
+    return GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row( $name, $params ) );
+}
+
 sub _single_row ( $self, $resultset_name, $query ) {
+    if ( $self->functions ) {
+        return $self->_single_function_row( $resultset_name, $query );
+    }
     my $search =
       $self->schema->resultset($resultset_name)
       ->search_rs( $query, { rows => 1 } );

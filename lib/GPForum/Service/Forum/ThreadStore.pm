@@ -9,6 +9,9 @@ use v5.40;
 
 use GPForum::Domain::Thread;
 use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::ResultRow::Post;
+use GPForum::Infrastructure::ResultRow::Thread;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::UniqueConflict;
@@ -73,6 +76,10 @@ const my %WRITE => (
 
 __PACKAGE__->requires('schema');
 
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub {
     require GPForum::Infrastructure::Id;
@@ -85,10 +92,13 @@ has recorder => sub {
     return GPForum::Infrastructure::EventRecorder->new(
         id_service => $self->id_service,
         schema     => $self->schema,
+        functions  => $self->functions,
     );
 };
 
 sub create_thread ( $self, $command ) {
+    return $self->_by_function( 'thread.created', $command )
+      if $self->functions;
     my $result = $self->schema->txn_do(
         sub {
             return $self->_insert_thread($command);
@@ -101,6 +111,55 @@ sub create_thread ( $self, $command ) {
         skipped => $result->{skipped},
         thread  => $result->{thread},
     };
+}
+
+# The ids remain application values. A thread opening draws two events and
+# their outbox ids before the single audit id, as the original recorder did.
+sub function_parameters ( $self, $event_type, $command ) {
+    my $recorder  = $self->recorder;
+    my $write_ids = {
+        correlation_id => $self->id_service->uuid,
+        event_id       => $recorder->id_service->uuid,
+        outbox_id      => $recorder->outbox_builder->id_service->uuid,
+    };
+    if ( $event_type eq 'thread.created' ) {
+        $write_ids->{post_event_id} = $recorder->id_service->uuid;
+        $write_ids->{post_outbox_id} =
+          $recorder->outbox_builder->id_service->uuid;
+    }
+    $write_ids->{audit_id}    = $recorder->audit_record->id_service->uuid;
+    $write_ids->{recorded_at} = $recorder->audit_record->now_iso8601;
+    if ( $event_type eq 'thread.deleted' ) {
+        $write_ids->{deleted_at} = $self->clock->now_iso8601;
+    }
+    return {
+        store_type => $event_type,
+        command    => $command,
+        record     => $write_ids
+    };
+}
+
+sub function_answer ( $self, $stored ) {
+    return $stored if !$stored->{ok};
+    my %answer = %{$stored};
+    if ( $stored->{thread} ) {
+        $answer{thread} =
+          GPForum::Infrastructure::ResultRow::Thread->from( $stored->{thread} );
+    }
+    if ( $stored->{post} ) {
+        $answer{post} =
+          GPForum::Infrastructure::ResultRow::Post->from( $stored->{post} );
+    }
+    if ( exists $stored->{skipped} ) {
+        $answer{skipped} = $stored->{skipped} ? 1 : undef;
+    }
+    return \%answer;
+}
+
+sub _by_function ( $self, $event_type, $command ) {
+    my $row = $self->functions->row( 'forum_store_write',
+        $self->function_parameters( $event_type, $command ) );
+    return $self->function_answer( $row->{stored} );
 }
 
 sub edit_thread ( $self, $command ) {
@@ -331,6 +390,7 @@ sub _find_post ( $self, $post_id ) {
 # the event and audit row recorded. A write that would change nothing is
 # skipped.
 sub _write ( $self, $event_type, $command ) {
+    return $self->_by_function( $event_type, $command ) if $self->functions;
     return $self->schema->txn_do(
         sub {
             my ( $existing, $refused ) =
@@ -505,6 +565,13 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
+On PostgreSQL, C<functions> selects the versioned SQL function layer. Each
+standalone write calls C<forum_store_write> once; the workflow combines that
+write with command idempotency in C<forum_write_command>. The statements,
+locks, durable records and retries below run inside PostgreSQL. Setting
+C<functions> to undef keeps the Perl path for differential tests; in-memory
+schemas select that path automatically.
+
 The write side of a thread for L<GPForum::Service::Forum::PostingWorkflow>.
 It takes the commands L<GPForum::Service::Forum::ThreadComposer> builds,
 and the delete and restore commands the workflow builds itself, and writes
@@ -548,6 +615,18 @@ Every event's idempotency key is C<command:KEY:TYPE> when the command has an
 C<idempotency_key>, and C<TYPE:AGGREGATE_ID> otherwise.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 function_parameters
+
+Takes the durable event type and store command. Returns the fixed parameters
+for C<api.forum_store_write_v1>: the command and the ids and timestamps
+that this store and its recorder supply. The workflow uses the same
+parameters in its atomic command function.
+
+=head2 function_answer
+
+Converts the stored JSON response to the existing store result contract,
+with lightweight result rows and the original refusal and skipped values.
 
 =head2 new
 

@@ -15,6 +15,7 @@ use GPForum::Infrastructure::PreparedQuery;
 use GPForum::Infrastructure::ResultRow::Post;
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::Storage;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::Service::Forum::Event;
@@ -110,6 +111,10 @@ const my %DELETION => (
 
 __PACKAGE__->requires('schema');
 
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 has clock      => sub { return GPForum::Service::Clock->new; };
 has prepared   => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has id_service => sub {
@@ -122,10 +127,12 @@ has recorder => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         id_service => $self->id_service,
         schema     => $self->schema,
+        functions  => $self->functions,
     );
 };
 
 sub create_post ( $self, $command ) {
+    return $self->_by_function( 'post.created', $command ) if $self->functions;
     my $result =
       $self->schema->txn_do( sub { return $self->_insert_post($command); } );
 
@@ -201,17 +208,60 @@ sub reply_answer ( $self, $row ) {
     };
 }
 
+# One fixed function call contains the complete store transaction.
+sub function_parameters ( $self, $event_type, $command ) {
+    my $recorder  = $self->recorder;
+    my $write_ids = {
+        correlation_id => $self->id_service->uuid,
+        event_id       => $recorder->id_service->uuid,
+        outbox_id      => $recorder->outbox_builder->id_service->uuid,
+        audit_id       => $recorder->audit_record->id_service->uuid,
+        recorded_at    => $recorder->audit_record->now_iso8601,
+    };
+    if ( $event_type eq 'post.deleted' ) {
+        $write_ids->{deleted_at} = $self->clock->now_iso8601;
+    }
+    return {
+        store_type => $event_type,
+        command    => $command,
+        record     => $write_ids
+    };
+}
+
+sub function_answer ( $self, $stored ) {
+    return $stored if !$stored->{ok};
+    my $answer = {
+        ok   => 1,
+        post =>
+          GPForum::Infrastructure::ResultRow::Post->from( $stored->{post} ),
+    };
+    if ( exists $stored->{skipped} ) {
+        $answer->{skipped} = $stored->{skipped} ? 1 : undef;
+    }
+    return $answer;
+}
+
+sub _by_function ( $self, $event_type, $command ) {
+    my $row = $self->functions->row( 'forum_store_write',
+        $self->function_parameters( $event_type, $command ) );
+    return $self->function_answer( $row->{stored} );
+}
+
 sub edit_post ( $self, $command ) {
+    return $self->_by_function( 'post.updated', $command ) if $self->functions;
     return $self->schema->txn_do(
         sub { return $self->_update_post($command); } );
 }
 
 sub delete_post ( $self, $command ) {
+    return $self->_by_function( 'post.deleted', $command ) if $self->functions;
     return $self->schema->txn_do(
         sub { return $self->_set_deleted( $command, 'post.deleted' ); } );
 }
 
 sub restore_post ( $self, $command ) {
+    return $self->_by_function( 'post.undeleted', $command )
+      if $self->functions;
     return $self->schema->txn_do(
         sub { return $self->_set_deleted( $command, 'post.undeleted' ); } );
 }
@@ -723,6 +773,13 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
+On PostgreSQL, C<functions> selects the versioned SQL function layer. Each
+standalone write calls C<forum_store_write> once; the workflow combines that
+write with command idempotency in C<forum_write_command>. The statements,
+locks, durable records and retries below run inside PostgreSQL. Setting
+C<functions> to undef keeps the Perl path for differential tests; in-memory
+schemas select that path automatically.
+
 The write side of posts. L<GPForum::Service::Forum::PostingWorkflow> calls
 it with the commands that L<GPForum::Service::Forum::PostComposer> builds
 for a reply or an edit, and with the ones it builds itself for a delete or a
@@ -790,6 +847,18 @@ not deleted, someone else's or hidden one. Rows may then be plain hashes, which 
 
 =head1 SUBROUTINES/METHODS
 
+=head2 function_parameters
+
+Takes the durable event type and store command. Returns the fixed parameters
+for C<api.forum_store_write_v1>: the command and the ids and timestamps
+that this store and its recorder supply. The workflow uses the same
+parameters in its atomic command function.
+
+=head2 function_answer
+
+Converts the stored JSON response to the existing store result contract,
+with lightweight result rows and the original refusal and skipped values.
+
 =head2 new
 
 Constructor (L<GPForum::Base>). C<schema>, the L<DBIx::Class> schema, is
@@ -828,8 +897,8 @@ from C<id_service>, then the event's, the outbox row's and the audit row's
 ids from the C<recorder>'s id services, and the time the recorder stamps
 the event and the audit row with. The function runs this store's write
 (C<api.core_forum_store_reply_v1>) inside the reply command; this store's
-L</create_post> stays the Perl path for the callers that use the store
-alone.
+L</create_post> calls the same stored reply step through
+C<forum_store_write> when called alone on PostgreSQL.
 
 =head2 reply_parameter_names
 

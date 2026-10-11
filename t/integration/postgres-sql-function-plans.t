@@ -28,6 +28,7 @@ const my $THREAD_POSTS     => 3_000;
 const my $CATEGORY_THREADS => 1_500;
 const my $DEEP_ENOUGH      => 700;
 const my $MIGRATION        => 'migrations/053_forum_thread_page_functions.sql';
+const my $LIST_MIGRATION   => 'migrations/056_forum_read_functions.sql';
 const my $KEYSET_BOUND =>
   qr/\n [ ]+ AND [ ] me[.]position [ ] >= [ ] p_after_position/msx;
 
@@ -104,6 +105,35 @@ for my $endpoint ( sort keys %unbounded ) {
         join( q{,}, @{ $unbounded{$endpoint}{violations} } ),
         qr/filter_grows_with_depth/msx,
         "an unbounded keyset in the function fails $endpoint"
+    );
+}
+
+# The category and latest-thread functions must retain the bounded keysets
+# too, including the independently limited live/deleted category scans.
+# Replace only functions in this disposable database to prove their deep
+# gates reject the same regression the original resultset tests reject.
+my $lists = path($LIST_MIGRATION)->slurp;
+for my $name (qw(forum_list_category_threads forum_list_public_threads)) {
+    my $first           = index $lists, "CREATE FUNCTION api.${name}_v1";
+    my $end_of_function = index $lists, "\n\$\$;", $first;
+    my $body            = substr $lists, $first,
+      $end_of_function - $first + length "\n\$\$;";
+    $body =~ s/\n [ ]+ AND [ ] me[.]pinned [ ] <= [ ] p_after_pinned//gmsx;
+    $body =~
+      s/\n [ ]+ AND [ ] me[.]last_activity_at [ ] <= [ ] p_after_activity//gmsx;
+    $body =~ s/\A CREATE [ ] FUNCTION/CREATE OR REPLACE FUNCTION/msx;
+    $dbh->do($body);
+}
+my %unbounded_lists = _reports(
+    $command,
+    qw(home_function_deep category_threads_function_deep
+      category_threads_function_deep_signed_in)
+);
+for my $endpoint ( sort keys %unbounded_lists ) {
+    like(
+        join( q{,}, @{ $unbounded_lists{$endpoint}{violations} } ),
+        qr/filter_grows_with_depth/msx,
+        "an unbounded function cursor fails $endpoint"
     );
 }
 

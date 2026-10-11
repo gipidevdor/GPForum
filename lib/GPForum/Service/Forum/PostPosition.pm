@@ -8,6 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::X::Argument;
+use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
@@ -16,12 +17,20 @@ const my $UNSAFE_NEXT_POSITION_MESSAGE =>
 'PostPosition::next_position is unsafe for writes; use PostStore deferred allocation';
 
 __PACKAGE__->requires('schema');
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub next_position {
     GPForum::X::Argument->throw( message => $UNSAFE_NEXT_POSITION_MESSAGE );
 }
 
 sub read_next_position ( $self, $thread_id ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'forum_next_position',
+            { thread_id => $thread_id } )->{next_position};
+    }
     my $posts  = $self->schema->resultset('Post');
     my $search = $posts->search_rs(
         { thread_id => $thread_id },

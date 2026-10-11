@@ -7,13 +7,33 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_LIMIT => 50;
 
 __PACKAGE__->requires(qw(schema));
 
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub roles_for_user ( $self, $user_id, $options ) {
+    if ( $self->functions ) {
+        return [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows(
+                    'admin_roles_for_user',
+                    {
+                        user_id   => $user_id,
+                        row_limit => $options->{limit} || $DEFAULT_LIMIT
+                    }
+                )
+            }
+        ];
+    }
     my $search = $self->schema->resultset('RoleBinding')->search_rs(
         {
             user_id    => $user_id,
@@ -29,6 +49,19 @@ sub roles_for_user ( $self, $user_id, $options ) {
 }
 
 sub permissions_for_role ( $self, $role_id, $options ) {
+    if ( $self->functions ) {
+        return [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows(
+                    'admin_permissions_for_role',
+                    {
+                        role_id   => $role_id,
+                        row_limit => $options->{limit} || $DEFAULT_LIMIT
+                    }
+                )
+            }
+        ];
+    }
     my $search = $self->schema->resultset('RolePermission')->search_rs(
         {
             role_id => $role_id,

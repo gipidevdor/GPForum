@@ -12,7 +12,13 @@ use GPForum::Infrastructure::PgNotifications;
 use GPForum::Service::Realtime::EventEnvelope;
 use GPForum::Service::Realtime::OutboxEventMapper;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $DEFAULT_BATCH_LIMIT => 100;
 const my $DEFAULT_SEEN_LIMIT  => 1000;
@@ -355,7 +361,27 @@ sub _outbox_available ($self) {
 sub _outbox_messages ($self) {
     my @messages;
     try {
-        @messages = _search_rows( $self->outbox_poll_resultset );
+        if ( $self->functions ) {
+            my $cursor = $self->outbox_poll_cursor;
+            @messages = map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows(
+                    'ops_realtime_poll',
+                    {
+                        after_next_at    => $cursor->{next_attempt_at},
+                        after_created_at => $cursor->{created_at},
+                        after_id         => $cursor->{outbox_id},
+                        settled_at       => $self->db_now
+                        ? $self->_settled_bound
+                        : undef,
+                        settle_seconds => $SETTLE_SECONDS,
+                        row_limit      => $self->batch_limit
+                    }
+                )
+            };
+        }
+        else {
+            @messages = _search_rows( $self->outbox_poll_resultset );
+        }
     }
     catch ($error) {
         return undef;
@@ -426,13 +452,19 @@ sub _settled_instant ($self) {
 
     my $instant;
     try {
-        $instant = $self->schema->storage->dbh_do(
-            sub ( $, $dbh ) {
-                my ($selected) =
-                  $dbh->selectrow_array( 'SELECT ' . $SETTLED_SQL );
-                return $selected;
-            }
-        );
+        if ( $self->functions ) {
+            $instant = $self->functions->row( 'ops_realtime_settled',
+                { settle_seconds => $SETTLE_SECONDS } )->{settled_at};
+        }
+        else {
+            $instant = $self->schema->storage->dbh_do(
+                sub ( $, $dbh ) {
+                    my ($selected) =
+                      $dbh->selectrow_array( 'SELECT ' . $SETTLED_SQL );
+                    return $selected;
+                }
+            );
+        }
     }
     catch ($error) {
         return undef;

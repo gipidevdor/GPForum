@@ -1762,11 +1762,8 @@ sub _refused_notify {
 }
 
 # Runs $code with $competitor committing, on the peer connection, in the
-# window between the store's lookup and its insert, where the store reads
-# the clock. The store has to send its insert after the competing write, for
-# PostgreSQL to refuse it: one that read the clock before its lookup would
-# find the committed row instead, and pass here without meeting the conflict
-# it is meant to handle.
+# clock boundary immediately before its atomic stored mutation. Two-process
+# races in postgres-concurrency.t exercise conflicts inside the function.
 sub _racing {
     my ( $ctx, $competitor, $code ) = @_;
 
@@ -1784,8 +1781,16 @@ sub _racing {
         $result = _tracing(
             $ctx,
             sub {
-                my ($operation) = @_;
-                if ( $raced && $operation eq 'INSERT' ) {
+                my ( $operation, $statement ) = @_;
+                my $mutation =
+                  qr/save_subscription|set_preference|deliver|mark_read/msx;
+                if (
+                    $raced
+                    && (   $operation eq 'INSERT'
+                        || $statement =~
+                        /api[.]notification_(?:$mutation)_v2/msx )
+                  )
+                {
                     $inserted = 1;
                 }
                 return;
@@ -1799,7 +1804,7 @@ sub _racing {
     $ctx->{clock}->before_next_read(undef);
     croak $error                          if $error;
     croak 'the competing write never ran' if !$raced;
-    croak 'the store found the competing row before trying its insert'
+    croak 'the store never called its atomic stored mutation'
       if !$inserted;
 
     return $result;
@@ -1830,6 +1835,8 @@ sub _at {
 sub _sent {
     my ( $ctx, $verb, $table, $code ) = @_;
 
+    my $before = $verb eq 'UPDATE'
+      && defined $table ? _tuple_versions( $ctx, $table ) : undef;
     my @sent;
     my $result = _tracing(
         $ctx,
@@ -1844,7 +1851,26 @@ sub _sent {
         $code
     );
 
+    if ($before) {
+        my $after = _tuple_versions( $ctx, $table );
+        @sent = grep { exists $after->{$_} && $after->{$_} ne $before->{$_} }
+          keys %{$before};
+    }
     return ( $result, \@sent );
+}
+
+# A tuple version changes only when PostgreSQL updates the row, even when
+# the outer statement is SELECT from a mutation function.
+sub _tuple_versions ( $ctx, $table ) {
+    my %sql = (
+        subscriptions =>
+'SELECT subscription_id AS id, xmin::text AS version FROM subscriptions',
+        notification_preferences =>
+q{SELECT user_id::text || ':' || channel AS id, xmin::text AS version FROM notification_preferences},
+    );
+    croak 'unknown tuple-version table' if !exists $sql{$table};
+    my $rows = $ctx->{dbh}->selectall_arrayref( $sql{$table}, { Slice => {} } );
+    return { map { $_->{id} => $_->{version} } @{$rows} };
 }
 
 # $code's answer, with $trace told the verb and the text of every statement

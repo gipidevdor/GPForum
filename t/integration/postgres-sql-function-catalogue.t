@@ -55,9 +55,11 @@ for my $name ( @{ $catalogue->names } ) {
     ok( $found, "$entry->{function} exists" ) or next;
     is(
         $found->{arguments},
-        join( q{, },
-            map { "p_$entry->{names}[$_] $entry->{types}[$_]" }
-              0 .. $#{ $entry->{names} } ),
+        join(
+            q{, },
+            map { "p_$entry->{names}[$_] " . _type_name( $entry->{types}[$_] ) }
+              0 .. $#{ $entry->{names} }
+        ),
         "$entry->{function} takes the catalogue's parameters, in its order"
     );
 }
@@ -66,11 +68,21 @@ my %called =
   map {
     ( $catalogue->function($_)->{function} =~ /\A api [.] (\w+)/msx )[0] => 1
   } @{ $catalogue->names };
+my %implementations = map { (s/_v2\z/_v1/rmsx) => 1 } keys %called;
 for my $name ( sort keys %function ) {
-    ok( $called{$name} || $name =~ /\A core_/msx || $RETIRED{$name},
-        "api.$name is called, shared or retiring" );
+    ok(
+        $called{$name}
+          || $implementations{$name}
+          || $name =~ /\A core_/msx
+          || exists $RETIRED{$name},
+        "api.$name is called, shared or retiring"
+    );
     my $found = $function{$name};
-    ok( !$found->{definer}, "api.$name runs with its caller's rights" );
+    is(
+        $found->{definer} ? 1 : 0,
+        $called{$name}    ? 1 : 0,
+        "api.$name acquires owner rights only at the public entry point"
+    );
     my %config = map { split /=/msx, $_, 2 } @{ $found->{config} // [] };
     is(
         $config{search_path},
@@ -103,5 +115,10 @@ is(
 );
 
 done_testing();
+
+sub _type_name ($type) {
+    return
+      scalar $dbh->selectrow_array( 'SELECT ?::regtype::text', undef, $type );
+}
 
 1;

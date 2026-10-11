@@ -146,12 +146,20 @@ const my %VERSION_SQL => (
 
 # The statement each race waits for: the rival commits just before the
 # store's own reaches PostgreSQL.
+const my $API_CALL          => qr/SELECT [ ] [*] [ ] FROM [ ] api[.]/msx;
+const my $FUNCTION_VERSION  => qr/_v[[:digit:]]+/msx;
+const my $CREDENTIAL_INSERT => qr/INSERT [ ] INTO [ ] credentials [ ]/msx;
+const my $TOKEN_LOOKUP =>
+  qr/SELECT [ ] [^;]+? [ ] FROM [ ] identity_tokens [ ] me [ ]/msx;
 const my %BEFORE => (
-    'credential insert' => qr/\A INSERT [ ] INTO [ ] credentials [ ]/msx,
-    'token read'        =>
-      qr/\A SELECT [ ] [^;]+? [ ] FROM [ ] identity_tokens [ ] me [ ]/msx,
-    'user insert' => qr/\A INSERT [ ] INTO [ ] users [ ]/msx,
-    'user update' => qr/\A UPDATE [ ] users [ ] SET [ ]/msx,
+    'credential insert' => qr{\A (?: $CREDENTIAL_INSERT
+        | $API_CALL identity_insert_credential $FUNCTION_VERSION )}msx,
+    'token read' => qr{\A (?: $TOKEN_LOOKUP
+        | $API_CALL identity_user_by_id $FUNCTION_VERSION )}msx,
+    'user insert' => qr{\A (?: INSERT [ ] INTO [ ] users [ ]
+        | $API_CALL identity_insert_user $FUNCTION_VERSION )}msx,
+    'user update' => qr{\A (?: UPDATE [ ] users [ ] SET [ ]
+        | $API_CALL identity_update_user $FUNCTION_VERSION )}msx,
 );
 
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
@@ -922,8 +930,9 @@ sub _password_reset {
     return;
 }
 
-# The reset takes the token row's lock before it reads the row: a rival that
-# asks for the same row in that window is refused at once.
+# The reset holds the token lock throughout the transaction. The retained
+# path observes it before consuming; the atomic function path observes it
+# at its next user lookup, before the credential and session changes.
 sub _reset_consumed {
     my ( $ctx, $case ) = @_;
 
@@ -950,7 +959,7 @@ sub _reset_consumed {
     ok( $reset->{ok}, 'password reset succeeds with valid token' );
     is( $transactions, 1, 'password reset runs inside one transaction' );
     is( $lock_state, $LOCK_NOT_AVAILABLE,
-        'reset locks token row before consuming it' );
+        'reset holds the token lock through the account transaction' );
     is( _utc( $ctx, _row( $ctx, $TOKEN_ROW_SQL, $case->{token} )->{used_at} ),
         $NOW, 'reset marks token used' );
     is(

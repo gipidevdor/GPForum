@@ -15,7 +15,13 @@ use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $ID_CONSTRAINT  => 'command_log_pkey';
 const my $KEY_CONSTRAINT => 'command_log_idempotency_key_key';
@@ -176,8 +182,16 @@ sub _finish_new_command ( $self, $job, $row ) {
 # finished otherwise; any other row means the id collided, and a new one is
 # drawn.
 sub _retry_or_reuse_command ( $self, $job ) {
-    my $stored = $self->schema->resultset('CommandLog')
-      ->find( { command_id => $job->{row}{command_id} } );
+    my $stored;
+    if ( $self->functions ) {
+        my $found = $self->functions->row( 'ops_command_lookup',
+            { key => undef, command_id => $job->{row}{command_id} } );
+        $stored = $found ? $found->{document} : undef;
+    }
+    else {
+        $stored = $self->schema->resultset('CommandLog')
+          ->find( { command_id => $job->{row}{command_id} } );
+    }
     if (   !$stored
         || !_same_text( _column( $stored, 'idempotency_key' ), $job->{key} ) )
     {
@@ -221,6 +235,11 @@ sub _replay_existing ( $self, $job, $error ) {
 }
 
 sub _find_existing ( $self, $key ) {
+    if ( $self->functions ) {
+        my $found = $self->functions->row( 'ops_command_lookup',
+            { key => $key, command_id => undef } );
+        return $found ? $found->{document} : undef;
+    }
     return $self->schema->resultset('CommandLog')
       ->search_rs( { idempotency_key => $key }, { rows => 1 } )
       ->single;
@@ -264,6 +283,10 @@ sub _command_row ( $self, $job ) {
 }
 
 sub _create_command ( $self, $row ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'ops_command_insert',
+            { command => $row } )->{document};
+    }
     return $self->schema->resultset('CommandLog')->create($row);
 }
 
@@ -271,15 +294,22 @@ sub _finish_command_row ( $self, $row, $result, $response ) {
     my $payload = _payload_hash( _column( $row, 'payload' ) );
     $payload->{response} = $response || {};
 
-    _update_row(
-        $row,
-        {
-            handled_at    => $self->clock->now_iso8601,
-            payload       => $payload,
-            response_hash => _canonical_hash( $payload->{response} ),
-            status        => _result_status($result),
-        }
-    );
+    my $changes = {
+        handled_at    => $self->clock->now_iso8601,
+        payload       => $payload,
+        response_hash => _canonical_hash( $payload->{response} ),
+        status        => _result_status($result),
+    };
+    if ( $self->functions ) {
+        $self->functions->row(
+            'ops_command_finish',
+            {
+                command_id => _column( $row, 'command_id' ),
+                changes    => $changes
+            }
+        );
+    }
+    else { _update_row( $row, $changes ); }
 
     return;
 }

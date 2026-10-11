@@ -659,8 +659,7 @@ sub _approval {
         sub {
             my ($statement) = @_;
             if ( !defined $locked
-                && $statement =~
-                /\A SELECT [ ] .* [ ] FROM [ ] deletion_requests [ ]/msx )
+                && $statement =~ /api[.]privacy_latest_v2[(]/msx )
             {
                 $locked = _lock_state( $ctx, $id );
             }
@@ -1265,8 +1264,8 @@ sub _review {
 
     # One active hold per resource is all the schema allows, so the limit
     # cannot show in the rows: it shows in the statement, bound last.
-    my $holds_read = qr/\A SELECT [ ] .* [ ] FROM [ ] retention_holds [ ]/msx;
-    my $limit_last = qr/[ ] LIMIT [ ] [?] : [ ] .* '$REVIEW_LIMIT' \s* \z/msx;
+    my $holds_read = qr/api[.]privacy_review_v2[(]/msx;
+    my $limit_last = qr/\b$REVIEW_LIMIT\b/msx;
     ok( scalar( grep { /$holds_read/msx && /$limit_last/msx } @{$sent} ),
         'active holds apply limit' );
 
@@ -1646,8 +1645,14 @@ sub _export_many_posts {
         \%body,
         'every post body arrives across batches'
     );
-    is_deeply( _body_reads($sent), [@BATCH_BINDS],
-        'and no statement binds more post ids than a batch' );
+    is(
+        scalar(
+            grep { /api[.]portability_export_parts_v2[(][?]::uuid[)]/msx }
+              @{$sent}
+        ),
+        1,
+        'all posts and bodies use one fixed call with one user bind'
+    );
     is( $done->{manifest}{counts}{posts},
         $MANY_POSTS, 'the manifest counts every post' );
 
@@ -1733,7 +1738,7 @@ sub _export_holds_member {
             my ($statement) = @_;
             if ( !defined $locked
                 && $statement =~
-                /\A INSERT [ ] INTO [ ] export_requests [ ]/msx )
+                /api[.]privacy_insert_v2.*\bExportRequest\b/msx )
             {
                 $locked = _user_lock_state( $ctx, $member );
             }
@@ -2470,7 +2475,19 @@ sub _inserts {
 sub _inserted_tables {
     my ($sent) = @_;
 
-    return map { /\A INSERT [ ] INTO [ ] (\w+) [ ]/msx ? ($1) : () } @{$sent};
+    return map { _inserted_table($_) } @{$sent};
+}
+
+sub _inserted_table ($statement) {
+    my %source =
+      ( ErasureJob => 'erasure_jobs', DeletionAction => 'deletion_actions' );
+    if ( $statement =~ /\A INSERT [ ] INTO [ ] (\w+) [ ]/msx ) { return ($1); }
+    if ( $statement =~
+        /api[.]privacy_insert_v2.*\b(ErasureJob|DeletionAction)\b/msx )
+    {
+        return ( $source{$1} );
+    }
+    return;
 }
 
 # The event, outbox message and audit row an action recorded about a
@@ -2499,8 +2516,20 @@ sub _racing {
         $ctx,
         sub {
             my ($statement) = @_;
-            if (   $pending
-                && $statement =~ /\A INSERT [ ] INTO [ ] \Q$table\E [ ]/msx )
+            my %source = (
+                export_requests   => 'ExportRequest',
+                deletion_requests => 'DeletionRequest',
+                retention_holds   => 'RetentionHold',
+            );
+            my $function_insert = $source{$table}
+              && $statement =~
+              /api[.]privacy_insert_v2.*\b\Q$source{$table}\E\b/msx;
+            if (
+                $pending
+                && (   $function_insert
+                    || $statement =~
+                    /\A INSERT [ ] INTO [ ] \Q$table\E [ ]/msx )
+              )
             {
                 $pending = 0;
                 $rival->( $ctx->{rival} );

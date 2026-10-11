@@ -713,10 +713,15 @@ sub _tried {
 
     my $storage = $ctx->{schema}->storage;
     my $inserts = 0;
+    my $operation =
+      $table eq 'spaces' ? 'admin_insert_space' : 'admin_insert_category';
     $storage->debugcb(
         sub {
             my ( undef, $statement ) = @_;
-            if ( $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx )
+            if (   $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx
+                || $statement =~
+/\A SELECT [ ] [*] [ ] FROM [ ] api[.]\Q$operation\E_v[[:digit:]]+/msx
+              )
             {
                 $inserts++;
             }

@@ -8,6 +8,9 @@ use Scalar::Util qw(blessed);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Row;
@@ -78,6 +81,10 @@ has settings => sub ($self) {
 # What the settings page shows beside its two buttons: where a test message
 # would go, how mail and scanning are configured, and the last audited
 # result of each.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub overview ( $self, $user_id ) {
     return {
         antivirus => {
@@ -178,6 +185,11 @@ sub _allow_slow_answer ($self) {
     return if !$storage    || !$storage->can('dbh_do');
     return if !$configured || $configured >= $SLOW_ANSWER_IDLE_MS;
 
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_allow_slow_answer',
+            { idle_ms => $SLOW_ANSWER_IDLE_MS } );
+        return;
+    }
     $storage->dbh_do(
         sub ( $, $dbh ) {
             return $dbh->do( $ALLOW_SLOW_ANSWER, undef, $SLOW_ANSWER_IDLE_MS );

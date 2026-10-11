@@ -24,15 +24,6 @@ const my $BATCHES => 3;
 # Advisory locks held, and how many of them are post documents' locks keyed
 # as Indexer::_lock_document keys them. A bigint lock shows its high half in
 # classid and its low half in objid, with objsubid 1.
-const my $HELD_SQL => join q{ },
-  q{SELECT count(*), count(document.lock_key) FROM pg_locks l},
-  q{LEFT JOIN (SELECT hashtextextended('search_document:post:' || post_id,},
-  q{0) AS lock_key FROM posts WHERE thread_id = ?) document},
-  q{ON l.classid::bigint = ((document.lock_key >> 32) & 4294967295)},
-  q{AND l.objid::bigint = (document.lock_key & 4294967295)},
-  q{AND l.objsubid = 1},
-  q{WHERE l.locktype = 'advisory' AND l.pid = pg_backend_pid()};
-
 if ( !$ENV{GPFORUM_DATABASE_DSN} ) {
     plan skip_all => 'set GPFORUM_DATABASE_DSN to run the thread removal test';
 }
@@ -129,31 +120,46 @@ GPForum::Test::PostgresHarness::drop_database($database);
 
 done_testing();
 
-# The work's transactions, and the advisory locks held as each delete from
-# search_documents is prepared: by then its transaction has taken every lock
-# it will take. DBIx::Class prepares every statement through prepare_cached,
-# which calls prepare itself on a miss, so only the first is watched.
+# A statement trigger records advisory locks inside the stored function,
+# immediately before its DELETE. Transaction ids prove the locks are released
+# between batches even when the protocol uses an implicit transaction.
 sub _probe_locks {
     my ( $thread_id, $work ) = @_;
-
-    my @held;
-    my $transactions = 0;
-    my $count_locks  = sub {
-        my ( undef, $sql ) = @_;
-        return if $sql !~ /\A \s* DELETE \s+ FROM \s+ search_documents/imsx;
-
-        push @held, [ $dbh->selectrow_array( $HELD_SQL, undef, $thread_id ) ];
-
-        return;
-    };
-    $dbh->{Callbacks} = {
-        begin_work     => sub { $transactions++; return; },
-        prepare_cached => $count_locks,
-    };
+    ## no critic (ValuesAndExpressions::ProhibitImplicitNewlines) -- SQL trigger body
+    $dbh->do(
+'CREATE TEMPORARY TABLE lock_evidence (transaction_id bigint, held bigint, post_locks bigint)'
+    );
+    $dbh->do(
+        q{
+        CREATE FUNCTION pg_temp.record_search_locks() RETURNS trigger
+        LANGUAGE plpgsql AS $body$
+        BEGIN
+          INSERT INTO pg_temp.lock_evidence
+          SELECT txid_current(), count(*), count(document.lock_key)
+          FROM pg_locks l LEFT JOIN (
+            SELECT hashtextextended('search_document:post:' || post_id, 0) AS lock_key
+            FROM public.posts WHERE thread_id = TG_ARGV[0]::uuid
+          ) document ON l.classid::bigint = ((document.lock_key >> 32) & 4294967295)
+            AND l.objid::bigint = (document.lock_key & 4294967295) AND l.objsubid = 1
+          WHERE l.locktype = 'advisory' AND l.pid = pg_backend_pid();
+          RETURN NULL;
+        END;
+        $body$
+    }
+    );
+    ## use critic
+    $dbh->do(
+        'CREATE TRIGGER probe_search_locks BEFORE DELETE ON search_documents '
+          . 'FOR EACH STATEMENT EXECUTE FUNCTION pg_temp.record_search_locks('
+          . $dbh->quote($thread_id)
+          . ')' );
     my $result = $work->();
-    delete $dbh->{Callbacks};
-
-    return { held => \@held, result => $result, transactions => $transactions };
+    my $held   = $dbh->selectall_arrayref(
+        'SELECT held, post_locks FROM lock_evidence ORDER BY transaction_id');
+    my ($transactions) = $dbh->selectrow_array(
+        'SELECT count(DISTINCT transaction_id) FROM lock_evidence');
+    $dbh->do('DROP TRIGGER probe_search_locks ON search_documents');
+    return { held => $held, result => $result, transactions => $transactions };
 }
 
 sub _documents {

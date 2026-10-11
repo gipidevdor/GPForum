@@ -7,6 +7,10 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::Service::Identity::Support;
@@ -25,6 +29,10 @@ __PACKAGE__->requires(
     qw(audit credential_store password schema session_store token_store));
 has clock   => sub { return GPForum::Service::Clock->new; };
 has support => sub { return GPForum::Service::Identity::Support->new; };
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub request_password_reset ( $self, $input ) {
     return $self->schema->txn_do(
@@ -583,6 +591,14 @@ sub _find_user_by_id ( $self, $user_id ) {
         return undef;
     }
 
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow::IdentityUser->from(
+            $self->functions->row(
+                'identity_user_by_id', { user_id => $user_id }
+            ),
+            $self->functions
+        );
+    }
     return $self->schema->resultset('User')->find( { id => $user_id } );
 }
 
@@ -592,6 +608,18 @@ sub _find_login_user ( $self, $identifier ) {
         return undef;
     }
 
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow::IdentityUser->from(
+            $self->functions->row(
+                'identity_user_by_identifier',
+                {
+                    identifier => $identifier,
+                    by_email   => $identifier =~ /[@]/msx ? 1 : 0
+                }
+            ),
+            $self->functions
+        );
+    }
     my $column = $identifier =~ /[@]/msx ? 'email_normalized' : 'username';
     return $self->schema->resultset('User')->find( { $column => $identifier } );
 }
@@ -604,7 +632,11 @@ sub _deleted_user ( $self, $user ) {
 # Held by another member: the member's own address is not taken.
 sub _email_taken ( $self, $email, $current_user_id ) {
     my $existing =
-      $self->schema->resultset('User')->find( { email_normalized => $email } );
+      $self->functions
+      ? $self->functions->row( 'identity_user_by_identifier',
+        { identifier => $email, by_email => 1 } )
+      : $self->schema->resultset('User')
+      ->find( { email_normalized => $email } );
     if ( !$existing ) {
         return 0;
     }

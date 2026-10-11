@@ -52,6 +52,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | [ops/dead-letters.md](ops/dead-letters.md) | Inspect, keep, or purge exhausted outbox messages |
 | [ops/search-rebuild.md](ops/search-rebuild.md) | Rebuild the search index; tell a lagging indexer from a stalled one |
 | [ops/partition-maintenance.md](ops/partition-maintenance.md) | Rolling monthly log partitions: the daily timer, migrate's window step, conflicts |
+| [ops/sql-api-role.md](ops/sql-api-role.md) | Separate migration credentials and a runtime login restricted to the function API |
 | [ops/reload-and-restart.md](ops/reload-and-restart.md) | Why reload is unsupported, and how to restart or resize workers |
 | [ops/backup-and-restore.md](ops/backup-and-restore.md) | The nightly backup (`gpforum backup`), its check (`gpforum restore --check`), restoring one, and point-in-time recovery |
 | [ops/doctor.md](ops/doctor.md) | `gpforum doctor` and `gpforum status`: every check, one line each, with its fix |
@@ -71,6 +72,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | Document | What it covers |
 | --- | --- |
 | [PERFORMANCE.md](PERFORMANCE.md) | Principles and budgets; indexes, the plan gate, keyset pages and migrations; query budgets; caching; search costs; profiling; OS tuning; the evidence and how to reproduce it |
+| [architecture/sql-functions-performance.md](architecture/sql-functions-performance.md) | Completed stored-function conversion and the measured DBIx comparison |
 | [OS_RUNTIME_ENFORCEMENT.md](OS_RUNTIME_ENFORCEMENT.md) · [OS_RUNTIME_EVIDENCE.md](OS_RUNTIME_EVIDENCE.md) | Runtime enforcement of the OS contract, and its evidence |
 
 ## Security and correctness

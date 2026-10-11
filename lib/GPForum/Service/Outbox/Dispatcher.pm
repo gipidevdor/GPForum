@@ -14,7 +14,13 @@ use GPForum::Service::Outbox::Retry;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $DEFAULT_LIMIT        => 100;
 const my $DEFAULT_MAX_ATTEMPTS => 5;
@@ -83,6 +89,20 @@ sub dispatch_pending ( $self, $limit ) {
 }
 
 sub claim_ready_batch ( $self, $limit ) {
+    if ( $self->functions ) {
+        my $rows = $self->functions->rows(
+            'outbox_claim_ready',
+            {
+                now          => $self->clock->now_iso8601,
+                locked_until => $self->clock->epoch_plus_iso8601(
+                    $self->retry->lock_seconds
+                ),
+                worker_id => $self->worker_id,
+                row_limit => $limit,
+            }
+        );
+        return map { $self->_claimed_message_for_row($_) } @{$rows};
+    }
     if ( $self->_supports_postgresql_claim ) {
         return $self->_claim_ready_batch_postgresql($limit);
     }
@@ -232,6 +252,19 @@ sub _renew_claim ( $self, $message ) {
 # written with $OWNED_WHERE; the resultset claim, which runs on the schema
 # doubles alone, gives DBIx::Class rows written as they are.
 sub _owned_write ( $self, $message, $changes ) {
+    if ( $self->functions ) {
+        my $written = $self->functions->row(
+            'outbox_owned_write',
+            {
+                outbox_id => $message->get_column('outbox_id'),
+                worker_id => $self->worker_id,
+                changes   => $changes,
+            }
+        );
+        return 0 if !$written->{landed};
+        $message->apply_columns($changes);
+        return 1;
+    }
     if ( !_is_claimed_message($message) ) {
         $message->update($changes);
         return 1;
@@ -388,8 +421,9 @@ sub _dbh_select_column ( $dbh, $sql, @bind ) {
 
 sub _dead_letter_recorder_args ($self) {
     my %args = (
-        clock  => $self->clock,
-        schema => $self->schema,
+        clock     => $self->clock,
+        schema    => $self->schema,
+        functions => $self->functions,
     );
     if ( $self->id_service ) {
         $args{id_service} = $self->id_service;

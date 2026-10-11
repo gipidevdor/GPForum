@@ -7,11 +7,19 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 our $VERSION = '0.001';
 
@@ -65,6 +73,7 @@ has recorder => sub {
     return GPForum::Infrastructure::EventRecorder->new(
         id_service => $self->id_service,
         schema     => $self->schema,
+        functions  => $self->functions,
     );
 };
 __PACKAGE__->requires(qw(schema));
@@ -119,6 +128,18 @@ sub _create_or_reuse_request ( $self, $input ) {
 }
 
 sub _pending_request ( $self, $input ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row(
+            'privacy_latest',
+            {
+                source => 'ExportRequest',
+                query  =>
+                  { %{$input}, format => $input->{format} || $FORMAT_JSON }
+            }
+        );
+        return $row ? $row->{document} : undef;
+    }
+
     my $resultset = $self->schema->resultset('ExportRequest');
     my $search    = $resultset->search_rs(
         {
@@ -153,7 +174,13 @@ sub _insert_request ( $self, $input ) {
         finished_at       => undef,
         manifest          => {},
     };
-    $self->schema->resultset('ExportRequest')->create($request);
+    if ( $self->functions ) {
+        $self->functions->row( 'privacy_insert',
+            { source => 'ExportRequest', row => $request } );
+    }
+    else {
+        $self->schema->resultset('ExportRequest')->create($request);
+    }
     $self->_record_event_and_audit(
         {
             action      => 'privacy.export_requested',
@@ -212,8 +239,22 @@ sub complete_user_export ( $self, $export_request_id, $parts = undef ) {
 }
 
 sub _complete_request ( $self, $export_request_id, $parts ) {
-    my $request =
-      $self->schema->resultset('ExportRequest')->find($export_request_id);
+    my $request;
+    if ( $self->functions ) {
+        my $row = $self->functions->row(
+            'privacy_find',
+            {
+                source   => 'ExportRequest',
+                id       => $export_request_id,
+                lock_row => 0
+            }
+        );
+        $request = $row ? $row->{document} : undef;
+    }
+    else {
+        $request =
+          $self->schema->resultset('ExportRequest')->find($export_request_id);
+    }
     if ( !$request ) {
         return undef;
     }
@@ -233,13 +274,23 @@ sub _complete_request ( $self, $export_request_id, $parts ) {
           qw(attachments notifications posts preferences profile subscriptions)
     };
     my $finished = $self->clock->now_iso8601;
-    $request->update(
-        {
-            status      => $STATUS_COMPLETED,
-            finished_at => $finished,
-            manifest    => $stored,
-        }
-    );
+    my $changes  = {
+        status      => $STATUS_COMPLETED,
+        finished_at => $finished,
+        manifest    => $stored
+    };
+    if ( $self->functions ) {
+        $self->functions->row(
+            'privacy_update',
+            {
+                source  => 'ExportRequest',
+                id      => $export_request_id,
+                changes => $changes
+            }
+        );
+        @{$request}{ keys %{$changes} } = values %{$changes};
+    }
+    else { $request->update($changes); }
 
     my $request_id = _column( $request, 'export_request_id' );
     $self->_record_event_and_audit(
@@ -298,6 +349,12 @@ sub safe_manifest ( $self, $bundle ) {
 
 # Every part read from storage, the posts with their bodies.
 sub _build_user_bundle_from_storage ( $self, $subject_user_id ) {
+    if ( $self->functions ) {
+        my $parts = $self->functions->row( 'portability_export_parts',
+            { user_id => $subject_user_id } )->{document};
+        return $self->build_user_bundle( $subject_user_id, $parts );
+    }
+
     my %parts;
     for my $part ( sort keys %EXPORT_PARTS ) {
         my ( $resultset, $member_column, $fields ) = @{ $EXPORT_PARTS{$part} };

@@ -53,7 +53,7 @@ has functions => sub ($self) {
 # a cursor bounds the page.
 sub list_thread_posts ( $self, $request ) {
     my $plan      = $self->page_window->plan($request);
-    my $functions = defined _posts_shape( $request, $plan ) && $self->functions;
+    my $functions = $self->functions;
     my $rows =
         $functions
       ? $self->_function_posts( $functions, $request, $plan )
@@ -84,17 +84,22 @@ sub thread_posts_call ( $self, $request, $plan = undef ) {
         $viewer = undef;
     }
 
-    return [
-        'forum_thread_page_posts',
-        {
-            after_position => $after->{sort_value},
-            after_post_id  => $after->{id},
-            row_limit      => $plan->{fetch_rows},
-            standing       => _standing($request),
-            thread_id      => $request->{thread_id},
-            viewer_user_id => $viewer,
-        }
-    ];
+    my $values = {
+        after_position => $after->{sort_value},
+        after_post_id  => $after->{id},
+        row_limit      => $plan->{fetch_rows},
+        standing       => _standing($request),
+        thread_id      => $request->{thread_id},
+        viewer_user_id => $viewer,
+    };
+    if ( !defined _posts_shape( $request, $plan ) ) {
+        my $scope = $request->{viewer_scope}
+          || GPForum::Service::Forum::Viewer->anonymous;
+        $values->{scope_user_id} = _user_id( $scope->user_id );
+        return [ 'forum_thread_page_posts_scoped', $values ];
+    }
+
+    return [ 'forum_thread_page_posts', $values ];
 }
 
 sub _prepared_posts ( $self, $request, $plan ) {
@@ -187,6 +192,23 @@ sub _list_attrs {
 # same rules (ADR 0102). For the page that asks for the post a reply just
 # created, with the viewer's scope for the thread.
 sub find_listed_post ( $self, $request ) {
+    if ( my $functions = $self->functions ) {
+        my $scope = $request->{viewer_scope}
+          || GPForum::Service::Forum::Viewer->anonymous;
+        return GPForum::Infrastructure::ResultRow::Post->from(
+            $functions->row(
+                'forum_find_listed_post',
+                {
+                    global_read    => $scope->global_read,
+                    member         => $scope->member,
+                    post_id        => $request->{post_id},
+                    scope_user_id  => _user_id( $scope->user_id ),
+                    thread_id      => $request->{thread_id},
+                    viewer_user_id => _user_id( $request->{viewer_user_id} ),
+                }
+            )
+        );
+    }
     my $query = {
         'me.post_id'          => $request->{post_id},
         'me.thread_id'        => $request->{thread_id},
@@ -237,6 +259,15 @@ sub _post_visibility ($request) {
 sub find_visible_post ( $self, $post_id, $viewer = undef ) {
     return undef if !defined $post_id || !length $post_id;
 
+    if ( my $functions = $self->functions ) {
+        my $row = GPForum::Infrastructure::ResultRow::Post->from(
+            $functions->row(
+                'forum_find_visible_post', { post_id => $post_id }
+            )
+        );
+        return _visible_to( $row, $viewer );
+    }
+
     my $posts   = $self->schema->resultset('Post');
     my $visible = sub {
         return $posts->search_rs(
@@ -268,6 +299,10 @@ sub find_visible_post ( $self, $post_id, $viewer = undef ) {
         fallback  => sub { return [ $visible->()->single // () ]; },
         values    => { 'me.post_id' => $post_id, limit => 1 },
     );
+    return _visible_to( $row, $viewer );
+}
+
+sub _visible_to ( $row, $viewer ) {
     return undef if !$row;
 
     return GPForum::Service::Forum::Visibility->readable(
@@ -327,6 +362,11 @@ sub find_post ( $self, $post_id ) {
         return undef;
     }
 
+    if ( my $functions = $self->functions ) {
+        return GPForum::Infrastructure::ResultRow::Post->from(
+            $functions->row( 'forum_find_post', { post_id => $post_id } ) );
+    }
+
     my $posts = $self->schema->resultset('Post');
 
     return $self->prepared->row(
@@ -340,6 +380,10 @@ sub find_post ( $self, $post_id ) {
           sub { return [ $posts->find( { post_id => $post_id } ) // () ]; },
         values => { 'me.post_id' => $post_id },
     );
+}
+
+sub _user_id ($id) {
+    return defined $id && length $id ? $id : undef;
 }
 
 1;

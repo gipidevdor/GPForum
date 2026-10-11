@@ -7,6 +7,8 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
 
 const my %GLOBAL_BINDING => (
@@ -15,10 +17,27 @@ const my %GLOBAL_BINDING => (
 );
 
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub allowed ( $self, $actor, $permission ) {
     my $user_id = _user_id($actor);
     return 0 if !defined $user_id || !length $user_id;
+
+    if ( $self->functions ) {
+        my $row = $self->functions->row(
+            'admin_permission_allowed',
+            {
+                user_id       => $user_id,
+                resource_type => $permission->{resource_type},
+                action        => $permission->{action},
+                resource_id   => _scope_value( $permission->{resource_id} ),
+                space_id      => _scope_value( $permission->{space_id} ),
+            }
+        );
+        return $row && $row->{allowed} ? 1 : 0;
+    }
 
     my $search = $self->schema->resultset('RoleBinding')->search_rs(
         {

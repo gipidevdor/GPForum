@@ -361,6 +361,30 @@ const my @SETTINGS => map {
         operator => 1,
     },
     {
+        name    => 'admin_database_dsn',
+        env     => 'GPFORUM_ADMIN_DATABASE_DSN',
+        default => undef,
+        section => 'database',
+        summary =>
+'Administrative PostgreSQL connection for API-role provisioning; keep it outside the web service environment.',
+    },
+    {
+        name    => 'admin_database_user',
+        env     => 'GPFORUM_ADMIN_DATABASE_USER',
+        default => undef,
+        section => 'database',
+        summary =>
+'Administrative PostgreSQL role; set it only in the separate operator environment.',
+    },
+    {
+        name    => 'admin_database_password',
+        env     => 'GPFORUM_ADMIN_DATABASE_PASSWORD',
+        default => undef,
+        section => 'database',
+        summary =>
+'Administrative role password; keep it in the administrator environment or pgpass.',
+    },
+    {
         name    => 'database_statement_timeout_ms',
         env     => 'GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS',
         default => 15_000,

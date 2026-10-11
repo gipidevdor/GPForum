@@ -7,10 +7,18 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 our $VERSION = '0.001';
 
@@ -47,7 +55,13 @@ sub _insert_failure ( $self, $input ) {
         context           => $input->{context} || {},
         created_at        => $self->clock->now_iso8601,
     };
-    $self->schema->resultset('PluginFailure')->create($failure);
+    if ( $self->functions ) {
+        $self->functions->row( 'plugin_insert',
+            { source => 'PluginFailure', row => $failure } );
+    }
+    else {
+        $self->schema->resultset('PluginFailure')->create($failure);
+    }
 
     return $failure;
 }

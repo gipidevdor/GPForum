@@ -6,6 +6,9 @@ package GPForum::Service::Admin::RoleCatalog;
 use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
 use Scalar::Util qw(blessed);
 
 use GPForum::Infrastructure::Row;
@@ -47,6 +50,10 @@ has events => sub { return GPForum::Service::Admin::Event->new; };
 # attempt, or by a concurrent request that won the unique key -- completing
 # its audit entry if that attempt left none. A minted id already stored with
 # no such row is minted once more.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub create_role ( $self, $input ) {
     my $find =
       sub { return $self->_single_row( 'Role', { name => $input->{name} } ); };
@@ -97,7 +104,12 @@ sub _create_role_row ( $self, $input ) {
         description => $input->{description} || q{},
         created_at  => $self->clock->now_iso8601,
     };
-    $self->schema->resultset('Role')->create($role);
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_insert_role', { values => $role } );
+    }
+    else {
+        $self->schema->resultset('Role')->create($role);
+    }
     $self->_record_admin_audit(
         {
             action        => 'role.created',
@@ -166,7 +178,13 @@ sub _create_permission_row ( $self, $input ) {
         action        => $input->{action},
         created_at    => $self->clock->now_iso8601,
     };
-    $self->schema->resultset('Permission')->create($permission);
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_insert_permission',
+            { values => $permission } );
+    }
+    else {
+        $self->schema->resultset('Permission')->create($permission);
+    }
     $self->_record_admin_audit(
         {
             action        => 'permission.created',
@@ -224,7 +242,13 @@ sub _attach_permission_row ( $self, $input ) {
         permission_id => $input->{permission_id},
         created_at    => $self->clock->now_iso8601,
     };
-    $self->schema->resultset('RolePermission')->create($role_permission);
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_insert_role_permission',
+            { values => $role_permission } );
+    }
+    else {
+        $self->schema->resultset('RolePermission')->create($role_permission);
+    }
     $self->_record_admin_audit(
         {
             action        => $ATTACHED_ACTION,
@@ -245,6 +269,15 @@ sub _attach_permission_row ( $self, $input ) {
 sub list_roles ( $self, $options ) {
     $options ||= {};
 
+    if ( $self->functions ) {
+        return [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows( 'admin_list_roles',
+                    { row_limit => $options->{limit} } )
+            }
+        ];
+    }
+
     my $search = $self->schema->resultset('Role')->search_rs(
         {},
         {
@@ -258,6 +291,15 @@ sub list_roles ( $self, $options ) {
 
 sub list_permissions ( $self, $options ) {
     $options ||= {};
+
+    if ( $self->functions ) {
+        return [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows( 'admin_list_permissions',
+                    { row_limit => $options->{limit} } )
+            }
+        ];
+    }
 
     my $search = $self->schema->resultset('Permission')->search_rs(
         {},
@@ -365,6 +407,30 @@ sub _ensure_catalog_audit ( $self, $job ) {
 }
 
 sub _attachment_audit_exists ( $self, $job ) {
+    if ( $self->functions ) {
+        my $rows = $self->functions->rows(
+            'admin_attachment_audits',
+            {
+                action      => $job->{action},
+                target_id   => $job->{target_id},
+                target_type => $job->{target_type}
+            }
+        );
+        my $wanted = $job->{metadata};
+        for my $audit ( @{$rows} ) {
+            if (
+                _same_id( $audit->{metadata}{role_id}, $wanted->{role_id} )
+                && _same_id(
+                    $audit->{metadata}{permission_id},
+                    $wanted->{permission_id}
+                )
+              )
+            {
+                return 1;
+            }
+        }
+        return 0;
+    }
     my $search = $self->schema->resultset('AuditLog')->search_rs(
         {
             action      => $job->{action},
@@ -422,6 +488,20 @@ sub _audit_metadata ($audit) {
 }
 
 sub _single_row ( $self, $resultset_name, $query ) {
+    if ( $self->functions ) {
+        my %operation = (
+            Role           => 'admin_lookup_role',
+            Permission     => 'admin_lookup_permission',
+            RolePermission => 'admin_lookup_role_permission',
+            AuditLog       => 'admin_lookup_audit',
+        );
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                $operation{$resultset_name},
+                { query => $query }
+            )
+        );
+    }
     my $search = $self->schema->resultset($resultset_name)
       ->search_rs( $query, { rows => $ROW_LIMIT_ONE } );
 

@@ -1,5 +1,10 @@
 # SQL Functions Inventory
 
+This is the pre-conversion snapshot. The completed 194-operation API,
+runtime permission boundary and measured comparison are recorded in
+[SQL functions performance](sql-functions-performance.md), with activation
+instructions in [the runtime role runbook](../ops/sql-api-role.md).
+
 Every statement GPForum sends to PostgreSQL, by area and operation, and what
 each costs today: the ground for ADR 0126, which moves all of them into
 PostgreSQL functions. Taken on 2026-10-09 at `9eedee3`, on PostgreSQL 18.6.

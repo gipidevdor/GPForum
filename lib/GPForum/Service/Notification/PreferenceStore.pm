@@ -12,6 +12,9 @@ use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my @CHANNELS           => qw(in_app email digest);
@@ -33,6 +36,9 @@ const my %CHANNEL_DEFAULTS => (
 
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # A preference already holding these values is skipped; any other is
 # written. The preference is keyed by member and channel: a conflict on the
@@ -51,6 +57,15 @@ sub set_preference ( $self, $input ) {
         enabled => $input->{enabled} ? 1 : 0,
         user_id => $input->{user_id},
     };
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'notification_set_preference',
+            {
+                row =>
+                  { %{$normalized}, updated_at => $self->clock->now_iso8601 }
+            }
+        )->{result};
+    }
     my $existing = $self->_existing_preference($normalized);
     if ( !$existing ) {
         my ( $created, $error ) =
@@ -130,12 +145,24 @@ sub set_preferences ( $self, $input ) {
 
 sub preferences_for_user ( $self, $user_id ) {
     my %stored;
-    my $search = $self->schema->resultset('NotificationPreference')->search_rs(
-        {
-            user_id => $user_id,
-        }
-    );
-    for my $row ( _rows($search) ) {
+    my $rows;
+    if ( $self->functions ) {
+        $rows = [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows( 'notification_list_preferences',
+                    { user_id => $user_id } )
+            }
+        ];
+    }
+    else {
+        $rows = [
+            _rows(
+                $self->schema->resultset('NotificationPreference')
+                  ->search_rs( { user_id => $user_id } )
+            )
+        ];
+    }
+    for my $row ( @{$rows} ) {
         my $channel = _column( $row, 'channel' );
         next if !_is_channel($channel);
         $stored{$channel} = {

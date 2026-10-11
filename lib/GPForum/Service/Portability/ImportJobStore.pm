@@ -7,11 +7,19 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 our $VERSION = '0.001';
 
@@ -84,7 +92,13 @@ sub _create_job ( $self, $input ) {
         started_at    => undef,
         status        => 'pending',
     };
-    $self->schema->resultset('ImportJob')->create($job);
+    if ( $self->functions ) {
+        $self->functions->row( 'portability_insert',
+            { source => 'ImportJob', row => $job } );
+    }
+    else {
+        $self->schema->resultset('ImportJob')->create($job);
+    }
 
     return $job;
 }
@@ -146,12 +160,24 @@ sub _create_failure ( $self, $input ) {
         source_record_id   => $input->{source_record_id},
         source_record_type => $input->{source_record_type},
     };
-    $self->schema->resultset('ImportFailure')->create($failure);
+    if ( $self->functions ) {
+        $self->functions->row( 'portability_insert',
+            { source => 'ImportFailure', row => $failure } );
+    }
+    else {
+        $self->schema->resultset('ImportFailure')->create($failure);
+    }
 
     return $failure;
 }
 
 sub _existing_failure ( $self, $input ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'portability_find',
+            { source => 'ImportFailure', query => $input } );
+        return $row ? $row->{document} : undef;
+    }
+
     my $search = $self->schema->resultset('ImportFailure')->search_rs(
         {
             import_job_id      => $input->{import_job_id},
@@ -172,6 +198,11 @@ sub _skipped_failure ($failure) {
 }
 
 sub update_progress ( $self, $import_job_id, $progress ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'portability_progress',
+            { job_id => $import_job_id, progress => $progress } )->{document};
+    }
+
     return $self->schema->txn_do(
         sub {
             my $job =

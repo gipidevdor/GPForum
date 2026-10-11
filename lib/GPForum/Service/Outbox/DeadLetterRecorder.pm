@@ -11,7 +11,13 @@ use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $SOURCE_TABLE      => 'outbox_messages';
 const my $ID_CONSTRAINT     => 'dead_letters_pkey';
@@ -25,6 +31,10 @@ has id_service => sub {
 __PACKAGE__->requires(qw(schema));
 
 sub create_dead_letter ( $self, $message, $failure ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'outbox_dead_letter',
+            { letter => $self->_letter_row( $message, $failure ) } )->{letter};
+    }
     my $existing = $self->_existing_letter($message);
     if ($existing) {
         return _skipped_letter($existing);

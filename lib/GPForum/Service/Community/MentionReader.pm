@@ -11,6 +11,10 @@ use GPForum::Infrastructure::Keyset;
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Forum::SourceThread;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::SourceFunction;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_LIMIT  => 25;
@@ -18,6 +22,9 @@ const my @CURSOR_COLUMNS => qw(created_at mention_id);
 
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # ADR 0102: only rows whose post or thread the reader can still read, judged
 # in the query before LIMIT. A mention kept pointing at a thread after its
@@ -25,7 +32,19 @@ __PACKAGE__->requires(qw(schema));
 has readability => undef;    # optional: every source counts as readable
 
 sub list_page_for_recipient ( $self, $user_id, $options ) {
-    my $page   = $self->page_window->plan($options);
+    my $page = $self->page_window->plan($options);
+    if ( $self->functions ) {
+        my $rows = $self->_list_by_function(
+            $user_id,
+            {
+                %{ $options || {} },
+                limit => $page->{fetch_rows},
+                after => $page->{after},
+            }
+        );
+        return $self->page_window->page( $rows, $page->{limit},
+            \@CURSOR_COLUMNS );
+    }
     my $search = $self->mentions_resultset(
         $user_id,
         {
@@ -42,6 +61,26 @@ sub list_page_for_recipient ( $self, $user_id, $options ) {
 
 # The resultset a mentions page executes; public so tests and the
 # query-plan evidence see the SQL that runs.
+sub _list_by_function ( $self, $user_id, $options ) {
+    my ( $name, $values ) = @{ $self->source_list_call( $user_id, $options ) };
+    return GPForum::Infrastructure::SourceFunction->rows(
+        $self->functions->rows( $name, $values ),
+        $self->readability ? 1 : 0 );
+}
+
+sub source_list_call ( $self, $user_id, $options ) {
+    my $after  = $options->{after} || {};
+    my $values = {
+        %{ GPForum::Infrastructure::SourceFunction->parameters(
+                $self->readability, $user_id, $options->{viewer} )
+        },
+        after_created_at => $after->{sort_value},
+        after_id         => $after->{id},
+        row_limit        => $options->{limit} || $DEFAULT_LIMIT,
+    };
+    return [ 'community_list_mentions', $values ];
+}
+
 sub mentions_resultset ( $self, $user_id, $options ) {
     my $query = {
         'me.mentioned_user_id' => $user_id,
@@ -164,6 +203,12 @@ actor. Public so tests and the query-plan evidence see the SQL that runs.
 When C<readability> is set, each row also carries the thread it is about,
 C<source_thread_id> and C<source_thread_title>
 (L<GPForum::Service::Forum::SourceThread>).
+
+=head2 source_list_call
+
+Takes the member id and listing options with an already decoded cursor.
+Returns the function catalogue name and the exact bound parameters the list
+executes, also used by its nested query-plan evidence.
 
 =head1 DIAGNOSTICS
 

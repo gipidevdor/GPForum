@@ -11,7 +11,13 @@ use v5.40;
 use GPForum::Infrastructure::PgNotifications;
 use GPForum::Infrastructure::Storage;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $DEFAULT_CHANNEL => 'gpforum_cache_invalidation';
 
@@ -64,7 +70,14 @@ sub publish ( $self, $request ) {
     }
 
     try {
-        $dbh->do( 'SELECT pg_notify(?, ?)', undef, $self->channel, $payload );
+        if ( $self->functions ) {
+            $self->functions->row( 'ops_publish_notification',
+                { channel => $self->channel, payload => $payload } );
+        }
+        else {
+            $dbh->do( 'SELECT pg_notify(?, ?)',
+                undef, $self->channel, $payload );
+        }
     }
     catch ($error) {
         $self->stats->{publish_failures} += 1;

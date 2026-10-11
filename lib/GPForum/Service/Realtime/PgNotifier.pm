@@ -9,7 +9,13 @@ use v5.40;
 use GPForum::Infrastructure::Storage;
 use GPForum::Service::Realtime::EventEnvelope;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 has channel => 'gpforum_domain_events';
 has event_contract =>
@@ -47,8 +53,14 @@ sub notify ( $self, $event ) {
     }
 
     try {
-        $dbh->do( 'SELECT pg_notify(?, ?)',
-            undef, $self->channel, $serialized->{json} );
+        if ( $self->functions ) {
+            $self->functions->row( 'ops_publish_notification',
+                { channel => $self->channel, payload => $serialized->{json} } );
+        }
+        else {
+            $dbh->do( 'SELECT pg_notify(?, ?)',
+                undef, $self->channel, $serialized->{json} );
+        }
     }
     catch ($error) {
         $self->stats->{notify_failures} += 1;

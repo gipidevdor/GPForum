@@ -12,7 +12,13 @@ use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::OutboxMessageBuilder;
 use GPForum::Service::Clock;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $OUTBOX_TABLE   => 'outbox_messages';
 const my $KEY_PREFIX     => 'dead-letter-replay:';
@@ -67,6 +73,24 @@ sub replay ( $self, $input ) {
     my $dead_letter_id = $input->{dead_letter_id};
     if ( !GPForum::Infrastructure::Id->is_uuid($dead_letter_id) ) {
         return _refused( 'not_found', 'dead letter not found' );
+    }
+
+    if ( $self->functions ) {
+        my $outbox_ids   = $self->builder->id_service;
+        my $audit_record = $self->recorder->audit_record;
+        my $audit_ids    = $audit_record->id_service;
+        return $self->functions->row(
+            'outbox_replay_dead_letter',
+            {
+                input => $input,
+                ids   => {
+                    outbox_id      => $outbox_ids->uuid,
+                    correlation_id => $self->id_service->uuid,
+                    audit_id       => $audit_ids->uuid
+                },
+                now => $self->clock->now_iso8601,
+            }
+        )->{result};
     }
 
     return $self->schema->txn_do(

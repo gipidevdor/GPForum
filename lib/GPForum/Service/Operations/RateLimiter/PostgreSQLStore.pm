@@ -10,6 +10,7 @@ use v5.40;
 use POSIX qw(strftime);
 
 use GPForum::Service::Clock;
+use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
@@ -18,6 +19,9 @@ const my $DEFAULT_WINDOW_SECONDS => 60;
 
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub check ( $self, $input ) {
     my $limit          = $input->{limit}          || $DEFAULT_LIMIT;
@@ -55,6 +59,16 @@ sub check ( $self, $input ) {
 }
 
 sub snapshot ($self) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'ops_rate_limit_snapshot',
+            { now => $self->clock->now_iso8601 } );
+        return {
+            buckets => 0 + $row->{buckets},
+            store   => 'postgresql',
+            status  => 'ok'
+        };
+    }
+
     my $buckets = $self->schema->resultset('RateLimitBucket');
     my $count   = $buckets->search_rs(
         { expires_at => { '>' => $self->clock->now_iso8601 } } )->count;
@@ -67,6 +81,22 @@ sub snapshot ($self) {
 }
 
 sub _upsert_bucket ( $self, $input, $window ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'ops_rate_limit_check',
+            {
+                scope          => $input->{scope},
+                actor_hash     => $window->{actor_hash},
+                action         => $input->{action},
+                window_start   => $window->{window_start},
+                window_seconds => $window->{window_seconds},
+                limit          => $window->{limit},
+                now            => $window->{now_iso},
+                expires_at     => $window->{expires_at},
+            }
+        );
+    }
+
     my $sql = <<~'SQL';
         INSERT INTO rate_limit_buckets (
             scope, actor_hash, action, window_started_at, window_seconds,

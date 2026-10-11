@@ -18,6 +18,8 @@ use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
 use GPForum::Service::Search::DocumentBuilder;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
 
 const my $VECTOR_EXPRESSION => join q{ },
@@ -31,8 +33,8 @@ const my @REBUILD_COUNTS    => qw(indexed pruned unchanged);
 const my $UUID_GROUPS => 'A8 A4 A4 A4 A12';
 
 # A document's id is derived from its entity (_document_id_for), so a second
-# insert of the same entity collides on both keys, and PostgreSQL names the
-# primary key: the index it checks first. Either name is the same document.
+# insert of the same entity collides on both keys. Either name identifies
+# the same document.
 const my $ID_CONSTRAINT => 'search_documents_pkey';
 
 # _lock_document's lock for a batch of documents, in one statement. The keys
@@ -103,6 +105,9 @@ has offset_tracker => undef;    # optional: without one lag is not observed
 # many document locks.
 has rebuild_batch_size => $REBUILD_BATCH;
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # How far search can be behind the forum. An offset tracker answers when one
 # is wired; otherwise the outbox does, which every search update passes
@@ -112,7 +117,9 @@ sub observe_lag ($self) {
       if $self->offset_tracker;
 
     my $row =
-      GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
+        $self->functions
+      ? $self->functions->row( 'search_observe_lag', {} )
+      : GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
         $LAG_SQL );
 
     return {
@@ -135,6 +142,19 @@ sub index_thread ( $self, $thread_id ) {
 # Reading the source row and rewriting search_documents are one unit: a
 # document half written from a row that moved on indexes stale content.
 sub _index_thread ( $self, $thread_id ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'search_index_entity',
+            {
+                entity_type => 'thread',
+                entity_id   => $thread_id,
+                document_id => _document_id_for(
+                    { entity_type => 'thread', entity_id => $thread_id }
+                ),
+                indexed_at => $self->clock->now_iso8601,
+            }
+        )->{result};
+    }
     $self->_lock_document( 'thread', $thread_id );
     my $thread = $self->schema->resultset('Thread')->find($thread_id);
     return $self->_remove_document( 'thread', $thread_id ) if !$thread;
@@ -192,6 +212,19 @@ sub index_post ( $self, $post_id ) {
 }
 
 sub _index_post ( $self, $post_id ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'search_index_entity',
+            {
+                entity_type => 'post',
+                entity_id   => $post_id,
+                document_id => _document_id_for(
+                    { entity_type => 'post', entity_id => $post_id }
+                ),
+                indexed_at => $self->clock->now_iso8601,
+            }
+        )->{result};
+    }
     $self->_lock_document( 'post', $post_id );
     my $post = $self->schema->resultset('Post')->find($post_id);
     return $self->_remove_document( 'post', $post_id ) if !$post;
@@ -331,6 +364,18 @@ sub _rebuild_outcome ($result) {
 # thread, or every rebuild would visit, and remove again, the posts of a
 # hidden thread.
 sub _live_ids ( $self, $type, $after ) {
+    if ( $self->functions ) {
+        return map { $_->{entity_id} } @{
+            $self->functions->rows(
+                'search_live_ids',
+                {
+                    entity_type => $type,
+                    after_id    => $after,
+                    row_limit   => $self->rebuild_batch_size
+                }
+            )
+        };
+    }
     my $key    = "${type}_id";
     my %thread = (
         'thread.deleted_at'       => undef,
@@ -359,6 +404,19 @@ sub _live_ids ( $self, $type, $after ) {
 # indexed again under its document lock: a source restored since the
 # snapshot is indexed rather than lost, and only what is still dead goes.
 sub _prune ( $self, $type ) {
+    if ( $self->functions ) {
+        my $candidates = $self->functions->rows( 'search_prune_candidates',
+            { entity_type => $type } );
+        my $pruned = 0;
+        for my $row ( @{$candidates} ) {
+            my $result =
+                $type eq 'thread'
+              ? $self->index_thread( $row->{entity_id} )
+              : $self->index_post( $row->{entity_id} );
+            $pruned += _rebuild_outcome($result) eq 'pruned' ? 1 : 0;
+        }
+        return $pruned;
+    }
     my $storage = $self->schema->storage;
     return 0 if !$storage->can('dbh_do');
 
@@ -405,6 +463,9 @@ sub _remove_posts_for_thread ( $self, $thread_id ) {
 # taken, or its reindex waits for them, so nothing is deleted and undef stops
 # the removal.
 sub _remove_post_batch ( $self, $thread_id, $post_ids ) {
+    return $self->functions->row( 'search_remove_post_batch',
+        { thread_id => $thread_id, post_ids => $post_ids } )->{removed}
+      if $self->functions;
     return $self->schema->txn_do(
         sub {
             $self->_lock_documents( 'post', $post_ids );
@@ -440,6 +501,14 @@ sub _thread_is_live ( $self, $thread_id ) {
 # serves the range and the order, where post id order would sort the whole
 # thread for every batch.
 sub _thread_post_batch ( $self, $thread_id, $after ) {
+    return $self->functions->rows(
+        'search_thread_post_batch',
+        {
+            thread_id      => $thread_id,
+            after_position => $after,
+            row_limit      => $self->rebuild_batch_size
+        }
+    ) if $self->functions;
     my $posts = $self->schema->resultset('Post');
     return [] if !$posts;
 
@@ -572,6 +641,9 @@ sub _column ( $row, $name ) {
 }
 
 sub _remove_document ( $self, $entity_type, $entity_id ) {
+    return $self->functions->row( 'search_remove_document',
+        { entity_type => $entity_type, entity_id => $entity_id } )->{result}
+      if $self->functions;
     $self->_lock_document( $entity_type, $entity_id );
     my $search = $self->schema->resultset('SearchDocument')->search_rs(
         {

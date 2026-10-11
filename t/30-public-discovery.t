@@ -10,16 +10,18 @@ use Test::More;
 
 use lib 'lib';
 
+use GPForum::Infrastructure::ResultRow::Thread;
 use GPForum::Service::Discovery::CanonicalUrl;
 use GPForum::Service::Discovery::FeedBuilder;
 use GPForum::Service::Discovery::MetadataBuilder;
 use GPForum::Service::Discovery::RobotsPolicy;
 use GPForum::Service::Discovery::SitemapBuilder;
 use GPForum::Service::Discovery::VisibilityPolicy;
+use GPForum::ViewModel::Discovery::Presenter;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 48;
+const my $EXPECTED_TESTS       => 50;
 const my $VISIBLE_THREAD_COUNT => 1;
 const my $LEGAL_PAGE_COUNT     => 3;
 const my $ROBOT_RULE_COUNT     => 6;
@@ -278,6 +280,18 @@ like(
 my $feed =
   GPForum::Service::Discovery::FeedBuilder->new( canonical_url => $canonical );
 my $items = $feed->thread_items($threads);
+my $function_resources =
+  GPForum::ViewModel::Discovery::Presenter->new->resources(
+    [
+        map { GPForum::Infrastructure::ResultRow::Thread->from( { %{$_} } ) }
+          @{$threads}
+    ]
+  );
+is_deeply( $sitemap->thread_entries($function_resources),
+    $thread_entries,
+    'function rows preserve sitemap entries and visibility filtering' );
+is_deeply( $feed->thread_items($function_resources),
+    $items, 'function rows preserve feed entries and visibility filtering' );
 is( scalar @{$items},
     $VISIBLE_THREAD_COUNT, 'feed excludes hidden and private threads' );
 is( $items->[0]{id},    'thread-1', 'feed item stores id' );

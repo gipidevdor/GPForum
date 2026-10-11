@@ -15,7 +15,13 @@ use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $DEFAULT_SCHEMA_VERSION => 1;
 const my $AUDIT_CHAIN_LOCK_KEY   => 2_026_060_210;
@@ -57,6 +63,17 @@ has audit_record => sub {
 sub record_event ( $self, %input ) {
     my $outbox_payload = delete $input{outbox_payload};
     my $event          = $self->_recorded_event( \%input );
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'ops_record_event',
+            {
+                event         => $event,
+                outbox_id     => $self->outbox_builder->id_service->uuid,
+                outbox_extras => $outbox_payload,
+                explicit => $self->audit_record->has_text( $input{event_id} ),
+            }
+        )->{event};
+    }
     if ( !$self->audit_record->has_text( $input{event_id} ) ) {
         return $self->_reuse_or_insert_event( $event, $outbox_payload );
     }
@@ -96,6 +113,10 @@ sub _lock_event_id ( $self, $event_id ) {
 # replay, by recording the event -- once, and only if this says it is
 # missing. ADR 0091's append_once: six stores each had their own copy.
 sub event_recorded ( $self, $idempotency_key ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'ops_event_recorded',
+            { key => $idempotency_key } )->{recorded} ? 1 : 0;
+    }
     my $search = $self->schema->resultset('EventLog')->search_rs(
         { idempotency_key => $idempotency_key },
         { rows            => $ROW_LIMIT_ONE },
@@ -297,6 +318,15 @@ sub _event_hash ($event) {
 }
 
 sub record_audit ( $self, %input ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'ops_record_audit',
+            {
+                audit    => $self->audit_record->build( \%input ),
+                explicit => $self->audit_record->has_text( $input{audit_id} ),
+            }
+        )->{audit};
+    }
     my $work = sub {
         $self->_lock_audit_chain;
 

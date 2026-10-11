@@ -17,6 +17,10 @@ use GPForum::Service::Forum::SourceThread;
 use GPForum::Infrastructure::Id;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::SourceFunction;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_LIMIT     => 50;
@@ -29,6 +33,9 @@ has prepared    => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has id_service  => sub { return GPForum::Infrastructure::Id->new; };
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # ADR 0102: only rows whose post or thread the reader can still read, judged
 # in the query before LIMIT. A bookmark kept pointing at a thread after its
@@ -40,6 +47,7 @@ has readability => undef;    # optional: every source counts as readable
 # target key. A minted id already stored with no such bookmark is minted
 # once more.
 sub save_bookmark ( $self, $input ) {
+    return $self->_save_by_function( $input, 1 ) if $self->functions;
     my $find = sub {
         return $self->find_for_user_target( $input->{user_id},
             $input->{target_type}, $input->{target_id}, );
@@ -79,6 +87,7 @@ sub save_bookmark ( $self, $input ) {
 }
 
 sub create_bookmark ( $self, $input ) {
+    return $self->_save_by_function( $input, 0 ) if $self->functions;
     my $bookmark = {
         bookmark_id => $self->id_service->uuid,
         user_id     => $input->{user_id},
@@ -97,6 +106,18 @@ sub create_bookmark ( $self, $input ) {
 # The row by its key, through a statement built once: every signed-in
 # thread page asks for one.
 sub find_for_user_target ( $self, $user_id, $target_type, $target_id ) {
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'community_find_bookmark',
+                {
+                    user_id     => $user_id,
+                    target_type => $target_type,
+                    target_id   => $target_id
+                }
+            )
+        );
+    }
     my $rows = $self->schema->resultset('Bookmark');
     my %key  = (
         target_id   => $target_id,
@@ -133,12 +154,16 @@ sub status_for_user_target ( $self, $user_id, $target_type, $target_id ) {
 }
 
 sub remove_bookmark ( $self, $bookmark_id ) {
+    return $self->_stamp_by_function( $bookmark_id, undef, 'deleted_at' )
+      if $self->functions;
     my $bookmark = $self->schema->resultset('Bookmark')->find($bookmark_id);
 
     return $self->_soft_delete_bookmark($bookmark);
 }
 
 sub remove_for_user_target ( $self, $input ) {
+    return $self->_stamp_by_function( undef, $input, 'deleted_at' )
+      if $self->functions;
     my $bookmark =
       $self->find_for_user_target( $input->{user_id}, $input->{target_type},
         $input->{target_id}, );
@@ -174,13 +199,27 @@ sub _soft_delete_bookmark ( $self, $bookmark ) {
 }
 
 sub list_for_user ( $self, $user_id, $options ) {
+    return $self->_list_by_function( $user_id, $options || {} )
+      if $self->functions;
     my $search = $self->bookmarks_resultset( $user_id, $options || {} );
 
     return [ _rows($search) ];
 }
 
 sub list_page_for_user ( $self, $user_id, $options ) {
-    my $page   = $self->page_window->plan($options);
+    my $page = $self->page_window->plan($options);
+    if ( $self->functions ) {
+        my $rows = $self->_list_by_function(
+            $user_id,
+            {
+                %{ $options || {} },
+                limit => $page->{fetch_rows},
+                after => $page->{after},
+            }
+        );
+        return $self->page_window->page( $rows, $page->{limit},
+            \@CURSOR_COLUMNS );
+    }
     my $search = $self->bookmarks_resultset(
         $user_id,
         {
@@ -249,6 +288,27 @@ sub _readable_targets ( $self, $user_id, $viewer ) {
 
 # The resultset a bookmarks page executes; public so tests and the
 # query-plan evidence see the SQL that runs.
+sub _list_by_function ( $self, $user_id, $options ) {
+    my ( $name, $values ) = @{ $self->source_list_call( $user_id, $options ) };
+    return GPForum::Infrastructure::SourceFunction->rows(
+        $self->functions->rows( $name, $values ),
+        $self->readability ? 1 : 0 );
+}
+
+sub source_list_call ( $self, $user_id, $options ) {
+    my $after  = $options->{after} || {};
+    my $values = {
+        %{ GPForum::Infrastructure::SourceFunction->parameters(
+                $self->readability, $user_id, $options->{viewer} )
+        },
+        after_created_at => $after->{sort_value},
+        after_id         => $after->{id},
+        row_limit        => $options->{limit}       || $DEFAULT_LIMIT,
+        target_type      => $options->{target_type} || undef,
+    };
+    return [ 'community_list_bookmarks', $values ];
+}
+
 sub bookmarks_resultset ( $self, $user_id, $options ) {
     my $query = {
         user_id    => $user_id,
@@ -280,6 +340,45 @@ sub bookmarks_resultset ( $self, $user_id, $options ) {
             rows => $options->{limit} || $DEFAULT_LIMIT,
         }
     );
+}
+
+sub _save_by_function ( $self, $input, $restore ) {
+    my $row = {
+        bookmark_id => $self->id_service->uuid,
+        user_id     => $input->{user_id},
+        target_type => $input->{target_type},
+        target_id   => $input->{target_id},
+        note        => $input->{note} || q{},
+        created_at  => $self->clock->now_iso8601,
+        deleted_at  => undef
+    };
+    my $result = $self->functions->row( 'community_save_bookmark',
+        { row => $row, restore => $restore } )->{result};
+    if ( $result->{retry_id} ) {
+        $row->{bookmark_id} = $self->id_service->uuid;
+        $result = $self->functions->row( 'community_save_bookmark',
+            { row => $row, restore => $restore } )->{result};
+        if ( $result->{retry_id} ) {
+            GPForum::X::Conflict->throw(
+                message => 'the replacement id is already stored' );
+        }
+    }
+    return $result;
+}
+
+sub _stamp_by_function ( $self, $id, $input, $column ) {
+    return $self->functions->row(
+        'community_stamp_bookmark',
+        {
+            id          => $id,
+            by_target   => $input ? 1                     : 0,
+            user_id     => $input ? $input->{user_id}     : undef,
+            target_type => $input ? $input->{target_type} : undef,
+            target_id   => $input ? $input->{target_id}   : undef,
+            column      => $column,
+            stamped_at  => $self->clock->now_iso8601,
+        }
+    )->{result};
 }
 
 sub _column ( $row, $column ) {
@@ -418,6 +517,12 @@ runs. When C<readability> is set, each row also carries the thread it is
 about, C<source_thread_id> and C<source_thread_title>
 (L<GPForum::Service::Forum::SourceThread>); without it neither is selected,
 since the list is then not cut to what the reader may read.
+
+=head2 source_list_call
+
+Takes the member id and listing options with an already decoded cursor.
+Returns the function catalogue name and the exact bound parameters the list
+executes, also used by its nested query-plan evidence.
 
 =head1 DIAGNOSTICS
 

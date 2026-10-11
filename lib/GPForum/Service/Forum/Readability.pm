@@ -9,6 +9,7 @@ use v5.40;
 
 use GPForum::Infrastructure::CountedQuery;
 use GPForum::Infrastructure::Id;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::ViewerResolver;
 use GPForum::Service::Forum::Visibility;
 
@@ -50,6 +51,9 @@ const my $PLACEMENT_SQL => {
 };
 
 __PACKAGE__->requires('schema');
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 has viewer_resolver => sub ($self) {
     return GPForum::Service::Forum::ViewerResolver->new(
@@ -189,9 +193,16 @@ sub _placement ( $self, $source_type, $source_id ) {
     return undef
       if !$sql || !GPForum::Infrastructure::Id->is_uuid($source_id);
 
-    my $place =
-      GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
-        $sql, $source_id );
+    my $place;
+    if ( my $functions = $self->functions ) {
+        $place = $functions->row( "forum_${type}_placement",
+            { source_id => $source_id } );
+    }
+    else {
+        $place =
+          GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
+            $sql, $source_id );
+    }
     return undef if !$place || !_live($place);
 
     return {

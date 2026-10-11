@@ -15,7 +15,13 @@ use GPForum::Service::Operations::QueryBudget;
 use GPForum::Service::Operations::Replication;
 use GPForum::Service::Clock;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $MILLISECONDS_PER_SECOND => 1000;
 const my $MAX_ERROR_LENGTH        => 240;
@@ -183,13 +189,19 @@ sub _outbox ($self) {
 
     my $snapshot;
     try {
-        my $by_status = $self->_outbox_status_counts;
-        $snapshot = {
-            pending       => $by_status->{pending} // 0,
-            failed        => $by_status->{failed}  // 0,
-            retry_backlog => $self->retry_backlog_resultset->count,
-            dead_letters  => $self->schema->resultset('DeadLetter')->count,
-        };
+        if ( $self->functions ) {
+            $snapshot = $self->functions->row( 'ops_outbox_metrics',
+                { now => $self->clock->now_iso8601 } );
+        }
+        else {
+            my $by_status = $self->_outbox_status_counts;
+            $snapshot = {
+                pending       => $by_status->{pending} // 0,
+                failed        => $by_status->{failed}  // 0,
+                retry_backlog => $self->retry_backlog_resultset->count,
+                dead_letters  => $self->schema->resultset('DeadLetter')->count,
+            };
+        }
     }
     catch ($error) {
         return {};

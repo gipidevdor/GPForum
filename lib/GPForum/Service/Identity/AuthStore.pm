@@ -6,6 +6,10 @@ package GPForum::Service::Identity::AuthStore;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+
 use GPForum::Service::Identity::Support;
 
 our $VERSION = '0.001';
@@ -15,6 +19,10 @@ has support => sub { return GPForum::Service::Identity::Support->new; };
 
 # An identifier with an @ is an address, any other a username. An unknown or
 # deleted account costs the work a wrong password costs and gets its answer.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub authenticate_login ( $self, $input ) {
     my $identifier =
       $self->support->normalize_identifier( $input->{identifier} );
@@ -22,7 +30,19 @@ sub authenticate_login ( $self, $input ) {
     if ( length $identifier ) {
         my $column = $identifier =~ /[@]/msx ? 'email_normalized' : 'username';
         $user =
-          $self->schema->resultset('User')->find( { $column => $identifier } );
+          $self->functions
+          ? GPForum::Infrastructure::ResultRow::IdentityUser->from(
+            $self->functions->row(
+                'identity_user_by_identifier',
+                {
+                    identifier => $identifier,
+                    by_email   => $column eq 'email_normalized' ? 1 : 0
+                }
+            ),
+            $self->functions
+          )
+          : $self->schema->resultset('User')
+          ->find( { $column => $identifier } );
     }
     my $status = ( $user && $self->support->column( $user, q{status} ) ) || q{};
     if ( !$user || $status eq 'deleted' ) {

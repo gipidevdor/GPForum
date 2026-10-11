@@ -8,6 +8,8 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::X::Argument;
@@ -20,6 +22,9 @@ const my $STATE_ID_CONSTRAINT => 'thread_read_state_pkey';
 const my $DELTA_ID_CONSTRAINT => 'user_read_marker_deltas_pkey';
 
 __PACKAGE__->requires('schema');
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 has clock    => sub { return GPForum::Service::Clock->new; };
 has prepared => sub { return GPForum::Infrastructure::PreparedQuery->new; };
@@ -46,6 +51,11 @@ sub state_for_thread ( $self, $user_id, $thread_id ) {
 # The row by its key, through a statement built once (every signed-in
 # thread page reads one).
 sub _stored_state ( $self, $user_id, $thread_id ) {
+    return GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'forum_read_state', { user_id => $user_id, thread_id => $thread_id }
+        )
+    ) if $self->functions;
     my $states = $self->schema->resultset('ThreadReadState');
     my %key    = ( thread_id => $thread_id, user_id => $user_id );
 
@@ -121,6 +131,11 @@ sub mark_thread_read ( $self, $input ) {
 # The marker only moves forward: a mark behind the stored one keeps the
 # stored position, and one that would not advance it writes nothing.
 sub _mark_thread_read ( $self, $input ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'forum_mark_read',
+            { row => { %{$input}, last_read_at => $self->clock->now_iso8601 } }
+        )->{result};
+    }
     my $current =
       $self->state_for_thread( $input->{user_id}, $input->{thread_id}, );
     my $position =

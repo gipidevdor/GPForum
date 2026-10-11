@@ -21,6 +21,7 @@ our $VERSION = '0.001';
 const my @VERBS => (
     [qw(setup setup setup)],
     [qw(migrate setup migrate gpforum-migrate)],
+    [qw(api-role setup api_role gpforum-api-role)],
     [ 'admin',  'setup', 'admin',  'gpforum-admin-bootstrap', 'admin grant' ],
     [ 'secret', 'setup', 'secret', undef ],
     [ 'start',  'run',   'start',  undef, undef, 'application' ],

@@ -70,12 +70,13 @@ const my %ENGLISH => (
 
     'cli.verb.setup' =>
       'Set this host up: the settings, the database, the schema',
-    'cli.verb.migrate' => 'Bring the database up to date',
-    'cli.verb.admin'   => q{Create the forum's owner, or make a member one},
-    'cli.verb.secret'  => 'Rotate the session secret or the metrics token',
-    'cli.verb.service' => 'Print the service files, written for this host',
-    'cli.verb.start'   => 'Run the forum in this terminal, for development',
-    'cli.verb.outbox'  => 'Send the queued mail and events',
+    'cli.verb.migrate'  => 'Bring the database up to date',
+    'cli.verb.api_role' => 'Provision the PostgreSQL application role',
+    'cli.verb.admin'    => q{Create the forum's owner, or make a member one},
+    'cli.verb.secret'   => 'Rotate the session secret or the metrics token',
+    'cli.verb.service'  => 'Print the service files, written for this host',
+    'cli.verb.start'    => 'Run the forum in this terminal, for development',
+    'cli.verb.outbox'   => 'Send the queued mail and events',
     'cli.verb.scheduled_jobs' => 'Run the retention and clean-up jobs once',
     'cli.verb.doctor'         =>
       'Check the forum, from its settings to its address, with what to fix',

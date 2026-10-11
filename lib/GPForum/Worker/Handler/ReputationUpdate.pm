@@ -7,7 +7,13 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $THREAD_CREATED  => 'thread.created';
 const my $POST_CREATED    => 'post.created';
@@ -111,6 +117,12 @@ sub _schema_author ( $self, $event ) {
     }
     return undef if !$self->schema || !$name;
 
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'ops_worker_aggregate',
+            { aggregate_type => $type, aggregate_id => $event->{aggregate_id} }
+        );
+        return $row ? $row->{author_user_id} : undef;
+    }
     my $row = $self->schema->resultset($name)->find( $event->{aggregate_id} );
 
     return $row ? $row->get_column('author_user_id') : undef;

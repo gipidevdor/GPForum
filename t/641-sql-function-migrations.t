@@ -46,11 +46,11 @@ const my $PLAN_MODE =>
   qr/SET \s+ plan_cache_mode \s* = \s* force_(?:generic|custom)_plan/imsx;
 const my $DROP =>
   qr/DROP \s+ FUNCTION \s+ (?:IF \s+ EXISTS \s+)? (?<dropped>api [.] \w+)/imsx;
-const my $RETAINED_SEARCH_VERSION => 2;
-const my $CURRENT_SEARCH_VERSION  => 4;
+const my @RETAINED_SEARCH_VERSIONS => ( 2, 4 );
+const my $CURRENT_SEARCH_VERSION   => 6;
 const my %RETAINED_BOUNDARIES => (
-    search_ranked       => [$RETAINED_SEARCH_VERSION],
-    search_autocomplete => [$RETAINED_SEARCH_VERSION],
+    search_ranked       => [@RETAINED_SEARCH_VERSIONS],
+    search_autocomplete => [@RETAINED_SEARCH_VERSIONS],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
@@ -100,7 +100,7 @@ subtest 'the rules see what they are written for' => sub {
 
 subtest 'only registered typed boundaries gain owner rights' => sub {
     my $head = 'LANGUAGE sql SECURITY DEFINER';
-    for my $version ( $RETAINED_SEARCH_VERSION, $CURRENT_SEARCH_VERSION ) {
+    for my $version ( @RETAINED_SEARCH_VERSIONS, $CURRENT_SEARCH_VERSION ) {
         my $boundary = $boundaries{"search_ranked_v$version"};
         my $call =
             'SELECT * FROM api.'
@@ -119,10 +119,12 @@ subtest 'only registered typed boundaries gain owner rights' => sub {
         ok( !_boundary( "search_ranked_v$version", $head, $missing ),
             'dropping a typed argument is refused' );
     }
+    my $arguments =
+      $boundaries{"search_ranked_v$CURRENT_SEARCH_VERSION"}{arguments};
     ok(
         !_boundary(
-            'search_ranked_v6', $head,
-            'SELECT * FROM api.search_ranked_v5();'
+            'search_ranked_v8', $head,
+            "SELECT * FROM api.search_ranked_v7($arguments);"
         ),
         'an unregistered future version is refused'
     );

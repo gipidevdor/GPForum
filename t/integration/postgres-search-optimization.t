@@ -29,15 +29,17 @@ use GPForum::Test::PgDatabase;
 
 our $VERSION = '0.001';
 
-const my $OPTIMIZED_VERSION      => 4;
-const my $IMPLEMENTATION_VERSION => 3;
-const my $THREADS                => 1_100;
-const my $PLAN_THREADS           => 10_000;
-const my $CANDIDATES             => 1_000;
-const my $PAGE                   => 20;
-const my $RARE_COUNT             => 4;
-const my $BODY_COPIES            => 400;
-const my $LITERAL_BACKSLASH      => chr 92;
+const my $OPTIMIZED_VERSION       => 6;
+const my $IMPLEMENTATION_VERSION  => 5;
+const my $RETAINED_VERSION        => 4;
+const my $RETAINED_IMPLEMENTATION => 3;
+const my $THREADS                 => 1_100;
+const my $PLAN_THREADS            => 10_000;
+const my $CANDIDATES              => 1_000;
+const my $PAGE                    => 20;
+const my $RARE_COUNT              => 4;
+const my $BODY_COPIES             => 400;
+const my $LITERAL_BACKSLASH       => chr 92;
 const my $THREADS_SQL => join q{ },
   q{INSERT INTO threads (thread_id, category_id, author_user_id, title, slug,},
   q{created_at) SELECT gen_random_uuid(), ?, ?,},
@@ -86,8 +88,9 @@ my $source = $dbh->selectrow_hashref(
       . q{ AND c.deleted_at IS NULL ORDER BY t.thread_id LIMIT 1} );
 _seed_corpus( $dbh, $THREADS );
 
-my $json        = JSON::MaybeXS->new( canonical => 1, utf8 => 0 );
-my %functions   = map { $_ => _functions($_) } ( 2, $OPTIMIZED_VERSION );
+my $json = JSON::MaybeXS->new( canonical => 1, utf8 => 0 );
+my %functions =
+  map { $_ => _functions($_) } ( 2, $RETAINED_VERSION, $OPTIMIZED_VERSION );
 my $permissions = GPForum::Service::Search::PermissionEngine->new;
 my %searcher    = map {
     $_ => GPForum::Service::Search::Searcher->new(
@@ -96,7 +99,7 @@ my %searcher    = map {
         functions         => $functions{$_},
         candidate_limit   => $CANDIDATES,
     )
-} ( 2, $OPTIMIZED_VERSION );
+} ( 2, $RETAINED_VERSION, $OPTIMIZED_VERSION );
 my %viewers = (
     anonymous => GPForum::Service::Forum::Viewer->anonymous,
     member    => GPForum::Service::Forum::Viewer->new(
@@ -191,14 +194,26 @@ sub _compare ( $actor, $query, $options, $label ) {
     my $old = $searcher{2}->ranked_search( $actor, $query, $options );
     my $new =
       $searcher{$OPTIMIZED_VERSION}->ranked_search( $actor, $query, $options );
+    my $retained =
+      $searcher{$RETAINED_VERSION}->ranked_search( $actor, $query, $options );
+    is_deeply( $new, $retained,
+        "$label: retained API ranks, order, snippets and metadata" );
+    is(
+        $json->encode($new),
+        $json->encode($retained),
+        "$label: retained API serialized JSON"
+    );
     is_deeply( $new, $old,
         "$label: exact ranks, order, snippets and metadata" );
     is( $json->encode($new), $json->encode($old), "$label: serialized JSON" );
     my ( $name, $values ) =
       @{ $searcher{$OPTIMIZED_VERSION}->ranked_call( $actor, $query, $options )
       };
-    my $old_rows       = $functions{2}->rows( $name, $values );
-    my $new_rows       = $functions{$OPTIMIZED_VERSION}->rows( $name, $values );
+    my $old_rows      = $functions{2}->rows( $name, $values );
+    my $new_rows      = $functions{$OPTIMIZED_VERSION}->rows( $name, $values );
+    my $retained_rows = $functions{$RETAINED_VERSION}->rows( $name, $values );
+    is_deeply( $new_rows, $retained_rows,
+        "$label: retained API raw typed columns and candidate counts" );
     my @columns        = keys %{ $new_rows->[0] // {} };
     my @old_projection = map { _projection( $_, \@columns ) } @{$old_rows};
     is_deeply( $new_rows, \@old_projection,
@@ -215,6 +230,14 @@ sub _compare_autocomplete ( $actor, $prefix, $label ) {
     my $old = $searcher{2}->autocomplete( $actor, $prefix, { limit => $PAGE } );
     my $new = $searcher{$OPTIMIZED_VERSION}
       ->autocomplete( $actor, $prefix, { limit => $PAGE } );
+    my $retained = $searcher{$RETAINED_VERSION}
+      ->autocomplete( $actor, $prefix, { limit => $PAGE } );
+    is_deeply( $new, $retained, "$label: retained API autocomplete results" );
+    is(
+        $json->encode($new),
+        $json->encode($retained),
+        "$label: retained API autocomplete JSON"
+    );
     is_deeply( $new, $old, "$label: exact autocomplete results" );
     is( $json->encode($new), $json->encode($old), "$label: autocomplete JSON" );
 
@@ -323,8 +346,10 @@ sub _compare_without_permissions {
             schema    => $schema,
             functions => $functions{$_},
         )->ranked_search( undef, 'candidateword', {} )
-    } ( 2, $OPTIMIZED_VERSION );
-    is_deeply( $pages[1], $pages[0], 'visibility-only fallback also agrees' );
+    } ( 2, $RETAINED_VERSION, $OPTIMIZED_VERSION );
+    is_deeply( $pages[2], $pages[0], 'visibility-only fallback also agrees' );
+    is_deeply( $pages[2], $pages[1],
+        'visibility-only fallback agrees with the retained API' );
 
     return;
 }
@@ -385,24 +410,39 @@ sub _assert_nested_plans {
       : $PAGE + 1;
     cmp_ok( $payload_rows,
         q{<=}, $PAGE, 'payload rows are loaded only after the result limit' );
-    my $previous_functions = _functions( 2, $plan_database->schema );
-    my $previous = GPForum::Command::QueryPlanEvidence::_explain_nested(    ## no critic (Subroutines::ProtectPrivateSubs) -- Compare the retained API on the same maintained corpus through the normal collector, without planner overrides.
-        $plan_dbh, $previous_functions->statement( $name, $values ),
-        { analyze => 1 },
-    );
-    my @previous_nodes = map { _nodes( $_->{Plan} ) } @{ $previous->{plan} };
-    my ($previous_scan) =
-      grep { ( $_->{'Index Name'} // q{} ) eq 'idx_search_documents_created' }
-      @previous_nodes;
-    ok( $previous_scan, 'the previous API uses the same maintained hot path' )
-      or diag explain $previous;
-    my $previous_rows =
-        $previous_scan
-      ? $previous_scan->{'Actual Rows'} * $previous_scan->{'Actual Loops'}
-      : $PLAN_THREADS;
-    cmp_ok( $previous_rows, q{<=}, $CANDIDATES,
-        'both API versions stop their common scan at the candidate cap' )
-      or diag explain $previous;
+    for my $version ( 2, $RETAINED_VERSION ) {
+        my $previous_functions = _functions( $version, $plan_database->schema );
+        my $previous = GPForum::Command::QueryPlanEvidence::_explain_nested(   ## no critic (Subroutines::ProtectPrivateSubs) -- Inspect each retained API on the same maintained corpus without planner overrides; PostgreSQL 16/17 SQL functions can retain generic plans.
+            $plan_dbh, $previous_functions->statement( $name, $values ),
+            { analyze => 1 },
+        );
+        my ($previous_body) = grep {
+                 ( $_->{'Query Text'} // q{} ) =~ /WITH [ ] ranked_page/msx
+              || ( $_->{'Query Text'} // q{} ) =~ /count[(][*][)][ ] OVER/msx
+        } @{ $previous->{plan} };
+        ok( $previous_body, "retained v$version function body was measured" )
+          or diag explain $previous;
+        my @previous_nodes = _nodes( $previous_body->{Plan} );
+        my ($previous_ranking) =
+          grep { $_->{'Node Type'} eq 'WindowAgg' } @previous_nodes;
+        is( $previous_ranking->{'Actual Rows'},
+            $CANDIDATES,
+            "retained v$version ranks the same capped candidates" );
+        is( $previous_body->{Plan}{'Actual Rows'},
+            $PAGE, "retained v$version returns the same bounded result page" );
+        my ($previous_scan) = grep {
+                 ( $_->{'Alias'} // q{} ) eq 'me'
+              && ( $_->{'Relation Name'} // q{} ) eq 'search_documents'
+        } @previous_nodes;
+        diag "retained v$version normal candidate scan: "
+          . ( $previous_scan->{'Node Type'} // 'missing' )
+          . ', index='
+          . ( $previous_scan->{'Index Name'} // 'none' )
+          . ', rows='
+          . ( $previous_scan->{'Actual Rows'} // 'unknown' )
+          . ', loops='
+          . ( $previous_scan->{'Actual Loops'} // 'unknown' );
+    }
     my ( $rare_name, $rare_values ) =
       @{ $searcher{$OPTIMIZED_VERSION}->ranked_call( $anonymous, 'zymurgy', {} )
       };
@@ -486,15 +526,17 @@ sub _assert_runtime_role {
             $restricted->ranked_search( $anonymous, 'candidateword', {} ),
             $searcher{$OPTIMIZED_VERSION}
               ->ranked_search( $anonymous, 'candidateword', {} ),
-            'the restricted runtime login calls ranked v4 transitively',
+            'the restricted runtime login calls ranked v6 transitively',
         );
         is_deeply(
             $restricted->autocomplete( $anonymous, 'Dep', {} ),
             $searcher{$OPTIMIZED_VERSION}
               ->autocomplete( $anonymous, 'Dep', {} ),
-            'the restricted runtime login calls autocomplete v4 transitively',
+            'the restricted runtime login calls autocomplete v6 transitively',
         );
-        for my $version ( 1, 2, $IMPLEMENTATION_VERSION ) {
+        for my $version ( 1, 2, $RETAINED_IMPLEMENTATION, $RETAINED_VERSION,
+            $IMPLEMENTATION_VERSION )
+        {
             for my $name (qw(search_ranked search_autocomplete)) {
                 my $entry    = $functions{2}->catalogue->function($name);
                 my $function = "api.${name}_v$version";

@@ -21,8 +21,12 @@ our $VERSION = '0.001';
 const my %RETAINED => (
     search_ranked_v1       => 0,
     search_ranked_v2       => 1,
+    search_ranked_v3       => 0,
+    search_ranked_v4       => 1,
     search_autocomplete_v1 => 0,
     search_autocomplete_v2 => 1,
+    search_autocomplete_v3 => 0,
+    search_autocomplete_v4 => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

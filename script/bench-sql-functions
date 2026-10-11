@@ -72,10 +72,12 @@ our $VERSION = '0.001';
 # its own, seeds it as t/integration/postgres-query-plan-depth.t does, and
 # drops it.
 const my %DEFAULT => (
-    'delay-ms'         => 0.5,
-    'read-iterations'  => 200,
-    'warmup'           => 15,
-    'write-iterations' => 100,
+    'before-search-version'    => 2,
+    'delay-ms'                 => 0.5,
+    'implementation-reference' => 'search-v6-custom-plans',
+    'read-iterations'          => 200,
+    'warmup'                   => 15,
+    'write-iterations'         => 100,
 );
 const my $THREAD_POSTS      => 3_000;
 const my $SEEDED_POSTS      => 8;
@@ -92,7 +94,11 @@ const my @PATHS             => qw(dbic function);
 const my @MODES             => qw(direct proxy);
 const my @PAIRED_PATHS      => qw(before after);
 const my @PAIRED_OPERATIONS => qw(search_ranked search_autocomplete post_edit);
-const my $BEFORE_SEARCH_VERSION => 2;
+const my $ORIGINAL_SEARCH_VERSION => 2;
+const my %BASELINE_COMMIT => (
+    2 => '2cb9945',
+    4 => '200f902',
+);
 const my @ROUND_TRIPS => qw(
   begin_work commit rollback pg_savepoint pg_release pg_rollback_to
 );
@@ -102,19 +108,15 @@ exit main(@ARGV);
 sub main (@arguments) {
     my %option = %DEFAULT;
     GetOptionsFromArray(
-        \@arguments,          \%option,
-        'delay-ms=f',         'json',
-        'read-iterations=i',  'warmup=i',
-        'write-iterations=i', 'paired-functions|paired',
+        \@arguments,               \%option,
+        'delay-ms=f',              'json',
+        'read-iterations=i',       'warmup=i',
+        'write-iterations=i',      'paired-functions|paired',
+        'before-search-version=i', 'implementation-reference=s',
         'help'
     ) or return _usage(2);
     return _usage(0) if $option{help};
-    return _usage(2)
-      if @arguments
-      || $option{'read-iterations'} < 1
-      || $option{'write-iterations'} < 1
-      || $option{warmup} < 0
-      || $option{'delay-ms'} < 0;
+    return _usage(2) if @arguments || !_valid_options( \%option );
 
     my $admin_dsn = $ENV{GPFORUM_DATABASE_DSN}
       // croak 'set GPFORUM_DATABASE_DSN to a database the user may CREATE in';
@@ -162,10 +164,22 @@ sub main (@arguments) {
     return 0;
 }
 
+sub _valid_options ($option) {
+    return
+         $option->{'read-iterations'} >= 1
+      && $option->{'write-iterations'} >= 1
+      && $option->{warmup} >= 0
+      && $option->{'delay-ms'} >= 0
+      && exists $BASELINE_COMMIT{ $option->{'before-search-version'} }
+      && $option->{'implementation-reference'} ne q{};
+}
+
 sub _usage ($status) {
     print 'Usage: script/bench-sql-functions [--read-iterations N]'
       . " [--write-iterations N] [--warmup N] [--delay-ms MS] [--json]\n"
       . "       Add --paired-functions for alternating stored-function before/after pairs.\n"
+      . "       --before-search-version 2|4 selects the retained baseline (default: 2).\n"
+      . "       --implementation-reference REF identifies the measured implementation.\n"
       or croak 'cannot write the usage';
 
     return $status;
@@ -386,14 +400,15 @@ sub _select_one ($dsn) {
     return _ms( _median(@runs) );
 }
 
-# Both sides retain the stored-function layer. Only the search versions and
-# the post preflight differ, on one handle and dataset with alternating order.
+# Both sides retain the stored-function layer, on one handle and dataset with
+# alternating order. Version 2 includes the original post preflight; version 4
+# isolates the search change with the same combined context on both sides.
 sub _measure_paired ( $dsn, $proxy, $option ) {
     my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
     my %entries =
       map { $_ => { %{ $catalogue->entries->{$_} } } } @{ $catalogue->names };
     for my $name (qw(search_ranked search_autocomplete)) {
-        $entries{$name}{version} = $BEFORE_SEARCH_VERSION;
+        $entries{$name}{version} = $option->{'before-search-version'};
     }
     my $before = GPForum::Infrastructure::SqlFunctionCatalogue->new(
         entries => \%entries );
@@ -404,16 +419,19 @@ sub _measure_paired ( $dsn, $proxy, $option ) {
             proxy  => _select_one( $proxy->{dsn} )
         },
         comparison => {
-            mode                     => 'paired-functions',
-            baseline_commit          => '2cb9945',
-            implementation_reference => '27ec747',
+            mode            => 'paired-functions',
+            baseline_commit =>
+              $BASELINE_COMMIT{ $option->{'before-search-version'} },
+            implementation_reference => $option->{'implementation-reference'},
             order  => 'before/after on odd pairs; after/before on even pairs',
             before => {
                 search_ranked => $before->function('search_ranked')->{version},
                 search_autocomplete =>
                   $before->function('search_autocomplete')->{version},
-                post_preflight =>
-                  'forum_find_post_v2 + forum_thread_page_head_v2'
+                post_preflight => $option->{'before-search-version'} ==
+                  $ORIGINAL_SEARCH_VERSION
+                ? 'forum_find_post_v2 + forum_thread_page_head_v2'
+                : 'forum_post_context_v2'
             },
             after => {
                 search_ranked =>
@@ -439,14 +457,16 @@ sub _measure_paired ( $dsn, $proxy, $option ) {
             $operations{$path} = _operations( $schema, 'function',
                 { functions => $functions, edit_counter => \$edit_number } );
         }
-        my $run = $operations{before}{post_edit}{run};
-        $operations{before}{post_edit}{run} = sub {
-            ## no critic (TestingAndDebugging::ProhibitNoWarnings Variables::ProtectPrivateVars) -- restore only the pre-101 preflight for this measurement
-            no warnings 'redefine';
-            local *GPForum::Service::Forum::PostingWorkflow::_post_checked =
-              \&_before_post_checked;
-            return $run->();
-        };
+        if ( $option->{'before-search-version'} == $ORIGINAL_SEARCH_VERSION ) {
+            my $run = $operations{before}{post_edit}{run};
+            $operations{before}{post_edit}{run} = sub {
+                ## no critic (TestingAndDebugging::ProhibitNoWarnings Variables::ProtectPrivateVars) -- restore only the pre-101 preflight for this measurement
+                no warnings 'redefine';
+                local *GPForum::Service::Forum::PostingWorkflow::_post_checked
+                  = \&_before_post_checked;
+                return $run->();
+            };
+        }
         for my $name (@PAIRED_OPERATIONS) {
             my %operation = map { $_ => $operations{$_}{$name} } @PAIRED_PATHS;
             my $samples =
@@ -501,8 +521,7 @@ sub _paired_samples ( $name, $operations, $counts, $option ) {
             my $wall = time - $started;
             my $cpu  = ( clock() - $processor ) / $CLOCKS_PER_SECOND;
             next if $pair <= $option->{warmup};
-            push @{ $samples{$path} },
-              {
+            my $sample = {
                 pair        => $pair - $option->{warmup},
                 order       => $slot + 1,
                 wall_ms     => $wall * $MILLISECONDS,
@@ -510,7 +529,12 @@ sub _paired_samples ( $name, $operations, $counts, $option ) {
                 statements  => $counts->{statements} // 0,
                 round_trips => ( $counts->{statements} // 0 ) +
                   ( $counts->{transaction} // 0 ),
-              };
+            };
+
+            if ( $name eq 'post_edit' ) {
+                $sample->{revision_id} = _written_revision( $result{$path} );
+            }
+            push @{ $samples{$path} }, $sample;
         }
         _check_pair( $name, \%result );
     }
@@ -521,8 +545,13 @@ sub _check_pair ( $name, $result ) {
     if ( $name eq 'post_edit' ) {
         for my $path (@PAIRED_PATHS) {
             croak "$path post edit did not write a revision"
-              if !$result->{$path}{ok} || $result->{$path}{stored}{skipped};
+              if !$result->{$path}{ok}
+              || $result->{$path}{stored}{skipped}
+              || !_written_revision( $result->{$path} );
         }
+        croak 'paired post edits did not write distinct revisions'
+          if _written_revision( $result->{before} ) eq
+          _written_revision( $result->{after} );
         return;
     }
     my $json = JSON::MaybeXS->new( canonical => 1 );
@@ -530,6 +559,11 @@ sub _check_pair ( $name, $result ) {
       if $json->encode( $result->{before} ) ne
       $json->encode( $result->{after} );
     return;
+}
+
+sub _written_revision ($result) {
+    my $post = $result->{stored}{post};
+    return $post ? $post->get_column('current_revision_id') : undef;
 }
 
 sub _paired_summary ($samples) {

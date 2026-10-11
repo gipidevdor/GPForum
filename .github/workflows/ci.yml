@@ -20,7 +20,9 @@ jobs:
   perl:
     name: Perl quality gate
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    # The instrumented suite follows the quality and PostgreSQL gates and
+    # can exceed one hour on a shared runner. Keep the full coverage ratchet.
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:16

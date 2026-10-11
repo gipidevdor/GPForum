@@ -71,43 +71,7 @@ for my $name ( @{ $catalogue->names } ) {
     );
 }
 
-my %called =
-  map {
-    ( $catalogue->function($_)->{function} =~ /\A api [.] (\w+)/msx )[0] => 1
-  } @{ $catalogue->names };
-my %implementations = map {
-    my $entry = $catalogue->function($_);
-    $_ . '_v' . ( $entry->{version} - 1 ) => 1
-} @{ $catalogue->names };
-for my $name ( sort keys %function ) {
-    ok(
-        $called{$name}
-          || $implementations{$name}
-          || $name =~ /\A core_/msx
-          || exists $RETAINED{$name},
-        "api.$name is called, shared or retiring"
-    );
-    my $found = $function{$name};
-    is(
-        $found->{definer} ? 1 : 0,
-        $called{$name}
-          || ( exists $RETAINED{$name} && $RETAINED{$name} ) ? 1 : 0,
-        "api.$name acquires owner rights only at the public entry point"
-    );
-    my %config = map { split /=/msx, $_, 2 } @{ $found->{config} // [] };
-    is(
-        $config{search_path},
-        'pg_catalog, pg_temp',
-        "api.$name pins its search_path"
-    );
-    like(
-        $config{plan_cache_mode} // q{},
-        qr/\A force_(?:generic|custom)_plan \z/msx,
-        "api.$name pins its plan mode"
-    );
-    ok( !$found->{default_acl} && !grep( { /\A = /msx } @{ $found->{acl} } ),
-        "api.$name is not open to PUBLIC" );
-}
+_check_live_invariants( $catalogue, \%function );
 
 is(
     scalar $dbh->selectrow_array(
@@ -126,6 +90,53 @@ is(
 );
 
 done_testing();
+
+# Every installed function remains classified and keeps its security invariants.
+sub _check_live_invariants ( $catalogue, $functions ) {
+    my %called =
+      map {
+        ( $catalogue->function($_)->{function} =~ /\A api [.] (\w+)/msx )[0] =>
+          1
+      } @{ $catalogue->names };
+    my %implementations;
+    for my $name ( @{ $catalogue->names } ) {
+        my $entry = $catalogue->function($name);
+        $implementations{ $name . '_v' . ( $entry->{version} - 1 ) } = 1;
+    }
+    for my $name ( sort keys %{$functions} ) {
+        ok(
+            $called{$name}
+              || $implementations{$name}
+              || $name =~ /\A core_/msx
+              || exists $RETAINED{$name},
+            "api.$name is called, shared or retiring"
+        );
+        my $found = $functions->{$name};
+        is(
+            $found->{definer} ? 1 : 0,
+            $called{$name}
+              || ( exists $RETAINED{$name} && $RETAINED{$name} ) ? 1 : 0,
+            "api.$name acquires owner rights only at the public entry point"
+        );
+        my %config = map { split /=/msx, $_, 2 } @{ $found->{config} // [] };
+        is(
+            $config{search_path},
+            'pg_catalog, pg_temp',
+            "api.$name pins its search_path"
+        );
+        like(
+            $config{plan_cache_mode} // q{},
+            qr/\A force_(?:generic|custom)_plan \z/msx,
+            "api.$name pins its plan mode"
+        );
+        ok(
+            !$found->{default_acl}
+              && !grep( { /\A = /msx } @{ $found->{acl} } ),
+            "api.$name is not open to PUBLIC"
+        );
+    }
+    return;
+}
 
 sub _type_name ($type) {
     return

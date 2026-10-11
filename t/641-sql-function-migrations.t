@@ -46,9 +46,11 @@ const my $PLAN_MODE =>
   qr/SET \s+ plan_cache_mode \s* = \s* force_(?:generic|custom)_plan/imsx;
 const my $DROP =>
   qr/DROP \s+ FUNCTION \s+ (?:IF \s+ EXISTS \s+)? (?<dropped>api [.] \w+)/imsx;
+const my $RETAINED_SEARCH_VERSION => 2;
+const my $CURRENT_SEARCH_VERSION  => 4;
 const my %RETAINED_BOUNDARIES => (
-    search_ranked       => [2],
-    search_autocomplete => [2],
+    search_ranked       => [$RETAINED_SEARCH_VERSION],
+    search_autocomplete => [$RETAINED_SEARCH_VERSION],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
@@ -98,7 +100,7 @@ subtest 'the rules see what they are written for' => sub {
 
 subtest 'only registered typed boundaries gain owner rights' => sub {
     my $head = 'LANGUAGE sql SECURITY DEFINER';
-    for my $version ( 2, 4 ) {
+    for my $version ( $RETAINED_SEARCH_VERSION, $CURRENT_SEARCH_VERSION ) {
         my $boundary = $boundaries{"search_ranked_v$version"};
         my $call =
             'SELECT * FROM api.'

@@ -1,0 +1,315 @@
+{
+  "repository": "gpicchiarelli/GPForum",
+  "scope": "Local optimization evidence; CI status is recorded separately in the pull request",
+  "baseline_commit": "2cb994530612205a422f9f0ba45078d5bc920b51",
+  "application_implementation_commit": "27ec747bcf2acbe50c9c4221c37f1610cf09add3",
+  "benchmark_harness_commit": "8316f283a12b2894951ab4c892e1f6324e611a7f",
+  "test_followup_commit": "931ac770c6232d7f17bfed0e8e1a635c773d4fdc",
+  "catalogue_operations": 195,
+  "migrations": [
+    "100_optimized_search_functions.sql",
+    "101_forum_post_context_functions.sql"
+  ],
+  "benchmark_summary": {
+    "aggregation": "Arithmetic mean of two per-run medians, p95s and mean CPUs; quantiles are not pooled",
+    "quantile_index": "int(q * (n - 1) + 0.5), zero-based after sorting",
+    "paired_measured_samples": 4000,
+    "paired_runs": [
+      "2026-10-11T13:16:59Z",
+      "2026-10-11T13:17:38Z"
+    ],
+    "limitations": [
+      "Service operations only; excludes HTTP and template rendering",
+      "One host; no concurrent throughput measurement",
+      "Fixture account in benchmark; restricted login tested separately",
+      "Pairing reduces but does not eliminate host variation",
+      "No claim of statistical significance"
+    ],
+    "operations": {
+      "search_ranked": {
+        "direct": {
+          "before": {
+            "median_ms": 8.39090347290039,
+            "p95_ms": 9.874939918518045,
+            "cpu_ms": 1.4238,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "after": {
+            "median_ms": 6.8939924240112305,
+            "p95_ms": 8.277058601379395,
+            "cpu_ms": 1.3088799999999998,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "median_reduction_percent": 17.839688583281244
+        },
+        "proxy": {
+          "before": {
+            "median_ms": 10.290026664733851,
+            "p95_ms": 11.851906776428201,
+            "cpu_ms": 1.60359,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "after": {
+            "median_ms": 8.648037910461426,
+            "p95_ms": 10.160565376281749,
+            "cpu_ms": 1.4880499999999999,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "median_reduction_percent": 15.957089400942726
+        }
+      },
+      "search_autocomplete": {
+        "direct": {
+          "before": {
+            "median_ms": 3.66199016571045,
+            "p95_ms": 5.19406795501709,
+            "cpu_ms": 0.46401000000000003,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "after": {
+            "median_ms": 2.8985738754272496,
+            "p95_ms": 3.81803512573242,
+            "cpu_ms": 0.4198375,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "median_reduction_percent": 20.847032781014928
+        },
+        "proxy": {
+          "before": {
+            "median_ms": 6.308436393737795,
+            "p95_ms": 7.83991813659668,
+            "cpu_ms": 0.5788975,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "after": {
+            "median_ms": 5.355119705200195,
+            "p95_ms": 6.848931312561035,
+            "cpu_ms": 0.5254075,
+            "statements": 1.0,
+            "round_trips": 1.0
+          },
+          "median_reduction_percent": 15.11177459891535
+        }
+      },
+      "post_edit": {
+        "direct": {
+          "before": {
+            "median_ms": 1.731514930725095,
+            "p95_ms": 2.3030042648315403,
+            "cpu_ms": 0.48092999999999997,
+            "statements": 3.0,
+            "round_trips": 3.0
+          },
+          "after": {
+            "median_ms": 1.617908477783205,
+            "p95_ms": 2.0066499710083,
+            "cpu_ms": 0.38903,
+            "statements": 2.0,
+            "round_trips": 2.0
+          },
+          "median_reduction_percent": 6.561101549053106
+        },
+        "proxy": {
+          "before": {
+            "median_ms": 8.12649726867676,
+            "p95_ms": 9.01556015014648,
+            "cpu_ms": 0.8886449999999999,
+            "statements": 3.0,
+            "round_trips": 3.0
+          },
+          "after": {
+            "median_ms": 6.4244270324707,
+            "p95_ms": 7.28797912597656,
+            "cpu_ms": 0.72614,
+            "statements": 2.0,
+            "round_trips": 2.0
+          },
+          "median_reduction_percent": 20.944697080827403
+        }
+      }
+    }
+  },
+  "raw_measurements": [
+    {
+      "file": "sql-functions-2026-10-11-optimization-after-1.json",
+      "bytes": 20541,
+      "sha256": "44bddab722574693989ac342694df9b227c48ff1f08bc21b1949e04cd7aa7e26"
+    },
+    {
+      "file": "sql-functions-2026-10-11-optimization-after-2.json",
+      "bytes": 20536,
+      "sha256": "139164aa613e1163e2dabc4b065bd780b8aa913760f07d1ee36d5d0930bba25f"
+    },
+    {
+      "file": "sql-functions-2026-10-11-optimization-before-1.json",
+      "bytes": 20533,
+      "sha256": "168d659ff3ca0ef5df315f3e4c5bad37f4cc9fcbf4325a7f9b14a6f72f77d6e6"
+    },
+    {
+      "file": "sql-functions-2026-10-11-optimization-before-2.json",
+      "bytes": 20544,
+      "sha256": "fd98ec219faf503e5771460f3c3f285019e13db31feacf32e24cfc7d02bd3739"
+    },
+    {
+      "file": "sql-functions-2026-10-11-paired-1.json",
+      "bytes": 438420,
+      "sha256": "788fd525328abf7c16b60292f8d51691fbd573676021c6177d0e7975d9516bad"
+    },
+    {
+      "file": "sql-functions-2026-10-11-paired-2.json",
+      "bytes": 438403,
+      "sha256": "5f895b142328700e0bc3180acac0a3e622cc79ac0340ade8945c1116bede8577"
+    },
+    {
+      "file": "sql-functions-2026-10-11-search-exploration.json",
+      "bytes": 11426,
+      "sha256": "3606ac14a78e1afab48e6cf9db5bbf1a75df698d62c6fb393881eb7e00a55cec"
+    }
+  ],
+  "local_validation": {
+    "status": "PASS",
+    "scope": "Committed detached checkout with shared locked dependencies; excludes unrelated workspace edits",
+    "local_artifacts": "Log files and full binary/CSV profiles are local artifacts; their hashes are recorded here. CI status is documented in the pull request.",
+    "checked_commit": "013dd56c48229df986db89502db1247b3f622f36",
+    "quality_gate": {
+      "command": "env -u GPFORUM_DATABASE_DSN -u GPFORUM_TEST_DSN -u GPFORUM_DATABASE_USER -u GPFORUM_DATABASE_PASSWORD make -j3 check",
+      "exit_code": 0,
+      "log": {
+        "bytes": 116641,
+        "modified_at_utc": "2026-10-11T13:43:43Z",
+        "path": "/tmp/gpforum-quality-013dd56-make-check.log",
+        "sha256": "d2c4b87127e5ce8cb4d3e8d661c476b149cfc19e289e24eb075afb041eb47167"
+      },
+      "result": "PASS",
+      "targets": {
+        "architecture": {
+          "result": "PASS"
+        },
+        "critic": {
+          "baseline_violations": 15,
+          "new_violations": 0,
+          "result": "PASS"
+        },
+        "syntax": {
+          "compiled_files": 1369,
+          "result": "PASS"
+        },
+        "system_perl": {
+          "result": "PASS"
+        },
+        "test": {
+          "assertions": 16162,
+          "integration_files_visited": 96,
+          "integration_scope": "no DSN: most integration files skip; PostgreSQL validation is recorded separately",
+          "result": "PASS",
+          "top_level_unit_files": 400,
+          "visited_files": 496,
+          "wallclock_seconds": 251
+        },
+        "tidy": {
+          "listed_files": 1369,
+          "result": "PASS"
+        }
+      }
+    },
+    "postgresql_integration": {
+      "assertions": 9916,
+      "command": "env -u GPFORUM_TEST_DSN GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=127.0.0.1;port=55433' GPFORUM_DATABASE_USER=gpforum GPFORUM_DATABASE_PASSWORD='' make integration",
+      "coverage_at_later_commit": "Only test declarations/refactoring changed after this full integration run. Production code, migrations and benchmark script are identical. The changed static/live catalogue tests were separately rerun by forum_writes with 2717 assertions passing.",
+      "exit_code": 0,
+      "files": 96,
+      "log": {
+        "bytes": 1159486,
+        "modified_at_utc": "2026-10-11T13:21:54Z",
+        "path": "/tmp/gpforum-quality-8316f283-integration.log",
+        "sha256": "e6fa259b092b751dd3c34f742ffed1bcdf543d4b2e7895adf06d661faa601792"
+      },
+      "result": "PASS",
+      "tested_commit": "8316f283a12b2894951ab4c892e1f6324e611a7f",
+      "wallclock_seconds": 191
+    },
+    "benchmark_smoke": {
+      "assertions": 223,
+      "exit_code": 0,
+      "files": 1,
+      "log": {
+        "bytes": 11310,
+        "modified_at_utc": "2026-10-11T13:27:34Z",
+        "path": "/tmp/gpforum-quality-931ac77-benchmark-smoke.log",
+        "sha256": "ce9dcf0c8fa7e5935e145efdfb9f9dbc241e9322f1408aa2b608e62f3fdc3bff"
+      },
+      "result": "PASS",
+      "tested_commit": "931ac770c6232d7f17bfed0e8e1a635c773d4fdc",
+      "verifies": [
+        "alternating before/after measurement pairs",
+        "raw samples",
+        "function calls and round trips",
+        "disposable database cleanup on success and failure"
+      ],
+      "wallclock_seconds": 20
+    },
+    "catalogue_test_followup": {
+      "commit": "013dd56c48229df986db89502db1247b3f622f36",
+      "files": 2,
+      "assertions": 2717,
+      "result": "PASS",
+      "strict_critic": "PASS",
+      "perltidy": "PASS",
+      "diff_check": "PASS"
+    },
+    "profiling": {
+      "exit_code": 0,
+      "metadata": {
+        "bytes": 53996,
+        "modified_at_utc": "2026-10-11T13:40:03Z",
+        "path": "/tmp/gpforum-quality-8316f283-profile-summary.json",
+        "sha256": "d4d1a10c74f37da13446572a258351a192fd80c2993b1559321179d7a7649d0d"
+      },
+      "post_context_assertions": 86,
+      "result": "PASS",
+      "search_assertions": 437,
+      "tested_commit": "8316f283a12b2894951ab4c892e1f6324e611a7f",
+      "timing_scope": "Full differential disposable integration tests include fixture, before/after implementations and access checks. NYTProf timings include profiler overhead and database waits and are not operation latencies."
+    },
+    "corrected_attempts": [
+      {
+        "exit_code": 2,
+        "log": {
+          "bytes": 117103,
+          "modified_at_utc": "2026-10-11T13:26:16Z",
+          "path": "/tmp/gpforum-quality-8316f283-make-check.log",
+          "sha256": "98362dead2a0f75c4ba48977d12eacf0b1097dc63acbd159f968a7c3e7694056"
+        },
+        "reason": "t/34-architecture-discipline.t rejects the empty-argument helper declaration sub _broken_catalogue () in the new benchmark test; corrected in 931ac77",
+        "result": "FAIL",
+        "tested_commit": "8316f283a12b2894951ab4c892e1f6324e611a7f"
+      },
+      {
+        "exit_code": 2,
+        "log": {
+          "bytes": 117395,
+          "modified_at_utc": "2026-10-11T13:37:13Z",
+          "path": "/tmp/gpforum-quality-931ac77-make-check.log",
+          "sha256": "b4872102c493ff977b15f4b853b313fe07b6da7b95001d721caf5e11e8b09cf0"
+        },
+        "reason": "Three new critic violations in catalogue/migration tests: complex map, excessive main complexity, literal 4. Corrected without changing the baseline or suppressing checks in 013dd56.",
+        "result": "FAIL",
+        "tested_commit": "931ac770c6232d7f17bfed0e8e1a635c773d4fdc"
+      }
+    ]
+  },
+  "profile_summary": {
+    "file": "sql-functions-2026-10-11-optimization-profile.json",
+    "bytes": 8807,
+    "sha256": "810a429283484b051f09b27019cf8bfcf5f267fe8ca5cf23308fd7a1bb266ad7"
+  },
+  "catalogue_test_refactor_commit": "013dd56c48229df986db89502db1247b3f622f36",
+  "captured_at_utc": "2026-10-11T13:58:11Z"
+}

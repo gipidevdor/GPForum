@@ -57,6 +57,23 @@ partition-maintenance, restore and other administrative commands with the
 operator environment. Provisioning does not rewrite service credentials or
 restart services.
 
+Migrations 100 and 101 add optimized search v4 entry points and the combined
+post context. The catalogue now contains 195 operations. Apply these new
+migrations; never edit or reapply a changed copy of an old migration.
+Drain and stop the previous web and worker processes before reprovisioning
+the runtime role with the updated release, then start the updated processes.
+Provisioning grants search v4 and revokes the historical search v2 grants,
+so workers from the previous release must not keep serving during that step.
+The old function definitions remain installed. To roll back application code,
+stop the new processes and provision with the previous release's catalogue
+before restarting it; the additive migrations need no rollback.
+
+The optional Minion PostgreSQL backend is disabled by default. When enabled,
+it connects through `GPFORUM_MINION_PG_URL` and runs its own queue SQL and
+migrations through Mojo::Pg. The forum's API-only runtime login cannot run
+that backend. Use a separate queue database and queue credentials if enabling
+Minion; do not grant forum table rights to the runtime login for it.
+
 The partition maintenance timer must load the operator environment too. The
 provided service templates initially load the same environment file as the
 web service; configure the timer's separate operator file as described in

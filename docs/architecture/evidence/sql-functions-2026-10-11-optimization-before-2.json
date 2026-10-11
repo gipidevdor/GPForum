@@ -1,0 +1,901 @@
+{
+  "benchmark": {
+    "architecture": "darwin-thread-multi-2level",
+    "database_name": "gpforum_bench_sqlfn_65380",
+    "generated_at": "2026-10-11T12:49:20Z",
+    "perl_version": "v5.44.0",
+    "postgres_version": "18.6 (Homebrew)",
+    "read_iterations": 200,
+    "scope": "service operations; excludes HTTP dispatch and template rendering",
+    "warmup": 15,
+    "workload": "small performance seed plus 3000 posts with bodies, 1500 indexed threads and 30 notifications",
+    "write_iterations": 100
+  },
+  "delay_ms": 0.5,
+  "operations": {
+    "category_index_member": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 1.125,
+          "median_ms": 1.239,
+          "p95_ms": 1.336,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.227,
+          "dbic_ms": 1.235,
+          "other_ms": 0.05
+        },
+        "proxy": {
+          "cpu_ms": 1.221,
+          "median_ms": 2.637,
+          "p95_ms": 2.966,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.095,
+          "median_ms": 0.232,
+          "p95_ms": 0.332,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.192,
+          "dbic_ms": 0.035,
+          "other_ms": 0.024
+        },
+        "proxy": {
+          "cpu_ms": 0.189,
+          "median_ms": 2.098,
+          "p95_ms": 2.725,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "category_threads_member": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 2.866,
+          "median_ms": 4.068,
+          "p95_ms": 4.52,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 1.581,
+          "dbic_ms": 2.829,
+          "other_ms": 0.138
+        },
+        "proxy": {
+          "cpu_ms": 2.908,
+          "median_ms": 6.861,
+          "p95_ms": 7.467,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.223,
+          "median_ms": 0.858,
+          "p95_ms": 0.975,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.687,
+          "dbic_ms": 0.038,
+          "other_ms": 0.061
+        },
+        "proxy": {
+          "cpu_ms": 0.606,
+          "median_ms": 3.856,
+          "p95_ms": 5.375,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "home_page_member": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 3.678,
+          "median_ms": 4.75,
+          "p95_ms": 5.034,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.901,
+          "dbic_ms": 4.013,
+          "other_ms": 0.827
+        },
+        "proxy": {
+          "cpu_ms": 4.054,
+          "median_ms": 8.254,
+          "p95_ms": 10.016,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.503,
+          "median_ms": 1.21,
+          "p95_ms": 1.222,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 1.105,
+          "dbic_ms": 0.113,
+          "other_ms": 0.397
+        },
+        "proxy": {
+          "cpu_ms": 1.431,
+          "median_ms": 6.773,
+          "p95_ms": 7.629,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      }
+    },
+    "latest_threads_member": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 2.357,
+          "median_ms": 3.233,
+          "p95_ms": 3.622,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.71,
+          "dbic_ms": 2.356,
+          "other_ms": 0.099
+        },
+        "proxy": {
+          "cpu_ms": 2.533,
+          "median_ms": 6.062,
+          "p95_ms": 6.682,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.189,
+          "median_ms": 0.743,
+          "p95_ms": 0.773,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 1.141,
+          "dbic_ms": 0.086,
+          "other_ms": 0.101
+        },
+        "proxy": {
+          "cpu_ms": 0.765,
+          "median_ms": 3.616,
+          "p95_ms": 4.589,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "mark_read": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 1.266,
+          "median_ms": 1.704,
+          "p95_ms": 2.145,
+          "round_trips": 7,
+          "statements": 5.0
+        },
+        "profile": {
+          "dbi_ms": 0.93,
+          "dbic_ms": 1.354,
+          "other_ms": 0.011
+        },
+        "proxy": {
+          "cpu_ms": 1.258,
+          "median_ms": 11.45,
+          "p95_ms": 11.801,
+          "round_trips": 7,
+          "statements": 5.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.104,
+          "median_ms": 0.282,
+          "p95_ms": 0.338,
+          "round_trips": 3,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.476,
+          "dbic_ms": 0.097,
+          "other_ms": 0.009
+        },
+        "proxy": {
+          "cpu_ms": 0.175,
+          "median_ms": 5.642,
+          "p95_ms": 6.051,
+          "round_trips": 3,
+          "statements": 1.0
+        }
+      }
+    },
+    "new_thread": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 7.671,
+          "median_ms": 12.511,
+          "p95_ms": 14.027,
+          "round_trips": 43,
+          "statements": 19.0
+        },
+        "profile": {
+          "dbi_ms": 8.043,
+          "dbic_ms": 8.522,
+          "other_ms": 0.066
+        },
+        "proxy": {
+          "cpu_ms": 9.703,
+          "median_ms": 91.798,
+          "p95_ms": 99.769,
+          "round_trips": 43,
+          "statements": 19.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.357,
+          "median_ms": 1.528,
+          "p95_ms": 1.734,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 1.303,
+          "dbic_ms": 0.077,
+          "other_ms": 0.259
+        },
+        "proxy": {
+          "cpu_ms": 1.571,
+          "median_ms": 9.066,
+          "p95_ms": 10.496,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      }
+    },
+    "notification_badge": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 6.724,
+          "median_ms": 6.945,
+          "p95_ms": 7.583,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.492,
+          "dbic_ms": 6.768,
+          "other_ms": 0.149
+        },
+        "proxy": {
+          "cpu_ms": 6.892,
+          "median_ms": 8.407,
+          "p95_ms": 10.127,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.086,
+          "median_ms": 1.386,
+          "p95_ms": 1.458,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 1.556,
+          "dbic_ms": 0.093,
+          "other_ms": 0.067
+        },
+        "proxy": {
+          "cpu_ms": 0.527,
+          "median_ms": 4.572,
+          "p95_ms": 5.092,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "notification_inbox": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 7.296,
+          "median_ms": 7.628,
+          "p95_ms": 8.22,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.609,
+          "dbic_ms": 7.565,
+          "other_ms": 0.194
+        },
+        "proxy": {
+          "cpu_ms": 7.744,
+          "median_ms": 9.224,
+          "p95_ms": 10.874,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.126,
+          "median_ms": 1.504,
+          "p95_ms": 1.538,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 2.113,
+          "dbic_ms": 0.113,
+          "other_ms": 0.132
+        },
+        "proxy": {
+          "cpu_ms": 0.253,
+          "median_ms": 4.101,
+          "p95_ms": 5.401,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "participation": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 0.756,
+          "median_ms": 0.944,
+          "p95_ms": 0.987,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.332,
+          "dbic_ms": 0.814,
+          "other_ms": 0.036
+        },
+        "proxy": {
+          "cpu_ms": 0.9,
+          "median_ms": 3.727,
+          "p95_ms": 4.131,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.067,
+          "median_ms": 0.131,
+          "p95_ms": 0.159,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.099,
+          "dbic_ms": 0.036,
+          "other_ms": 0.026
+        },
+        "proxy": {
+          "cpu_ms": 0.093,
+          "median_ms": 1.67,
+          "p95_ms": 1.909,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "permission_check": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 1.268,
+          "median_ms": 1.366,
+          "p95_ms": 1.439,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.197,
+          "dbic_ms": 1.288,
+          "other_ms": 0.025
+        },
+        "proxy": {
+          "cpu_ms": 1.305,
+          "median_ms": 2.702,
+          "p95_ms": 2.896,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.061,
+          "median_ms": 0.088,
+          "p95_ms": 0.131,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.061,
+          "dbic_ms": 0.033,
+          "other_ms": 0.02
+        },
+        "proxy": {
+          "cpu_ms": 0.25,
+          "median_ms": 2.091,
+          "p95_ms": 2.391,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "post_edit": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 5.897,
+          "median_ms": 10.72,
+          "p95_ms": 11.812,
+          "round_trips": 32,
+          "statements": 18.0
+        },
+        "profile": {
+          "dbi_ms": 7.163,
+          "dbic_ms": 11.754,
+          "other_ms": 0.063
+        },
+        "proxy": {
+          "cpu_ms": 8.361,
+          "median_ms": 73.026,
+          "p95_ms": 84.803,
+          "round_trips": 32,
+          "statements": 18.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.451,
+          "median_ms": 1.423,
+          "p95_ms": 2.101,
+          "round_trips": 3,
+          "statements": 3.0
+        },
+        "profile": {
+          "dbi_ms": 1.196,
+          "dbic_ms": 0.117,
+          "other_ms": 0.268
+        },
+        "proxy": {
+          "cpu_ms": 2.116,
+          "median_ms": 11.371,
+          "p95_ms": 12.297,
+          "round_trips": 3,
+          "statements": 3.0
+        }
+      }
+    },
+    "rate_limit": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 0.111,
+          "median_ms": 0.293,
+          "p95_ms": 0.404,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.258,
+          "dbic_ms": 0.075,
+          "other_ms": 0.06
+        },
+        "proxy": {
+          "cpu_ms": 0.119,
+          "median_ms": 3.306,
+          "p95_ms": 3.711,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.114,
+          "median_ms": 0.218,
+          "p95_ms": 0.243,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.139,
+          "dbic_ms": 0.034,
+          "other_ms": 0.067
+        },
+        "proxy": {
+          "cpu_ms": 0.243,
+          "median_ms": 2.206,
+          "p95_ms": 3.164,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "reply": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 5.909,
+          "median_ms": 9.819,
+          "p95_ms": 11.174,
+          "round_trips": 33,
+          "statements": 17.0
+        },
+        "profile": {
+          "dbi_ms": 6.263,
+          "dbic_ms": 7.462,
+          "other_ms": 0.077
+        },
+        "proxy": {
+          "cpu_ms": 7.456,
+          "median_ms": 71.982,
+          "p95_ms": 80.468,
+          "round_trips": 33,
+          "statements": 17.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.433,
+          "median_ms": 1.53,
+          "p95_ms": 1.894,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 1.046,
+          "dbic_ms": 0.078,
+          "other_ms": 0.28
+        },
+        "proxy": {
+          "cpu_ms": 1.748,
+          "median_ms": 8.585,
+          "p95_ms": 9.892,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      }
+    },
+    "search_autocomplete": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 3.379,
+          "median_ms": 10.283,
+          "p95_ms": 11.598,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 7.16,
+          "dbic_ms": 3.46,
+          "other_ms": 0.623
+        },
+        "proxy": {
+          "cpu_ms": 3.481,
+          "median_ms": 11.685,
+          "p95_ms": 12.856,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.385,
+          "median_ms": 3.561,
+          "p95_ms": 3.748,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 3.555,
+          "dbic_ms": 0.098,
+          "other_ms": 0.361
+        },
+        "proxy": {
+          "cpu_ms": 0.652,
+          "median_ms": 6.265,
+          "p95_ms": 8.292,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "search_ranked": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 5.966,
+          "median_ms": 20.332,
+          "p95_ms": 21.519,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 13.641,
+          "dbic_ms": 6.009,
+          "other_ms": 1.789
+        },
+        "proxy": {
+          "cpu_ms": 6.13,
+          "median_ms": 21.342,
+          "p95_ms": 22.788,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.935,
+          "median_ms": 7.829,
+          "p95_ms": 7.956,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 7.664,
+          "dbic_ms": 0.293,
+          "other_ms": 1.499
+        },
+        "proxy": {
+          "cpu_ms": 1.776,
+          "median_ms": 10.3,
+          "p95_ms": 11.438,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "session_validate": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 0.155,
+          "median_ms": 0.22,
+          "p95_ms": 0.271,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.136,
+          "dbic_ms": 0.078,
+          "other_ms": 0.107
+        },
+        "proxy": {
+          "cpu_ms": 0.17,
+          "median_ms": 1.663,
+          "p95_ms": 1.791,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.083,
+          "median_ms": 0.165,
+          "p95_ms": 0.18,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.15,
+          "dbic_ms": 0.043,
+          "other_ms": 0.044
+        },
+        "proxy": {
+          "cpu_ms": 0.194,
+          "median_ms": 1.767,
+          "p95_ms": 2.278,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    },
+    "thread_page_anonymous": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 0.305,
+          "median_ms": 0.687,
+          "p95_ms": 0.727,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.633,
+          "dbic_ms": 0.163,
+          "other_ms": 0.255
+        },
+        "proxy": {
+          "cpu_ms": 0.358,
+          "median_ms": 4.585,
+          "p95_ms": 4.794,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.273,
+          "median_ms": 0.44,
+          "p95_ms": 0.469,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.343,
+          "dbic_ms": 0.069,
+          "other_ms": 0.091
+        },
+        "proxy": {
+          "cpu_ms": 0.677,
+          "median_ms": 4.619,
+          "p95_ms": 6.539,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      }
+    },
+    "thread_page_member": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 0.316,
+          "median_ms": 0.715,
+          "p95_ms": 0.757,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.638,
+          "dbic_ms": 0.165,
+          "other_ms": 0.265
+        },
+        "proxy": {
+          "cpu_ms": 0.348,
+          "median_ms": 4.615,
+          "p95_ms": 5.035,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.277,
+          "median_ms": 0.457,
+          "p95_ms": 0.475,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.436,
+          "dbic_ms": 0.073,
+          "other_ms": 0.095
+        },
+        "proxy": {
+          "cpu_ms": 0.635,
+          "median_ms": 4.402,
+          "p95_ms": 6.006,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      }
+    },
+    "thread_page_member_deep": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 0.338,
+          "median_ms": 0.798,
+          "p95_ms": 0.804,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.978,
+          "dbic_ms": 0.164,
+          "other_ms": 0.282
+        },
+        "proxy": {
+          "cpu_ms": 0.399,
+          "median_ms": 5.041,
+          "p95_ms": 5.657,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.285,
+          "median_ms": 0.463,
+          "p95_ms": 0.484,
+          "round_trips": 2,
+          "statements": 2.0
+        },
+        "profile": {
+          "dbi_ms": 0.452,
+          "dbic_ms": 0.076,
+          "other_ms": 0.105
+        },
+        "proxy": {
+          "cpu_ms": 0.837,
+          "median_ms": 4.746,
+          "p95_ms": 5.28,
+          "round_trips": 2,
+          "statements": 2.0
+        }
+      }
+    },
+    "viewer_resolve": {
+      "dbic": {
+        "direct": {
+          "cpu_ms": 0.074,
+          "median_ms": 0.315,
+          "p95_ms": 0.367,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.346,
+          "dbic_ms": 0.028,
+          "other_ms": 0.015
+        },
+        "proxy": {
+          "cpu_ms": 0.127,
+          "median_ms": 1.937,
+          "p95_ms": 2.582,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      },
+      "function": {
+        "direct": {
+          "cpu_ms": 0.062,
+          "median_ms": 0.102,
+          "p95_ms": 0.104,
+          "round_trips": 1,
+          "statements": 1.0
+        },
+        "profile": {
+          "dbi_ms": 0.076,
+          "dbic_ms": 0.032,
+          "other_ms": 0.02
+        },
+        "proxy": {
+          "cpu_ms": 0.21,
+          "median_ms": 1.755,
+          "p95_ms": 1.977,
+          "round_trips": 1,
+          "statements": 1.0
+        }
+      }
+    }
+  },
+  "round_trip_ms": {
+    "direct": 0.03,
+    "proxy": 1.434
+  }
+}

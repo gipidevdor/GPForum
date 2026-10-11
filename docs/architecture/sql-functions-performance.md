@@ -1,6 +1,6 @@
 # PostgreSQL function API: changes and measured performance
 
-The PostgreSQL runtime now uses 194 versioned catalogue operations. The
+The initial PostgreSQL runtime conversion introduced 194 versioned catalogue operations. The
 adapter prepares fixed, typed function calls once per connection. DBIx::Class
 continues to supply the schema and transaction connection; it no longer
 builds application data statements on the PostgreSQL runtime paths.
@@ -11,6 +11,12 @@ merged into `main` on 2026-10-11 as
 The definitions, adapters, tests, reproduction tool and two measured runs
 are in the repository. Production activation follows the operator steps
 below; merging code does not install routines into another database.
+
+The current catalogue contains 195 operations. A subsequent optimization
+adds search v4 and a combined post context in migrations 100 and 101;
+[its measured comparison](sql-functions-optimization.md) uses the published
+function API as its baseline. The figures below describe the initial
+DBIx-to-function conversion and retain that historical measurement.
 
 ## Main results
 
@@ -37,7 +43,7 @@ throughput. The full table includes p95, CPU and delayed-network results.
 ## What changed
 
 The [catalogue](../../lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm)
-defines the 194 allowed operation signatures, and the
+defined the initial 194 allowed operation signatures, and the
 [adapter](../../lib/GPForum/Infrastructure/SqlFunction.pm) binds parameters
 to fixed, typed calls. PostgreSQL executes the versioned routines and
 returns rows or JSON. Existing permission, visibility, audit, idempotency
@@ -163,6 +169,11 @@ database also needs the privileges required for migrations and fixtures.
   records the tested commits, local counts and individual CI job states.
   At 12:33:43 UTC on 2026-10-11, general CI was still running on the
   published head and merge commit; the snapshot preserves that distinction.
+- The general PR CI later failed in two non-SQL tests: CLI locale warnings
+  and TLS handshake classification. The same failures occurred on
+  [`2cb9945`](https://github.com/gpicchiarelli/GPForum/actions/runs/38139968638).
+  Their fixes and subsequent validation are recorded in the
+  [optimization follow-up](sql-functions-optimization.md#validation-and-activation).
 - Additional verification after benchmark refactoring: migration gate and
   benchmark smoke test, 322 assertions, passed.
 - Final checks after the last source edits: replication standby, restricted

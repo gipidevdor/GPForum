@@ -23,7 +23,7 @@ our $VERSION = '0.001';
 
 const my $EXIT_USAGE => 2;
 
-const my $EXPECTED_TESTS        => 69;
+const my $EXPECTED_TESTS        => 70;
 const my $DEFAULT_ENDPOINTS     => 20;
 const my $RECORDED_ENDPOINTS    => 3;
 const my $CONFIGURED_CANDIDATES => 300;
@@ -37,6 +37,12 @@ const my $DEEP_POST_ID          => '018f1005-01f4-7000-8000-0000000001f4';
 const my $DEEP_THREAD_ID        => '018f1004-0007-7000-8000-000000000007';
 const my $GRANTED_CATEGORY_ID   => '018f1001-0002-7000-8000-000000000002';
 const my $MEMBER_ID             => '018f1002-0001-7000-8000-000000000001';
+const my $NESTED_SHARED_HIT     => 7;
+const my $HELPER_SHARED_HIT     => 3;
+const my $NESTED_TIME_MS        => 0.25;
+const my $NESTED_CALLS          => 12;
+const my $PRIVATE_BODY          => qr/private-body-error-canary/msx;
+const my $PRIVATE_PASS          => qr/driver-password-canary/msx;
 
 # The rows the deep-page queries find, as DBD::Pg returns them: strings, and
 # booleans as 1 and 0.
@@ -730,6 +736,9 @@ is(
     );
 }
 
+subtest 'nested observations are explicit and contain no application data' =>
+  \&_test_nested_observations;
+
 # How many of a recorded statement's binds are the value.
 sub _binds {
     my ( $statement, $value ) = @_;
@@ -843,14 +852,197 @@ sub _run_capturing {
     my ( $command, @arguments ) = @_;
 
     my $output = q{};
+    my $errors = q{};
     open my $stdout, '>', \$output or croak 'failed to capture command output';
+    open my $stderr, '>', \$errors or croak 'failed to capture command errors';
     my $status = do {
         local *STDOUT = $stdout;
+        local *STDERR = $stderr;
         $command->run(@arguments);
     };
     close $stdout or croak 'failed to close output capture';
+    close $stderr or croak 'failed to close error capture';
 
-    return ( $status, $output );
+    return ( $status, $output, $errors );
+}
+
+sub _test_nested_observations {
+    my $plan = {
+        'Query Text' => q{SELECT 'private-body-canary'},
+        Plan         => {
+            'Node Type'          => 'Index Scan',
+            'Relation Name'      => 'threads',
+            'Plan Rows'          => 10,
+            'Total Cost'         => 1,
+            'Actual Rows'        => 0,
+            'Actual Loops'       => 1,
+            'Actual Total Time'  => $NESTED_TIME_MS,
+            'Shared Hit Blocks'  => $NESTED_SHARED_HIT,
+            'Shared Read Blocks' => 0,
+            'WAL Records'        => 0,
+            'WAL FPI'            => 0,
+            'WAL Bytes'          => 0,
+            Filter               => q{body = 'private-body-canary'},
+        },
+    };
+    my $helper = {
+        %{$plan},
+        Plan =>
+          { %{ $plan->{Plan} }, 'Shared Hit Blocks' => $HELPER_SHARED_HIT },
+    };
+    my $dbh = GPForum::Test::QueryPlanEvidenceDbh->new(
+        nested_plans => [ $plan, $helper ] );
+    my $command = GPForum::Command::QueryPlanEvidence->new( dbh => $dbh );
+    my $report  = $command->evidence_report(
+        { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
+    my $summary = $report->{endpoints}[0]{summary};
+    is( $report->{status}, 'ok', 'observed nested plans still use the gate' );
+    is( $summary->{nested_statements},
+        2, 'only the measured call is kept, excluding the wrapper call' );
+    is( $dbh->nested_calls, $NESTED_CALLS,
+        'warm and forced calls preserve the existing cache-plan protocol' );
+    my $rows = $summary->{statements};
+    is_deeply(
+        [ map { $_->{statement_index} } @{$rows} ],
+        [ 1, 2 ],
+        'each statement has an ordinal rather than exposed SQL text'
+    );
+    is_deeply(
+        [ map { $_->{shared_hit} } @{$rows} ],
+        [ $NESTED_SHARED_HIT, $HELPER_SHARED_HIT ],
+        'inclusive parent and helper buffers stay separate'
+    );
+    is( $rows->[0]{shared_read}, 0, 'a measured zero remains a zero' );
+    is( $rows->[0]{wal_bytes},   0, 'a measured zero WAL value remains zero' );
+    is( $rows->[0]{actual_time_ms},
+        $NESTED_TIME_MS, 'the actual node time remains available' );
+    is( $rows->[0]{actual_rows}, 0, 'zero returned rows are measured' );
+    ok( !defined $rows->[0]{planning_time_ms},
+        'auto_explain does not invent a planning-time measurement' );
+    ok(
+        !defined $rows->[0]{execution_time_ms},
+        'an absent top-level execution time remains null'
+    );
+    unlike(
+        $command->format_report( $report, 'json' ),
+        qr/private-body-canary|Query [ ] Text|Filter/msx,
+        'neither query text nor plan predicates reach the report'
+    );
+    my %settings = map { $_->{sql} => 1 } @{ $dbh->statements };
+
+    for my $setting (
+        'log_parameter_max_length = 0',
+        'log_buffers = on',
+        'log_wal = on',
+        'log_level = log',
+        'log_timing = on',
+        'log_verbose = off',
+        'log_settings = off',
+        'sample_rate = 1',
+      )
+    {
+        ok(
+            $settings{"SET LOCAL auto_explain.$setting"},
+            "the session explicitly sets $setting"
+        );
+    }
+    is_deeply( $dbh->transactions, [qw(begin rollback)],
+        'nested observations leave no persistent writes or settings' );
+
+    my $bare = { Plan => { 'Node Type' => 'Index Scan', 'Plan Rows' => 10 } };
+    my $plain =
+      GPForum::Test::QueryPlanEvidenceDbh->new( nested_plans => [$bare] );
+    my $not_analyzed =
+      GPForum::Command::QueryPlanEvidence->new( dbh => $plain )
+      ->evidence_report(
+        { analyze => 0, dry_run => 0, endpoints => ['home_function'] } );
+    my $not_measured = $not_analyzed->{endpoints}[0]{summary}{statements}[0];
+    for my $metric (qw(actual_rows actual_time_ms shared_hit wal_bytes)) {
+        ok( !defined $not_measured->{$metric},
+            "$metric stays null when PostgreSQL did not report it" );
+    }
+
+    my $private_error = 'permission denied: SELECT body '
+      . "'private-body-error-canary'; password=driver-password-canary\n";
+    my $failed = GPForum::Test::QueryPlanEvidenceDbh->new(
+        fail_load  => 1,
+        load_error => $private_error,
+        state      => '42501',
+    );
+    my $unavailable =
+      GPForum::Command::QueryPlanEvidence->new( dbh => $failed )
+      ->evidence_report(
+        { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
+    is( $unavailable->{status}, 'fail', 'unavailable evidence is never PASS' );
+    is( $unavailable->{endpoints}[0]{status},
+        'unmeasured', 'missing auto_explain remains explicitly unmeasured' );
+    is_deeply( $failed->transactions, [qw(begin rollback)],
+        'loading failure still rolls back the observation transaction' );
+    is(
+        $unavailable->{endpoints}[0]{warnings}[0],
+        'auto_explain_unavailable: permission-denied',
+        'permission failures are classified by SQLSTATE before rollback'
+    );
+    unlike(
+        $command->format_report( $unavailable, 'json' ),
+        qr/$PRIVATE_BODY|$PRIVATE_PASS|SELECT [ ] body/msx,
+        'private driver messages never reach failed JSON evidence'
+    );
+    $failed->state('XX000');
+    my $unknown =
+      GPForum::Command::QueryPlanEvidence->new( dbh => $failed )
+      ->evidence_report(
+        { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
+    is(
+        $unknown->{endpoints}[0]{warnings}[0],
+        'auto_explain_unavailable: plan-capture-failed',
+        'other driver failures have a constant generic reason'
+    );
+    unlike(
+        $command->format_report( $unknown, 'json' ),
+        qr/$PRIVATE_BODY|$PRIVATE_PASS/msx,
+        'generic capture failures also exclude private driver text'
+    );
+
+    my $legacy_failed = GPForum::Test::QueryPlanEvidenceDbh->new(
+        statement_error => $private_error );
+    my ( $error_status, $error_output, $error_stderr ) = _run_capturing(
+        GPForum::Command::QueryPlanEvidence->new( dbh => $legacy_failed ),
+        '--json', '--check', '--endpoint', 'home' );
+    is( $error_status, $EXIT_USAGE, 'a driver failure remains a failed run' );
+    is( $error_output, q{}, 'a failed collection emits no success JSON' );
+    like(
+        $error_stderr,
+        qr/PostgreSQL [ ] query [ ] plan [ ] evidence [ ] failed/msx,
+        'stderr keeps constant recovery guidance'
+    );
+    unlike(
+        $error_stderr,
+        qr/$PRIVATE_BODY|$PRIVATE_PASS|SELECT [ ] body/msx,
+        'stderr never repeats sensitive driver error text'
+    );
+    is_deeply( $legacy_failed->transactions,
+        [qw(begin rollback)],
+        'legacy execution failures still roll back their transaction' );
+
+    my $empty = GPForum::Test::QueryPlanEvidenceDbh->new;
+    my $no_plans =
+      GPForum::Command::QueryPlanEvidence->new( dbh => $empty )
+      ->evidence_report(
+        { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
+    is( $no_plans->{status}, 'fail', 'missing nested observations never PASS' );
+    is( $no_plans->{endpoints}[0]{status},
+        'unmeasured',
+        'a successful LOAD without observed plans is explicitly unmeasured' );
+    is(
+        $no_plans->{endpoints}[0]{warnings}[0],
+        'auto_explain_unavailable: no-nested-plan-observed',
+        'missing plans retain a precise constant diagnostic reason'
+    );
+    is_deeply( $empty->transactions, [qw(begin rollback)],
+        'empty evidence still rolls back all local settings' );
+
+    return;
 }
 
 1;

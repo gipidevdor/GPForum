@@ -269,9 +269,13 @@ sub _test_query_plan_database_error {
         $stderr,
         'script/query-plan-evidence: PostgreSQL query plan evidence failed. '
           . 'Run script/bootstrap-deps --postgres, apply migrations, '
-          . 'seed benchmark data, and ensure the database is reachable. '
-          . "Error: connection refused\n",
-        'and says what to check before the error'
+          . "seed benchmark data, and ensure the database is reachable.\n",
+        'and gives constant guidance for checking the database'
+    );
+    unlike(
+        $stderr,
+        qr/connection [ ] refused/msx,
+        'without exposing the raw database exception'
     );
 
     return;

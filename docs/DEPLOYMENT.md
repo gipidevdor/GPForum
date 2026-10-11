@@ -860,6 +860,13 @@ health). That verify does not install units or claim private-beta readiness.
 
 ## Tuning By OS
 
+For read-only SQL cost, lock, vacuum/freeze, index and checkpoint diagnostics,
+use [ops/postgres-diagnostics.md](ops/postgres-diagnostics.md) with a separate
+operator connection. The extension is optional; absence and insufficient
+visibility are explicit. Do not grant additional catalog access to the web
+role merely for this command. The current PostgreSQL audit and decisions are
+in [POSTGRESQL_RELIABILITY.md](POSTGRESQL_RELIABILITY.md).
+
 Linux:
 
 - use `epoll` through Mojolicious runtime selection;

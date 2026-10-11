@@ -980,3 +980,14 @@ Hypnotoad/wrk primitives for progressive anonymous reads, a weighted browsing
 mix, windowed soak, a bounded spike and recovery. It has a separate versioned
 schema and publishes immutable 14-day artifacts, preserving ordinary historical
 results and the deterministic CI gates.
+
+The [PostgreSQL reliability audit](POSTGRESQL_RELIABILITY.md) preserves the
+existing hot-path, query-budget, outbox and custom-search-plan gates.
+`script/postgres-diagnostics` adds optional cumulative server statistics,
+planning variability, buffers/WAL and maintenance/lock counters through a
+read-only operator connection. The [runbook](ops/postgres-diagnostics.md)
+explains reset boundaries and the difference between statement identifiers,
+SQL timings and HTTP capacity. Nested `auto_explain` evidence now records
+per-statement numeric counters, with absent measurements represented by null;
+inclusive nested buffers are never summed. No new index or query optimization
+is claimed without a representative before/after experiment.

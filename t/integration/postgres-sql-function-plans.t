@@ -70,6 +70,11 @@ for my $endpoint ( function_endpoint_names() ) {
       or diag explain $report{$endpoint};
     cmp_ok( $report{$endpoint}{summary}{nested_statements},
         q{>=}, 1, "$endpoint: the plans inside the function were read" );
+    is(
+        scalar @{ $report{$endpoint}{summary}{statements} },
+        $report{$endpoint}{summary}{nested_statements},
+        "$endpoint: each nested statement has separate resource observations"
+    );
 }
 for my $endpoint ( grep { /_deep/msx } function_endpoint_names() ) {
     cmp_ok( $report{$endpoint}{summary}{depth}{rows_before_cursor},
@@ -85,6 +90,37 @@ for my $endpoint ( grep { /_deep/msx } function_endpoint_names() ) {
 }
 is( $report{thread_view_function}{summary}{root_node},
     'Limit', 'the plan judged is the branch\'s, not the call\'s' );
+my $observations = $report{thread_view_function}{summary}{statements};
+ok(
+    ( grep { defined $_->{shared_hit} } @{$observations} ),
+    'actual nested thread-page buffer use is measured'
+);
+ok(
+    ( grep { defined $_->{actual_time_ms} } @{$observations} ),
+    'per-node timing remains measured for the established summary'
+);
+is_deeply( [ grep { defined $_->{planning_time_ms} } @{$observations} ],
+    [], 'auto_explain does not report or invent planning-time measurements' );
+for my $row ( @{$observations} ) {
+    my @sensitive = grep { /Query [ ] Text|Filter|Parameters|Plans/msx }
+      keys %{$row};
+    is( scalar @sensitive,
+        0, 'nested resource observations exclude SQL and predicates' );
+}
+my $not_analyzed = $command->evidence_report(
+    { analyze => 0, dry_run => 0, endpoints => ['thread_view_function'] } );
+my $not_measured = $not_analyzed->{endpoints}[0]{summary}{statements};
+is_deeply(
+    [
+        grep {
+                 defined $_->{actual_time_ms}
+              || defined $_->{shared_hit}
+              || defined $_->{wal_bytes}
+        } @{$not_measured}
+    ],
+    [],
+    'without ANALYZE, execution, buffers and WAL remain explicitly unmeasured'
+);
 
 # The function's posts statement without the keyset's bound on the
 # position, the lexicographic OR alone, in this database only: the gate has
@@ -152,10 +188,10 @@ my $unmeasured = GPForum::Command::QueryPlanEvidence->new(
     { analyze => 1, dry_run => 0, endpoints => ['thread_head_function'] } );
 is( $unmeasured->{endpoints}[0]{status},
     'unmeasured', 'without auto_explain the endpoint is unmeasured' );
-like(
+is(
     $unmeasured->{endpoints}[0]{warnings}[0],
-    qr/\A auto_explain_unavailable: /msx,
-    'and says why'
+    'auto_explain_unavailable: permission-denied',
+    'permission failure has a constant reason without raw driver errors'
 );
 is( $unmeasured->{status}, 'fail', 'which is never a pass' );
 $plain->disconnect;

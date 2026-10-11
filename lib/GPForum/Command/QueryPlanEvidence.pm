@@ -43,10 +43,20 @@ const my @AUTO_EXPLAIN => (
     'SET LOCAL auto_explain.log_min_duration = 0',
     'SET LOCAL auto_explain.log_nested_statements = on',
     'SET LOCAL auto_explain.log_format = json',
+    'SET LOCAL auto_explain.log_level = log',
+    'SET LOCAL auto_explain.log_parameter_max_length = 0',
+    'SET LOCAL auto_explain.log_buffers = on',
+    'SET LOCAL auto_explain.log_wal = on',
+    'SET LOCAL auto_explain.log_timing = on',
+    'SET LOCAL auto_explain.log_verbose = off',
+    'SET LOCAL auto_explain.log_settings = off',
+    'SET LOCAL auto_explain.sample_rate = 1',
     'SET LOCAL client_min_messages = log',
 );
 const my $NESTED_PLAN => qr/plan: \s* (?<plan> [{] .* [}] ) \s* \z/msx;
 const my $CALL_TEXT   => qr/\A SELECT [ ] [*] [ ] FROM [ ] api [.]/msx;
+const my %CAPTURE_REASON => map { $_ => 1 }
+  qw(permission-denied no-nested-plan-observed plan-capture-failed);
 
 const my %SWITCH_OPTION => (
     '--analyze'    => { analyze   => 1 },
@@ -98,8 +108,7 @@ sub _run ( $self, @arguments ) {
         print {*STDERR}
           'script/query-plan-evidence: PostgreSQL query plan evidence failed. '
           . 'Run script/bootstrap-deps --postgres, apply migrations, '
-          . 'seed benchmark data, and ensure the database is reachable. Error: '
-          . $error
+          . "seed benchmark data, and ensure the database is reachable.\n"
           or croak 'failed to write the query plan error';
         return $EXIT_USAGE;
     };
@@ -192,12 +201,12 @@ sub _endpoint_report ( $self, $dbh, $endpoint, $options ) {
         warnings   => $analysis->{warnings},
         summary    => {
             root_node      => $plan->{Plan}{'Node Type'},
-            plan_rows      => $plan->{Plan}{'Plan Rows'}         || 0,
-            actual_rows    => $plan->{Plan}{'Actual Rows'}       || 0,
-            total_cost     => $plan->{Plan}{'Total Cost'}        || 0,
-            actual_time_ms => $plan->{Plan}{'Actual Total Time'} || 0,
-            shared_hit     => $plan->{Plan}{'Shared Hit Blocks'}  // 0,
-            shared_read    => $plan->{Plan}{'Shared Read Blocks'} // 0,
+            plan_rows      => $plan->{Plan}{'Plan Rows'} || 0,
+            actual_rows    => $plan->{Plan}{'Actual Rows'},
+            total_cost     => $plan->{Plan}{'Total Cost'} || 0,
+            actual_time_ms => $plan->{Plan}{'Actual Total Time'},
+            shared_hit     => $plan->{Plan}{'Shared Hit Blocks'},
+            shared_read    => $plan->{Plan}{'Shared Read Blocks'},
             ( $depth ? ( depth => $depth ) : () ),
         },
     };
@@ -257,13 +266,52 @@ sub _function_report ( $self, $dbh, $endpoint, $definition, $options ) {
         summary    => {
             nested_statements => scalar @{ $explained->{plan} },
             root_node         => $plan->{Plan}{'Node Type'},
-            plan_rows         => $plan->{Plan}{'Plan Rows'}         || 0,
-            actual_rows       => $plan->{Plan}{'Actual Rows'}       || 0,
-            total_cost        => $plan->{Plan}{'Total Cost'}        || 0,
-            actual_time_ms    => $plan->{Plan}{'Actual Total Time'} || 0,
+            plan_rows         => $plan->{Plan}{'Plan Rows'} || 0,
+            actual_rows       => $plan->{Plan}{'Actual Rows'},
+            total_cost        => $plan->{Plan}{'Total Cost'} || 0,
+            actual_time_ms    => $plan->{Plan}{'Actual Total Time'},
+            statements        => _statement_metrics( $explained->{plan} ),
             ( $depth ? ( depth => $depth ) : () ),
         },
     };
+}
+
+# Only numeric observations leave the nested plans. Query text, parameters
+# and predicates can contain application data, even with parameter logging
+# disabled. Each root includes its children; enclosing function statements
+# can also include a nested helper's work, so these rows are never summed.
+# auto_explain does not measure planning time: its absent field stays null.
+sub _statement_metrics ($plans) {
+    my $index = 0;
+    my @metrics;
+
+    for my $plan ( @{$plans} ) {
+        my $node = $plan->{Plan};
+        push @metrics,
+          {
+            statement_index   => ++$index,
+            plan_rows         => $node->{'Plan Rows'},
+            total_cost        => $node->{'Total Cost'},
+            actual_rows       => $node->{'Actual Rows'},
+            actual_loops      => $node->{'Actual Loops'},
+            actual_time_ms    => $node->{'Actual Total Time'},
+            planning_time_ms  => $plan->{'Planning Time'},
+            execution_time_ms => $plan->{'Execution Time'},
+            shared_hit        => $node->{'Shared Hit Blocks'},
+            shared_read       => $node->{'Shared Read Blocks'},
+            shared_dirtied    => $node->{'Shared Dirtied Blocks'},
+            shared_written    => $node->{'Shared Written Blocks'},
+            local_hit         => $node->{'Local Hit Blocks'},
+            local_read        => $node->{'Local Read Blocks'},
+            temp_read         => $node->{'Temp Read Blocks'},
+            temp_written      => $node->{'Temp Written Blocks'},
+            wal_records       => $node->{'WAL Records'},
+            wal_fpi           => $node->{'WAL FPI'},
+            wal_bytes         => $node->{'WAL Bytes'},
+          };
+    }
+
+    return \@metrics;
 }
 
 # Every nested plan judged as an endpoint's statement is, and the forced
@@ -285,7 +333,12 @@ sub _judged_nested ( $dbh, $definition, $explained ) {
 
 # An endpoint whose plans could not be read: not a pass.
 sub _unmeasured ( $endpoint, $definition, $error ) {
-    my ($reason) = split /\n/msx, "$error";
+
+    # Only the capture protocol's constant reasons reach public evidence.
+    # A driver's exception may include the SQL, binds or connection secrets.
+    my ($message) = split /\s/msx, "$error", 2;
+    my $reason =
+      $CAPTURE_REASON{ $message // q{} } ? $message : 'plan-capture-failed';
 
     return {
         endpoint   => $endpoint,
@@ -328,13 +381,20 @@ sub _explain_nested ( $dbh, $statement, $options, $first = undef ) {
             $plans{first} = _nested_plans( $dbh, $first, \@log );
         }
         $plans{plan} = _nested_plans( $dbh, $statement, \@log );
+        croak 'auto_explain returned no nested plans'
+          if !@{ $plans{plan} };
         $dbh->do('SET LOCAL auto_explain.log_analyze = off');
         $dbh->do('SET LOCAL enable_seqscan = off');
         $dbh->do('DISCARD PLANS');
         $plans{forced} = _nested_plans( $dbh, $statement, \@log );
     }
     catch ($caught) {
-        $error = $caught;
+        $error =
+          ( $dbh->state // q{} ) eq '42501' ? 'permission-denied'
+          : "$caught" =~
+          /\A auto_explain [ ] returned [ ] no [ ] nested [ ] plans \b/msx
+          ? 'no-nested-plan-observed'
+          : 'plan-capture-failed';
     };
     $dbh->rollback;
     croak $error if defined $error;
@@ -425,7 +485,7 @@ sub _statement ( $self, $definition, $page = undef ) {
 sub _explain ( $dbh, $statement, $options, $first = undef ) {
     my $flags =
       $options->{analyze}
-      ? 'ANALYZE, BUFFERS, FORMAT JSON'
+      ? 'ANALYZE, BUFFERS, WAL, FORMAT JSON'
       : 'BUFFERS, FORMAT JSON';
     my ( $sql, @bind ) = @{$statement};
 

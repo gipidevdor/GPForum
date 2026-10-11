@@ -82,13 +82,13 @@ sub _test_summary {
         {
             root_node      => 'Index Scan',
             plan_rows      => 0,
-            actual_rows    => 0,
+            actual_rows    => undef,
             total_cost     => 0,
-            actual_time_ms => 0,
-            shared_hit     => 0,
-            shared_read    => 0,
+            actual_time_ms => undef,
+            shared_hit     => undef,
+            shared_read    => undef,
         },
-        'and zero for what a plan taken without ANALYZE or BUFFERS lacks'
+        'and null for observations absent without ANALYZE or BUFFERS'
     );
 
     return;

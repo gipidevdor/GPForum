@@ -3,6 +3,7 @@
 
 package GPForum::Test::QueryPlanEvidenceDbh;
 
+use Carp          qw(croak);
 use JSON::MaybeXS qw(encode_json);
 use Mojo::Base -base;
 use v5.40;
@@ -38,10 +39,37 @@ has plans => sub { return []; };
 # database with nothing to page through -- unless a test gives one.
 has deep_page => undef;
 
+# Opt-in fixtures for the function gate: the driver's warning stream carries
+# auto_explain JSON, while the call still returns its ordinary rows.
+has nested_plans    => sub { return []; };
+has nested_calls    => 0;
+has fail_load       => 0;
+has load_error      => "auto_explain unavailable\n";
+has state           => undef;
+has statement_error => undef;
+
+sub selectall_arrayref {
+    my ( $self, $sql, undef, @bind ) = @_;
+
+    push @{ $self->statements }, { sql => $sql, bind => \@bind };
+    $self->nested_calls( $self->nested_calls + 1 );
+    for my $plan (
+        @{ $self->nested_plans },
+        { 'Query Text' => 'SELECT * FROM api.forum_list_public_threads_v2()' }
+      )
+    {
+        warn 'plan: ' . encode_json($plan) . "\n";
+    }
+
+    return [];
+}
+
 # Records what was EXPLAINed, so a test can check it is the application's
 # SQL, and answers with the configured plan.
 sub selectrow_array {
     my ( $self, $sql, undef, @bind ) = @_;
+
+    croak $self->statement_error if defined $self->statement_error;
 
     push @{ $self->statements }, { sql => $sql, bind => \@bind };
     return $self->relation_rows if $sql =~ /\b pg_class \b/msx;
@@ -66,6 +94,9 @@ sub selectrow_hashref {
 # answer to it.
 sub do {
     my ( $self, $sql ) = @_;
+
+    croak $self->load_error
+      if $self->fail_load && $sql eq q{LOAD 'auto_explain'};
 
     push @{ $self->statements }, { sql => $sql, bind => [] };
     if ( $sql =~ /enable_seqscan [ ] = [ ] off/msx ) {

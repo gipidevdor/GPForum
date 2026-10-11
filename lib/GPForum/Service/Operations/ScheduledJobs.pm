@@ -10,6 +10,7 @@ use v5.40;
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Attachment::Scanner;
 use GPForum::Service::Clock;
+use GPForum::Service::Forum::DraftStore;
 use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::RetentionStore;
 
@@ -24,6 +25,7 @@ has functions => sub ($self) {
 const my @JOB_NAMES => qw(
   sessions
   identity_tokens
+  forum_drafts
   rate_limit_buckets
   outbox_messages
   dead_letters
@@ -41,6 +43,7 @@ const my %JOB_METHOD => (
     attachments         => 'cleanup_orphans',
     dead_letters        => 'purge_dead_letters',
     identity_tokens     => 'purge_identity_tokens',
+    forum_drafts        => 'purge_forum_drafts',
     outbox_messages     => 'purge_outbox_messages',
     partitions          => 'partition_evidence',
     rate_limit_buckets  => 'purge_rate_limit_buckets',
@@ -63,6 +66,13 @@ has retention_store => sub {
     );
 };
 has schema => undef;   # optional: only the partition and retention jobs read it
+has draft_store => sub ($self) {
+    return undef if !$self->functions;
+    return GPForum::Service::Forum::DraftStore->new(
+        schema => $self->schema,
+        clock  => $self->clock
+    );
+};
 
 sub from_controller ( $class, $controller ) {
     return $class->new(
@@ -122,6 +132,11 @@ sub purge_sessions ( $self, $input ) {
 
 sub purge_identity_tokens ( $self, $input ) {
     return $self->retention_store->purge_identity_tokens($input);
+}
+
+sub purge_forum_drafts ( $self, $input ) {
+    return _unavailable() if !$self->draft_store;
+    return $self->draft_store->purge_expired($input);
 }
 
 sub purge_rate_limit_buckets ( $self, $input ) {
@@ -331,6 +346,11 @@ Deletes stale session rows through L<GPForum::Service::Operations::RetentionStor
 =head2 purge_identity_tokens
 
 Deletes stale identity tokens.
+
+=head2 purge_forum_drafts
+
+Deletes a bounded batch of expired drafts through the configured draft store
+and returns its deletion count, or an unavailable result when no store exists.
 
 =head2 purge_rate_limit_buckets
 

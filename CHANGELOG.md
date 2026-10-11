@@ -15,6 +15,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
+- **Apply migration 103 before starting the draft-enabled application.** It adds
+  private composer storage and new draft/publication/export/erasure routine
+  versions. Drain the old processes, migrate with the migration owner, provision
+  the updated runtime catalogue and start matching web/worker processes. Keep
+  the hourly scheduled-jobs timer enabled: `forum_drafts` removes expired drafts
+  in bounded batches. See the [runtime role guide](docs/ops/sql-api-role.md) and
+  [draft contract](docs/architecture/composer-drafts.md).
+
 - **Upgrade the function API with migrations 100, 101 and 102.** Search now calls
   v6 and post edit/delete/restore share one context read. Migration 102 makes
   the custom search plan policy effective on PostgreSQL 16/17 using static
@@ -505,6 +513,16 @@ CI, evidence and internal refactors with no change in behaviour.
   4.42+ `allow_nonref` cannot treat scalar payloads as outbox events.
 
 ### Added
+
+- Private thread and reply drafts with native Save/Preview, a drafts list,
+  resume/delete and progressive JavaScript autosave/live preview. PostgreSQL
+  revision checks prevent silent concurrent overwrite; successful publication
+  consumes the draft atomically and failed publication preserves it. Drafts are
+  limited to 100 per owner, expire 30 days after saving, appear in member exports
+  and are removed by account erasure. Preview uses the existing safe post markup
+  renderer. Local PostgreSQL, HTTP, JavaScript and browser behavior checks pass;
+  release gates remain separate. [ADR 0128](docs/adr/0128-private-composer-drafts-and-canonical-preview.md)
+  and the [composer guide](docs/architecture/composer-drafts.md) record its contracts.
 
 - **`sudo gpforum setup` links `gpforum` into `/usr/local/bin`**, so the
   commands it offers next run from any directory; a `gpforum` already there
@@ -2469,6 +2487,11 @@ CI, evidence and internal refactors with no change in behaviour.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- Composer JavaScript behavior checks run with
+  `node --test t/js/composer.test.cjs` in Ubuntu CI. They use Node's built-in
+  runner with no npm packages; Node is a development/CI tool, adds no application
+  build/runtime dependency and does not change `make check` requirements.
 
 - Publish six alternating v6 benchmark runs with all 12,000 samples and
   2,400 distinct measured edit revisions. On PostgreSQL 17, isolating migration

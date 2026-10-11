@@ -321,7 +321,7 @@ like(
 );
 like(
     $edit_calls->[1],
-    qr/api[.]forum_write_command_v2/msx,
+    qr/api[.]forum_write_command_v4/msx,
     'second call retains the atomic write'
 );
 my $snapshot = _snapshot();

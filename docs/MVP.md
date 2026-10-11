@@ -43,6 +43,21 @@ otherwise.
 * `POST /p/:post_id/restore` restores a soft-deleted post through `Forum::Write`.
 * `POST /t/:thread_id/read` records per-user thread reading progress.
 
+### Private drafts and preview
+
+The current feature change wires these routes and has local PostgreSQL, HTTP,
+JavaScript and browser validation; release gates remain separate. All use authenticated sessions and private, non-cacheable responses.
+
+* `GET /drafts` lists the owner's unexpired thread/reply drafts.
+* `POST /drafts` saves an incomplete or complete draft with revision checks.
+* `GET /drafts/:draft_id` restores an owner draft in its composer.
+* `POST /drafts/:draft_id/delete` deletes the expected owner revision.
+* `POST /composer/preview` renders submitted source through the safe post renderer, without saving or publishing.
+
+Native Save/Preview work without JavaScript; progressive autosave and live
+preview use the same routes. See the [composer contract](architecture/composer-drafts.md)
+for quota, expiry, publication and privacy behavior.
+
 ### Attachments
 
 * `POST /p/:post_id/attachments` uploads an attachment against a post through the upload pipeline.

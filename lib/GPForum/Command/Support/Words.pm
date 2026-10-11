@@ -168,6 +168,7 @@ const my %ENGLISH => (
     'cli.jobs.name.sessions'        => 'expired sessions',
     'cli.jobs.name.identity_tokens' =>
       'expired sign-in and verification tokens',
+    'cli.jobs.name.forum_drafts'        => 'Expired forum drafts',
     'cli.jobs.name.rate_limit_buckets'  => 'old rate-limit counters',
     'cli.jobs.name.outbox_messages'     => 'old outbox messages',
     'cli.jobs.name.dead_letters'        => 'old dead letters',

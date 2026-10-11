@@ -217,9 +217,11 @@ sub new_thread_form ($self) {
     my $categories = $self->gp_category_reader->list_categories(
         { viewer => $self->gp_forum_viewer } );
 
+    my $command_id = $self->_new_command_id;
+    $self->fresh_composer_draft( 'thread', $command_id );
     my $payload = $self->gp_forum_view_model->new_thread_form(
         categories           => $categories,
-        command_id           => $self->_new_command_id,
+        command_id           => $command_id,
         csrf_token           => $self->csrf_token,
         errors               => {},
         selected_category_id => $self->param('category_id') || q{},

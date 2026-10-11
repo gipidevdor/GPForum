@@ -531,9 +531,12 @@ sub post_fragment ( $self, $status ) {
 # The thread page's payload for a page the detail reader returned, with a
 # command id for each action the reader may take.
 sub thread_page_payload ( $self, $page, $user_id ) {
-    my $posts           = $page->{posts}{items};
-    my $attachments     = $self->attachments_for_posts($posts);
-    my $move_command_id = $self->_thread_edit_command_id( $page, $user_id );
+    my $posts            = $page->{posts}{items};
+    my $attachments      = $self->attachments_for_posts($posts);
+    my $move_command_id  = $self->_thread_edit_command_id( $page, $user_id );
+    my $reply_command_id = $user_id ? $self->_new_command_id : q{};
+    $self->fresh_composer_draft( 'reply', $reply_command_id,
+        thread_id => $self->param('thread_id') );
 
     return $self->gp_forum_view_model->thread_page(
         attachment_delete_command_ids =>
@@ -551,7 +554,7 @@ sub thread_page_payload ( $self, $page, $user_id ) {
         ),
         metadata_builder       => $self->gp_metadata_builder,
         page                   => $page,
-        reply_command_id       => $user_id ? $self->_new_command_id : q{},
+        reply_command_id       => $reply_command_id,
         edit_command_ids       => $self->_edit_command_ids( $page, $user_id ),
         delete_command_ids     => $self->_edit_command_ids( $page, $user_id ),
         report_command_ids     => $self->_edit_command_ids( $page, $user_id ),
@@ -580,6 +583,20 @@ sub thread_page_payload ( $self, $page, $user_id ) {
             user_id         => $user_id,
         ),
     );
+}
+
+sub fresh_composer_draft ( $self, $kind, $command_id, %context ) {
+    return if !$self->_current_user_id;
+    $self->stash(
+        composer_draft => {
+            draft_id       => $self->_new_command_id,
+            draft_revision => 0,
+            kind           => $kind,
+            command_id     => $command_id,
+            %context,
+        }
+    );
+    return;
 }
 
 # A command id for each post the reader wrote.
@@ -934,6 +951,11 @@ L<GPForum::Web::ForumAccess>.
 
 Returns the authenticated actor after CSRF, rate-limit, and suspension
 checks, or renders the matching HTTP error.
+
+=head2 fresh_composer_draft
+
+Stashes a new draft identifier, revision zero, publication command identifier,
+and supplied composer context for a signed-in author without a database read.
 
 =head1 DIAGNOSTICS
 

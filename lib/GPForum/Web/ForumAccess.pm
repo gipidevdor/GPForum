@@ -12,6 +12,7 @@ our $VERSION = '0.001';
 const my $READ_RATE_LIMIT           => 60;
 const my $READ_RATE_WINDOW          => 60;
 const my $WRITE_RATE_LIMIT          => 20;
+const my $COMPOSER_RATE_LIMIT       => 60;
 const my $REPORT_RATE_LIMIT         => 5;
 const my $CHURN_RATE_LIMIT          => 10;
 const my $WRITE_RATE_WINDOW         => 60;
@@ -65,6 +66,8 @@ const my %WRITE_FLASH => (
     $STATUS_UNSUBSCRIBED       => 'forum.unsubscribed',
 );
 const my %PARTICIPATION_ACTIONS => (
+    'draft.save'     => 1,
+    'draft.preview'  => 1,
     'post.delete'    => 1,
     'post.edit'      => 1,
     'post.restore'   => 1,
@@ -109,6 +112,8 @@ sub write_rate_input ( $self, $input ) {
 }
 
 sub write_limit_for ( $, $action ) {
+    return $COMPOSER_RATE_LIMIT
+      if $action eq 'draft.save' || $action eq 'draft.preview';
     if ( $action eq 'report.create' ) {
         return $REPORT_RATE_LIMIT;
     }

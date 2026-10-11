@@ -1767,6 +1767,52 @@ nav[aria-label$="pagination" i] a:hover,
   justify-self: end;
 }
 
+.composer-draft-tools {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.composer-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.composer-draft-status {
+  min-block-size: 1.5em;
+  color: var(--color-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.composer-draft-status.is-error,
+.composer-preview-status {
+  border-inline-start-color: var(--color-danger);
+  background: var(--color-surface-danger);
+  color: var(--color-danger);
+}
+
+.composer-draft-status:empty,
+.composer-preview-status:empty {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.composer-preview {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+
+.composer-preview[hidden],
+[data-draft-conflict][hidden] {
+  display: none;
+}
+
 /* 9. Sheets ---------------------------------------------------------------- */
 
 /* An action that needs a field or a second thought opens over the page: a

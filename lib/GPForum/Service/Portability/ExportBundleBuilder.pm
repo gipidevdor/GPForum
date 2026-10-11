@@ -325,6 +325,7 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
         format          => $FORMAT_JSON,
         profile         => $parts->{profile}       || {},
         posts           => $parts->{posts}         || [],
+        drafts          => $parts->{drafts}        || [],
         attachments     => $parts->{attachments}   || [],
         notifications   => $parts->{notifications} || [],
         subscriptions   => $parts->{subscriptions} || [],
@@ -339,6 +340,7 @@ sub safe_manifest ( $self, $bundle ) {
         format          => $bundle->{format},
         counts          => {
             posts         => scalar @{ $bundle->{posts} },
+            drafts        => scalar @{ $bundle->{drafts} // [] },
             attachments   => scalar @{ $bundle->{attachments} },
             notifications => scalar @{ $bundle->{notifications} },
             subscriptions => scalar @{ $bundle->{subscriptions} },

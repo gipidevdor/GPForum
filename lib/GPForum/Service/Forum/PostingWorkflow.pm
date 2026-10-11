@@ -202,6 +202,8 @@ sub _reply_call ( $self, $key, $input ) {
         request_hash           =>
           $log->request_hash( $self->codec->request( $REPLY, $input ) ),
         store_refusals => $self->_store_refusals,
+        draft_id       => _nullable( $input->{draft_id} ),
+        draft_revision => $input->{draft_revision},
     );
 
     my $thread =
@@ -304,6 +306,9 @@ sub _reply_result ( $self, $row, $prepared ) {
     }
     return _result( status => 'invalid', prepared => $prepared )
       if $status eq 'invalid';
+
+    return _result( status => 'conflict', error => $row->{response}{error} )
+      if $status eq 'conflict';
 
     return _refused( $row->{response}{error} );
 }
@@ -614,8 +619,10 @@ sub _run_by_function ( $self, $type, $input, $run ) {
           };
         $call = {
             %{$values},
-            log    => $command_log,
-            answer => $answer->{pending}
+            draft_id       => _nullable( $input->{draft_id} ),
+            draft_revision => $input->{draft_revision},
+            log            => $command_log,
+            answer         => $answer->{pending}
             ? undef
             : $self->codec->response( $type, $answer )
         };

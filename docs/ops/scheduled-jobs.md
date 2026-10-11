@@ -1,8 +1,8 @@
 # Scheduled Operational Jobs
 
-GPForum does not sweep stale rows during HTTP or outbox dispatch. Expired
-sessions, rate-limit windows, identity tokens, completed outbox rows, and
-dead letters accumulate until an operator timer invokes the oneshot command:
+Scheduled jobs remove expired sessions, rate-limit windows, identity tokens,
+unpublished forum drafts, completed outbox rows and dead letters. These jobs
+run when an operator timer invokes the oneshot command:
 
 ```sh
 gpforum scheduled-jobs --once --limit 100
@@ -45,6 +45,31 @@ of items that failed. A run that fails -- the database gone -- exits 1 with
 `status` `fail`, `jobs` empty and the reason in `error`. Empty means not
 reported, not none run: the jobs before the one that failed did their work,
 and the next run carries on.
+
+## Expired forum drafts
+
+The `forum_drafts` job calls the versioned `forum_draft_purge` catalogue operation
+through `DraftStore`. It deletes expired unpublished drafts in a bounded batch
+using `--limit` (100 by default, capped at 1,000), skipping rows locked by
+concurrent work. Repeat runs drain a larger backlog. The normal hourly runner
+includes it; it can also be invoked alone:
+
+```sh
+gpforum scheduled-jobs --once --job forum_drafts --limit 100
+```
+
+A draft expires 30 days after its last stored save, including unchanged content
+saved at the current revision. An exact retry of a previous save does not renew
+expiry. List/resume and member
+export already omit expired rows; cleanup physically removes their source and
+metadata. A successful publication consumes its draft atomically, while manual
+deletion requires the current revision. Saving also removes that owner's expired
+rows before enforcing the 100-live-draft quota, so the scheduled timer is not the
+only deletion path. The job reports its deleted count in the ordinary summary;
+database failure makes the runner fail rather than claiming cleanup completed.
+Monitor failed runs and sustained full batches. Backup retention remains governed
+by the [backup runbook](backup-and-restore.md). See
+[composer drafts](../architecture/composer-drafts.md) for the privacy contract.
 
 ## Orphan attachments
 

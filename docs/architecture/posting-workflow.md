@@ -40,6 +40,18 @@ Controllers use this contract to map workflow outcomes to redirects, SSR form
 errors, or JSON responses. The workflow never performs HTTP rendering and never
 duplicates persistence logic owned by stores.
 
+## Publishing a saved draft
+
+Thread/reply controllers save the submitted draft snapshot before invoking this
+workflow. The acknowledged `draft_id`, `draft_revision` and publication command
+id travel through the existing command/store path. The versioned PostgreSQL
+publication routine validates the locked draft and removes it only in the
+successful post transaction; a refused publication keeps it. Successful command
+replay is resolved before looking for an already-consumed draft. Draft storage
+and native/progressive composer behavior are described in
+[composer-drafts.md](composer-drafts.md) and
+[ADR 0128](../adr/0128-private-composer-drafts-and-canonical-preview.md).
+
 ## Modules
 
 Each concern of the write path has one home:

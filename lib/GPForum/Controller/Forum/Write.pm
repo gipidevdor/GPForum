@@ -3,7 +3,7 @@
 
 package GPForum::Controller::Forum::Write;
 
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::ComposerBase', -signatures;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -14,6 +14,8 @@ sub create_thread ($self) {
         return;
     }
 
+    my $draft = $self->save_publish_draft( $user_id, 'thread' );
+    return if !defined $draft;
     my $result = $self->gp_posting_workflow->create_thread(
         {
             viewer         => $self->gp_forum_viewer,
@@ -21,12 +23,27 @@ sub create_thread ($self) {
             author_user_id => $user_id,
             title          => $self->param('title'),
             body_source    => $self->param('body_source'),
-            command_id     => $self->command_id_param,
+            command_id     => $draft->{command_id} // $self->command_id_param,
+            draft_id       => $draft->{draft_id},
+            draft_revision => $draft->{draft_revision},
             visibility     => $self->param('visibility'),
         }
     );
 
     if ( !$result->{ok} ) {
+        if ( $draft->{draft_id} ) {
+            $self->stash( composer_draft => $draft );
+        }
+        if (   $draft->{draft_id}
+            && !$self->_wants_json
+            && ( $result->{status} // q{} ) eq 'conflict' )
+        {
+            $self->stash(
+                composer_draft_error    => $self->i18n('forum.draft_conflict'),
+                composer_draft_conflict => 1
+            );
+            return $self->compose( $draft, $self->draft_status($result) );
+        }
         return $self->thread_write_failure($result);
     }
 
@@ -129,18 +146,33 @@ sub create_reply ($self) {
         return;
     }
 
+    my $draft = $self->save_publish_draft( $user_id, 'reply' );
+    return if !defined $draft;
     my $result = $self->gp_posting_workflow->create_reply(
         {
             viewer         => $self->gp_forum_viewer,
             thread_id      => $self->param('thread_id'),
             author_user_id => $user_id,
             body_source    => $self->param('body_source'),
-            command_id     => $self->command_id_param,
+            command_id     => $draft->{command_id} // $self->command_id_param,
+            draft_id       => $draft->{draft_id},
+            draft_revision => $draft->{draft_revision},
             visibility     => $self->param('visibility'),
         }
     );
 
     if ( !$result->{ok} ) {
+        if ( $draft->{draft_id} && !$self->_wants_json ) {
+            my $key =
+              ( $result->{status} // q{} ) eq 'conflict'
+              ? 'forum.draft_conflict'
+              : 'forum.draft_save_failed';
+            $self->stash( composer_draft_error => $self->i18n($key) );
+            if ( ( $result->{status} // q{} ) eq 'conflict' ) {
+                $self->stash( composer_draft_conflict => 1 );
+            }
+            return $self->compose( $draft, $self->draft_status($result) );
+        }
         return $self->reply_write_failure($result);
     }
 

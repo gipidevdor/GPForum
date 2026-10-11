@@ -1,14 +1,17 @@
 # GPForum verified product backlog
 
-Reviewed: 2026-10-11. Base commit: `3087bf09b778`, with the current working
-tree inspected. Status: **proposed post-MVP product plan**. No feature in this
+Initial review: 2026-10-11, base commit `3087bf09b778`, with that working tree
+inspected. Draft/preview rows were updated against the feature change based on
+`b16cfa3`, with local PostgreSQL, HTTP, JavaScript and browser validation on
+2026-10-11. Other rows retain the initial review. Status: **proposed post-MVP product plan**. No feature in this
 document becomes an accepted architecture decision or a shipped capability by
 being listed here.
 
 This backlog reconciles the requested A–L feature inventory with application
 routes, schema/migrations, services, workers, templates, assets and existing
-tests. It is a static repository review, not a deployed-instance audit or a new
-test-suite result. Existing unrelated setup changes are outside this review.
+tests. The initial inventory is a static repository review; validation of the
+draft/preview increment is recorded in the [composer guide][draft-flow]. This
+is not a deployed-instance audit. Existing unrelated setup changes are outside this review.
 
 [ADR 0068](adr/0068-mvp-roadmap-sequencing.md) remains the binding roadmap.
 [Production readiness](PRODUCTION_READINESS.md), the
@@ -52,11 +55,11 @@ claim. No competitor source code or assets were imported for this review.
 | A02 | Likes / upvotes / downvotes | Not found. Start with a reversible like; additional vote semantics need a product decision. [routes] | PB-01 |
 | A03 | Polls | Not found in schema, posting workflows or composer. [routes], [composer] | PB-03 |
 | A04 | Reply to a particular post | Foundation: quote rendering exists; the post model has no reply target and UI has no reply relationship. [post-model], [markup] | PB-10 |
-| A05 | Draft autosave | Not found in composer routes, forms or client enhancements. [routes], [composer] | PB-10 |
-| A06 | Rich live preview | Not found; current composer is textarea plus submit. [composer], [new-thread] | PB-10 |
+| A05 | Draft autosave | Present in the current change; locally validated. Private thread/reply drafts, revision conflicts, serialized progressive autosave and native Save. [draft-flow], [draft-client], [draft-schema] | PB-10 / Maintain |
+| A06 | Rich live preview | Present for the existing safe markup subset in the current change; locally validated. Native Preview and debounced live preview use the canonical post renderer. WYSIWYG/full Markdown remain separate. [draft-flow], [draft-client], [markup] | PB-10 / Maintain |
 | A07 | Collaborative editing / typing indicators | Not found. Specify typing presence separately from concurrent document editing. [realtime], [routes] | PB-10 / Defer collaborative editing |
 | A08 | Advanced bookmarks | Partial: bookmarks already have notes in UI and storage; folders/reminders are missing. [thread-tools], [bookmarks] | PB-13 |
-| A09 | Save an unpublished thread | Not found; same draft lifecycle as A05, including title/category. [new-thread] | PB-10 |
+| A09 | Save an unpublished thread | Present in the current change; locally validated. Owner-only title/category/body/visibility drafts with resume/delete, 100-draft quota and 30-day expiry. [draft-flow], [draft-schema], [new-thread] | PB-10 / Maintain |
 
 ## B. Content organization
 
@@ -214,7 +217,7 @@ and privacy risk, rather than a promise of dates or a claim of full parity.
 | Wave | Proposed outcome | Dependencies / exit criteria |
 | --- | --- | --- |
 | P0 — release evidence | Close existing CI/staging, TLS, SMTP delivery, attachment restore, load and rollback gaps. | Follow the current readiness/quality documents; refresh the historical verdict with actual target evidence. No new runtime feature is adopted by this backlog. |
-| P1a — everyday discussion | PB-01 likes, PB-02 tags, PB-03 polls; PB-10 drafts/preview as an adjacent usability increment. | P0 gates maintained. Each package independently releasable, with safe migrations, SSR flows, EN/IT and permission tests. |
+| P1a — everyday discussion | PB-01 likes, PB-02 tags, PB-03 polls; PB-10 drafts/preview delivered as an adjacent usability increment. | P0 gates maintained. Each package independently releasable, with safe migrations, SSR flows, EN/IT and permission tests. |
 | P1b — identity and abuse controls | PB-04 TOTP, PB-05 automod/first-post review, PB-06 user blocking. | P0 gates maintained. Publish recovery, review and block semantics before relying on them for messaging. This work can run alongside P1a. |
 | P1c — private conversation, mail, migration | PB-07 DMs, PB-08 preferences/digest, PB-09 phpBB import plus portable export. | DMs require PB-06 and adequate PB-05 controls. Digest requires delivery/opt-out semantics. Import requires validated export mapping and a replayable dry run. Mail/import can progress independently of DMs. |
 | P2 — richer product and integrations | PB-11–18 and PB-21, plus optional PB-10 editor increments. | Prioritize measured user demand; preserve existing readiness, performance and privacy gates. |
@@ -239,7 +242,7 @@ and write/amend ADRs for changed contracts under [governance](../GOVERNANCE.md).
 | PB-07 | One-to-one DMs, then private groups; decide invitation consent, participant removal/history and retention. | Participant-only reads/writes/attachments; no public search/feed/cache/realtime leakage; block/contact limits; user-initiated reports grant staff only defined access; describe staff-access policy honestly; exports include only conversation content the requester is authorized to access, with explicit treatment of received messages and participant metadata; deletion/retention and race tests. |
 | PB-08 | Complete per-event preferences and scheduled daily/weekly digest; decide first/every-reply delivery and unread rules. | Reuse existing preferences; explicit notification-email opt-in on rollout; authorization and opt-out checked at send time; mute/block honored; idempotent schedule/retry; bounded batches; locale/timezone handling; authenticated settings and revocable unsubscribe tokens; applicable one-click mail headers tested; SMTP failure and duplicate-delivery evidence. |
 | PB-09 | phpBB importer and versioned community export; decide supported source version/format and permission/BBCode mapping. | Operator-authorized input only; dry-run validation/counts; legacy-ID mapping resumable and replay-safe; preserve dates, attribution and visibility; report unmapped features; no source password hashes in public exports; safe rendering and attachment scans; private-data separation; checksums and a verified export/reimport comparison on synthetic or consented fixtures. |
-| PB-10 | Draft thread/reply lifecycle and preview using the canonical safe renderer; reply-to as a separate model increment. | Owner-only drafts with explicit retention/deletion; autosave conflicts handled without silent overwrite; failed publish preserves draft; preview permissions and sanitization match publish; SSR/manual-save fallback; reply target belongs to the same authorized thread; keyboard/EN/IT flows. Typing is optional ephemeral presence; collaborative editing needs its own design. |
+| PB-10 | Draft thread/reply lifecycle and canonical preview implemented in the current change under [ADR 0128](adr/0128-private-composer-drafts-and-canonical-preview.md); locally validated. Reply-to remains a separate model increment. | Verify owner isolation, 100-live-draft quota, 30-day expiry/bounded cleanup, export/erasure, exact save retries and stale-revision conflicts, failed-publication preservation and atomic consume/replay. Preview target visibility and sanitization follow post rendering; publication rechecks full posting rules. Validate native Save/Preview and JavaScript keyboard/EN/IT flows. Reply-to, typing presence and collaborative editing remain separate deliverables. [draft-flow] |
 
 ### Subsequent packages
 
@@ -365,5 +368,8 @@ historical ADR wording that predates the identity mailer.
 [doctor]: ops/doctor.md
 [quality]: QUALITY_PROGRAM.md
 [architecture]: ../ARCHITECTURE.md
+[draft-flow]: architecture/composer-drafts.md
+[draft-client]: ../assets/js/composer.js
+[draft-schema]: ../migrations/103_forum_drafts.sql
 [deployment]: DEPLOYMENT.md
 [upgrade]: ops/upgrade.md

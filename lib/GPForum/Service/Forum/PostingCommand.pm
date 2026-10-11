@@ -66,13 +66,20 @@ sub types ($self) {
 }
 
 sub request ( $self, $type, $input ) {
-    return {
+    my $request = {
         map {
                 $_ => $_ eq 'body_hash'
               ? $self->body_hash( $input->{body_source} )
               : _trim( $input->{$_} )
         } @{ _command($type)->{request} }
     };
+    if (   defined $input->{draft_id}
+        && length $input->{draft_id}
+        && ( $type eq 'thread.create' || $type eq 'reply.create' ) )
+    {
+        $request->{draft_id} = _trim( $input->{draft_id} );
+    }
+    return $request;
 }
 
 sub response ( $self, $type, $result ) {

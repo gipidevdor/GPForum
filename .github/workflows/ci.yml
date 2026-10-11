@@ -48,7 +48,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client locales
+          sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client locales nodejs
           # CLI tests compare complete English/Italian diagnostics. Perl's
           # startup warnings must not precede them on a runner missing a locale.
           sudo localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -101,6 +101,9 @@ jobs:
 
       - name: Check continuous performance evidence contracts
         run: prove -I script/lib -I t/lib -lr t/performance
+
+      - name: Check composer asynchronous behavior
+        run: node --test t/js/composer.test.cjs
 
       - name: Check Perl syntax
         run: script/gpforum-carton exec script/perl-syntax-check

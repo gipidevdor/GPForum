@@ -12,6 +12,7 @@ use List::Util                    qw(min max);
 use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
     MAX_JOB_SECONDS        => 1_800,
     REPORT_RESERVE_SECONDS => 240,
+    CLOCK_ROUNDING_SECONDS => 0.000_001,
 };
 
 our $VERSION = '0.001';
@@ -28,10 +29,17 @@ sub new ( $class, $clock = {} ) {
         croak 'Non-finite global deadline'
           if $value !~ /\A\d+(?:[.]\d+)?\z/amsx;
     }
+    my $maximum_deadline = $started + MAX_JOB_SECONDS;
     croak 'Deadline must reserve report and remain within 30 minutes'
       if $started > $measurement
       || $measurement > $deadline
-      || $deadline > $started + MAX_JOB_SECONDS;
+      || $deadline - $maximum_deadline > CLOCK_ROUNDING_SECONDS;
+
+    # JSON roundtrips can move an absolute clock by a floating-point ulp.
+    # Accept that rounding only at the upper bound, then clamp the stored
+    # deadlines so it never grants time beyond the actual 30-minute budget.
+    $deadline    = min( $deadline,    $maximum_deadline );
+    $measurement = min( $measurement, $deadline );
     return bless {
         started              => 0 + $started,
         deadline             => 0 + $deadline,

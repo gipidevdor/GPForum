@@ -141,6 +141,9 @@ A separate exploratory comparison used 1,100 additional real threads and
 calls per version and 60 samples per version per case in each of two rounds.
 The timed unit was `SqlFunction->rows`: binding, execution and fetching rows;
 parameter construction, service decoration and HTTP were excluded.
+This temporary helper used the mean of the two central sorted samples for its
+median and the 57th sorted sample out of 60 for p95. These exploratory quantiles
+differ from the canonical harness rule documented above.
 
 | Case, without a new index | Mean of v2 medians | Mean of v4 medians | Reduction |
 | --- | ---: | ---: | ---: |
@@ -152,8 +155,9 @@ retain both the no-index stage and the rejected ordered-index experiment.
 The latter finished with a newest-first plan assertion failure after index
 creation and `ANALYZE`; it is not shipped validation. This temporary variant
 of the integration fixture saved median/p95 summaries, not individual samples
-or plan JSON, and is not the canonical service benchmark. The final fixture
-without that index passed 437 checks.
+or plan JSON, and is not the canonical service benchmark. The original fixture
+without that index passed 437 local checks; the strengthened plan fixture below
+passes 441.
 
 ## Validation and activation
 
@@ -177,10 +181,15 @@ without that index passed 437 checks.
   profiles and full CSV exports remain local and can be reproduced with the
   recorded commands.
 - [Search differential and plan test](../../t/integration/postgres-search-optimization.t):
-  437 checks, covering exact service JSON and raw typed rows, ACL combinations,
+  441 checks, covering exact service JSON and raw typed rows, ACL combinations,
   candidate cap after filtering, dates, ties, stale category/space moves,
-  nullable authors and Unicode/wildcard prefixes. Actual nested plans retain
-  common newest-first and rare GIN paths and load at most 20 payload rows.
+  nullable authors and Unicode/wildcard prefixes. A separate maintained corpus
+  of 20,000 added documents checks actual nested plans: both retained v2 and
+  current v4 use the common newest-first index and stop at 1,000 candidates;
+  v4 ranks 1,000, materializes a 20-row page and loads at most 20 payload rows.
+  The rare-query GIN assertion is retained. Assertions use the primary plans
+  without planner overrides; the collector's separate forced diagnostics are
+  excluded from these assertions and the published comparison.
 - [Combined context and restricted-login test](../../t/integration/postgres-sql-function-post-context.t):
   86 checks, covering legacy column/timestamp/boolean representations,
   inherited visibility, domain refusals, malformed IDs, edit/delete/restore,
@@ -194,6 +203,21 @@ without that index passed 437 checks.
   The locale failure is observed directly; the specific newer OpenSSL variant
   was inferred because the old log omitted its message. Regression fixtures
   now cover unavailable locales, handshake variants and certificate/read errors.
+
+The first PR run on PostgreSQL 16, 17 and 18 failed the index expectation on
+the smaller corpus after the visibility/placement mutation matrix. Its actual
+v4 plan scanned 2,200 matching documents, but still ranked 1,000 and fetched
+20 payload rows. In a controlled local comparison, both v2 and v4 selected a
+sequential scan on the refreshed 2,200-document corpus and the ordered index
+on the fresh 20,000-document corpus. This was a corpus/statistics-sensitive
+plan expectation; no v4-only regression was observed. Automatic statistics
+timing in CI was not recorded, so its exact cause remains unproven.
+
+The test now checks the large workload independently of the semantic mutation
+matrix, compares both real function bodies, and fails bounds checks if a plan
+node is missing. [Original CI plans, controlled comparison and source hashes](evidence/sql-functions-2026-10-11-search-plan-validation.json)
+preserve the investigation. This correction changes only the test and evidence;
+migrations 100/101, production code and the paired benchmark remain unchanged.
 
 Apply migrations 100 and 101 with the ordinary migration owner, drain old
 processes, reprovision using the new catalogue and start the updated release.

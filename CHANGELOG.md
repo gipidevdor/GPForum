@@ -1524,6 +1524,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **Hypnotoad benchmark worker discovery works with FreeBSD `ps`.**
+  Each PID, parent PID and command column uses a separate `-o` argument;
+  FreeBSD interpreted the combined format as one PID column with a custom
+  header, leaving the benchmark's worker list empty.
+
 - **Doctor recognizes newer OpenSSL plaintext-port diagnostics.**
   `packet length too long` is reported as a TLS handshake failure, like
   `wrong version number`, while certificate and other TLS failures retain

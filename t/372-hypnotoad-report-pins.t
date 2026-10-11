@@ -66,6 +66,7 @@ _test_wait_until_ready();
 _test_terminate_after_kill();
 _test_command_output();
 _test_read_pid_file();
+_test_worker_columns();
 _test_worker_pids();
 _test_resolve_proxy();
 _test_start_proxy();
@@ -307,6 +308,41 @@ sub _test_read_pid_file {
     return;
 }
 
+sub _test_worker_columns {
+    my $bin = "$directory/bsd-ps";
+    mkdir $bin or croak "cannot make $bin";
+    path("$bin/ps")
+      ->spew( "#!$EXECUTABLE_NAME\n" . <<'PS' )->chmod($EXECUTABLE_MODE);
+# FreeBSD treats everything after the first = as the header of the final
+# field in that -o argument, rather than as more column names.
+my @fields;
+while (@ARGV) {
+    my $option = shift;
+    next if $option ne '-o';
+    my ($names) = split /=/, shift, 2;
+    push @fields, split /[ ,]+/, $names;
+}
+my @rows = (
+    {pid => 4243, ppid => 4242, command => 'perl: gpforum-worker'},
+    {pid => 4244, ppid => 4242, command => 'hypnotoad worker'},
+    {pid => 4245, ppid => 4242, command => 'benchmark-sidecar'},
+    {pid => 4246, ppid => 4243, command => 'gpforum-grandchild'},
+    {pid => 4247, ppid => 4241, command => 'gpforum-other-master'},
+);
+for my $row (@rows) {
+    print join(' ', map {$row->{$_} // die 'unknown column'} @fields), "\n";
+}
+PS
+    local $ENV{PATH} = $bin;
+    is_deeply(
+        worker_pids($PID),
+        [ $PID + 1, $PID + 2 ],
+        'FreeBSD column parsing retains only the master\'s forum workers'
+    );
+
+    return;
+}
+
 # A master's workers are its own children that run hypnotoad or GPForum: not
 # another process, not a grandchild. Keep the fixture code in a file: its
 # original argv stays within FreeBSD's process argument cache even when Perl
@@ -431,7 +467,8 @@ sub _spawn_sleeper ( $name, $script, @arguments ) {
 }
 
 sub _ps_lists (@expected) {
-    open my $ps, q{-|}, 'ps', '-axww', '-o', 'pid=,ppid=,command='
+    open my $ps, q{-|}, 'ps', '-axww', '-o', 'pid=', '-o', 'ppid=',
+      '-o', 'command='
       or return 0;
     my %commands;
     while ( my $line = <$ps> ) {
@@ -461,8 +498,8 @@ sub _wait_until ( $condition, @children ) {
     diag(
         'fixture processes before cleanup: '
           . command_output(
-            'ps', '-ww', '-p', join( q{,}, @children ),
-            '-o', 'pid=,ppid=,command='
+            'ps', '-ww',  '-p', join( q{,}, @children ),
+            '-o', 'pid=', '-o', 'ppid=', '-o', 'command='
           )
     );
     kill 'KILL', map { -$_ } @children;

@@ -1546,6 +1546,11 @@ CI, evidence and internal refactors with no change in behaviour.
   those are classified as handshake failures, while certificate errors and
   errors during an established TLS read retain the TLS classification.
 
+- **Hypnotoad benchmark worker discovery works with FreeBSD `ps`.**
+  Each PID, parent PID and command column uses a separate `-o` argument;
+  FreeBSD interpreted the combined format as one PID column with a custom
+  header, leaving the benchmark's worker list empty.
+
 - **A start with old names in the environment file warns of each once.**
   `gpforum start --service` logged each, then ran Hypnotoad in its place,
   which built the application again and logged each a second time, 0.9 s
@@ -2469,6 +2474,11 @@ CI, evidence and internal refactors with no change in behaviour.
   tests cover search v4 and the combined context; both also pass under NYTProf.
   The config-report fixture handles unavailable OS locales without changing
   the application's locale selection.
+
+- **CI prepares the English and Italian UTF-8 locales explicitly.**
+  The Debian container also installs `procps`. Process fixtures use explicit
+  titles and PID-specific readiness checks for FreeBSD, and root ownership
+  tests start with a distinct group even in a minimal container.
 
 - **Published the completed function conversion and two benchmark runs.**
   The comparison covers 20 service operations with warm-up, median and p95,

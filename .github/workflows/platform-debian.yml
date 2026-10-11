@@ -64,9 +64,13 @@ jobs:
           set -euo pipefail
           apt-get update
           apt-get install -y --no-install-recommends \
-            ca-certificates curl git \
+            ca-certificates curl git locales procps \
             perl build-essential cpanminus libpq-dev libssl-dev zlib1g-dev \
             postgresql-client
+          # The plain container has neither ps nor the UTF-8 locales used by
+          # the process and localized CLI tests. Keep their diagnostics real.
+          localedef -i en_US -f UTF-8 en_US.UTF-8
+          localedef -i it_IT -f UTF-8 it_IT.UTF-8
           # Carton is a host tool for the OS system Perl, not a Carton-local binary.
           /usr/bin/perl /usr/bin/cpanm --notest Carton
 

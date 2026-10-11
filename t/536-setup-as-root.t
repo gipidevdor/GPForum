@@ -122,7 +122,14 @@ subtest 'macOS: the account is the operator to make' => sub {
 subtest 'run again once the group exists, the file is given to it' => sub {
     my $file    = "$directory/darwin.env";
     my $account = GPForum::Test::SetupAccount->new( exists => 1 );
-    chown $EFFECTIVE_USER_ID, _other_group(), $file;
+    my $other   = _other_group();
+    if ( !defined $other ) {
+        plan skip_all => 'this user has no other group for ownership transfer';
+    }
+    chown $EFFECTIVE_USER_ID, $other, $file
+      or croak "cannot give the fixture to another group: $OS_ERROR";
+    is( ( stat $file )[$STAT_GID],
+        $other, 'the fixture starts in a different group' );
     my $run = _setup( $file, $account, 'darwin',
         GPForum::Test::SetupDatabase->new( role => 1, database => 1 ) );
     is( $run->{status}, 0, 'it succeeds' ) or diag $run->{errors};
@@ -178,12 +185,17 @@ sub _setup ( $file, $account, $os, $database = undef ) {
     };
 }
 
-# A group this process belongs to other than the account double's.
+# A group different from the account double's. Root can set a numeric GID
+# even when the minimal container has no supplementary groups; an ordinary
+# user needs another group it belongs to.
 sub _other_group {
     my ( $primary, @groups ) = split q{ }, $EFFECTIVE_GROUP_ID;
     my ($other) = grep { $_ != $primary } @groups;
 
-    return $other // $primary;
+    return $other           if defined $other;
+    return $primary ? 0 : 1 if $EFFECTIVE_USER_ID == 0;
+
+    return undef;
 }
 
 sub _with_stderr ( $errors, $code ) {

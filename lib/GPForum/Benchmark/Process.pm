@@ -203,10 +203,13 @@ sub read_pid_file ($pid_file) {
 
 # The hypnotoad or GPForum children of a master process, from ps. Request
 # unlimited width so a terminal or COLUMNS cannot hide the command marker.
+# Give each column its own -o: FreeBSD treats everything after the first =
+# in one argument as that column's header, including commas and other names.
 sub worker_pids ($master_pid) {
     return [] if !$master_pid;
 
-    open my $processes, q{-|}, 'ps', '-axww', '-o', 'pid=,ppid=,command='
+    open my $processes, q{-|}, 'ps', '-axww', '-o', 'pid=', '-o', 'ppid=',
+      '-o', 'command='
       or return [];
     my @lines = <$processes>;
     close $processes or return [ _children_of( $master_pid, @lines ) ];

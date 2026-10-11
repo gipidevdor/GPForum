@@ -9,6 +9,7 @@
   <a href="<%= ui_path('forum_search') %>"<%== $current->('forum_search') %>><%= t('nav.search') %></a>
   % if (session('user_id')) {
     <a href="<%= ui_path('bookmarks') %>"<%== $current->('bookmarks') %>><%= t('nav.bookmarks') %></a>
+    <a href="<%= ui_path('drafts') %>"<%== $current->('drafts') %>><%= t('nav.drafts') %></a>
     <a href="<%= ui_path('feed') %>"<%== $current->('feed') %>><%= t('nav.feed') %></a>
     <a href="<%= ui_path('notifications') %>"<%== $current->('notifications') %>><%= t('nav.notifications') %></a>
   % }

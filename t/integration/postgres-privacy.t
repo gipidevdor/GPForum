@@ -497,6 +497,7 @@ sub _export_bundle {
         $manifest->{counts},
         {
             attachments   => 1,
+            drafts        => 0,
             notifications => 1,
             posts         => 2,
             preferences   => 1,
@@ -1615,10 +1616,9 @@ sub _export_id_race {
     return;
 }
 
-# A member with more posts than a statement binds post ids: the bodies are
-# read a batch at a time, and every post still arrives with its own body.
-# libpq refuses more than 65,535 parameters in one statement; a batch of
-# three over seven posts shows the batching without writing 65,536 posts.
+# Every post still arrives with its own body when a member has more posts
+# than the legacy body batch size. The function API binds only the member,
+# keeping the statement and parameter count independent of their post count.
 sub _export_many_posts {
     my ($ctx) = @_;
 
@@ -1647,7 +1647,7 @@ sub _export_many_posts {
     );
     is(
         scalar(
-            grep { /api[.]portability_export_parts_v2[(][?]::uuid[)]/msx }
+            grep { /api[.]portability_export_parts_v4[(][?]::uuid[)]/msx }
               @{$sent}
         ),
         1,

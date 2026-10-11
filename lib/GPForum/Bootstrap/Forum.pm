@@ -19,6 +19,7 @@ use GPForum::Service::Community::MentionReader;
 use GPForum::Service::Community::MentionStore;
 use GPForum::Service::Community::Workflow;
 use GPForum::Service::Forum::CategoryReader;
+use GPForum::Service::Forum::DraftStore;
 use GPForum::Service::Forum::HomePageReader;
 use GPForum::Service::Forum::PostComposer;
 use GPForum::Service::Forum::PostPosition;
@@ -61,6 +62,14 @@ sub register ( $, %input ) {
 
 sub _register_forum_helpers {
     my ( $application, $config ) = @_;
+
+    $application->helper(
+        gp_draft_store => sub {
+            my ($controller) = @_;
+            return GPForum::Service::Forum::DraftStore->new(
+                schema => $controller->gp_schema );
+        }
+    );
 
     $application->helper(
         gp_public_http_cache => sub {

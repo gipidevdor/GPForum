@@ -95,6 +95,17 @@ sub register ( $, %input ) {
     $routes->get('/new-thread')
       ->to('Forum#new_thread_form')
       ->name('new_thread');
+    $routes->get('/drafts')->to('Forum::Drafts#list')->name('drafts');
+    $routes->post('/drafts')->to('Forum::Drafts#save')->name('draft_save');
+    $routes->get('/drafts/:draft_id')
+      ->to('Forum::Drafts#resume')
+      ->name('draft_resume');
+    $routes->post('/drafts/:draft_id/delete')
+      ->to('Forum::Drafts#remove')
+      ->name('draft_delete');
+    $routes->post('/composer/preview')
+      ->to('Forum::Drafts#preview')
+      ->name('composer_preview');
     $routes->post('/threads')
       ->to('Forum::Write#create_thread')
       ->name('thread_create');

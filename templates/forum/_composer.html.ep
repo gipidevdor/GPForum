@@ -7,13 +7,17 @@
 %# Reads the page's "thread" and "reply_command_id"; "swap_oob" marks this
 %# copy as the one that replaces the page's.
 % my $thread_id = $thread->{thread_id};
+% my $draft = stash('composer_draft') || {};
+% my $standalone = stash('composer_standalone');
 <section class="composer" id="reply" aria-labelledby="reply-heading"<%== stash('swap_oob') ? ' hx-swap-oob="true"' : q{} %>>
   <h2 id="reply-heading"><%= t('forum.reply') %></h2>
-  <form method="post" action="<%= ui_path('reply_create', thread_id => $thread_id) %>" hx-post="<%= ui_path('reply_create', thread_id => $thread_id) %>" hx-target="#posts" hx-swap="beforeend">
+  <form data-composer method="post" action="<%= ui_path('reply_create', thread_id => $thread_id) %>"<% if (!$standalone) { %> hx-post="<%= ui_path('reply_create', thread_id => $thread_id) %>" hx-target="#posts" hx-swap="beforeend"<% } %>>
     <%= csrf_field %>
-    <input type="hidden" name="command_id" value="<%= $reply_command_id || q{} %>">
+    <input type="hidden" name="command_id" value="<%= $draft->{command_id} || $reply_command_id || q{} %>">
     <label class="visually-hidden" for="reply-body"><%= t('forum.reply_body') %></label>
-    <textarea id="reply-body" name="body_source" rows="8" required></textarea>
+    <textarea id="reply-body" name="body_source" rows="8" required><%= $draft->{body_source} // q{} %></textarea>
+    <%= include 'forum/_draft_tools', composer_kind => 'reply', composer_thread_id => $thread_id %>
     <button type="submit"><%= t('forum.post_reply') %></button>
   </form>
+  <%= include 'forum/_preview' %>
 </section>

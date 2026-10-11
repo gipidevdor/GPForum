@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="<%= ui_asset_url('gpforum-ssr.css') %>">
     <meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true},{"code":"...","swap":false}]}'>
     <script src="<%= ui_asset_url('htmx.min.js') %>" defer></script>
+    <script src="<%= ui_asset_url('composer.js') %>" defer></script>
     % my $page_metadata = stash('page_metadata') || {};
     % if ($page_metadata->{description}) {
       <meta name="description" content="<%= $page_metadata->{description} %>">

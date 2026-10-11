@@ -28,6 +28,7 @@ const my %JOB_WORDS => (
     attachments         => 'cli.jobs.name.attachments',
     dead_letters        => 'cli.jobs.name.dead_letters',
     identity_tokens     => 'cli.jobs.name.identity_tokens',
+    forum_drafts        => 'cli.jobs.name.forum_drafts',
     outbox_messages     => 'cli.jobs.name.outbox_messages',
     partitions          => 'cli.jobs.name.partitions',
     rate_limit_buckets  => 'cli.jobs.name.rate_limit_buckets',

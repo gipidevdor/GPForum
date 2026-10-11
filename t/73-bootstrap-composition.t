@@ -102,6 +102,11 @@ sub _route_names {
       bookmarks
       categories
       category
+      composer_preview
+      draft_delete
+      draft_resume
+      draft_save
+      drafts
       feed
       forum_search
       health
@@ -209,6 +214,7 @@ sub _helper_names {
       gp_dead_letter_replay
       gp_deletion_workflow
       gp_discovery_view_model
+      gp_draft_store
       gp_export_bundle_builder
       gp_feed_builder
       gp_feed_reader

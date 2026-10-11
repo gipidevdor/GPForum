@@ -18,6 +18,7 @@ starting work on any of the areas below.
 | --- | --- |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | The SSR-first modular monolith and its boundaries |
 | [architecture/](architecture) | Bootstrap, presentation, web access, per-area workflow boundaries, operational profiles, partition lifecycle, and the longevity review |
+| [architecture/composer-drafts.md](architecture/composer-drafts.md) | Private thread/reply drafts, native Save/Preview, progressive autosave, publication and retention contracts |
 | [EVENTS.md](../EVENTS.md) | Event envelope and delivery contracts |
 | [OUTBOX_LIFECYCLE.md](OUTBOX_LIFECYCLE.md) | Transactional outbox, retries, and dead letters |
 | [realtime.md](realtime.md) | Realtime as an enhancement boundary |

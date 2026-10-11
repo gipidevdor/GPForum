@@ -15,7 +15,7 @@
     summary => t('forum.new_thread_error_summary'),
     errors => $errors,
     fields => $error_fields %>
-  <form method="post" action="<%= ui_path('thread_create') %>"<%== length $form_described_by ? ' aria-describedby="' . $form_described_by . '"' : q{} %>>
+  <form data-composer method="post" action="<%= ui_path('thread_create') %>"<%== length $form_described_by ? ' aria-describedby="' . $form_described_by . '"' : q{} %>>
     <%= csrf_field %>
     <input type="hidden" name="command_id" value="<%= $command_id || q{} %>">
     <label for="<%= $category_field->{id} %>"><%= t($category_field->{label_key}) %></label>
@@ -39,6 +39,8 @@
       <option value="private"<%= $visibility_field->{value} eq 'private' ? ' selected' : '' %>><%= t('forum.visibility_private') %></option>
     </select>
     <%= include 'components/field_error', field_id => $visibility_field->{error_id}, message => $visibility_field->{error} %>
+    <%= include 'forum/_draft_tools', composer_kind => 'thread' %>
     <button type="submit"><%= t('forum.create_thread') %></button>
   </form>
+  <%= include 'forum/_preview' %>
 </section>

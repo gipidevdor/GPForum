@@ -59,6 +59,48 @@ const my @REPLY_RECORD => (
 );
 
 const my %FUNCTION => (
+    forum_draft_find => {
+        version    => 2,
+        parameters =>
+          [ owner_user_id => 'uuid', draft_id => 'uuid', now => 'timestamptz' ],
+        json => ['draft'],
+    },
+    forum_draft_list => {
+        version    => 2,
+        parameters => [ owner_user_id => 'uuid', now => 'timestamptz' ],
+        json       => ['draft'],
+    },
+    forum_draft_save => {
+        version    => 2,
+        parameters => [
+            owner_user_id  => 'uuid',
+            draft_id       => 'uuid',
+            draft_revision => 'bigint',
+            kind           => 'text',
+            category_id    => 'uuid',
+            thread_id      => 'uuid',
+            title          => 'text',
+            body_source    => 'text',
+            visibility     => 'text',
+            command_id     => 'text',
+            now            => 'timestamptz'
+        ],
+        json => ['draft'],
+    },
+    forum_draft_remove => {
+        version    => 2,
+        parameters => [
+            owner_user_id  => 'uuid',
+            draft_id       => 'uuid',
+            draft_revision => 'bigint',
+            now            => 'timestamptz'
+        ],
+        json => ['draft'],
+    },
+    forum_draft_purge => {
+        version    => 2,
+        parameters => [ now => 'timestamptz', row_limit => 'integer' ],
+    },
     ops_doctor_outbox => {
         version    => 2,
         parameters => [],
@@ -187,7 +229,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 2,
+        version    => 4,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -218,7 +260,7 @@ const my %FUNCTION => (
     },
     plugin_hooks => { version => 2, parameters => [ hook_name => 'text' ] },
     portability_export_parts => {
-        version    => 2,
+        version    => 4,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -1031,13 +1073,15 @@ const my %FUNCTION => (
         json => ['stored'],
     },
     forum_write_command => {
-        version    => 2,
+        version    => 4,
         parameters => [
-            log        => 'jsonb',
-            answer     => 'jsonb',
-            store_type => 'text',
-            command    => 'jsonb',
-            record     => 'jsonb'
+            log            => 'jsonb',
+            answer         => 'jsonb',
+            store_type     => 'text',
+            command        => 'jsonb',
+            record         => 'jsonb',
+            draft_id       => 'uuid',
+            draft_revision => 'bigint',
         ],
         json => [qw(response stored)],
     },
@@ -1129,7 +1173,7 @@ const my %FUNCTION => (
         ],
     },
     forum_create_reply => {
-        version    => 2,
+        version    => 4,
         parameters => [
             idempotency_key        => 'text',
             command_type           => 'text',
@@ -1142,6 +1186,8 @@ const my %FUNCTION => (
             store_refusals         => 'jsonb',
             @REPLY_COMMAND,
             @REPLY_RECORD,
+            draft_id       => 'uuid',
+            draft_revision => 'bigint',
         ],
         json => ['response'],
     },

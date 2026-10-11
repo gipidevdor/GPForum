@@ -42,6 +42,26 @@ Controllers use this contract to map workflow outcomes to redirects, SSR form
 errors, or JSON responses. The workflow never performs HTTP rendering and never
 duplicates persistence logic owned by stores.
 
+## Unpublished composer drafts
+
+Draft source, title, target and account identifiers are private personal data
+used to restore unpublished work. Member exports include the requester's
+unexpired drafts under `drafts`, with a manifest count; internal save-retry
+bookkeeping is excluded. Erasure deletes every owned draft through the versioned
+`privacy_revoke_user` operation with source `ForumDraft`, within the existing
+deletion/retention-hold workflow. Drafts are removed rather than anonymized as
+published conversation content.
+
+Drafts expire 30 days after their last stored save, including unchanged content
+saved at the current revision. An exact retry of a previous save does not renew
+expiry. List/resume/export omit
+expired drafts immediately, and the hourly `forum_drafts` scheduled job deletes
+them in bounded batches, 100 by default. Each owner can keep at most 100 live
+drafts and can delete one manually using its current revision. Backup retention
+remains an operator policy separate from application deletion. The complete
+contract is in [composer-drafts.md](composer-drafts.md) and
+[ADR 0128](../adr/0128-private-composer-drafts-and-canonical-preview.md).
+
 HTTP errors go through `GPForum::Web::Guard`, which renders existing
 `ErrorPayload` contracts via `Responder`. Page limits, the `privacy_http`
 write rate-limit hash, permission-target hashes, catalog `view` action,

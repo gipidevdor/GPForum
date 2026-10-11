@@ -25,7 +25,8 @@ our $VERSION = '0.001';
 # of public written with their schema, and a transactional migration that
 # sets lock_timeout. A function the catalogue calls is created by a
 # migration and never dropped.
-const my $FIRST_API_MIGRATION => '052';
+const my $FIRST_API_MIGRATION  => '052';
+const my $DRAFT_ARGUMENT_COUNT => 2;
 const my @AREAS => qw(
   admin attachment community core forum identity moderation notification ops
   outbox partition portability privacy projection search session worker plugin
@@ -35,7 +36,10 @@ const my $WORD   => qr/[[:lower:]] [[:lower:][:digit:]_]*/msx;
 const my $SUFFIX => qr/_v [1-9] [[:digit:]]*/msx;
 const my $NAME   => qr/\A (?:$AREA) _ $WORD $SUFFIX \z/msx;
 const my $CREATE => qr/CREATE \s+ (?<replace>OR \s+ REPLACE \s+)? FUNCTION/imsx;
-const my $OPENING  => qr/$CREATE \s+ api [.] (?<name>\w+) \s* [(]/imsx;
+const my $CREATE_TABLE  => qr/CREATE \s+ TABLE \s+/imsx;
+const my $IF_NOT_EXISTS => qr/IF \s+ NOT \s+ EXISTS \s+/imsx;
+const my $TABLE_NAME    => qr/(?:public[.])? (\w+)/imsx;
+const my $OPENING       => qr/$CREATE \s+ api [.] (?<name>\w+) \s* [(]/imsx;
 const my $QUOTED   => qr/(?<quote> [\$] \w* [\$] ) (?<body> .*? ) \k<quote>/msx;
 const my $FUNCTION => qr/$OPENING (?<head> .*? ) AS \s+ $QUOTED [^;]* ;/imsx;
 const my $REVOKE => qr/REVOKE \s+ EXECUTE \s+ ON \s+ FUNCTION \s+ api [.]/imsx;
@@ -49,8 +53,12 @@ const my $DROP =>
 const my @RETAINED_SEARCH_VERSIONS => ( 2, 4 );
 const my $CURRENT_SEARCH_VERSION   => 6;
 const my %RETAINED_BOUNDARIES => (
-    search_ranked       => [@RETAINED_SEARCH_VERSIONS],
-    search_autocomplete => [@RETAINED_SEARCH_VERSIONS],
+    search_ranked            => [@RETAINED_SEARCH_VERSIONS],
+    search_autocomplete      => [@RETAINED_SEARCH_VERSIONS],
+    forum_write_command      => [2],
+    forum_create_reply       => [2],
+    portability_export_parts => [2],
+    privacy_revoke_user      => [2],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
@@ -64,9 +72,18 @@ for my $name ( @{ $catalogue->names } ) {
       ? $RETAINED_BOUNDARIES{$name}
       : [];
     for my $version ( $entry->{version}, @{$retained} ) {
+        my @names = @{ $entry->{names} };
+        if (
+            $version == 2
+            && (   $name eq 'forum_write_command'
+                || $name eq 'forum_create_reply' )
+          )
+        {
+            splice @names, -$DRAFT_ARGUMENT_COUNT;
+        }
         $boundaries{"${name}_v$version"} = {
             implementation => $name . '_v' . ( $version - 1 ),
-            arguments => join( q{, }, map { "p_$_" } @{ $entry->{names} } ),
+            arguments      => join( q{, }, map { "p_$_" } @names ),
         };
     }
 }
@@ -230,9 +247,7 @@ sub _tables {
     my %table;
     for my $file ( glob 'migrations/[0-9]*_*.sql' ) {
         my $sql = path($file)->slurp;
-        while ( $sql =~
-            /CREATE \s+ TABLE \s+ (?:IF \s+ NOT \s+ EXISTS \s+)? (\w+)/gimsx )
-        {
+        while ( $sql =~ /$CREATE_TABLE (?:$IF_NOT_EXISTS)? $TABLE_NAME/gimsx ) {
             $table{ lc $1 } = 1;
         }
     }

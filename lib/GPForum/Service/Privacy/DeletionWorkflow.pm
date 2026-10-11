@@ -702,6 +702,9 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
             $self->erasure->user_values( $user_id, $timestamp ) );
     }
     $self->_revoke_user_rows( 'Session', $user_id, $timestamp );
+    if ( $self->functions ) {
+        $self->_revoke_user_rows( 'ForumDraft', $user_id, $timestamp );
+    }
 
     return $self->erasure->result( $user_id, $already );
 }

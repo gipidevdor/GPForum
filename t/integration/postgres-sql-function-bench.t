@@ -135,7 +135,7 @@ $check->disconnect;
 
 done_testing();
 
-sub _broken_catalogue () {
+sub _broken_catalogue {
     return <<'PERL';
 open STDERR, '>&', STDOUT or die $!;
 require GPForum::Infrastructure::SqlFunctionCatalogue;

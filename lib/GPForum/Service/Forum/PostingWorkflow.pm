@@ -10,6 +10,8 @@ use v5.40;
 use GPForum::Domain::Post;
 use GPForum::Domain::Thread;
 use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::ResultRow::Post;
+use GPForum::Infrastructure::ResultRow::Thread;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::PostingCommand;
 use GPForum::Service::Operations::CommandIdempotency;
@@ -486,12 +488,32 @@ sub _thread_checked ( $self, $input, $rule ) {
 # The post, its thread as the author reads it, and the refusal of a
 # GPForum::Domain::Post rule for them as a result, or undef.
 sub _post_checked ( $self, $input, $rule ) {
-    my $post = $self->post_reader->find_post( $input->{post_id} );
-    my $thread =
-      $post
-      ? $self->thread_detail_reader->find_thread( _column( $post, 'thread_id' ),
-        _viewer($input) )
-      : undef;
+    my ( $post, $thread );
+    if ( my $functions = $self->functions ) {
+        my $id = $input->{post_id};
+        my $context =
+          defined $id && length $id
+          ? $functions->row( 'forum_post_context', { post_id => $id } )
+          : undef;
+        $context ||= {};
+        $post =
+          GPForum::Infrastructure::ResultRow::Post->from( $context->{post} );
+        $thread = $self->thread_detail_reader->visible_thread_row(
+            GPForum::Infrastructure::ResultRow::Thread->from(
+                $context->{thread}
+            ),
+            _viewer($input),
+        );
+    }
+    else {
+        $post = $self->post_reader->find_post( $input->{post_id} );
+        $thread =
+          $post
+          ? $self->thread_detail_reader->find_thread(
+            _column( $post, 'thread_id' ),
+            _viewer($input) )
+          : undef;
+    }
 
     return (
         $post,

@@ -20,7 +20,8 @@ our $VERSION = '0.001';
 # from migration 052 on: a version suffix and an area, CREATE FUNCTION and
 # never CREATE OR REPLACE (a shipped version never changes under the
 # previous release's workers), a pinned search_path and plan mode, the
-# invoker's rights, EXECUTE revoked from PUBLIC, no dynamic SQL, the tables
+# invoker implementations and narrow definer boundaries, EXECUTE revoked
+# from PUBLIC, no dynamic SQL, the tables
 # of public written with their schema, and a transactional migration that
 # sets lock_timeout. A function the catalogue calls is created by a
 # migration and never dropped.
@@ -45,10 +46,28 @@ const my $PLAN_MODE =>
   qr/SET \s+ plan_cache_mode \s* = \s* force_(?:generic|custom)_plan/imsx;
 const my $DROP =>
   qr/DROP \s+ FUNCTION \s+ (?:IF \s+ EXISTS \s+)? (?<dropped>api [.] \w+)/imsx;
+const my %RETAINED_BOUNDARIES => (
+    search_ranked       => [2],
+    search_autocomplete => [2],
+);
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
 my %catalogued =
   map { $catalogue->function($_)->{function} => 1 } @{ $catalogue->names };
+my %boundaries;
+for my $name ( @{ $catalogue->names } ) {
+    my $entry = $catalogue->function($name);
+    my $retained =
+      exists $RETAINED_BOUNDARIES{$name}
+      ? $RETAINED_BOUNDARIES{$name}
+      : [];
+    for my $version ( $entry->{version}, @{$retained} ) {
+        $boundaries{"${name}_v$version"} = {
+            implementation => $name . '_v' . ( $version - 1 ),
+            arguments => join( q{, }, map { "p_$_" } @{ $entry->{names} } ),
+        };
+    }
+}
 my @tables = _tables();
 
 subtest 'the rules see what they are written for' => sub {
@@ -75,6 +94,42 @@ subtest 'the rules see what they are written for' => sub {
         'each rule, once'
     );
     is_deeply( $created, ['api.forum_lookup'], 'and the function is seen' );
+};
+
+subtest 'only registered typed boundaries gain owner rights' => sub {
+    my $head = 'LANGUAGE sql SECURITY DEFINER';
+    for my $version ( 2, 4 ) {
+        my $boundary = $boundaries{"search_ranked_v$version"};
+        my $call =
+            'SELECT * FROM api.'
+          . $boundary->{implementation} . '('
+          . $boundary->{arguments} . ');';
+        ok(
+            _boundary( "search_ranked_v$version", $head, $call ),
+            "registered v$version forwards all typed arguments"
+        );
+        ok( !_boundary( "search_ranked_v$version", $head, "$call SELECT 1;" ),
+            'extra SQL is refused' );
+        my $other = $call =~ s/search_ranked/search_autocomplete/rmsx;
+        ok( !_boundary( "search_ranked_v$version", $head, $other ),
+            'a different implementation is refused' );
+        my $missing = $call =~ s/p_permission_mode,\s*//rmsx;
+        ok( !_boundary( "search_ranked_v$version", $head, $missing ),
+            'dropping a typed argument is refused' );
+    }
+    ok(
+        !_boundary(
+            'search_ranked_v6', $head,
+            'SELECT * FROM api.search_ranked_v5();'
+        ),
+        'an unregistered future version is refused'
+    );
+    ok(
+        !_boundary(
+            'core_helper_v2', $head, 'SELECT * FROM api.core_helper_v1();'
+        ),
+        'helpers cannot gain owner rights'
+    );
 };
 
 my ( @problems, %created );
@@ -152,16 +207,16 @@ sub _function_problems ( $label, $function, $code ) {
 # ADR 0127 allows only a typed, versioned forwarding boundary to acquire
 # the owner's rights; helper bodies and arbitrary SQL remain INVOKER.
 sub _boundary ( $name, $head, $body ) {
-    return 0 if $name =~ /\A core_/msx || $name !~ /_v2\z/msx;
-    return 0 if !$catalogued{"api.$name"};
+    return 0 if $name =~ /\A core_/msx || !exists $boundaries{$name};
     return 0 if $head !~ /LANGUAGE\s+sql\b/imsx;
-    my $implementation = $name =~ s/_v2\z/_v1/rmsx;
-    my $argument       = qr/p_\w+\s*/msx;
-    my $arguments      = qr/(?:$argument(?:,\s*$argument)*)?/msx;
+    my $boundary       = $boundaries{$name};
+    my $implementation = $boundary->{implementation};
+    my $arguments      = join q{\s*,\s*},
+      map { quotemeta } split /,\s*/msx, $boundary->{arguments};
     my $opening =
       qr/\A\s*SELECT\s+[*]\s+FROM\s+api[.]\Q$implementation\E\s*[(]\s*/imsx;
     my $closing = qr/[)]\s*;?\s*\z/msx;
-    return $body =~ /$opening$arguments$closing/imsx
+    return $body =~ /$opening$arguments\s*$closing/imsx
       ? 1
       : 0;
 }

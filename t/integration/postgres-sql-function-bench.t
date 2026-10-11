@@ -60,6 +60,8 @@ for my $operation (@OPERATIONS) {
 is( $report->{operations}{reply}{function}{direct}{round_trips},
     2,
     'a reply through its function is two round trips: the head and the call' );
+is( $report->{operations}{post_edit}{function}{direct}{round_trips},
+    2, 'editing reads the combined context and then calls the atomic write' );
 cmp_ok(
     $report->{operations}{reply}{dbic}{direct}{round_trips},
     q{>},

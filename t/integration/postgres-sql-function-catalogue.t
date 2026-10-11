@@ -16,8 +16,14 @@ use GPForum::Test::PgDatabase;
 
 our $VERSION = '0.001';
 
-# Versions a later release drops (ADR 0126, section 2): none yet.
-const my %RETIRED => ();
+# Shipped search versions remain installed during an upgrade (ADR 0126,
+# section 2). The runtime role receives only the current catalogue versions.
+const my %RETAINED => (
+    search_ranked_v1       => 0,
+    search_ranked_v2       => 1,
+    search_autocomplete_v1 => 0,
+    search_autocomplete_v2 => 1,
+);
 
 const my $FUNCTIONS_SQL => join q{ },
   'SELECT p.proname AS name,',
@@ -36,10 +42,11 @@ if ( !GPForum::Test::PgDatabase->admin_dsn ) {
 # calls, its version and its parameters; the database the migrations made
 # must have each, with those parameters in that order, and nothing in api
 # that the catalogue does not call, apart from the core_ helpers the
-# functions share and the versions a later release drops. Sections 1 and 7:
+# functions share and explicitly retained older versions. Sections 1 and 7:
 # api holds functions and row types only, and neither it nor any of its
-# functions is open to PUBLIC; every function runs with its caller's rights
-# and pins its search_path and its plan mode.
+# functions is open to PUBLIC; implementations run with their caller's
+# rights, only API boundaries acquire owner rights, and all functions pin
+# their search_path and plan mode.
 my $database  = GPForum::Test::PgDatabase->fresh;
 my $dbh       = $database->dbh;
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
@@ -68,19 +75,23 @@ my %called =
   map {
     ( $catalogue->function($_)->{function} =~ /\A api [.] (\w+)/msx )[0] => 1
   } @{ $catalogue->names };
-my %implementations = map { (s/_v2\z/_v1/rmsx) => 1 } keys %called;
+my %implementations = map {
+    my $entry = $catalogue->function($_);
+    $_ . '_v' . ( $entry->{version} - 1 ) => 1
+} @{ $catalogue->names };
 for my $name ( sort keys %function ) {
     ok(
         $called{$name}
           || $implementations{$name}
           || $name =~ /\A core_/msx
-          || exists $RETIRED{$name},
+          || exists $RETAINED{$name},
         "api.$name is called, shared or retiring"
     );
     my $found = $function{$name};
     is(
         $found->{definer} ? 1 : 0,
-        $called{$name}    ? 1 : 0,
+        $called{$name}
+          || ( exists $RETAINED{$name} && $RETAINED{$name} ) ? 1 : 0,
         "api.$name acquires owner rights only at the public entry point"
     );
     my %config = map { split /=/msx, $_, 2 } @{ $found->{config} // [] };

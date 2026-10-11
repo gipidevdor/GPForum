@@ -533,6 +533,1135 @@
     "path": "docs/architecture/evidence/sql-functions-2026-10-11-custom-plan-validation.json",
     "sha256": "1a28fd2aa61830930afc875535e676b9874cee2658c8f4a6804e2284d0684837"
   },
+  "published_ci": {
+    "captured_at_utc": "2026-10-11T15:18:46.421914+00:00",
+    "code_equivalence": [
+      {
+        "byte_identical": true,
+        "bytes": 39743,
+        "path": "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm",
+        "sha256": "d8d563977f143baa4e9676d5c9f4b4dbf55c6f6076263c6268ff131fc459c8d2"
+      },
+      {
+        "byte_identical": true,
+        "bytes": 11194,
+        "path": "migrations/102_search_custom_plans.sql",
+        "sha256": "47a6450a8cb57a339e855b3072eff10bf6c8e187d38b5189c0785a7203cc053f"
+      },
+      {
+        "byte_identical": true,
+        "bytes": 38453,
+        "path": "script/bench-sql-functions",
+        "sha256": "d38f897f6bf27dbff734b24a5e00748632e562ca2db544e12a59ca926a777df2"
+      },
+      {
+        "byte_identical": true,
+        "bytes": 9397,
+        "path": "t/641-sql-function-migrations.t",
+        "sha256": "f9fe0d903ac6ca652aa3f090291bf96f42b3613ee79fe567733b59c87a1e7362"
+      },
+      {
+        "byte_identical": true,
+        "bytes": 25249,
+        "path": "t/integration/postgres-search-optimization.t",
+        "sha256": "fa63deaadecfa03255c36e37e4347f42905ca84c0c6c8fcecc8cf1f6e4a2405a"
+      },
+      {
+        "byte_identical": true,
+        "bytes": 10628,
+        "path": "t/integration/postgres-sql-function-bench.t",
+        "sha256": "348e4402c6a580f17ceffc8ae557cc869b3f7a2eb9e823ded81ee4a9c69349b1"
+      },
+      {
+        "byte_identical": true,
+        "bytes": 4954,
+        "path": "t/integration/postgres-sql-function-catalogue.t",
+        "sha256": "5ded6474eae90f1767f76064213e39e219bd442209729ba664adbe9466a7d5cc"
+      }
+    ],
+    "measured_code_commit": "2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96",
+    "method": "Read-only GitHub connector workflow/job snapshots; large job logs downloaded with GitHub CLI because connector transport cannot retain these large logs.",
+    "postgresql_jobs": [
+      {
+        "conclusion": "success",
+        "html_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38149645006/job/114500231331",
+        "id": 114500231331,
+        "integration": {
+          "assertions": 10482,
+          "files": 97,
+          "result": "PASS",
+          "result_timestamp_utc": "2026-10-11T15:06:21.5146396Z",
+          "skipped_files": [
+            "t/integration/clamav.t .................................... skipped: set GPFORUM_CLAMD_SOCKET to run against a real clamd",
+            "t/integration/postgres-replication-standby.t .............. skipped: PostgreSQL server tools not on PATH: initdb pg_ctl"
+          ],
+          "summary_line": "Files=97, Tests=10482, 158 wallclock secs",
+          "wallclock_seconds": 158
+        },
+        "logs_url": null,
+        "migration_apply_reapply": [
+          {
+            "line": 1004,
+            "text": "2026-10-11T15:03:41.7414214Z 74 migrations to apply, 001 to 102:"
+          },
+          {
+            "line": 1078,
+            "text": "2026-10-11T15:03:41.7444991Z   102 search custom plans"
+          },
+          {
+            "line": 1090,
+            "text": "2026-10-11T15:03:42.2673317Z Applied 74 migrations, 001 to 102; synced the query budgets (25 changed)."
+          },
+          {
+            "line": 1099,
+            "text": "2026-10-11T15:03:42.2794956Z echo 'ok: second --apply applied nothing'"
+          },
+          {
+            "line": 1108,
+            "text": "2026-10-11T15:03:42.5873290Z ok: second --apply applied nothing"
+          }
+        ],
+        "migration_drill": {
+          "evidence": {
+            "attachments": {
+              "covered": false,
+              "limitation": "pg_dump/pg_restore covers PostgreSQL only. Attachment blobs under var/attachments (FilesystemStorage) are not dumped or restored by this drill. Rehearse populated var/attachments blob restore with script/staging-drill-attachments; back up live operator trees separately.",
+              "storage_backend": "filesystem",
+              "storage_root": "var/attachments"
+            },
+            "check": "staging_drill",
+            "databases_dropped": [
+              "gpforum_drill_7320_1791731182_restore",
+              "gpforum_drill_7320_1791731182_upgrade",
+              "gpforum_drill_7320_1791731182_fresh"
+            ],
+            "dump_restore": {
+              "restore_database": "gpforum_drill_7320_1791731182_restore",
+              "schema_versions": 74,
+              "source_database": "gpforum_drill_7320_1791731182_fresh",
+              "status": "pass",
+              "threads": 12,
+              "users": 5
+            },
+            "fresh_migrate": {
+              "database": "gpforum_drill_7320_1791731182_fresh",
+              "expected_migrations": 74,
+              "schema_versions": 74,
+              "second_apply_delta": 0,
+              "status": "pass"
+            },
+            "private_beta_claimed": 0,
+            "residual_gaps": [
+              "Live Hypnotoad/TLS host bring-up remains manual; run script/staging-drill-attachments for nginx/systemd template checks (static plus host verify/-t when tools exist) and populated var/attachments restore.",
+              "This drill does not claim private-beta readiness."
+            ],
+            "secrets_redacted": true,
+            "seed_profile": "small",
+            "status": "pass",
+            "upgrade_path": {
+              "database": "gpforum_drill_7320_1791731182_upgrade",
+              "expected_migrations": 74,
+              "from_version": "101",
+              "schema_versions_after": 74,
+              "schema_versions_before": 73,
+              "status": "pass",
+              "to_version": "102"
+            }
+          },
+          "timestamp_utc": "2026-10-11T15:06:23.7455197Z",
+          "validation": "pass"
+        },
+        "name": "PostgreSQL 17",
+        "run_id": 38149645006,
+        "search_differential": {
+          "assertions": 861,
+          "file": "t/integration/postgres-search-optimization.t",
+          "result": "PASS",
+          "selected_assertions": [
+            {
+              "line": 4775,
+              "text": "2026-10-11T15:05:10.1103677Z # retained v2 normal candidate scan: Bitmap Heap Scan, index=none, rows=20000, loops=1"
+            },
+            {
+              "line": 4776,
+              "text": "2026-10-11T15:05:10.9567276Z # retained v4 normal candidate scan: Bitmap Heap Scan, index=none, rows=20000, loops=1"
+            },
+            {
+              "line": 5604,
+              "text": "2026-10-11T15:05:11.5884190Z ok 827 - common search retains the newest-first index"
+            },
+            {
+              "line": 5605,
+              "text": "2026-10-11T15:05:11.5884396Z ok 828 - the common scan stops at the candidate boundary"
+            },
+            {
+              "line": 5606,
+              "text": "2026-10-11T15:05:11.5884616Z ok 829 - ranking processes exactly the capped common candidates"
+            },
+            {
+              "line": 5607,
+              "text": "2026-10-11T15:05:11.5884847Z ok 830 - the narrow page is limited before payload joins"
+            },
+            {
+              "line": 5608,
+              "text": "2026-10-11T15:05:11.5885045Z ok 831 - the final page has one payload lookup"
+            },
+            {
+              "line": 5609,
+              "text": "2026-10-11T15:05:11.5885251Z ok 832 - payload rows are loaded only after the result limit"
+            },
+            {
+              "line": 5616,
+              "text": "2026-10-11T15:05:11.5886649Z ok 839 - rare search keeps its GIN match path"
+            },
+            {
+              "line": 5617,
+              "text": "2026-10-11T15:05:11.5886860Z ok 840 - the restricted runtime login calls ranked v6 transitively"
+            },
+            {
+              "line": 5618,
+              "text": "2026-10-11T15:05:11.5887108Z ok 841 - the restricted runtime login calls autocomplete v6 transitively"
+            },
+            {
+              "line": 5619,
+              "text": "2026-10-11T15:05:11.5887382Z ok 842 - api.search_ranked_v1 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5620,
+              "text": "2026-10-11T15:05:11.5887634Z ok 843 - api.search_ranked_v1 direct runtime call is denied"
+            },
+            {
+              "line": 5621,
+              "text": "2026-10-11T15:05:11.5887891Z ok 844 - api.search_autocomplete_v1 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5622,
+              "text": "2026-10-11T15:05:11.5888165Z ok 845 - api.search_autocomplete_v1 direct runtime call is denied"
+            },
+            {
+              "line": 5623,
+              "text": "2026-10-11T15:05:11.5888423Z ok 846 - api.search_ranked_v2 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5624,
+              "text": "2026-10-11T15:05:11.5888672Z ok 847 - api.search_ranked_v2 direct runtime call is denied"
+            },
+            {
+              "line": 5625,
+              "text": "2026-10-11T15:05:11.5888925Z ok 848 - api.search_autocomplete_v2 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5626,
+              "text": "2026-10-11T15:05:11.5889190Z ok 849 - api.search_autocomplete_v2 direct runtime call is denied"
+            },
+            {
+              "line": 5627,
+              "text": "2026-10-11T15:05:11.5889446Z ok 850 - api.search_ranked_v3 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5628,
+              "text": "2026-10-11T15:05:11.5889692Z ok 851 - api.search_ranked_v3 direct runtime call is denied"
+            },
+            {
+              "line": 5629,
+              "text": "2026-10-11T15:05:11.5889948Z ok 852 - api.search_autocomplete_v3 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5630,
+              "text": "2026-10-11T15:05:11.5890217Z ok 853 - api.search_autocomplete_v3 direct runtime call is denied"
+            },
+            {
+              "line": 5631,
+              "text": "2026-10-11T15:05:11.5890470Z ok 854 - api.search_ranked_v4 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5632,
+              "text": "2026-10-11T15:05:11.5890718Z ok 855 - api.search_ranked_v4 direct runtime call is denied"
+            },
+            {
+              "line": 5633,
+              "text": "2026-10-11T15:05:11.5890971Z ok 856 - api.search_autocomplete_v4 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5634,
+              "text": "2026-10-11T15:05:11.5891240Z ok 857 - api.search_autocomplete_v4 direct runtime call is denied"
+            },
+            {
+              "line": 5635,
+              "text": "2026-10-11T15:05:11.5891491Z ok 858 - api.search_ranked_v5 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5636,
+              "text": "2026-10-11T15:05:11.5891738Z ok 859 - api.search_ranked_v5 direct runtime call is denied"
+            },
+            {
+              "line": 5637,
+              "text": "2026-10-11T15:05:11.5891992Z ok 860 - api.search_autocomplete_v5 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5638,
+              "text": "2026-10-11T15:05:11.5892333Z ok 861 - api.search_autocomplete_v5 direct runtime call is denied"
+            }
+          ],
+          "source_log_first_line": 4777,
+          "source_log_last_line": 5640
+        },
+        "server_version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "source_log": {
+          "bytes": 12707165,
+          "lines": 143551,
+          "path": "/tmp/gpforum-v6-main-pg17-38149645006.log",
+          "sha256": "daf6fb4b1f353f342e3dff17ddb8f3fe896306aa05ef36c77709fc2c74175fce"
+        },
+        "status": "completed",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Initialize containers",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Set up GPForum",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Report server version",
+            "number": 5,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Print migration plan",
+            "number": 6,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Apply database migrations",
+            "number": 7,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Re-apply migrations is a no-op",
+            "number": 8,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Seed production evidence dataset",
+            "number": 9,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run PostgreSQL integration tier",
+            "number": 10,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run platform check",
+            "number": 11,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run fresh/upgrade/dump-restore migration drill",
+            "number": 12,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Validate drill evidence",
+            "number": 13,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Upload drill evidence",
+            "number": 14,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Set up GPForum",
+            "number": 26,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 27,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Stop containers",
+            "number": 28,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 29,
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "conclusion": "success",
+        "html_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38149645006/job/114500231387",
+        "id": 114500231387,
+        "integration": {
+          "assertions": 10482,
+          "files": 97,
+          "result": "PASS",
+          "result_timestamp_utc": "2026-10-11T15:08:18.5361890Z",
+          "skipped_files": [
+            "t/integration/clamav.t .................................... skipped: set GPFORUM_CLAMD_SOCKET to run against a real clamd",
+            "t/integration/postgres-replication-standby.t .............. skipped: PostgreSQL server tools not on PATH: initdb pg_ctl"
+          ],
+          "summary_line": "Files=97, Tests=10482, 253 wallclock secs",
+          "wallclock_seconds": 253
+        },
+        "logs_url": null,
+        "migration_apply_reapply": [
+          {
+            "line": 1004,
+            "text": "2026-10-11T15:04:03.0930620Z 74 migrations to apply, 001 to 102:"
+          },
+          {
+            "line": 1078,
+            "text": "2026-10-11T15:04:03.0981739Z   102 search custom plans"
+          },
+          {
+            "line": 1090,
+            "text": "2026-10-11T15:04:04.1869982Z Applied 74 migrations, 001 to 102; synced the query budgets (25 changed)."
+          },
+          {
+            "line": 1099,
+            "text": "2026-10-11T15:04:04.2016478Z echo 'ok: second --apply applied nothing'"
+          },
+          {
+            "line": 1108,
+            "text": "2026-10-11T15:04:04.7364012Z ok: second --apply applied nothing"
+          }
+        ],
+        "migration_drill": {
+          "evidence": {
+            "attachments": {
+              "covered": false,
+              "limitation": "pg_dump/pg_restore covers PostgreSQL only. Attachment blobs under var/attachments (FilesystemStorage) are not dumped or restored by this drill. Rehearse populated var/attachments blob restore with script/staging-drill-attachments; back up live operator trees separately.",
+              "storage_backend": "filesystem",
+              "storage_root": "var/attachments"
+            },
+            "check": "staging_drill",
+            "databases_dropped": [
+              "gpforum_drill_7817_1791731301_restore",
+              "gpforum_drill_7817_1791731300_upgrade",
+              "gpforum_drill_7817_1791731299_fresh"
+            ],
+            "dump_restore": {
+              "restore_database": "gpforum_drill_7817_1791731301_restore",
+              "schema_versions": 74,
+              "source_database": "gpforum_drill_7817_1791731299_fresh",
+              "status": "pass",
+              "threads": 12,
+              "users": 5
+            },
+            "fresh_migrate": {
+              "database": "gpforum_drill_7817_1791731299_fresh",
+              "expected_migrations": 74,
+              "schema_versions": 74,
+              "second_apply_delta": 0,
+              "status": "pass"
+            },
+            "private_beta_claimed": 0,
+            "residual_gaps": [
+              "Live Hypnotoad/TLS host bring-up remains manual; run script/staging-drill-attachments for nginx/systemd template checks (static plus host verify/-t when tools exist) and populated var/attachments restore.",
+              "This drill does not claim private-beta readiness."
+            ],
+            "secrets_redacted": true,
+            "seed_profile": "small",
+            "status": "pass",
+            "upgrade_path": {
+              "database": "gpforum_drill_7817_1791731300_upgrade",
+              "expected_migrations": 74,
+              "from_version": "101",
+              "schema_versions_after": 74,
+              "schema_versions_before": 73,
+              "status": "pass",
+              "to_version": "102"
+            }
+          },
+          "timestamp_utc": "2026-10-11T15:08:22.2431070Z",
+          "validation": "pass"
+        },
+        "name": "PostgreSQL 16",
+        "run_id": 38149645006,
+        "search_differential": {
+          "assertions": 861,
+          "file": "t/integration/postgres-search-optimization.t",
+          "result": "PASS",
+          "selected_assertions": [
+            {
+              "line": 4775,
+              "text": "2026-10-11T15:06:24.2920947Z # retained v2 normal candidate scan: Bitmap Heap Scan, index=none, rows=20000, loops=1"
+            },
+            {
+              "line": 4776,
+              "text": "2026-10-11T15:06:25.6436973Z # retained v4 normal candidate scan: Bitmap Heap Scan, index=none, rows=20000, loops=1"
+            },
+            {
+              "line": 5604,
+              "text": "2026-10-11T15:06:27.4057485Z ok 827 - common search retains the newest-first index"
+            },
+            {
+              "line": 5605,
+              "text": "2026-10-11T15:06:27.4057834Z ok 828 - the common scan stops at the candidate boundary"
+            },
+            {
+              "line": 5606,
+              "text": "2026-10-11T15:06:27.4058219Z ok 829 - ranking processes exactly the capped common candidates"
+            },
+            {
+              "line": 5607,
+              "text": "2026-10-11T15:06:27.4058613Z ok 830 - the narrow page is limited before payload joins"
+            },
+            {
+              "line": 5608,
+              "text": "2026-10-11T15:06:27.4058950Z ok 831 - the final page has one payload lookup"
+            },
+            {
+              "line": 5609,
+              "text": "2026-10-11T15:06:27.4059305Z ok 832 - payload rows are loaded only after the result limit"
+            },
+            {
+              "line": 5616,
+              "text": "2026-10-11T15:06:27.4061736Z ok 839 - rare search keeps its GIN match path"
+            },
+            {
+              "line": 5617,
+              "text": "2026-10-11T15:06:27.4062102Z ok 840 - the restricted runtime login calls ranked v6 transitively"
+            },
+            {
+              "line": 5618,
+              "text": "2026-10-11T15:06:27.4062875Z ok 841 - the restricted runtime login calls autocomplete v6 transitively"
+            },
+            {
+              "line": 5619,
+              "text": "2026-10-11T15:06:27.4063369Z ok 842 - api.search_ranked_v1 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5620,
+              "text": "2026-10-11T15:06:27.4063812Z ok 843 - api.search_ranked_v1 direct runtime call is denied"
+            },
+            {
+              "line": 5621,
+              "text": "2026-10-11T15:06:27.4064274Z ok 844 - api.search_autocomplete_v1 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5622,
+              "text": "2026-10-11T15:06:27.4064759Z ok 845 - api.search_autocomplete_v1 direct runtime call is denied"
+            },
+            {
+              "line": 5623,
+              "text": "2026-10-11T15:06:27.4065242Z ok 846 - api.search_ranked_v2 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5624,
+              "text": "2026-10-11T15:06:27.4065674Z ok 847 - api.search_ranked_v2 direct runtime call is denied"
+            },
+            {
+              "line": 5625,
+              "text": "2026-10-11T15:06:27.4066120Z ok 848 - api.search_autocomplete_v2 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5626,
+              "text": "2026-10-11T15:06:27.4066594Z ok 849 - api.search_autocomplete_v2 direct runtime call is denied"
+            },
+            {
+              "line": 5627,
+              "text": "2026-10-11T15:06:27.4067035Z ok 850 - api.search_ranked_v3 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5628,
+              "text": "2026-10-11T15:06:27.4067461Z ok 851 - api.search_ranked_v3 direct runtime call is denied"
+            },
+            {
+              "line": 5629,
+              "text": "2026-10-11T15:06:27.4067897Z ok 852 - api.search_autocomplete_v3 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5630,
+              "text": "2026-10-11T15:06:27.4068355Z ok 853 - api.search_autocomplete_v3 direct runtime call is denied"
+            },
+            {
+              "line": 5631,
+              "text": "2026-10-11T15:06:27.4068833Z ok 854 - api.search_ranked_v4 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5632,
+              "text": "2026-10-11T15:06:27.4069257Z ok 855 - api.search_ranked_v4 direct runtime call is denied"
+            },
+            {
+              "line": 5633,
+              "text": "2026-10-11T15:06:27.4069690Z ok 856 - api.search_autocomplete_v4 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5634,
+              "text": "2026-10-11T15:06:27.4070148Z ok 857 - api.search_autocomplete_v4 direct runtime call is denied"
+            },
+            {
+              "line": 5635,
+              "text": "2026-10-11T15:06:27.4070584Z ok 858 - api.search_ranked_v5 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5636,
+              "text": "2026-10-11T15:06:27.4071013Z ok 859 - api.search_ranked_v5 direct runtime call is denied"
+            },
+            {
+              "line": 5637,
+              "text": "2026-10-11T15:06:27.4071449Z ok 860 - api.search_autocomplete_v5 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5638,
+              "text": "2026-10-11T15:06:27.4071918Z ok 861 - api.search_autocomplete_v5 direct runtime call is denied"
+            }
+          ],
+          "source_log_first_line": 4777,
+          "source_log_last_line": 5640
+        },
+        "server_version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "source_log": {
+          "bytes": 12793405,
+          "lines": 144623,
+          "path": "/tmp/gpforum-v6-main-pg16-38149645006.log",
+          "sha256": "8890a7a62de4f3d5f93e8972ebf50a38af84bfd0deef2f980d7c4f14ec096394"
+        },
+        "status": "completed",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Initialize containers",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Set up GPForum",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Report server version",
+            "number": 5,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Print migration plan",
+            "number": 6,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Apply database migrations",
+            "number": 7,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Re-apply migrations is a no-op",
+            "number": 8,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Seed production evidence dataset",
+            "number": 9,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run PostgreSQL integration tier",
+            "number": 10,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run platform check",
+            "number": 11,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run fresh/upgrade/dump-restore migration drill",
+            "number": 12,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Validate drill evidence",
+            "number": 13,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Upload drill evidence",
+            "number": 14,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Set up GPForum",
+            "number": 26,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 27,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Stop containers",
+            "number": 28,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 29,
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "conclusion": "success",
+        "html_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38149645006/job/114500231637",
+        "id": 114500231637,
+        "integration": {
+          "assertions": 10505,
+          "files": 97,
+          "result": "PASS",
+          "result_timestamp_utc": "2026-10-11T15:07:48.9108497Z",
+          "skipped_files": [
+            "t/integration/clamav.t .................................... skipped: set GPFORUM_CLAMD_SOCKET to run against a real clamd"
+          ],
+          "summary_line": "Files=97, Tests=10505, 238 wallclock secs",
+          "wallclock_seconds": 238
+        },
+        "logs_url": null,
+        "migration_apply_reapply": [
+          {
+            "line": 951,
+            "text": "2026-10-11T15:03:48.4066962Z 74 migrations to apply, 001 to 102:"
+          },
+          {
+            "line": 1025,
+            "text": "2026-10-11T15:03:48.4095246Z   102 search custom plans"
+          },
+          {
+            "line": 1037,
+            "text": "2026-10-11T15:03:49.2913628Z Applied 74 migrations, 001 to 102; synced the query budgets (25 changed)."
+          },
+          {
+            "line": 1046,
+            "text": "2026-10-11T15:03:49.3062707Z echo 'ok: second --apply applied nothing'"
+          },
+          {
+            "line": 1055,
+            "text": "2026-10-11T15:03:49.8124540Z ok: second --apply applied nothing"
+          }
+        ],
+        "migration_drill": {
+          "evidence": {
+            "attachments": {
+              "covered": false,
+              "limitation": "pg_dump/pg_restore covers PostgreSQL only. Attachment blobs under var/attachments (FilesystemStorage) are not dumped or restored by this drill. Rehearse populated var/attachments blob restore with script/staging-drill-attachments; back up live operator trees separately.",
+              "storage_backend": "filesystem",
+              "storage_root": "var/attachments"
+            },
+            "check": "staging_drill",
+            "databases_dropped": [
+              "gpforum_drill_7160_1791731271_restore",
+              "gpforum_drill_7160_1791731270_upgrade",
+              "gpforum_drill_7160_1791731269_fresh"
+            ],
+            "dump_restore": {
+              "restore_database": "gpforum_drill_7160_1791731271_restore",
+              "schema_versions": 74,
+              "source_database": "gpforum_drill_7160_1791731269_fresh",
+              "status": "pass",
+              "threads": 12,
+              "users": 5
+            },
+            "fresh_migrate": {
+              "database": "gpforum_drill_7160_1791731269_fresh",
+              "expected_migrations": 74,
+              "schema_versions": 74,
+              "second_apply_delta": 0,
+              "status": "pass"
+            },
+            "private_beta_claimed": 0,
+            "residual_gaps": [
+              "Live Hypnotoad/TLS host bring-up remains manual; run script/staging-drill-attachments for nginx/systemd template checks (static plus host verify/-t when tools exist) and populated var/attachments restore.",
+              "This drill does not claim private-beta readiness."
+            ],
+            "secrets_redacted": true,
+            "seed_profile": "small",
+            "status": "pass",
+            "upgrade_path": {
+              "database": "gpforum_drill_7160_1791731270_upgrade",
+              "expected_migrations": 74,
+              "from_version": "101",
+              "schema_versions_after": 74,
+              "schema_versions_before": 73,
+              "status": "pass",
+              "to_version": "102"
+            }
+          },
+          "timestamp_utc": "2026-10-11T15:07:52.1740055Z",
+          "validation": "pass"
+        },
+        "name": "PostgreSQL 18",
+        "run_id": 38149645006,
+        "search_differential": {
+          "assertions": 861,
+          "file": "t/integration/postgres-search-optimization.t",
+          "result": "PASS",
+          "selected_assertions": [
+            {
+              "line": 4747,
+              "text": "2026-10-11T15:06:05.0189316Z # retained v2 normal candidate scan: Index Scan, index=idx_search_documents_created, rows=1000, loops=1"
+            },
+            {
+              "line": 4748,
+              "text": "2026-10-11T15:06:10.3831281Z # retained v4 normal candidate scan: Index Scan, index=idx_search_documents_created, rows=1000, loops=1"
+            },
+            {
+              "line": 5576,
+              "text": "2026-10-11T15:06:11.1672242Z ok 827 - common search retains the newest-first index"
+            },
+            {
+              "line": 5577,
+              "text": "2026-10-11T15:06:11.1672587Z ok 828 - the common scan stops at the candidate boundary"
+            },
+            {
+              "line": 5578,
+              "text": "2026-10-11T15:06:11.1672967Z ok 829 - ranking processes exactly the capped common candidates"
+            },
+            {
+              "line": 5579,
+              "text": "2026-10-11T15:06:11.1673352Z ok 830 - the narrow page is limited before payload joins"
+            },
+            {
+              "line": 5580,
+              "text": "2026-10-11T15:06:11.1673686Z ok 831 - the final page has one payload lookup"
+            },
+            {
+              "line": 5581,
+              "text": "2026-10-11T15:06:11.1674037Z ok 832 - payload rows are loaded only after the result limit"
+            },
+            {
+              "line": 5588,
+              "text": "2026-10-11T15:06:11.1676573Z ok 839 - rare search keeps its GIN match path"
+            },
+            {
+              "line": 5589,
+              "text": "2026-10-11T15:06:11.1676941Z ok 840 - the restricted runtime login calls ranked v6 transitively"
+            },
+            {
+              "line": 5590,
+              "text": "2026-10-11T15:06:11.1677379Z ok 841 - the restricted runtime login calls autocomplete v6 transitively"
+            },
+            {
+              "line": 5591,
+              "text": "2026-10-11T15:06:11.1677886Z ok 842 - api.search_ranked_v1 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5592,
+              "text": "2026-10-11T15:06:11.1678328Z ok 843 - api.search_ranked_v1 direct runtime call is denied"
+            },
+            {
+              "line": 5593,
+              "text": "2026-10-11T15:06:11.1678809Z ok 844 - api.search_autocomplete_v1 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5594,
+              "text": "2026-10-11T15:06:11.1679273Z ok 845 - api.search_autocomplete_v1 direct runtime call is denied"
+            },
+            {
+              "line": 5595,
+              "text": "2026-10-11T15:06:11.1679716Z ok 846 - api.search_ranked_v2 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5596,
+              "text": "2026-10-11T15:06:11.1680366Z ok 847 - api.search_ranked_v2 direct runtime call is denied"
+            },
+            {
+              "line": 5597,
+              "text": "2026-10-11T15:06:11.1680794Z ok 848 - api.search_autocomplete_v2 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5598,
+              "text": "2026-10-11T15:06:11.1681250Z ok 849 - api.search_autocomplete_v2 direct runtime call is denied"
+            },
+            {
+              "line": 5599,
+              "text": "2026-10-11T15:06:11.1681677Z ok 850 - api.search_ranked_v3 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5600,
+              "text": "2026-10-11T15:06:11.1682088Z ok 851 - api.search_ranked_v3 direct runtime call is denied"
+            },
+            {
+              "line": 5601,
+              "text": "2026-10-11T15:06:11.1682699Z ok 852 - api.search_autocomplete_v3 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5602,
+              "text": "2026-10-11T15:06:11.1683177Z ok 853 - api.search_autocomplete_v3 direct runtime call is denied"
+            },
+            {
+              "line": 5603,
+              "text": "2026-10-11T15:06:11.1683622Z ok 854 - api.search_ranked_v4 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5604,
+              "text": "2026-10-11T15:06:11.1684047Z ok 855 - api.search_ranked_v4 direct runtime call is denied"
+            },
+            {
+              "line": 5605,
+              "text": "2026-10-11T15:06:11.1684484Z ok 856 - api.search_autocomplete_v4 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5606,
+              "text": "2026-10-11T15:06:11.1684945Z ok 857 - api.search_autocomplete_v4 direct runtime call is denied"
+            },
+            {
+              "line": 5607,
+              "text": "2026-10-11T15:06:11.1685373Z ok 858 - api.search_ranked_v5 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5608,
+              "text": "2026-10-11T15:06:11.1685788Z ok 859 - api.search_ranked_v5 direct runtime call is denied"
+            },
+            {
+              "line": 5609,
+              "text": "2026-10-11T15:06:11.1686213Z ok 860 - api.search_autocomplete_v5 has no runtime execute grant after provisioning"
+            },
+            {
+              "line": 5610,
+              "text": "2026-10-11T15:06:11.1686664Z ok 861 - api.search_autocomplete_v5 direct runtime call is denied"
+            }
+          ],
+          "source_log_first_line": 4749,
+          "source_log_last_line": 5612
+        },
+        "server_version": "PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "source_log": {
+          "bytes": 13178675,
+          "lines": 151010,
+          "path": "/tmp/gpforum-v6-main-pg18-38149645006.log",
+          "sha256": "08203ef57926eb24c611dcda5d6b7631f51960162eb57377e620a032373b087d"
+        },
+        "status": "completed",
+        "steps": [
+          {
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Initialize containers",
+            "number": 2,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 3,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Set up GPForum",
+            "number": 4,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Report server version",
+            "number": 5,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Print migration plan",
+            "number": 6,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Apply database migrations",
+            "number": 7,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Re-apply migrations is a no-op",
+            "number": 8,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Seed production evidence dataset",
+            "number": 9,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run PostgreSQL integration tier",
+            "number": 10,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run platform check",
+            "number": 11,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Run fresh/upgrade/dump-restore migration drill",
+            "number": 12,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Validate drill evidence",
+            "number": 13,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Upload drill evidence",
+            "number": 14,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Set up GPForum",
+            "number": 26,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 27,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Stop containers",
+            "number": 28,
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 29,
+            "status": "completed"
+          }
+        ]
+      }
+    ],
+    "published_version": 6,
+    "repository": "gpicchiarelli/GPForum",
+    "scope": "Read-only verification of already completed main CI; no workflow re-run, database test or benchmark launched.",
+    "tested_code_commit": "6069be8df0253442c493b5251710aac8949ee255",
+    "workflows": [
+      {
+        "conclusion": "success",
+        "created_at": "2026-10-11T15:02:46Z",
+        "event": "push",
+        "head_branch": "main",
+        "head_sha": "6069be8df0253442c493b5251710aac8949ee255",
+        "html_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38149645006",
+        "id": 38149645006,
+        "name": "PostgreSQL targets",
+        "run_attempt": 1,
+        "status": "completed",
+        "updated_at": "2026-10-11T15:08:32Z"
+      },
+      {
+        "conclusion": "success",
+        "created_at": "2026-10-11T15:02:46Z",
+        "event": "push",
+        "head_branch": "main",
+        "head_sha": "6069be8df0253442c493b5251710aac8949ee255",
+        "html_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38149645042",
+        "id": 38149645042,
+        "name": "Security scanning",
+        "run_attempt": 1,
+        "status": "completed",
+        "updated_at": "2026-10-11T15:03:28Z"
+      },
+      {
+        "conclusion": "success",
+        "created_at": "2026-10-11T15:02:46Z",
+        "event": "push",
+        "head_branch": "main",
+        "head_sha": "6069be8df0253442c493b5251710aac8949ee255",
+        "html_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38149644975",
+        "id": 38149644975,
+        "name": "Project Hygiene",
+        "run_attempt": 1,
+        "status": "completed",
+        "updated_at": "2026-10-11T15:02:56Z"
+      }
+    ]
+  },
+  "published_ci_source": {
+    "bytes": 40903,
+    "path": "/tmp/gpforum-v6-main-ci-snapshot.json",
+    "sha256": "7c442e5f6ee8dd34aa87c34542934825a5a9556e607f9fa20846544148a90b64"
+  },
   "quality_capture": {
     "authentication_scope": "Local host HBA authentication is trust; these runs cover migrations, runtime credentials and SQL permissions, but do not establish mandatory SCRAM authentication.",
     "captured_at_utc": "2026-10-11T15:14:02.788001+00:00",
@@ -797,7 +1926,7 @@
           "exit_code": 0,
           "files": 498,
           "result": "PASS",
-          "scope": "401 unit test files plus 97 integration files skipped without DSN; PostgreSQL suites separately passed on 17 and 18",
+          "scope": "401 unit test files plus 97 integration files visited without DSN; most database cases skip. The real PostgreSQL tiers separately passed on 17 and 18.",
           "selected_test_lines": {
             "t/09-": "t/09-architecture-documentation.t ......................... ok",
             "t/34-": "t/34-architecture-discipline.t ............................ ok",
@@ -821,6 +1950,7 @@
   "quality_capture_source": {
     "bytes": 12770,
     "path": "/tmp/gpforum-quality-2cbc4e5-summary.json",
+    "published_scope_note": "The scope wording clarifies that most database-dependent cases skip without DSN; counts, timing and fingerprints are unchanged.",
     "sha256": "25dba20be74d2cfd6e2efc7a8c546009b640ee1a19b23a0666b16ba86011cf86"
   },
   "raw_benchmarks": [

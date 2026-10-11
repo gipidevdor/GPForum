@@ -271,6 +271,21 @@ passed 441 on PostgreSQL 18. The current v2/v4/v6 fixture passes 861.
 
 ## Validation and activation
 
+- The published [PostgreSQL 16/17/18 matrix](https://github.com/gpicchiarelli/GPForum/actions/runs/38149645006)
+  passed on main commit `6069be8`, whose seven changed SQL/API/test/harness
+  source files are byte-identical to measured commit `2cbc4e5`. Each server
+  passed all 861 search checks, including the bounded current-v6 index path
+  and restricted-login grants. PostgreSQL 16.15 and 17.11 passed 97 files and
+  10,482 assertions; the standby test skips there because matching `initdb`
+  and `pg_ctl` are absent from PATH. PostgreSQL 18.6 passed 97 files and 10,505
+  assertions. ClamAV skips in all three matrix jobs. Fresh migrations,
+  no-op reapplication, upgrade from 101 to 102, dump/restore and drill-evidence
+  validation passed on every server. The source equality, job results,
+  selected assertions and log hashes are preserved in the
+  [current validation manifest](evidence/sql-functions-2026-10-11-v6-validation.json).
+- [Security scanning](https://github.com/gpicchiarelli/GPForum/actions/runs/38149645042)
+  and [repository hygiene](https://github.com/gpicchiarelli/GPForum/actions/runs/38149644975)
+  passed on that same main commit.
 - The current complete local `make -j3 check` passed: 498 visited test files
   and 16,169 assertions (401 unit files plus 97 integration files visited
   without DSN), syntax and formatting for 1,372 Perl files, strict style

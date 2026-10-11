@@ -23,7 +23,7 @@ script/evidence-validate --strict --json /tmp/gpforum-evidence-live/*.json
 | JSON object decode | fail | fail |
 | Obvious secret keys/patterns | fail | fail |
 | Private-beta readiness claims in text | fail | fail |
-| Known evidence families (`staging_host_verify`, `mail_delivery`, `stress-load`, `staging_drill`, `attachment_filesystem`, `deploy_checklist`, `staging_ops_extensions`, `dead_letter_check`, `mail_lifecycle_check`) | warn if unknown | fail if unknown |
+| Known evidence families (`staging_host_verify`, `mail_delivery`, `stress-load`, `staging_drill`, `attachment_filesystem`, `deploy_checklist`, `staging_ops_extensions`, `dead_letter_check`, `mail_lifecycle_check`, `postgres_diagnostics`, `pitr_drill`) | warn if unknown | fail if unknown |
 | `residual_gaps` present | warn if missing | fail if missing |
 | Shared meta (`secrets_redacted`, `private_beta_claimed=0`) on all known families | warn if missing | fail if missing |
 
@@ -37,6 +37,17 @@ script/evidence-meta --write path/to/archive.json
 ```
 
 Exit `0` for `pass` or `degraded`. `fail` is non-zero (`1`); misuse is `2`.
+
+The PostgreSQL diagnostic and recovery collectors also have strict, versioned
+schemas and semantic checks. Run their specific validators before this generic
+archive check; the generic check verifies evidence-family and privacy markers,
+not every PostgreSQL metric or recovery invariant:
+
+```sh
+script/postgres-diagnostics --validate diagnostics.json
+script/pitr-drill --validate pitr.json
+script/evidence-validate --strict --human diagnostics.json pitr.json
+```
 
 Every harness above, and this validator, reports an error it raises instead
 of evidence the same way: exit `1`, the reason on standard error with an

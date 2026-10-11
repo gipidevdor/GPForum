@@ -21,7 +21,7 @@ the host and check in one command.
 
 ```console
 $ sudo install -d -o gpforum -m 700 /var/backups/gpforum
-$ sudo -u gpforum gpforum backup --to /var/backups/gpforum
+$ sudo -u gpforum gpforum --env-file /etc/gpforum/admin.env backup --to /var/backups/gpforum
 ✓ database gpforum: 4.2 MB, schema 051, PostgreSQL 18.6
 ✓ attachments: 312 files, 48.1 MB, from /opt/gpforum/var/attachments
 ✓ Backed up into /var/backups/gpforum/gpforum-20261009T031500Z
@@ -44,6 +44,23 @@ read the settings and the uploads. It reads the settings as every `gpforum`
 command does, from the environment file; the password reaches pg_dump only
 through its environment, and is written nowhere.
 
+`/etc/gpforum/admin.env` is an example private operator environment, provisioned
+separately from the web service environment. Its database login must be able to
+read the objects being dumped, for example the existing schema-owner login.
+The restricted API-only runtime login cannot dump application tables. Do not
+grant table access to it for backups; keep the operator file mode 0600 and out
+of backups and artifacts. Pass the same explicit operator environment for
+`gpforum migrate` during restore. File-only `restore --check` needs no database
+privilege.
+
+An operator file readable by the web process's OS identity does not isolate
+owner credentials from that process. For that separation, replace `gpforum` in
+the backup/restore operator examples with an existing trusted operator OS
+account, give it the necessary read access to uploads, and make it the owner
+of the private backup directory and environment file. Keep the web service
+identity unable to read those credentials. These commands do not provision
+accounts or change filesystem access automatically.
+
 What it refuses, it says, with what to do instead: a directory inside the
 code directory (an upgrade replaces it) or inside the attachment root (the
 backup would copy itself); a directory it cannot make, with the `sudo
@@ -58,7 +75,7 @@ not beside the backups.
 **Every night**, as `gpforum`'s crontab (`sudo crontab -u gpforum -e`):
 
 ```cron
-15 3 * * * /opt/gpforum/bin/gpforum backup --to /var/backups/gpforum > /dev/null
+15 3 * * * /opt/gpforum/bin/gpforum --env-file /etc/gpforum/admin.env backup --to /var/backups/gpforum > /dev/null
 30 3 * * * find /var/backups/gpforum -maxdepth 1 -name 'gpforum-*' -mtime +14 -exec rm -r {} +
 ```
 
@@ -150,7 +167,7 @@ the local `postgres` operator performs the database rename and creation.
    sudo -u gpforum tar -xf DIR/attachments.tar -C /opt/gpforum/var/attachments
    ```
 
-5. **Bring the schema to the code**: `sudo -u gpforum gpforum migrate`. A
+5. **Bring the schema to the code**: `sudo -u gpforum gpforum --env-file /etc/gpforum/admin.env migrate`. A
    backup older than the code has migrations to apply; one newer than the
    code needs the release it was taken with (its manifest says the schema).
 6. **Start the forum** and check it: `sudo systemctl start gpforum

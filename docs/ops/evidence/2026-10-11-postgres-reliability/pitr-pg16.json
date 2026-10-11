@@ -1,0 +1,85 @@
+{
+   "archived_segment" : "000000010000000000000003",
+   "check" : "pitr_drill",
+   "checks" : {
+      "archive_completed" : true,
+      "counts_exact" : true,
+      "manifest_verified" : true,
+      "records_exact" : true,
+      "recovery_completed" : true
+   },
+   "cleanup" : {
+      "kept" : true,
+      "server_stopped" : true,
+      "workspace_removed" : false
+   },
+   "configuration" : {
+      "external_database_used" : false,
+      "isolated_cluster" : true,
+      "port" : 55444,
+      "timeout_seconds" : 180
+   },
+   "dataset" : {
+      "name" : "pitr-three-row-fixture",
+      "recovered_bodies" : [
+         "before the backup",
+         "kept: written before the target"
+      ],
+      "rows_after" : 2,
+      "rows_before" : 3,
+      "target" : "2026-10-11 18:32:10.747376+00"
+   },
+   "duration_seconds" : 3.178231353,
+   "metadata" : {
+      "commit" : "3e1a0af78cee9cb79704f4730b7b7d933bc10874",
+      "postgresql" : "16.15 (Ubuntu 16.15-1.pgdg26.04+2)",
+      "source_dirty" : false,
+      "tools" : {
+         "initdb" : "initdb (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg26.04+2)",
+         "pg_basebackup" : "pg_basebackup (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg26.04+2)",
+         "pg_ctl" : "pg_ctl (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg26.04+2)",
+         "pg_verifybackup" : "pg_verifybackup (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg26.04+2)",
+         "postgres" : "postgres (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg26.04+2)",
+         "psql" : "psql (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg26.04+2)"
+      }
+   },
+   "phases" : [
+      {
+         "duration_seconds" : 0.254253129999995,
+         "name" : "tool_versions",
+         "status" : "pass"
+      },
+      {
+         "duration_seconds" : 1.03367502399999,
+         "name" : "initialize",
+         "status" : "pass"
+      },
+      {
+         "duration_seconds" : 0.946502431999988,
+         "name" : "base_backup",
+         "status" : "pass"
+      },
+      {
+         "duration_seconds" : 0.188091117999988,
+         "name" : "archive_target",
+         "status" : "pass"
+      },
+      {
+         "duration_seconds" : 0.672431093,
+         "name" : "recover_target",
+         "status" : "pass"
+      }
+   ],
+   "private_beta_claimed" : 0,
+   "reason" : "verified_target",
+   "recorded_at" : "2026-10-11T18:32:08Z",
+   "recovery_seconds" : 0.550564870000017,
+   "residual_gaps" : [
+      "A three-row isolated drill does not measure production RPO or RTO.",
+      "Attachment files and application attachment metadata are not recovered by this fixture.",
+      "Off-host archive durability and production backup retention require operator verification."
+   ],
+   "schema_version" : 1,
+   "secrets_redacted" : true,
+   "status" : "pass"
+}

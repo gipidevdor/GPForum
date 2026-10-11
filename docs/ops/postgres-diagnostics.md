@@ -112,9 +112,10 @@ relations and partition leaves; partition parents have no heap or meaningful
 catalog audit.
 
 Use multiple snapshots and real growth/churn before tuning per-table vacuum
-or analyze thresholds. Existing search ACL tables already have appropriate
-analyze settings. Compare estimated dead tuples with size growth and actual
-vacuum progress; investigate long transactions before blaming autovacuum.
+or analyze thresholds. Existing search ACL tables already carry per-table
+analyze settings; re-evaluate them against measured churn. Compare estimated
+dead tuples with size growth and actual vacuum progress; investigate long
+transactions before blaming autovacuum.
 There is no automatic `VACUUM FULL`, index drop, historical deletion or global
 parameter change. Current settings and stats reset boundaries are evidence,
 not a recommendation based on a tiny fixture.

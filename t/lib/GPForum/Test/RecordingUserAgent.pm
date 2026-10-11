@@ -13,12 +13,17 @@ our $VERSION = '0.001';
 # A user agent that answers every request with the same response, and
 # records the URLs it was asked for.
 has code    => 200;
+has error   => undef;
 has headers => sub { return {}; };
 has urls    => sub { return []; };
 
-sub get ( $self, $url ) {
+sub get ( $self, $url, $request_headers = {} ) {
     push @{ $self->urls }, $url;
     my $tx = Mojo::Transaction::HTTP->new;
+    if ( defined $self->error ) {
+        $tx->res->error( { message => $self->error } );
+        return $tx;
+    }
     $tx->res->code( $self->code );
     for my $name ( sort keys %{ $self->headers } ) {
         $tx->res->headers->header( $name => $self->headers->{$name} );
@@ -52,7 +57,8 @@ Version 0.001.
 
 Stands in for a L<Mojo::UserAgent> where a test reads what a benchmark
 requested from a running server: each C<get> is recorded and answered with a
-response of the C<code> and C<headers> the agent was built with.
+response of the C<code> and C<headers> the agent was built with, or the
+transport C<error> when given.
 
 =head1 SUBROUTINES/METHODS
 
@@ -68,6 +74,10 @@ The status every response answers with; 200 by default.
 =head2 headers
 
 The headers every response carries, by name.
+
+=head2 error
+
+The transport failure every request answers with, or undef for a response.
 
 =head2 urls
 

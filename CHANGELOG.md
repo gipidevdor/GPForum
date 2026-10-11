@@ -15,6 +15,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
+- **Upgrade the function API with migrations 100 and 101.** Search now calls
+  v4 and post edit/delete/restore share one context read. Apply the additive
+  migrations with the ordinary migration owner, drain the old web and worker
+  processes, provision the runtime login with the new catalogue, then start
+  the updated processes. Provisioning replaces old search v2 grants with v4;
+  mixed old and new workers cannot use that login simultaneously. Follow
+  the [runtime role guide](docs/ops/sql-api-role.md) for rollback.
+
 - **Install the function API before starting the updated application.**
   Apply migrations with the ordinary migration owner: 055–070 and 099
   complete the API introduced by 052–054. To enforce API-only access,
@@ -213,7 +221,7 @@ CI, evidence and internal refactors with no change in behaviour.
 
 - **PostgreSQL can refuse direct access to forum tables.** The separately
   provisioned runtime login owns no objects, belongs to no roles and can
-  execute only the 194 current API signatures. Versioned `SECURITY DEFINER`
+  execute only the 195 current API signatures. Versioned `SECURITY DEFINER`
   entry points use a fixed search path; their implementations and helpers
   have no public execution grant. Real login and HTTP tests verify allowed
   workflows and denied table access under password authentication.
@@ -882,6 +890,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **Search loads result payloads after the page limit.** New ranked and
+  autocomplete v4 APIs preserve filtering, live placement checks, candidate
+  counts, rank and deterministic order while fetching body and author fields
+  only for the displayed page. Post edit, delete and restore now fetch their
+  post and readable thread context together, reducing those workflows from
+  three client calls to two while retaining the atomic write checks and locks.
+  The catalogue contains 195 operations; shipped functions remain immutable.
+  See the [optimization measurements](docs/architecture/sql-functions-optimization.md).
+
 - **Runtime data operations call stored PostgreSQL functions.** Forum,
   identity, permissions, search, notifications, moderation, administration,
   attachments, privacy, portability, plugins, outbox, projections, workers
@@ -1523,6 +1540,11 @@ CI, evidence and internal refactors with no change in behaviour.
   production floors fail the same gate as OS preflight and query-budget drift.
 
 ### Fixed
+
+- **Doctor recognizes current OpenSSL handshake errors.** Plain HTTP on a
+  TLS port may report packet length or record layer errors during connection;
+  those are classified as handshake failures, while certificate errors and
+  errors during an established TLS read retain the TLS classification.
 
 - **A start with old names in the environment file warns of each once.**
   `gpforum start --service` logged each, then ran Hypnotoad in its place,
@@ -2434,6 +2456,19 @@ CI, evidence and internal refactors with no change in behaviour.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- **Measure function optimizations with alternating pairs.** The stored-function
+  benchmark adds `--paired-functions`, balances execution order, checks exact
+  search JSON and actual post revisions, and retains every measured sample.
+  Two runs / 4,000 samples give direct service medians of 8.39 → 6.89 ms for
+  ranked search, 3.66 → 2.90 ms for autocomplete and 1.73 → 1.62 ms for post
+  edits. With the delay proxy, post edits improve from 8.13 to 6.42 ms as
+  calls fall from three to two. The [report](docs/architecture/sql-functions-optimization.md)
+  includes all four earlier full runs, their variability, the rejected index
+  experiment and raw evidence. New differential, nested-plan and restricted-login
+  tests cover search v4 and the combined context; both also pass under NYTProf.
+  The config-report fixture handles unavailable OS locales without changing
+  the application's locale selection.
 
 - **Published the completed function conversion and two benchmark runs.**
   The comparison covers 20 service operations with warm-up, median and p95,

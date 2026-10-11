@@ -44,6 +44,12 @@ has post_reader => sub {
 sub find_thread ( $self, $thread_id, $viewer = undef ) {
     my $row = $self->find_thread_row($thread_id);
 
+    return $self->visible_thread_row( $row, $viewer );
+}
+
+# Apply the reader's visibility rules to an already loaded head. A combined
+# post preflight can use its head without querying the database a second time.
+sub visible_thread_row ( $self, $row, $viewer = undef ) {
     return undef
       if !_thread_is_visible( $row,
         GPForum::Service::Forum::Viewer->from($viewer) );
@@ -251,6 +257,12 @@ function layer (L<GPForum::Infrastructure::SqlFunction/for_schema>), such as
 an in-memory double, runs the prepared statement as before.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 visible_thread_row
+
+Takes an already loaded thread head and an optional viewer. Applies the same
+visibility and deletion checks as C<find_thread>, returning the row or undef
+without loading it again.
 
 =head2 new
 

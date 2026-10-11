@@ -192,6 +192,27 @@ subtest 'a bin/gpforum-* command reports it the same way' => sub {
     );
 };
 
+subtest 'CLI language selection needs no installed operating-system locale' =>
+  sub {
+    my $problems =
+      _refusal( sub { GPForum::Config->from_environment( \%THREE_WRONG ) } )
+      ->problems;
+    my $italian = _start(
+        {
+            %THREE_WRONG,
+            LC_ALL => q{},
+            LANG   => 'it_GPFORUM_TEST_MISSING.UTF-8',
+        }
+    );
+    is( $italian->{status}, $EX_CONFIG, 'the refused configuration exits 78' );
+    is(
+        decode( 'UTF-8', $italian->{errors} ),
+        GPForum::Service::I18N::CliCatalog->new( language => 'it' )
+          ->config_report($problems),
+        'the Italian report is independent of installed OS locales'
+    );
+  };
+
 subtest q{Bootstrap::Config loads a good one and keeps a bad one's problems} =>
   sub {
     my $loaded = GPForum::Bootstrap::Config->load( { GPFORUM_ENV => 'test' } );
@@ -227,7 +248,9 @@ sub _start ( $environment, @command ) {
       grep { !/\A (?:GPFORUM_|LC_|LANG\z)/msx } keys %ENV;
     my ( $pid, $output, $errors );
     {
-        local %ENV = ( %clean, %{$environment} );
+        # The CLI reads LANG itself. A locale absent from the host must not
+        # add Perl's startup warning to the report this test compares.
+        local %ENV = ( %clean, %{$environment}, PERL_BADLANG => 0 );
         $errors = gensym;
         $pid    = open3( my $input, $output, $errors, $EXECUTABLE_NAME, '-Ilib',
             @command );

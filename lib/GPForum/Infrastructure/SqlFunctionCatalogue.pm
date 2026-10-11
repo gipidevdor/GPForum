@@ -65,7 +65,7 @@ const my %FUNCTION => (
     },
 
     search_ranked => {
-        version    => 2,
+        version    => 4,
         parameters => [
             permission_mode   => 'text',
             visibility_values => 'text[]',
@@ -87,7 +87,7 @@ const my %FUNCTION => (
         ]
     },
     search_autocomplete => {
-        version    => 2,
+        version    => 4,
         parameters => [
             permission_mode   => 'text',
             visibility_values => 'text[]',
@@ -1084,6 +1084,11 @@ const my %FUNCTION => (
     forum_find_post => {
         version    => 2,
         parameters => [ post_id => 'uuid' ],
+    },
+    forum_post_context => {
+        version    => 2,
+        parameters => [ post_id => 'uuid' ],
+        json       => [qw(post thread)],
     },
     forum_find_visible_post => {
         version    => 2,

@@ -44,7 +44,12 @@ const my %CURL_KIND => (
 
 # What Mojo::UserAgent's errors say, by the same words. OpenSSL's "wrong
 # version number" is the handshake curl reports as 35: the port answered
-# plain HTTP.
+# plain HTTP. Newer OpenSSL also reports "packet length too long" and
+# "record layer failure" during the connection attempt for that response:
+# https://github.com/openssl/openssl/issues/27293
+const my $SSL_CONNECT   => qr/SSL [ ] connect [ ] attempt [ ] failed/msxi;
+const my $PACKET_LENGTH => qr/packet [ ] length [ ] too [ ] long/msxi;
+const my $RECORD_LAYER  => qr/record [ ] layer [ ] failure/msxi;
 const my @MOJO_KIND => (
     [ refused    => qr/Connection [ ] refused|No [ ] such [ ] file/msxi ],
     [ unresolved => qr/not [ ] known|nodename|resolve|getaddrinfo/msxi ],
@@ -53,6 +58,8 @@ const my @MOJO_KIND => (
     [ handshake  => qr/wrong [ ] version [ ] number/msxi ],
     [ handshake  => qr/unknown [ ] protocol/msxi ],
     [ handshake  => qr/alert [ ] protocol [ ] version/msxi ],
+    [ handshake  => qr{$SSL_CONNECT .* $PACKET_LENGTH}msxi ],
+    [ handshake  => qr{$SSL_CONNECT .* $RECORD_LAYER}msxi ],
     [ tls        => qr/SSL|TLS|certificate/msx ],
 );
 

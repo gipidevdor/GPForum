@@ -32,6 +32,7 @@ our $VERSION = '0.001';
 const my $OPTIMIZED_VERSION      => 4;
 const my $IMPLEMENTATION_VERSION => 3;
 const my $THREADS                => 1_100;
+const my $PLAN_THREADS           => 10_000;
 const my $CANDIDATES             => 1_000;
 const my $PAGE                   => 20;
 const my $RARE_COUNT             => 4;
@@ -83,15 +84,7 @@ my $source = $dbh->selectrow_hashref(
       . q{ JOIN spaces s USING (space_id)}
       . q{ WHERE c.visibility = 'public' AND s.visibility = 'public'}
       . q{ AND c.deleted_at IS NULL ORDER BY t.thread_id LIMIT 1} );
-$dbh->do(
-    $THREADS_SQL, undef,
-    $source->{category_id},
-    $source->{author_user_id}, $THREADS
-);
-$dbh->do($POSTS_SQL);
-$dbh->do( $DOCUMENTS_SQL, undef, $BODY_COPIES );
-$dbh->do('VACUUM ANALYZE search_documents');
-$dbh->do('ANALYZE');
+_seed_corpus( $dbh, $THREADS );
 
 my $json        = JSON::MaybeXS->new( canonical => 1, utf8 => 0 );
 my %functions   = map { $_ => _functions($_) } ( 2, $OPTIMIZED_VERSION );
@@ -164,7 +157,22 @@ _assert_runtime_role();
 
 done_testing();
 
-sub _functions ($version) {
+sub _seed_corpus ( $corpus_dbh, $thread_count ) {
+    $corpus_dbh->do(
+        $THREADS_SQL, undef,
+        $source->{category_id},
+        $source->{author_user_id},
+        $thread_count,
+    );
+    $corpus_dbh->do($POSTS_SQL);
+    $corpus_dbh->do( $DOCUMENTS_SQL, undef, $BODY_COPIES );
+    $corpus_dbh->do('VACUUM ANALYZE search_documents');
+    $corpus_dbh->do('ANALYZE');
+
+    return;
+}
+
+sub _functions ( $version, $for_schema = $schema ) {
     my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
     my %entries   = %{ $catalogue->entries };
     for my $name (qw(search_ranked search_autocomplete)) {
@@ -172,7 +180,7 @@ sub _functions ($version) {
     }
 
     return GPForum::Infrastructure::SqlFunction->new(
-        schema    => $schema,
+        schema    => $for_schema,
         catalogue => GPForum::Infrastructure::SqlFunctionCatalogue->new(
             entries => \%entries,
         ),
@@ -322,37 +330,85 @@ sub _compare_without_permissions {
 }
 
 sub _assert_nested_plans {
+
+    # The ACL and placement matrix deliberately changes whole tables. An
+    # automatic ANALYZE can observe a temporary private/deleted state, and
+    # restoring the values does not restore the statistics or remove dead
+    # tuples. Measure the maintained common/rare workload independently,
+    # with enough real documents to distinguish a capped index walk from
+    # a scan and sort of the corpus, as the search plan gate does.
+    my $plan_database = GPForum::Test::PgDatabase->fresh( seed => 1 );
+    my $plan_dbh      = $plan_database->dbh;
+    _seed_corpus( $plan_dbh, $PLAN_THREADS );
+    my $plan_functions =
+      _functions( $OPTIMIZED_VERSION, $plan_database->schema );
     my ( $name, $values ) =
       @{ $searcher{$OPTIMIZED_VERSION}
           ->ranked_call( $anonymous, 'candidateword', {} ) };
-    my $statement = $functions{$OPTIMIZED_VERSION}->statement( $name, $values );
+    my $statement = $plan_functions->statement( $name, $values );
     my $explained = GPForum::Command::QueryPlanEvidence::_explain_nested(    ## no critic (Subroutines::ProtectPrivateSubs) -- Exercise the same nested-plan collector as the production plan gate for this larger corpus.
-        $dbh, $statement, { analyze => 1 },
+        $plan_dbh, $statement, { analyze => 1 },
     );
     my ($body) =
       grep { ( $_->{'Query Text'} // q{} ) =~ /WITH [ ] ranked_page/msx }
       @{ $explained->{plan} };
-    ok( $body, 'the actual optimized function body was measured' );
+    ok( $body, 'the actual optimized function body was measured' )
+      or diag explain $explained;
     my @nodes = _nodes( $body->{Plan} );
     my ($candidate_scan) =
       grep { ( $_->{'Index Name'} // q{} ) eq 'idx_search_documents_created' }
       @nodes;
-    ok( $candidate_scan, 'common search retains the newest-first index' );
-    cmp_ok( $candidate_scan->{'Actual Rows'},
-        q{<=}, $CANDIDATES, 'the common scan stops at the candidate boundary' );
+    ok( $candidate_scan, 'common search retains the newest-first index' )
+      or diag explain $body;
+    my $candidate_rows =
+        $candidate_scan
+      ? $candidate_scan->{'Actual Rows'} * $candidate_scan->{'Actual Loops'}
+      : $PLAN_THREADS;
+    cmp_ok( $candidate_rows, q{<=}, $CANDIDATES,
+        'the common scan stops at the candidate boundary' )
+      or diag explain $body;
+    my ($ranking) = grep { $_->{'Node Type'} eq 'WindowAgg' } @nodes;
+    is( $ranking->{'Actual Rows'},
+        $CANDIDATES, 'ranking processes exactly the capped common candidates' );
+    my ($page) =
+      grep { ( $_->{'Subplan Name'} // q{} ) eq 'CTE ranked_page' } @nodes;
+    is( $page->{'Actual Rows'},
+        $PAGE, 'the narrow page is limited before payload joins' );
     my @payload = grep {
              ( $_->{'Alias'} // q{} ) eq 'document'
           && ( $_->{'Relation Name'} // q{} ) eq 'search_documents'
     } @nodes;
     is( scalar @payload, 1, 'the final page has one payload lookup' );
-    cmp_ok( $payload[0]{'Actual Rows'} * $payload[0]{'Actual Loops'},
+    my $payload_rows =
+        @payload == 1
+      ? $payload[0]{'Actual Rows'} * $payload[0]{'Actual Loops'}
+      : $PAGE + 1;
+    cmp_ok( $payload_rows,
         q{<=}, $PAGE, 'payload rows are loaded only after the result limit' );
+    my $previous_functions = _functions( 2, $plan_database->schema );
+    my $previous = GPForum::Command::QueryPlanEvidence::_explain_nested(    ## no critic (Subroutines::ProtectPrivateSubs) -- Compare the retained API on the same maintained corpus through the normal collector, without planner overrides.
+        $plan_dbh, $previous_functions->statement( $name, $values ),
+        { analyze => 1 },
+    );
+    my @previous_nodes = map { _nodes( $_->{Plan} ) } @{ $previous->{plan} };
+    my ($previous_scan) =
+      grep { ( $_->{'Index Name'} // q{} ) eq 'idx_search_documents_created' }
+      @previous_nodes;
+    ok( $previous_scan, 'the previous API uses the same maintained hot path' )
+      or diag explain $previous;
+    my $previous_rows =
+        $previous_scan
+      ? $previous_scan->{'Actual Rows'} * $previous_scan->{'Actual Loops'}
+      : $PLAN_THREADS;
+    cmp_ok( $previous_rows, q{<=}, $CANDIDATES,
+        'both API versions stop their common scan at the candidate cap' )
+      or diag explain $previous;
     my ( $rare_name, $rare_values ) =
       @{ $searcher{$OPTIMIZED_VERSION}->ranked_call( $anonymous, 'zymurgy', {} )
       };
     my $rare_explained = GPForum::Command::QueryPlanEvidence::_explain_nested( ## no critic (Subroutines::ProtectPrivateSubs) -- Check selectivity-dependent planning through the application's actual function call.
-        $dbh,
-        $functions{$OPTIMIZED_VERSION}->statement( $rare_name, $rare_values ),
+        $plan_dbh,
+        $plan_functions->statement( $rare_name, $rare_values ),
         { analyze => 1 },
     );
     my @rare_nodes = map { _nodes( $_->{Plan} ) } @{ $rare_explained->{plan} };

@@ -311,5 +311,52 @@
     "sha256": "810a429283484b051f09b27019cf8bfcf5f267fe8ca5cf23308fd7a1bb266ad7"
   },
   "catalogue_test_refactor_commit": "013dd56c48229df986db89502db1247b3f622f36",
-  "captured_at_utc": "2026-10-11T13:58:11Z"
+  "captured_at_utc": "2026-10-11T13:58:11Z",
+  "search_plan_test_followup": {
+    "captured_at_utc": "2026-10-11T14:18:53.281445+00:00",
+    "base_commit": "803c966fd210462359c9cd97e0e15ab6ac341236",
+    "scope": "Only the search integration fixture and publication evidence changed; production code, migrations and paired benchmark unchanged",
+    "test_source_sha256": "dd078a9cdfeeb99dc4624c468a3801837eb55868f9c789cbaaf9f25e18b24886",
+    "assertions": 441,
+    "result": "PASS",
+    "commands": {
+      "test": "GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=127.0.0.1;port=55433' GPFORUM_DATABASE_USER=gpforum GPFORUM_DATABASE_PASSWORD= script/gpforum-carton exec prove -l t/integration/postgres-search-optimization.t",
+      "critic": "script/perlcritic --brutal t/integration/postgres-search-optimization.t",
+      "formatting": "script/gpforum-carton exec perltidy -st --profile=.perltidyrc t/integration/postgres-search-optimization.t, compared byte-for-byte with source",
+      "architecture": "script/architecture-check"
+    },
+    "logs": [
+      {
+        "path": "/tmp/gpforum-pr62-plan-proof-test.log",
+        "bytes": 182,
+        "sha256": "673d51017d2608d257153dd2425fbe1baa1565068f21840b15c63acb22252c77"
+      },
+      {
+        "path": "/tmp/gpforum-pr62-plan-proof-critic.log",
+        "bytes": 55,
+        "sha256": "a55a5c54f05e2fe45e9cedda7ba4fb172d5aa2f62fe2e8b0bc9e49793fb931d0"
+      },
+      {
+        "path": "/tmp/gpforum-pr62-plan-proof-architecture.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "plan_evidence": {
+      "file": "sql-functions-2026-10-11-search-plan-validation.json",
+      "bytes": 238427,
+      "sha256": "c6b463be32e4ad621464a25645779e9ba5d1fde4c30d0b871a37cf577f861d30"
+    },
+    "documentation_contract": {
+      "command": "script/gpforum-carton exec prove -l t/09-architecture-documentation.t t/166-deploy-contract.t t/34-architecture-discipline.t",
+      "files": 3,
+      "assertions": 40,
+      "result": "PASS",
+      "log": {
+        "path": "/tmp/gpforum-pr62-plan-proof-docs-corrected.log",
+        "bytes": 250,
+        "sha256": "26794a6a6ac613324bd338b8916c156e23bd9a58fbce48c95c664953d82123ed"
+      }
+    }
+  }
 }

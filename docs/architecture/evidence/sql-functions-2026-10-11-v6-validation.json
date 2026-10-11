@@ -397,6 +397,101 @@
     "sha256": "c66a8946f6006b19fb3a8b738d76e2197597ce114715185b32534f2aac17b789"
   },
   "code_commit": "2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96",
+  "complete_local_quality_gate": {
+    "captured_at_utc": "2026-10-11T15:14:02.788001+00:00",
+    "code_commit_start": "2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96",
+    "command": "env -u GPFORUM_TEST_DSN -u GPFORUM_DATABASE_DSN -u GPFORUM_DATABASE_USER -u GPFORUM_DATABASE_PASSWORD make -j3 check",
+    "exit_code": 0,
+    "exit_file": {
+      "bytes": 2,
+      "modified_at_utc": "2026-10-11T15:12:41.847457+00:00",
+      "path": "/tmp/gpforum-2cbc4e5-make-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "finished_at_utc": "2026-10-11T15:12:41.847457+00:00",
+    "head_commit_end": "5b4b39968ad2686ed4512b9e33dd5671804f1b0e",
+    "head_difference_scope": "Publication only; all source hashes unchanged",
+    "log": {
+      "bytes": 117069,
+      "modified_at_utc": "2026-10-11T15:00:33.983989+00:00",
+      "path": "/tmp/gpforum-2cbc4e5-make-check.log",
+      "sha256": "97d4f5632255911800ab1902ba51373a4307ba3fd9ff74756fce1edda44139fd"
+    },
+    "publication_changed_paths": [
+      "CHANGELOG.md",
+      "README.md",
+      "docs/adr/0126-sql-lives-in-postgresql-functions.md",
+      "docs/adr/0127-separate-runtime-role-for-the-function-api.md",
+      "docs/architecture/evidence/sql-functions-2026-10-11-custom-plan-validation.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v2-1.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v2-2.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v4-1.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v4-2.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg18-v2-1.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg18-v2-2.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6-validation.json",
+      "docs/architecture/evidence/sql-functions-2026-10-11-v6.svg",
+      "docs/architecture/sql-functions-optimization.md",
+      "docs/ops/sql-api-role.md"
+    ],
+    "result": "PASS",
+    "root_owned_document_changes_remaining": [
+      " M docs/architecture/sql-functions-optimization.md"
+    ],
+    "source_hashes_changed": 0,
+    "source_hashes_matched": 1372,
+    "source_manifest": {
+      "bytes": 146198,
+      "modified_at_utc": "2026-10-11T15:03:05.246304+00:00",
+      "path": "/tmp/gpforum-2cbc4e5-make-check-source-manifest.tsv",
+      "sha256": "40f2e276488787a91659dd3e0abf48f775847dfa037b10fb517ddbc50326d829"
+    },
+    "started_at_utc": "2026-10-11T14:56:29.413815+00:00",
+    "targets": {
+      "architecture": {
+        "exit_code": 0,
+        "result": "PASS"
+      },
+      "critic": {
+        "baseline_violations": 15,
+        "exit_code": 0,
+        "new_violations": 0,
+        "result": "PASS"
+      },
+      "syntax": {
+        "exit_code": 0,
+        "files": 1372,
+        "result": "PASS"
+      },
+      "system-perl": {
+        "exit_code": 0,
+        "result": "PASS",
+        "version": "5.44.0"
+      },
+      "test": {
+        "assertions": 16169,
+        "database_dsn": "unset",
+        "exit_code": 0,
+        "files": 498,
+        "result": "PASS",
+        "scope": "401 unit test files plus 97 integration files visited without DSN; most database cases skip. The real PostgreSQL tiers separately passed on 17 and 18.",
+        "selected_test_lines": {
+          "t/09-": "t/09-architecture-documentation.t ......................... ok",
+          "t/34-": "t/34-architecture-discipline.t ............................ ok",
+          "t/460-": "t/460-config-report.t ..................................... ok",
+          "t/496-": "t/496-http-probe.t ........................................ ok",
+          "t/75-": "t/75-architecture-foundation.t ............................ ok"
+        },
+        "wallclock_seconds": 244
+      },
+      "tidy": {
+        "exit_code": 0,
+        "files": 1372,
+        "result": "PASS"
+      }
+    },
+    "wallclock_seconds": 972.434
+  },
   "current_catalogue_operations": 195,
   "current_search_api": 6,
   "documentation_gate": {
@@ -412,6 +507,14 @@
     "recomputed_summary_values": 360,
     "result": "PASS",
     "sample_count": 12000
+  },
+  "independent_source_review": {
+    "compared_commits": [
+      "aa48bf4",
+      "2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96"
+    ],
+    "result": "PASS",
+    "scope": "Static PL/pgSQL parameter-aware plans, unchanged SELECT bodies and ABI, exact v6 typed forwarding, fixed paths, stability and PUBLIC revocations, catalogue grants and preserved cap/ACL/order/rollback checks. Read-only; no separate test execution."
   },
   "method": {
     "aggregation": "Arithmetic means of two per-run median, p95 and mean CPU statistics; quantiles are not pooled.",
@@ -432,7 +535,7 @@
   },
   "quality_capture": {
     "authentication_scope": "Local host HBA authentication is trust; these runs cover migrations, runtime credentials and SQL permissions, but do not establish mandatory SCRAM authentication.",
-    "captured_at_utc": "2026-10-11T14:49:49.086413+00:00",
+    "captured_at_utc": "2026-10-11T15:14:02.788001+00:00",
     "code_commit": "2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96",
     "integration": [
       {
@@ -617,8 +720,108 @@
         }
       }
     ],
+    "quality_gate": {
+      "captured_at_utc": "2026-10-11T15:14:02.788001+00:00",
+      "code_commit_start": "2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96",
+      "command": "env -u GPFORUM_TEST_DSN -u GPFORUM_DATABASE_DSN -u GPFORUM_DATABASE_USER -u GPFORUM_DATABASE_PASSWORD make -j3 check",
+      "exit_code": 0,
+      "exit_file": {
+        "bytes": 2,
+        "modified_at_utc": "2026-10-11T15:12:41.847457+00:00",
+        "path": "/tmp/gpforum-2cbc4e5-make-check.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      "finished_at_utc": "2026-10-11T15:12:41.847457+00:00",
+      "head_commit_end": "5b4b39968ad2686ed4512b9e33dd5671804f1b0e",
+      "head_difference_scope": "Publication only; all source hashes unchanged",
+      "log": {
+        "bytes": 117069,
+        "modified_at_utc": "2026-10-11T15:00:33.983989+00:00",
+        "path": "/tmp/gpforum-2cbc4e5-make-check.log",
+        "sha256": "97d4f5632255911800ab1902ba51373a4307ba3fd9ff74756fce1edda44139fd"
+      },
+      "publication_changed_paths": [
+        "CHANGELOG.md",
+        "README.md",
+        "docs/adr/0126-sql-lives-in-postgresql-functions.md",
+        "docs/adr/0127-separate-runtime-role-for-the-function-api.md",
+        "docs/architecture/evidence/sql-functions-2026-10-11-custom-plan-validation.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v2-1.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v2-2.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v4-1.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg17-v4-2.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg18-v2-1.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6-pg18-v2-2.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6-validation.json",
+        "docs/architecture/evidence/sql-functions-2026-10-11-v6.svg",
+        "docs/architecture/sql-functions-optimization.md",
+        "docs/ops/sql-api-role.md"
+      ],
+      "result": "PASS",
+      "root_owned_document_changes_remaining": [
+        " M docs/architecture/sql-functions-optimization.md"
+      ],
+      "source_hashes_changed": 0,
+      "source_hashes_matched": 1372,
+      "source_manifest": {
+        "bytes": 146198,
+        "modified_at_utc": "2026-10-11T15:03:05.246304+00:00",
+        "path": "/tmp/gpforum-2cbc4e5-make-check-source-manifest.tsv",
+        "sha256": "40f2e276488787a91659dd3e0abf48f775847dfa037b10fb517ddbc50326d829"
+      },
+      "started_at_utc": "2026-10-11T14:56:29.413815+00:00",
+      "targets": {
+        "architecture": {
+          "exit_code": 0,
+          "result": "PASS"
+        },
+        "critic": {
+          "baseline_violations": 15,
+          "exit_code": 0,
+          "new_violations": 0,
+          "result": "PASS"
+        },
+        "syntax": {
+          "exit_code": 0,
+          "files": 1372,
+          "result": "PASS"
+        },
+        "system-perl": {
+          "exit_code": 0,
+          "result": "PASS",
+          "version": "5.44.0"
+        },
+        "test": {
+          "assertions": 16169,
+          "database_dsn": "unset",
+          "exit_code": 0,
+          "files": 498,
+          "result": "PASS",
+          "scope": "401 unit test files plus 97 integration files skipped without DSN; PostgreSQL suites separately passed on 17 and 18",
+          "selected_test_lines": {
+            "t/09-": "t/09-architecture-documentation.t ......................... ok",
+            "t/34-": "t/34-architecture-discipline.t ............................ ok",
+            "t/460-": "t/460-config-report.t ..................................... ok",
+            "t/496-": "t/496-http-probe.t ........................................ ok",
+            "t/75-": "t/75-architecture-foundation.t ............................ ok"
+          },
+          "wallclock_seconds": 244
+        },
+        "tidy": {
+          "exit_code": 0,
+          "files": 1372,
+          "result": "PASS"
+        }
+      },
+      "wallclock_seconds": 972.434
+    },
     "timing_scope": "NYTProf covers the entire disposable differential integration test, including fixture setup, preflight, v2/v4/v6 calls, nested plan collection, ACL and runtime access checks. Profiled elapsed times include profiler overhead and database waits; they are not operation latency or benchmark results.",
     "workspace": "/Users/gpicchiarelli/.codex/worktrees/sql-functions-ci-plan/GPForum"
+  },
+  "quality_capture_source": {
+    "bytes": 12770,
+    "path": "/tmp/gpforum-quality-2cbc4e5-summary.json",
+    "sha256": "25dba20be74d2cfd6e2efc7a8c546009b640ee1a19b23a0666b16ba86011cf86"
   },
   "raw_benchmarks": [
     {

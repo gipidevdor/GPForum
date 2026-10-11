@@ -251,8 +251,9 @@ calls per version and 60 samples per version per case in each of two rounds.
 The timed unit was `SqlFunction->rows`: binding, execution and fetching rows;
 parameter construction, service decoration and HTTP were excluded.
 This temporary helper used the mean of the two central sorted samples for its
-median and the 57th sorted sample out of 60 for p95. These exploratory quantiles
-differ from the canonical harness rule documented above.
+median and the 57th sorted sample out of 60 for p95. Its median differs from
+the canonical harness rule documented above; the p95 selects the same
+observation as the canonical index for 60 samples.
 
 | Case, without a new index | Mean of v2 medians | Mean of v4 medians | Reduction |
 | --- | ---: | ---: | ---: |
@@ -270,6 +271,16 @@ passed 441 on PostgreSQL 18. The current v2/v4/v6 fixture passes 861.
 
 ## Validation and activation
 
+- The current complete local `make -j3 check` passed: 498 visited test files
+  and 16,169 assertions (401 unit files plus 97 integration files visited
+  without DSN), syntax and formatting for 1,372 Perl files, strict style
+  with 15 historical violations and zero new ones, system Perl and architecture.
+  The source commit was `2cbc4e5`; the head moved to the documentation-only
+  publication `5b4b399` during the run, with all 1,372 source fingerprints
+  unchanged. The locale and HTTP/TLS regression tests both executed and passed.
+  Most database tests skip without DSN; the real integration tiers below
+  cover them. Commands, timestamps and hashes are in the
+  [current validation manifest](evidence/sql-functions-2026-10-11-v6-validation.json).
 - The complete integration tier on the current v6 code commit
   [`2cbc4e5`](https://github.com/gpicchiarelli/GPForum/commit/2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96)
   passed on PostgreSQL 17.11 and 18.6: 97 files and 10,505 assertions per

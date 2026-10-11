@@ -91,6 +91,7 @@ ADR 0087 governance, ADR 0093 engineering invariants, ADR 0094 frontend behavior
 and ADRs 0126–0127 stored routines/runtime credentials continue to apply.
 
 - [Composer draft guide](../architecture/composer-drafts.md)
+- [Implementation review: PR 65](https://github.com/gpicchiarelli/GPForum/pull/65)
 - [Posting workflow](../architecture/posting-workflow.md)
 - [Privacy workflow](../architecture/privacy-workflow.md)
 - [Scheduled jobs](../ops/scheduled-jobs.md)

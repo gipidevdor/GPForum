@@ -4,6 +4,7 @@
 """Parser, bounds and failure tests, without a database or sockets."""
 import importlib.util
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -129,6 +130,65 @@ class HttpEvidenceTests(unittest.TestCase):
             self.assertEqual(http.wrk_version(), "wrk 4.2.0 [kqueue]")
         with patch.object(http, "run_command", return_value="Usage: wrk"), self.assertRaises(ValueError):
             http.wrk_version()
+
+    def test_ubuntu_wrk_banner_uses_actual_distribution_package(self):
+        with patch.object(http, "run_command", side_effect=["wrk  Copyright (C) 2012 Will Glozer\nUsage: wrk <options> <url>", "4.1.0-5build2"]), patch.object(http.shutil, "which", return_value="/usr/bin/dpkg-query"):
+            self.assertEqual(http.wrk_version(), "wrk (distribution package 4.1.0-5build2; CLI upstream unspecified)")
+
+    def test_wrk_version_logs_banner_and_does_not_invent_an_upstream_release(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(http, "run_command", return_value="wrk unspecified Copyright (C) 2012 Will Glozer") as command, patch.object(http.shutil, "which", return_value=None):
+            self.assertEqual(http.wrk_version(directory), "wrk (CLI upstream version unspecified; distribution package unavailable)")
+            self.assertEqual(command.call_args.kwargs["log"], Path(directory) / "wrk-version.log")
+        with patch.object(http, "run_command", return_value="another-tool 4.2.0"), self.assertRaises(ValueError):
+            http.wrk_version()
+
+    def test_dataset_provenance_survives_unidentifiable_primary_wrk(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_test"}), patch.object(http, "prepare_dataset", return_value=({"signature": "known-seed", "counts": {"posts": 4800}}, {"postgres": "16.4", "database_settings": {"work_mem": "4MB"}})), patch.object(http, "run_command", return_value='{"perl":"v5.40","mojolicious":"9.49"}'), patch.object(http.shutil, "which", return_value="/fake/wrk"), patch.object(http, "wrk_version", side_effect=ValueError("unidentifiable wrk")):
+            result = http.main(["--output", directory, "--disposable-database", "--generator", "wrk"])
+            self.assertEqual(result, 1)
+            environment = json.loads((Path(directory) / "http-environment.json").read_text())
+            self.assertEqual(environment["dataset"]["counts"]["posts"], 4800)
+            self.assertEqual(environment["versions"]["postgres"], "16.4")
+            self.assertEqual(environment["versions"]["perl"], "v5.40")
+            self.assertIsNone(environment["versions"]["wrk"])
+            self.assertFalse((Path(directory) / "http.json").exists())
+
+    def test_explicit_mojo_ignores_unusable_optional_wrk_probe(self):
+        class FakeServer:
+            def __init__(self, output, reactor, workers, cache_mode, index, deadline):
+                self.reactor = "Mojo::Reactor::" + reactor
+            def close(self):
+                pass
+        metrics = {"completed": 100, "http_errors": 0, "transport_errors": 0,
+                   "duration_seconds": 1, "requests_per_second": 100,
+                   "p50_ms": 1, "p95_ms": 2, "p99_ms": 3,
+                   "cpu_percent": None, "rss_bytes": None, "concurrency_effective": 10}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_test"}), patch.object(http, "prepare_dataset", return_value=({"signature": "known-seed"}, {"postgres": "16.4", "database_settings": {}})), patch.object(http, "run_command", return_value='{"perl":"v5.40","mojolicious":"9.49"}'), patch.object(http.shutil, "which", return_value="/fake/wrk"), patch.object(http, "wrk_version", side_effect=ValueError("unidentifiable optional wrk")), patch.object(http, "Server", FakeServer), patch.object(http, "mojo_measure", return_value=(metrics, {"workers_actual": 2})), contextlib.redirect_stdout(io.StringIO()):
+            result = http.main(["--output", directory, "--disposable-database", "--generator", "mojo", "--concurrency", "10"])
+            self.assertEqual(result, 0)
+            self.assertEqual(len(json.loads((Path(directory) / "http.json").read_text())["measurements"]), 24)
+            state = json.loads((Path(directory) / "suite-status.json").read_text())
+            self.assertTrue(any("unused optional wrk" in row["reason"] for row in state["http"]["skipped"]))
+
+    def test_distribution_version_fallback_fingerprints_installed_binary(self):
+        class FakeServer:
+            def __init__(self, output, reactor, workers, cache_mode, index, deadline):
+                self.reactor = "Mojo::Reactor::" + reactor
+            def close(self):
+                pass
+        metrics = {"completed": 100, "http_errors": 0, "transport_errors": 0,
+                   "duration_seconds": 1, "requests_per_second": 100,
+                   "p50_ms": 1, "p95_ms": 2, "p99_ms": 3,
+                   "cpu_percent": None, "rss_bytes": None, "concurrency_effective": 10}
+        with tempfile.TemporaryDirectory() as directory:
+            binary = Path(directory) / "wrk"
+            binary.write_bytes(b"simulated distribution executable")
+            with patch.dict(os.environ, {"GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_test"}), patch.object(http, "prepare_dataset", return_value=({"signature": "known-seed"}, {"postgres": "16.4", "database_settings": {}})), patch.object(http, "run_command", return_value='{"perl":"v5.40","mojolicious":"9.49"}'), patch.object(http.shutil, "which", return_value=str(binary)), patch.object(http, "wrk_version", return_value="wrk (distribution package 4.1.0-5build2; CLI upstream unspecified)"), patch.object(http, "Server", FakeServer), patch.object(http, "mojo_measure", return_value=(metrics, {"workers_actual": 2})), contextlib.redirect_stdout(io.StringIO()):
+                result = http.main(["--output", directory, "--disposable-database", "--generator", "mojo", "--concurrency", "10"])
+            self.assertEqual(result, 0)
+            environment = json.loads((Path(directory) / "http-environment.json").read_text())
+            self.assertEqual(environment["configuration"]["wrk_binary_sha256"], hashlib.sha256(binary.read_bytes()).hexdigest())
+            self.assertFalse(environment["configuration"]["wrk_upstream_version_verified"])
 
     def test_numeric_overrides_are_bounded(self):
         with tempfile.TemporaryDirectory() as directory:

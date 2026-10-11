@@ -27,7 +27,10 @@ use GPForum::Benchmark::SeedDataset qw(seed_id);
 use GPForum::Command::Migrate;
 use GPForum::Command::PerformanceSeed;
 use GPForum::Config;
+use GPForum::Domain::Post;
 use GPForum::Infrastructure::Id;
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::Schema;
 use GPForum::Service::Admin::PermissionGate;
 use GPForum::Service::Forum::ViewerResolver;
@@ -87,6 +90,9 @@ const my $LISTEN_QUEUE      => 16;
 const my $CHUNK             => 65_536;
 const my @PATHS             => qw(dbic function);
 const my @MODES             => qw(direct proxy);
+const my @PAIRED_PATHS      => qw(before after);
+const my @PAIRED_OPERATIONS => qw(search_ranked search_autocomplete post_edit);
+const my $BEFORE_SEARCH_VERSION => 2;
 const my @ROUND_TRIPS => qw(
   begin_work commit rollback pg_savepoint pg_release pg_rollback_to
 );
@@ -95,10 +101,20 @@ exit main(@ARGV);
 
 sub main (@arguments) {
     my %option = %DEFAULT;
-    GetOptionsFromArray( \@arguments, \%option, 'delay-ms=f', 'json',
-        'read-iterations=i', 'warmup=i', 'write-iterations=i', 'help' )
-      or return _usage(2);
+    GetOptionsFromArray(
+        \@arguments,          \%option,
+        'delay-ms=f',         'json',
+        'read-iterations=i',  'warmup=i',
+        'write-iterations=i', 'paired-functions|paired',
+        'help'
+    ) or return _usage(2);
     return _usage(0) if $option{help};
+    return _usage(2)
+      if @arguments
+      || $option{'read-iterations'} < 1
+      || $option{'write-iterations'} < 1
+      || $option{warmup} < 0
+      || $option{'delay-ms'} < 0;
 
     my $admin_dsn = $ENV{GPFORUM_DATABASE_DSN}
       // croak 'set GPFORUM_DATABASE_DSN to a database the user may CREATE in';
@@ -110,8 +126,11 @@ sub main (@arguments) {
     try {
         ( my $dsn = $admin_dsn ) =~ s/dbname=[^;]+/dbname=$name/msx;
         _seed($dsn);
-        $proxy  = _proxy( $dsn, $option{'delay-ms'} / $MILLISECONDS );
-        $report = _measure( $dsn, $proxy, \%option );
+        $proxy = _proxy( $dsn, $option{'delay-ms'} / $MILLISECONDS );
+        $report =
+          $option{'paired-functions'}
+          ? _measure_paired( $dsn, $proxy, \%option )
+          : _measure( $dsn, $proxy, \%option );
         $report->{benchmark} = {
             database_name    => $name,
             generated_at     => strftime( '%Y-%m-%dT%H:%M:%SZ', gmtime ),
@@ -146,6 +165,7 @@ sub main (@arguments) {
 sub _usage ($status) {
     print 'Usage: script/bench-sql-functions [--read-iterations N]'
       . " [--write-iterations N] [--warmup N] [--delay-ms MS] [--json]\n"
+      . "       Add --paired-functions for alternating stored-function before/after pairs.\n"
       or croak 'cannot write the usage';
 
     return $status;
@@ -366,12 +386,181 @@ sub _select_one ($dsn) {
     return _ms( _median(@runs) );
 }
 
+# Both sides retain the stored-function layer. Only the search versions and
+# the post preflight differ, on one handle and dataset with alternating order.
+sub _measure_paired ( $dsn, $proxy, $option ) {
+    my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
+    my %entries =
+      map { $_ => { %{ $catalogue->entries->{$_} } } } @{ $catalogue->names };
+    for my $name (qw(search_ranked search_autocomplete)) {
+        $entries{$name}{version} = $BEFORE_SEARCH_VERSION;
+    }
+    my $before = GPForum::Infrastructure::SqlFunctionCatalogue->new(
+        entries => \%entries );
+    my %report = (
+        delay_ms      => $option->{'delay-ms'},
+        round_trip_ms => {
+            direct => _select_one($dsn),
+            proxy  => _select_one( $proxy->{dsn} )
+        },
+        comparison => {
+            mode                     => 'paired-functions',
+            baseline_commit          => '2cb9945',
+            implementation_reference => '27ec747',
+            order  => 'before/after on odd pairs; after/before on even pairs',
+            before => {
+                search_ranked => $before->function('search_ranked')->{version},
+                search_autocomplete =>
+                  $before->function('search_autocomplete')->{version},
+                post_preflight =>
+                  'forum_find_post_v2 + forum_thread_page_head_v2'
+            },
+            after => {
+                search_ranked =>
+                  $catalogue->function('search_ranked')->{version},
+                search_autocomplete =>
+                  $catalogue->function('search_autocomplete')->{version},
+                post_preflight => 'forum_post_context_v2'
+            },
+            write_function =>
+              $catalogue->function('forum_write_command')->{function},
+        },
+    );
+    for my $mode (@MODES) {
+        my $schema      = _schema( $mode eq 'direct' ? $dsn : $proxy->{dsn} );
+        my $counts      = _counted( $schema->storage->dbh );
+        my $edit_number = 0;
+        my %operations;
+        for my $path (@PAIRED_PATHS) {
+            my $functions = GPForum::Infrastructure::SqlFunction->new(
+                schema    => $schema,
+                catalogue => $path eq 'before' ? $before : $catalogue
+            );
+            $operations{$path} = _operations( $schema, 'function',
+                { functions => $functions, edit_counter => \$edit_number } );
+        }
+        my $run = $operations{before}{post_edit}{run};
+        $operations{before}{post_edit}{run} = sub {
+            ## no critic (TestingAndDebugging::ProhibitNoWarnings Variables::ProtectPrivateVars) -- restore only the pre-101 preflight for this measurement
+            no warnings 'redefine';
+            local *GPForum::Service::Forum::PostingWorkflow::_post_checked =
+              \&_before_post_checked;
+            return $run->();
+        };
+        for my $name (@PAIRED_OPERATIONS) {
+            my %operation = map { $_ => $operations{$_}{$name} } @PAIRED_PATHS;
+            my $samples =
+              _paired_samples( $name, \%operation, $counts, $option );
+            for my $path (@PAIRED_PATHS) {
+                $report{operations}{$name}{$path}{$mode} =
+                  _paired_summary( $samples->{$path} );
+            }
+        }
+        $schema->storage->disconnect;
+    }
+    return \%report;
+}
+
+# The pre-101 method, with the same function readers and domain refusal.
+sub _before_post_checked ( $self, $input, $rule ) {
+    my $post = $self->post_reader->find_post( $input->{post_id} );
+    my $thread =
+      $post
+      ? $self->thread_detail_reader->find_thread(
+        $post->get_column('thread_id'),
+        $input->{viewer} )
+      : undef;
+    my $error =
+      GPForum::Domain::Post->$rule( $post, $thread, $input->{author_user_id} );
+    return (
+        $post,
+        $error
+        ? {
+            ok     => 0,
+            status => GPForum::Domain::Post->status_of($error),
+            error  => $error
+          }
+        : undef
+    );
+}
+
+sub _paired_samples ( $name, $operations, $counts, $option ) {
+    my %samples    = map { $_ => [] } @PAIRED_PATHS;
+    my $iterations = _iterations( $operations->{before}, $option );
+    for my $pair ( 1 .. $option->{warmup} + $iterations ) {
+        my $number =
+          $pair <= $option->{warmup} ? $pair : $pair - $option->{warmup};
+        my @order = $number % 2 ? @PAIRED_PATHS : reverse @PAIRED_PATHS;
+        my %result;
+        for my $slot ( 0 .. $#order ) {
+            my $path = $order[$slot];
+            %{$counts} = ();
+            my $processor = clock();
+            my $started   = time;
+            $result{$path} = $operations->{$path}{run}->();
+            my $wall = time - $started;
+            my $cpu  = ( clock() - $processor ) / $CLOCKS_PER_SECOND;
+            next if $pair <= $option->{warmup};
+            push @{ $samples{$path} },
+              {
+                pair        => $pair - $option->{warmup},
+                order       => $slot + 1,
+                wall_ms     => $wall * $MILLISECONDS,
+                cpu_ms      => $cpu * $MILLISECONDS,
+                statements  => $counts->{statements} // 0,
+                round_trips => ( $counts->{statements} // 0 ) +
+                  ( $counts->{transaction} // 0 ),
+              };
+        }
+        _check_pair( $name, \%result );
+    }
+    return \%samples;
+}
+
+sub _check_pair ( $name, $result ) {
+    if ( $name eq 'post_edit' ) {
+        for my $path (@PAIRED_PATHS) {
+            croak "$path post edit did not write a revision"
+              if !$result->{$path}{ok} || $result->{$path}{stored}{skipped};
+        }
+        return;
+    }
+    my $json = JSON::MaybeXS->new( canonical => 1 );
+    croak "$name paired search results differ"
+      if $json->encode( $result->{before} ) ne
+      $json->encode( $result->{after} );
+    return;
+}
+
+sub _paired_summary ($samples) {
+    my %total;
+    for my $sample ( @{$samples} ) {
+        for my $key (qw(cpu_ms statements round_trips)) {
+            $total{$key} += $sample->{$key};
+        }
+    }
+    my @wall = map { $_->{wall_ms} } @{$samples};
+    return {
+        samples   => $samples,
+        median_ms => _median(@wall),
+        p95_ms    => _percentile( \@wall, $PERCENTILE ),
+        map { $_ => ( $total{$_} // 0 ) / ( @{$samples} || 1 ) }
+          qw(cpu_ms statements round_trips)
+    };
+}
+
 # The operations, each a code reference that runs one of them, built as
 # Bootstrap::Forum builds the services. The dbic path is the one a schema
 # without the function layer takes; the function path the one PostgreSQL
 # takes now.
-sub _operations ( $schema, $path ) {
-    my %perl   = $path eq 'dbic' ? ( functions => undef ) : ();
+sub _operation_path ( $path, $context ) {
+    return ( functions => undef )                 if $path eq 'dbic';
+    return ( functions => $context->{functions} ) if $context->{functions};
+    return ();
+}
+
+sub _operations ( $schema, $path, $context = {} ) {
+    my %perl   = _operation_path( $path, $context );
     my $thread = seed_id( thread => 1 );
     my $member = GPForum::Service::Forum::Viewer->new(
         member  => 1,
@@ -503,9 +692,11 @@ sub _operations ( $schema, $path ) {
     my $operations = {
         %{
             _write_operations(
-                $workflow,     $read_state, $rate_limit,
-                $rate_request, $member,     $thread,
-                $halfway,      $category,   $ids
+                $workflow,   $read_state,
+                $rate_limit, $rate_request,
+                $member,     $thread,
+                $halfway,    $category,
+                $ids,        $context->{edit_counter}
             )
         },
         search_ranked => {
@@ -515,6 +706,7 @@ sub _operations ( $schema, $path ) {
                     'Depth', { limit => 20 } );
                 @{ $result->{results} }
                   or croak 'benchmark search found no documents';
+                return $result;
             }
         },
         search_autocomplete => {
@@ -523,6 +715,7 @@ sub _operations ( $schema, $path ) {
                 my $result = $searcher->autocomplete( { viewer => $member },
                     'Dep', { limit => 10 } );
                 @{$result} or croak 'benchmark autocomplete found no documents';
+                return $result;
             }
         },
         category_index_member => {
@@ -633,14 +826,16 @@ sub _operations ( $schema, $path ) {
 }
 
 sub _write_operations (
-    $workflow, $read_state, $rate_limit, $rate_request, $member,
-    $thread,   $halfway,    $category,   $ids
+    $workflow, $read_state, $rate_limit, $rate_request,
+    $member,   $thread,     $halfway,    $category,
+    $ids,      $edit_counter = undef
   )
 {
     my $marked_position =
       $read_state->state_for_thread( $member->user_id, $thread )
       ->{last_read_position};
     my $edit_number = 0;
+    $edit_counter //= \$edit_number;
     return {
         mark_read => {
             kind => 'write',
@@ -663,11 +858,12 @@ sub _write_operations (
                         author_user_id => $member->user_id,
                         post_id        => $halfway,
                         command_id     => $ids->uuid,
-                        body_source    => 'Bench edit ' . ++$edit_number,
+                        body_source    => 'Bench edit ' . ++${$edit_counter},
                         viewer         => $member
                     }
                 );
                 $result->{ok} or croak 'benchmark post edit failed';
+                return $result;
             }
         },
         rate_limit => {
@@ -815,6 +1011,7 @@ sub _ms ($seconds) {
 }
 
 sub _text ($report) {
+    return _paired_text($report) if $report->{comparison};
     my $text = sprintf 'SELECT 1: %.3f ms at the database, %.3f ms through'
       . " the proxy (%.2f ms each way)\n\n",
       @{ $report->{round_trip_ms} }{qw(direct proxy)}, $report->{delay_ms};
@@ -834,5 +1031,23 @@ sub _text ($report) {
         }
     }
 
+    return $text;
+}
+
+sub _paired_text ($report) {
+    my $text = "Paired stored-function comparison (alternating order)\n";
+    $text .= sprintf "%-22s %-7s %-7s %8s %8s %8s %6s %6s\n",
+      qw(operation path mode cpu median p95 stmts trips);
+    for my $operation (@PAIRED_OPERATIONS) {
+        for my $path (@PAIRED_PATHS) {
+            for my $mode (@MODES) {
+                my $row = $report->{operations}{$operation}{$path}{$mode};
+                $text .=
+                  sprintf "%-22s %-7s %-7s %8.3f %8.3f %8.3f %6.1f %6.1f\n",
+                  $operation, $path, $mode,
+                  @{$row}{qw(cpu_ms median_ms p95_ms statements round_trips)};
+            }
+        }
+    }
     return $text;
 }

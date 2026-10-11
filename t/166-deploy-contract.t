@@ -132,7 +132,8 @@ for my $unit (qw(gpforum.service gpforum-unix-socket.service)) {
 # used to state that and ship nothing to meet it; these keep the drill and the
 # runbook from drifting apart from the requirement.
 ok( -x 'script/pitr-drill', 'the point-in-time recovery drill is executable' );
-my $drill = path('script/pitr-drill')->slurp;
+my $drill = path('script/pitr-drill')->slurp
+  . path('script/lib/GPForum/PostgreSQL/PITR.pm')->slurp;
 for my $setting (
     qw(wal_level archive_mode archive_command restore_command
     recovery_target_time)

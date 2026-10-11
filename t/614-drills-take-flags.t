@@ -6,11 +6,12 @@ package main;
 use v5.40;
 
 use Const::Fast;
-use English    qw(-no_match_vars);
-use File::Temp qw(tempdir);
-use IPC::Open3 qw(open3);
-use Mojo::File qw(path);
-use Symbol     qw(gensym);
+use English       qw(-no_match_vars);
+use File::Temp    qw(tempdir);
+use IPC::Open3    qw(open3);
+use JSON::MaybeXS qw(decode_json);
+use Mojo::File    qw(path);
+use Symbol        qw(gensym);
 use Test::More;
 
 our $VERSION = '0.001';
@@ -23,11 +24,16 @@ our $VERSION = '0.001';
 # cluster: each stops at its arguments.
 
 const my $USAGE        => 2;
+const my $FAILURE      => 1;
 const my $STATUS_SHIFT => 8;
+const my $PITR_PORT    => 55_991;
+const my $PITR_TIMEOUT => 15;
 const my %DRILL => (
     'script/pitr-drill' => {
-        flags => [qw(--port --dir --keep)],
+        flags => [qw(--port --dir --keep --json --timeout --validate)],
         old   => { GPFORUM_PITR_PORT => '--port', GPFORUM_PITR_DIR => '--dir' },
+        refusal_status => $FAILURE,
+        inline_help    => 1,
     },
     'script/standby-drill' => {
         flags => [qw(--primary-port --standby-port --dir --keep)],
@@ -36,6 +42,8 @@ const my %DRILL => (
             GPFORUM_STANDBY_PORT         => '--standby-port',
             GPFORUM_STANDBY_DIR          => '--dir',
         },
+        refusal_status => $USAGE,
+        inline_help    => 0,
     },
 );
 
@@ -44,7 +52,11 @@ for my $drill ( sort keys %DRILL ) {
         my $help = _run( {}, $drill, '--help' );
         is( $help->{status}, 0, '--help' );
         for my $flag ( @{ $DRILL{$drill}{flags} } ) {
-            like( $help->{out}, qr/^ \s+ \Q$flag\E \b/msx, "offers $flag" );
+            my $documented =
+              $DRILL{$drill}{inline_help}
+              ? qr/\Q$flag\E \b/msx
+              : qr/^ \s+ \Q$flag\E \b/msx;
+            like( $help->{out}, $documented, "offers $flag" );
         }
         unlike( $help->{out}, qr/GPFORUM_/msx, 'and names no variable' );
 
@@ -53,7 +65,7 @@ for my $drill ( sort keys %DRILL ) {
             $USAGE, "$port without a value is a usage error" );
         my $word = _run( {}, $drill, $port, 'many' );
         is( $word->{status}, $USAGE, "$port takes a number" );
-        like( $word->{err}, qr/'many'/msx, 'and says what it was given' );
+        like( $word->{err}, qr/['"]many['"]/msx, 'and says what it was given' );
 
         # The drill removes its directory when it ends: one that holds files
         # is refused before anything starts, and left as it was. A relative
@@ -61,12 +73,25 @@ for my $drill ( sort keys %DRILL ) {
         my $caller = path( tempdir( CLEANUP => 1 ) )->realpath->to_string;
         path( $caller, 'mine' )->make_path->child('notes.txt')->touch;
         my $full = _run_in( $caller, {}, $drill, '--dir', 'mine' );
-        is( $full->{status}, $USAGE, '--dir naming a directory with files' );
-        like(
-            $full->{err},
-            qr/--dir [ ] \Q$caller\E\/mine [ ] is [ ] not [ ] empty/msx,
-            'is refused, named from where the drill was run'
+        is(
+            $full->{status},
+            $DRILL{$drill}{refusal_status},
+            '--dir naming a directory with files is refused'
         );
+        if ( $DRILL{$drill}{inline_help} ) {
+            like(
+                $full->{err},
+                qr/owned_workspace_refused/msx,
+                'the owned-workspace failure has a stable diagnostic code'
+            );
+        }
+        else {
+            like(
+                $full->{err},
+                qr/--dir [ ] \Q$caller\E\/mine [ ] is [ ] not [ ] empty/msx,
+                'is refused, named from where the drill was run'
+            );
+        }
         ok( -e path( $caller, 'mine', 'notes.txt' ), 'and nothing is removed' );
 
         for my $old ( sort keys %{ $DRILL{$drill}{old} } ) {
@@ -82,6 +107,64 @@ for my $drill ( sort keys %DRILL ) {
         }
     };
 }
+
+subtest 'the Perl PITR frontend forwards flags to the owned drill' => sub {
+    my $directory = path( tempdir( CLEANUP => 1 ), 'owned' )->to_string;
+
+    # Empty PATH prevents discovery of any PostgreSQL tool. Invoke the current
+    # interpreter explicitly so the frontend still parses its real arguments
+    # and emits partial evidence before starting any external server.
+    local $ENV{PATH} = q{};
+    my $result = _run(
+        {},                  $EXECUTABLE_NAME,
+        'script/pitr-drill', '--json',
+        '--port',            $PITR_PORT,
+        '--timeout',         $PITR_TIMEOUT,
+        '--dir',             $directory,
+        '--keep'
+    );
+    is( $result->{status}, $FAILURE,
+        'an unavailable server tool remains a failed measurement' );
+    my $evidence = decode_json( $result->{out} );
+    is( $evidence->{reason}, 'missing_required_tool',
+        'the command stops before any PostgreSQL server starts' );
+    is( $evidence->{configuration}{port},
+        $PITR_PORT, '--port reaches the implementation' );
+    is( $evidence->{configuration}{timeout_seconds},
+        $PITR_TIMEOUT, '--timeout reaches the implementation' );
+    ok( $evidence->{cleanup}{kept}, '--keep reaches the implementation' );
+    ok(
+        -f path( $directory, '.gpforum-pitr-owned' ),
+        '--dir selects the owned workspace'
+    );
+    ok(
+        !$evidence->{configuration}{external_database_used},
+        'argument handling never connects to an application database'
+    );
+};
+
+subtest 'the PITR JSON frontend preserves an occupied workspace' => sub {
+    my $directory = path( tempdir( CLEANUP => 1 ), 'occupied' )->make_path;
+    my $existing  = $directory->child('notes.txt')->spurt('existing bytes');
+    local $ENV{PATH} = q{};
+    my $result = _run( {}, $EXECUTABLE_NAME, 'script/pitr-drill', '--json',
+        '--dir', $directory->to_string );
+    is( $result->{status}, $FAILURE,
+        'an unowned workspace yields a failed measurement' );
+    my $evidence = decode_json( $result->{out} );
+    is( $evidence->{status}, 'fail', 'JSON never claims the drill ran' );
+    is( $evidence->{reason}, 'owned_workspace_refused',
+        'partial evidence identifies the safety refusal' );
+    ok(
+        !$evidence->{cleanup}{workspace_removed},
+        'cleanup does not claim removal of caller files'
+    );
+    is( $existing->slurp, 'existing bytes', 'caller bytes are preserved' );
+    ok(
+        !-e $directory->child('.gpforum-pitr-owned'),
+        'the refused directory is never claimed by the drill'
+    );
+};
 
 subtest 'script/gpforum-evidence-live' => sub {
     my $helper  = 'script/gpforum-evidence-live';

@@ -20,10 +20,15 @@ on:
       - 'bin/gpforum-mail-*'
       - 'bin/gpforum-dead-letter-check'
       - 'bin/gpforum-evidence-*'
-      - 'lib/GPForum/Service/Ops/**'
+      - 'lib/GPForum/Service/Operations/**'
+      - 'lib/GPForum/Command/Staging*'
+      - 'lib/GPForum/Command/Evidence*'
+      - 'lib/GPForum/CLI/staging_*.pm'
       - 'script/staging-*'
       - 'script/stress-load'
       - 'script/gpforum-mail-*'
+      - 'script/mail-*'
+      - 'script/evidence-*'
       - 'script/dead-letter-check'
       - 'script/gpforum-evidence-*'
       - 'script/gpforum-private-beta-checklist'
@@ -39,10 +44,15 @@ on:
       - 'bin/gpforum-mail-*'
       - 'bin/gpforum-dead-letter-check'
       - 'bin/gpforum-evidence-*'
-      - 'lib/GPForum/Service/Ops/**'
+      - 'lib/GPForum/Service/Operations/**'
+      - 'lib/GPForum/Command/Staging*'
+      - 'lib/GPForum/Command/Evidence*'
+      - 'lib/GPForum/CLI/staging_*.pm'
       - 'script/staging-*'
       - 'script/stress-load'
       - 'script/gpforum-mail-*'
+      - 'script/mail-*'
+      - 'script/evidence-*'
       - 'script/dead-letter-check'
       - 'script/gpforum-evidence-*'
       - 'script/gpforum-private-beta-checklist'
@@ -85,10 +95,14 @@ jobs:
       GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=127.0.0.1;port=5432
       GPFORUM_DATABASE_USER: postgres
       GPFORUM_DATABASE_PASSWORD: postgres
+      GPFORUM_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
+      GPFORUM_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up GPForum
         uses: ./.github/actions/setup-gpforum-perl
@@ -144,6 +158,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: gpforum-ops-drills
+          name: gpforum-ops-drills-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts/
           if-no-files-found: warn
+          retention-days: 14

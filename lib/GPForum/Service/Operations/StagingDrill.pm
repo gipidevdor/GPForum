@@ -6,8 +6,8 @@ package GPForum::Service::Operations::StagingDrill;
 use Carp qw(croak);
 use Const::Fast;
 use DBI;
-use English    qw(-no_match_vars);
-use File::Temp qw(tempfile);
+use English qw(-no_match_vars);
+use File::Temp;
 use GPForum::X::Argument;
 use GPForum::X::Config;
 use JSON::MaybeXS qw(encode_json);
@@ -206,9 +206,17 @@ sub _run_dump_restore_phase ( $self, $evidence, $options ) {
     local $ENV{GPFORUM_DATABASE_DSN} = $source->{dsn};
     $self->_seed_if_requested($options);
     my $before = _row_counts( $source->{dbh} );
-    my ( $handle, $dump ) =
-      tempfile( 'gpforum-drill-XXXXXX', SUFFIX => '.dump' );
-    close $handle or croak 'failed to close temporary dump handle';
+
+    # The object owns the dump until this phase returns or unwinds. A failed
+    # client restore must not leave the temporary database contents behind.
+    my $temporary = File::Temp->new(
+        TEMPLATE => 'gpforum-drill-XXXXXX',
+        SUFFIX   => '.dump',
+        TMPDIR   => 1,
+        UNLINK   => 1,
+    );
+    my $dump = $temporary->filename;
+    close $temporary or croak 'failed to close temporary dump handle';
     $self->tools->dump_database( $source->{dsn}, $dump );
     my $target = $self->_create_throwaway( $options, 'restore' );
     $self->tools->restore_database( $target->{dsn}, $dump );
@@ -321,11 +329,15 @@ sub _create_throwaway ( $self, $options, $suffix ) {
     my $dsn  = $PG_TOOLS->rewrite_dsn( $admin_dsn, $name );
     my $info = {
         admin_dbh => $admin_dbh,
-        dbh       => _connect($dsn),
+        dbh       => undef,
         dsn       => $dsn,
         name      => $name,
     };
+
+    # Register ownership before connecting to the new database: CREATE can
+    # succeed while its first connection fails, and cleanup must still drop it.
     push @{ $self->created }, $info;
+    $info->{dbh} = _connect($dsn);
 
     return $info;
 }
@@ -352,6 +364,7 @@ sub _cleanup ( $self, $evidence, $options ) {
 # A handle that will not close is let go: DROP ... WITH (FORCE) ends the
 # throwaway database's sessions anyway, and cleanup must not fail the drill.
 sub _disconnect ($dbh) {
+    return undef if !$dbh;
     try {
         $dbh->disconnect;
     }

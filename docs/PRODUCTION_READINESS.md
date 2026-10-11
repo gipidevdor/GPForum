@@ -384,20 +384,32 @@ Before production:
   staging bring-up and non-destructive verify, see `docs/ops/staging-host.md`
   (`script/staging-host-verify`).
 
-Example logical backup:
+Use the existing database-and-attachment backup and integrity check:
 
 ```sh
-pg_dump --format=custom --file=gpforum.dump "$GPFORUM_DATABASE_DSN"
+bin/gpforum backup --to /var/backups/gpforum
+bin/gpforum restore --check /var/backups/gpforum/gpforum-<UTC-timestamp>
 ```
 
-Example restore drill:
+A DBI DSN is not a libpq connection string accepted by `pg_dump`. The command
+above translates the configured connection without putting its password on
+the command line. Pause attachment writes and deletion jobs for the complete
+dump/archive interval; a sequential copy alone is not a consistent snapshot.
+
+Rehearse the actual restore on newly created disposable databases:
 
 ```sh
-createdb gpforum_restore
-pg_restore --dbname=gpforum_restore --clean --if-exists gpforum.dump
-GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum_restore;host=127.0.0.1' \
-  script/gpforum-carton exec bin/gpforum-migrate --plan
+script/gpforum-carton exec script/staging-drill --json
+script/gpforum-carton exec script/staging-drill-attachments --json
+script/gpforum-carton exec script/pitr-drill --json --timeout 180
 ```
+
+The first two use owned throwaway database/filesystem targets; the PITR drill
+creates its own cluster and ignores application DSNs. None overwrites an
+existing production database. Matching client/server versions, configurable
+RPO/RTO targets and attachment consistency are described in the
+[backup runbook](ops/backup-and-restore.md). Database-only PITR does not recover
+attachments to the same instant.
 
 ## Deploy Procedure
 

@@ -33,7 +33,7 @@ const my @CLAIM_RE => (
 const my @CHECK_TYPES => qw(
   staging_host_verify mail_delivery evidence_validate staging_drill
   attachment_filesystem deploy_checklist staging_ops_extensions
-  dead_letter_check mail_lifecycle_check
+  dead_letter_check mail_lifecycle_check postgres_diagnostics pitr_drill
 );
 const my %DRILL_TYPE => map { $_ => 1 }
   qw(attachment_filesystem deploy_checklist staging_ops_extensions);
@@ -44,7 +44,7 @@ const my %STRESS_PROFILE => map { $_ => 1 } qw(smoke 100 500 1000);
 const my %REPORTING_TYPE => map { $_ => 1 } qw(
   staging_host_verify mail_delivery stress_load staging_drill
   attachment_filesystem deploy_checklist staging_ops_extensions
-  dead_letter_check mail_lifecycle_check
+  dead_letter_check mail_lifecycle_check postgres_diagnostics pitr_drill
 );
 const my %STATUS => map { $_ => 1 } qw(pass ok degraded fail skipped dry-run);
 const my %REDACTION_KEY => map { $_ => 1 } qw(secrets_redacted secrets_leaked);

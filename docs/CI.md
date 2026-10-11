@@ -32,7 +32,24 @@ dependency and takes much longer than the contract checks.
 | PostgreSQL 16, 17, 18 | [postgres-matrix.yml](../.github/workflows/postgres-matrix.yml) | migration plan, apply, apply-again idempotency, every PostgreSQL integration test in `t/integration/` (`make integration`), `bin/gpforum-platform-check --with-db`, and the fresh/upgrade/dump-restore drill with a version-matched `pg_dump` |
 
 `ci.yml` keeps one server (PostgreSQL 16) in the blocking gate; the matrix runs
-on migration and schema paths, nightly, and on demand.
+on migration/schema paths and their SQL consumers, database tooling and
+matching tests, nightly, and on demand. The matrix enables `pg_stat_statements`
+only on its disposable PostgreSQL service, with one bounded restart. It runs
+the existing full integration tier, then collects and schema-validates
+read-only diagnostics even if a later gate failed. Public JSON contains
+allowlisted counters and query identifiers; it never retrieves SQL text.
+
+[postgres-recovery.yml](../.github/workflows/postgres-recovery.yml) runs the
+existing isolated PITR drill weekly on Tuesday at 03:47 UTC on PostgreSQL 18,
+or manually on 16/17/18. It checks physical-backup integrity, completed WAL
+archiving, targeted promotion, exact recovered records and owned-server
+cleanup. Its one standard Linux job has a 15-minute limit; the drill has a
+180-second limit including cleanup. It adds no recovery job to each PR.
+The token is read-only, concurrency preserves an active recovery measurement,
+and JSON/sanitised logs are retained for 14 days. Physical backups, WAL and
+data directories are excluded from artifacts. Reports distinguish setup
+failure and unavailable measurements from successful recovery; this small
+fixture does not establish production RPO/RTO or attachment consistency.
 
 ## Readiness targets
 
@@ -67,6 +84,7 @@ run in their offline, simulate and dry-run modes, exactly as
 | Artifact creation | `release.yml` (reproducible `git archive` tarball, Carton vendor bundle, `SHA256SUMS`, build provenance attestation) |
 | Deployment validation | `deploy-units.yml` (`systemd-analyze verify`, `nginx -t`, `caddy validate`, `sh -n` on the rc(8) unit, deploy checklist drill) |
 | Migration validation | `postgres-matrix.yml` (plan, apply, idempotent re-apply, fresh/upgrade/dump-restore drill) |
+| Database recovery validation | `postgres-recovery.yml` (weekly/manual manifest-verified isolated PITR; no PR matrix expansion) |
 | Accessibility gates | `ci.yml` test suite (`t/65-accessible-theme.t`, `t/35-forum-accessible-ssr.t`, the `*-access.t` authorization suite) per [ADR 0094](adr/0094-accessibility-engineering.md) |
 
 ## Running the gates locally

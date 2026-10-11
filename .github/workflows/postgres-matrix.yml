@@ -14,10 +14,41 @@ on:
       - 'lib/GPForum/Schema/**'
       - 'lib/GPForum/Schema.pm'
       - 'lib/GPForum/Query/**'
+      - 'lib/GPForum/Infrastructure/SqlFunction*'
+      - 'lib/GPForum/Infrastructure/EventRecorder.pm'
+      - 'lib/GPForum/Infrastructure/AuditRecord.pm'
+      - 'lib/GPForum/Service/Forum/**'
+      - 'lib/GPForum/Service/Search/**'
+      - 'lib/GPForum/Service/Community/**'
+      - 'lib/GPForum/Service/Moderation/**'
+      - 'lib/GPForum/Service/Outbox/**'
+      - 'lib/GPForum/Service/Privacy/**'
+      - 'lib/GPForum/Service/Projection/**'
+      - 'lib/GPForum/Service/Identity/**'
+      - 'lib/GPForum/Service/Notification/**'
+      - 'lib/GPForum/Service/Attachment/**'
+      - 'lib/GPForum/Service/Portability/**'
+      - 'lib/GPForum/Service/Plugin/**'
+      - 'lib/GPForum/Service/Admin/**'
+      - 'lib/GPForum/Service/Realtime/**'
+      - 'lib/GPForum/Service/Operations/**'
+      - 'lib/GPForum/Worker/**'
+      - 'lib/GPForum/Benchmark/PlanRules.pm'
+      - 'lib/GPForum/Benchmark/QueryPlanEndpoints.pm'
+      - 'lib/GPForum/Command/QueryPlanEvidence.pm'
+      - 'lib/GPForum/Command/PerformanceSeed.pm'
       - 't/integration/**'
+      - 't/lib/GPForum/Test/PgDatabase.pm'
+      - 't/lib/GPForum/Test/PostgresHarness.pm'
+      - 't/lib/GPForum/Test/OutboxTransport.pm'
+      - 't/lib/GPForum/Test/QueryPlanEvidenceDbh.pm'
       - 'bin/gpforum-migrate'
       - 'bin/gpforum-staging-drill'
       - 'script/staging-drill'
+      - 'script/query-plan-*'
+      - 'script/postgres-diagnostics'
+      - 'script/lib/GPForum/PostgreSQL/**'
+      - 'docs/ops/postgres-diagnostics-schema-v1.json'
       - 'cpanfile'
       - 'cpanfile.postgres'
       - 'cpanfile.snapshot'
@@ -32,10 +63,41 @@ on:
       - 'lib/GPForum/Schema/**'
       - 'lib/GPForum/Schema.pm'
       - 'lib/GPForum/Query/**'
+      - 'lib/GPForum/Infrastructure/SqlFunction*'
+      - 'lib/GPForum/Infrastructure/EventRecorder.pm'
+      - 'lib/GPForum/Infrastructure/AuditRecord.pm'
+      - 'lib/GPForum/Service/Forum/**'
+      - 'lib/GPForum/Service/Search/**'
+      - 'lib/GPForum/Service/Community/**'
+      - 'lib/GPForum/Service/Moderation/**'
+      - 'lib/GPForum/Service/Outbox/**'
+      - 'lib/GPForum/Service/Privacy/**'
+      - 'lib/GPForum/Service/Projection/**'
+      - 'lib/GPForum/Service/Identity/**'
+      - 'lib/GPForum/Service/Notification/**'
+      - 'lib/GPForum/Service/Attachment/**'
+      - 'lib/GPForum/Service/Portability/**'
+      - 'lib/GPForum/Service/Plugin/**'
+      - 'lib/GPForum/Service/Admin/**'
+      - 'lib/GPForum/Service/Realtime/**'
+      - 'lib/GPForum/Service/Operations/**'
+      - 'lib/GPForum/Worker/**'
+      - 'lib/GPForum/Benchmark/PlanRules.pm'
+      - 'lib/GPForum/Benchmark/QueryPlanEndpoints.pm'
+      - 'lib/GPForum/Command/QueryPlanEvidence.pm'
+      - 'lib/GPForum/Command/PerformanceSeed.pm'
       - 't/integration/**'
+      - 't/lib/GPForum/Test/PgDatabase.pm'
+      - 't/lib/GPForum/Test/PostgresHarness.pm'
+      - 't/lib/GPForum/Test/OutboxTransport.pm'
+      - 't/lib/GPForum/Test/QueryPlanEvidenceDbh.pm'
       - 'bin/gpforum-migrate'
       - 'bin/gpforum-staging-drill'
       - 'script/staging-drill'
+      - 'script/query-plan-*'
+      - 'script/postgres-diagnostics'
+      - 'script/lib/GPForum/PostgreSQL/**'
+      - 'docs/ops/postgres-diagnostics-schema-v1.json'
       - 'cpanfile'
       - 'cpanfile.postgres'
       - 'cpanfile.snapshot'
@@ -91,6 +153,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up GPForum
         uses: ./.github/actions/setup-gpforum-perl
@@ -99,6 +163,38 @@ jobs:
           # pg_dump refuses a server newer than itself, and the staging drill
           # dumps and restores.
           postgres-client-version: ${{ matrix.postgres }}
+
+      # These settings belong to this disposable container, never to a live
+      # application database. Track nested function statements without putting
+      # query text, bind values or production credentials in the evidence.
+      - name: Enable statistics on the disposable PostgreSQL service
+        timeout-minutes: 2
+        env:
+          POSTGRES_SERVICE_ID: ${{ job.services.postgres.id }}
+          PGPASSWORD: postgres
+          PGCONNECT_TIMEOUT: '5'
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -U postgres -d gpforum_test -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements'"
+          docker restart "$POSTGRES_SERVICE_ID"
+          ready=false
+          for attempt in {1..30}; do
+            if pg_isready -h 127.0.0.1 -U postgres -d gpforum_test >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            echo "Disposable PostgreSQL service did not restart after $attempt readiness checks." >&2
+            exit 1
+          fi
+          psql -h 127.0.0.1 -U postgres -d gpforum_test -v ON_ERROR_STOP=1 \
+            -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements' \
+            -c "ALTER SYSTEM SET pg_stat_statements.track = 'all'" \
+            -c "ALTER SYSTEM SET pg_stat_statements.track_planning = 'on'" \
+            -c 'SELECT pg_reload_conf()'
 
       - name: Report server version
         run: psql "host=127.0.0.1 port=5432 user=postgres dbname=gpforum_test" -c 'select version()'
@@ -109,6 +205,7 @@ jobs:
         run: script/gpforum-carton exec bin/gpforum-migrate --plan
 
       - name: Apply database migrations
+        id: migrate
         run: script/gpforum-carton exec bin/gpforum-migrate --apply
 
       - name: Re-apply migrations is a no-op
@@ -132,6 +229,24 @@ jobs:
       - name: Run platform check
         run: script/gpforum-carton exec bin/gpforum-platform-check --with-db
 
+      - name: Collect read-only PostgreSQL diagnostics
+        id: diagnostics
+        if: always() && steps.migrate.outcome == 'success'
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          script/gpforum-carton exec script/postgres-diagnostics --json --require-statements \
+            | tee "artifacts/postgres-diagnostics-pg${{ matrix.postgres }}.json"
+
+      - name: Validate PostgreSQL diagnostics
+        if: always() && steps.diagnostics.outcome != 'skipped'
+        run: |
+          script/gpforum-carton exec script/postgres-diagnostics --validate \
+            "artifacts/postgres-diagnostics-pg${{ matrix.postgres }}.json"
+          script/evidence-validate --strict --human \
+            "artifacts/postgres-diagnostics-pg${{ matrix.postgres }}.json"
+
       - name: Run fresh/upgrade/dump-restore migration drill
         run: |
           mkdir -p artifacts
@@ -147,6 +262,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: gpforum-staging-drill-pg${{ matrix.postgres }}
+          name: gpforum-postgres-pg${{ matrix.postgres }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts/
           if-no-files-found: warn
+          retention-days: 14

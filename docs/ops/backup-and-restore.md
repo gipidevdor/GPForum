@@ -9,7 +9,7 @@ that recovers the database to any instant.
 | --- | --- | --- |
 | Recovers | the database and the uploads | the database cluster |
 | Granularity | the moment of the backup | any instant covered by the archive |
-| Typical RPO | as old as the last backup | seconds |
+| Recoverable window | a successfully completed backup | the verified base backup and the continuous WAL archive |
 | Checked by | `gpforum restore --check` | `script/pitr-drill` |
 | Good for | a copy off the host, a bad deploy, a copy for staging | deletion, corruption, disk loss |
 
@@ -70,7 +70,12 @@ forum's own disk is lost with it: copy the directory off the host (`rsync
 The uploads are copied after the dump, as tar finds them: an upload made
 meanwhile is a file in the archive nothing refers to; an attachment erased
 meanwhile is referred to by the dump and missing from the archive. Run it
-when the forum is quiet.
+with attachment writes and deletion jobs paused for the entire database dump
+and attachment copy. A quiet forum reduces the risk but does not establish a
+consistent snapshot. Keep those writes paused until the manifest is complete,
+then resume them; record the pause interval with the backup evidence. An
+operator-managed snapshot of both stores is another option when its consistency
+has been tested. This command does not create such a snapshot.
 
 ## Checking a backup
 
@@ -103,13 +108,19 @@ Next: keep it as it is, and take another with gpforum backup
 
 Given the directory of the backups rather than one of them, it offers the
 newest. `--json` prints one object with a `status` and each finding, for a
-monitor.
+monitor. Integrity and readable archive contents are necessary checks; they
+do not prove that a server can restore the backup or that attachment metadata
+and files describe the same instant. Rehearse the actual restore with
+`gpforum staging-drill` and the attachment filesystem drill, and verify
+metadata-to-file references on an isolated copy before a production cutover.
 
 ## Restoring a backup
 
 A restore replaces the forum's database and uploads, so it is done by hand.
-On Debian, with the settings of the template (database and role `gpforum`
-on this host):
+On Debian, with database `gpforum` on this host, replace `SCHEMA_OWNER` below
+with the already provisioned schema-owner or migration operator role. Use the
+ordinary owner login for restore, separately from the restricted runtime login;
+the local `postgres` operator performs the database rename and creation.
 
 1. **Check it**: `sudo -u gpforum gpforum restore --check DIR`. Restore
    nothing that fails.
@@ -119,14 +130,18 @@ on this host):
 
    ```sh
    sudo -u postgres psql -c 'ALTER DATABASE gpforum RENAME TO gpforum_before_restore'
-   sudo -u postgres createdb --owner gpforum gpforum
-   sudo -u gpforum pg_restore --no-owner --no-acl --host 127.0.0.1 --username gpforum \
+   sudo -u postgres createdb --owner SCHEMA_OWNER gpforum
+   sudo -u gpforum pg_restore --exit-on-error --no-owner --no-acl --host 127.0.0.1 --username SCHEMA_OWNER \
      --dbname gpforum DIR/database.dump
    ```
 
-   pg_restore asks for `GPFORUM_DATABASE_PASSWORD` unless `~/.pgpass` holds
-   it; on macOS run `psql` and `createdb` as the account that installed
-   PostgreSQL instead of `postgres`.
+   `pg_restore` uses libpq credentials, such as a private `PGPASSFILE` or the
+   invoking account's mode-0600 `~/.pgpass`; `PGPASSWORD` is another supported
+   environment input. It does not read `GPFORUM_DATABASE_PASSWORD` directly.
+   Never put a password on the command line. `--no-acl` omits restored grants:
+   provision the restricted runtime role and its required ACLs separately before
+   starting the forum. On macOS run `psql` and `createdb` as the account that
+   installed PostgreSQL instead of `postgres`.
 4. **Put the uploads back**, the same way:
 
    ```sh
@@ -151,9 +166,39 @@ The archive below recovers the database alone. **The uploads are not in
 it**: `FilesystemStorage` writes them under the attachment root, which
 neither WAL archiving nor `pg_basebackup` touches, and the database keeps
 only their keys -- a recovery without them is a forum whose attachments
-all answer 404. Restore the attachment root from the nightly backup taken
-closest to the instant (step 4 above). `script/staging-drill-attachments`
-rehearses that half.
+may answer 404. Choosing the nightly backup nearest the recovery target does
+not establish consistency: an older copy can miss later uploads, while a
+newer copy can omit files deleted after the target. Use a documented recovery
+point with a jointly quiesced database/filesystem backup, or retain immutable
+versions of attachment objects for the whole WAL recovery window. The current
+filesystem backend does not implement object versioning. If only nightly
+copies exist, constrain the recovery point to a verified consistent backup
+and document the resulting loss of newer data.
+
+`script/staging-drill-attachments` verifies filesystem copy/restore integrity
+separately; it does not verify a common PITR instant or application attachment
+references. Before resuming the forum, inspect attachment metadata and stored
+objects on an isolated restore and resolve missing objects. Keep the original
+database and attachment tree available for rollback.
+
+### Recovery objectives
+
+Record operator-approved RPO (acceptable data loss) and RTO (acceptable outage)
+targets in the deployment's recovery policy, together with backup cadence,
+archive monitoring, archive retention and attachment retention. These are
+configurable objectives, not guarantees supplied by GPForum. For example, a
+deployment can choose different minute targets after measuring its own size
+and storage; this repository supplies no default production target.
+
+The achieved database recovery point is bounded by the latest complete,
+durable, recoverable archived WAL segment. A WAL switch returning successfully
+does not mean archiving has completed, and a low-write system can retain an
+unfinished segment for longer than a presumed seconds-level RPO. Monitor
+archive failures and the recoverable time gap, verify the archive off-host,
+and test whether the chosen archiving policy meets the target. RTO includes
+provisioning, transfer, WAL replay, attachment recovery and application checks.
+The drill below records recovery and total elapsed seconds separately; its
+three-row fixture cannot establish production RPO or RTO.
 
 ### Configuring the archive
 
@@ -177,15 +222,36 @@ Take a base backup after enabling archiving, and again often enough that
 replaying WAL from the last one is a tolerable wait:
 
 ```sh
-pg_basebackup -h HOST -U gpforum -D /srv/gpforum/base/$(date -u +%Y%m%dT%H%M%SZ) -Fp -Xs
+pg_basebackup -h HOST -U backup_operator -D /srv/gpforum/base/$(date -u +%Y%m%dT%H%M%SZ) -Fp -Xs
 ```
+
+`backup_operator` is a placeholder for a dedicated, operator-provisioned login
+with the replication privilege required by `pg_basebackup`. Its private libpq
+authentication must be configured by the operator. The web runtime login must
+have no replication privilege; ordinary migration credentials are not the
+physical backup login. These instructions do not create a role or grant a
+privilege automatically.
+
+Verify every completed physical backup with the matching PostgreSQL major's
+`pg_verifybackup BACKUP_DIRECTORY` before relying on it. A valid manifest proves
+backup-file integrity, not continuous archive coverage or an application restore;
+those require the recovery rehearsal. Protect backup and WAL directories as
+private operator data, and keep credentials in the existing secret store.
 
 ### Restoring to an instant
 
-1. Stop the server. Keep the broken data directory rather than deleting it —
-   it is the evidence, and a second restore attempt may need it.
-2. Put the base backup in place as the data directory.
-3. Append the recovery settings:
+Restore and verify on an isolated cluster before an operator approves any
+production cutover. Never replace or start recovery in the production primary's
+data directory. Preserve the original data directory and the immutable backup.
+
+1. Allocate a new, private data directory on the recovery host and copy the
+   verified base backup into it. Keep the source backup unchanged so another
+   recovery attempt can begin from it.
+2. Configure this restored copy with its own service identity, socket directory
+   and unused port. Override retained primary listeners, archive destinations
+   and deployment hooks before first start; use the original WAL archive only
+   as a read-only recovery source. Keep application traffic away from the copy.
+3. Append the recovery settings to the isolated copy:
 
    ```
    restore_command = 'cp /srv/gpforum/wal/%f %p'
@@ -193,32 +259,82 @@ pg_basebackup -h HOST -U gpforum -D /srv/gpforum/base/$(date -u +%Y%m%dT%H%M%SZ)
    recovery_target_action = 'promote'
    ```
 
-4. `touch recovery.signal` in the data directory.
-5. Start the server. It replays WAL to the target and promotes.
-6. Restore the attachment root to the same instant, from the nightly
-   backup taken closest to it.
-7. Run `gpforum migrate --check` (`--json` for a script). It should exit
+4. `touch recovery.signal` in that new data directory.
+5. Start only the isolated server. It replays WAL to the target and promotes;
+   verify the target, exact expected data and `pg_is_in_recovery() = false`.
+6. Restore the attachment state associated with the verified recovery point,
+   using the consistency policy above. Do not substitute an arbitrary nearest
+   nightly copy for a common snapshot.
+7. With the application command explicitly configured for the isolated database,
+   run `gpforum migrate --check` (`--json` for a script). It should exit
    0 with `pending=0`: if it lists pending migrations, the restore predates a
    deploy and the application will not match the schema. (`--plan` lists the
    files in `migrations/` without asking the database, so it cannot tell.)
 
+8. Verify attachment references, schema compatibility, runtime ACLs and application
+   checks on the isolated copy. Plan a manual cutover and rollback with the
+   deployment operator; stop application writes before switching database and
+   attachment targets together. Preserve the original stores until verification
+   is complete.
+
 Choose the target *before* the damage, not after it. If you do not know when
 the damage happened, restore to a candidate instant, look, and repeat — which
-is why step 1 says keep the original.
+is why the original data directory and backup remain available.
 
 ### Rehearsing it
 
 ```bash
-script/pitr-drill
+script/pitr-drill --json --timeout 180 > pitr-evidence.json
+script/pitr-drill --validate pitr-evidence.json
 ```
 
-The drill builds its own throwaway cluster, so it touches nothing you run. It
-applies the configuration above, takes a base backup, writes rows on either
-side of a recovery target, restores to that target, and checks that the rows
-written before it came back and the rows written after it did not. The last
-recorded run is in
+The Perl drill builds its own temporary cluster and ignores application DSNs,
+credentials and PostgreSQL client environment overrides. It uses a private
+Unix socket, requires matching `initdb`, `postgres`, `pg_ctl`, `pg_basebackup`,
+`pg_verifybackup` and `psql` binaries on `PATH`, and takes a base backup with a
+fast checkpoint. It verifies the backup manifest, writes rows on either side
+of a recovery target, waits for the required WAL segment to be archived, and
+restores to the target. It checks promotion, the exact initial and retained
+row bodies, exclusion of the later row, and the full row counts. Every command
+and polling loop has a deadline. The default 180 seconds includes an eight
+second cleanup reserve.
+
+The versioned schema is
+[`postgres-pitr-schema-v1.json`](postgres-pitr-schema-v1.json). JSON reports
+the checkout commit and whether it has local changes (`source_dirty`, or null
+when Git provenance cannot be checked), server/client versions, target, dataset,
+executed phases,
+manifest/archive/recovery checks, recovery seconds and total seconds. A missing
+tool, failed verification, timeout or incomplete recovery returns nonzero and
+`status=fail`, retaining completed phases without claiming success. Validation
+checks schema and secret exclusion; a valid failure report is still a failed
+drill. Generic evidence validation also accepts this report type.
+
+`recovery_seconds` starts immediately before the recovered server is launched
+and ends after promotion and exact-data checks. `duration_seconds` includes
+setup, base backup, archive completion and cleanup as well. Neither includes
+production provisioning, off-host transfer or attachment recovery.
+
+`--port N`, `--dir PATH` and `--keep` remain available. The directory must be
+new or empty and must not be a symlink. `--keep` preserves files and sanitized
+bounded `.log` diagnostics for investigation, but always stops the owned server.
+Without `--keep`, only the owned workspace is removed; an originally empty
+directory is left empty.
+An occupied or symlink workspace is refused with exit 1 and, with `--json`,
+`reason=owned_workspace_refused`; existing files are preserved. Malformed
+arguments use exit 2. The deprecated `GPFORUM_PITR_PORT` and `GPFORUM_PITR_DIR`
+adapter remains until v0.3.0, warns with the replacement flag, and gives explicit
+`--port`/`--dir` flags precedence.
+TERM/INT and command timeouts converge on cleanup. SIGKILL or a
+host crash cannot run cleanup: inspect the owned workspace before removing it.
+Publish only the evidence JSON and `.log` files as CI artifacts, with finite
+retention; keep base backups, data directories and WAL out of Git and artifacts.
+
+The weekly/manual PostgreSQL recovery workflow exercises this bounded drill;
+ordinary PR checks retain the existing logical restore tests. The historical
+run is in
 [`evidence/2026-10-01-pitr-drill/`](evidence/2026-10-01-pitr-drill/README.md)
-(PostgreSQL 18.6, 108 s end to end).
+(PostgreSQL 18.6, 108 s end to end, recorded before this hardening).
 
 Row counts alone would not catch the failure worth catching, which is a restore
 that silently lands on the wrong instant. Verified on PostgreSQL 18: three rows
@@ -229,7 +345,7 @@ where the base backup is fine but the WAL needed to roll forward was never
 archived, so recovery cannot reach the target and refuses to promote:
 
 ```
-pitr-drill status=fail reason=recovery-did-not-start
+pitr-drill status=fail reason=archive_not_completed
 ```
 
 Rehearse after any change to `archive_command`, to the storage the archive

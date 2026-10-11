@@ -14,6 +14,10 @@ SPEC.loader.exec_module(hotpaths)
 
 
 class HotpathsTest(unittest.TestCase):
+    def test_uri_redaction_before_colliding_environment_value(self):
+        text = hotpaths.redact("postgresql://user:other-password@localhost", {"PGPASSWORD": "postgres"})
+        self.assertNotIn("other-password", text)
+
     def fixture_runner(self, failures=()):
         def run(command, output, name, **kwargs):
             payload = None

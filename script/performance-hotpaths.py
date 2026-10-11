@@ -26,10 +26,12 @@ def write(path, payload):
 def redact(text, env):
     # Parse structured stdout before redacting diagnostics: a test password
     # such as "postgres" is also a perfectly valid JSON key/version label.
+    text = re.sub(r"(?i)(postgres(?:ql)?://)[^/@\s]+:[^/@\s]+@", r"\1[redacted]@", text)
+    text = re.sub(r"(?i)(password\s*[=:]\s*)([^;\s]+)", r"\1[redacted]", text)
     for name, secret in env.items():
         if secret and re.search(r"PASSWORD|SECRET|TOKEN", name):
             text = text.replace(secret, "[redacted]")
-    return re.sub(r"(?i)(password\s*[=:]\s*)([^;\s]+)", r"\1[redacted]", text)
+    return text
 
 
 def redact_values(value, env):

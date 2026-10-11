@@ -16,7 +16,7 @@ SPEC.loader.exec_module(evidence)
 
 def statuses(environ):
     result = {}
-    names = {"setup": "PERF_SETUP", "tools": "PERF_TOOLS", "databases": "PERF_DATABASES", "migrations": "PERF_MIGRATIONS",
+    names = {"contracts": "PERF_CONTRACTS", "setup": "PERF_SETUP", "tools": "PERF_TOOLS", "databases": "PERF_DATABASES", "migrations": "PERF_MIGRATIONS",
              "http_workflow": "PERF_HTTP", "hotpaths_workflow": "PERF_HOTPATHS"}
     if environ.get("GITHUB_EVENT_NAME") == "pull_request":
         names.update(baseline_setup="PERF_BASE_SETUP", baseline_http="PERF_BASE_HTTP", baseline_hotpaths="PERF_BASE_HOTPATHS")
@@ -26,6 +26,8 @@ def statuses(environ):
         outcome = environ.get(variable) or "skipped"
         state = "ok" if outcome == "success" else "failed" if outcome == "failure" else "skipped"
         result[name] = {"status": state, "reason": f"GitHub Actions step outcome: {outcome}"}
+        if state == "failed":
+            result[name]["failure_kind"] = "infrastructure_or_harness" if name in ("contracts", "setup", "tools", "databases") else "deterministic_or_infrastructure"
     result["pr_comment"] = {"status": "skipped", "reason": "Job Summary and artifacts provide PR results with a read-only token; no privileged fork artifact/comment workflow is enabled."}
     return result
 

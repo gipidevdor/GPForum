@@ -58,11 +58,15 @@ def write_json(path, data):
 
 def sanitize(text):
     text = str(text)
+    # First redact credential structures. A fixture secret such as 'postgres'
+    # is also a substring of the URI scheme; replacing known secrets first
+    # would hide the scheme from the URI matcher and expose its password.
+    text = re.sub(r"(?i)(password\s*=\s*)[^;\s]+", r"\1[redacted]", text)
+    text = re.sub(r"(?i)(postgres(?:ql)?://)[^/@\s]+:[^/@\s]+@", r"\1[redacted]@", text)
     for key, value in os.environ.items():
         if value and len(value) >= 4 and re.search(r"PASSWORD|SECRET|TOKEN", key):
             text = text.replace(value, "[redacted]")
-    text = re.sub(r"(?i)(password\s*=\s*)[^;\s]+", r"\1[redacted]", text)
-    return re.sub(r"(?i)(postgres(?:ql)?://)[^/@\s]+:[^/@\s]+@", r"\1[redacted]@", text)
+    return text
 
 
 def run_command(command, timeout, log=None, env=None, accepted_codes=(0,)):

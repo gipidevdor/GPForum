@@ -89,6 +89,7 @@ jobs:
           PERF_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Test evidence and harness contracts
+        id: contracts
         run: python3 -m unittest discover -s t -p 'performance_*_test.py'
 
       - name: Set up locked GPForum dependencies
@@ -224,6 +225,7 @@ jobs:
           python3 script/performance-evidence.py validate --output "$PERF_OUTPUT"
           cat "$PERF_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
         env:
+          PERF_CONTRACTS: ${{ steps.contracts.outcome }}
           PERF_SETUP: ${{ steps.dependencies.outcome }}
           PERF_TOOLS: ${{ steps.tools.outcome }}
           PERF_DATABASES: ${{ steps.databases.outcome }}

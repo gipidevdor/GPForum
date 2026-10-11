@@ -237,11 +237,12 @@ def secrets(value):
         for item in value:
             secrets(item)
     elif isinstance(value, str):
-        if re.search(r"BEGIN (?:RSA |OPENSSH )?PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|(?:password|passwd)=(?!\[redacted\](?:[;\s]|$))([^;\s]+)", value, re.I):
+        if re.search(r"BEGIN (?:RSA |OPENSSH )?PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|(?:password|passwd)=(?!\[redacted\](?:[;\s]|$))([^;\s]+)|postgres(?:ql)?://[^/@\s]+:[^/@\s]+@", value, re.I):
             raise ValueError("Sensitive value in performance evidence")
 
 
 def redact_text(raw):
+    raw = re.sub(r"(?i)(postgres(?:ql)?://)[^/@\s]+:[^/@\s]+@", r"\1[redacted]@", raw)
     for name, value in os.environ.items():
         if len(value) >= 4 and re.search(r"PASSWORD|SECRET|TOKEN", name):
             raw = raw.replace(value, "[redacted]")

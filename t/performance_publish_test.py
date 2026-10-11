@@ -201,7 +201,9 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(refs, "")
 
     def test_setup_failure_and_absent_benchmarks_are_explicit(self):
-        values = workflow.statuses({"PERF_SETUP": "failure", "PERF_TOOLS": "skipped", "GITHUB_EVENT_NAME": "pull_request"})
+        values = workflow.statuses({"PERF_CONTRACTS": "failure", "PERF_SETUP": "failure", "PERF_TOOLS": "skipped", "GITHUB_EVENT_NAME": "pull_request"})
+        self.assertEqual(values["contracts"]["status"], "failed")
+        self.assertEqual(values["contracts"]["failure_kind"], "infrastructure_or_harness")
         self.assertEqual(values["setup"]["status"], "failed")
         self.assertEqual(values["http_workflow"]["status"], "skipped")
         self.assertEqual(values["baseline_http"]["status"], "skipped")

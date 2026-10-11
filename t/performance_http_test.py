@@ -101,6 +101,14 @@ class HttpEvidenceTests(unittest.TestCase):
             self.assertNotIn("canary-password", http.sanitize("DBI password=canary-password; URI postgresql://user:otherpassword@localhost"))
             self.assertNotIn("otherpassword", http.sanitize("URI postgresql://user:otherpassword@localhost"))
 
+    def test_ci_password_substring_cannot_hide_uri_credentials(self):
+        with patch.dict(os.environ, {"GPFORUM_DATABASE_PASSWORD": "canary-password", "PGPASSWORD": "postgres"}):
+            for scheme in ("postgres://", "postgresql://"):
+                sanitized = http.sanitize(f"DBI password=canary-password; URI {scheme}user:otherpassword@localhost")
+                self.assertNotIn("canary-password", sanitized)
+                self.assertNotIn("otherpassword", sanitized)
+                self.assertNotIn("user:", sanitized)
+
     def test_fixture_password_does_not_corrupt_structured_json_keys(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"GPFORUM_DATABASE_PASSWORD": "postgres"}):
             log = Path(directory) / "metadata.log"

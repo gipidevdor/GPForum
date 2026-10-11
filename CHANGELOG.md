@@ -1524,6 +1524,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **Doctor recognizes newer OpenSSL plaintext-port diagnostics.**
+  `packet length too long` is reported as a TLS handshake failure, like
+  `wrong version number`, while certificate and other TLS failures retain
+  their own classification and original diagnostic.
+
 - **A start with old names in the environment file warns of each once.**
   `gpforum start --service` logged each, then ran Hypnotoad in its place,
   which built the application again and logged each a second time, 0.9 s
@@ -2434,6 +2439,11 @@ CI, evidence and internal refactors with no change in behaviour.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- **CI prepares the English and Italian UTF-8 locales explicitly.**
+  The Debian container also installs `procps`. Process fixtures use explicit
+  titles and PID-specific readiness checks for FreeBSD, and root ownership
+  tests start with a distinct group even in a minimal container.
 
 - **Published the completed function conversion and two benchmark runs.**
   The comparison covers 20 service operations with warm-up, median and p95,

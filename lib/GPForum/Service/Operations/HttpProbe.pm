@@ -42,15 +42,16 @@ const my %CURL_KIND => (
     ( map { $_ => 'tls' } 51, 53, 54, 58, 59, 60, 64, 66, 77, 80, 82, 83 ),
 );
 
-# What Mojo::UserAgent's errors say, by the same words. OpenSSL's "wrong
-# version number" is the handshake curl reports as 35: the port answered
-# plain HTTP.
+# What Mojo::UserAgent's errors say, by the same words. OpenSSL reports a
+# plain HTTP response as "wrong version number" or, on newer releases,
+# "packet length too long": the handshake curl reports as 35.
 const my @MOJO_KIND => (
     [ refused    => qr/Connection [ ] refused|No [ ] such [ ] file/msxi ],
     [ unresolved => qr/not [ ] known|nodename|resolve|getaddrinfo/msxi ],
     [ unresolved => qr/No [ ] address [ ] associated/msxi ],
     [ timeout    => qr/timeout|timed [ ] out/msxi ],
     [ handshake  => qr/wrong [ ] version [ ] number/msxi ],
+    [ handshake  => qr/packet [ ] length [ ] too [ ] long/msxi ],
     [ handshake  => qr/unknown [ ] protocol/msxi ],
     [ handshake  => qr/alert [ ] protocol [ ] version/msxi ],
     [ tls        => qr/SSL|TLS|certificate/msx ],
@@ -229,7 +230,7 @@ Version 0.001.
 
 Asks a URL once, with a short timeout and no redirects, and says what came
 back: the status and body, or the error and its kind -- C<refused>,
-C<unresolved>, C<timeout>, C<tls>, C<unsupported> or C<other> -- so a check
+C<unresolved>, C<timeout>, C<handshake>, C<tls>, C<unsupported> or C<other> -- so a check
 can choose the sentence an operator reads. Plain HTTP and C<http+unix>
 go through L<Mojo::UserAgent>; https goes through it when
 L<IO::Socket::SSL> is installed, and otherwise through C<curl>, which

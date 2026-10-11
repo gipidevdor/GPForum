@@ -46,7 +46,11 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client
+          sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client locales
+          # CLI tests compare complete English/Italian diagnostics. Perl's
+          # startup warnings must not precede them on a runner missing a locale.
+          sudo localedef -i en_US -f UTF-8 en_US.UTF-8
+          sudo localedef -i it_IT -f UTF-8 it_IT.UTF-8
           # Carton is a host tool for the OS system Perl, not a Carton-local binary.
           sudo /usr/bin/perl /usr/bin/cpanm --notest Carton
 

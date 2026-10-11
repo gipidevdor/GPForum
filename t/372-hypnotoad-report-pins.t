@@ -308,18 +308,39 @@ sub _test_read_pid_file {
 }
 
 # A master's workers are its own children that run hypnotoad or GPForum: not
-# another process, not a grandchild. The marker comes after the code, beyond a
-# narrow terminal's width, so ps must report the entire command line. The
-# whole line stays under 256 bytes: FreeBSD keeps no more of a process's
-# arguments (kern.ps_arg_cache_limit) and ps then shows the bare name.
+# another process, not a grandchild. Like Hypnotoad, the fixtures set their
+# process titles instead of relying on ps recovering their original argv.
+# The worker's marker stays beyond a narrow terminal's width, so ps must
+# report the entire title. A ready file identifies the grandchild only after
+# it has set its title; ps then confirms each exact PID and parent PID.
 sub _test_worker_pids {
     local $ENV{COLUMNS} = $PROCESS_COLUMNS;
-    my $worker = _spawn_sleeper( 'gpforum-benchmark-worker',
-            'my $p = fork; if ( !$p ) { exec $^X, q{-e}, q{sleep 60},'
-          . ' q{gpforum-benchmark-grandchild} } sleep 60' );
+    my $worker_title =
+      q{w} x ( $PROCESS_COLUMNS + 1 ) . ' gpforum-benchmark-worker';
+    my $grandchild_file = "$directory/benchmark-grandchild.pid";
+    my $worker = _spawn_sleeper( $worker_title, <<'CHILD', $grandchild_file );
+my $pid = fork // die 'cannot fork';
+if (!$pid) {
+    $0 = 'gpforum-benchmark-grandchild';
+    open my $ready, '>', shift or die 'cannot open ready marker';
+    print {$ready} "$$\n";
+    close $ready or die 'cannot close ready marker';
+}
+sleep 60;
+CHILD
     my $other = _spawn_sleeper( 'benchmark-sidecar', 'sleep 60' );
-    _wait_until( sub { return _ps_lists('gpforum-benchmark-grandchild') },
-        $worker, $other );
+    _wait_until(
+        sub {
+            my $grandchild = read_pid_file($grandchild_file) or return 0;
+            return _ps_lists(
+                [ $worker,     $PROCESS_ID, $worker_title ],
+                [ $other,      $PROCESS_ID, 'benchmark-sidecar' ],
+                [ $grandchild, $worker,     'gpforum-benchmark-grandchild' ],
+            );
+        },
+        $worker,
+        $other
+    );
 
     is_deeply( worker_pids($PROCESS_ID),
         [$worker], 'a master\'s workers are its GPForum children' );
@@ -387,23 +408,37 @@ sub _test_start_proxy {
     return;
 }
 
-sub _spawn_sleeper ( $name, $code ) {
+sub _spawn_sleeper ( $name, $code, @arguments ) {
     my $pid = fork // croak 'cannot fork';
     if ( !$pid ) {
         POSIX::setsid();
-        exec $EXECUTABLE_NAME, '-e', $code, $name or POSIX::_exit(1);
+        exec $EXECUTABLE_NAME, '-e', '$0 = shift; ' . $code, $name, @arguments
+          or POSIX::_exit(1);
     }
 
     return $pid;
 }
 
-sub _ps_lists ($name) {
-    open my $ps, q{-|}, 'ps', '-axww', '-o', 'command='
-      or croak 'cannot run ps';
-    my $found = grep { /\Q$name\E/msx } <$ps>;
-    close $ps or croak 'ps failed';
+sub _ps_lists (@expected) {
+    open my $ps, q{-|}, 'ps', '-axww', '-o', 'pid=,ppid=,command='
+      or return 0;
+    my %commands;
+    while ( my $line = <$ps> ) {
+        my ( $pid, $parent, $command ) =
+          $line =~ /\A \s* ([[:digit:]]+) \s+ ([[:digit:]]+) \s+ (.+) \z/msx
+          or next;
+        $commands{$pid} = [ $parent, $command ];
+    }
+    close $ps or return 0;
 
-    return $found;
+    for my $expected (@expected) {
+        my ( $pid, $parent, $name ) = @{$expected};
+        my $command = $commands{$pid} or return 0;
+        return 0
+          if $command->[0] != $parent || index( $command->[1], $name ) < 0;
+    }
+
+    return 1;
 }
 
 sub _wait_until ( $condition, @children ) {

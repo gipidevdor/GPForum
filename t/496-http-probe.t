@@ -10,12 +10,14 @@ use English          qw(-no_match_vars);
 use File::Temp       qw(tempdir);
 use IO::Socket::INET ();
 use Mojo::File       qw(path);
+use Mojo::Transaction::HTTP;
 use Test::More;
 
-use lib 'lib';
+use lib 'lib', 't/lib';
 
 use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::HttpProbe;
+use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
 our $VERSION = '0.001';
 
@@ -34,6 +36,7 @@ const my %CURL_EXIT => (
     unresolved => 6,
     refused    => 7,
     timeout    => 28,
+    handshake  => 35,
     tls        => 60,
     other      => 22,
 );
@@ -107,6 +110,39 @@ subtest 'no curl is said, not guessed' => sub {
         can_tls => 0
     )->get('https://forum.gpforum.net/health/live');
     is( $answer->{kind}, 'unsupported', 'unsupported, with nothing asked' );
+};
+
+subtest 'Mojo TLS diagnostics retain their kind and original message' => sub {
+    my @cases = (
+        [ 'error:0A00010B:SSL routines::wrong version number',   'handshake' ],
+        [ 'error:0A0000C6:SSL routines::packet length too long', 'handshake' ],
+        [
+            'error:0A0000C6:SSL routines::packet length too long '
+              . 'error:0A000139:SSL routines::record layer failure',
+            'handshake'
+        ],
+        [ 'error:0A000086:SSL routines::certificate verify failed', 'tls' ],
+        [ 'error:0A000139:SSL routines::record layer failure',      'tls' ],
+    );
+    for my $case (@cases) {
+        my ( $diagnostic, $kind ) = @{$case};
+        my $message = "SSL connect attempt failed $diagnostic";
+        my $tx      = Mojo::Transaction::HTTP->new;
+        $tx->res->error( { message => $message } );
+        with_replaced_subs(
+            'Mojo::UserAgent',
+            { get => sub { return $tx } },
+            sub {
+                my $answer = GPForum::Service::Operations::HttpProbe->new(
+                    can_tls    => 1,
+                    user_agent => Mojo::UserAgent->new
+                )->get('https://forum.gpforum.net/health/live');
+                is( $answer->{client}, 'mojo',  'the Mojo path is exercised' );
+                is( $answer->{kind},   $kind,   "$diagnostic is $kind" );
+                is( $answer->{error}, $message, 'the full error is preserved' );
+            }
+        );
+    }
 };
 
 subtest 'plain HTTP through Mojo::UserAgent' => sub {

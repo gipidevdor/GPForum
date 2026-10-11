@@ -18,6 +18,7 @@ use lib 't/lib';
 
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::SqlFunctionCatalogue;
+use GPForum::Infrastructure::Id;
 use GPForum::Schema;
 use GPForum::Service::Password;
 use GPForum::Infrastructure::EventRecorder;
@@ -56,11 +57,12 @@ if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all => 'set GPFORUM_TEST_DSN to test the separate API role';
 }
 
-my $database  = GPForum::Test::PgDatabase->fresh( seed => 1 );
-my $admin     = $database->dbh;
-my $owner     = "gpf_api_owner_$PROCESS_ID";
-my $runtime   = "gpf_api_runtime_$PROCESS_ID";
-my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
+my $database         = GPForum::Test::PgDatabase->fresh( seed => 1 );
+my $admin            = $database->dbh;
+my $owner            = "gpf_api_owner_$PROCESS_ID";
+my $runtime          = "gpf_api_runtime_$PROCESS_ID";
+my $runtime_password = GPForum::Infrastructure::Id->new->uuid;
+my $catalogue        = GPForum::Infrastructure::SqlFunctionCatalogue->new;
 my $connection;
 my $role_schema;
 
@@ -84,7 +86,8 @@ for my $role ( $owner, $runtime ) {
     $admin->do( 'CREATE ROLE '
           . $admin->quote_identifier($role)
           . ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT'
-    );
+          . ' PASSWORD '
+          . $admin->quote($runtime_password) );
 }
 my $roles = GPForum::Service::Operations::ApiRole->new( dbh => $admin );
 my $rejected;
@@ -119,12 +122,13 @@ is(
     scalar @{ $catalogue->names },
     'only catalogued boundaries are granted'
 );
-$connection = DBI->connect( $database->dsn, $runtime, q{},
+$connection = DBI->connect( $database->dsn, $runtime, $runtime_password,
     { RaiseError => 1, PrintError => 0, AutoCommit => 1 } );
 is( scalar $connection->selectrow_array('SELECT current_user'),
     $runtime, 'a separate runtime login connects' );
 
-$role_schema = GPForum::Schema->connect( $database->dsn, $runtime, q{},
+$role_schema =
+  GPForum::Schema->connect( $database->dsn, $runtime, $runtime_password,
     { RaiseError => 1, PrintError => 0, AutoCommit => 1 } );
 my $functions = GPForum::Infrastructure::SqlFunction->for_schema($role_schema);
 is(
@@ -465,7 +469,7 @@ q{INSERT INTO credentials(id,user_id,type,secret_hash) VALUES(gen_random_uuid(),
     );
     local $ENV{GPFORUM_DATABASE_DSN}              = $database->dsn;
     local $ENV{GPFORUM_DATABASE_USER}             = $runtime;
-    local $ENV{GPFORUM_DATABASE_PASSWORD}         = q{};
+    local $ENV{GPFORUM_DATABASE_PASSWORD}         = $runtime_password;
     local $ENV{GPFORUM_MINION_ENABLED}            = 0;
     local $ENV{GPFORUM_REALTIME_LISTENER_ENABLED} = 0;
     my $web = Test::Mojo->new('GPForum');

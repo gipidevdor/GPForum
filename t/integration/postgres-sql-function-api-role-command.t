@@ -13,6 +13,7 @@ use lib 'lib';
 use lib 't/lib';
 use GPForum::Command::ApiRole;
 use GPForum::Config;
+use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::Test::PgDatabase;
 
@@ -21,11 +22,12 @@ our $VERSION = '0.001';
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all => 'set GPFORUM_TEST_DSN to exercise API role provisioning';
 }
-my $database  = GPForum::Test::PgDatabase->fresh( seed => 1 );
-my $admin     = $database->dbh;
-my $owner     = "gpf_cli_api_owner_$PROCESS_ID";
-my $runtime   = "gpf_cli_api_runtime_$PROCESS_ID";
-my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
+my $database         = GPForum::Test::PgDatabase->fresh( seed => 1 );
+my $admin            = $database->dbh;
+my $owner            = "gpf_cli_api_owner_$PROCESS_ID";
+my $runtime          = "gpf_cli_api_runtime_$PROCESS_ID";
+my $runtime_password = GPForum::Infrastructure::Id->new->uuid;
+my $catalogue        = GPForum::Infrastructure::SqlFunctionCatalogue->new;
 my $connection;
 
 END {
@@ -47,7 +49,8 @@ for my $role ( $owner, $runtime ) {
     $admin->do( 'CREATE ROLE '
           . $admin->quote_identifier($role)
           . ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT'
-    );
+          . ' PASSWORD '
+          . $admin->quote($runtime_password) );
 }
 my $quoted_owner = $admin->quote_identifier($owner);
 $admin->do("GRANT USAGE ON SCHEMA api, public TO $quoted_owner");
@@ -89,7 +92,7 @@ is(
     scalar @{ $catalogue->names },
     'the JSON result reports all granted entry points'
 );
-$connection = DBI->connect( $database->dsn, $runtime, q{},
+$connection = DBI->connect( $database->dsn, $runtime, $runtime_password,
     { RaiseError => 1, PrintError => 0, AutoCommit => 1 } );
 throws_ok { $connection->selectrow_array('SELECT username FROM users LIMIT 1') }
 qr/permission [ ] denied/msx, 'the provisioned login cannot read a forum table';

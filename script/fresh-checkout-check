@@ -137,6 +137,8 @@ fresh_dsn=''
 # create asks for twice at a terminal and reads once with --password-stdin;
 # and the address the forum is started on, a port of the run's own.
 fresh_env=''
+# Expanded when the quick-start command string is evaluated.
+# shellcheck disable=SC2034
 fresh_admin_password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 24)
 fresh_listen="http://127.0.0.1:$((20000 + $$ % 10000))"
 if [ -n "$db_dsn" ]; then
@@ -154,6 +156,8 @@ if [ -n "$db_dsn" ]; then
         | sed -E 's/^[[:space:]]+//; s/^(db|database)=/dbname=/; /^$/d')
     maintenance_db=$(printf '%s\n' "$dsn_pairs" | paste -sd ' ' -)
     server_pairs=$(printf '%s\n' "$dsn_pairs" | sed '/^dbname=/d' | paste -sd ';' -)
+    # Expanded when the quick-start command string is evaluated.
+    # shellcheck disable=SC2034
     fresh_dsn="dbi:Pg:${server_pairs:+$server_pairs;}dbname=$fresh_db"
 fi
 

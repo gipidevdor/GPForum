@@ -91,11 +91,18 @@ catch ($caught) { $error = $caught; };
 is( $result{returncode}, 1, 'failed command exit retained' );
 like( $result{output}, qr/"partial":1/msx,
     'failed structured partial stdout remains available internally' );
-is(
-    redact('postgresql://user:private@localhost'),
-    'postgresql://[redacted]@localhost',
-    'URI credentials redacted without residual backslash'
-);
+{
+    # A caller's password may itself be the protocol name. Test URI parsing
+    # separately from the intentionally conservative environment redaction.
+    local $ENV{GPFORUM_DATABASE_PASSWORD} = q{};
+    local $ENV{PGPASSWORD}                = q{};
+    local $ENV{POSTGRES_PASSWORD}         = q{};
+    is(
+        redact('postgresql://user:private@localhost'),
+        'postgresql://[redacted]@localhost',
+        'URI credentials redacted without residual backslash'
+    );
+}
 
 done_testing;
 1;

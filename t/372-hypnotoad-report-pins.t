@@ -470,15 +470,15 @@ sub _ps_lists (@expected) {
     open my $ps, q{-|}, 'ps', '-axww', '-o', 'pid=', '-o', 'ppid=',
       '-o', 'command='
       or return 0;
+    my @lines = <$ps>;
+    close $ps or return 0;
     my %commands;
-    while ( my $line = <$ps> ) {
+    for my $line (@lines) {
         my ( $pid, $parent, $command ) =
           $line =~ /\A \s* ([[:digit:]]+) \s+ ([[:digit:]]+) \s+ (.+) \z/msx
           or next;
         $commands{$pid} = [ $parent, $command ];
     }
-    close $ps or return 0;
-
     for my $expected (@expected) {
         my ( $pid, $parent, $name ) = @{$expected};
         my $command = $commands{$pid} or return 0;

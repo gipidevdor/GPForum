@@ -1,0 +1,3879 @@
+{
+  "kind": "database",
+  "limitations": [],
+  "measurements": [
+    {
+      "evidence": {
+        "command": "gpforum-query-budget",
+        "extra": [],
+        "mismatched": [],
+        "missing": [],
+        "mode": "check",
+        "status": "ok"
+      },
+      "metrics": {},
+      "scenario": "query-budget-catalog",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home",
+      "evidence": {
+        "endpoint": "home",
+        "purpose": "latest public thread listing",
+        "sql_label": "threads_public_activity",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.453,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 175,
+          "shared_read": 0,
+          "total_cost": 191.69
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.453
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "categories",
+      "evidence": {
+        "endpoint": "categories",
+        "purpose": "category index",
+        "sql_label": "categories_position",
+        "summary": {
+          "actual_rows": 8,
+          "actual_time_ms": 0.031,
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "shared_hit": 11,
+          "shared_read": 0,
+          "total_cost": 2.35
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 8,
+        "nested_statements": null,
+        "sql_execution_ms": 0.031
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads",
+      "evidence": {
+        "endpoint": "category_threads",
+        "purpose": "keyset category thread list, anonymous",
+        "sql_label": "threads_category_activity_visible_locked",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.427,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 120,
+          "shared_read": 0,
+          "total_cost": 195.91
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.427
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_signed_in",
+        "purpose": "keyset category thread list, signed in",
+        "sql_label": "threads_category_viewer_union",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.477,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 121,
+          "shared_read": 0,
+          "total_cost": 216.98
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.477
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view",
+      "evidence": {
+        "endpoint": "thread_view",
+        "purpose": "thread post page with current body",
+        "sql_label": "posts_visible_thread_position",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.093,
+          "plan_rows": 20,
+          "root_node": "Limit",
+          "shared_hit": 68,
+          "shared_read": 0,
+          "total_cost": 186.04
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 0.093
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "search",
+      "evidence": {
+        "endpoint": "search",
+        "purpose": "permission-safe PostgreSQL search projection",
+        "sql_label": "search_documents_vector",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 2.878,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 1739,
+          "shared_read": 0,
+          "total_cost": 5996.67
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 2.878
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "autocomplete",
+      "evidence": {
+        "endpoint": "autocomplete",
+        "purpose": "permission-safe PostgreSQL autocomplete projection",
+        "sql_label": "search_documents_title_trgm",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 1.727,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 1213,
+          "shared_read": 0,
+          "total_cost": 5932.82
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:search_documents"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 1.727
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "feed",
+      "evidence": {
+        "endpoint": "feed",
+        "purpose": "user feed projection",
+        "sql_label": "user_feed_items_user_created",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.091,
+          "plan_rows": 5,
+          "root_node": "Limit",
+          "shared_hit": 65,
+          "shared_read": 0,
+          "total_cost": 276.79
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.091
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notifications",
+      "evidence": {
+        "endpoint": "notifications",
+        "purpose": "notification inbox page",
+        "sql_label": "notification_inbox_recipient_created",
+        "summary": {
+          "actual_rows": 3,
+          "actual_time_ms": 0.085,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 25,
+          "shared_read": 0,
+          "total_cost": 86.7
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 3,
+        "nested_statements": null,
+        "sql_execution_ms": 0.085
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "outbox_claim",
+      "evidence": {
+        "endpoint": "outbox_claim",
+        "purpose": "outbox worker ready-claim scan",
+        "sql_label": "outbox_claim_ready",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.007,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.13
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": null,
+        "sql_execution_ms": 0.007
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "moderation_queue",
+      "evidence": {
+        "endpoint": "moderation_queue",
+        "purpose": "moderation report queue",
+        "sql_label": "reports_queue",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.027,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 1,
+          "shared_read": 0,
+          "total_cost": 3.1
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.027
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "health_ready",
+      "evidence": {
+        "endpoint": "health_ready",
+        "purpose": "readiness table probe",
+        "sql_label": "readiness_event_log_probe",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.007,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.01
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": null,
+        "sql_execution_ms": 0.007
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "metrics",
+      "evidence": {
+        "endpoint": "metrics",
+        "purpose": "outbox retry backlog metric",
+        "sql_label": "outbox_retry_backlog",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.003,
+          "plan_rows": 1,
+          "root_node": "Aggregate",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.01
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": null,
+        "sql_execution_ms": 0.003
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_signed_in",
+      "evidence": {
+        "endpoint": "home_signed_in",
+        "purpose": "latest public thread listing, member with a grant",
+        "sql_label": "threads_public_activity_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.377,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 160,
+          "shared_read": 0,
+          "total_cost": 195.3
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.377
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_deep",
+      "evidence": {
+        "endpoint": "home_deep",
+        "purpose": "latest public thread listing, halfway down",
+        "sql_label": "threads_public_activity_keyset",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.45,
+          "depth": {
+            "rows_before_cursor": 119,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 114,
+          "shared_read": 0,
+          "total_cost": 202.03
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "filter_growth_unmeasured:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.45
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_deep",
+      "evidence": {
+        "endpoint": "category_threads_deep",
+        "purpose": "keyset category thread list, halfway down",
+        "sql_label": "threads_category_activity_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.269,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "shared_hit": 68,
+          "shared_read": 0,
+          "total_cost": 72.6
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": null,
+        "sql_execution_ms": 0.269
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_deep_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_deep_signed_in",
+        "purpose": "keyset category thread list, halfway down, signed in",
+        "sql_label": "threads_category_viewer_union_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.293,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 9,
+          "root_node": "Limit",
+          "shared_hit": 106,
+          "shared_read": 0,
+          "total_cost": 99.74
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": null,
+        "sql_execution_ms": 0.293
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_signed_in",
+        "purpose": "thread post page, signed in",
+        "sql_label": "posts_thread_position_viewer",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.073,
+          "plan_rows": 20,
+          "root_node": "Limit",
+          "shared_hit": 65,
+          "shared_read": 0,
+          "total_cost": 186.24
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 0.073
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_deep",
+      "evidence": {
+        "endpoint": "thread_view_deep",
+        "purpose": "thread post page halfway down the longest thread",
+        "sql_label": "posts_visible_thread_position_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.047,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 6,
+          "root_node": "Limit",
+          "shared_hit": 34,
+          "shared_read": 0,
+          "total_cost": 77.59
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.047
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_deep_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_deep_signed_in",
+        "purpose": "thread post page halfway down the longest thread, signed in",
+        "sql_label": "posts_thread_position_viewer_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.051,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 6,
+          "root_node": "Limit",
+          "shared_hit": 34,
+          "shared_read": 0,
+          "total_cost": 77.7
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.051
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home",
+      "evidence": {
+        "endpoint": "home",
+        "purpose": "latest public thread listing",
+        "sql_label": "threads_public_activity",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.438,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 175,
+          "shared_read": 0,
+          "total_cost": 191.69
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.438
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "categories",
+      "evidence": {
+        "endpoint": "categories",
+        "purpose": "category index",
+        "sql_label": "categories_position",
+        "summary": {
+          "actual_rows": 8,
+          "actual_time_ms": 0.031,
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "shared_hit": 11,
+          "shared_read": 0,
+          "total_cost": 2.35
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 8,
+        "nested_statements": null,
+        "sql_execution_ms": 0.031
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads",
+      "evidence": {
+        "endpoint": "category_threads",
+        "purpose": "keyset category thread list, anonymous",
+        "sql_label": "threads_category_activity_visible_locked",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.439,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 120,
+          "shared_read": 0,
+          "total_cost": 195.91
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.439
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_signed_in",
+        "purpose": "keyset category thread list, signed in",
+        "sql_label": "threads_category_viewer_union",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.492,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 121,
+          "shared_read": 0,
+          "total_cost": 216.98
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.492
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view",
+      "evidence": {
+        "endpoint": "thread_view",
+        "purpose": "thread post page with current body",
+        "sql_label": "posts_visible_thread_position",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.086,
+          "plan_rows": 20,
+          "root_node": "Limit",
+          "shared_hit": 67,
+          "shared_read": 0,
+          "total_cost": 186.04
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 0.086
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "search",
+      "evidence": {
+        "endpoint": "search",
+        "purpose": "permission-safe PostgreSQL search projection",
+        "sql_label": "search_documents_vector",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 3.064,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 1739,
+          "shared_read": 0,
+          "total_cost": 5996.67
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 3.064
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "autocomplete",
+      "evidence": {
+        "endpoint": "autocomplete",
+        "purpose": "permission-safe PostgreSQL autocomplete projection",
+        "sql_label": "search_documents_title_trgm",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 1.658,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 1213,
+          "shared_read": 0,
+          "total_cost": 5932.82
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:search_documents"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 1.658
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "feed",
+      "evidence": {
+        "endpoint": "feed",
+        "purpose": "user feed projection",
+        "sql_label": "user_feed_items_user_created",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.091,
+          "plan_rows": 5,
+          "root_node": "Limit",
+          "shared_hit": 65,
+          "shared_read": 0,
+          "total_cost": 276.79
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.091
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notifications",
+      "evidence": {
+        "endpoint": "notifications",
+        "purpose": "notification inbox page",
+        "sql_label": "notification_inbox_recipient_created",
+        "summary": {
+          "actual_rows": 3,
+          "actual_time_ms": 0.09,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 25,
+          "shared_read": 0,
+          "total_cost": 86.7
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 3,
+        "nested_statements": null,
+        "sql_execution_ms": 0.09
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "outbox_claim",
+      "evidence": {
+        "endpoint": "outbox_claim",
+        "purpose": "outbox worker ready-claim scan",
+        "sql_label": "outbox_claim_ready",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.006,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.13
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": null,
+        "sql_execution_ms": 0.006
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "moderation_queue",
+      "evidence": {
+        "endpoint": "moderation_queue",
+        "purpose": "moderation report queue",
+        "sql_label": "reports_queue",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.029,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 1,
+          "shared_read": 0,
+          "total_cost": 3.1
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.029
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "health_ready",
+      "evidence": {
+        "endpoint": "health_ready",
+        "purpose": "readiness table probe",
+        "sql_label": "readiness_event_log_probe",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.006,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.01
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": null,
+        "sql_execution_ms": 0.006
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "metrics",
+      "evidence": {
+        "endpoint": "metrics",
+        "purpose": "outbox retry backlog metric",
+        "sql_label": "outbox_retry_backlog",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.003,
+          "plan_rows": 1,
+          "root_node": "Aggregate",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.01
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": null,
+        "sql_execution_ms": 0.003
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_signed_in",
+      "evidence": {
+        "endpoint": "home_signed_in",
+        "purpose": "latest public thread listing, member with a grant",
+        "sql_label": "threads_public_activity_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.399,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 160,
+          "shared_read": 0,
+          "total_cost": 195.3
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.399
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_deep",
+      "evidence": {
+        "endpoint": "home_deep",
+        "purpose": "latest public thread listing, halfway down",
+        "sql_label": "threads_public_activity_keyset",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.469,
+          "depth": {
+            "rows_before_cursor": 119,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 114,
+          "shared_read": 0,
+          "total_cost": 202.03
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "filter_growth_unmeasured:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.469
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_deep",
+      "evidence": {
+        "endpoint": "category_threads_deep",
+        "purpose": "keyset category thread list, halfway down",
+        "sql_label": "threads_category_activity_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.227,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "shared_hit": 68,
+          "shared_read": 0,
+          "total_cost": 72.6
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": null,
+        "sql_execution_ms": 0.227
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_deep_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_deep_signed_in",
+        "purpose": "keyset category thread list, halfway down, signed in",
+        "sql_label": "threads_category_viewer_union_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.298,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 9,
+          "root_node": "Limit",
+          "shared_hit": 106,
+          "shared_read": 0,
+          "total_cost": 99.74
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": null,
+        "sql_execution_ms": 0.298
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_signed_in",
+        "purpose": "thread post page, signed in",
+        "sql_label": "posts_thread_position_viewer",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.069,
+          "plan_rows": 20,
+          "root_node": "Limit",
+          "shared_hit": 64,
+          "shared_read": 0,
+          "total_cost": 186.24
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 0.069
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_deep",
+      "evidence": {
+        "endpoint": "thread_view_deep",
+        "purpose": "thread post page halfway down the longest thread",
+        "sql_label": "posts_visible_thread_position_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.047,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 6,
+          "root_node": "Limit",
+          "shared_hit": 34,
+          "shared_read": 0,
+          "total_cost": 77.59
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.047
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_deep_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_deep_signed_in",
+        "purpose": "thread post page halfway down the longest thread, signed in",
+        "sql_label": "posts_thread_position_viewer_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.049,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 6,
+          "root_node": "Limit",
+          "shared_hit": 34,
+          "shared_read": 0,
+          "total_cost": 77.7
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.049
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home",
+      "evidence": {
+        "endpoint": "home",
+        "purpose": "latest public thread listing",
+        "sql_label": "threads_public_activity",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.444,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 175,
+          "shared_read": 0,
+          "total_cost": 191.69
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.444
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "categories",
+      "evidence": {
+        "endpoint": "categories",
+        "purpose": "category index",
+        "sql_label": "categories_position",
+        "summary": {
+          "actual_rows": 8,
+          "actual_time_ms": 0.031,
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "shared_hit": 11,
+          "shared_read": 0,
+          "total_cost": 2.35
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 8,
+        "nested_statements": null,
+        "sql_execution_ms": 0.031
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads",
+      "evidence": {
+        "endpoint": "category_threads",
+        "purpose": "keyset category thread list, anonymous",
+        "sql_label": "threads_category_activity_visible_locked",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.422,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 120,
+          "shared_read": 0,
+          "total_cost": 195.91
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.422
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_signed_in",
+        "purpose": "keyset category thread list, signed in",
+        "sql_label": "threads_category_viewer_union",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.769,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 121,
+          "shared_read": 0,
+          "total_cost": 216.98
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.769
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view",
+      "evidence": {
+        "endpoint": "thread_view",
+        "purpose": "thread post page with current body",
+        "sql_label": "posts_visible_thread_position",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.086,
+          "plan_rows": 20,
+          "root_node": "Limit",
+          "shared_hit": 67,
+          "shared_read": 0,
+          "total_cost": 186.04
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 0.086
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "search",
+      "evidence": {
+        "endpoint": "search",
+        "purpose": "permission-safe PostgreSQL search projection",
+        "sql_label": "search_documents_vector",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 2.891,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 1739,
+          "shared_read": 0,
+          "total_cost": 5996.67
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 2.891
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "autocomplete",
+      "evidence": {
+        "endpoint": "autocomplete",
+        "purpose": "permission-safe PostgreSQL autocomplete projection",
+        "sql_label": "search_documents_title_trgm",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 2.616,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 1213,
+          "shared_read": 0,
+          "total_cost": 5932.82
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:search_documents"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 2.616
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "feed",
+      "evidence": {
+        "endpoint": "feed",
+        "purpose": "user feed projection",
+        "sql_label": "user_feed_items_user_created",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.132,
+          "plan_rows": 5,
+          "root_node": "Limit",
+          "shared_hit": 65,
+          "shared_read": 0,
+          "total_cost": 276.79
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.132
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notifications",
+      "evidence": {
+        "endpoint": "notifications",
+        "purpose": "notification inbox page",
+        "sql_label": "notification_inbox_recipient_created",
+        "summary": {
+          "actual_rows": 3,
+          "actual_time_ms": 0.088,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 25,
+          "shared_read": 0,
+          "total_cost": 86.7
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 3,
+        "nested_statements": null,
+        "sql_execution_ms": 0.088
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "outbox_claim",
+      "evidence": {
+        "endpoint": "outbox_claim",
+        "purpose": "outbox worker ready-claim scan",
+        "sql_label": "outbox_claim_ready",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.007,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.13
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": null,
+        "sql_execution_ms": 0.007
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "moderation_queue",
+      "evidence": {
+        "endpoint": "moderation_queue",
+        "purpose": "moderation report queue",
+        "sql_label": "reports_queue",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.027,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 1,
+          "shared_read": 0,
+          "total_cost": 3.1
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.027
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "health_ready",
+      "evidence": {
+        "endpoint": "health_ready",
+        "purpose": "readiness table probe",
+        "sql_label": "readiness_event_log_probe",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.006,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.01
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": null,
+        "sql_execution_ms": 0.006
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "metrics",
+      "evidence": {
+        "endpoint": "metrics",
+        "purpose": "outbox retry backlog metric",
+        "sql_label": "outbox_retry_backlog",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.004,
+          "plan_rows": 1,
+          "root_node": "Aggregate",
+          "shared_hit": 0,
+          "shared_read": 0,
+          "total_cost": 0.01
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": null,
+        "sql_execution_ms": 0.004
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_signed_in",
+      "evidence": {
+        "endpoint": "home_signed_in",
+        "purpose": "latest public thread listing, member with a grant",
+        "sql_label": "threads_public_activity_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.377,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 160,
+          "shared_read": 0,
+          "total_cost": 195.3
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.377
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_deep",
+      "evidence": {
+        "endpoint": "home_deep",
+        "purpose": "latest public thread listing, halfway down",
+        "sql_label": "threads_public_activity_keyset",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.442,
+          "depth": {
+            "rows_before_cursor": 119,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "shared_hit": 114,
+          "shared_read": 0,
+          "total_cost": 202.03
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "filter_growth_unmeasured:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": null,
+        "sql_execution_ms": 0.442
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_deep",
+      "evidence": {
+        "endpoint": "category_threads_deep",
+        "purpose": "keyset category thread list, halfway down",
+        "sql_label": "threads_category_activity_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.231,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "shared_hit": 68,
+          "shared_read": 0,
+          "total_cost": 72.6
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": null,
+        "sql_execution_ms": 0.231
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_deep_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_deep_signed_in",
+        "purpose": "keyset category thread list, halfway down, signed in",
+        "sql_label": "threads_category_viewer_union_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.284,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 9,
+          "root_node": "Limit",
+          "shared_hit": 106,
+          "shared_read": 0,
+          "total_cost": 99.74
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": null,
+        "sql_execution_ms": 0.284
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_signed_in",
+        "purpose": "thread post page, signed in",
+        "sql_label": "posts_thread_position_viewer",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.071,
+          "plan_rows": 20,
+          "root_node": "Limit",
+          "shared_hit": 64,
+          "shared_read": 0,
+          "total_cost": 186.24
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": null,
+        "sql_execution_ms": 0.071
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_deep",
+      "evidence": {
+        "endpoint": "thread_view_deep",
+        "purpose": "thread post page halfway down the longest thread",
+        "sql_label": "posts_visible_thread_position_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.048,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 6,
+          "root_node": "Limit",
+          "shared_hit": 34,
+          "shared_read": 0,
+          "total_cost": 77.59
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.048
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_deep_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_deep_signed_in",
+        "purpose": "thread post page halfway down the longest thread, signed in",
+        "sql_label": "posts_thread_position_viewer_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.048,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "plan_rows": 6,
+          "root_node": "Limit",
+          "shared_hit": 34,
+          "shared_read": 0,
+          "total_cost": 77.7
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": null,
+        "sql_execution_ms": 0.048
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-readers",
+      "status": "ok"
+    },
+    {
+      "endpoint": "categories_function",
+      "evidence": {
+        "endpoint": "categories_function",
+        "purpose": "category index through its function",
+        "sql_label": "forum_list_categories_v1",
+        "summary": {
+          "actual_rows": 8,
+          "actual_time_ms": 0.022,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 2.87
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 8,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.022
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function",
+      "evidence": {
+        "endpoint": "home_function",
+        "purpose": "latest public threads through their function",
+        "sql_label": "forum_list_public_threads_v1",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.365,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 194.77
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.365
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function_signed_in",
+      "evidence": {
+        "endpoint": "home_function_signed_in",
+        "purpose": "latest public threads through their function, member with a grant",
+        "sql_label": "forum_list_public_threads_v1_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.377,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 195.57
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.377
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function_deep",
+      "evidence": {
+        "endpoint": "home_function_deep",
+        "purpose": "latest public threads through their function, halfway down",
+        "sql_label": "forum_list_public_threads_v1_keyset",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.477,
+          "depth": {
+            "rows_before_cursor": 119,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 202.16
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "filter_growth_unmeasured:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.477
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function",
+      "evidence": {
+        "endpoint": "category_threads_function",
+        "purpose": "category threads through their function, anonymous",
+        "sql_label": "forum_list_category_threads_v1",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.353,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 196.81
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.353
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_function_signed_in",
+        "purpose": "category threads through their function, signed in",
+        "sql_label": "forum_list_category_threads_v1_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.428,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 218.49
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.428
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_deep",
+      "evidence": {
+        "endpoint": "category_threads_function_deep",
+        "purpose": "category threads through their function, halfway down",
+        "sql_label": "forum_list_category_threads_v1_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.231,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "total_cost": 73.5
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.231
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_deep_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_function_deep_signed_in",
+        "purpose": "category threads through their function, halfway down, signed in",
+        "sql_label": "forum_list_category_threads_v1_viewer_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.311,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 9,
+          "root_node": "Limit",
+          "total_cost": 100.05
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.311
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "search_function",
+      "evidence": {
+        "endpoint": "search_function",
+        "purpose": "readable bounded ranked search through its function",
+        "sql_label": "search_ranked_v1",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 2.699,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "total_cost": 316.88
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 2.699
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "autocomplete_function",
+      "evidence": {
+        "endpoint": "autocomplete_function",
+        "purpose": "readable title autocomplete through its function",
+        "sql_label": "search_autocomplete_v1",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 1.079,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "total_cost": 107.53
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 1.079
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "feed_function",
+      "evidence": {
+        "endpoint": "feed_function",
+        "purpose": "personal feed through its readable source function",
+        "sql_label": "community_list_feed_v1",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.173,
+          "nested_statements": 2,
+          "plan_rows": 5,
+          "root_node": "Limit",
+          "total_cost": 415.17
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.173
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "bookmarks_function",
+      "evidence": {
+        "endpoint": "bookmarks_function",
+        "purpose": "saved bookmarks through its readable source function",
+        "sql_label": "community_list_bookmarks_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.155,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 86.05
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.155
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "mentions_function",
+      "evidence": {
+        "endpoint": "mentions_function",
+        "purpose": "recipient mentions through its readable source function",
+        "sql_label": "community_list_mentions_v1",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.008,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 26.16
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.008
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notifications_function",
+      "evidence": {
+        "endpoint": "notifications_function",
+        "purpose": "readable notification inbox through its function",
+        "sql_label": "notification_list_inbox_v1",
+        "summary": {
+          "actual_rows": 3,
+          "actual_time_ms": 0.177,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 128.22
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 3,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.177
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notification_badge_function",
+      "evidence": {
+        "endpoint": "notification_badge_function",
+        "purpose": "readable notification badge through its function",
+        "sql_label": "notification_unread_count_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.05,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Aggregate",
+          "total_cost": 104.51
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.05
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_head_function",
+      "evidence": {
+        "endpoint": "thread_head_function",
+        "purpose": "thread head through its function",
+        "sql_label": "forum_thread_page_head_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.018,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 11.7
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.018
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function",
+      "evidence": {
+        "endpoint": "thread_view_function",
+        "purpose": "thread post page through its function",
+        "sql_label": "forum_thread_page_posts_v1",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.076,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 19.75
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.076
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_function_signed_in",
+        "purpose": "thread post page through its function, signed in",
+        "sql_label": "forum_thread_page_posts_v1_viewer",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.103,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 33.14
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.103
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_deep",
+      "evidence": {
+        "endpoint": "thread_view_function_deep",
+        "purpose": "thread post page through its function, halfway down",
+        "sql_label": "forum_thread_page_posts_v1_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.054,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 19.11
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.054
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_deep_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_function_deep_signed_in",
+        "purpose": "thread post page through its function, halfway down, signed in",
+        "sql_label": "forum_thread_page_posts_v1_viewer_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.07,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 28.49
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.07
+      },
+      "repetition": 1,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "categories_function",
+      "evidence": {
+        "endpoint": "categories_function",
+        "purpose": "category index through its function",
+        "sql_label": "forum_list_categories_v1",
+        "summary": {
+          "actual_rows": 8,
+          "actual_time_ms": 0.02,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 2.87
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 8,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.02
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function",
+      "evidence": {
+        "endpoint": "home_function",
+        "purpose": "latest public threads through their function",
+        "sql_label": "forum_list_public_threads_v1",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.388,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 194.77
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.388
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function_signed_in",
+      "evidence": {
+        "endpoint": "home_function_signed_in",
+        "purpose": "latest public threads through their function, member with a grant",
+        "sql_label": "forum_list_public_threads_v1_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.354,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 195.57
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.354
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function_deep",
+      "evidence": {
+        "endpoint": "home_function_deep",
+        "purpose": "latest public threads through their function, halfway down",
+        "sql_label": "forum_list_public_threads_v1_keyset",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.487,
+          "depth": {
+            "rows_before_cursor": 119,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 202.16
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "filter_growth_unmeasured:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.487
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function",
+      "evidence": {
+        "endpoint": "category_threads_function",
+        "purpose": "category threads through their function, anonymous",
+        "sql_label": "forum_list_category_threads_v1",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.399,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 196.81
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.399
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_function_signed_in",
+        "purpose": "category threads through their function, signed in",
+        "sql_label": "forum_list_category_threads_v1_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.433,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 218.49
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.433
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_deep",
+      "evidence": {
+        "endpoint": "category_threads_function_deep",
+        "purpose": "category threads through their function, halfway down",
+        "sql_label": "forum_list_category_threads_v1_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.234,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "total_cost": 73.5
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.234
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_deep_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_function_deep_signed_in",
+        "purpose": "category threads through their function, halfway down, signed in",
+        "sql_label": "forum_list_category_threads_v1_viewer_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.29,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 9,
+          "root_node": "Limit",
+          "total_cost": 100.05
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.29
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "search_function",
+      "evidence": {
+        "endpoint": "search_function",
+        "purpose": "readable bounded ranked search through its function",
+        "sql_label": "search_ranked_v1",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 2.608,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "total_cost": 316.88
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 2.608
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "autocomplete_function",
+      "evidence": {
+        "endpoint": "autocomplete_function",
+        "purpose": "readable title autocomplete through its function",
+        "sql_label": "search_autocomplete_v1",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 1.04,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "total_cost": 107.53
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 1.04
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "feed_function",
+      "evidence": {
+        "endpoint": "feed_function",
+        "purpose": "personal feed through its readable source function",
+        "sql_label": "community_list_feed_v1",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.206,
+          "nested_statements": 2,
+          "plan_rows": 5,
+          "root_node": "Limit",
+          "total_cost": 415.17
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.206
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "bookmarks_function",
+      "evidence": {
+        "endpoint": "bookmarks_function",
+        "purpose": "saved bookmarks through its readable source function",
+        "sql_label": "community_list_bookmarks_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.157,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 86.05
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.157
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "mentions_function",
+      "evidence": {
+        "endpoint": "mentions_function",
+        "purpose": "recipient mentions through its readable source function",
+        "sql_label": "community_list_mentions_v1",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.012,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 26.16
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.012
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notifications_function",
+      "evidence": {
+        "endpoint": "notifications_function",
+        "purpose": "readable notification inbox through its function",
+        "sql_label": "notification_list_inbox_v1",
+        "summary": {
+          "actual_rows": 3,
+          "actual_time_ms": 0.175,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 128.22
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 3,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.175
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notification_badge_function",
+      "evidence": {
+        "endpoint": "notification_badge_function",
+        "purpose": "readable notification badge through its function",
+        "sql_label": "notification_unread_count_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.049,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Aggregate",
+          "total_cost": 104.51
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.049
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_head_function",
+      "evidence": {
+        "endpoint": "thread_head_function",
+        "purpose": "thread head through its function",
+        "sql_label": "forum_thread_page_head_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.018,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 11.7
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.018
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function",
+      "evidence": {
+        "endpoint": "thread_view_function",
+        "purpose": "thread post page through its function",
+        "sql_label": "forum_thread_page_posts_v1",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.07,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 19.75
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.07
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_function_signed_in",
+        "purpose": "thread post page through its function, signed in",
+        "sql_label": "forum_thread_page_posts_v1_viewer",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.086,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 33.14
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.086
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_deep",
+      "evidence": {
+        "endpoint": "thread_view_function_deep",
+        "purpose": "thread post page through its function, halfway down",
+        "sql_label": "forum_thread_page_posts_v1_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.071,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 19.11
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.071
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_deep_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_function_deep_signed_in",
+        "purpose": "thread post page through its function, halfway down, signed in",
+        "sql_label": "forum_thread_page_posts_v1_viewer_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.064,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 28.49
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.064
+      },
+      "repetition": 2,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "categories_function",
+      "evidence": {
+        "endpoint": "categories_function",
+        "purpose": "category index through its function",
+        "sql_label": "forum_list_categories_v1",
+        "summary": {
+          "actual_rows": 8,
+          "actual_time_ms": 0.022,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 2.87
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 8,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.022
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function",
+      "evidence": {
+        "endpoint": "home_function",
+        "purpose": "latest public threads through their function",
+        "sql_label": "forum_list_public_threads_v1",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.353,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 194.77
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.353
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function_signed_in",
+      "evidence": {
+        "endpoint": "home_function_signed_in",
+        "purpose": "latest public threads through their function, member with a grant",
+        "sql_label": "forum_list_public_threads_v1_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.36,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 195.57
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.36
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "home_function_deep",
+      "evidence": {
+        "endpoint": "home_function_deep",
+        "purpose": "latest public threads through their function, halfway down",
+        "sql_label": "forum_list_public_threads_v1_keyset",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.436,
+          "depth": {
+            "rows_before_cursor": 119,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 202.16
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "filter_growth_unmeasured:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.436
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function",
+      "evidence": {
+        "endpoint": "category_threads_function",
+        "purpose": "category threads through their function, anonymous",
+        "sql_label": "forum_list_category_threads_v1",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.379,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 196.81
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.379
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_function_signed_in",
+        "purpose": "category threads through their function, signed in",
+        "sql_label": "forum_list_category_threads_v1_viewer",
+        "summary": {
+          "actual_rows": 26,
+          "actual_time_ms": 0.435,
+          "nested_statements": 2,
+          "plan_rows": 26,
+          "root_node": "Limit",
+          "total_cost": 218.49
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 26,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.435
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_deep",
+      "evidence": {
+        "endpoint": "category_threads_function_deep",
+        "purpose": "category threads through their function, halfway down",
+        "sql_label": "forum_list_category_threads_v1_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.228,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 0,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 8,
+          "root_node": "Limit",
+          "total_cost": 73.5
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.228
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "category_threads_function_deep_signed_in",
+      "evidence": {
+        "endpoint": "category_threads_function_deep_signed_in",
+        "purpose": "category threads through their function, halfway down, signed in",
+        "sql_label": "forum_list_category_threads_v1_viewer_keyset",
+        "summary": {
+          "actual_rows": 15,
+          "actual_time_ms": 0.296,
+          "depth": {
+            "rows_before_cursor": 14,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 9,
+          "root_node": "Limit",
+          "total_cost": 100.05
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads",
+          "shallow_page:14"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 15,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.296
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "search_function",
+      "evidence": {
+        "endpoint": "search_function",
+        "purpose": "readable bounded ranked search through its function",
+        "sql_label": "search_ranked_v1",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 2.707,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "total_cost": 316.88
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 2.707
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "autocomplete_function",
+      "evidence": {
+        "endpoint": "autocomplete_function",
+        "purpose": "readable title autocomplete through its function",
+        "sql_label": "search_autocomplete_v1",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 1.037,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Sort",
+          "total_cost": 107.53
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 1.037
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "feed_function",
+      "evidence": {
+        "endpoint": "feed_function",
+        "purpose": "personal feed through its readable source function",
+        "sql_label": "community_list_feed_v1",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.185,
+          "nested_statements": 2,
+          "plan_rows": 5,
+          "root_node": "Limit",
+          "total_cost": 415.17
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.185
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "bookmarks_function",
+      "evidence": {
+        "endpoint": "bookmarks_function",
+        "purpose": "saved bookmarks through its readable source function",
+        "sql_label": "community_list_bookmarks_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.152,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 86.05
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.152
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "mentions_function",
+      "evidence": {
+        "endpoint": "mentions_function",
+        "purpose": "recipient mentions through its readable source function",
+        "sql_label": "community_list_mentions_v1",
+        "summary": {
+          "actual_rows": 0,
+          "actual_time_ms": 0.011,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 26.16
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 0,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.011
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notifications_function",
+      "evidence": {
+        "endpoint": "notifications_function",
+        "purpose": "readable notification inbox through its function",
+        "sql_label": "notification_list_inbox_v1",
+        "summary": {
+          "actual_rows": 3,
+          "actual_time_ms": 0.168,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 128.22
+        },
+        "violations": [],
+        "warnings": [
+          "seq_scan_small_table:threads"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 3,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.168
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "notification_badge_function",
+      "evidence": {
+        "endpoint": "notification_badge_function",
+        "purpose": "readable notification badge through its function",
+        "sql_label": "notification_unread_count_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.049,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Aggregate",
+          "total_cost": 104.51
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.049
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_head_function",
+      "evidence": {
+        "endpoint": "thread_head_function",
+        "purpose": "thread head through its function",
+        "sql_label": "forum_thread_page_head_v1",
+        "summary": {
+          "actual_rows": 1,
+          "actual_time_ms": 0.016,
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 11.7
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 1,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.016
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function",
+      "evidence": {
+        "endpoint": "thread_view_function",
+        "purpose": "thread post page through its function",
+        "sql_label": "forum_thread_page_posts_v1",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.071,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 19.75
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.071
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_function_signed_in",
+        "purpose": "thread post page through its function, signed in",
+        "sql_label": "forum_thread_page_posts_v1_viewer",
+        "summary": {
+          "actual_rows": 20,
+          "actual_time_ms": 0.105,
+          "nested_statements": 2,
+          "plan_rows": 2,
+          "root_node": "Limit",
+          "total_cost": 33.14
+        },
+        "violations": [],
+        "warnings": []
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 20,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.105
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_deep",
+      "evidence": {
+        "endpoint": "thread_view_function_deep",
+        "purpose": "thread post page through its function, halfway down",
+        "sql_label": "forum_thread_page_posts_v1_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.054,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 19.11
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.054
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    },
+    {
+      "endpoint": "thread_view_function_deep_signed_in",
+      "evidence": {
+        "endpoint": "thread_view_function_deep_signed_in",
+        "purpose": "thread post page through its function, halfway down, signed in",
+        "sql_label": "forum_thread_page_posts_v1_viewer_keyset",
+        "summary": {
+          "actual_rows": 10,
+          "actual_time_ms": 0.064,
+          "depth": {
+            "rows_before_cursor": 9,
+            "rows_removed_deep_page": 1,
+            "rows_removed_first_page": 0
+          },
+          "nested_statements": 2,
+          "plan_rows": 1,
+          "root_node": "Limit",
+          "total_cost": 28.49
+        },
+        "violations": [],
+        "warnings": [
+          "shallow_page:9"
+        ]
+      },
+      "limitations": [
+        "EXPLAIN instrumentation overhead; SQL time excludes HTTP and rendering"
+      ],
+      "metrics": {
+        "actual_rows": 10,
+        "nested_statements": 2,
+        "sql_execution_ms": 0.064
+      },
+      "repetition": 3,
+      "scenario": "sql-plan-functions",
+      "status": "ok"
+    }
+  ],
+  "provenance": {
+    "commit": "1df0a321155ef7de2bfbdc699fc433f843b48b9a",
+    "configuration": {
+      "harness_sha256": {
+        "benchmarks/hypnotoad-app.pl": "076b27d9062ce65ac88113864181b27bcededead02f49d136a0bf00f47727f12",
+        "benchmarks/wrk-metrics.lua": "c66846fe8ad3a8c2b8d6b45816a8ff52cfd3267bb678b9b25e6e82d6b231af03",
+        "script/performance-evidence.py": "336a1802de6c38692f01817339faac41ab67e0faa0e1ef8fdf720df2ee48eba7",
+        "script/performance-hotpaths.py": "0bd37e25119d3c375c035308fab7c9e2d1cc96e279d558d4b33d6ba846909168",
+        "script/performance-http.py": "784246f7f1f1a57ec2b3c712818d4d6668d816be1dc1849259d6e78847e0ceec",
+        "script/performance-outbox.pl": "c1c23e449488e67b2248fbf0fa34b3b56b67ccb00e71b3d33bf0cfe1d5c41755"
+      },
+      "hotpaths": {
+        "analyze": true,
+        "deadline_seconds": 300,
+        "outbox": {
+          "batch_size": 100,
+          "database": "fresh owned",
+          "messages": 3000,
+          "repetitions": 3,
+          "transport": "recording no-op",
+          "workers": [
+            1,
+            2
+          ]
+        },
+        "plan_cli_profile_label": "medium",
+        "plan_repetitions": 3,
+        "plans": [
+          "readers",
+          "functions"
+        ],
+        "profiling": "configured NYTProf deep only",
+        "sql_service_comparison": {
+          "enabled": false,
+          "proxy_delay_ms": 0.5,
+          "read_iterations": 30,
+          "warmup": 5,
+          "write_iterations": 10
+        }
+      }
+    },
+    "dataset": {},
+    "date": "2026-10-11",
+    "run_attempt": "1",
+    "run_id": "38147779889",
+    "runner": {
+      "arch": "x86_64",
+      "cpu_count": 4,
+      "cpu_model": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "image": "ubuntu26",
+      "image_version": "20260927.149.1",
+      "kernel": "7.0.0-1012-azure",
+      "label": "ubuntu-26.04",
+      "memory_bytes": 16758468608,
+      "name": "GitHub Actions 1000066969",
+      "os": "Linux"
+    },
+    "timestamp": "2026-10-11T14:35:36.487519+00:00",
+    "versions": {}
+  },
+  "schema_version": 1,
+  "status": "ok"
+}

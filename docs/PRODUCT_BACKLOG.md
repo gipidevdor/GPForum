@@ -1,0 +1,369 @@
+# GPForum verified product backlog
+
+Reviewed: 2026-10-11. Base commit: `3087bf09b778`, with the current working
+tree inspected. Status: **proposed post-MVP product plan**. No feature in this
+document becomes an accepted architecture decision or a shipped capability by
+being listed here.
+
+This backlog reconciles the requested A–L feature inventory with application
+routes, schema/migrations, services, workers, templates, assets and existing
+tests. It is a static repository review, not a deployed-instance audit or a new
+test-suite result. Existing unrelated setup changes are outside this review.
+
+[ADR 0068](adr/0068-mvp-roadmap-sequencing.md) remains the binding roadmap.
+[Production readiness](PRODUCTION_READINESS.md), the
+[readiness review](release/readiness-review.md) and
+[quality program](QUALITY_PROGRAM.md) retain their gates and work priorities.
+The historical completion of milestones 0–10 does not establish completion
+of these proposed features or current production readiness.
+
+## Reading the inventory
+
+- **Present:** a product workflow is visible in the inspected implementation.
+- **Partial:** a usable subset exists; the row states the missing increment.
+- **Foundation:** schema or internal modules exist, but the requested product
+  workflow is incomplete or unwired.
+- **Not found:** no implementation was found in the inspected product surfaces.
+  Recheck before implementation; this is not proof about every historical branch.
+- **Evidence needed:** repository checks exist, but the requested external or
+  runtime assurance was not established here.
+
+The source links in each row anchor positive findings and delimit the surfaces
+searched for missing behavior. PB identifiers refer to the proposed work packages
+below. A row marked **Maintain** is existing functionality, not new feature debt.
+The two draft rows share PB-10; typing indicators and collaborative editing are
+separate deliverables. Related rows share packages without counting as duplicate
+features.
+
+Comparison products inform user needs, not an assertion that every feature is
+standard in every installation. Discourse describes its capabilities on its
+[feature page](https://www.discourse.org/features); Flarum and NodeBB document
+extension/plugin installation as part of their ecosystems
+([Flarum](https://docs.flarum.org/2.x/extensions/),
+[NodeBB](https://docs.nodebb.org/configuring/plugins/)). Version, enabled
+extensions and hosting configuration must be specified for any future parity
+claim. No competitor source code or assets were imported for this review.
+
+## A. Engagement and conversation
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| A01 | Emoji reactions | Not found in posting schema/routes/UI. [routes], [post-model] | PB-01 |
+| A02 | Likes / upvotes / downvotes | Not found. Start with a reversible like; additional vote semantics need a product decision. [routes] | PB-01 |
+| A03 | Polls | Not found in schema, posting workflows or composer. [routes], [composer] | PB-03 |
+| A04 | Reply to a particular post | Foundation: quote rendering exists; the post model has no reply target and UI has no reply relationship. [post-model], [markup] | PB-10 |
+| A05 | Draft autosave | Not found in composer routes, forms or client enhancements. [routes], [composer] | PB-10 |
+| A06 | Rich live preview | Not found; current composer is textarea plus submit. [composer], [new-thread] | PB-10 |
+| A07 | Collaborative editing / typing indicators | Not found. Specify typing presence separately from concurrent document editing. [realtime], [routes] | PB-10 / Defer collaborative editing |
+| A08 | Advanced bookmarks | Partial: bookmarks already have notes in UI and storage; folders/reminders are missing. [thread-tools], [bookmarks] | PB-13 |
+| A09 | Save an unpublished thread | Not found; same draft lifecycle as A05, including title/category. [new-thread] | PB-10 |
+
+## B. Content organization
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| B01 | Thread tags | Not found; categories are the existing classification. [forum-schema], [routes] | PB-02 |
+| B02 | Multiple tags / combined filters | Not found; define limits, matching semantics and permission-aware filtering. [search], [forum-schema] | PB-02 |
+| B03 | Deep subcategory tree | Partial: fixed space → category → thread hierarchy; categories have no parent field. [forum-schema] | PB-11 |
+| B04 | Managed thread prefixes | Not found as structured metadata or staff workflow. [forum-schema], [routes] | PB-11 |
+| B05 | Sticky / pinned administration | Foundation: pinned field and read ordering exist; pin/unpin route, staff action and UI were not found. [forum-schema], [thread-reader], [routes] | PB-11 |
+| B06 | Global announcements / site banners | Not found as admin-managed content; presentation status banners are separate components. [routes], [admin-settings] | PB-11 |
+| B07 | Wiki / knowledge base | Not found as a product workflow. [routes] | PB-19 / Defer |
+| B08 | Long-form documents / articles | Not found as a distinct content type. [routes], [post-model] | PB-19 / Defer |
+| B09 | Event calendar | Not found. [routes], [forum-schema] | PB-19 / Defer |
+| B10 | Automatic FAQ / reusable moderator answers | Not found; split FAQ generation from curated response templates. [routes] | PB-19 |
+
+## C. Social and messaging
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| C01 | Direct messages | Not found: no messaging domain, conversation schema or product routes. Restricted forum threads do not establish DM support. [routes] | PB-07 |
+| C02 | Private group conversations | Not found; a separate increment after participant authorization and abuse controls. [routes] | PB-07 |
+| C03 | Rich profiles | Partial: join date, public activity and contribution counts exist; bio/custom fields/social links were not found. [profile] | PB-13 |
+| C04 | Avatar upload / crop | Not found; profiles/posts render initials and generated colors. [profile], [posts] | PB-13 |
+| C05 | Badges / achievements / medals | Partial: trust-derived contributor badge exists; separate achievement/award system was not found. [profile], [profile-reader] | PB-13 |
+| C06 | Visible trust levels | Present, basic: profile shows reputation score, badge and numeric level. Further explanations and privilege UX are optional increments. [profile], [reputation] | Maintain / PB-13 |
+| C07 | Ignore / block a user | Not found as a user relationship/control; existing mute applies to threads. [thread-tools], [routes] | PB-06 |
+| C08 | Friends / follow users | Not found; thread subscriptions and a followed-thread feed exist. [routes], [feed] | PB-13 |
+| C09 | Group / here / everyone mentions | Partial: username mentions exist with permission checks and bounded fanout; group/broadcast semantics were not found. [mentions] | PB-13 |
+
+## D. Notifications and email
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| D01 | Daily / weekly email digest | Foundation: channel/frequency preferences exist; digest generation, scheduling and delivery were not found. [notification-prefs], [notification-dispatch], [workers] | PB-08 |
+| D02 | Preferences by notification type | Partial: channel enablement and frequencies exist in settings; per-event controls were not found. [settings], [notification-prefs] | PB-08 |
+| D03 | Web push | Not found; no subscription or service-worker delivery workflow. [routes], [manifest] | PB-16 |
+| D04 | Email every reply / first reply | Not found as delivery behavior; notification fanout currently delivers in-app, while email handles identity lifecycle. [notification-dispatch], [workers] | PB-08 |
+| D05 | One-click email unsubscribe | Not found. Thread unsubscribe exists; reset/verification mail is transactional and does not demonstrate digest opt-out. [thread-tools], [identity-mail] | PB-08 |
+
+## E. Identity and access
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| E01 | Social login | Not found; current login uses password credentials and email lifecycle. [routes], [credential-store] | PB-20 |
+| E02 | Enterprise SSO / SAML / OIDC | Not found as authentication workflows. OIDC login and OAuth authorization must have explicit contracts. [routes] | PB-20 |
+| E03 | TOTP second factor | Foundation: credential type placeholder exists; enrollment/challenge/recovery were not found. [identity-schema], [routes] | PB-04 |
+| E04 | WebAuthn / passkeys | Foundation: credential type placeholder exists; ceremony/enrollment/recovery were not found. [identity-schema], [routes] | PB-20 |
+| E05 | Magic-link login | Not found; email verification tokens are a different lifecycle. [routes], [identity-mail] | PB-20 |
+| E06 | Passwordless login | Not found. [routes], [credential-store] | PB-20 |
+| E07 | Registration invitations | Not found in registration workflow or routes. [routes], [identity-flow] | PB-20 |
+| E08 | Manual registration approval | Not found; pending/email confirmation does not imply staff approval. [identity-flow] | PB-20 |
+| E09 | Registration CAPTCHA | Not found. Consider an optional adapter only after local abuse controls and provider/privacy review. [routes], [identity-flow] | PB-05 |
+| E10 | Multi-provider account linking | Not found; depends on safe external identity verification and explicit linking confirmation. [credential-store] | PB-20 |
+
+## F. Moderation and safety
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| F01 | Moderation queues | Present: report, assign-to-self/release/resolve, hide/restore, suspend and reversible audit workflows. [routes], [reports] | Maintain |
+| F02 | Spam service / ML classification | Not found; rate limits, reports and malware scanning already exist. Local rules can be the first increment. [rate-limiter], [workers] | PB-05 |
+| F03 | Shadowban | Not found; requires an explicit product/privacy decision before adoption. [routes], [moderation-flow] | PB-18 / Defer |
+| F04 | Private notes on users | Not found as a dedicated feature; action reasons and report details/resolutions already exist. [reports], [moderation-schema] | PB-18 |
+| F05 | First-post review queue | Not found; report review exists, but new-post approval is a different workflow. [moderation-flow], [routes] | PB-05 |
+| F06 | Automod regex / links / flood | Partial: rate limiting exists; configurable content rules and decisions were not found. [rate-limiter], [routes] | PB-05 |
+| F07 | Watched words | Not found. [moderation-flow], [routes] | PB-05 |
+| F08 | IP / range ban administration | Not found as staff workflow; account suspension and per-address throttling exist. [routes], [rate-limiter] | PB-18 |
+| F09 | Attachment content moderation | Partial: scan/quarantine/lifecycle infrastructure exists; a richer staff review workflow needs specification and verification. [attachment-flow], [workers] | PB-18 |
+| F10 | Snooze / advanced report assignment | Partial: assign-to-self, release and resolve are implemented; snooze and arbitrary assignee UX were not found. [reports], [routes] | PB-18 |
+
+## G. Search and discovery
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| G01 | PostgreSQL full-text search | Present, including permissions, snippets and title autocomplete/trigram matching. [search] | Maintain |
+| G02 | Author/category/date filters | Present, basic: category/author scope and date controls work; typed operators and richer selectors remain. [search-form], [search] | PB-12 |
+| G03 | Explicit title-only / post-only search | Partial: thread/post search and title matching exist; explicit user-selectable scopes were not found. [search-form], [search] | PB-12 |
+| G04 | Similar threads while composing | Not found; reuse permission-aware search before proposing a new index. [new-thread], [search] | PB-12 |
+| G05 | Configurable hot/trending ranking | Not found. Specify transparent ranking, abuse resistance and query budget before adoption. [feed], [search] | PB-12 |
+| G06 | Explore beyond followed threads | Partial: home/latest content and followed feed exist; richer discovery remains. [routes], [feed] | PB-12 |
+
+## H. Media and editor
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| H01 | Restricted markup / no raw HTML | Present, deliberate security boundary. [markup] | Maintain |
+| H02 | WYSIWYG | Not found; an optional enhancement needs to preserve safe markup and SSR fallback. [composer], [markup] | PB-10 / Later |
+| H03 | Complete Markdown | Partial by choice: emphasis, safe links, quotes and code exist; headings/lists/tables/footnotes are outside the current subset. [markup] | PB-10 / Product decision |
+| H04 | Image/PDF/text upload, 25 MiB, malware scan | Present as bounded attachment workflows; external operational evidence remains governed by readiness gates. [attachment-validator], [attachment-flow] | Maintain |
+| H05 | Gallery / lightbox | Not found; posts currently expose attachment download links. [posts] | PB-14 |
+| H06 | Rich third-party embeds | Not found in renderer/product workflows. [markup], [posts] | PB-14 |
+| H07 | GIF / emoji picker | Not found; split local Unicode emoji selection from third-party GIF retrieval. [composer] | PB-14 |
+| H08 | Screenshot paste enhancement | Not found as an explicit upload enhancement in composer/client code. [composer], [client] | PB-14 |
+| H09 | Native video upload | Not found in upload allowlist/workflow. [attachment-validator] | PB-14 / Later |
+| H10 | Audio upload | Not found in upload allowlist/workflow. [attachment-validator] | PB-14 / Later |
+
+## I. Internationalization and accessibility
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| I01 | English and Italian | Present. [locales], [i18n] | Maintain |
+| I02 | More complete UI languages | Not found among shipped locales; translation infrastructure already exists. [locales], [i18n] | PB-17 |
+| I03 | RTL | Foundation: HTML direction/CSS hooks and tests exist; no shipped RTL language establishes a complete localized workflow. [layout], [theme-test], [locales] | PB-17 |
+| I04 | Light / dark / high contrast | Present, including automatic selection. [theming] | Maintain |
+| I05 | Visual theme builder | Not found; token/theme infrastructure exists. [theming], [admin-settings] | PB-17 / Later |
+| I06 | Safe per-tenant custom CSS | Not found; current theme support does not establish multi-tenancy or tenant CSS isolation. [theming] | PB-22 / Defer |
+| I07 | Independent accessibility audit | Evidence needed: semantic/contrast/focus checks exist; independent conformance review was not established here. [accessibility], [theme-test] | PB-17 |
+
+## J. Integrations and platform
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| J01 | JSON read responses | Present on selected routes. [api], [routes] | Maintain |
+| J02 | Public versioned write API | Partial: browser writes can respond in JSON using session/CSRF; public `/api/v1`, integration tokens and a stable documented contract are pending. [api], [mvp] | PB-15 |
+| J03 | Outgoing webhooks | Not found as a wired delivery workflow. [workers], [routes] | PB-15 |
+| J04 | Public plugin / extension API | Foundation: registry, manifest and hook modules exist; public SDK/installation and application workflow wiring were not found. [plugin-registry], [plugin-hooks] | PB-15 / Later |
+| J05 | phpBB import | Foundation: generic job/manifest/legacy-ID services exist; source adapter and runnable import workflow were not found. [import-jobs], [import-validator] | PB-09 |
+| J06 | Discourse import | Foundation: same generic infrastructure; source adapter was not found. [import-jobs] | PB-09 / Later |
+| J07 | Flarum / NodeBB / vBulletin import | Foundation: generic infrastructure only; source adapters were not found. [import-jobs] | PB-09 / Later |
+| J08 | Whole-community migration export | Partial: operational backup and account export exist; a portable forum-wide pack/reimport workflow was not found. [export-builder], [backup] | PB-09 |
+| J09 | Native iOS / Android app | Not found. [api], [manifest] | PB-22 / Defer |
+| J10 | Advanced PWA install/offline | Foundation: standalone webmanifest exists; service-worker/offline workflow was not found. [manifest] | PB-16 |
+| J11 | ActivityPub / federation | Not found as a product workflow. [routes], [workers] | PB-22 / Defer |
+| J12 | Slack / Discord bridge | Not found as a product integration. [workers], [routes] | PB-15 / Later |
+
+## K. Product analytics and administration
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| K01 | Admin console | Present: operational summaries, users/roles, categories, settings, diagnostics, jobs and audit. [admin-console], [routes] | Maintain |
+| K02 | `/metrics` | Present, operational metrics. [observability], [routes] | Maintain |
+| K03 | DAU / retention / funnel analytics | Not found as product analytics workflows; operational counters are separate. [admin-console], [observability] | PB-21 |
+| K04 | Community health dashboard | Partial: operational/admin counts exist; participation, engagement and retention views were not found. [admin-console] | PB-21 |
+| K05 | A/B tests / feature-flag UI | Not found as an admin workflow; configuration ADR requirements do not establish implementation. [config-adr], [admin-settings] | PB-21 / Later |
+| K06 | Audit log | Present; preserve authorization, filtering and reversible action history. [admin-console], [routes] | Maintain |
+| K07 | Account export / deletion | Present, including data-rights review/hold/erasure workflows. [export-builder], [privacy] | Maintain |
+
+## L. Product operations
+
+| ID | Feature | Verified status and scope | Package |
+| --- | --- | --- | --- |
+| L01 | Setup / doctor / backup | Present; keep operational improvements in the existing quality/readiness program. [doctor], [backup], [quality] | Maintain |
+| L02 | Multi-tenancy | Not found as an isolated multi-forum product/operation model. [architecture] | PB-22 / Defer |
+| L03 | Built-in staging slot / blue-green | Not found as a managed deployment workflow; staging/upgrade/rollback procedures exist. [deployment], [upgrade] | PB-22 / Later |
+| L04 | Extension marketplace | Not found; internal plugin primitives do not constitute an ecosystem. [plugin-registry] | PB-22 / Defer |
+| L05 | One-click update | Not found; operator upgrade/doctor procedure exists. [upgrade] | PB-22 / Later |
+
+## Proposed priority roadmap
+
+The requested eight high-value gaps remain the first product candidates:
+likes/reactions, DMs, tags, polls, stronger authentication, one major-forum
+importer, spam controls and email digests. Sequencing below reflects dependency
+and privacy risk, rather than a promise of dates or a claim of full parity.
+
+| Wave | Proposed outcome | Dependencies / exit criteria |
+| --- | --- | --- |
+| P0 — release evidence | Close existing CI/staging, TLS, SMTP delivery, attachment restore, load and rollback gaps. | Follow the current readiness/quality documents; refresh the historical verdict with actual target evidence. No new runtime feature is adopted by this backlog. |
+| P1a — everyday discussion | PB-01 likes, PB-02 tags, PB-03 polls; PB-10 drafts/preview as an adjacent usability increment. | P0 gates maintained. Each package independently releasable, with safe migrations, SSR flows, EN/IT and permission tests. |
+| P1b — identity and abuse controls | PB-04 TOTP, PB-05 automod/first-post review, PB-06 user blocking. | P0 gates maintained. Publish recovery, review and block semantics before relying on them for messaging. This work can run alongside P1a. |
+| P1c — private conversation, mail, migration | PB-07 DMs, PB-08 preferences/digest, PB-09 phpBB import plus portable export. | DMs require PB-06 and adequate PB-05 controls. Digest requires delivery/opt-out semantics. Import requires validated export mapping and a replayable dry run. Mail/import can progress independently of DMs. |
+| P2 — richer product and integrations | PB-11–18 and PB-21, plus optional PB-10 editor increments. | Prioritize measured user demand; preserve existing readiness, performance and privacy gates. |
+| Deferred — explicit scope decisions | PB-19 knowledge content, PB-20 broader identity options, PB-22 platform expansion; collaborative editing, shadowban, marketplace, federation, native apps and multi-tenancy. | Require a separate scope/design decision and evidence of demand. Social OIDC login may replace or supplement PB-04 if adoption makes it the stronger identity priority. |
+
+Prioritizing OIDC instead of TOTP changes delivery order, not security guarantees:
+social login alone does not provide GPForum's own second-factor protection.
+
+### First product packages and acceptance criteria
+
+These are proposed specifications. Before coding, settle the recorded decisions
+and write/amend ADRs for changed contracts under [governance](../GOVERNANCE.md).
+
+| Package | First deliverable / pending decision | Acceptance criteria |
+| --- | --- | --- |
+| PB-01 | Reversible post like; decide self-like policy and whether multiple emoji or downvotes add value. | One actor/target reaction per chosen rule under concurrent retries; authorize against current post visibility; counters remain rebuildable; removal, moderation and account erasure update derived views; accessible SSR action with CSRF and bounded reads. |
+| PB-02 | Managed multi-tag threads and tag filtering; decide who creates tags, tag count limit and all/any filter semantics. | Normalize unique identifiers; permission-aware tag lists/counts/search/feed; audited rename/merge/delete; migrate existing untagged threads safely; keyset queries stay within budgets. |
+| PB-03 | Single-choice poll first; decide vote editing, closing and voter visibility. | Options/limits validated; one ballot per voter under races/retries; visibility checked on vote and results; defined behavior for edits/deletion; voter identity protected according to the declared policy; audited staff closure. |
+| PB-04 | TOTP enrollment/challenge/recovery; external OIDC login is a separate alternative. | Confirm enrollment before enabling; use reviewed protocol libraries; protect secrets; reject reused challenges, throttle attempts; recovery codes stored as hashes and single-use; reauthentication for reset/removal; session/revocation and recovery tests. |
+| PB-05 | Local watched-word/link/flood rules and first-post review; decide hold/reject/report outcomes and authorized overrides. | Bounded rule evaluation; explainable, auditable decisions; queued content unavailable through search/feed/preview/attachments/realtime; staff approval/rejection idempotent; legitimate-user recovery path; tune false positives before any optional external classifier/CAPTCHA. |
+| PB-06 | User block/ignore controls; decide which affects content visibility, mentions, notifications and contact attempts. | Enforce server-side on defined surfaces; no message or notification bypass; account deletion cleanup; accessible settings; consistent privacy behavior for both participants. |
+| PB-07 | One-to-one DMs, then private groups; decide invitation consent, participant removal/history and retention. | Participant-only reads/writes/attachments; no public search/feed/cache/realtime leakage; block/contact limits; user-initiated reports grant staff only defined access; describe staff-access policy honestly; exports include only conversation content the requester is authorized to access, with explicit treatment of received messages and participant metadata; deletion/retention and race tests. |
+| PB-08 | Complete per-event preferences and scheduled daily/weekly digest; decide first/every-reply delivery and unread rules. | Reuse existing preferences; explicit notification-email opt-in on rollout; authorization and opt-out checked at send time; mute/block honored; idempotent schedule/retry; bounded batches; locale/timezone handling; authenticated settings and revocable unsubscribe tokens; applicable one-click mail headers tested; SMTP failure and duplicate-delivery evidence. |
+| PB-09 | phpBB importer and versioned community export; decide supported source version/format and permission/BBCode mapping. | Operator-authorized input only; dry-run validation/counts; legacy-ID mapping resumable and replay-safe; preserve dates, attribution and visibility; report unmapped features; no source password hashes in public exports; safe rendering and attachment scans; private-data separation; checksums and a verified export/reimport comparison on synthetic or consented fixtures. |
+| PB-10 | Draft thread/reply lifecycle and preview using the canonical safe renderer; reply-to as a separate model increment. | Owner-only drafts with explicit retention/deletion; autosave conflicts handled without silent overwrite; failed publish preserves draft; preview permissions and sanitization match publish; SSR/manual-save fallback; reply target belongs to the same authorized thread; keyboard/EN/IT flows. Typing is optional ephemeral presence; collaborative editing needs its own design. |
+
+### Subsequent packages
+
+| Package | Scope | Required evidence before completion |
+| --- | --- | --- |
+| PB-11 | Pin/unpin administration, managed prefixes/banners; category tree only if justified. | Staff authorization, reversible audit and ordering; accessible banner dismissal; hierarchy permission/move invariants if adopted. |
+| PB-12 | Search selectors/operators/scopes, similar threads, richer discovery; ranking later. | Existing filters preserved; restricted metadata/snippets/counts stay hidden; relevant query plans and bounded suggestion requests. |
+| PB-13 | Profile bio/fields, avatar, achievement increments, bookmark folders, optional user follows/group mentions. | Safe field rendering, upload/crop validation, visibility/export/erasure; awards explained; bounded mentions with explicit broadcast permission. |
+| PB-14 | Image lightbox/paste/emoji first; embeds/GIF providers and audio/video separately. | Keyboard navigation; scans/limits retained; untrusted remote fetches bounded against SSRF; click-to-load embeds; review provider terms, tracking and content rights before integration. |
+| PB-15 | Versioned API/scoped tokens, outgoing webhooks; public plugin SDK and bridges later. | Stable documented schemas, auth/revocation/rate limits and contract tests; signed webhook delivery, retries/deduplication and SSRF limits; versioned hook contracts and privacy review before external code runs. |
+| PB-16 | Installable PWA, optional web push; define offline scope explicitly. | Manifest/install evidence on supported browsers; authenticated/private content excluded from shared caches; logout clears private local state; push opt-in/revocation and permissions at delivery. |
+| PB-17 | External accessibility review, RTL locale, more languages and optional theme tooling. | Track findings to closure; full locale catalogs, keyboard/mobile/RTL checks; token contrast checks; reviewed theme/asset licensing. |
+| PB-18 | User moderation notes, report snooze/assignment, attachment review, possible IP bans. | Staff-only access, audited changes, retention/export rules and appeals; correct trusted-proxy/address handling; no silent private-data leakage. Shadowban requires a separate decision. |
+| PB-19 | Curated moderator templates; FAQ/wiki/articles/events as independent proposals. | Content ownership, revision/moderation and safe rendering defined; feature-specific authorization and accessibility. |
+| PB-20 | OIDC/social login, linking, WebAuthn/passkeys, magic links, invites/manual approval; SAML only on demonstrated demand. | Provider/protocol contract, account takeover/linking tests, recovery/revocation, secret handling and minimal identity claims; provider terms and processing review. |
+| PB-21 | Aggregate engagement/community health; A/B/flag administration only if justified. | Define DAU/retention/funnel denominators and retention periods; avoid hidden tracking; restricted cohorts not exposed; measurements reproducible and optional processing governed. |
+| PB-22 | Native apps, federation, multi-tenancy, marketplace, deployment slots/update automation. | Separate architecture/scope decisions with migration, isolation, operations and rollback evidence; no implied commitment from this inventory. |
+
+### Shared definition of done
+
+A package is complete only when its acceptance criteria have evidence: canonical
+PostgreSQL state; transactional events/audit; idempotent retries; authorized
+SSR/JSON/search/feed/notification/attachment/realtime/cache/export surfaces;
+safe migrations and rollback/replay notes; EN/IT and accessible interaction;
+failure/concurrency tests appropriate to the change; query-budget/profiling
+evidence for affected hot paths; dependency review; updated documentation and
+accepted ADRs where contracts change. Follow [CONTRIBUTING](../CONTRIBUTING.md)
+and the existing release gates. A schema placeholder or passing unit test alone
+does not complete a product workflow.
+
+## Original implementation, licensing and data protection
+
+The requested constraint applies to every package: implement from GPForum's own
+requirements and architecture. Use public competitor documentation to understand
+behavior; do not copy code, templates, prose, branding, screenshots, icons or
+other assets without an applicable permission/license and recorded obligations.
+The EU software directive distinguishes ideas/principles from protected program
+expression; that distinction is not blanket permission to reuse implementation
+or other protected material. [Directive 2009/24/EC, Article 1](https://eur-lex.europa.eu/eli/dir/2009/24/oj/eng)
+
+For each introduced dependency or asset, record exact origin/version, license,
+required notices and distribution obligations, and review compatibility with
+GPForum's [BSD-3-Clause license](../LICENSE). Runtime CPAN additions must update
+[CPAN_LICENSE_REVIEW.md](CPAN_LICENSE_REVIEW.md), remain pinned and pass
+`script/cpan-license-check`; non-CPAN assets/providers require their own recorded
+review. Unknown licensing leaves that material unused until clarified. No new
+dependency or third-party asset is introduced by this documentation change.
+
+New DMs, drafts, ballots, identity providers, mail, imports, moderation records
+and analytics must declare purpose, legal basis where applicable, access,
+retention and export/deletion behavior before collecting data. Minimize personal
+data, protect it by default, and review external processing/transfer and optional
+tracking implications. These constraints extend
+[ADR 0074](adr/0074-privacy-data-protection-legal-operations.md) and the GDPR's
+data-protection principles and design/default obligations.
+[GDPR, Articles 5, 6 and 25](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng)
+
+Importer fixtures must be synthetic or supplied with authority to process them;
+licenses for forum software do not grant rights to other communities' user
+content. Embeds, GIF retrieval, CAPTCHA and spam services need review of provider
+terms and data flows before adoption. This plan records engineering safeguards;
+it does not certify legal compliance of a future deployment or integration.
+
+## Evidence links
+
+These links point to the inspected repository, not copied implementations.
+For mail status, current worker wiring and mailer code take precedence over
+historical ADR wording that predates the identity mailer.
+
+[routes]: ../lib/GPForum/Bootstrap/Routes.pm
+[post-model]: ../lib/GPForum/Schema/Result/Post.pm
+[composer]: ../templates/forum/_composer.html.ep
+[new-thread]: ../templates/forum/new_thread.html.ep
+[markup]: ../lib/GPForum/Service/Forum/BodyRenderer.pm
+[realtime]: realtime.md
+[thread-tools]: ../templates/forum/_thread_tools.html.ep
+[bookmarks]: ../templates/forum/bookmarks.html.ep
+[forum-schema]: ../migrations/003_forum_projection.sql
+[thread-reader]: ../lib/GPForum/Service/Forum/ThreadReader.pm
+[admin-settings]: ../lib/GPForum/Service/Admin/Settings.pm
+[profile]: ../templates/identity/profile.html.ep
+[profile-reader]: ../lib/GPForum/Service/Identity/ProfileReader.pm
+[reputation]: ../lib/GPForum/Service/Community/ReputationLedger.pm
+[posts]: ../templates/forum/_posts.html.ep
+[feed]: ../lib/GPForum/Service/Community/FeedReader.pm
+[mentions]: ../lib/GPForum/Service/Community/MentionStore.pm
+[notification-prefs]: ../lib/GPForum/Service/Notification/PreferenceStore.pm
+[notification-dispatch]: ../lib/GPForum/Service/Notification/Dispatcher.pm
+[workers]: ../lib/GPForum/Bootstrap/Workers.pm
+[settings]: ../templates/identity/settings.html.ep
+[identity-mail]: ../lib/GPForum/Service/Identity/Mailer.pm
+[credential-store]: ../lib/GPForum/Service/Identity/CredentialStore.pm
+[identity-schema]: ../migrations/001_core_identity.sql
+[identity-flow]: architecture/identity-workflow.md
+[reports]: ../templates/moderation/reports.html.ep
+[moderation-flow]: architecture/moderation-workflow.md
+[moderation-schema]: ../migrations/008_moderation_review.sql
+[rate-limiter]: ../lib/GPForum/Service/Operations/RateLimiter.pm
+[attachment-flow]: architecture/attachment-workflow.md
+[attachment-validator]: ../lib/GPForum/Service/Attachment/Validator.pm
+[search-form]: ../templates/forum/search.html.ep
+[search]: ../lib/GPForum/Service/Search/Searcher.pm
+[client]: ../assets/js/site.js
+[locales]: ../lib/GPForum/Service/I18N/Locale.pm
+[i18n]: i18n.md
+[layout]: ../templates/layouts/default.html.ep
+[theme-test]: ../t/65-accessible-theme.t
+[theming]: ../THEMING.md
+[accessibility]: UI_ACCESSIBILITY.md
+[api]: ../API.md
+[mvp]: MVP.md
+[manifest]: ../site.webmanifest
+[plugin-registry]: ../lib/GPForum/Service/Plugin/Registry.pm
+[plugin-hooks]: ../lib/GPForum/Service/Plugin/HookDispatcher.pm
+[import-jobs]: ../lib/GPForum/Service/Portability/ImportJobStore.pm
+[import-validator]: ../lib/GPForum/Service/Portability/ImportManifestValidator.pm
+[export-builder]: ../lib/GPForum/Service/Portability/ExportBundleBuilder.pm
+[backup]: ops/backup-and-restore.md
+[admin-console]: ../lib/GPForum/Service/Admin/ConsoleReader.pm
+[observability]: OBSERVABILITY.md
+[config-adr]: adr/0077-configuration-environments-feature-flags.md
+[privacy]: architecture/privacy-workflow.md
+[doctor]: ops/doctor.md
+[quality]: QUALITY_PROGRAM.md
+[architecture]: ../ARCHITECTURE.md
+[deployment]: DEPLOYMENT.md
+[upgrade]: ops/upgrade.md

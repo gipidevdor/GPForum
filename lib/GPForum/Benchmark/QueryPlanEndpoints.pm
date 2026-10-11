@@ -13,9 +13,12 @@ use GPForum::Benchmark::SeedDataset qw(seed_id);
 use GPForum::Config;
 use GPForum::Service::Clock;
 use GPForum::Service::Community::FeedReader;
+use GPForum::Service::Community::BookmarkStore;
+use GPForum::Service::Community::MentionReader;
 use GPForum::Service::Forum::CategoryReader;
 use GPForum::Service::Forum::PostReader;
 use GPForum::Service::Forum::Readability;
+use GPForum::Service::Forum::ThreadDetailReader;
 use GPForum::Service::Forum::ThreadReader;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Moderation::ReportStore;
@@ -28,8 +31,10 @@ use GPForum::Service::Search::Searcher;
 
 our $VERSION = '0.001';
 
-our @EXPORT_OK =
-  qw(endpoint_definition endpoint_names page_rows read_deep_page);
+our @EXPORT_OK = qw(
+  endpoint_definition endpoint_names function_endpoint_names page_rows
+  read_deep_page
+);
 
 # The benchmark's seeded ids: the first category, thread and user, and a
 # second category the signed-in reader holds a grant on.
@@ -120,6 +125,33 @@ const my @ENDPOINT_NAMES => qw(
   thread_view_signed_in
   thread_view_deep
   thread_view_deep_signed_in
+);
+
+# ADR 0126: the statements the forum's functions run, which EXPLAIN cannot
+# reach from outside them. The evidence reads their plans through
+# auto_explain, inside the call the reader makes, on the same pages as the
+# endpoints above.
+const my @FUNCTION_ENDPOINT_NAMES => qw(
+  categories_function
+  home_function
+  home_function_signed_in
+  home_function_deep
+  category_threads_function
+  category_threads_function_signed_in
+  category_threads_function_deep
+  category_threads_function_deep_signed_in
+  search_function
+  autocomplete_function
+  feed_function
+  bookmarks_function
+  mentions_function
+  notifications_function
+  notification_badge_function
+  thread_head_function
+  thread_view_function
+  thread_view_function_signed_in
+  thread_view_function_deep
+  thread_view_function_deep_signed_in
 );
 
 # What each endpoint EXPLAINs: its purpose and label, and the resultset lib/
@@ -292,6 +324,169 @@ my %ENDPOINT = (
         sql_label => 'outbox_claim_ready',
         statement => \&_claim_statement,
     },
+    categories_function => {
+        purpose   => 'category index through its function',
+        sql_label => 'forum_list_categories_v1',
+        call      => sub ($schema) {
+            return GPForum::Service::Forum::CategoryReader->new(
+                schema => $schema )->categories_call($PAGE_ROWS);
+        },
+    },
+    home_function => {
+        purpose   => 'latest public threads through their function',
+        sql_label => 'forum_list_public_threads_v1',
+        call      => sub ($schema) {
+            return _latest_threads_call( $schema, _seeded_page() );
+        },
+    },
+    home_function_signed_in => {
+        purpose =>
+          'latest public threads through their function, member with a grant',
+        sql_label => 'forum_list_public_threads_v1_viewer',
+        call      => sub ($schema) {
+            return _latest_threads_call( $schema, _seeded_page(),
+                _member_viewer() );
+        },
+    },
+    home_function_deep => {
+        purpose => 'latest public threads through their function, halfway down',
+        sql_label => 'forum_list_public_threads_v1_keyset',
+        deep      => 'latest',
+        call      => \&_latest_threads_call,
+    },
+    category_threads_function => {
+        purpose   => 'category threads through their function, anonymous',
+        sql_label => 'forum_list_category_threads_v1',
+        call      => sub ($schema) {
+            return _category_threads_call( $schema, _seeded_page() );
+        },
+    },
+    category_threads_function_signed_in => {
+        purpose   => 'category threads through their function, signed in',
+        sql_label => 'forum_list_category_threads_v1_viewer',
+        call      => sub ($schema) {
+            return _category_threads_call( $schema, _seeded_page(),
+                _member_viewer() );
+        },
+    },
+    category_threads_function_deep => {
+        purpose   => 'category threads through their function, halfway down',
+        sql_label => 'forum_list_category_threads_v1_keyset',
+        deep      => 'category',
+        call      => \&_category_threads_call,
+    },
+    category_threads_function_deep_signed_in => {
+        purpose =>
+          'category threads through their function, halfway down, signed in',
+        sql_label => 'forum_list_category_threads_v1_viewer_keyset',
+        deep      => 'category',
+        call      => sub ( $schema, $page ) {
+            return _category_threads_call( $schema, $page, _member_viewer() );
+        },
+    },
+    search_function => {
+        purpose => 'readable bounded ranked search through its function',
+        ranked_relation => 'search_documents',
+        sql_label       => 'search_ranked_v1',
+        call            => sub ($schema) {
+            return _searcher($schema)
+              ->ranked_call( undef, 'performance', { limit => $SEARCH_ROWS } );
+        },
+    },
+    autocomplete_function => {
+        purpose         => 'readable title autocomplete through its function',
+        ranked_relation => 'search_documents',
+        sql_label       => 'search_autocomplete_v1',
+        call            => sub ($schema) {
+            return _searcher($schema)
+              ->autocomplete_call( undef, 'perf',
+                { limit => $AUTOCOMPLETE_ROWS } );
+        },
+    },
+    feed_function => {
+        purpose   => 'personal feed through its readable source function',
+        sql_label => 'community_list_feed_v1',
+        call      => sub ($schema) {
+            return GPForum::Service::Community::FeedReader->new(
+                schema      => $schema,
+                readability => _readability($schema)
+              )
+              ->source_list_call( $USER_ID,
+                { limit => $PAGE_ROWS, viewer => _member_viewer() } );
+        },
+    },
+    bookmarks_function => {
+        purpose   => 'saved bookmarks through its readable source function',
+        sql_label => 'community_list_bookmarks_v1',
+        call      => sub ($schema) {
+            return GPForum::Service::Community::BookmarkStore->new(
+                schema      => $schema,
+                readability => _readability($schema)
+              )
+              ->source_list_call( $USER_ID,
+                { limit => $PAGE_ROWS, viewer => _member_viewer() } );
+        },
+    },
+    mentions_function => {
+        purpose   => 'recipient mentions through its readable source function',
+        sql_label => 'community_list_mentions_v1',
+        call      => sub ($schema) {
+            return GPForum::Service::Community::MentionReader->new(
+                schema      => $schema,
+                readability => _readability($schema)
+              )
+              ->source_list_call( $USER_ID,
+                { limit => $PAGE_ROWS, viewer => _member_viewer() } );
+        },
+    },
+    notifications_function => {
+        purpose   => 'readable notification inbox through its function',
+        sql_label => 'notification_list_inbox_v1',
+        call      => \&_notification_inbox_call,
+    },
+    notification_badge_function => {
+        purpose   => 'readable notification badge through its function',
+        sql_label => 'notification_unread_count_v1',
+        call      => \&_notification_badge_call,
+    },
+    thread_head_function => {
+        purpose   => 'thread head through its function',
+        sql_label => 'forum_thread_page_head_v1',
+        call      => sub ( $schema, $page = _seeded_page() ) {
+            return GPForum::Service::Forum::ThreadDetailReader->new(
+                schema => $schema )->thread_row_call( $page->{thread_id} );
+        },
+    },
+    thread_view_function => {
+        purpose   => 'thread post page through its function',
+        sql_label => 'forum_thread_page_posts_v1',
+        call      => sub ($schema) {
+            return _thread_posts_call( $schema, _seeded_page() );
+        },
+    },
+    thread_view_function_signed_in => {
+        purpose   => 'thread post page through its function, signed in',
+        sql_label => 'forum_thread_page_posts_v1_viewer',
+        call      => sub ($schema) {
+            return _thread_posts_call( $schema, _seeded_page(),
+                _member_viewer() );
+        },
+    },
+    thread_view_function_deep => {
+        purpose   => 'thread post page through its function, halfway down',
+        sql_label => 'forum_thread_page_posts_v1_keyset',
+        deep      => 'thread',
+        call      => \&_thread_posts_call,
+    },
+    thread_view_function_deep_signed_in => {
+        purpose =>
+          'thread post page through its function, halfway down, signed in',
+        sql_label => 'forum_thread_page_posts_v1_viewer_keyset',
+        deep      => 'thread',
+        call      => sub ( $schema, $page ) {
+            return _thread_posts_call( $schema, $page, _member_viewer() );
+        },
+    },
 );
 
 # The feed and the inbox filter on what the benchmark user can read, as they
@@ -332,6 +527,52 @@ sub _latest_threads ( $schema, $page, $viewer = undef ) {
         { after => $page->{after}, ( $viewer ? ( viewer => $viewer ) : () ) } );
 }
 
+sub _latest_threads_call ( $schema, $page, $viewer = undef ) {
+    return GPForum::Service::Forum::ThreadReader->new( schema => $schema )
+      ->latest_threads_call(
+        { after => $page->{after}, ( $viewer ? ( viewer => $viewer ) : () ) } );
+}
+
+sub _category_threads_call ( $schema, $page, $viewer = undef ) {
+    return GPForum::Service::Forum::ThreadReader->new( schema => $schema )
+      ->category_threads_call(
+        {
+            after       => $page->{after},
+            category_id => $page->{category_id},
+            _signed_in( $page, $viewer )
+        }
+      );
+}
+
+sub _notification_parameters {
+    my $viewer = _member_viewer();
+    return {
+        recipient_user_id => $USER_ID,
+        filter_sources    => 1,
+        member            => $viewer->member,
+        global_read       => $viewer->global_read,
+        viewer_user_id    => $viewer->user_id,
+        category_ids      => $viewer->category_ids,
+        space_ids         => $viewer->space_ids,
+    };
+}
+
+sub _notification_inbox_call ($schema) {
+    return [
+        'notification_list_inbox',
+        {
+            %{ _notification_parameters() },
+            after_created_at      => undef,
+            after_notification_id => undef,
+            row_limit             => $PAGE_ROWS,
+        }
+    ];
+}
+
+sub _notification_badge_call ($schema) {
+    return [ 'notification_unread_count', _notification_parameters() ];
+}
+
 # What Controller::Forum asks ThreadReader for: a signed-in reader adds the
 # account and its grants decided for the category.
 sub _category_threads ( $schema, $page, $viewer = undef ) {
@@ -349,6 +590,18 @@ sub _category_threads ( $schema, $page, $viewer = undef ) {
 sub _thread_posts ( $schema, $page, $viewer = undef ) {
     return GPForum::Service::Forum::PostReader->new( schema => $schema )
       ->thread_posts_resultset(
+        {
+            after     => $page->{after},
+            thread_id => $page->{thread_id},
+            _signed_in( $page, $viewer ),
+        }
+      );
+}
+
+# The call PostReader makes on PostgreSQL for the same request.
+sub _thread_posts_call ( $schema, $page, $viewer = undef ) {
+    return GPForum::Service::Forum::PostReader->new( schema => $schema )
+      ->thread_posts_call(
         {
             after     => $page->{after},
             thread_id => $page->{thread_id},
@@ -404,6 +657,12 @@ sub _claim_statement {
 
 sub endpoint_names {
     return @ENDPOINT_NAMES;
+}
+
+# The endpoints whose statements run inside a function: not in a report's
+# default list, which --functions or --endpoint selects them from.
+sub function_endpoint_names {
+    return @FUNCTION_ENDPOINT_NAMES;
 }
 
 # The endpoint's definition, undef for a name it does not know.
@@ -472,13 +731,20 @@ EXPLAINed. A deep endpoint reads the page halfway down its list.
 
 The endpoint names, in the order a report lists them.
 
+=head2 function_endpoint_names
+
+The endpoints whose statements run inside a PostgreSQL function (ADR 0126),
+in the order a report lists them. They are not among L</endpoint_names>.
+
 =head2 endpoint_definition
 
 Given a name, a hash reference with the endpoint's C<purpose>, C<sql_label>,
 and either a C<resultset> sub (given the schema and, for a C<deep> endpoint,
-the page) or a C<statement> sub answering C<[ $sql, @bind ]>; optionally
-C<deep> (C<category>, C<latest> or C<thread>), C<ranked_relation> and
-C<allow_seq_scan>. Undef for a name it does not know.
+the page), a C<statement> sub answering C<[ $sql, @bind ]>, or, for a
+function endpoint, a C<call> sub answering the reader's call
+C<[ $name, \%parameters ]>; optionally C<deep> (C<category>, C<latest> or
+C<thread>), C<ranked_relation> and C<allow_seq_scan>. Undef for a name it
+does not know.
 
 =head2 read_deep_page
 

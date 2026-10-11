@@ -313,11 +313,12 @@ validate -> authorize -> write canonical row/event -> commit -> respond -> enque
 ### 32. OS Feature Flags
 
 - Every OS-specific optimization SHOULD be controllable:
-  - `gpforum.os.reuseport = auto|on|off`;
-  - `gpforum.os.sendfile = auto|on|off`;
-  - `gpforum.os.worker_priority = auto|on|off`;
-  - `gpforum.os.affinity = off|manual`;
-  - `gpforum.os.static_xsendfile = auto|on|off`.
+  - `gpforum.os.reuseport = auto|on|off`.
+- Amended 2026-10-09: `sendfile`, `worker_priority`, `affinity` and
+  `static_xsendfile` were declared here too. None changed what a process did,
+  only what a report said, and they are gone. The reverse proxy serves the
+  static files, `X-Accel-Redirect` hands it the attachments, and the
+  supervisor sets the nice values of the process plan.
 - Defaults MUST be conservative `auto`.
 
 ### 33. Controlled Degradation
@@ -401,7 +402,7 @@ Forbidden:
   `RuntimePolicy`, `RuntimeEvidence`)
 - `lib/GPForum/Config.pm` (`os_*` feature settings)
 - `bin/gpforum-os-preflight`, `bin/gpforum-platform-check`,
-  `script/system-preflight`, `script/profile-nytprof`, `script/profile`,
+  `script/system-preflight`, `script/profile-nytprof`,
   `script/query-plan-check`
 - `docs/PERFORMANCE.md#os-tuning`, `docs/OS_RUNTIME_ENFORCEMENT.md`,
   `docs/OS_RUNTIME_EVIDENCE.md`, `docs/PERFORMANCE.md#profiling`, `docs/PERFORMANCE.md`

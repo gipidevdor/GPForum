@@ -9,7 +9,15 @@ use JSON::MaybeXS;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Service::Privacy::Record;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 our $VERSION = '0.001';
 
@@ -25,6 +33,11 @@ __PACKAGE__->requires(qw(schema));
 # so the command id still replays and does not start a new export; only the
 # bundle leaves its stored answer.
 sub discard ( $self, $user_id ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'privacy_discard_exports',
+            { user_id => $user_id } )->{document};
+    }
+
     my $bundles = $self->schema->resultset('ExportRequest')
       ->search_rs( { subject_user_id => $user_id } );
     my @discarded;
@@ -55,6 +68,11 @@ sub discard ( $self, $user_id ) {
 # the erasure committed kept its bundle: the delete could not see rows the
 # export had not committed yet.
 sub may_export ( $self, $user_id ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'privacy_may_export',
+            { user_id => $user_id } )->{allowed} ? 1 : 0;
+    }
+
     my $user =
       $self->schema->resultset('User')->find( $user_id, { for => 'shared' } );
     if ( !$user ) {

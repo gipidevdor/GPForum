@@ -584,31 +584,46 @@ takes its mode from the file's `GPFORUM_ENV` -- `production` when it names
 none, as under systemd -- and the plists set only the log and, for the web
 service, the pid file. Clone the code where the `gpforum` account can read
 it, such as `/opt/gpforum`, not under a home directory, which macOS keeps
-closed to other accounts. `sudo gpforum setup` does what it does on Debian,
-the account included: it makes the group and the account `gpforum` with
-`dscl`, under the highest id below 500 that no user and no group has, and
-`var/`, where Hypnotoad keeps its pid file and the uploads go, under the
-checkout. It writes the environment file
-(`$(brew --prefix)/etc/gpforum/gpforum.env`, 0640 root:gpforum), makes the
-database as your own PostgreSQL role, which Homebrew's trusts, and brings
-the schema up to date. Then the plists go into place and are loaded at
-once, and the site goes where Homebrew's nginx reads it, after its
-certificate (`site` is the forum's name, as in the Debian steps):
+closed to other accounts.
+
+From a Mac with Homebrew to a signed-in owner behind TLS, this section is
+the one document. First the packages -- PostgreSQL, nginx with certbot --
+and Carton for Homebrew's Perl:
 
 ```sh
-sudo gpforum setup
-sudo gpforum service print --to /Library/LaunchDaemons
-sudo install -d -o gpforum -g gpforum -m 0750 "$(brew --prefix)/var/log/gpforum"
-sudo launchctl bootstrap system /Library/LaunchDaemons/com.gpforum.*.plist
-brew install nginx certbot
-sudo certbot certonly --standalone -d "$site" --pre-hook 'brew services stop nginx' --post-hook 'brew services start nginx'
-gpforum service print nginx --to "$(brew --prefix)/etc/nginx/servers"
-sudo nginx -t && sudo brew services restart nginx
+brew install perl cpanminus postgresql@18 nginx certbot
+brew services start postgresql@18
+"$(brew --prefix)/bin/perl" "$(brew --prefix cpanminus)/bin/cpanm" -M https://cpan.metacpan.org/ Carton
 ```
 
-`service print` ends with each of these for this host; nginx runs as root
-under `brew services`, which reads the certificate certbot keeps root's,
-and certbot's renewals stop and start it as the first one did.
+Then eight commands, with your forum's name for `forum.example.org`:
+
+```sh
+sudo git clone https://github.com/gpicchiarelli/GPForum.git /opt/gpforum
+sudo /opt/gpforum/bin/gpforum setup
+sudo gpforum service print --to /Library/LaunchDaemons
+sudo launchctl bootstrap system /Library/LaunchDaemons/com.gpforum.*.plist
+sudo certbot certonly --standalone -d forum.example.org --pre-hook 'brew services stop nginx' --post-hook 'brew services start nginx'
+sudo gpforum service print nginx --to "$(brew --prefix)/etc/nginx/servers"
+sudo nginx -t && sudo brew services restart nginx
+sudo -u gpforum gpforum admin create --email EMAIL --username NAME
+```
+
+`/opt/gpforum/bin/gpforum setup` does what it does on Debian, the account
+included: it installs the dependencies, links `gpforum` into Homebrew's
+`bin`, makes the group and the account `gpforum` with `dscl`, under the
+highest id below 500 that no user and no group has, and `var/`, where
+Hypnotoad keeps its pid file and the uploads go, under the checkout. It
+writes the environment file (`$(brew --prefix)/etc/gpforum/gpforum.env`,
+0640 root:gpforum), makes the database as your own PostgreSQL role, which
+Homebrew's trusts, and brings the schema up to date. `service print --to
+/Library/LaunchDaemons` puts the plists in place and, as root, makes the
+directory they log to, `$(brew --prefix)/var/log/gpforum`, the `gpforum`
+account's, 0750; then they are loaded at once, and the site goes where
+Homebrew's nginx reads it, after its certificate. Each command ends by
+saying the next one for this host; nginx runs as root under `brew
+services`, which reads the certificate certbot keeps root's, and certbot's
+renewals stop and start it as the first one did.
 
 The jobs are loaded too: a plist launchd has not loaded never runs. With
 `gpforum --env-file FILE service print launchd`, each job hands that file to

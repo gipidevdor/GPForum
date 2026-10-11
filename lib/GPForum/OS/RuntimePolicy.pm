@@ -106,10 +106,6 @@ sub report ($self) {
             'no listen locations configured'
         ),
     );
-    my $xsendfile =
-      $runtime->os_profile->feature_snapshot( $runtime->os_feature_settings )
-      ->{static_xsendfile}{enabled} ? 1 : 0;
-
     return {
         status => ( any { $_->{status} eq $STATUS_DEGRADED } @checks )
         ? $STATUS_DEGRADED
@@ -138,13 +134,6 @@ sub report ($self) {
                 available => 0,
                 reason    => 'portable listen queue saturation is not exposed',
             },
-        },
-        static_transfer => {
-            mode => $sockets->{sendfile}{enabled} || $xsendfile ? 'delegated'
-            : 'perl-fallback',
-            sendfile  => $sockets->{sendfile},
-            xsendfile => $xsendfile,
-            boundary  => 'reverse-proxy-or-web-server',
         },
     };
 }

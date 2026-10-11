@@ -137,8 +137,10 @@ instead, so the application a deploy starts next finds its month in place;
 only past that does it skip.
 
 The role that runs it must own the partitioned tables: `ATTACH PARTITION`
-and `CREATE TABLE` need it. That is the role the migrations run as. If the
-application connects as another, give the timer that role's DSN.
+and `CREATE TABLE` need it. That is the role the migrations run as. Give the
+timer the operator environment file; the restricted application login can
+read the readiness horizon through the API function but cannot create
+partitions. See [application role provisioning](sql-api-role.md).
 
 ## When it refuses
 
@@ -194,6 +196,23 @@ anonymous probe sees the overall status alone
 systemctl enable --now gpforum-partition-maintenance.timer
 ```
 
+The supplied templates load the web service environment by default. When the
+web login is restricted, configure the maintenance service to read the
+operator environment instead. For systemd, use a drop-in for
+`gpforum-partition-maintenance.service`:
+
+```ini
+[Service]
+EnvironmentFile=
+EnvironmentFile=/etc/gpforum/admin.env
+```
+
+Then reload the systemd configuration. For launchd, replace the partition
+job's `/usr/local/etc/gpforum/gpforum.env` argument with
+`/usr/local/etc/gpforum/admin.env` before loading it. That file supplies
+`GPFORUM_DATABASE_USER` and authentication for the ordinary migration role.
+Keep the file readable only by the service account and its administrators.
+
 On FreeBSD the daily run is a line of `deploy/freebsd/gpforum_jobs`, the
 crontab cron reads from `/usr/local/etc/cron.d/`, which `gpforum service
 print rc` writes for the host with the rc scripts (choose a different
@@ -203,7 +222,7 @@ names `/usr/local/bin`, where the perl5 package puts `perl`:
 
 ```cron
 PATH=/usr/local/bin:/usr/bin:/bin
-17 3 * * * gpforum /usr/local/www/gpforum/bin/gpforum partitions --apply
+17 3 * * * gpforum /usr/local/www/gpforum/bin/gpforum --env-file /usr/local/etc/gpforum/admin.env partitions --apply
 ```
 
 It is idempotent: a partition that already exists is reported as existing

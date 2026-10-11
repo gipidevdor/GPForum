@@ -134,13 +134,12 @@ subtest q{the open descriptor threshold is inclusive} => sub {
     );
 };
 
-subtest 'each requested feature is judged by its own OS support' => sub {
+subtest 'reuseport on is judged by SO_REUSEPORT alone' => sub {
     is_deeply(
         _check(
             'features',
             features  => { reuseport => { setting => 'on' } },
             reuseport => 0,
-            sendfile  => 1,
         ),
         {
             name       => 'features',
@@ -150,57 +149,33 @@ subtest 'each requested feature is judged by its own OS support' => sub {
             parameters =>
               { feature => 'reuseport', variable => 'GPFORUM_OS_REUSEPORT' },
         },
-        'reuseport without SO_REUSEPORT is degraded, whatever sendfile says'
+        'reuseport without SO_REUSEPORT is degraded'
     );
     is(
         _check(
             'features',
             features  => { reuseport => { setting => 'on' } },
             reuseport => 1,
-            sendfile  => 0,
         )->{status},
         'ok',
-        'reuseport with SO_REUSEPORT is ok without sendfile'
-    );
-    is_deeply(
-        _check(
-            'features',
-            features  => { static_xsendfile => { setting => 'on' } },
-            reuseport => 1,
-            sendfile  => 0,
-        ),
-        {
-            name   => 'features',
-            status => 'degraded',
-            reason => 'static_xsendfile explicitly requested but unsupported',
-            key    => 'preflight.feature_unsupported',
-            parameters => {
-                feature  => 'static_xsendfile',
-                variable => 'GPFORUM_OS_STATIC_XSENDFILE',
-            },
-        },
-        'X-Sendfile needs sendfile, not SO_REUSEPORT'
+        'reuseport with SO_REUSEPORT is ok'
     );
     is(
         _check(
             'features',
-            features  => { sendfile => { setting => 'auto' } },
+            features  => { reuseport => { setting => 'auto' } },
             reuseport => 0,
-            sendfile  => 0,
         )->{status},
         'ok',
-        'a feature left on auto is never a broken request'
+        'reuseport left on auto is never a broken request'
     );
 };
 
 subtest 'what an operator reads: what passes, then each problem and its fix' =>
   sub {
     my $report = _preflight(
-        open     => $FD_OVER_RATIO,
-        features => {
-            reuseport => { setting => 'on', enabled => 0 },
-            sendfile  => { setting => 'auto' },
-        },
+        open      => $FD_OVER_RATIO,
+        features  => { reuseport => { setting => 'on', enabled => 0 } },
         reuseport => 0,
     )->report;
 
@@ -302,7 +277,6 @@ sub _preflight (%input) {
         max_open  => $FD_LIMIT,
         features  => {},
         reuseport => 1,
-        sendfile  => 1,
         %input,
     );
 
@@ -319,7 +293,6 @@ sub _preflight (%input) {
                 cpu_count                => $CPU_COUNT,
                 recommended_worker_count => $DEFAULT_WORKERS,
                 supports_reuseport       => $given{reuseport},
-                supports_sendfile        => $given{sendfile},
                 resources                => {
                     open_file_descriptors => $given{open},
                     file_descriptor_limit => $given{limit},
@@ -338,11 +311,7 @@ sub _preflight (%input) {
             },
             os_processes => {
                 classes => {
-                    mail_worker => {
-                        nice_delta => $NICE_DELTA,
-                        enabled    => 1,
-                        action     => 'supervisor-nice',
-                    },
+                    mail_worker => { nice_delta => $NICE_DELTA },
                 },
             },
         },

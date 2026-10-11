@@ -70,12 +70,13 @@ const my %ENGLISH => (
 
     'cli.verb.setup' =>
       'Set this host up: the settings, the database, the schema',
-    'cli.verb.migrate' => 'Bring the database up to date',
-    'cli.verb.admin'   => q{Create the forum's owner, or make a member one},
-    'cli.verb.secret'  => 'Rotate the session secret or the metrics token',
-    'cli.verb.service' => 'Print the service files, written for this host',
-    'cli.verb.start'   => 'Run the forum in this terminal, for development',
-    'cli.verb.outbox'  => 'Send the queued mail and events',
+    'cli.verb.migrate'  => 'Bring the database up to date',
+    'cli.verb.api_role' => 'Provision the PostgreSQL application role',
+    'cli.verb.admin'    => q{Create the forum's owner, or make a member one},
+    'cli.verb.secret'   => 'Rotate the session secret or the metrics token',
+    'cli.verb.service'  => 'Print the service files, written for this host',
+    'cli.verb.start'    => 'Run the forum in this terminal, for development',
+    'cli.verb.outbox'   => 'Send the queued mail and events',
     'cli.verb.scheduled_jobs' => 'Run the retention and clean-up jobs once',
     'cli.verb.doctor'         =>
       'Check the forum, from its settings to its address, with what to fix',
@@ -250,6 +251,9 @@ q{Would make {username} ({email}) the forum's owner; nothing was written.},
       'Cannot write {file} ({reason}): run it as root: {command}',
     'cli.secret.world_readable' => 'Every account on this host can read'
       . ' {file}, secrets included: {command}',
+    'cli.secret.writable' => 'Accounts other than its owner can write'
+      . ' {file}, so the running service does not read the metrics tokens'
+      . ' from it again: {command}',
     'cli.secret.nothing_to_finish' =>
       '{file} lists no previous one in {list}: there is nothing to finish.',
     'cli.secret.session.rotated' => 'A new session secret is in {file}.'
@@ -342,6 +346,8 @@ q{Would make {username} ({email}) the forum's owner; nothing was written.},
     'cli.service.no_certificate' => 'There is no {certificate} yet, and nginx'
       . ' refuses a site without its certificate: take it first, with'
       . ' {command}, then print the site again.',
+    'cli.service.needs_root' => 'Only root can write into {directory}: run'
+      . ' it with sudo, as {command}',
     'cli.service.next_read_one'  => 'read it, then put it in place:',
     'cli.service.next_read_many' =>
       'read them, then put them in place and start them:',

@@ -943,12 +943,22 @@ sub _entries {
 sub _tried {
     my ( $ctx, $table, $code ) = @_;
 
-    my $storage = $ctx->{schema}->storage;
-    my $inserts = 0;
+    my $storage       = $ctx->{schema}->storage;
+    my $inserts       = 0;
+    my %operation_for = (
+        roles            => 'admin_insert_role',
+        permissions      => 'admin_insert_permission',
+        role_bindings    => 'admin_insert_binding',
+        role_permissions => 'admin_insert_role_permission',
+    );
+    my $operation = $operation_for{$table};
     $storage->debugcb(
         sub {
             my ( undef, $statement ) = @_;
-            if ( $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx )
+            if (   $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx
+                || $statement =~
+/\A SELECT [ ] [*] [ ] FROM [ ] api[.]\Q$operation\E_v[[:digit:]]+/msx
+              )
             {
                 $inserts++;
             }

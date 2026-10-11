@@ -10,6 +10,7 @@ use v5.40;
 use Mojo::File qw(path);
 
 use GPForum::Config;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Config::Report;
 use GPForum::Migration::Plan;
 use GPForum::Migration::Runner;
@@ -27,6 +28,7 @@ use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::HttpProbe;
 use GPForum::Service::Operations::MailCheck;
+use GPForum::Service::Operations::MetricsTokens;
 use GPForum::Service::Operations::OSPreflight;
 use GPForum::Service::Operations::QueryBudget;
 use GPForum::Service::Operations::Readiness;
@@ -266,7 +268,7 @@ sub settings ( $self, $environment, $findings ) {
           ]
         : [ 'doctor.settings_shell', { environment => $config->environment } ],
     );
-    $self->_sizing( $findings, $config );
+    $self->_sizing( $findings, $config, $host );
     $self->_open_file( $findings, $host );
     for my $variable ( @{ $config->retired_settings } ) {
         $findings->add(
@@ -346,15 +348,19 @@ sub _set_fix ( $self, $host, $variable, $message ) {
 # How the node is sized for this host: its CPUs and memory, and the web
 # processes and cache it runs at their size (audit D1'). Nothing when the
 # operator set both.
-sub _sizing ( $self, $findings, $config ) {
+sub _sizing ( $self, $findings, $config, $host ) {
     my $sizing = $self->_probe( 'sizing', $config );
     my $sizes  = $sizing->{sizes};
     my @parts;
     if ( defined( my $web = $sizes->{web_processes} ) ) {
-        push @parts,
-          $self->catalog->text(
-            $web == 1 ? 'doctor.size_web_one' : 'doctor.size_web',
-            { count => $web } );
+
+        # In development the forum runs as gpforum start --foreground runs
+        # it, one process: the line said 14 for a 10-CPU laptop.
+        my $key =
+           !$host->is_deployed ? 'doctor.size_web_foreground'
+          : $web == 1          ? 'doctor.size_web_one'
+          :                      'doctor.size_web';
+        push @parts, $self->catalog->text( $key, { count => $web } );
     }
     if ( defined( my $cache = $sizes->{local_cache_max_entries} ) ) {
         push @parts,
@@ -398,17 +404,28 @@ sub _memory ($bytes) {
 # A deployed host's environment file holds its secrets, so every account on
 # the host reading it is a problem: said with the chmod that closes it, as
 # gpforum secret rotate says it (the FreeBSD rc scripts refuse such a file).
+# One another account may write is worse, and the running service does not
+# read its metrics tokens from it again (the service's own rule, which
+# secret rotate follows too): said first, with the same chmod, which closes
+# it to reading as well.
 sub _open_file ( $self, $findings, $host ) {
     my $file = $self->file;
     return if !defined $file || !$host->is_deployed;
 
     my $mode = ( stat $file )[$STAT_MODE];
-    return if !defined $mode || !( $mode & $OTHERS_BITS );
+    return if !defined $mode;
+
+    my $key =
+      GPForum::Service::Operations::MetricsTokens->others_may_write($file)
+      ? 'doctor.settings_writable'
+      : $mode & $OTHERS_BITS ? 'doctor.settings_open'
+      :                        undef;
+    return if !defined $key;
 
     $findings->add(
         name    => 'settings',
         status  => 'degraded',
-        message => [ 'doctor.settings_open', { file => $file } ],
+        message => [ $key, { file => $file } ],
         fixes   => [ ( -O $file ? q{} : 'sudo ' ) . "chmod 0640 $file" ],
     );
 
@@ -1047,6 +1064,11 @@ sub _probe_readiness ( $self, $config, $schema ) {
 }
 
 sub _probe_outbox ( $self, $schema ) {
+    if ( my $functions =
+        GPForum::Infrastructure::SqlFunction->for_schema($schema) )
+    {
+        return $functions->row( 'ops_doctor_outbox', {} );
+    }
     my $dbh = $schema->storage->dbh;
     my ( $waiting, $oldest ) = $dbh->selectrow_array($PENDING_SQL);
     my ($sent) = $dbh->selectrow_array($LAST_SENT_SQL);

@@ -10,7 +10,9 @@ use v5.40;
 use GPForum::Domain::Post;
 use GPForum::Domain::Thread;
 use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::PostingCommand;
+use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
 
@@ -34,6 +36,14 @@ const my %STORE => (
 );
 
 const my $MAX_MENTIONS => 10;
+const my $REPLY        => 'reply.create';
+
+# A store failure raised inside api.forum_create_reply_v1: the server names
+# the store's function in the error's context (ADR 0126).
+const my $STORE_FUNCTION => qr/\b api[.]core_forum_store_reply_v1 \b/msx;
+
+# A body without an at sign mentions no one (Community::MentionExtractor).
+const my $MENTION_SIGN => q{@};
 
 __PACKAGE__->requires(
     qw(category_reader mention_store post_composer post_reader post_store
@@ -44,13 +54,32 @@ has codec => sub { return GPForum::Service::Forum::PostingCommand->new; };
 has command_idempotency => undef;    # optional: without it every call runs
 has logger              => undef;    # optional: without it nothing is logged
 
+# ADR 0126: on PostgreSQL a reply's command log and store run in one call to
+# api.forum_create_reply_v1, on the post store's schema. Without a command
+# log (CommandIdempotency) or a post store (PostStore) on PostgreSQL -- the
+# in-memory doubles -- the Perl path runs.
+has functions => sub ($self) {
+    my ( $log, $store ) = ( $self->command_idempotency, $self->post_store );
+    return undef
+      if !blessed $log
+      || !$log->isa('GPForum::Service::Operations::CommandIdempotency')
+      || !blessed $store
+      || !$store->isa('GPForum::Service::Forum::PostStore');
+
+    return GPForum::Infrastructure::SqlFunction->for_schema( $store->schema );
+};
+
 sub create_thread ( $self, $input ) {
     return $self->_run( 'thread.create', $input,
         sub { return $self->_create_thread_once($input); } );
 }
 
 sub create_reply ( $self, $input ) {
-    return $self->_run( 'reply.create', $input,
+    if ( my $functions = $self->functions ) {
+        return $self->_create_reply_by_function( $functions, $input );
+    }
+
+    return $self->_run( $REPLY, $input,
         sub { return $self->_create_reply_once($input); } );
 }
 
@@ -117,6 +146,164 @@ sub _create_thread_once ( $self, $input ) {
             }
         )
     );
+}
+
+# The reply as the function runs it. Perl does what is not the database's:
+# the request's fingerprint, the ids and the clock the command log draws,
+# the workflow's check before the lock (the thread as the author reads it)
+# and the composer. Their answer, when they refuse, is the response the
+# function records; otherwise the function stores the post under the lock
+# and records its answer. A failure of either step is answered as the Perl
+# path answers it: command log failed, or post store failed when the store's
+# own statements raised.
+sub _create_reply_by_function ( $self, $functions, $input ) {
+    my $key = _command_id($input);
+    return _missing_command_id_result($input) if !length $key;
+
+    my ( $call, $prepared );
+    try {
+        ( $call, $prepared ) = $self->_reply_call( $key, $input );
+    }
+    catch ($error) {
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+
+    my $result;
+    try {
+        $result = $self->_reply_called( $functions, $call, $prepared );
+    }
+    catch ($error) {
+        if ( "$error" =~ $STORE_FUNCTION ) {
+            $self->_log( error => "reply create failed: $error" );
+            return _result( status => 'failed', error => 'post store failed' );
+        }
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+
+    return $result;
+}
+
+# The call's parameters, and the composer's answer when it ran. The ids and
+# the time come in the order the Perl path draws them: the command row's
+# id and correlation id and its time, then the composer's, then the store's.
+sub _reply_call ( $self, $key, $input ) {
+    my $log  = $self->command_idempotency;
+    my %call = (
+        actor_id               => _nullable( $input->{author_user_id} ),
+        command_id             => $log->id_service->uuid,
+        command_correlation_id => $log->id_service->uuid,
+        command_at             => $log->clock->now_iso8601,
+        command_type           => $REPLY,
+        idempotency_key        => $key,
+        request_hash           =>
+          $log->request_hash( $self->codec->request( $REPLY, $input ) ),
+        store_refusals => $self->_store_refusals,
+    );
+
+    my $thread =
+      $self->thread_detail_reader->find_thread( $input->{thread_id},
+        _viewer($input) );
+    my $answer = _refused( GPForum::Domain::Thread->reply_refusal($thread) );
+    my $prepared;
+    if ( !$answer ) {
+        $prepared = $self->post_composer->prepare(
+            {
+                allocate_position => 1,
+                author_user_id    => $input->{author_user_id},
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                idempotency_key  => $key,
+                thread_id        => $input->{thread_id},
+                visibility       => $input->{visibility},
+                visibility_floor => _effective_visibility(
+                    $thread,
+                    qw(space_visibility category_visibility visibility)
+                ),
+            }
+        );
+        if ( !$prepared->{ok} ) {
+            $answer = _result( status => 'invalid', prepared => $prepared );
+        }
+    }
+
+    $call{answer} = $answer ? $self->codec->response( $REPLY, $answer ) : undef;
+    my $store =
+      $answer
+      ? { map { $_ => undef } $self->post_store->reply_parameter_names }
+      : $self->post_store->reply_parameters( $prepared->{command} );
+
+    # The command's own key wins over the store's undefined one.
+    return ( { %{$store}, %call }, $prepared );
+}
+
+# The response the command log keeps for each refusal the store can give
+# under its lock, by the code the function answers with: the words and the
+# status the Perl path records.
+sub _store_refusals ($self) {
+    return {
+        map {
+            $_ => $self->codec->response( $REPLY,
+                _refused( GPForum::Domain::Thread->reply_refusal_words($_) ) )
+        } GPForum::Domain::Thread->reply_refusal_codes
+    };
+}
+
+# The call, and the answer it gives as the Perl path gives it. A body that
+# may mention someone has its mentions recorded in the reply's transaction,
+# as the Perl path recorded them in the command's; one that cannot is one
+# statement in autocommit.
+sub _reply_called ( $self, $functions, $call, $prepared ) {
+    my $run = sub {
+        my $result =
+          $self->_reply_result( $functions->row( 'forum_create_reply', $call ),
+            $prepared );
+        if ( $result->{ok} && !$result->{idempotent} ) {
+            $self->_record_post_mentions( $result->{stored},
+                $prepared->{command} );
+        }
+        return $result;
+    };
+    my $body =
+        $prepared && $prepared->{ok}
+      ? $prepared->{command}{body}{body_source} // q{}
+      : q{};
+
+    return $run->() if index( $body, $MENTION_SIGN ) < 0;
+
+    return $self->post_store->schema->txn_do($run);
+}
+
+# The function's row as the result the Perl path answers: a replay of the
+# stored response, a conflict in the command log's words, or the answer it
+# recorded -- the post stored, the composer's invalid answer, or a refusal.
+sub _reply_result ( $self, $row, $prepared ) {
+    my $outcome = $row->{outcome} // q{};
+    return $self->codec->replay( $REPLY, $row->{response} )
+      if $outcome eq 'replayed';
+    if ( $outcome ne 'recorded' ) {
+        return _result(
+            status => 'conflict',
+            error  =>
+              GPForum::Service::Operations::CommandIdempotency->refusal_error(
+                $outcome),
+        );
+    }
+
+    my $status = $row->{response}{status} // q{};
+    if ( $status eq 'ok' ) {
+        my $result = _result(
+            status => 'ok',
+            stored => $self->post_store->reply_answer($row),
+        );
+        $result->{prepared} = $prepared;
+        return $result;
+    }
+    return _result( status => 'invalid', prepared => $prepared )
+      if $status eq 'invalid';
+
+    return _refused( $row->{response}{error} );
 }
 
 sub _create_reply_once ( $self, $input ) {
@@ -332,6 +519,7 @@ sub _refused ($error) {
 # answered from the response, and another request under the same id is a
 # conflict.
 sub _run ( $self, $type, $input, $run ) {
+    return $self->_run_by_function( $type, $input, $run ) if $self->functions;
     my $command_id = _command_id($input);
     return _missing_command_id_result($input) if !length $command_id;
     return $run->()                           if !$self->command_idempotency;
@@ -364,6 +552,125 @@ sub _run ( $self, $type, $input, $run ) {
     return $guarded->{result};
 }
 
+# Reuse the workflow's validation and composition before the database call.
+# During preparation the store handoff is deferred. The function then owns
+# the command row, store locks and event/audit/outbox writes atomically.
+sub _run_by_function ( $self, $type, $input, $run ) {
+    my $key = _command_id($input);
+    return _missing_command_id_result($input) if !length $key;
+    my ( $call, $prepared );
+    try {
+        my $log         = $self->command_idempotency;
+        my $command_log = {
+            actor_id               => _nullable( $input->{author_user_id} ),
+            command_id             => $log->id_service->uuid,
+            command_correlation_id => $log->id_service->uuid,
+            command_at             => $log->clock->now_iso8601,
+            command_type           => $type,
+            idempotency_key        => $key,
+            request_hash           =>
+              $log->request_hash( $self->codec->request( $type, $input ) ),
+        };
+        my $answer;
+        {
+            # This handoff flag is scoped to preparation and restored on errors.
+            ## no critic (Variables::ProhibitLocalVars)
+            local $self->{preparing_function} = 1;
+            ## use critic
+            $answer = $run->();
+        }
+        $prepared = $answer->{prepared};
+        my $store = $self->_function_store($type);
+        my $values =
+          $answer->{pending}
+          ? $store->function_parameters( _function_type($type),
+            $answer->{command} )
+          : {
+            store_type => _function_type($type),
+            command    => undef,
+            record     => undef
+          };
+        $call = {
+            %{$values},
+            log    => $command_log,
+            answer => $answer->{pending}
+            ? undef
+            : $self->codec->response( $type, $answer )
+        };
+    }
+    catch ($error) {
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+    my $execute = sub {
+        my $row     = $self->functions->row( 'forum_write_command', $call );
+        my $outcome = $row->{outcome} // q{};
+        return $self->codec->replay( $type, $row->{response} )
+          if $outcome eq 'replayed';
+        return _result(
+            status => 'conflict',
+            error  =>
+              GPForum::Service::Operations::CommandIdempotency->refusal_error(
+                $outcome)
+        ) if $outcome ne 'recorded';
+        my $response = $row->{response};
+        return _result( status => 'invalid', prepared => $prepared )
+          if $response->{status} eq 'invalid';
+        return _result(
+            status => $response->{status},
+            error  => $response->{error}
+        ) if !$response->{ok};
+        my $stored =
+          $self->_function_store($type)->function_answer( $row->{stored} );
+        my $result =
+          _result( status => 'ok', stored => $stored, prepared => $prepared );
+        my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
+
+        if ($mentions) {
+            $self->_record_post_mentions( $stored, $call->{command} );
+        }
+        return $result;
+    };
+    my $result;
+    try {
+        my $body =
+            $call->{command}
+          ? $call->{command}{body}{body_source} // q{}
+          : q{};
+        $result =
+          index( $body, $MENTION_SIGN ) < 0
+          ? $execute->()
+          : $self->_function_store($type)->schema->txn_do($execute);
+    }
+    catch ($error) {
+        my ( $noun, undef, $label ) = @{ $STORE{$type} };
+        if ( "$error" =~ /\bapi[.]core_forum_\w+_v1\b/msx ) {
+            $self->_log( error => "$label failed: $error" );
+            return _result( status => 'failed', error => "$noun store failed" );
+        }
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+    return $result;
+}
+
+sub _function_store ( $self, $type ) {
+    my $method = $STORE{$type}[0] . '_store';
+    return $self->$method;
+}
+
+sub _function_type ($type) {
+    my ( $noun, $verb ) = split /[.]/msx, $type;
+    my %event = (
+        create  => 'created',
+        edit    => 'updated',
+        move    => 'moved',
+        delete  => 'deleted',
+        restore => 'undeleted',
+    );
+    return "$noun.$event{$verb}";
+}
+
 # A composer's answer: invalid, or its command stored, and then the mentions
 # in the stored post recorded.
 sub _store_composed ( $self, $type, $prepared ) {
@@ -371,6 +678,9 @@ sub _store_composed ( $self, $type, $prepared ) {
       if !$prepared->{ok};
 
     my $stored = $self->_call_store( $type, $prepared->{command} );
+    if ( $stored->{pending} ) {
+        $stored->{prepared} = $prepared;
+    }
     return $stored if !$stored->{ok};
 
     my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
@@ -389,6 +699,8 @@ sub _store_composed ( $self, $type, $prepared ) {
 # command and replayed with it. A death, or an answer that is neither, is a
 # failure.
 sub _call_store ( $self, $type, $command ) {
+    return { pending => 1, command => $command }
+      if $self->{preparing_function};
     my ( $noun, $method, $label, undef, $refusals ) = @{ $STORE{$type} };
     my $store   = "${noun}_store";
     my $failure = "$noun store failed";
@@ -474,6 +786,13 @@ sub _result (%input) {
 
 sub _trim ($value) {
     return ( $value // q{} ) =~ s/\A \s+ | \s+ \z//grmsx;
+}
+
+# Trimmed, and undef when nothing is left, as the command log keeps an actor.
+sub _nullable ($value) {
+    my $trimmed = _trim($value);
+
+    return length $trimmed ? $trimmed : undef;
 }
 
 sub _column ( $row, $name ) {
@@ -576,6 +895,18 @@ L<GPForum::Domain::Post/status_of> gives the same words, which is the status
 the workflow's own check gives (C<thread not found> and C<post not found>
 are C<not_found>, C<thread is locked> and C<post is hidden> C<forbidden>).
 
+On PostgreSQL a reply is one call (ADR 0126): C<api.forum_create_reply_v1>
+runs the command log's steps and the post store's write, under the same
+locks in the same order, and records the same rows. The workflow keeps what
+is not the database's: the request's fingerprint, the ids and the clock,
+the check before the lock (the thread as the author reads it, through the
+thread detail reader) and the composer, whose refusal is the response the
+function records. A body that may mention someone (it holds an at sign)
+has the function's call and the mention store's work in one transaction,
+as the command's transaction held them; any other is one statement. The
+answers, the log lines and the rows are the Perl path's, which in-memory
+doubles keep.
+
 Every method needs a command id. With a C<command_idempotency>
 (L<GPForum::Service::Operations::CommandIdempotency>), a command runs once
 per id: the request (the author and the trimmed fields each entry names,
@@ -651,7 +982,10 @@ C<post_reader> (L<GPForum::Service::Forum::PostReader>), C<thread_composer>
 (L<GPForum::Service::Forum::PostStore>) and C<mention_store>
 (L<GPForum::Service::Community::MentionStore>). C<command_idempotency> and
 C<logger> (anything with C<error> and C<warn>, such as L<Mojo::Log>) are
-optional. C<codec> defaults to L<GPForum::Service::Forum::PostingCommand>,
+optional. C<functions> defaults to the L<GPForum::Infrastructure::SqlFunction>
+of the post store's schema when there is a command log and a
+L<GPForum::Service::Forum::PostStore> on PostgreSQL, else undef; undef keeps
+the Perl path for replies. C<codec> defaults to L<GPForum::Service::Forum::PostingCommand>,
 which encodes the request, the response and the replay of each command type
 for the command log.
 

@@ -7,6 +7,9 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_RANK               => 0;
@@ -28,6 +31,9 @@ const my $UPSERT_SQL => join q{ },
   q{EXCLUDED.visibility_version, EXCLUDED.permission_version)};
 
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub project_item ( $self, $input ) {
     return $self->schema->txn_do(
@@ -45,6 +51,24 @@ sub project_item ( $self, $input ) {
 sub _project_item ( $self, $input ) {
     my @users = _unique_users( $input->{user_ids} || [] );
     return { ok => 1, projected => 0, written => 0 } if !@users;
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'community_project_feed',
+            {
+                user_ids => \@users,
+                row      => {
+                    item_type          => $input->{item_type},
+                    item_id            => $input->{item_id},
+                    created_at         => $input->{created_at},
+                    rank_score         => $input->{rank_score} || $DEFAULT_RANK,
+                    visibility_version => $input->{visibility_version}
+                      || $DEFAULT_VISIBILITY_VERSION,
+                    permission_version => $input->{permission_version}
+                      || $DEFAULT_PERMISSION_VERSION,
+                }
+            }
+        )->{result};
+    }
 
     my $written = $self->schema->storage->dbh_do(
         sub ( $, $dbh ) {
@@ -82,6 +106,11 @@ sub _remove_item ( $self, $input ) {
         return { ok => 1, removed => 0 };
     }
 
+    if ( $self->functions ) {
+        return $self->functions->row( 'community_remove_feed',
+            { item_type => $input->{item_type}, item_id => $input->{item_id} } )
+          ->{result};
+    }
     my $deleted = $self->_delete_items( _item_query($input) );
 
     return { ok => 1, removed => $deleted || 0 };
@@ -98,6 +127,9 @@ sub remove_thread ( $self, $thread_id ) {
 # The thread row and every post row leave the feed together, otherwise a
 # partial sweep keeps deleted posts visible in somebody's feed.
 sub _remove_thread ( $self, $thread_id ) {
+    return $self->functions->row( 'community_remove_thread_feed',
+        { thread_id => $thread_id } )->{result}
+      if $self->functions;
     my $thread_removed = $self->_remove_item(
         {
             item_id   => $thread_id,

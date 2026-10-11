@@ -373,14 +373,14 @@ script/coverage
 Profile a route:
 
 ```sh
-script/profile-route /categories
+script/profile-nytprof --route /categories
 nytprofhtml -f var/profile/route-nytprof.out.*
 ```
 
 Profile an existing Perl command:
 
 ```sh
-script/profile -Ilib t/32-forum-web.t
+script/profile-nytprof -- -Ilib t/32-forum-web.t
 ```
 
 Apply migrations:
@@ -408,9 +408,6 @@ OS-level tuning flags default to conservative `auto` and are observable through
 
 ```sh
 GPFORUM_OS_REUSEPORT=auto
-GPFORUM_OS_SENDFILE=auto
-GPFORUM_OS_WORKER_PRIORITY=auto
-GPFORUM_OS_STATIC_XSENDFILE=auto
 ```
 
 Local generated files and disposable cache artifacts should use
@@ -419,7 +416,7 @@ same filesystem and promotes it with `rename`.
 
 Socket and process behavior is centralized in `GPForum::OS::Socket` and
 `GPForum::OS::Process`. `/health`, `/metrics`, and `script/system-preflight`
-surface reuseport/sendfile posture, process-class scheduling recommendations,
+surface the reuseport posture, process-class scheduling recommendations,
 event backend, and recommended worker count without making OS-specific tuning
 mandatory. `GPForum::Service::Operations::OSPreflight` converts that posture
 into ok/degraded/fail checks for readiness and operational metrics. The

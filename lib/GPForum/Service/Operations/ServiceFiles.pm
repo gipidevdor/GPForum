@@ -546,11 +546,8 @@ sub certificate_command ($self) {
 # of its programs is not installed, and the certificate, when it is not
 # there yet.
 sub _needed ( $self, $place ) {
-    my @steps;
-    if ( any { !$self->found->($_) } @{ $place->{needs} // [] } ) {
-        push @steps, $place->{packages};
-    }
-    my $host = $self->_public_host;
+    my @steps = $self->_packages($place);
+    my $host  = $self->_public_host;
     if (   defined $place->{certificate}
         && defined $host
         && !$self->exists->( $self->_letsencrypt . "/live/$host/fullchain.pem" )
@@ -560,6 +557,21 @@ sub _needed ( $self, $place ) {
     }
 
     return @steps;
+}
+
+# The command that installs what a proxy needs on this host -- brew install
+# nginx certbot, apt's, pkg's -- when one of its programs is not installed;
+# undef when they all are.
+sub packages_step ( $self, $proxy ) {
+    my ($step) = $self->_packages( $self->_proxy_place($proxy) );
+
+    return $step;
+}
+
+sub _packages ( $self, $place ) {
+    return () if !any { !$self->found->($_) } @{ $place->{needs} // [] };
+
+    return ( $place->{packages} );
 }
 
 # Where certbot keeps its certificates on this host.
@@ -613,7 +625,7 @@ sub _values ( $self, $target ) {
         $value{env_file} = $self->env_file($target);
     }
     if ( _layout($target)->{logs} ) {
-        $value{logs} = _homebrew_prefix() . '/var/log/gpforum';
+        $value{logs} = $self->log_directory($target);
     }
     if ( _layout($target)->{proxy} ) {
         $value{host}        = $self->_public_host;
@@ -808,13 +820,21 @@ sub _started ( $self, $target, $files ) {
         os      => defined $os ? GPForum::OS->from_name($os) : $self->host->os,
     );
     my @steps;
-    if ( _layout($target)->{logs} ) {
-        my %value = $self->_values($target);
-        push @steps,
-          "sudo install -d -o gpforum -g gpforum -m 0750 $value{logs}";
+    my $logs = $self->log_directory($target);
+    if ( defined $logs && !$self->exists->($logs) ) {
+        push @steps, "sudo install -d -o gpforum -g gpforum -m 0750 $logs";
     }
 
     return @steps, $host->start_all(@services);
+}
+
+# Where a target's services write their logs, which has to be there, the
+# service account's, before they start: launchd's, under Homebrew's prefix.
+# Undef for a target whose service manager keeps the logs itself.
+sub log_directory ( $self, $target ) {
+    return undef if !_layout($target)->{logs};
+
+    return _homebrew_prefix() . '/var/log/gpforum';
 }
 
 sub _shell_quoted ($text) {
@@ -957,6 +977,21 @@ where GPForum ships none.
 
 The command that takes the certificate the nginx site names, for the
 forum's own name on this operating system, or undef.
+
+=head2 log_directory
+
+Takes a target and returns the directory its services log to, which must
+be there, the C<gpforum> account's, before they start -- launchd's, under
+Homebrew's prefix -- or undef for a target whose service manager keeps the
+logs. C<steps> names the C<install -d> that makes it only while it is not
+there.
+
+=head2 packages_step
+
+Takes a proxy, C<nginx> or C<caddy>, and returns the command that installs
+what it needs on this operating system -- C<brew install nginx certbot>,
+C<sudo apt install ...> -- when one of its programs is not installed, or
+undef when they all are.
 
 =head2 print_command
 

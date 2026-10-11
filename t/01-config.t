@@ -39,7 +39,7 @@ const my %PRODUCTION_ENV => (
     GPFORUM_SESSION_SECRET  => $PRODUCTION_SECRET,
 );
 
-const my $EXPECTED_TESTS             => 325;
+const my $EXPECTED_TESTS             => 313;
 const my $DEFAULT_LOG_LEVEL          => 'info';
 const my $DEFAULT_RUNTIME_LISTEN     => 'http://127.0.0.1:8080';
 const my $DEFAULT_RUNTIME_BACKLOG    => 256;
@@ -112,9 +112,6 @@ my %environment = (
     GPFORUM_RUNTIME_PROXY                => 0,
     GPFORUM_RUNTIME_PID_FILE             => '/tmp/gpforum-test.pid',
     GPFORUM_OS_REUSEPORT                 => 'off',
-    GPFORUM_OS_SENDFILE                  => 'on',
-    GPFORUM_OS_WORKER_PRIORITY           => 'auto',
-    GPFORUM_OS_STATIC_XSENDFILE          => 'off',
     GPFORUM_OS_AFFINITY                  => 'manual',
     GPFORUM_OS_MIN_RECOMMENDED_WORKERS   => $CUSTOM_MIN_OS_WORKERS,
     GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS => $CUSTOM_MAX_OPEN_FDS,
@@ -209,12 +206,8 @@ is(
 );
 is( $config->runtime_pid_file, '/tmp/gpforum-test.pid',
     'runtime pid file loads from env' );
-is( $config->os_reuseport, 'off', 'OS reuseport flag loads from env' );
-is( $config->os_sendfile,  'on',  'OS sendfile flag loads from env' );
-is( $config->os_worker_priority,
-    'auto', 'OS worker priority flag loads from env' );
-is( $config->os_static_xsendfile, 'off', 'OS xsendfile flag loads from env' );
-is( $config->os_affinity,         'manual', 'OS affinity flag loads from env' );
+is( $config->os_reuseport, 'off',    'OS reuseport flag loads from env' );
+is( $config->os_affinity,  'manual', 'OS affinity flag loads from env' );
 is( $config->os_min_recommended_workers,
     $CUSTOM_MIN_OS_WORKERS, 'OS minimum worker threshold loads from env' );
 is( $config->os_max_open_file_descriptors,
@@ -256,15 +249,6 @@ is( $default_config->mail_transport,
     'test', 'mail transport defaults to the test adapter' );
 is( $default_config->mail_from,
     'noreply@localhost', 'mail from defaults to a local sender' );
-ok( $default_config->requires_glifistore == 0,
-    'development does not require an explicit GlifiStore URL' );
-ok(
-    !GPForum::Config->new( environment => 'production-small' )
-      ->requires_glifistore,
-    'production-small does not require GlifiStore'
-);
-ok( !GPForum::Config->environment_requires_glifistore('staging'),
-    'staging does not require GlifiStore' );
 ok(
     $default_config->requires_secure_transport == 0,
     'development does not require secure transport'
@@ -945,11 +929,8 @@ my @every_setting   = (
         runtime_trusted_proxies => 'GPFORUM_RUNTIME_TRUSTED_PROXIES',
         '127.0.0.1,::1', '10.0.0.1'
     ],
-    [ os_reuseport        => 'GPFORUM_OS_REUSEPORT',        'auto', 'on' ],
-    [ os_sendfile         => 'GPFORUM_OS_SENDFILE',         'auto', 'off' ],
-    [ os_worker_priority  => 'GPFORUM_OS_WORKER_PRIORITY',  'auto', 'on' ],
-    [ os_static_xsendfile => 'GPFORUM_OS_STATIC_XSENDFILE', 'auto', 'off' ],
-    [ os_affinity         => 'GPFORUM_OS_AFFINITY',         'off',  'manual' ],
+    [ os_reuseport => 'GPFORUM_OS_REUSEPORT', 'auto', 'on' ],
+    [ os_affinity  => 'GPFORUM_OS_AFFINITY',  'off',  'manual' ],
     [
         os_min_recommended_workers => 'GPFORUM_OS_MIN_RECOMMENDED_WORKERS',
         '2', '3'
@@ -1109,14 +1090,8 @@ is_deeply(
     [qw(http://a:1 http://b:2)],
     'listen locations are trimmed and empty ones dropped'
 );
-is_deeply(
-    [
-        map { $built_default->$_ }
-          qw(requires_secure_transport requires_glifistore)
-    ],
-    [ 0, 0 ],
-    'development requires neither secure transport nor GlifiStore, as 0'
-);
+is( $built_default->requires_secure_transport,
+    0, 'development does not require secure transport, as 0' );
 my %connect_attributes =
   %{ ( $built_default->database_connect_info )[$CONNECT_ATTR_INDEX] };
 delete $connect_attributes{on_connect_do};

@@ -12,14 +12,6 @@ our $VERSION = '0.001';
 const my $DEFAULT_LIMIT => 100;
 const my $MAX_LIMIT     => 1_000;
 
-sub default_limit {
-    return $DEFAULT_LIMIT;
-}
-
-sub max_limit {
-    return $MAX_LIMIT;
-}
-
 sub limit ( $, $input ) {
     my $limit = $input && $input->{limit} ? $input->{limit} : $DEFAULT_LIMIT;
     if ( $limit < 1 ) {
@@ -102,14 +94,6 @@ Caps operational deletes so scheduled jobs never issue an unbounded
 C<DELETE>. Search attributes always include a row limit.
 
 =head1 SUBROUTINES/METHODS
-
-=head2 default_limit
-
-Returns the default batch size of 100.
-
-=head2 max_limit
-
-Returns the hard cap of 1000 rows per call.
 
 =head2 limit
 

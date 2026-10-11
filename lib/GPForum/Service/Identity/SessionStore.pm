@@ -8,6 +8,8 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
@@ -40,8 +42,14 @@ has session_touch_interval_seconds =>
   sub { return $DEFAULT_TOUCH_INTERVAL_SECONDS; };
 has session_tokens => sub { return GPForum::Service::SessionToken->new; };
 has support        => sub { return GPForum::Service::Identity::Support->new; };
+has functions      => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub create_session ( $self, $user, $input ) {
+    return $self->_create_session_by_function( $user, $input )
+      if $self->functions;
+
     return $self->schema->txn_do(
         sub {
             return $self->_insert_session( $user, $input );
@@ -53,6 +61,8 @@ sub revoke_session ( $self, $input ) {
     if ( !$self->support->has_text( $input->{session_id} ) ) {
         return { ok => 0, error => 'not_found' };
     }
+
+    return $self->_revoke_session_by_function($input) if $self->functions;
 
     my %query = ( session_id => $input->{session_id} );
     if ( $self->support->has_text( $input->{user_id} ) ) {
@@ -101,6 +111,8 @@ sub validate_session ( $self, $input ) {
     {
         return { ok => 0, error => 'not_found' };
     }
+    return $self->_validate_session_by_function($input) if $self->functions;
+
     my $session = $self->_session_where(
         {
             session_id => $input->{session_id},
@@ -137,6 +149,22 @@ sub validate_session ( $self, $input ) {
 sub revoke_user_sessions ( $self, $user_id, $revoked_at,
     $keep_session_id = undef )
 {
+    if ( $self->functions ) {
+        my $kept =
+          GPForum::Infrastructure::Id->is_uuid($keep_session_id)
+          ? $keep_session_id
+          : undef;
+        my $row = $self->functions->row(
+            'session_revoke_user',
+            {
+                user_id         => $user_id,
+                revoked_at      => $revoked_at,
+                keep_session_id => $kept,
+            }
+        );
+        return $row ? 0 + $row->{revoked_count} : 0;
+    }
+
     my %live = (
         revoked_at => undef,
         user_id    => $user_id,
@@ -167,22 +195,8 @@ sub _revoke_sessions ( $self, $condition, $revoked_at ) {
 # other conflict is on the token's hash, and the token is reminted: that one,
 # not the first, is the token whose hash is stored and must reach the cookie.
 sub _insert_session ( $self, $user, $input ) {
-    my $raw_token  = $self->session_tokens->issue_token;
-    my $created_at = $self->clock->now_iso8601;
-    my $row        = {
-        created_at => $created_at,
-        expires_at => $self->support->iso8601_from_epoch(
-            $self->clock->now_epoch + $self->session_seconds
-        ),
-        ip_hash      => $self->support->hash_value( $input->{request_address} ),
-        last_seen_at => $created_at,
-        revoked_at   => undef,
-        session_hash => $self->session_tokens->hash_token($raw_token),
-        session_id   => $self->id_service->uuid,
-        user_agent_hash => $self->support->hash_value( $input->{user_agent} ),
-        user_id         => $self->support->column( $user, 'id' ),
-    };
-    my ( $created, $error ) =
+    my ( $raw_token, $row ) = $self->_session_values( $user, $input );
+    my ( $created,   $error ) =
       GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
         sub { return $self->_sessions->create($row); } );
     if ($created) {
@@ -223,6 +237,99 @@ sub _insert_session ( $self, $user, $input ) {
     GPForum::Infrastructure::UniqueConflict->rethrow($retry_error);
 }
 
+# The application still issues the bearer token and its digest. PostgreSQL
+# inserts the row and recovers the first unique collision in a subtransaction;
+# only when it asks for a new secret/id does Perl mint one and retry once.
+sub _session_values ( $self, $user, $input ) {
+    my $raw_token  = $self->session_tokens->issue_token;
+    my $created_at = $self->clock->now_iso8601;
+    my $row        = {
+        created_at => $created_at,
+        expires_at => $self->support->iso8601_from_epoch(
+            $self->clock->now_epoch + $self->session_seconds
+        ),
+        ip_hash      => $self->support->hash_value( $input->{request_address} ),
+        last_seen_at => $created_at,
+        revoked_at   => undef,
+        session_hash => $self->session_tokens->hash_token($raw_token),
+        session_id   => $self->id_service->uuid,
+        user_agent_hash => $self->support->hash_value( $input->{user_agent} ),
+        user_id         => $self->support->column( $user, 'id' ),
+    };
+    return ( $raw_token, $row );
+}
+
+sub _create_session_by_function ( $self, $user, $input ) {
+    my ( $raw_token, $values ) = $self->_session_values( $user, $input );
+    my $row =
+      $self->functions->row( 'session_create', { %{$values}, retry => 0 } );
+    my $code = $row->{result_code};
+    if ( $code eq 'retry_id' || $code eq 'retry_token' ) {
+        if ( $code eq 'retry_id' ) {
+            $values->{session_id} = $self->id_service->uuid;
+        }
+        else {
+            $raw_token = $self->session_tokens->issue_token;
+            $values->{session_hash} =
+              $self->session_tokens->hash_token($raw_token);
+        }
+        $row =
+          $self->functions->row( 'session_create', { %{$values}, retry => 1 } );
+        $code = $row->{result_code};
+    }
+    delete $row->{result_code};
+    return {
+        session       => GPForum::Infrastructure::ResultRow->from($row),
+        session_token => $raw_token,
+        ( $code eq 'skipped' ? ( skipped => 1 ) : () ),
+    };
+}
+
+sub _validate_session_by_function ( $self, $input ) {
+    my $presented = $input->{session_token};
+    my $row       = $self->functions->row(
+        'session_validate',
+        {
+            session_id => $input->{session_id},
+            user_id    => $input->{user_id},
+            token_hash => $self->support->has_text($presented)
+            ? $self->session_tokens->hash_token($presented)
+            : undef,
+            now                    => $self->clock->now_iso8601,
+            touch_interval_seconds => $self->session_touch_interval_seconds,
+        }
+    );
+    return { ok => 0, error => 'not_found' } if !$row;
+    my $code = delete $row->{result_code};
+    return { ok => 0, error => $code }
+      if $code ne 'ok' && $code ne 'expired';
+    my $session = GPForum::Infrastructure::ResultRow->from($row);
+    return { ok => 0, error => 'expired', session => $session }
+      if $code eq 'expired';
+    return { ok => 1, session => $session };
+}
+
+sub _revoke_session_by_function ( $self, $input ) {
+    my $row = $self->functions->row(
+        'session_revoke',
+        {
+            session_id => $input->{session_id},
+            user_id    => $self->support->has_text( $input->{user_id} )
+            ? $input->{user_id}
+            : undef,
+            revoked_at => $self->clock->now_iso8601,
+        }
+    );
+    return { ok => 0, error => 'not_found' } if !$row;
+    my $code = delete $row->{result_code};
+    return { ok => 0, error => 'not_found' } if $code eq 'not_found';
+    return {
+        ok      => 1,
+        session => GPForum::Infrastructure::ResultRow->from($row),
+        ( $code eq 'skipped' ? ( skipped => 1 ) : () ),
+    };
+}
+
 # The same member and the same token hash: the row is this session.
 sub _same_open_session ( $self, $stored, $row ) {
     if ( !$stored ) {
@@ -247,6 +354,18 @@ sub _same_open_session ( $self, $stored, $row ) {
 # found the session whoever presented it: one member could revoke or
 # validate another's. A search keeps every column it is given.
 sub _session_where ( $self, $query ) {
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'session_lookup',
+                {
+                    session_id => $query->{session_id},
+                    user_id    => $query->{user_id}
+                }
+            )
+        );
+    }
+
     my $sessions = $self->_sessions;
     my @columns  = sort keys %{$query};
 
@@ -415,7 +534,10 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Session tokens are hashed before persistence; the raw token is not returned.
+On PostgreSQL every session operation calls a versioned function in schema
+C<api>. Tokens are hashed before persistence; the raw token is returned only
+to the caller that places it in the signed cookie. In-memory test schemas
+keep the previous path.
 
 =head1 AUTHOR
 

@@ -7,6 +7,9 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Row;
@@ -40,6 +43,10 @@ has recorder   => sub {
 __PACKAGE__->requires(qw(schema));
 has events => sub { return GPForum::Service::Admin::Event->new; };
 
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub create_category ( $self, $input ) {
     return $self->schema->txn_do( sub { return $self->_create_once($input); } );
 }
@@ -50,6 +57,14 @@ sub update_category ( $self, $input ) {
 
 sub list_categories ( $self, $options ) {
     $options ||= {};
+    if ( $self->functions ) {
+        return [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows( 'admin_list_categories',
+                    { row_limit => $options->{limit} } )
+            }
+        ];
+    }
     my $search = $self->schema->resultset('Category')->search_rs(
         { deleted_at => undef },
         {
@@ -151,7 +166,11 @@ sub _create_category_row ( $self, $input ) {
         version            => $SCHEMA_VERSION,
         visibility         => _kept_text( $input->{visibility}, q{public} ),
     };
-    $self->schema->resultset('Category')->create($category);
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_insert_category',
+            { values => $category } );
+    }
+    else { $self->schema->resultset('Category')->create($category); }
     $self->_record_write(
         {
             action        => 'category.created',
@@ -191,9 +210,23 @@ sub _update_once ( $self, $input ) {
         return { %{ _row_hash( $row, _category_columns() ) }, skipped => 1, };
     }
 
-    my ( undef, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        sub { return $row->update($updates); } );
+    my ( undef, $error ) = GPForum::Infrastructure::UniqueConflict->attempt(
+        $self->schema,
+        sub {
+            if ( $self->functions ) {
+                $self->functions->row(
+                    'admin_update_category',
+                    {
+                        category_id => $input->{category_id},
+                        values      => $updates
+                    }
+                );
+                %{$row} = ( %{$row}, %{$updates} );
+                return $row;
+            }
+            return $row->update($updates);
+        }
+    );
     if ($error) {
 
         # The server's own sentence decides, not the constraint's name
@@ -245,10 +278,18 @@ sub _ensure_space ( $self, $input ) {
         if ( !GPForum::Infrastructure::Id->is_uuid($space_id) ) {
             return undef;
         }
+        if ( $self->functions ) {
+            return $self->functions->row( 'admin_space_by_id',
+                { space_id => $space_id } );
+        }
         return _row_hash( $self->schema->resultset('Space')->find($space_id),
             _space_columns() );
     }
 
+    if ( $self->functions ) {
+        return $self->functions->row( 'admin_first_live_space', {} )
+          || $self->_default_space;
+    }
     my $first = _row_hash(
         _single(
             $self->schema->resultset('Space')->search_rs(
@@ -315,12 +356,18 @@ sub _insert_default_space ($self) {
         version            => $SCHEMA_VERSION,
         visibility         => 'public',
     };
-    $self->schema->resultset('Space')->create($space);
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_insert_space', { values => $space } );
+    }
+    else { $self->schema->resultset('Space')->create($space); }
 
     return $space;
 }
 
 sub _space_by_slug ($self) {
+    return $self->functions->row( 'admin_space_by_slug',
+        { slug => $DEFAULT_SPACE_SLUG } )
+      if $self->functions;
     my $search =
       $self->schema->resultset('Space')
       ->search_rs( { slug => $DEFAULT_SPACE_SLUG },
@@ -330,6 +377,9 @@ sub _space_by_slug ($self) {
 }
 
 sub _existing_category ( $self, $input ) {
+    return $self->functions->row( 'admin_live_category_by_slug',
+        { slug => $input->{slug}, space_id => $input->{space_id} } )
+      if $self->functions;
     my $search = $self->schema->resultset('Category')->search_rs(
         {
             deleted_at => undef,
@@ -347,7 +397,14 @@ sub _visible_category ( $self, $category_id ) {
         return undef;
     }
 
-    my $row = $self->schema->resultset('Category')->find($category_id);
+    my $row =
+      $self->functions
+      ? GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'admin_category_by_id', { category_id => $category_id }
+        )
+      )
+      : $self->schema->resultset('Category')->find($category_id);
     if ( !$row ) {
         return undef;
     }

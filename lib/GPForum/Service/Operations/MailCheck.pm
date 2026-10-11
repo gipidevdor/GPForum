@@ -395,7 +395,7 @@ sub _config_summary ($config) {
         smtp            => {
             host                => $config->smtp_host,
             port                => int $config->smtp_port,
-            ssl                 => int $config->smtp_ssl,
+            ssl                 => $config->smtp_tls eq 'off' ? 0 : 1,
             tls                 => $config->smtp_tls,
             username_configured => _has_text( $config->smtp_username ) ? 1 : 0,
         },

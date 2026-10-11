@@ -52,7 +52,7 @@ commands in step.
 Run profiling for performance-sensitive changes:
 
 ```sh
-script/profile -Ilib -It/lib t/17-notifications.t
+script/profile-nytprof -- -Ilib -It/lib t/17-notifications.t
 ```
 
 ## Architectural rules

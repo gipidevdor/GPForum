@@ -6,6 +6,10 @@ package GPForum::Service::Identity::PreferenceStore;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+
 use DateTime::TimeZone;
 
 use GPForum::Service::Clock;
@@ -16,6 +20,10 @@ our $VERSION = '0.001';
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
 has support => sub { return GPForum::Service::Identity::Support->new; };
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub preferred_locale_for_user ( $self, $input ) {
     return $self->_read_preference( $input, 'preferred_locale' );
@@ -143,6 +151,14 @@ sub _find_user_by_id ( $self, $user_id ) {
         return undef;
     }
 
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow::IdentityUser->from(
+            $self->functions->row(
+                'identity_user_by_id', { user_id => $user_id }
+            ),
+            $self->functions
+        );
+    }
     return $self->schema->resultset('User')->find( { id => $user_id } );
 }
 

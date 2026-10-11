@@ -20,6 +20,9 @@ sub resource ( $self, $row ) {
     elsif ( $row && $row->can('columns') ) {
         $resource = { map { $_ => $self->column( $row, $_ ) } $row->columns };
     }
+    elsif ( $row && $row->can('get_columns') ) {
+        $resource = { $row->get_columns };
+    }
 
     my $resource_id =
          $resource->{thread_id}

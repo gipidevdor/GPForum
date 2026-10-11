@@ -61,16 +61,13 @@ are reported in OS posture rather than patched manually in application code.
 
 ## Static Transfer
 
-Static files and attachments are still safest behind a reverse proxy. GPForum
-reports whether sendfile/X-Sendfile style delegation is available, but it does
-not make Perl controllers responsible for ordinary large-file transfer.
-
-Current modes:
-
-- `delegated`: OS profile supports sendfile and deployment should use a reverse
-  proxy or web server for large static/attachment transfer.
-- `perl-fallback`: sendfile is unavailable or disabled; controllers must keep
-  file responses bounded and exceptional.
+Static files and attachments are still safest behind a reverse proxy, which
+serves the static files itself. GPForum hands an attachment to the proxy with
+`X-Accel-Redirect` when `GPFORUM_ATTACHMENT_ACCEL_REDIRECT` names a prefix.
+The runtime evidence reports `static_transfer` as `configurable` when it does,
+and `unavailable` when it does not, in which case GPForum serves the file
+itself. The sendfile and X-Sendfile settings, which only changed a reported
+mode, are gone.
 
 ## Degraded Modes
 
@@ -141,9 +138,6 @@ Feature variables:
 
 ```text
 GPFORUM_OS_REUSEPORT=auto
-GPFORUM_OS_SENDFILE=auto
-GPFORUM_OS_STATIC_XSENDFILE=auto
-GPFORUM_OS_WORKER_PRIORITY=auto
 GPFORUM_OS_MIN_RECOMMENDED_WORKERS=2
 GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS=65536
 GPFORUM_LOCAL_CACHE_MAX_ENTRIES=4096
@@ -186,9 +180,6 @@ GPFORUM_RUNTIME_UPGRADE_TIMEOUT=60
 GPFORUM_RUNTIME_SPARE_PROCESSES=1
 GPFORUM_RUNTIME_PROXY=on
 GPFORUM_OS_REUSEPORT=auto
-GPFORUM_OS_SENDFILE=auto
-GPFORUM_OS_STATIC_XSENDFILE=auto
-GPFORUM_OS_WORKER_PRIORITY=auto
 GPFORUM_OS_MIN_RECOMMENDED_WORKERS=2
 GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS=65536
 GPFORUM_LOCAL_CACHE_MAX_ENTRIES=4096

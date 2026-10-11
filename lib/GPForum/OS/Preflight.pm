@@ -27,7 +27,6 @@ const my $STATUS_OK                       => 'ok';
 const my $STATUS_DEGRADED                 => 'degraded';
 const my $STATUS_FAIL                     => 'fail';
 const my $FEATURE_ON                      => 'on';
-const my @SUPPORT_GATED_FEATURES => qw(reuseport sendfile static_xsendfile);
 
 has os                            => sub { return GPForum::OS->detect; };
 has os_feature_settings           => sub { return {}; };
@@ -106,8 +105,7 @@ sub _profile ($self) {
         os_features =>
           $self->os->feature_snapshot( $self->os_feature_settings ),
         os_sockets => $self->os->socket_snapshot( $self->os_feature_settings ),
-        os_processes =>
-          $self->os->process_snapshot( $self->os_feature_settings ),
+        os_processes => $self->os->process_snapshot,
     };
 }
 
@@ -259,29 +257,20 @@ sub _swap_pressure_check ($context) {
     return _ok_check('swap_pressure');
 }
 
-# A feature set to "on" that the OS cannot give: reuseport needs
-# SO_REUSEPORT, sendfile and X-Sendfile need sendfile.
+# GPFORUM_OS_REUSEPORT=on on an OS without SO_REUSEPORT: the one feature
+# setting the OS has to be able to give.
 sub _feature_support_check ($context) {
-    for my $feature (@SUPPORT_GATED_FEATURES) {
-        my $entry = $context->{features}{$feature} || {};
-        next if ( $entry->{setting} || q{} ) ne $FEATURE_ON;
-
-        my $supported =
-            $feature eq 'reuseport'
-          ? $context->{os}{supports_reuseport}
-          : $context->{os}{supports_sendfile};
-        return _degraded_check(
-            'features',
-            "$feature explicitly requested but unsupported",
-            [
-                'preflight.feature_unsupported',
-                {
-                    feature  => $feature,
-                    variable => 'GPFORUM_OS_' . uc $feature,
-                }
-            ]
-        ) if !$supported;
-    }
+    my $entry = $context->{features}{reuseport} || {};
+    return _degraded_check(
+        'features',
+        'reuseport explicitly requested but unsupported',
+        [
+            'preflight.feature_unsupported',
+            { feature => 'reuseport', variable => 'GPFORUM_OS_REUSEPORT' }
+        ]
+      )
+      if ( $entry->{setting} || q{} ) eq $FEATURE_ON
+      && !$context->{os}{supports_reuseport};
 
     return _ok_check('features');
 }

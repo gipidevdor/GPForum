@@ -20,6 +20,10 @@ our $VERSION = '0.001';
 # exception) and from a failed run (1).
 const my $EX_CONFIG => 78;
 
+# What a process that logged the old settings' warnings tells the one it
+# runs in its place (GPForum::CLI::start, before it runs Hypnotoad).
+const our $WARNED => 'GPFORUM_SETTINGS_WARNED';
+
 # The configuration the application starts with. When it is wrong, every
 # problem is reported at once, in the operator's language, and the start
 # ends with EX_CONFIG: an exception nothing catches makes Perl exit with $!,
@@ -79,8 +83,13 @@ sub _refuse ($problems) {
 
 # Once the log is set up: one warning for each retired setting the
 # environment still sets, so an old environment file starts and says what to
-# remove, and one for each old name, with the line that replaces it.
+# remove, and one for each old name, with the line that replaces it. Once a
+# start: gpforum start --service logs them, then runs Hypnotoad in its
+# place, which built the application again and logged each a second time,
+# 0.9 s later; it now says, in GPFORUM_SETTINGS_WARNED, that they were.
 sub register ( $class, %input ) {
+    return if $ENV{$WARNED};
+
     my $catalog = GPForum::Service::I18N::CliCatalog->new;
     my $log     = $input{application}->log;
     for my $variable ( @{ $input{config}->retired_settings } ) {
@@ -161,7 +170,10 @@ the front door ask too.
 
 Class method. Takes C<application> and C<config> and logs one warning for
 each variable in the configuration's C<retired_settings>, and one, from
-L</renamed_warning>, for each of its C<renamed_settings>.
+L</renamed_warning>, for each of its C<renamed_settings>; nothing when
+C<GPFORUM_SETTINGS_WARNED> says the process this one replaced logged them
+(C<$GPForum::Bootstrap::Config::WARNED>, which C<gpforum start --service>
+sets before it runs Hypnotoad).
 
 =head2 renamed_warning
 

@@ -14,6 +14,9 @@ use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_PREFERENCE => 'all';
@@ -24,12 +27,16 @@ has clock      => sub { return GPForum::Service::Clock->new; };
 has prepared   => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # The member's subscription to the target, revoked or not, is restored rather
 # than doubled -- whether it was there before or a concurrent save won the
 # target key. A minted id already stored with no such subscription is
 # minted once more.
 sub save_subscription ( $self, $input ) {
+    return $self->_save_by_function( $input, 1 ) if $self->functions;
     my $find = sub {
         return $self->find_for_user_target( $input->{user_id},
             $input->{target_type}, $input->{target_id}, );
@@ -69,6 +76,7 @@ sub save_subscription ( $self, $input ) {
 }
 
 sub subscribe ( $self, $input ) {
+    return $self->_save_by_function( $input, 0 ) if $self->functions;
     my $row = {
         subscription_id => $self->id_service->uuid,
         user_id         => $input->{user_id},
@@ -88,6 +96,18 @@ sub subscribe ( $self, $input ) {
 # The row by its key, through a statement built once: every signed-in
 # thread page asks for one.
 sub find_for_user_target ( $self, $user_id, $target_type, $target_id ) {
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'notification_find_subscription',
+                {
+                    user_id     => $user_id,
+                    target_type => $target_type,
+                    target_id   => $target_id
+                }
+            )
+        );
+    }
     my $rows = $self->schema->resultset('Subscription');
     my %key  = (
         target_id   => $target_id,
@@ -144,6 +164,20 @@ sub revoke_for_user_target ( $self, $input ) {
 }
 
 sub subscribers_for ( $self, $target_type, $target_id, $options = undef ) {
+    if ( $self->functions ) {
+        return map { $_->{user_id} } @{
+            $self->functions->rows(
+                'notification_subscribers',
+                {
+                    target_type       => $target_type,
+                    target_id         => $target_id,
+                    notification_type => $options
+                    ? $options->{notification_type}
+                    : undef
+                }
+            )
+        };
+    }
     my $search = $self->schema->resultset('Subscription')->search_rs(
         {
             target_type => $target_type,
@@ -162,6 +196,8 @@ sub subscribers_for ( $self, $target_type, $target_id, $options = undef ) {
 }
 
 sub _stamp_user_target ( $self, $input, $column ) {
+    return $self->_stamp_by_function( undef, $input, $column )
+      if $self->functions;
     my $subscription =
       $self->find_for_user_target( $input->{user_id}, $input->{target_type},
         $input->{target_id}, );
@@ -174,6 +210,8 @@ sub _stamp_user_target ( $self, $input, $column ) {
 }
 
 sub _stamp_by_id ( $self, $subscription_id, $column ) {
+    return $self->_stamp_by_function( $subscription_id, undef, $column )
+      if $self->functions;
     my $subscription =
       $self->schema->resultset('Subscription')->find($subscription_id);
 
@@ -251,6 +289,50 @@ sub _preference_allows ( $preference, $options ) {
 
     my $notification_type = $options ? $options->{notification_type} : undef;
     return $notification_type && $notification_type eq 'mention' ? 1 : 0;
+}
+
+sub _save_by_function ( $self, $input, $restore ) {
+    my $row = {
+        subscription_id => $self->id_service->uuid,
+        user_id         => $input->{user_id},
+        target_type     => $input->{target_type},
+        target_id       => $input->{target_id},
+        preference      => $input->{preference} || $DEFAULT_PREFERENCE,
+        created_at      => $self->clock->now_iso8601,
+        muted_at        => undef,
+        revoked_at      => undef
+    };
+    my $result = $self->functions->row(
+        'notification_save_subscription',
+        { row => $row, restore => $restore }
+    )->{result};
+    if ( $result->{retry_id} ) {
+        $row->{subscription_id} = $self->id_service->uuid;
+        $result = $self->functions->row(
+            'notification_save_subscription',
+            { row => $row, restore => $restore }
+        )->{result};
+        if ( $result->{retry_id} ) {
+            GPForum::X::Conflict->throw(
+                message => 'the replacement id is already stored' );
+        }
+    }
+    return $result;
+}
+
+sub _stamp_by_function ( $self, $id, $input, $column ) {
+    return $self->functions->row(
+        'notification_stamp_subscription',
+        {
+            id          => $id,
+            by_target   => $input ? 1                     : 0,
+            user_id     => $input ? $input->{user_id}     : undef,
+            target_type => $input ? $input->{target_type} : undef,
+            target_id   => $input ? $input->{target_id}   : undef,
+            column      => $column,
+            stamped_at  => $self->clock->now_iso8601,
+        }
+    )->{result};
 }
 
 sub _column ( $row, $column ) {

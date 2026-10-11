@@ -58,16 +58,13 @@ sub capped_web_processes ( $class, $configured, $cpu_count, $per_cpu, $policy )
 
 sub as_hash ($self) {
     return {
-        web_processes      => $self->web_processes,
-        worker_processes   => $self->worker_processes,
-        realtime_processes => $self->realtime_processes,
-        os                 => $self->os_profile->snapshot,
-        os_features        =>
+        web_processes => $self->web_processes,
+        os            => $self->os_profile->snapshot,
+        os_features   =>
           $self->os_profile->feature_snapshot( $self->os_feature_settings ),
         os_sockets =>
           $self->os_profile->socket_snapshot( $self->os_feature_settings ),
-        os_processes =>
-          $self->os_profile->process_snapshot( $self->os_feature_settings ),
+        os_processes          => $self->os_profile->process_snapshot,
         os_preflight_settings => $self->os_preflight_settings,
         worker_policy         => $self->worker_policy,
         max_web_per_cpu       => $self->max_web_per_cpu,

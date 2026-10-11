@@ -218,14 +218,47 @@ subtest 'doctor says what the node is sized for' => sub {
         undef, 'and nothing when the operator set both' );
 };
 
+# Walkthrough 4 (friction 9): in development the line said 14 web processes
+# on a 10-CPU laptop, where gpforum start --foreground runs one.
+subtest 'in development, the one process start --foreground runs' => sub {
+    my %sizing = (
+        cpus         => 10,
+        memory_bytes => 16 * $GIB,
+        sizes => { web_processes => 14, local_cache_max_entries => 8_192 },
+    );
+    is(
+        _sized( 'en', \%sizing, 'development' ),
+        'sized for 10 CPUs, 16 GB: 1 web process (gpforum start'
+          . ' --foreground), 8192 cache entries a process',
+        'in English'
+    );
+    is(
+        _sized( 'it', \%sizing, 'development' ),
+        'dimensionato per 10 CPU, 16 GB: 1 processo web (gpforum start'
+          . ' --foreground), 8192 voci di cache per processo',
+        'and in Italian'
+    );
+};
+
 done_testing();
 
-# The line doctor's settings check adds for a sizing.
-sub _sized ( $language, $sizing ) {
+# The line doctor's settings check adds for a sizing, on a server unless
+# the environment says otherwise.
+sub _sized ( $language, $sizing, $environment = 'production' ) {
     my $catalog =
       GPForum::Service::I18N::CliCatalog->new( language => $language );
-    my %environment = ( GPFORUM_ENV => 'development' );
-    my $doctor      = GPForum::Service::Operations::Doctor->new(
+    my %environment = (
+        GPFORUM_ENV => $environment,
+        $environment eq 'production'
+        ? (
+            GPFORUM_MAIL_FROM       => 'forum@forum.gpforum.net',
+            GPFORUM_METRICS_TOKEN   => $SECRET,
+            GPFORUM_PUBLIC_BASE_URL => 'https://forum.gpforum.net',
+            GPFORUM_SESSION_SECRET  => $SECRET,
+          )
+        : (),
+    );
+    my $doctor = GPForum::Service::Operations::Doctor->new(
         catalog     => $catalog,
         environment => \%environment,
         probes      => {

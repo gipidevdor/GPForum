@@ -11,7 +11,13 @@ use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Check;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $DEFAULT_TRANSACTION_BUDGET => 1;
 const my $BUDGET_SEARCH_ROWS         => 1_000;
@@ -115,7 +121,7 @@ const my %DEFAULT_BUDGETS => (
         notes       => 'bounded inbox read plus unread counter',
     },
     metrics => {
-        max_queries => 5,
+        max_queries => 3,
         notes => 'rate limit buckets, budget drift, outbox and dead letters',
     },
 );
@@ -184,6 +190,26 @@ sub snapshot ($self) {
 }
 
 sub sync_schema ( $self, $schema = undef ) {
+    my $functions = GPForum::Infrastructure::SqlFunction->for_schema( $schema
+          || $self->schema );
+    if ($functions) {
+        my @endpoints = sort keys %{ $self->budgets };
+        my $result    = $functions->row(
+            'ops_query_budget_sync',
+            {
+                rows =>
+                  [ map { _storage_row( $self->budget_for($_) ) } @endpoints ],
+                endpoint_names => \@endpoints
+            }
+        );
+        return {
+            endpoints => \@endpoints,
+            removed   => $result->{removed},
+            skipped   => scalar(@endpoints) - $result->{written},
+            synced    => scalar(@endpoints),
+            written   => $result->{written}
+        };
+    }
     my $resultset = $self->_resultset($schema);
     my %stored    = $self->_stored_budget_rows($schema);
     my @endpoints = sort keys %{ $self->budgets };
@@ -333,6 +359,16 @@ sub _storage_row ($budget) {
 }
 
 sub _stored_budget_rows ( $self, $schema ) {
+    my $functions = GPForum::Infrastructure::SqlFunction->for_schema( $schema
+          || $self->schema );
+    if ($functions) {
+        return map {
+            $_->{endpoint_name} => GPForum::Infrastructure::ResultRow->from($_)
+          } @{
+            $functions->rows( 'ops_query_budget_list',
+                { row_limit => $BUDGET_SEARCH_ROWS } )
+          };
+    }
     my $search = $self->_resultset($schema)->search_rs(
         {},
         {

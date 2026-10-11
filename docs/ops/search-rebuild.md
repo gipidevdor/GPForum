@@ -7,7 +7,7 @@ rebuilt from the canonical rows at any time (ADR 0110).
 ## Is search behind?
 
 ```sh
-script/search-rebuild --status
+gpforum search-rebuild --status
 ```
 
 ```text
@@ -71,8 +71,8 @@ Both are audited (`admin.search_rebuild_requested`, `admin.cache_purged`).
 ## Rebuild from the shell
 
 ```sh
-script/search-rebuild                  # threads and posts
-script/search-rebuild --entity post    # posts only
+gpforum search-rebuild                  # threads and posts
+gpforum search-rebuild --entity post    # posts only
 ```
 
 ```text

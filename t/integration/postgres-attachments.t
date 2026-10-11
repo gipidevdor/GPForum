@@ -1582,7 +1582,11 @@ sub _inserts {
     $storage->debugcb(
         sub {
             my ( undef, $statement ) = @_;
-            if ( $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx )
+            if (
+                $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx
+                || (   $table eq 'attachments'
+                    && $statement =~ /api[.]attachment_insert_v[12]/msx )
+              )
             {
                 $inserts++;
             }

@@ -1006,15 +1006,13 @@ sub _reputation_atomic {
         $recorded = 0;
     };
     ok( !$recorded, 'a snapshot PostgreSQL refuses fails the event' );
-    my ($event) =
-      grep { $sent[$_] =~ /\A INSERT [ ] INTO [ ] reputation_events [ ]/msx }
-      0 .. $#sent;
-    my ($snapshot) =
-      grep {
-        $sent[$_] =~ /\A INSERT [ ] INTO [ ] trust_score_snapshots [ ]/msx
-      } 0 .. $#sent;
-    ok( defined $event && defined $snapshot && $event < $snapshot,
-        'after the event was inserted' );
+    my $body     = _reputation_function($ctx);
+    my $event    = index $body, 'INSERT INTO public.reputation_events';
+    my $snapshot = index $body, 'INSERT INTO public.trust_score_snapshots';
+    ok( $event >= 0 && $snapshot > $event,
+        'the called function inserts the event before its snapshot' );
+    my $calls = scalar grep { /api[.]community_record_reputation_v2/msx } @sent;
+    is( $calls, 1, 'the rejected atomic write was one function call' );
     is(
         _value( $ctx, $SOURCE_EVENTS_SQL, $user, $input->{source_id} ),
         0,
@@ -1040,17 +1038,18 @@ sub _reputation_follow_on {
         $FOLLOW_ON_ROWS, 'follow-on reputation event inserts another row' );
     is( _version( $ctx, user => $user ),
         $user_version, 'unchanged trust level does not restamp the user' );
-    my ($locked) = grep {
-        $statements->[$_] =~
-/\A SELECT [ ] .* FROM [ ] trust_score_snapshots [ ] .* FOR [ ] UPDATE/msx
-    } 0 .. $#{$statements};
-    my ($written) =
-      grep { $statements->[$_] =~ /\A UPDATE [ ] trust_score_snapshots [ ]/msx }
-      0 .. $#{$statements};
-    ok(
-        defined $locked && defined $written && $locked < $written,
-        'reputation ledger locks the snapshot row before read-modify-writing it'
+    my $body = _reputation_function($ctx);
+    my $lock =
+      qr/SELECT \s+ s[.] [*] \s+ INTO \s+ v_snapshot .*? FOR \s+ UPDATE/msx;
+    my $update = qr/UPDATE \s+ public[.]trust_score_snapshots/msx;
+    like(
+        $body,
+        qr/$lock .*? $update/msx,
+        'the called function locks the snapshot before modifying it'
     );
+    my $calls =
+      scalar grep { /api[.]community_record_reputation_v2/msx } @{$statements};
+    is( $calls, 1, 'a follow-on credit uses one atomic function call' );
 
     my $replayed = $ledger->record_event($input);
     ok( $replayed->{skipped}, 'duplicate source reputation event is skipped' );
@@ -1545,19 +1544,28 @@ sub _order_by {
     return $order;
 }
 
-# Runs $code; just before its first INSERT INTO $table reaches PostgreSQL,
-# $rival runs on the second connection and commits. That is the window a
-# concurrent request has between a store's look-up and its insert.
+# Commit a competing row immediately before the stored mutation starts.
+# The multiprocess concurrency suite covers writers inside the function too.
 sub _racing {
     my ( $ctx, $table, $rival, $code ) = @_;
 
+    my %function = (
+        bookmarks             => 'community_save_bookmark',
+        mentions              => 'community_create_mention',
+        reputation_events     => 'community_record_reputation',
+        trust_score_snapshots => 'community_record_reputation',
+    );
+    my $call    = $function{$table};
     my $pending = 1;
     my $result  = _traced(
         $ctx,
         sub {
             my ($statement) = @_;
-            if (   $pending
-                && $statement =~ /\A INSERT [ ] INTO [ ] \Q$table\E [ ]/msx )
+            if (
+                $pending
+                && (   $statement =~ /\A INSERT [ ] INTO [ ] \Q$table\E [ ]/msx
+                    || $statement =~ /api[.]\Q$call\E _v2/msx )
+              )
             {
                 $pending = 0;
                 $rival->( $ctx->{rival} );
@@ -1566,7 +1574,7 @@ sub _racing {
         },
         $code
     );
-    ok( !$pending, "the rival committed before the $table insert" );
+    ok( !$pending, "the rival committed before the stored $table mutation" );
 
     return $result;
 }
@@ -1620,29 +1628,16 @@ sub _traced {
 # prepares every statement that carries bind values, a do included: counting
 # the do as well counted each statement twice.
 sub _feed_inserts {
-    my ( $ctx, $code ) = @_;
+    my ( $ctx,    $code )       = @_;
+    my ( $result, $statements ) = _statements( $ctx, $code );
+    return ( $result,
+        scalar grep { /api[.]community_project_feed_v2/msx } @{$statements} );
+}
 
-    my $inserts = 0;
-    my $count   = sub {
-        my ( undef, $statement ) = @_;
-        if ( $statement =~ /\A INSERT [ ] INTO [ ] user_feed_items [ ]/msx ) {
-            $inserts++;
-        }
-        return;
-    };
-    $ctx->{dbh}->{Callbacks} =
-      { map { $_ => $count } qw(prepare prepare_cached) };
-    my ( $result, $error );
-    try {
-        $result = $code->();
-    }
-    catch ($caught) {
-        $error = $caught;
-    };
-    delete $ctx->{dbh}->{Callbacks};
-    croak $error if $error;
-
-    return ( $result, $inserts );
+sub _reputation_function ($ctx) {
+    return _value( $ctx,
+q{SELECT pg_get_functiondef('api.community_record_reputation_v1(jsonb)'::regprocedure)}
+    );
 }
 
 sub _version {

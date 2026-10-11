@@ -9,6 +9,7 @@ use v5.40;
 
 use GPForum::Service::Attachment::Record;
 use GPForum::Service::Clock;
+use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
@@ -22,6 +23,9 @@ const my $SCAN_ERROR_LENGTH => 500;
 has clock  => sub { return GPForum::Service::Clock->new; };
 has record => sub { return GPForum::Service::Attachment::Record->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # Uploads no scanner has decided yet, oldest first: what the scheduled rescan
 # retries once the antivirus answers again (ADR 0108).
@@ -47,6 +51,19 @@ sub unscanned_clean_ids ( $self, $limit ) {
 
 # Fewest scan attempts first, then oldest by the age column, then id.
 sub _ids_by_attempts ( $self, $where, $age_column, $limit ) {
+    if ( $self->functions ) {
+        return [
+            map { $_->{attachment_id} } @{
+                $self->functions->rows(
+                    'attachment_scan_queue',
+                    {
+                        pending   => $age_column eq 'uploaded_at' ? 1 : 0,
+                        row_limit => $limit
+                    }
+                )
+            }
+        ];
+    }
     my $search = $self->_attachments->search_rs(
         $where,
         {
@@ -68,7 +85,17 @@ sub _ids_by_attempts ( $self, $where, $age_column, $limit ) {
 # changes -- the file was already served -- and only a row still waiting for
 # that confirmation is touched, so a quarantine that won a race stands.
 sub confirm_clean ( $self, $input ) {
-    my $updated = $self->_attachments->search_rs(
+    my $updated =
+      $self->functions
+      ? $self->functions->row(
+        'attachment_confirm_clean',
+        {
+            attachment_id => $input->{attachment_id},
+            scan_engine   => $input->{scan_engine},
+            scanned_at    => $self->clock->now_iso8601
+        }
+      )->{changed_count}
+      : $self->_attachments->search_rs(
         _format_checked( { attachment_id => $input->{attachment_id} } ) )
       ->update(
         {
@@ -88,6 +115,11 @@ sub confirm_clean ( $self, $input ) {
 # A scheduled scan that failed on this file: counted, with the error kept for
 # the operator. The next runs take files with fewer attempts first.
 sub record_scan_failure ( $self, $attachment_id, $error ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'attachment_scan_failure',
+            { attachment_id => $attachment_id, error => $error } )
+          ->{changed_count} ? 1 : 0;
+    }
     my $attachment = $self->_attachments->find($attachment_id);
     return 0 if !$attachment;
 

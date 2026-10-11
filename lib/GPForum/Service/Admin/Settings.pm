@@ -79,9 +79,12 @@ const my @SECTIONS => (
     {
         name     => 'database',
         settings => [
-            [ GPFORUM_DATABASE_DSN      => 'database_dsn' ],
-            [ GPFORUM_DATABASE_USER     => 'database_user' ],
-            [ GPFORUM_DATABASE_PASSWORD => 'database_password' ],
+            [ GPFORUM_DATABASE_DSN            => 'database_dsn' ],
+            [ GPFORUM_DATABASE_USER           => 'database_user' ],
+            [ GPFORUM_ADMIN_DATABASE_DSN      => 'admin_database_dsn' ],
+            [ GPFORUM_ADMIN_DATABASE_USER     => 'admin_database_user' ],
+            [ GPFORUM_ADMIN_DATABASE_PASSWORD => 'admin_database_password' ],
+            [ GPFORUM_DATABASE_PASSWORD       => 'database_password' ],
             [
                 GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS =>
                   'database_statement_timeout_ms'
@@ -158,10 +161,7 @@ const my @SECTIONS => (
     {
         name     => 'operating_system',
         settings => [
-            [ GPFORUM_OS_REUSEPORT        => 'os_reuseport' ],
-            [ GPFORUM_OS_SENDFILE         => 'os_sendfile' ],
-            [ GPFORUM_OS_WORKER_PRIORITY  => 'os_worker_priority' ],
-            [ GPFORUM_OS_STATIC_XSENDFILE => 'os_static_xsendfile' ],
+            [ GPFORUM_OS_REUSEPORT => 'os_reuseport' ],
             [
                 GPFORUM_OS_MIN_RECOMMENDED_WORKERS =>
                   'os_min_recommended_workers'

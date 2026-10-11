@@ -152,7 +152,7 @@ rebuild from event history.
 - ADRs: 0093, 0094 and 0098 (cross-alignment and amendments), 0059 (CI/CD
   and release engineering), 0070 (permission matrix), 0076 (bootstrap
   tests), 0089 (profiling and coverage automation).
-- Scripts: `script/test`, `script/coverage`, `script/profile`,
+- Scripts: `script/test`, `script/coverage`, `script/profile-nytprof`,
   `script/perlcritic`, `script/perltidy-check`, `script/perl-syntax-check`,
   `Makefile`, `.github/workflows/ci.yml`.
 - Tests: `t/` (suite), `t/integration/postgres.t`, `t/lib/GPForum/Test/`,

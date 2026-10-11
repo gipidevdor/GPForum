@@ -7,7 +7,13 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $ACTION_SUBSCRIBE => 'realtime.subscribe';
 const my $STATUS_ACTIVE    => 'active';
@@ -92,7 +98,14 @@ sub _actor_account_status ( $self, $actor ) {
 
     my $user;
     try {
-        $user = $self->schema->resultset('User')->find($user_id);
+        $user =
+          $self->functions
+          ? GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'identity_user_by_id', { user_id => $user_id }
+            )
+          )
+          : $self->schema->resultset('User')->find($user_id);
     }
     catch ($error) {
         return _deny('authentication_required');

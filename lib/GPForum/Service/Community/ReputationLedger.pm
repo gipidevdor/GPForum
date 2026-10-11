@@ -13,6 +13,9 @@ use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $TRUST_LEVEL_ONE_SCORE   => 10;
@@ -31,6 +34,9 @@ const my $SOURCE_CONSTRAINT       => 'idx_reputation_events_source_unique';
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub record_event ( $self, $input ) {
     return $self->schema->txn_do(
@@ -47,7 +53,33 @@ sub record_event ( $self, $input ) {
 # An event without a source is skipped. The event already stored for its
 # source -- before, or by a concurrent request -- is replayed; a minted id
 # already stored with no such event is minted once more.
+sub _record_by_function ( $self, $input ) {
+    my $row = {
+        %{$input},
+        created_at          => $self->clock->now_iso8601,
+        reputation_event_id => _has_source($input)
+        ? $self->id_service->uuid
+        : undef,
+        actor_id      => $input->{actor_id},
+        current_score => $input->{current_score},
+    };
+    my $result =
+      $self->functions->row( 'community_record_reputation', { row => $row } )
+      ->{result};
+    if ( $result->{retry_id} ) {
+        $row->{reputation_event_id} = $self->id_service->uuid;
+        $result = $self->functions->row( 'community_record_reputation',
+            { row => $row } )->{result};
+        if ( $result->{retry_id} ) {
+            GPForum::X::Conflict->throw(
+                message => 'the replacement reputation id is already stored' );
+        }
+    }
+    return $result;
+}
+
 sub _record_event ( $self, $input ) {
+    return $self->_record_by_function($input) if $self->functions;
     if ( !_has_source($input) ) {
         return {
             ok       => 1,

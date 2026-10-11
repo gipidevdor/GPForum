@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted.
+Superseded by owner decision D2 (2026-10-07): GlifiStore is optional in
+every environment. See "Amendment (2026-10-09)" below and
+[the walkthrough that records D2](../ops/evidence/2026-10-07-operator-walkthrough/README.md).
 
 ## Context
 
@@ -36,6 +38,19 @@ Multi-process web workers share public HTML and category list entries through
 GlifiStore. Operators must run GlifiStore in staging and production. A down
 or empty L2 never becomes authoritative. Invalidation still flows through
 `gp_local_cache`, which is now tiered when L2 is configured.
+
+## Amendment (2026-10-09)
+
+The requirement above no longer holds. No environment needs
+`GPFORUM_GLIFISTORE_URL`, and development no longer defaults to
+`tcp://127.0.0.1:7379`. `CacheFactory` builds `TieredCache` only when a URL is
+set. Without one, each process has its `LocalCache` alone, in production as
+on a laptop, and readiness reports the shared cache as `disabled`. What still
+holds is the shared-cache behaviour when a URL is set: the cache stays
+disposable, shared-cache operations fail open and retry, and an unreachable
+GlifiStore degrades readiness to `local-fallback`. `Config::requires_glifistore`,
+`Config::environment_requires_glifistore` and each profile's
+`requires_glifistore` key always answered 0 after D2, and they are gone.
 
 ## Alternatives Rejected
 

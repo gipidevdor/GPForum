@@ -1313,7 +1313,12 @@ sub _inserts {
     $storage->debugcb(
         sub {
             my ( $operation, $statement ) = @_;
-            if ( $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx )
+            if (
+                $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx
+                || (   $table eq 'suspensions'
+                    && $statement =~
+                    /api[.]moderation_suspension_insert_v[12]/msx )
+              )
             {
                 push @inserts, $statement;
             }

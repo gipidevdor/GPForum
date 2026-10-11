@@ -271,7 +271,7 @@ Observability is an engineering invariant under ADR 0093.
   `lib/GPForum/Service/Operations/` (`Readiness.pm`, `MetricsSnapshot.pm`,
   `SecurityTelemetry.pm`, `DbQueryStats.pm`, `QueryBudget.pm`),
   `lib/GPForum/Infrastructure/AuditRecord.pm`
-- `script/profile`, `script/profile-nytprof`, `script/profile-route`
+- `script/profile-nytprof`
 - `docs/OBSERVABILITY.md`, `docs/PERFORMANCE.md#profiling`,
   `docs/OPERATIONAL_BASELINE.md`, `docs/PRODUCTION_READINESS.md`
 - `t/02-health.t`, `t/23-operations-hardening.t`,

@@ -8,6 +8,10 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::Service::Identity::Support;
@@ -48,6 +52,10 @@ has support => sub { return GPForum::Service::Identity::Support->new; };
 # there before or a concurrent insert committed it first. A minted id already
 # stored is this very credential, committed by an earlier attempt, or another
 # one, and then a new id is minted.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub create_password_credential ( $self, $input ) {
     my $existing = $self->active_password_credential( $input->{user_id} );
     if ($existing) {
@@ -63,14 +71,21 @@ sub create_password_credential ( $self, $input ) {
     };
     my ( $created, $error ) =
       GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        sub { return $self->_credentials->create($row); } );
+        sub { return $self->_insert_credential($row); } );
     if ($created) {
         return $created;
     }
 
     my $conflict = GPForum::X::Conflict->caught($error);
     if ( $conflict && $conflict->on($ID_CONSTRAINT) ) {
-        my $stored = $self->_credentials->find( { id => $row->{id} } );
+        my $stored =
+          $self->functions
+          ? GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'identity_credential_by_id', { credential_id => $row->{id} }
+            )
+          )
+          : $self->_credentials->find( { id => $row->{id} } );
         if ( $self->_same_open_credential( $stored, $row ) ) {
             return $self->_skipped_credential($stored);
         }
@@ -78,7 +93,7 @@ sub create_password_credential ( $self, $input ) {
         my $reissued = { %{$row}, id => $self->id_service->uuid };
         my ( $retried, $retry_error ) =
           GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-            sub { return $self->_credentials->create($reissued); } );
+            sub { return $self->_insert_credential($reissued); } );
         if ($retried) {
             return $retried;
         }
@@ -128,6 +143,14 @@ sub active_password_credential ( $self, $user_id ) {
         return undef;
     }
 
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'identity_active_password', { user_id => $user_id }
+            )
+        );
+    }
+
     return $self->_credentials->search_rs(
         {
             revoked_at => undef,
@@ -153,6 +176,15 @@ sub hold_active_password_credential ( $self, $user_id, $credential_id ) {
         return undef;
     }
 
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'identity_hold_password',
+                { user_id => $user_id, credential_id => $credential_id }
+            )
+        );
+    }
+
     return $self->_credentials->search_rs(
         {
             id         => $credential_id,
@@ -175,6 +207,13 @@ sub hold_active_password_credential ( $self, $user_id, $credential_id ) {
 # replaced overwrote the reset. The next statement sees the new credential
 # and locks that.
 sub lock_active_password_credentials ( $self, $user_id ) {
+    if ( $self->functions ) {
+        return map { GPForum::Infrastructure::ResultRow->from($_) } @{
+            $self->functions->rows( 'identity_lock_passwords',
+                { user_id => $user_id } )
+        };
+    }
+
     for ( 1 .. $LOCK_ROUNDS ) {
         my @locked = $self->_credentials->search_rs(
             {
@@ -203,7 +242,17 @@ sub lock_active_password_credentials ( $self, $user_id ) {
 sub rotate_password_credential ( $self, $input ) {
     my $user_id = $input->{user_id};
     my @active  = $self->lock_active_password_credentials($user_id);
-    if (@active) {
+    if ( @active && $self->functions ) {
+        $self->functions->row(
+            'identity_revoke_passwords',
+            {
+                ids =>
+                  [ map { scalar $self->support->column( $_, 'id' ) } @active ],
+                revoked_at => $self->clock->now_iso8601
+            }
+        );
+    }
+    elsif (@active) {
         $self->_credentials->search_rs(
             {
                 id =>
@@ -224,6 +273,16 @@ sub rotate_password_credential ( $self, $input ) {
             user_id     => $user_id,
         }
     );
+}
+
+sub _insert_credential ( $self, $values ) {
+    if ( $self->functions ) {
+        my $stored = $self->functions->row( 'identity_insert_credential',
+            { values => $values } );
+        return GPForum::Infrastructure::ResultRow->from(
+            { map { $_ => $stored->{$_} } keys %{$values} } );
+    }
+    return $self->_credentials->create($values);
 }
 
 sub _credentials ($self) {

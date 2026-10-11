@@ -7,6 +7,9 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Outbox::DeadLetterReplay;
 use GPForum::Service::Operations::QueryBudget;
@@ -44,6 +47,10 @@ has query_budget     => sub {
 has readiness => undef;           # optional: the health block shows unknown
 __PACKAGE__->requires(qw(schema));
 
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub dashboard_summary ( $self, $options ) {
     $options ||= {};
     my $limit = _limit($options);
@@ -66,6 +73,17 @@ sub dashboard_summary ( $self, $options ) {
 sub list_users ( $self, $options ) {
     $options ||= {};
 
+    if ( $self->functions ) {
+        return $self->functions->rows(
+            'admin_console_users',
+            {
+                status => _has_text( $options->{status} )
+                ? $options->{status}
+                : undef,
+                row_limit => _limit($options)
+            }
+        );
+    }
     my $query = { deleted_at => undef };
     if ( _has_text( $options->{status} ) ) {
         $query->{status} = $options->{status};
@@ -86,6 +104,11 @@ sub list_users ( $self, $options ) {
 # The only address a console action may mail on an administrator's behalf:
 # their own (Admin::Diagnostics' test message). Undef for no such account.
 sub email_of ( $self, $user_id ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'admin_console_email',
+            { user_id => $user_id } );
+        return $row ? $row->{email_normalized} : undef;
+    }
     my $search = $self->schema->resultset('User')->search_rs(
         {
             deleted_at => undef,
@@ -100,6 +123,15 @@ sub email_of ( $self, $user_id ) {
 sub list_reports ( $self, $options ) {
     $options ||= {};
 
+    if ( $self->functions ) {
+        return $self->functions->rows(
+            'admin_console_reports',
+            {
+                status    => $options->{status} || $STATUS_OPEN,
+                row_limit => _limit($options)
+            }
+        );
+    }
     my $search = $self->schema->resultset('Report')->search_rs(
         { status => $options->{status} || $STATUS_OPEN },
         {
@@ -141,7 +173,11 @@ sub count_outbox ($self) {
 sub _count ( $self, $source ) {
     my $count;
     try {
-        $count = $self->schema->resultset($source)->count;
+        $count =
+          $self->functions
+          ? $self->functions->row( 'admin_console_counts',
+            { dead_letters => $source eq 'DeadLetter' ? 1 : 0 } )->{total}
+          : $self->schema->resultset($source)->count;
     }
     catch ($error) {
         return 0;
@@ -153,6 +189,17 @@ sub _count ( $self, $source ) {
 sub list_outbox ( $self, $options ) {
     $options ||= {};
 
+    if ( $self->functions ) {
+        return $self->functions->rows(
+            'admin_console_outbox',
+            {
+                status => _has_text( $options->{status} )
+                ? $options->{status}
+                : undef,
+                row_limit => _limit($options)
+            }
+        );
+    }
     my $query = {};
     if ( _has_text( $options->{status} ) ) {
         $query->{status} = $options->{status};
@@ -173,6 +220,10 @@ sub list_outbox ( $self, $options ) {
 sub list_dead_letters ( $self, $options ) {
     $options ||= {};
 
+    if ( $self->functions ) {
+        return $self->functions->rows( 'admin_console_dead_letters',
+            { row_limit => _limit($options) } );
+    }
     my $search = $self->schema->resultset('DeadLetter')->search_rs(
         {},
         {

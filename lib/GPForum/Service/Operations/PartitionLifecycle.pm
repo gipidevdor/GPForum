@@ -10,6 +10,10 @@ use POSIX       qw(strftime);
 use Time::HiRes ();
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Scalar::Util qw(blessed);
+
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::SqlFunctionCatalogue;
 
 use GPForum::X::Unavailable;
 
@@ -141,6 +145,12 @@ has lookahead_months => sub { return $DEFAULT_LOOKAHEAD; };
 has retry_pause_ms   => sub { return $DEFAULT_RETRY_PAUSE; };
 has schema               => undef;   # optional: only asked when no dbh is given
 has statement_timeout_ms => undef;   # optional: the session's own when unset
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+has function_catalogue =>
+  sub { return GPForum::Infrastructure::SqlFunctionCatalogue->new; };
 
 sub partitioned_tables {
     return [@PARTITIONED_TABLES];
@@ -425,6 +435,39 @@ sub _release_lock ( $handle, $result ) {
 # spilled into its DEFAULT partition: one catalog query and one EXISTS per
 # table, cheap enough for every readiness probe.
 sub horizon_report ( $self, $dbh, $now_epoch ) {
+    if (
+        $self->functions
+        || (   blessed($dbh)
+            && $dbh->isa('DBI::db')
+            && $dbh->{Driver}{Name} eq 'Pg' )
+      )
+    {
+        my $rows;
+        if ( $self->functions ) {
+            $rows = $self->functions->rows( 'ops_partition_horizon', {} );
+        }
+        else {
+            my $entry =
+              $self->function_catalogue->function('ops_partition_horizon');
+            my $statement = $dbh->prepare_cached( $entry->{sql} );
+            $statement->execute;
+            $rows = $statement->fetchall_arrayref( {} );
+        }
+        return $self->evaluate_horizon(
+            {
+                now_epoch => $now_epoch,
+                tables    => [
+                    map {
+                        {
+                            table         => $_->{table_name},
+                            horizon_epoch => $_->{horizon_epoch},
+                            default_rows  => $_->{default_has_rows} ? 1 : 0
+                        }
+                    } @{$rows}
+                ]
+            }
+        );
+    }
     my %horizon =
       map { $_->[0] => $_->[1] }
       @{ $dbh->selectall_arrayref( $HORIZON_SQL, undef, [@PARTITIONED_TABLES] )

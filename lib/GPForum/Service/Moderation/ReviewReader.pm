@@ -11,6 +11,9 @@ use GPForum::Infrastructure::Keyset;
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Clock;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_LIMIT             => 25;
@@ -20,11 +23,33 @@ const my @SUSPENSION_CURSOR_COLUMNS => qw(valid_from suspension_id);
 has clock       => sub { return GPForum::Service::Clock->new; };
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub list_actions ( $self, $options ) {
     $options ||= {};
 
-    my $page  = $self->page_window->plan($options);
+    my $page = $self->page_window->plan($options);
+    if ( $self->functions ) {
+        my $after = $page->{after} || {};
+        my $rows  = [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows(
+                    'moderation_action_list',
+                    {
+                        target_type => $options->{target_type} || undef,
+                        target_id   => $options->{target_id}   || undef,
+                        after_at    => $after->{sort_value},
+                        after_id    => $after->{id},
+                        row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
+                    }
+                )
+            }
+        ];
+        return $self->page_window->page( $rows, $page->{limit},
+            \@ACTION_CURSOR_COLUMNS );
+    }
     my $query = _action_query(
         {
             after       => $page->{after},
@@ -60,7 +85,27 @@ sub list_actions ( $self, $options ) {
 sub list_suspensions ( $self, $options ) {
     $options ||= {};
 
-    my $page  = $self->page_window->plan($options);
+    my $page = $self->page_window->plan($options);
+    if ( $self->functions ) {
+        my $after = $page->{after} || {};
+        my $rows  = [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows(
+                    'moderation_suspension_list',
+                    {
+                        user_id     => $options->{user_id} || undef,
+                        active_only => _active_only($options),
+                        now         => $self->clock->now_iso8601,
+                        after_at    => $after->{sort_value},
+                        after_id    => $after->{id},
+                        row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
+                    }
+                )
+            }
+        ];
+        return $self->page_window->page( $rows, $page->{limit},
+            \@SUSPENSION_CURSOR_COLUMNS );
+    }
     my $query = _suspension_query(
         {
             active_only => _active_only($options),

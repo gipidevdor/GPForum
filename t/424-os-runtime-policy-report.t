@@ -28,12 +28,11 @@ const my $CAPPED        => 6;
 const my $CONFIGURED    => 9;
 const my $LOW_BACKLOG   => 63;
 const my $FLOOR_BACKLOG => 64;
-const my %SETTINGS      => ( reuseport => 'on', sendfile => 'auto' );
+const my %SETTINGS      => ( reuseport => 'on' );
 
 subtest 'every part of the report, on a host that degrades' => sub {
     my $profile = _profile(
         reuseport => 1,
-        sendfile  => 0,
         degraded  => [qw(tcp_nodelay keepalive)],
     );
     my $policy = _policy(
@@ -111,23 +110,13 @@ subtest 'every part of the report, on a host that degrades' => sub {
         },
         'the backlog'
     );
-    is_deeply(
-        $report->{static_transfer},
-        {
-            mode      => 'perl-fallback',
-            sendfile  => $profile->sockets->{sendfile},
-            xsendfile => 0,
-            boundary  => 'reverse-proxy-or-web-server',
-        },
-        'no sendfile and no X-Sendfile fall back to Perl'
-    );
     is_deeply( [ grep { ref ne 'HASH' || !%{$_} } @{ $profile->asked } ],
         [], 'every snapshot is asked with the runtime feature settings' );
 };
 
 subtest 'a host that degrades nothing' => sub {
     my $policy = _policy(
-        _profile( reuseport => 0, sendfile => 1 ),
+        _profile( reuseport => 0 ),
         runtime_backlog       => $FLOOR_BACKLOG,
         runtime_worker_policy => 'configured',
     );
@@ -138,17 +127,6 @@ subtest 'a host that degrades nothing' => sub {
         [qw(ok ok ok ok)], 'the backlog floor itself is ok' );
     is( $report->{hypnotoad}{workers},
         $CONFIGURED, 'the configured policy keeps the configured count' );
-    is( $report->{static_transfer}{mode},
-        'delegated', 'sendfile delegates static transfer' );
-};
-
-subtest 'X-Sendfile alone delegates too' => sub {
-    my $profile = _profile( reuseport => 0, sendfile => 0 );
-    $profile->features->{static_xsendfile}{enabled} = 1;
-    my $transfer = _policy($profile)->report->{static_transfer};
-
-    is( $transfer->{mode},      'delegated', 'delegated' );
-    is( $transfer->{xsendfile}, 1,           'and says X-Sendfile is on' );
 };
 
 subtest 'no listen location is a degraded check' => sub {
@@ -220,12 +198,11 @@ sub _profile (%host) {
             degraded  => $degraded{$_}        ? 1             : 0,
             setting   => exists $SETTINGS{$_} ? $SETTINGS{$_} : q{auto},
         }
-    } qw(reuseport keepalive tcp_nodelay sendfile);
+    } qw(reuseport keepalive tcp_nodelay);
 
     return GPForum::Test::RuntimePolicyProfile->new(
         cpu_count => $CPUS,
         sockets   => \%sockets,
-        features  => { static_xsendfile => { enabled => 0 } },
     );
 }
 

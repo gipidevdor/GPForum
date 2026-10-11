@@ -268,20 +268,42 @@ script/gpforum-carton check
 # every start and every command.
 script/gpforum-carton exec perl -e 1
 
-# What to type next, in the operator's language: a production host is set
-# up, a development checkout's host checked, as the README goes on. A lock
-# refresh is a maintainer's, with nothing after it.
+# Whether this host is set up already: the environment file gpforum reads is
+# in place, so this install is a step of an upgrade, and gpforum upgrade
+# printed the ones after it.
+# shellcheck disable=SC2016 # Perl, not the shell, reads the variables
+set_up=$(script/gpforum-carton exec perl -I"$root/lib" -MGPForum::OS -e \
+    'my $file = $ENV{GPFORUM_ENV_FILE} // GPForum::OS->detect->environment_file; print -e $file ? 1 : 0' \
+    2>/dev/null) || set_up=0
+[ -n "$set_up" ] || set_up=0
+
+# What to type next, in the operator's language: a host not set up yet is
+# set up, a production one as root, by the path that works before the link,
+# and a checkout for development, as the README goes on. An upgrade has its
+# next step printed already, and a lock refresh is a maintainer's: nothing
+# after either. It named script/system-preflight, a step the quick start
+# no longer has, even in an upgrade.
 if [ "$update" -eq 0 ] && [ -r "$root/script/lib/words.sh" ]; then
     # shellcheck source=script/lib/words.sh
     . "$root/script/lib/words.sh"
-    echo
     if [ "${for_setup:-0}" -eq 1 ]; then
+        echo
         words_mark ok "$(words_say system.deps_installed 'dependencies: installed into {local}, for Perl {version}' \
             "local=$root/local" "version=$current_perl")"
+    elif [ "$set_up" -eq 1 ]; then
+        :
     elif [ "$production" -eq 1 ]; then
+        echo
         words_say system.next_setup 'Next: set this host up, with sudo {gpforum} setup' \
             "gpforum=$root/bin/gpforum"
     else
-        words_say system.next_preflight 'Next: check the host, with script/system-preflight'
+        # As the README's quick start types it: through sudo, which writes
+        # /etc/gpforum and links /usr/local/bin, but on macOS, whose are
+        # Homebrew's and the operator's own.
+        checkout_setup='bin/gpforum setup --environment development'
+        [ "$(uname -s)" = Darwin ] || checkout_setup="sudo $checkout_setup"
+        echo
+        words_say system.next_setup_checkout 'Next: set this checkout up, with {command}' \
+            "command=$checkout_setup"
     fi
 fi

@@ -81,10 +81,14 @@ const my $ROW_WAIT_SQL => join q{ },
   'SELECT count(*) FROM pg_stat_activity',
   'WHERE ? = ANY (pg_blocking_pids(pid))',
   q{AND wait_event IN ('transactionid', 'tuple')};
+
+# The delete and reply take compatible thread locks and different post rows.
+# Their shared row is the counter; a row wait on the delete's backend proves
+# that queue even when pg_stat_activity shows only the enclosing API call.
 const my $COUNTER_WAIT_SQL => join q{ },
   'SELECT count(*) FROM pg_stat_activity',
   'WHERE ? = ANY (pg_blocking_pids(pid))',
-  q{AND query LIKE 'UPDATE thread_counters %'};
+  q{AND wait_event IN ('transactionid', 'tuple')};
 const my $LIVE_REPLY_SQL => join q{ },
   'SELECT post_id, thread_id, author_user_id FROM posts',
   'WHERE thread_id = ? AND position > 1 AND deleted_at IS NULL',

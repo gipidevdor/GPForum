@@ -13,7 +13,13 @@ use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $CURRENT_STATUS     => 'current';
 const my $CATCHING_UP_STATUS => 'catching_up';
@@ -25,7 +31,8 @@ __PACKAGE__->requires(qw(schema));
 has clock => sub { return GPForum::Service::Clock->new; };
 
 sub record_progress ( $self, $projection_name, $event ) {
-    my $existing = $self->_existing_offset($projection_name);
+    my $existing =
+      $self->functions ? undef : $self->_existing_offset($projection_name);
     if ( $existing
         && _same_id( _column( $existing, 'last_event_id' ), $event->{event_id} )
       )
@@ -52,7 +59,8 @@ sub record_progress ( $self, $projection_name, $event ) {
 }
 
 sub mark_failed ( $self, $projection_name ) {
-    my $existing = $self->_existing_offset($projection_name);
+    my $existing =
+      $self->functions ? undef : $self->_existing_offset($projection_name);
     if ( _already_failed($existing) ) {
         return _skipped_progress($existing);
     }
@@ -69,6 +77,11 @@ sub mark_failed ( $self, $projection_name ) {
 }
 
 sub observe_lag ( $self, $projection_name ) {
+    if ( $self->functions ) {
+        my $found = $self->functions->row( 'projection_offset_get',
+            { projection_name => $projection_name } );
+        return $found ? $found->{document} : undef;
+    }
     my $row =
       $self->schema->resultset('ProjectionOffset')->find($projection_name);
 
@@ -86,6 +99,10 @@ sub observe_lag ( $self, $projection_name ) {
 # to a concurrent one keeps the winner when it already says the same, and
 # writes over it when it does not.
 sub _write_offset ( $self, $row, $existing ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'projection_offset_write',
+            { row => $row } )->{document};
+    }
     my $offsets = $self->schema->resultset('ProjectionOffset');
     if ( !$existing ) {
         my ( $created, $error ) =

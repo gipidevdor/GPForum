@@ -361,6 +361,30 @@ const my @SETTINGS => map {
         operator => 1,
     },
     {
+        name    => 'admin_database_dsn',
+        env     => 'GPFORUM_ADMIN_DATABASE_DSN',
+        default => undef,
+        section => 'database',
+        summary =>
+'Administrative PostgreSQL connection for API-role provisioning; keep it outside the web service environment.',
+    },
+    {
+        name    => 'admin_database_user',
+        env     => 'GPFORUM_ADMIN_DATABASE_USER',
+        default => undef,
+        section => 'database',
+        summary =>
+'Administrative PostgreSQL role; set it only in the separate operator environment.',
+    },
+    {
+        name    => 'admin_database_password',
+        env     => 'GPFORUM_ADMIN_DATABASE_PASSWORD',
+        default => undef,
+        section => 'database',
+        summary =>
+'Administrative role password; keep it in the administrator environment or pgpass.',
+    },
+    {
         name    => 'database_statement_timeout_ms',
         env     => 'GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS',
         default => 15_000,
@@ -611,31 +635,6 @@ const my @SETTINGS => map {
         one_of  => [qw(auto on off)],
         section => 'operating_system',
         summary => 'SO_REUSEPORT on the listen socket: auto, on or off.',
-    },
-    {
-        name    => 'os_sendfile',
-        env     => 'GPFORUM_OS_SENDFILE',
-        default => 'auto',
-        one_of  => [qw(auto on off)],
-        section => 'operating_system',
-        summary => 'sendfile for static files: auto, on or off.',
-    },
-    {
-        name    => 'os_worker_priority',
-        env     => 'GPFORUM_OS_WORKER_PRIORITY',
-        default => 'auto',
-        one_of  => [qw(auto on off)],
-        section => 'operating_system',
-        summary => 'A lower priority for background work: auto, on or off.',
-    },
-    {
-        name    => 'os_static_xsendfile',
-        env     => 'GPFORUM_OS_STATIC_XSENDFILE',
-        default => 'auto',
-        one_of  => [qw(auto on off)],
-        section => 'operating_system',
-        summary => q{Static files through the proxy's X-Sendfile: auto, on or}
-          . ' off.',
     },
     {
         name    => 'os_affinity',
@@ -1077,12 +1076,6 @@ sub settings ($class) {
     return [ map { +{ %{$_} } } @SETTINGS ];
 }
 
-# GlifiStore is optional everywhere (D2). Kept, always false, for the callers
-# that still ask.
-sub requires_glifistore ($self) {
-    return 0;
-}
-
 sub requires_secure_transport ($self) {
     return _is_deployed( $self->environment );
 }
@@ -1098,16 +1091,6 @@ sub signing_secrets ($self) {
 
 sub accepted_metrics_tokens ($self) {
     return _unique_head( $self->metrics_token, $self->previous_metrics_tokens );
-}
-
-sub environment_requires_glifistore ( $, $environment ) {
-    return 0;
-}
-
-# GPFORUM_SMTP_SSL's old reading, for the callers that still ask: 1 when the
-# SMTP connection is encrypted, either way.
-sub smtp_ssl ($self) {
-    return $self->smtp_tls eq 'off' ? 0 : 1;
 }
 
 # Mail sent by smtp with TLS on, from a Perl that cannot load the TLS module,
@@ -1238,13 +1221,7 @@ sub sizing ($self) {
 }
 
 sub os_feature_settings ($self) {
-    return {
-        reuseport        => $self->os_reuseport,
-        sendfile         => $self->os_sendfile,
-        worker_priority  => $self->os_worker_priority,
-        static_xsendfile => $self->os_static_xsendfile,
-        affinity         => $self->os_affinity,
-    };
+    return { reuseport => $self->os_reuseport, };
 }
 
 sub os_preflight_settings ($self) {
@@ -1945,11 +1922,6 @@ C<aliases>, in table order. Each alias is an old variable (C<env>, with the C<va
 read as) or an old value (C<value>, read C<as> the current one), with
 C<read_until>, the release that stops reading it.
 
-=head2 requires_glifistore
-
-Always false: GlifiStore is optional in every environment. Kept for callers
-that still ask.
-
 =head2 requires_secure_transport
 
 True for staging and production profiles. Those environments require a
@@ -1976,16 +1948,6 @@ C<GPFORUM_METRICS_TOKENS>. Scrapers may present either during rotation.
 Staging and production refuse to start without C<GPFORUM_METRICS_TOKEN>, so
 the list is never empty there and C</metrics> cannot fail open. Development
 and test may leave it unset and keep C</metrics> unauthenticated.
-
-=head2 environment_requires_glifistore
-
-Class helper for the same answer as L</requires_glifistore>: always false.
-
-=head2 smtp_ssl
-
-1 when the SMTP connection is encrypted (C<smtp_tls> is C<starttls> or
-C<implicit>), 0 when it is C<off>: what C<GPFORUM_SMTP_SSL> used to say,
-for the callers that still ask.
 
 =head2 smtp_tls_problem
 
@@ -2046,7 +2008,7 @@ operator set to another number is left out.
 
 =head2 os_feature_settings
 
-The C<os_*> feature switches, keyed without the prefix.
+The OS feature switch, C<GPFORUM_OS_REUSEPORT>, keyed without the prefix.
 
 =head2 os_preflight_settings
 

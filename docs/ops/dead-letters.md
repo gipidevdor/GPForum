@@ -28,7 +28,7 @@ Admin `/admin/jobs` lists recent dead letters through
 type and the state of each one's replay if it has one. From the shell:
 
 ```sh
-script/dead-letter-replay --list --limit 100
+gpforum dead-letters --list --limit 100
 ```
 
 With `--json` the list is one JSON object, for a script or an alert:
@@ -95,7 +95,7 @@ Read `failure_type` before acting:
    button on `/admin/jobs` or from the shell:
 
    ```sh
-   script/dead-letter-replay --id DEAD_LETTER_ID
+   gpforum dead-letters --id DEAD_LETTER_ID
    ```
 
    A replay enqueues a **new** outbox message for the same event, job and

@@ -5,6 +5,8 @@ package GPForum::Command::QueryPlanEvidence;
 
 use Carp qw(croak);
 use Const::Fast;
+use Encode        ();
+use English       qw(-no_match_vars);
 use JSON::MaybeXS qw(decode_json encode_json);
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -15,11 +17,12 @@ use GPForum::Benchmark::PlanRules qw(
   unindexable
 );
 use GPForum::Benchmark::QueryPlanEndpoints qw(
-  endpoint_definition endpoint_names read_deep_page
+  endpoint_definition endpoint_names function_endpoint_names read_deep_page
 );
 use GPForum::Command::PerformanceSeed;
 use GPForum::Command::Usage;
 use GPForum::Config;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Schema;
 use GPForum::X::Usage;
 
@@ -27,13 +30,32 @@ our $VERSION = '0.001';
 
 const my $EXIT_USAGE => 2;
 
+# ADR 0126, section 9. A function's statements are planned inside it, where
+# EXPLAIN does not reach: auto_explain logs the plan of each statement the
+# call runs, nested ones included, and client_min_messages sends the log to
+# this session. The plans judged are those of the sixth call, the plan the
+# function's pinned plan mode caches. LOAD and these settings need a
+# superuser unless the server preloads auto_explain; without them the
+# endpoint is unmeasured, which fails the report rather than pass it.
+const my $WARM_CALLS => 5;
+const my @AUTO_EXPLAIN => (
+    q{LOAD 'auto_explain'},
+    'SET LOCAL auto_explain.log_min_duration = 0',
+    'SET LOCAL auto_explain.log_nested_statements = on',
+    'SET LOCAL auto_explain.log_format = json',
+    'SET LOCAL client_min_messages = log',
+);
+const my $NESTED_PLAN => qr/plan: \s* (?<plan> [{] .* [}] ) \s* \z/msx;
+const my $CALL_TEXT   => qr/\A SELECT [ ] [*] [ ] FROM [ ] api [.]/msx;
+
 const my %SWITCH_OPTION => (
-    '--analyze'    => { analyze => 1 },
-    '--check'      => { check   => 1 },
-    '--dry-run'    => { dry_run => 1 },
-    '--help'       => { help    => 1 },
-    '--json'       => { format  => 'json' },
-    '--no-analyze' => { analyze => 0 },
+    '--analyze'    => { analyze   => 1 },
+    '--check'      => { check     => 1 },
+    '--dry-run'    => { dry_run   => 1 },
+    '--functions'  => { functions => 1 },
+    '--help'       => { help      => 1 },
+    '--json'       => { format    => 'json' },
+    '--no-analyze' => { analyze   => 0 },
 );
 
 has dbh    => undef;    # optional: a test passes one; else the schema's
@@ -91,9 +113,9 @@ sub _run ( $self, @arguments ) {
 sub evidence_report ( $self, $options ) {
     $options->{profile} ||= 'small';
     my @endpoints =
-        @{ $options->{endpoints} }
-      ? @{ $options->{endpoints} }
-      : endpoint_names();
+        @{ $options->{endpoints} } ? @{ $options->{endpoints} }
+      : $options->{functions}      ? function_endpoint_names()
+      :                              endpoint_names();
     if ( $options->{dry_run} ) {
         return _dry_run_report( \@endpoints, $options );
     }
@@ -131,6 +153,10 @@ sub format_report ( $self, $report, $format ) {
 # page's is the baseline the deep page's filtering is compared with.
 sub _endpoint_report ( $self, $dbh, $endpoint, $options ) {
     my $definition = _endpoint_definition($endpoint);
+    if ( $definition->{call} ) {
+        return $self->_function_report( $dbh, $endpoint, $definition,
+            $options );
+    }
 
     # A deep endpoint's page is read once per report for each kind of list,
     # and the first page of that list is planned beside it.
@@ -175,6 +201,168 @@ sub _endpoint_report ( $self, $dbh, $endpoint, $options ) {
             ( $depth ? ( depth => $depth ) : () ),
         },
     };
+}
+
+# A function endpoint: the plans of the statements the reader's call runs
+# inside its function, each judged as an endpoint's statement is, and a deep
+# page's filtering against its first page's.
+sub _function_report ( $self, $dbh, $endpoint, $definition, $options ) {
+    my $kind = $definition->{deep};
+    my $page =
+      defined $kind
+      ? ( $self->deep_pages->{$kind} //= read_deep_page( $dbh, $kind ) )
+      : undef;
+    my $statement = $self->_call_statement( $definition, $page );
+    my $first =
+        $page && defined $page->{after}
+      ? $self->_call_statement( $definition, { %{$page}, after => undef } )
+      : undef;
+
+    my $explained;
+    try {
+        $explained = _explain_nested( $dbh, $statement, $options, $first );
+    }
+    catch ($error) {
+        return _unmeasured( $endpoint, $definition, $error );
+    };
+
+    my $analysis = _judged_nested( $dbh, $definition, $explained );
+    my ( $plan, $first_plan ) =
+      ( $explained->{plan}[0] // {}, $explained->{first}[0] // {} );
+    my $depth =
+      $page
+      ? depth_evidence(
+        $dbh,
+        $analysis,
+        $page,
+        {
+            deep           => $plan,
+            first          => $first_plan,
+            same_statement => (
+                ( $plan->{'Query Text'}         // q{} ) eq
+                  ( $first_plan->{'Query Text'} // q{} ) ? 1 : 0
+            ),
+        }
+      )
+      : undef;
+    $analysis->{status} = @{ $analysis->{violations} } ? 'fail' : 'ok';
+
+    return {
+        endpoint   => $endpoint,
+        status     => $analysis->{status},
+        purpose    => $definition->{purpose},
+        sql_label  => $definition->{sql_label},
+        violations => $analysis->{violations},
+        warnings   => $analysis->{warnings},
+        summary    => {
+            nested_statements => scalar @{ $explained->{plan} },
+            root_node         => $plan->{Plan}{'Node Type'},
+            plan_rows         => $plan->{Plan}{'Plan Rows'}         || 0,
+            actual_rows       => $plan->{Plan}{'Actual Rows'}       || 0,
+            total_cost        => $plan->{Plan}{'Total Cost'}        || 0,
+            actual_time_ms    => $plan->{Plan}{'Actual Total Time'} || 0,
+            ( $depth ? ( depth => $depth ) : () ),
+        },
+    };
+}
+
+# Every nested plan judged as an endpoint's statement is, and the forced
+# plans asked whether an index answers them.
+sub _judged_nested ( $dbh, $definition, $explained ) {
+    my $analysis = { violations => [], warnings => [] };
+    for my $plan ( @{ $explained->{plan} } ) {
+        my $judged =
+          analyze_plan( $definition, [ $plan->{'Query Text'} // q{} ], $plan );
+        push @{ $analysis->{violations} }, @{ $judged->{violations} };
+        push @{ $analysis->{warnings} },   @{ $judged->{warnings} };
+    }
+    small_table_scans_are_warnings( $dbh, $analysis, $definition );
+    push @{ $analysis->{violations} },
+      map { unindexable( $definition, $_ ) } @{ $explained->{forced} };
+
+    return $analysis;
+}
+
+# An endpoint whose plans could not be read: not a pass.
+sub _unmeasured ( $endpoint, $definition, $error ) {
+    my ($reason) = split /\n/msx, "$error";
+
+    return {
+        endpoint   => $endpoint,
+        status     => 'unmeasured',
+        purpose    => $definition->{purpose},
+        sql_label  => $definition->{sql_label},
+        violations => [],
+        warnings   => ["auto_explain_unavailable: $reason"],
+    };
+}
+
+# The statement and values the reader's call sends, through the layer's own
+# binding, so this explains what the application runs.
+sub _call_statement ( $self, $definition, $page = undef ) {
+    my ( $name, $values ) =
+      @{ $definition->{call}->( $self->_schema, ( $page ? ($page) : () ) ) };
+
+    return GPForum::Infrastructure::SqlFunction->new( schema => $self->_schema )
+      ->statement( $name, $values );
+}
+
+# The nested plans of the call, the first page's, and with sequential scans
+# disabled the plans no index can do without. All in one transaction that is
+# rolled back, as _explain takes its plans; DISCARD PLANS makes the forced
+# call plan again, where the function would reuse the plan it cached.
+sub _explain_nested ( $dbh, $statement, $options, $first = undef ) {
+    my @log;
+    local $SIG{__WARN__} = sub ($message) { push @log, $message; return; };
+
+    $dbh->begin_work;
+    my ( %plans, $error );
+    try {
+        for my $setting ( @AUTO_EXPLAIN,
+            'SET LOCAL auto_explain.log_analyze = '
+            . ( $options->{analyze} ? 'on' : 'off' ) )
+        {
+            $dbh->do($setting);
+        }
+        if ($first) {
+            $plans{first} = _nested_plans( $dbh, $first, \@log );
+        }
+        $plans{plan} = _nested_plans( $dbh, $statement, \@log );
+        $dbh->do('SET LOCAL auto_explain.log_analyze = off');
+        $dbh->do('SET LOCAL enable_seqscan = off');
+        $dbh->do('DISCARD PLANS');
+        $plans{forced} = _nested_plans( $dbh, $statement, \@log );
+    }
+    catch ($caught) {
+        $error = $caught;
+    };
+    $dbh->rollback;
+    croak $error if defined $error;
+
+    return \%plans;
+}
+
+# The plans auto_explain logged for the statements the last of six calls ran
+# inside its function: the call's own plan is left out.
+sub _nested_plans ( $dbh, $statement, $log ) {
+    my ( $sql, @bind ) = @{$statement};
+    for ( 1 .. $WARM_CALLS ) {
+        $dbh->selectall_arrayref( $sql, undef, @bind );
+    }
+    @{$log} = ();
+    $dbh->selectall_arrayref( $sql, undef, @bind );
+
+    my @plans;
+    for my $message ( @{$log} ) {
+        next if $message !~ $NESTED_PLAN;
+        my $plan =
+          decode_json( Encode::encode_utf8( $LAST_PAREN_MATCH{plan} ) );
+        next if ( $plan->{'Query Text'} // q{} ) =~ $CALL_TEXT;
+        push @plans, $plan;
+    }
+    @{$log} = ();
+
+    return \@plans;
 }
 
 # The first page's plan, and whether the reader made the two pages one
@@ -345,6 +533,7 @@ sub _options (@arguments) {
             dry_run   => 0,
             endpoints => [],
             format    => 'text',
+            functions => 0,
             help      => 0,
             profile   => 'small',
         },
@@ -355,7 +544,8 @@ sub _options (@arguments) {
                 '--endpoint' => sub ( $options, $value ) {
                     push @{ $options->{endpoints} },
                       GPForum::Command::Usage->option_choice( $value,
-                        [ endpoint_names() ], $usage );
+                        [ endpoint_names(), function_endpoint_names() ],
+                        $usage );
                 },
                 '--profile' => sub ( $options, $value ) {
                     $options->{profile} =
@@ -378,7 +568,7 @@ sub _usage {
     return
         'Usage: '
       . GPForum::Command::Usage->program
-      . ' [--dry-run] [--json] [--check] [--analyze] [--no-analyze] [--profile small|medium|hot-thread] [--endpoint NAME] ...';
+      . ' [--dry-run] [--json] [--check] [--analyze] [--no-analyze] [--functions] [--profile small|medium|hot-thread] [--endpoint NAME] ...';
 }
 
 1;

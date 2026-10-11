@@ -33,7 +33,6 @@ const my %PROFILES => (
     development => {
         local_cache_max_entries         => 256,
         name                            => 'development',
-        requires_glifistore             => 0,
         requires_rotated_session_secret => 0,
         restore_evidence_required       => 0,
         version                         => $PROFILE_VERSION,
@@ -42,7 +41,6 @@ const my %PROFILES => (
     staging => {
         local_cache_max_entries         => 512,
         name                            => 'staging',
-        requires_glifistore             => 0,
         requires_rotated_session_secret => 1,
         restore_evidence_required       => 1,
         version                         => $PROFILE_VERSION,
@@ -51,7 +49,6 @@ const my %PROFILES => (
     production => {
         local_cache_max_entries         => 2_048,
         name                            => 'production',
-        requires_glifistore             => 0,
         requires_rotated_session_secret => 1,
         restore_evidence_required       => 1,
         version                         => $PROFILE_VERSION,
@@ -186,8 +183,7 @@ cache are sized from the host's CPUs and memory
 L<GPForum::Config/automatic_local_cache_max_entries>), and each floor is the
 profile's or what the host is sized for, when that is less. Retention is a
 setting of its own, C<GPFORUM_EVENT_RETENTION_DAYS>. No profile requires a
-GlifiStore URL; C<requires_glifistore> stays in each, always 0, for the
-reports that print it.
+GlifiStore URL (owner decision D2).
 
 =head1 SUBROUTINES/METHODS
 

@@ -56,7 +56,7 @@ sub summary ( $, %input ) {
         os           => $profile->snapshot,
         os_features  => $profile->feature_snapshot($settings),
         os_sockets   => $profile->socket_snapshot($settings),
-        os_processes => $profile->process_snapshot($settings),
+        os_processes => $profile->process_snapshot,
         time         => $input{clock}->now_iso8601,
     };
 }

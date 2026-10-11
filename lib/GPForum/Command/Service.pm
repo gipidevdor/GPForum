@@ -32,6 +32,14 @@ const my $STAT_MODE    => 2;
 const my $STAT_OWNER   => 4;
 const my $OTHERS_WRITE => oct '002';
 
+# The account the services run as, and the mode of the directory they log to.
+const my $SERVICE_USER => 'gpforum';
+const my $LOG_MODE     => oct '750';
+
+# Where getpwnam puts the uid and the gid.
+const my $PW_UID => 2;
+const my $PW_GID => 3;
+
 # `gpforum service print`: the service files deploy/ ships, written for this
 # host -- its code directory, its environment file, the forum's public name
 # and the address the application listens on -- printed for the operator
@@ -56,6 +64,14 @@ has words => sub { return GPForum::Command::Support::Words->new; };
 # the front door runs the verbs that set a forum up from the code
 # directory.
 has directory => sub { return getcwd(); };
+
+# Who runs it, and the uid and gid of the account the services run as, or
+# undef when there is none; a test gives its own.
+has effective_uid   => sub { return $EFFECTIVE_USER_ID; };
+has service_account => sub {
+    my ( $uid, $gid ) = ( getpwnam $SERVICE_USER )[ $PW_UID, $PW_GID ];
+    return defined $uid ? [ $uid, $gid ] : undef;
+};
 
 has output => sub { return \*STDOUT; };
 has errors => sub { return \*STDERR; };
@@ -222,11 +238,15 @@ sub _written ( $self, $request, $files, $notes ) {
     my $in_place = $self->_in_place( $request->{target}, $into );
 
     my $refused = $self->_refused( $request, $into, $typed, $in_place )
+      // $self->_needs_root( $request, $into, $files, $in_place, $typed )
       // ( $in_place ? $self->_uncertified($files) : undef );
     return $self->_failed( $request, $refused ) if defined $refused;
 
     try {
         _write_all( $into, $files, $in_place );
+        if ($in_place) {
+            $self->_make_logs( $request->{target} );
+        }
     }
     catch ($error) {
         return $self->_failed(
@@ -292,6 +312,49 @@ sub _in_place ( $self, $target, $into ) {
           @{ $self->files->files($target) } ) ? 1 : 0;
 }
 
+# Why the files cannot be written by this account, or undef: a directory
+# they go in, or the one that would hold it, is root's -- /Library/
+# LaunchDaemons, /etc/systemd/system. File::Temp's own error came out
+# instead, "Error in tempfile() using template ...: Permission denied"; the
+# sentence says to run it with sudo, as typed.
+sub _needs_root ( $self, $request, $into, $files, $in_place, $typed ) {
+    return undef if $self->effective_uid == 0;
+
+    my @directories =
+      $in_place ? map { path( $_->{destination} ) } @{$files} : ($into);
+    my ($closed) = grep { !-w } map { _nearest_existing($_) } @directories;
+    return undef if !defined $closed;
+
+    my $command = join q{ }, 'sudo gpforum service print', $request->{target},
+      @{ $request->{names} }, '--to', _shell_word($typed);
+    return $self->_said(
+        'cli.service.needs_root',
+        {
+            directory => $closed->to_string,
+            command   =>
+              GPForum::Command::Support::ServiceEnvironment->as_read($command),
+        }
+    );
+}
+
+# The directory itself, or the nearest one above it that is there: the one
+# make_path writes into.
+sub _nearest_existing ($directory) {
+    my $here = $directory;
+    while ( !-e $here && $here->dirname ne $here ) {
+        $here = $here->dirname;
+    }
+
+    return $here;
+}
+
+# A directory as a shell takes it: bare, or single-quoted.
+sub _shell_word ($word) {
+    return $word if $word =~ m{\A [\w/.,:@%+=-]+ \z}msx;
+
+    return q{'} . ( $word =~ s/'/'\\''/grmsx ) . q{'};
+}
+
 # Why a proxy's site is not put in place, or undef: nginx refuses a site
 # whose certificate is not there yet, and a reload with it would take every
 # site the proxy serves down, so the certificate comes first.
@@ -301,17 +364,41 @@ sub _uncertified ( $self, $files ) {
           $file->{text} =~ /^ \s* ssl_certificate \s+ ([^;\s]+) ;/msx;
         next if !defined $certificate || $self->files->exists->($certificate);
 
+        # Before certbot is installed, the packages that bring it come
+        # first, as the bare print names them.
+        my $take     = $self->files->certificate_command // 'certbot certonly';
+        my $packages = $self->files->packages_step('nginx');
         return $self->_said(
             'cli.service.no_certificate',
             {
                 certificate => $certificate,
-                command     => $self->files->certificate_command
-                  // 'certbot certonly',
+                command     => defined $packages
+                ? "$packages && $take"
+                : $take,
             }
         );
     }
 
     return undef;
+}
+
+# The directory the services log to, put in place with them: launchd opens
+# it before a job starts, and refuses the job without it. It was a command
+# of its own, after service print --to; as root, which writes into
+# /Library/LaunchDaemons, it is made here, the account's, 0750, as that
+# command made it. Without the account, or root, the step stays.
+sub _make_logs ( $self, $target ) {
+    my $logs = $self->files->log_directory($target);
+    return if !defined $logs || -d $logs || $self->effective_uid != 0;
+
+    my ( $uid, $gid ) = @{ $self->service_account // [] };
+    return if !defined $uid;
+
+    path($logs)->make_path;
+    chown $uid, $gid, $logs or croak "chown $logs: $OS_ERROR";
+    chmod $LOG_MODE, $logs or croak "chmod $logs: $OS_ERROR";
+
+    return;
 }
 
 # Each file written into the directory, or, in place, into the directory it
@@ -530,7 +617,9 @@ host's code directory, environment file, public name and listen address in
 place of the templates' own
 (L<GPForum::Service::Operations::ServiceFiles>), followed by the commands
 that put them in place and start them. With C<--to DIR> it writes them into
-a directory to read first. It installs nothing.
+a directory to read first. Into the directory this host reads them from,
+as root, it also makes the directory the launchd jobs log to, the
+C<gpforum> account's; it installs and starts nothing.
 
 =head1 SUBROUTINES/METHODS
 
@@ -543,12 +632,24 @@ Takes the command line and returns the exit status: 0 printed or written,
 
 Class method. The C<--help> text.
 
+=head2 effective_uid
+
+The user id it runs as; a test gives its own.
+
+=head2 service_account
+
+The uid and gid of the C<gpforum> account, as an array reference, or undef
+when the host has none; a test gives its own.
+
 =head1 DIAGNOSTICS
 
 A directory that holds anything but the target's files, or a link or a
 directory under one of their names, one another account can change, one
 that is a file, or one that cannot be written is refused with a sentence
-that says so, and exit status 1. Each file is written beside its name and
+that says so, and exit status 1: one only root can write into names the
+command again with C<sudo>, and an nginx site without its certificate the
+packages that bring certbot, when it is not installed, before the command
+that takes it. Each file is written beside its name and
 renamed onto it, so a link is replaced, never followed.
 
 =head1 CONFIGURATION AND ENVIRONMENT

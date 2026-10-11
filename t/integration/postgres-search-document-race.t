@@ -23,9 +23,8 @@ if ( !$ENV{GPFORUM_DATABASE_DSN} ) {
 }
 
 # A search document's id is derived from its entity, so a second insert of
-# one entity collides on the primary key and the entity key alike, and
-# PostgreSQL names the primary key. The indexer recovered only a conflict
-# named on the entity key, so the race it says it contains raised instead.
+# one entity collides on the primary key and the entity key alike. Either
+# constraint may be reported; the indexer must preserve the winning document.
 my $database =
   GPForum::Test::PostgresHarness::create_database( $ENV{GPFORUM_DATABASE_DSN} );
 local $ENV{GPFORUM_DATABASE_DSN} = $database->{dsn};
@@ -63,22 +62,30 @@ $dbh->do(
 my $insert_held =
   "INSERT INTO search_documents ($columns) SELECT $columns FROM held";
 
-my $conflict;
+my ( $conflict, $insert_error );
 try {
     $dbh->do($insert_held);
 }
 catch ($error) {
-    $conflict = GPForum::X::Conflict->from_error( $error, $rival );
+    $insert_error = $error;
+    $conflict     = GPForum::X::Conflict->from_error( $error, $rival );
 };
 ok(
-    $conflict && $conflict->on('search_documents_pkey'),
-    'PostgreSQL reports the second document on its primary key'
+    $conflict && ( $conflict->on('search_documents_pkey')
+        || $conflict->on('search_documents_entity_key') ),
+    'PostgreSQL rejects the duplicate through a document uniqueness constraint'
+) or diag( $insert_error // 'duplicate insertion raised no error' );
+is(
+    scalar $dbh->selectrow_array(
+        'SELECT count(*) FROM search_documents WHERE entity_id = ?', undef,
+        $thread_id
+    ),
+    1,
+    'the rejected insert leaves exactly one document'
 );
-ok( $conflict && !$conflict->on('search_documents_entity_key'),
-    'and not on its entity key' );
 
-# The race: the indexer finds no document, and the rival commits one after
-# that look and before the insert -- the moment the indexer reads its clock.
+# The rival commits its document immediately before the indexer's function
+# call, at the moment the indexer reads its clock.
 $dbh->do( 'DELETE FROM search_documents WHERE search_document_id = ?',
     undef, $indexed->{search_document_id} );
 my $clock = GPForum::Test::InterleavedClock->new(
@@ -102,6 +109,34 @@ is(
     ),
     1,
     'and no second document is written'
+);
+
+# Independent sessions contend for the same document lock. One builds the
+# projection and the other recognizes that exact projection without rewriting.
+$dbh->do( 'DELETE FROM search_documents WHERE entity_id = ?',
+    undef, $thread_id );
+my @workers = GPForum::Test::PostgresHarness::race(
+    sub ($slot) {
+        return GPForum::Service::Search::Indexer->new(
+            schema => GPForum::Test::PostgresHarness::connect_schema() )
+          ->index_thread($thread_id);
+    }
+);
+for my $slot ( 0 .. $#workers ) {
+    ok(
+        $workers[$slot]{ok} && $workers[$slot]{result},
+        "simultaneous indexer $slot succeeds"
+    );
+}
+is( scalar( grep { $_->{result}{skipped} } @workers ),
+    1, 'exactly one simultaneous writer skips the winning projection' );
+is(
+    scalar $dbh->selectrow_array(
+        'SELECT count(*) FROM search_documents WHERE entity_id = ?', undef,
+        $thread_id
+    ),
+    1,
+    'simultaneous indexers leave exactly one document'
 );
 
 $rival->storage->disconnect;

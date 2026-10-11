@@ -42,14 +42,6 @@ sub snapshot ( $self, $os, $features ) {
                 purpose   => 'latency control for dynamic responses',
             }
         ),
-        sendfile => _option(
-            {
-                supported => $os->supports_sendfile ? 1 : 0,
-                enabled   => _feature_enabled( $features, 'sendfile' ),
-                setting   => _feature_setting( $features, 'sendfile' ),
-                purpose   => 'delegated static and attachment transfer',
-            }
-        ),
     };
 }
 

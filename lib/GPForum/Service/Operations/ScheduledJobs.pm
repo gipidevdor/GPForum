@@ -13,7 +13,13 @@ use GPForum::Service::Clock;
 use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::RetentionStore;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my @JOB_NAMES => qw(
   sessions
@@ -230,6 +236,8 @@ sub _profile_value ( $self, $field ) {
 
 # The partition registry as plain hashes, or none without a schema.
 sub _registry_rows ($self) {
+    return $self->functions->rows( 'ops_partition_registry', {} )
+      if $self->functions;
     my $resultset =
       $self->schema && $self->schema->resultset('PartitionRegistry');
     return [] if !$resultset;

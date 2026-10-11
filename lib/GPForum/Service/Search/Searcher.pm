@@ -9,10 +9,14 @@ use v5.40;
 
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::SourceThread;
+use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Search::DocumentBuilder;
 use Mojo::Date;
 use Mojo::Util  qw(html_unescape xml_escape);
 use Time::Local qw(timegm_modern);
+
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
 
@@ -127,6 +131,9 @@ const my $SET_STATEMENT_TIMEOUT =>
 has candidate_limit   => $DEFAULT_CANDIDATES;
 has permission_engine => undef;  # optional: without one only public posts match
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # Milliseconds. Zero or undef keeps the connection's own statement_timeout:
 # zero there would switch the timeout off for search, not relax it.
@@ -142,7 +149,13 @@ sub search ( $self, $actor, $query, $options ) {
 sub ranked_search ( $self, $actor, $query, $options ) {
     my $normalized = _normalized_query($query);
     my $rows       = $self->_timed_rows(
-        sub { return $self->search_resultset( $actor, $query, $options ); } );
+        sub {
+            return $self->_rows_by_function(
+                $self->ranked_call( $actor, $query, $options ) )
+              if $self->functions;
+            return $self->search_resultset( $actor, $query, $options );
+        }
+    );
     my $candidates = @{$rows} ? _column( $rows->[0], 'candidate_count' ) : 0;
 
     return {
@@ -213,6 +226,9 @@ sub search_resultset ( $self, $actor, $query, $options = undef ) {
 sub autocomplete ( $self, $actor, $prefix, $options ) {
     my $rows = $self->_timed_rows(
         sub {
+            return $self->_rows_by_function(
+                $self->autocomplete_call( $actor, $prefix, $options ) )
+              if $self->functions;
             return $self->autocomplete_resultset( $actor, $prefix, $options );
         }
     );
@@ -297,6 +313,11 @@ sub _timed_rows ( $self, $build ) {
 }
 
 sub _set_statement_timeout ( $self, $timeout ) {
+    if ( $self->functions ) {
+        $self->functions->row( 'search_set_timeout',
+            { timeout => "$timeout" } );
+        return;
+    }
     my $storage = $self->schema->storage;
     return if !$storage->can('dbh_do');
 
@@ -312,6 +333,66 @@ sub _set_statement_timeout ( $self, $timeout ) {
 # Anonymous callers keep the simple public predicate. Everyone else gets the
 # engine's SQL form of the same rule can() applies per row, so the two cannot
 # disagree about who may see what.
+sub _rows_by_function ( $self, $call ) {
+    return [ map { GPForum::Infrastructure::ResultRow->from($_) }
+          @{ $self->functions->rows( @{$call} ) } ];
+}
+
+sub _permission_parameters ( $self, $actor ) {
+    my $engine = $self->permission_engine;
+    ## no critic (BuiltinFunctions::ProhibitUniversalCan) -- permission engines can override can
+    return $engine->search_parameters($actor)
+      if $engine && UNIVERSAL::can( $engine, 'search_parameters' );
+    ## use critic
+    return {
+        permission_mode   => 'visibility_only',
+        visibility_values => [ $self->_visibility_for( $actor, {} ) ],
+        member            => 0,
+        global_read       => 0,
+        viewer_user_id    => undef,
+        category_ids      => [],
+        space_ids         => [],
+    };
+}
+
+sub ranked_call ( $self, $actor, $query, $options = undef ) {
+    $options ||= {};
+    my $normalized = _normalized_query($query);
+    my $from       = _date_bounds( $options->{from} );
+    my $to         = _date_bounds( $options->{to} );
+    return [
+        'search_ranked',
+        {
+            %{ $self->_permission_parameters($actor) },
+            query           => $normalized,
+            like_pattern    => q{%} . _like_pattern($normalized) . q{%},
+            config          => _search_config(),
+            candidate_limit => $self->candidate_limit,
+            row_limit       => _bounded_limit( $options->{limit} ),
+            category_filter => _is_uuid( $options->{category_id} )
+            ? $options->{category_id}
+            : undef,
+            author_filter => _is_uuid( $options->{author_user_id} )
+            ? $options->{author_user_id}
+            : undef,
+            from_at => $from ? $from->{from}{'>='}                   : undef,
+            to_at   => $to   ? ( $to->{to}{'<'} // $to->{to}{'<='} ) : undef,
+            to_exclusive => $to && exists $to->{to}{'<'} ? 1         : 0,
+        }
+    ];
+}
+
+sub autocomplete_call ( $self, $actor, $prefix, $options = undef ) {
+    return [
+        'search_autocomplete',
+        {
+            %{ $self->_permission_parameters($actor) },
+            like_pattern => _like_pattern($prefix) . q{%},
+            row_limit => _bounded_limit( $options ? $options->{limit} : undef ),
+        }
+    ];
+}
+
 sub _permission_condition ( $self, $actor ) {
     if ( !$self->permission_engine ) {
         return { 'me.visibility' => 'public' };
@@ -556,6 +637,7 @@ sub _decorate_autocomplete_result ($row) {
 }
 
 sub _rows ($search) {
+    return @{$search}         if ref $search eq 'ARRAY';
     return $search->all       if $search->can('all');
     return @{ $search->rows } if $search->can('rows');
 
@@ -808,6 +890,14 @@ prefix (lower-cased, its C<LIKE> wildcards escaped), ordered by title and
 then newest first. Only threads are suggested: a post's document carries
 its thread's title, and a thread with many replies used to fill every
 suggestion with the same title.
+
+=head2 ranked_call
+
+Returns the catalogue call and checked, bound parameters for ranked search. The nested plan evidence uses the same parameters as the reader.
+
+=head2 autocomplete_call
+
+Returns the catalogue call and bound parameters for title autocomplete. The nested plan evidence uses the same parameters as the reader.
 
 =head1 DIAGNOSTICS
 

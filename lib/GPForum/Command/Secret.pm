@@ -19,6 +19,7 @@ use GPForum::Command::Support::Words;
 use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::Service::Operations::Host;
+use GPForum::Service::Operations::MetricsTokens;
 use GPForum::Service::Operations::ServiceFiles;
 use GPForum::X::Usage;
 
@@ -55,7 +56,9 @@ const my $SESSION_DAYS => 30;
 const my $CHECK_MARK => "\N{CHECK MARK} ";
 
 # What every other account on the host may do with the file, and how a line
-# that warns begins, as the checks' findings begin one.
+# that warns begins, as the checks' findings begin one. Whether an account
+# other than its owner may write it is the service's own rule
+# (GPForum::Service::Operations::MetricsTokens->others_may_write).
 const my $OTHERS_BITS  => oct '007';
 const my $WARNING_MARK => q{! };
 
@@ -170,8 +173,12 @@ sub usage_text ($class) {
     return _usage();
 }
 
+# The help names this host's file: on macOS it is Homebrew's, and the help
+# named /etc/gpforum/gpforum.env on every host.
 sub _usage {
-    return <<'USAGE';
+    my $file = GPForum::Command::Support::ServiceEnvironment->new->default_file;
+
+    return <<"USAGE";
 Usage: gpforum secret rotate session|metrics [--finish] [--dry-run] [--json]
 
 Rotates a secret in the environment file the service reads, in two steps, so
@@ -193,10 +200,13 @@ a month for sessions, the scrapers' next deploy for the token -- finish:
   --json           one JSON object on stdout instead of sentences
   --help           show this help
 
-The file is the one gpforum reads (/etc/gpforum/gpforum.env, or the one
-given with gpforum --env-file FILE secret ...). Its owner and mode are kept,
-a file every account can read is said with the chmod that closes it, and no
-secret is printed.
+The file is the one gpforum reads, on this host
+
+  $file
+
+or the one given with gpforum --env-file FILE secret .... Its owner and mode
+are kept, a file every account can read is said with the chmod that closes
+it, and no secret is printed.
 
 Exit status: 0 done, 1 the file could not be read or written, 2 usage error.
 USAGE
@@ -229,7 +239,14 @@ sub _request ( $self, @arguments ) {
     return \%request;
 }
 
+# One rotation at a time: each reads the file, edits it and renames the
+# edit over it, and two at once lost the first one's new secret.
 sub _rotate ( $self, $request, $file ) {
+    return $EDIT->locked( $file,
+        sub { return $self->_rotate_held( $request, $file ) } );
+}
+
+sub _rotate_held ( $self, $request, $file ) {
     my $names = $SECRET{ $request->{kind} };
     my @lines = split /^/msx, $self->_slurp( $request, $file );
     my %found = %{ $EDIT->values_of( \@lines ) };
@@ -387,13 +404,29 @@ sub _report ( $self, $request, $file, $outcome, $changed ) {
         return 0;
     }
 
-    if ( $kind eq 'metrics' && $self->metrics_reread ) {
+    # A file another account may write is one the running service does not
+    # read the tokens from again, whatever its unit names: "with no
+    # restart" would be false, so the restart is named, after the chmod.
+    my $refused = $kind eq 'metrics'
+      && GPForum::Service::Operations::MetricsTokens->others_may_write($file);
+    if ( $kind eq 'metrics' && $self->metrics_reread && !$refused ) {
         return $self->_report_live( $file, $LIVE{$outcome}, \%parameters );
     }
 
     $self->_say( $CHECK_MARK
           . $self->_said( "cli.secret.$kind.$outcome", \%parameters ) );
-    $self->_say_if_open($file);
+    if ($refused) {
+        $self->_say(
+            $WARNING_MARK
+              . $self->_said(
+                'cli.secret.writable',
+                { file => $file, command => _chmod($file) }
+              )
+        );
+    }
+    else {
+        $self->_say_if_open($file);
+    }
     $self->_say( $self->_said( 'cli.next', { step => $self->_restart } ) );
 
     # The step after: finishing, once a rotation left a previous one to
@@ -438,15 +471,21 @@ sub _say_if_open ( $self, $file ) {
     my $mode = ( stat $file )[$STAT_MODE];
     return if !defined $mode || !( $mode & $OTHERS_BITS );
 
-    my $command = ( -O $file ? q{} : 'sudo ' ) . "chmod 0640 $file";
     $self->_say(
         $WARNING_MARK
           . $self->_said(
-            'cli.secret.world_readable', { file => $file, command => $command }
+            'cli.secret.world_readable',
+            { file => $file, command => _chmod($file) }
           )
     );
 
     return;
+}
+
+# What closes the file to every account but its owner and the service's
+# group: with sudo, when it is not this account's.
+sub _chmod ($file) {
+    return ( -O $file ? q{} : 'sudo ' ) . "chmod 0640 $file";
 }
 
 # A file's name as a service file writes it: a whole word of a unit line,
@@ -585,9 +624,13 @@ it is replaced, not kept, since the list of those still accepted refuses it
 too.
 
 The file keeps its owner, group and mode and every other line; it is
-replaced in one rename. When every account on the host may read it, the
+replaced in one rename, and two rotations at once take turns
+(L<GPForum::Command::Support::EnvironmentFileEdit/locked>), so neither
+drops the other's secret. When every account on the host may read it, the
 report says so with the C<chmod 0640> that closes it, leaving the mode to the
-operator. No secret is printed, under C<--json> either.
+operator. When an account other than its owner may write it, the running
+service does not read the metrics tokens from it again: a metrics rotation
+says so, with the same C<chmod 0640>, and names the restart. No secret is printed, under C<--json> either.
 
 =head1 SUBROUTINES/METHODS
 
@@ -616,7 +659,11 @@ it, so the step after a rotation is a restart.
 True when the running web service reads the metrics tokens from the file
 again by itself, so a metrics rotation names no restart: the installed web
 unit names the file -- the host's own, or the one given with
-C<gpforum --env-file FILE service print>.
+C<gpforum --env-file FILE service print>. A file an account other than its
+owner may write is refused by the service all the same
+(L<GPForum::Service::Operations::MetricsTokens/others_may_write>): its
+rotation names the restart, after a warning with the C<chmod 0640> that
+closes it.
 
 =head2 usage_text
 

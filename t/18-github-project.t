@@ -11,7 +11,7 @@ use Test::More;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 202;
+const my $EXPECTED_TESTS => 196;
 const my $CURLY_CLASS    => '[{]';
 const my $LAUNCHD_FRONT_DOOR =>
   qr{<string>/opt/gpforum/bin/gpforum</string> \s*}msx;
@@ -89,7 +89,6 @@ for my $required_file (
     bin/gpforum-os-preflight
     bin/gpforum-scheduled-jobs
     bin/gpforum-query-plan-evidence
-    bin/gpforum-seed-benchmark
     bin/gpforum-seed-performance-data
     bin/gpforum-staging-drill
     bin/gpforum-staging-drill-attachments
@@ -101,8 +100,6 @@ for my $required_file (
     bin/gpforum-dead-letter-replay
     bin/gpforum-search-rebuild
     bin/gpforum-mail-lifecycle-check
-    script/bench-http
-    script/bench-hotpaths
     script/bench-hypnotoad
     script/bench-hypnotoad-scaling
     script/benchmark-http
@@ -116,7 +113,6 @@ for my $required_file (
     script/profile-nytprof
     script/query-budget
     script/query-plan-evidence
-    script/seed-benchmark
     script/seed-performance-data
     script/staging-drill
     script/staging-drill-attachments
@@ -127,8 +123,6 @@ for my $required_file (
     script/evidence-validate
     script/evidence-meta
     script/dead-letter-check
-    script/dead-letter-replay
-    script/search-rebuild
     script/mail-lifecycle-check
     )
   )
@@ -243,7 +237,7 @@ like(
 );
 like( $readme, qr{docs/adr/README[.]md}msx,
     'README links to the architecture decision index' );
-like( $readme, qr/script\/bench-http/msx,
+like( $readme, qr/script\/benchmark-http/msx,
     'README documents the HTTP benchmark command' );
 like(
     $governance,

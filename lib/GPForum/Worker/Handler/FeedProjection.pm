@@ -9,7 +9,13 @@ use v5.40;
 
 use GPForum::Service::Clock;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $THREAD_CREATED   => 'thread.created';
 const my $THREAD_DELETED   => 'thread.deleted';
@@ -161,6 +167,16 @@ sub _schema_column ( $self, $event, $name ) {
         return undef;
     }
 
+    if ( $self->functions ) {
+        my $row = $self->functions->row(
+            'ops_worker_aggregate',
+            {
+                aggregate_type => _is_thread_item($event) ? 'thread' : 'post',
+                aggregate_id   => $event->{aggregate_id},
+            }
+        );
+        return $row ? $row->{$name} : undef;
+    }
     my $resultset = _is_thread_item($event) ? 'Thread' : 'Post';
     my $row =
       $self->schema->resultset($resultset)->find( $event->{aggregate_id} );

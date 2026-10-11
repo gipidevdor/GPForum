@@ -74,7 +74,6 @@ my $smtp_check = GPForum::Service::Operations::MailCheck->new(
         smtp_port      => $SMTP_PORT,
         smtp_username  => 'relay-user',
         smtp_password  => 'super-secret-password',
-        smtp_ssl       => 1,
     ),
     smtp_connector => sub {
         my ( $host, $port ) = @_;

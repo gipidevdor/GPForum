@@ -7,6 +7,10 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 
@@ -20,6 +24,10 @@ __PACKAGE__->requires(qw(audit credential_store id_service schema));
 # refuses it. A minted user id already stored is this registration's,
 # committed by an earlier attempt, or another account's, and then a new id is
 # minted.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub create_registration ( $self, $registration ) {
     my $errors = $self->_duplicate_errors( $registration->{user} );
     if ( keys %{$errors} ) {
@@ -50,7 +58,15 @@ sub create_registration ( $self, $registration ) {
         };
     }
 
-    my $stored = $self->schema->resultset('User')
+    my $stored =
+      $self->functions
+      ? GPForum::Infrastructure::ResultRow::IdentityUser->from(
+        $self->functions->row(
+            'identity_user_by_id', { user_id => $registration->{user}{id} }
+        ),
+        $self->functions
+      )
+      : $self->schema->resultset('User')
       ->find( { id => $registration->{user}{id} } );
     if ( $self->_same_open_user( $stored, $registration->{user} ) ) {
 
@@ -87,7 +103,15 @@ sub _insert_in_txn ( $self, $registration ) {
             my $credential = $registration->{credential};
             $user->{password_hash} ||= $credential->{secret_hash};
 
-            my $created_user = $self->schema->resultset('User')->create($user);
+            my $created_user =
+              $self->functions
+              ? GPForum::Infrastructure::ResultRow::IdentityUser->from(
+                $self->functions->row(
+                    'identity_insert_user', { values => $user }
+                ),
+                $self->functions
+              )
+              : $self->schema->resultset('User')->create($user);
             $self->_complete_registration($registration);
 
             return { user => $created_user };
@@ -140,6 +164,26 @@ sub _user_column ( $row, $name ) {
 }
 
 sub _duplicate_errors ( $self, $user ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row(
+            'identity_registration_duplicates',
+            {
+                username => $user->{username},
+                email    => $user->{email_normalized}
+            }
+        );
+        return {
+            (
+                $row->{username_taken}
+                ? ( username => 'username is already registered' )
+                : ()
+            ),
+            (
+                $row->{email_taken} ? ( email => 'email is already registered' )
+                : ()
+            ),
+        };
+    }
     my $users = $self->schema->resultset('User');
     my %errors;
     if ( $users->find( { username => $user->{username} } ) ) {

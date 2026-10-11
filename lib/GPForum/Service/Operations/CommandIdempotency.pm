@@ -15,12 +15,25 @@ use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $ID_CONSTRAINT  => 'command_log_pkey';
 const my $KEY_CONSTRAINT => 'command_log_idempotency_key_key';
 const my $FAILED_STATUS  => 'failed';
 const my $ABANDONED      => __PACKAGE__ . '::Abandoned';
+
+# What a command already in the log is refused with, by the outcome
+# api functions answer (ADR 0126) and _existing_result decides.
+const my %REFUSAL => (
+    conflict    => 'idempotency key was already used for another request',
+    in_progress => 'idempotency key is already in progress',
+);
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
@@ -169,8 +182,16 @@ sub _finish_new_command ( $self, $job, $row ) {
 # finished otherwise; any other row means the id collided, and a new one is
 # drawn.
 sub _retry_or_reuse_command ( $self, $job ) {
-    my $stored = $self->schema->resultset('CommandLog')
-      ->find( { command_id => $job->{row}{command_id} } );
+    my $stored;
+    if ( $self->functions ) {
+        my $found = $self->functions->row( 'ops_command_lookup',
+            { key => undef, command_id => $job->{row}{command_id} } );
+        $stored = $found ? $found->{document} : undef;
+    }
+    else {
+        $stored = $self->schema->resultset('CommandLog')
+          ->find( { command_id => $job->{row}{command_id} } );
+    }
     if (   !$stored
         || !_same_text( _column( $stored, 'idempotency_key' ), $job->{key} ) )
     {
@@ -214,6 +235,11 @@ sub _replay_existing ( $self, $job, $error ) {
 }
 
 sub _find_existing ( $self, $key ) {
+    if ( $self->functions ) {
+        my $found = $self->functions->row( 'ops_command_lookup',
+            { key => $key, command_id => undef } );
+        return $found ? $found->{document} : undef;
+    }
     return $self->schema->resultset('CommandLog')
       ->search_rs( { idempotency_key => $key }, { rows => 1 } )
       ->single;
@@ -224,14 +250,14 @@ sub _existing_result ( $self, $row, $request_hash ) {
     if ( ( $payload->{request_hash} || q{} ) ne $request_hash ) {
         return {
             conflict => 1,
-            error    => 'idempotency key was already used for another request',
+            error    => $REFUSAL{conflict},
         };
     }
 
     if ( !_has_response($payload) ) {
         return {
             in_progress => 1,
-            error       => 'idempotency key is already in progress',
+            error       => $REFUSAL{in_progress},
         };
     }
 
@@ -257,6 +283,10 @@ sub _command_row ( $self, $job ) {
 }
 
 sub _create_command ( $self, $row ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'ops_command_insert',
+            { command => $row } )->{document};
+    }
     return $self->schema->resultset('CommandLog')->create($row);
 }
 
@@ -264,15 +294,22 @@ sub _finish_command_row ( $self, $row, $result, $response ) {
     my $payload = _payload_hash( _column( $row, 'payload' ) );
     $payload->{response} = $response || {};
 
-    _update_row(
-        $row,
-        {
-            handled_at    => $self->clock->now_iso8601,
-            payload       => $payload,
-            response_hash => _canonical_hash( $payload->{response} ),
-            status        => _result_status($result),
-        }
-    );
+    my $changes = {
+        handled_at    => $self->clock->now_iso8601,
+        payload       => $payload,
+        response_hash => _canonical_hash( $payload->{response} ),
+        status        => _result_status($result),
+    };
+    if ( $self->functions ) {
+        $self->functions->row(
+            'ops_command_finish',
+            {
+                command_id => _column( $row, 'command_id' ),
+                changes    => $changes
+            }
+        );
+    }
+    else { _update_row( $row, $changes ); }
 
     return;
 }
@@ -299,6 +336,18 @@ sub _payload_hash ($payload) {
 
 sub _has_response ($payload) {
     return ref $payload eq 'HASH' && exists $payload->{response} ? 1 : 0;
+}
+
+# The request's fingerprint as run keeps it: SHA-256 of its canonical JSON.
+# For a command whose log steps run in its PostgreSQL function (ADR 0126).
+sub request_hash ( $class, $request ) {
+    return _canonical_hash( $request || {} );
+}
+
+# The words a command already in the log is refused with: conflict (another
+# request under the key) or in_progress (no response yet).
+sub refusal_error ( $class, $outcome ) {
+    return exists $REFUSAL{ $outcome // q{} } ? $REFUSAL{$outcome} : undef;
 }
 
 sub _canonical_hash ($value) {
@@ -485,6 +534,18 @@ answered with the same request;
 =item * C<< { in_progress => 1, error => 'idempotency key is already in progress' } >>.
 
 =back
+
+=head2 request_hash
+
+Takes a request hash reference (an empty one when undefined). Returns its
+fingerprint as L</run> keeps it: the SHA-256 hex of its canonical JSON. A
+command whose command log steps run inside its PostgreSQL function (ADR
+0126) passes it to the function.
+
+=head2 refusal_error
+
+Takes an outcome, C<conflict> or C<in_progress>. Returns the words L</run>
+refuses a command already in the log with, or undef for another outcome.
 
 =head1 DIAGNOSTICS
 

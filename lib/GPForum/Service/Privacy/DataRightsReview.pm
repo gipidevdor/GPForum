@@ -7,6 +7,14 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_LIMIT => 50;
@@ -25,6 +33,13 @@ sub pending_deletion_requests ( $self, $options ) {
 }
 
 sub deletion_request ( $self, $request_id ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'privacy_find',
+            { source => 'DeletionRequest', id => $request_id, lock_row => 0 } );
+        return GPForum::Infrastructure::ResultRow->from(
+            $row ? $row->{document} : undef );
+    }
+
     return $self->schema->resultset('DeletionRequest')->find($request_id);
 }
 
@@ -121,6 +136,26 @@ sub erasure_jobs_by_status ( $self, $status, $options ) {
 }
 
 sub _search ( $self, $resultset, $query, $attrs ) {
+    if ( $self->functions ) {
+        my $order = $attrs->{order_by} || [];
+        my $oldest =
+             ref $order eq 'ARRAY'
+          && ref $order->[0] eq 'HASH'
+          && exists $order->[0]{'-asc'};
+        my $rows = $self->functions->rows(
+            'privacy_review',
+            {
+                source    => $resultset,
+                query     => $query,
+                row_limit => $attrs->{rows},
+                oldest    => $oldest
+            }
+        );
+        return [
+            map { GPForum::Infrastructure::ResultRow->from( $_->{document} ) }
+              @{$rows} ];
+    }
+
     my $search =
       $self->schema->resultset($resultset)->search_rs( $query, $attrs );
 

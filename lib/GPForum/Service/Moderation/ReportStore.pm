@@ -15,6 +15,9 @@ use GPForum::Service::Clock;
 use GPForum::Service::Moderation::Event;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_QUEUE_LIMIT => 50;
@@ -40,6 +43,9 @@ has recorder => sub {
     );
 };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 has events => sub { return GPForum::Service::Moderation::Event->new; };
 
 # The member's open report on the same target is reused, whether it was
@@ -87,6 +93,14 @@ sub create_report ( $self, $input ) {
 }
 
 sub _open_duplicate_report ( $self, $input ) {
+    if ( $self->functions ) {
+        return $self->_report_row(
+            {
+                map { $_ => $input->{$_} }
+                  qw(reporter_user_id target_type target_id)
+            }
+        );
+    }
     return $self->schema->resultset('Report')->search_rs(
         {
             reporter_user_id => $input->{reporter_user_id},
@@ -117,7 +131,13 @@ sub _insert_report ( $self, $input ) {
         resolution                 => undef,
     };
 
-    $self->schema->resultset('Report')->create($report);
+    if ( $self->functions ) {
+        $self->functions->row( 'moderation_report_insert',
+            { values => $report } );
+    }
+    else {
+        $self->schema->resultset('Report')->create($report);
+    }
     $self->_record_event_and_audit($report);
 
     return $report;
@@ -155,7 +175,8 @@ sub assign_report ( $self, $report_id, $moderator_user_id ) {
     return $self->schema->txn_do(
         sub {
             $self->_lock_report($report_id);
-            my $report = $self->schema->resultset('Report')->find($report_id);
+            my $report =
+              $self->_report_row( { report_id => $report_id, hold => 1 } );
             return if !$report;
 
             return _report_transition_hash($report)
@@ -163,7 +184,7 @@ sub assign_report ( $self, $report_id, $moderator_user_id ) {
               $moderator_user_id;
 
             my $changes = { assigned_moderator_user_id => $moderator_user_id };
-            $report->update($changes);
+            $self->_update_report( $report, $changes );
             my $assigned = { report_id => $report_id, %{$changes} };
             $self->_record_transition_event_and_audit(
                 {
@@ -185,14 +206,15 @@ sub release_report ( $self, $report_id, $actor_user_id ) {
     return $self->schema->txn_do(
         sub {
             $self->_lock_report($report_id);
-            my $report = $self->schema->resultset('Report')->find($report_id);
+            my $report =
+              $self->_report_row( { report_id => $report_id, hold => 1 } );
             return if !$report;
 
             return _report_transition_hash($report)
               if !defined _column( $report, 'assigned_moderator_user_id' );
 
             my $changes = { assigned_moderator_user_id => undef };
-            $report->update($changes);
+            $self->_update_report( $report, $changes );
             my $released = { report_id => $report_id, %{$changes} };
             $self->_record_transition_event_and_audit(
                 {
@@ -214,7 +236,8 @@ sub resolve_report ( $self, $report_id, $resolution, $actor_user_id = undef ) {
     return $self->schema->txn_do(
         sub {
             $self->_lock_report($report_id);
-            my $report = $self->schema->resultset('Report')->find($report_id);
+            my $report =
+              $self->_report_row( { report_id => $report_id, hold => 1 } );
             return if !$report;
 
             return _report_transition_hash($report)
@@ -226,7 +249,7 @@ sub resolve_report ( $self, $report_id, $resolution, $actor_user_id = undef ) {
                 resolved_at => $resolved_at,
                 resolution  => $resolution,
             };
-            $report->update($changes);
+            $self->_update_report( $report, $changes );
             my $resolved = { report_id => $report_id, %{$changes} };
             $self->_record_transition_event_and_audit(
                 {
@@ -246,6 +269,19 @@ sub resolve_report ( $self, $report_id, $resolution, $actor_user_id = undef ) {
 }
 
 sub list_queue ( $self, $options ) {
+    if ( $self->functions ) {
+        return [
+            map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                $self->functions->rows(
+                    'moderation_report_queue',
+                    {
+                        status    => $options->{status} || $STATUS_OPEN,
+                        row_limit => $options->{limit}  || $DEFAULT_QUEUE_LIMIT
+                    }
+                )
+            }
+        ];
+    }
     return [ _rows( $self->queue_resultset($options) ) ];
 }
 
@@ -261,6 +297,32 @@ sub queue_resultset ( $self, $options ) {
             rows     => $options->{limit} || $DEFAULT_QUEUE_LIMIT,
         }
     );
+}
+
+sub _report_row ( $self, $input ) {
+    return $self->schema->resultset('Report')->find( $input->{report_id} )
+      if !$self->functions;
+    return GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'moderation_report_find',
+            {
+                report_id        => undef,
+                reporter_user_id => undef,
+                target_type      => undef,
+                target_id        => undef,
+                hold             => 0,
+                %{$input}
+            }
+        )
+    );
+}
+
+sub _update_report ( $self, $row, $changes ) {
+    return $row->update($changes) if !$self->functions;
+    $self->functions->row( 'moderation_report_update',
+        { report_id => _column( $row, 'report_id' ), changes => $changes } );
+    %{$row} = ( %{$row}, %{$changes} );
+    return $row;
 }
 
 sub _report_transition_hash ($report) {
@@ -315,6 +377,7 @@ sub _record_transition_event_and_audit ( $self, $input ) {
 }
 
 sub _lock_report ( $self, $report_id ) {
+    return if $self->functions;
     my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
     if ( !$dbh ) {
         return;

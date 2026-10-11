@@ -42,9 +42,6 @@ my $config   = GPForum::Config->new(
     runtime_requests        => $CONFIGURED_REQUESTS,
     runtime_worker_policy   => 'cap-to-cpu',
     os_reuseport            => 'auto',
-    os_sendfile             => 'auto',
-    os_static_xsendfile     => 'auto',
-    os_worker_priority      => 'off',
     runtime_max_web_per_cpu => 2,
 );
 $config->validate;
@@ -81,8 +78,6 @@ is( $hypnotoad->{requests},
     $CONFIGURED_REQUESTS, 'runtime policy applies keep-alive request budget' );
 is( $policy->report->{status},
     'degraded', 'worker capping is reported as degraded posture' );
-is( $policy->report->{static_transfer}{mode},
-    'delegated', 'sendfile-capable runtime reports delegated static transfer' );
 ok(
     exists $policy->report->{backlog}{saturation},
     'runtime policy reports backlog saturation availability'
@@ -100,10 +95,8 @@ is( $configured_policy->hypnotoad_config->{workers},
     $WEB_PROCESSES, 'configured worker policy preserves requested workers' );
 
 my $unknown_config = GPForum::Config->new(
-    runtime_listen      => 'http://*:9000',
-    os_reuseport        => 'on',
-    os_sendfile         => 'on',
-    os_static_xsendfile => 'on',
+    runtime_listen => 'http://*:9000',
+    os_reuseport   => 'on',
 );
 my $unknown_runtime = GPForum::Runtime->new(
     os_profile => GPForum::OS::Base->new( resource_probe => $resource ),
@@ -159,13 +152,7 @@ ok(
 done_testing();
 
 sub _default_features {
-    return {
-        reuseport        => 'auto',
-        sendfile         => 'auto',
-        static_xsendfile => 'auto',
-        worker_priority  => 'off',
-        affinity         => 'off',
-    };
+    return { reuseport => 'auto' };
 }
 
 sub _has_check_status {

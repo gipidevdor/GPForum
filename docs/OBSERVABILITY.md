@@ -193,11 +193,11 @@ Recommended commands:
 ```sh
 script/benchmark-http --fixture --check --iterations 5 --warmup 1
 
-script/seed-benchmark --profile medium
+bin/gpforum performance-seed --profile medium
 script/benchmark-http --configured --check --profile medium \
   --iterations 20 --warmup 3 --json
 
-script/seed-benchmark --profile hot-thread
+bin/gpforum performance-seed --profile hot-thread
 script/benchmark-http --configured --check --profile hot-thread \
   --iterations 20 --warmup 3 --json
 ```

@@ -15,6 +15,9 @@ use GPForum::Service::Clock;
 use GPForum::Service::Community::MentionExtractor;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $DEFAULT_MAX_MENTIONS => 10;
@@ -41,6 +44,9 @@ has recorder    => sub {
     );
 };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub record_for_source ( $self, $input ) {
     my $mentions = $self->extractor->extract( $input->{body_source} );
@@ -158,7 +164,25 @@ sub _insert_mentions ( $self, $input, $mentions, $resolved ) {
 # A mention of this member from this source already stored -- before, or by
 # a concurrent request -- answers undef. A minted id already stored is
 # minted once more.
+sub _create_by_function ( $self, $row ) {
+    my $result =
+      $self->functions->row( 'community_create_mention', { row => $row } )
+      ->{result};
+    if ( $result && $result->{retry_id} ) {
+        $row->{mention_id} = $self->id_service->uuid;
+        $result =
+          $self->functions->row( 'community_create_mention', { row => $row } )
+          ->{result};
+        if ( $result && $result->{retry_id} ) {
+            GPForum::X::Conflict->throw(
+                message => 'the replacement mention id is already stored' );
+        }
+    }
+    return $result;
+}
+
 sub _create_or_reuse_mention ( $self, $row ) {
+    return $self->_create_by_function($row) if $self->functions;
     if ( $self->_existing_mention($row) ) {
         return undef;
     }
@@ -242,7 +266,17 @@ sub _existing_mention ( $self, $row ) {
 
 sub _resolve_users ( $self, $mentions ) {
     my @usernames = map { $_->{username} } @{$mentions};
-    my $search    = $self->schema->resultset('User')->search_rs(
+    if ( $self->functions ) {
+        return {
+            map { lc( $_->{username} ) => $_ } @{
+                $self->functions->rows(
+                    'community_resolve_mention_users',
+                    { usernames => \@usernames }
+                )
+            }
+        };
+    }
+    my $search = $self->schema->resultset('User')->search_rs(
         {
             username   => { -in => \@usernames },
             deleted_at => undef,

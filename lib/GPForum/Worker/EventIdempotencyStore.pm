@@ -10,7 +10,13 @@ use GPForum::X::Conflict;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 # How long a claim is honoured before another worker may take it over. A
 # worker killed between claiming and finishing would otherwise park its event
@@ -24,6 +30,19 @@ has clock         => sub { return GPForum::Service::Clock->new; };
 has lease_seconds => $CLAIM_LEASE_SECONDS;
 
 sub is_done ( $self, $key ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'ops_event_claim',
+            {
+                operation      => 'is_done',
+                key            => $key,
+                event_id       => undef,
+                now            => $self->clock->now_iso8601,
+                expired_before =>
+                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
+            }
+        )->{claimed} ? 1 : 0;
+    }
     my $row = $self->_find($key);
     return 0 if !$row;
 
@@ -34,6 +53,19 @@ sub is_done ( $self, $key ) {
 # the excluding: the first insert wins and every later one conflicts, so two
 # workers can no longer both pass this point and both run the side effect.
 sub begin ( $self, $key, $event_id = undef ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'ops_event_claim',
+            {
+                operation      => 'begin',
+                key            => $key,
+                event_id       => _event_id( $key, { event_id => $event_id } ),
+                now            => $self->clock->now_iso8601,
+                expired_before =>
+                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
+            }
+        )->{claimed} ? 1 : 0;
+    }
     my ( $claimed, $error ) = GPForum::Infrastructure::UniqueConflict->attempt(
         $self->schema,
         sub {
@@ -51,6 +83,19 @@ sub begin ( $self, $key, $event_id = undef ) {
 }
 
 sub mark_done ( $self, $key, $result ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'ops_event_claim',
+            {
+                operation      => 'done',
+                key            => $key,
+                event_id       => _event_id( $key, $result ),
+                now            => $self->clock->now_iso8601,
+                expired_before =>
+                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
+            }
+        )->{claimed} ? 1 : 0;
+    }
     my $row = $self->_find($key);
 
     # Nothing claimed it, which means an older caller reached mark_done
@@ -66,6 +111,19 @@ sub mark_done ( $self, $key, $result ) {
 # suppress every later attempt at the same event, turning one transient error
 # into permanent silence.
 sub mark_failed ( $self, $key, $error ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'ops_event_claim',
+            {
+                operation      => 'failed',
+                key            => $key,
+                event_id       => undef,
+                now            => $self->clock->now_iso8601,
+                expired_before =>
+                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
+            }
+        )->{claimed} ? 1 : 0;
+    }
     my $row = $self->_find($key);
     return 1 if !$row;
     return 1 if defined $self->_column( $row, 'completed_at' );

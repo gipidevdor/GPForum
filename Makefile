@@ -103,7 +103,7 @@ staging-drill-attachments: ## Run the attachment store drill
 # Optional identity mail delivery probe; uses GPFORUM_MAIL_* / SMTP settings.
 # Not part of `make check` or default CI.
 antivirus-check: ## Prove the upload antivirus detects the EICAR test file
-	script/antivirus-check --human
+	bin/gpforum antivirus-check --human
 
 mail-check: ## Send a test message through the configured mailer
 	script/mail-check --json --dry-run

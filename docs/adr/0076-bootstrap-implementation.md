@@ -126,7 +126,7 @@ The bootstrap implementation MUST:
   `lib/GPForum/Schema.pm`, `lib/GPForum/Config.pm`, `lib/GPForum/Log.pm`,
   `lib/GPForum/Service/Clock.pm`, `lib/GPForum/Infrastructure/Id.pm`, `etc/`,
   `migrations/`.
-- Scripts: `script/test`, `script/coverage`, `script/profile`, `Makefile`.
+- Scripts: `script/test`, `script/coverage`, `script/profile-nytprof`, `Makefile`.
 - Tests: `t/00-load.t`, `t/01-config.t`, `t/02-health.t`, `t/03-home.t`,
   `t/05-database.t`, `t/33-health-readiness.t`.
 - Docs: `docs/architecture/bootstrap.md`.

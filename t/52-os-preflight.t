@@ -29,20 +29,12 @@ our $VERSION = '0.001';
 
 const my $PRODUCTION_NOFILE_FLOOR => 65_536;
 const my $HIGH_NOFILE_LIMIT       => 131_072;
+const my $MAIL_NICE_DELTA         => 8;
 
 my $resource = GPForum::Test::OSResourceSnapshot->new;
 my $linux    = GPForum::OS::Linux->new( resource_probe => $resource );
-my $runtime  = _runtime_for_os(
-    $linux,
-    {
-        reuseport        => 'auto',
-        sendfile         => 'auto',
-        worker_priority  => 'on',
-        static_xsendfile => 'auto',
-        affinity         => 'off',
-    }
-);
-my $report = GPForum::OS::Preflight->from_runtime($runtime)->report;
+my $runtime  = _runtime_for_os( $linux, { reuseport => 'auto' } );
+my $report   = GPForum::OS::Preflight->from_runtime($runtime)->report;
 
 is( $report->{status},            'ok',    'Linux OS preflight is healthy' );
 is( $report->{os}{event_backend}, 'epoll', 'Linux declares epoll backend' );
@@ -58,8 +50,8 @@ ok(
     $report->{sockets}{tcp_nodelay}{enabled},
     'preflight reports tcp_nodelay policy'
 );
-is( $report->{processes}{classes}{mail_worker}{action},
-    'supervisor-nice', 'preflight reports enabled worker priority plan' );
+is( $report->{processes}{classes}{mail_worker}{nice_delta},
+    $MAIL_NICE_DELTA, 'preflight reports the worker priority plan' );
 
 # Nothing in GPForum calls setpriority: the report names the supervisor as
 # the one that applies the plan, not the application.
@@ -85,17 +77,7 @@ is(
 
 my $unknown        = GPForum::OS::Base->new( resource_probe => $resource );
 my $unknown_report = GPForum::OS::Preflight->from_runtime(
-    _runtime_for_os(
-        $unknown,
-        {
-            reuseport        => 'on',
-            sendfile         => 'on',
-            worker_priority  => 'auto',
-            static_xsendfile => 'on',
-            affinity         => 'off',
-        }
-    )
-)->report;
+    _runtime_for_os( $unknown, { reuseport => 'on' } ) )->report;
 is( $unknown_report->{status},
     'degraded', 'unknown OS preflight degrades conservatively' );
 ok( _has_check_status( $unknown_report, 'os', 'degraded' ),
@@ -110,17 +92,7 @@ ok(
 );
 
 my $off_report = GPForum::OS::Preflight->from_runtime(
-    _runtime_for_os(
-        $linux,
-        {
-            reuseport        => 'off',
-            sendfile         => 'off',
-            worker_priority  => 'off',
-            static_xsendfile => 'off',
-            affinity         => 'off',
-        }
-    )
-)->report;
+    _runtime_for_os( $linux, { reuseport => 'off' } ) )->report;
 is( $off_report->{sockets}{reuseport}{enabled},
     0, 'reuseport off disables socket policy' );
 is( $off_report->{sockets}{reuseport}{degraded},
@@ -232,13 +204,7 @@ sub _runtime_for_os {
 }
 
 sub _default_feature_settings {
-    return {
-        reuseport        => 'auto',
-        sendfile         => 'auto',
-        worker_priority  => 'off',
-        static_xsendfile => 'auto',
-        affinity         => 'off',
-    };
+    return { reuseport => 'auto' };
 }
 
 sub _has_check_status {

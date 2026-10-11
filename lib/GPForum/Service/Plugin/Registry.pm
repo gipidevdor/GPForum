@@ -7,11 +7,19 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 our $VERSION = '0.001';
 
@@ -86,8 +94,7 @@ sub _install_manifest ( $self, $manifest ) {
         GPForum::Infrastructure::UniqueConflict->rethrow($error);
     }
 
-    my $stored = _first_row( $self->schema->resultset('Plugin')
-          ->search_rs( { plugin_id => $plugin->{plugin_id} }, { rows => 1 } ) );
+    my $stored = $self->_plugin_by_id( $plugin->{plugin_id} );
     if ( _same_plugin( $stored, $manifest ) ) {
         return $self->_reuse_plugin( $stored, $manifest );
     }
@@ -101,6 +108,26 @@ sub _install_manifest ( $self, $manifest ) {
     GPForum::Infrastructure::UniqueConflict->rethrow($error);
 }
 
+sub _plugin_by_id ( $self, $plugin_id ) {
+    my $stored;
+
+    if ( $self->functions ) {
+        my $row = $self->functions->row(
+            'plugin_find',
+            {
+                source => 'Plugin',
+                query  => { plugin_id => $plugin_id }
+            }
+        );
+        $stored = $row ? $row->{document} : undef;
+    }
+    else {
+        $stored = _first_row( $self->schema->resultset('Plugin')
+              ->search_rs( { plugin_id => $plugin_id }, { rows => 1 } ) );
+    }
+    return $stored;
+}
+
 sub _reuse_plugin ( $self, $existing, $manifest ) {
     $self->_register_hooks( _column( $existing, 'plugin_id' ),
         $manifest->{hooks} );
@@ -109,7 +136,13 @@ sub _reuse_plugin ( $self, $existing, $manifest ) {
 }
 
 sub _create_plugin_rows ( $self, $plugin, $manifest ) {
-    $self->schema->resultset('Plugin')->create($plugin);
+    if ( $self->functions ) {
+        $self->functions->row( 'plugin_insert',
+            { source => 'Plugin', row => $plugin } );
+    }
+    else {
+        $self->schema->resultset('Plugin')->create($plugin);
+    }
     $self->_register_hooks( $plugin->{plugin_id}, $manifest->{hooks} );
 
     return $plugin;
@@ -129,6 +162,12 @@ sub _same_plugin ( $stored, $manifest ) {
 }
 
 sub _existing_plugin ( $self, $manifest ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'plugin_find',
+            { source => 'Plugin', query => $manifest } );
+        return $row ? $row->{document} : undef;
+    }
+
     my $search = $self->schema->resultset('Plugin')->search_rs(
         {
             name    => $manifest->{name},
@@ -161,6 +200,17 @@ sub disable ( $self, $plugin_id ) {
 }
 
 sub _set_status ( $self, $plugin_id, $status ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'plugin_status',
+            {
+                plugin_id => $plugin_id,
+                status    => $status,
+                at        => $self->clock->now_iso8601
+            }
+        )->{document};
+    }
+
     return $self->schema->txn_do(
         sub {
             my $plugin = $self->schema->resultset('Plugin')->find($plugin_id);
@@ -207,7 +257,11 @@ sub _register_hooks ( $self, $plugin_id, $hooks ) {
 
 sub _insert_hook ( $self, $row ) {
     my $insert = sub {
-        $self->schema->resultset('PluginHook')->create($row);
+        if ( $self->functions ) {
+            $self->functions->row( 'plugin_insert',
+                { source => 'PluginHook', row => $row } );
+        }
+        else { $self->schema->resultset('PluginHook')->create($row); }
         return $row;
     };
     my ( $created, $error ) =
@@ -242,6 +296,12 @@ sub _insert_hook ( $self, $row ) {
 }
 
 sub _existing_hook ( $self, $row ) {
+    if ( $self->functions ) {
+        my $stored = $self->functions->row( 'plugin_find',
+            { source => 'PluginHook', query => $row } );
+        return $stored ? $stored->{document} : undef;
+    }
+
     my $search = $self->schema->resultset('PluginHook')->search_rs(
         {
             hook_name => $row->{hook_name},

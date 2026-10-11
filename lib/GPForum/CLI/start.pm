@@ -18,6 +18,7 @@ use POSIX      ();
 use Mojo::URL;
 use Mojo::Util qw(encode);
 
+use GPForum::Bootstrap::Config;
 use GPForum::CLI::FrontDoor::Carton;
 use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Command::Support::Words;
@@ -153,6 +154,10 @@ sub _hypnotoad ( $self, $words, $foreground ) {
     if ( defined $read ) {
         $ENV{GPFORUM_ENV_FILE} = $read;    ## no critic (Variables::RequireLocalizedPunctuationVars) -- Hypnotoad, run in place of this process, reads it
     }
+
+    # This process logged the old settings' warnings when it built the
+    # application; Hypnotoad builds it again, in its place, and is told so.
+    $ENV{$GPForum::Bootstrap::Config::WARNED} = 1;    ## no critic (Variables::RequireLocalizedPunctuationVars) -- Hypnotoad, run in place of this process, reads it
 
     my $library  = "$root/local/lib/perl5";
     my @searched = split /:/msx, $ENV{PERL5LIB} // q{};

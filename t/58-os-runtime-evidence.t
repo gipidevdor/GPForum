@@ -32,8 +32,6 @@ my $config = GPForum::Config->new(
     runtime_worker_policy => 'configured',
     web_processes         => $WORKERS,
     os_reuseport          => 'auto',
-    os_sendfile           => 'auto',
-    os_static_xsendfile   => 'auto',
 );
 $config->validate;
 
@@ -105,11 +103,11 @@ for my $name (qw(reuseaddr reuseport keepalive tcp_nodelay)) {
 }
 
 is( $evidence->{static_transfer}{status},
-    'unavailable', 'unknown OS profile keeps static transfer unavailable' );
+    'unavailable', 'without an X-Accel-Redirect prefix nothing is delegated' );
 is( $evidence->{static_transfer}{materialized_in_benchmark},
     0, 'sendfile is not materialized by benchmark' );
-is( $evidence->{static_transfer}{xsendfile_header_implemented},
-    0, 'X-Sendfile is explicitly not implemented yet' );
+is( $evidence->{static_transfer}{x_accel_redirect_implemented},
+    0, 'and no X-Accel-Redirect header is sent' );
 
 is( $evidence->{postgresql}{available},
     1, 'evidence reads PostgreSQL settings from dbh' );

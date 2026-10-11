@@ -41,22 +41,6 @@ sub run ( $self, @arguments ) {
     return $self->_platform_check($options);
 }
 
-sub local_check ($self) {
-    return $self->_platform_check( _check_for('--local') );
-}
-
-sub strict_local_check ($self) {
-    return $self->_platform_check( _check_for('--strict-local') );
-}
-
-sub with_db_check ($self) {
-    return $self->_platform_check( _check_for('--with-db') );
-}
-
-sub strict_with_db_check ($self) {
-    return $self->_platform_check( _check_for('--strict-with-db') );
-}
-
 sub _platform_check ( $self, $options ) {
     my $checks;
     try {

@@ -15,6 +15,9 @@ use GPForum::Service::Clock;
 use GPForum::Service::Moderation::Event;
 use GPForum::X::Conflict;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
 
 const my $COMMAND_CONSTRAINT => 'idx_moderation_actions_command_id';
@@ -43,6 +46,9 @@ has recorder => sub {
     );
 };
 __PACKAGE__->requires(qw(schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 has events => sub { return GPForum::Service::Moderation::Event->new; };
 
 sub hide_post ( $self, $input ) {
@@ -190,8 +196,7 @@ sub reverse_action ( $self, $action_id, $reversed_by_user_id, $reason ) {
     return $self->schema->txn_do(
         sub {
             my $timestamp = $self->clock->now_iso8601;
-            my $action =
-              $self->schema->resultset('ModerationAction')->find($action_id);
+            my $action    = $self->_action_row( { action_id => $action_id } );
             return if !$action;
 
             if ( defined _column( $action, 'reversed_at' ) ) {
@@ -208,7 +213,7 @@ sub reverse_action ( $self, $action_id, $reversed_by_user_id, $reason ) {
                 reversed_at         => $timestamp,
                 reversed_by_user_id => $reversed_by_user_id,
             };
-            $action->update($changes);
+            $self->_update_action( $action, $changes );
             my $correlation_id = $self->id_service->uuid;
             $self->recorder->record_event(
                 %{
@@ -251,7 +256,7 @@ sub _apply_action ( $self, $input ) {
     return $self->schema->txn_do(
         sub {
             my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
-            if ($dbh) {
+            if ( $dbh && !$self->functions ) {
                 $dbh->selectrow_array( $LOCK_SQL_FOR{ $input->{lock_kind} },
                     undef, $input->{target_id} );
             }
@@ -259,29 +264,14 @@ sub _apply_action ( $self, $input ) {
             if ($replayed) {
                 return $self->_finish_leftover_action( $replayed, $input );
             }
-            my $target =
-              $self->schema->resultset( $input->{resultset} )
-              ->find( $input->{target_id} );
+            my $target = $self->_target($input);
             if ( !$target ) {
                 return undef;
             }
 
             my $idempotent = $input->{applied}->($target) ? 1 : 0;
             if ($idempotent) {
-                my $latest =
-                  $self->schema->resultset('ModerationAction')->search_rs(
-                    {
-                        action_type => $input->{action_type},
-                        reversed_at => undef,
-                        target_id   => $input->{target_id},
-                        target_type => $input->{target_type},
-                    },
-                    {
-                        order_by => { -desc => 'created_at' },
-                        rows     => 1,
-                    },
-                  );
-                my $existing = $latest->single;
+                my $existing = $self->_latest_action($input);
                 if ($existing) {
                     return {
                         action     => _action_hash($existing),
@@ -295,7 +285,7 @@ sub _apply_action ( $self, $input ) {
             my $previous_state = _column( $target, 'moderation_state' );
             if ( !$idempotent ) {
                 my $updates = $input->{updates};
-                $target->update(
+                $self->_update_target( $target, $input,
                     ref $updates eq 'CODE' ? $updates->($target) : $updates );
             }
 
@@ -318,6 +308,81 @@ sub _apply_action ( $self, $input ) {
             );
         }
     );
+}
+
+sub _target ( $self, $input ) {
+    return $self->schema->resultset( $input->{resultset} )
+      ->find( $input->{target_id} )
+      if !$self->functions;
+    return GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'moderation_target',
+            {
+                kind      => $input->{lock_kind},
+                target_id => $input->{target_id},
+                hold      => 1
+            }
+        )
+    );
+}
+
+sub _update_target ( $self, $row, $input, $changes ) {
+    return $row->update($changes) if !$self->functions;
+    $self->functions->row(
+        'moderation_target_update',
+        {
+            kind      => $input->{lock_kind},
+            target_id => $input->{target_id},
+            changes   => $changes
+        }
+    );
+    %{$row} = ( %{$row}, %{$changes} );
+    return $row;
+}
+
+sub _action_row ( $self, $input ) {
+    return $self->schema->resultset('ModerationAction')
+      ->find( $input->{action_id} )
+      if !$self->functions;
+    return GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'moderation_action_find',
+            {
+                action_id   => undef,
+                command_id  => undef,
+                action_type => undef,
+                target_type => undef,
+                target_id   => undef,
+                %{$input}
+            }
+        )
+    );
+}
+
+sub _latest_action ( $self, $input ) {
+    return $self->_action_row(
+        { map { $_ => $input->{$_} } qw(action_type target_type target_id) } )
+      if $self->functions;
+    return $self->schema->resultset('ModerationAction')->search_rs(
+        {
+            map( { $_ => $input->{$_} } qw(action_type target_type target_id) ),
+            reversed_at => undef
+        },
+        { order_by => { -desc => 'created_at' }, rows => 1 }
+    )->single;
+}
+
+sub _update_action ( $self, $row, $changes ) {
+    return $row->update($changes) if !$self->functions;
+    $self->functions->row(
+        'moderation_action_update',
+        {
+            action_id => _column( $row, 'moderation_action_id' ),
+            changes   => $changes
+        }
+    );
+    %{$row} = ( %{$row}, %{$changes} );
+    return $row;
 }
 
 sub _state ($target) {
@@ -345,6 +410,8 @@ sub _find_command_action ( $self, $command_id ) {
         return undef;
     }
 
+    return $self->_action_row( { command_id => $command_id } )
+      if $self->functions;
     return $self->schema->resultset('ModerationAction')
       ->search_rs( { command_id => $command_id }, { rows => 1 }, )
       ->single;
@@ -368,7 +435,13 @@ sub _record_action ( $self, $input ) {
             target_id            => $input->{target_id},
             target_type          => $input->{target_type},
         };
-        $self->schema->resultset('ModerationAction')->create($action);
+        if ( $self->functions ) {
+            $self->functions->row( 'moderation_action_insert',
+                { values => $action } );
+        }
+        else {
+            $self->schema->resultset('ModerationAction')->create($action);
+        }
 
         return $action;
     };

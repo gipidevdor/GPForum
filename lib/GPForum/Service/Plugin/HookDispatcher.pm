@@ -6,12 +6,34 @@ package GPForum::Service::Plugin::HookDispatcher;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 our $VERSION = '0.001';
 
 __PACKAGE__->requires(qw(failure_recorder schema));
 has handlers => sub { return {}; };
 
 sub dispatch ( $self, $hook_name, $payload ) {
+    if ( $self->functions ) {
+        my $rows =
+          $self->functions->rows( 'plugin_hooks', { hook_name => $hook_name } );
+        return {
+            hook_name => $hook_name,
+            results   => [
+                map {
+                    $self->_dispatch_hook(
+                        GPForum::Infrastructure::ResultRow->from($_), $payload )
+                } @{$rows}
+            ]
+        };
+    }
+
     my @results;
     my $search = $self->schema->resultset('PluginHook')->search_rs(
         {

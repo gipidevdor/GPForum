@@ -11,8 +11,12 @@ sudo -u gpforum gpforum migrate && sudo systemctl restart gpforum gpforum-outbox
 sudo -u gpforum gpforum doctor --upgrade
 ```
 
-Take a backup before the first one, so there is something to come back to:
-`sudo -u gpforum gpforum backup --to /var/backups/gpforum`.
+Take a backup before the first one, so there is something to come back to.
+The first time, its directory is made too, by root for `gpforum`, since
+`/var/backups` is root's (and a fresh Debian host has no
+`/var/backups/gpforum`):
+`sudo install -d -o gpforum -m 700 /var/backups/gpforum && sudo -u gpforum gpforum backup --to /var/backups/gpforum`.
+Once the directory is there, `gpforum upgrade` prints the backup alone.
 
 1. **The code and its dependencies.** `git pull` brings the release, and
    `make install-deps-production` installs what its `cpanfile.snapshot`

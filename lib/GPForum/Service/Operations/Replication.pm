@@ -7,6 +7,8 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunctionCatalogue;
+
 our $VERSION = '0.001';
 
 # PostgreSQL's default max_wal_size: about a checkpoint cycle's worth of WAL.
@@ -62,7 +64,8 @@ sub default_max_retained_bytes ($class) {
 }
 
 sub snapshot ( $self, $dbh ) {
-    my ($in_recovery) = $dbh->selectrow_array($RECOVERY_SQL);
+    my ($in_recovery) = $dbh->selectrow_array(
+        _function_sql( $dbh, 'ops_replication_recovery', $RECOVERY_SQL ) );
     my $role = $in_recovery ? 'standby' : 'primary';
     my $snapshot =
       $in_recovery
@@ -72,7 +75,7 @@ sub snapshot ( $self, $dbh ) {
     return {
         %{$snapshot},
         role   => $role,
-        slots  => _slots( $dbh, $SLOTS_SQL{$role} ),
+        slots  => _slots( $dbh, $SLOTS_SQL{$role}, $in_recovery ? 1 : 0 ),
         status => 'ok',
     };
 }
@@ -116,7 +119,11 @@ sub _standbys ($dbh) {
             state              => $_->{state},
             sync_state         => $_->{sync_state},
         }
-    } @{ $dbh->selectall_arrayref( $STANDBYS_SQL, { Slice => {} } ) };
+      } @{
+        $dbh->selectall_arrayref(
+            _function_sql( $dbh, 'ops_replication_standbys', $STANDBYS_SQL ),
+            { Slice => {} } )
+      };
 
     return {
         standbys                => \@standbys,
@@ -127,7 +134,9 @@ sub _standbys ($dbh) {
 }
 
 sub _standby_position ($dbh) {
-    my $row = $dbh->selectrow_hashref($STANDBY_SQL) || {};
+    my $row = $dbh->selectrow_hashref(
+        _function_sql( $dbh, 'ops_replication_position', $STANDBY_SQL ) )
+      || {};
 
     return {
         receiving            => $row->{receiving} ? 1 : 0,
@@ -136,7 +145,13 @@ sub _standby_position ($dbh) {
     };
 }
 
-sub _slots ( $dbh, $sql ) {
+sub _slots ( $dbh, $sql, $standby ) {
+    my @bound;
+    if ( $dbh->isa('DBI::db') && $dbh->{Driver}{Name} eq 'Pg' ) {
+        $sql = GPForum::Infrastructure::SqlFunctionCatalogue->new->function(
+            'ops_replication_slots')->{sql};
+        @bound = ($standby);
+    }
     return [
         map {
             {
@@ -146,11 +161,17 @@ sub _slots ( $dbh, $sql ) {
                 slot_type      => $_->{slot_type},
                 wal_status     => $_->{wal_status},
             }
-        } @{ $dbh->selectall_arrayref( $sql, { Slice => {} } ) }
+        } @{ $dbh->selectall_arrayref( $sql, { Slice => {} }, @bound ) }
     ];
 }
 
 # DBD::Pg hands numbers back as strings; the metrics are JSON numbers.
+sub _function_sql ( $dbh, $operation, $legacy ) {
+    return $legacy if !$dbh->isa('DBI::db') || $dbh->{Driver}{Name} ne 'Pg';
+    return GPForum::Infrastructure::SqlFunctionCatalogue->new->function(
+        $operation)->{sql};
+}
+
 sub _number ($value) {
     return if !defined $value;
 

@@ -7,6 +7,10 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+
 use GPForum::Infrastructure::Keyset;
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::PageWindow;
@@ -22,6 +26,10 @@ const my $TRUST_TRUSTED         => 2;
 
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub public_profile ( $self, $username, $options ) {
     my $user = $self->_find_public_user($username);
@@ -45,7 +53,11 @@ sub public_profile ( $self, $username, $options ) {
 }
 
 sub _find_public_user ( $self, $username ) {
-    my $user = $self->schema->resultset('User')
+    my $user =
+      $self->functions
+      ? $self->functions->row( 'identity_user_by_identifier',
+        { identifier => _normalize_username($username), by_email => 0 } )
+      : $self->schema->resultset('User')
       ->find( { username => _normalize_username($username) } );
 
     return undef if !$user;
@@ -57,7 +69,10 @@ sub _find_public_user ( $self, $username ) {
 
 sub _trust_hash ( $self, $user ) {
     my $snapshot =
-      $self->schema->resultset('TrustScoreSnapshot')
+      $self->functions
+      ? $self->functions->row( 'identity_profile_trust',
+        { user_id => _column( $user, 'id' ) } )
+      : $self->schema->resultset('TrustScoreSnapshot')
       ->find( _column( $user, 'id' ) );
 
     return {
@@ -78,7 +93,16 @@ sub _trust_hash ( $self, $user ) {
 sub _recent_public_threads ( $self, $user, $options ) {
     my $page = $self->page_window->plan($options);
     my @rows =
-      _rows( $self->public_threads_resultset( _column( $user, 'id' ), $page ) );
+      $self->functions
+      ? @{
+        $self->functions->rows( 'identity_profile_threads',
+            _page_parameters( $user, $page ) )
+      }
+      : _rows(
+        $self->public_threads_resultset( _column( $user, 'id' ), $page ) );
+    if ( $self->functions ) {
+        @rows = map { GPForum::Infrastructure::ResultRow->from($_) } @rows;
+    }
     my $window = $self->page_window->page( \@rows, $page->{limit},
         \@THREAD_CURSOR_COLUMNS );
 
@@ -111,7 +135,19 @@ sub public_threads_resultset ( $self, $user_id, $page ) {
 }
 
 sub _recent_public_replies ( $self, $user, $options ) {
-    my $page   = $self->page_window->plan($options);
+    my $page = $self->page_window->plan($options);
+    if ( $self->functions ) {
+        my $rows = $self->functions->rows( 'identity_profile_replies',
+            _page_parameters( $user, $page ) );
+        $rows =
+          [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
+        my $window = $self->page_window->page( $rows, $page->{limit},
+            \@REPLY_CURSOR_COLUMNS );
+        return {
+            items       => [ map { _reply_hash($_) } @{ $window->{items} } ],
+            next_cursor => $window->{next_cursor}
+        };
+    }
     my $query  = _reply_query( _column( $user, 'id' ), $page->{after} );
     my $search = $self->schema->resultset('Post')->search_rs(
         $query,
@@ -146,6 +182,10 @@ sub _recent_public_replies ( $self, $user, $options ) {
 
 sub _contribution_counts ( $self, $user ) {
     my $user_id = _column( $user, 'id' );
+    if ( $self->functions ) {
+        return $self->functions->row( 'identity_profile_counts',
+            { user_id => $user_id } );
+    }
     my $threads = _count_search(
         $self->schema->resultset('Thread')->search_rs(
             _thread_query($user_id), { join => { category => 'space' } }
@@ -167,6 +207,16 @@ sub _contribution_counts ( $self, $user ) {
 
 # The category and space a profile row sits in must be public and live: a
 # public thread in a private category is not public activity (ADR 0102).
+sub _page_parameters ( $user, $page ) {
+    my $after = $page->{after} || {};
+    return {
+        user_id   => _column( $user, 'id' ),
+        after_at  => $after->{sort_value},
+        after_id  => $after->{id},
+        row_limit => $page->{fetch_rows} || $DEFAULT_THREAD_LIMIT
+    };
+}
+
 sub _public_placement ($category) {
     return {
         "$category.deleted_at" => undef,

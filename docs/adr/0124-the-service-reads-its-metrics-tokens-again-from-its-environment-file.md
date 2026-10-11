@@ -11,6 +11,11 @@ both secrets. The session secret keeps that restart. It builds on ADR 0120
 (the front door reads the environment file, and the process environment
 wins) and ADR 0121 (the application is built before Hypnotoad forks).
 
+Amended 2026-10-11, after the iteration-4 token review and walkthrough 4
+(friction 1): Hypnotoad's manager reads the file too, so a worker it forks
+later never starts from the tokens the service started with (sections 2
+and 4).
+
 ## Context
 
 Walkthrough 3 (`docs/ops/evidence/2026-10-10-operator-walkthrough-3`,
@@ -58,6 +63,20 @@ Whether the tokens follow the file is decided once
 built, before Hypnotoad forks, so every worker inherits the same decision,
 including one Hypnotoad starts later to replace another.
 
+A worker inherits the list too, and the manager it is forked from serves
+no request, so no check ever made the manager read the file. Hypnotoad
+forks a worker after its `accepts`, or after a missed heartbeat, and each
+such worker started from the tokens the service started with. Walkthrough
+4 reproduced it: rotate A to B, `--finish`, add a line that is not
+`NAME=value`, replace the workers, and the new ones accepted A and refused
+B. So when the file is followed, a `before_server_start` hook
+(`MetricsTokens->follow_in_manager`) subscribes the manager to
+`Mojo::Server::Prefork`'s `wait` event. The manager then reads the file
+as a worker does, at each turn of its loop, and a worker it forks starts
+from the list the manager accepted last. A server that does not fork
+(`gpforum start --foreground`, the tests' client) has no manager and is not
+subscribed.
+
 The file is followed only when its tokens are exactly the ones the service
 started with. The supervisor read that same file a moment earlier. If the
 file holds others, it is not where the service's tokens came from: it may
@@ -103,6 +122,15 @@ are silent until it changes again. The list never becomes "no token":
 `/metrics` cannot open by accident. A successful re-read is logged at
 `info`, with the number of tokens accepted.
 
+"The tokens it accepted before" are the latest list each process accepted,
+never the start-time list once a newer one was accepted. A worker Hypnotoad
+forks while the file cannot be used starts from the list the manager
+accepted last, and keeps it. The manager's loop turns at least once a
+second, since it waits a second at most for the workers' heartbeats. One
+case is left: a change that is followed, within that same second, by a
+file nobody can use, with a worker forked in between. That worker keeps the
+list from before the change until the file can be used again.
+
 ### 5. The session secret is not read again
 
 `GPFORUM_SESSION_SECRET` and `GPFORUM_SESSION_SECRETS` sign and verify
@@ -131,6 +159,14 @@ In Italian:
 Prossimo passo: dai a ogni scraper il nuovo GPFORUM_METRICS_TOKEN da /etc/gpforum/gpforum.env, poi gpforum secret rotate metrics --finish
 ✓ I token delle metriche precedenti non sono più in /etc/gpforum/gpforum.env, e il servizio in esecuzione li rifiuta già, senza riavvio.
 ```
+
+A file an account other than its owner may write is one the service
+refuses (section 4), so its rotation does not say "with no restart": it
+says, with the `chmod 0640` that closes the file, that the service does not
+read it again, and names the restart. `gpforum doctor` lists such a file
+under `!`, with the same fix. All three judge the mode by one rule,
+`MetricsTokens->others_may_write` (amended 2026-10-11; walkthrough 4,
+friction 2, found a `0660` file promised a re-read the service refused).
 
 A file named with `--env-file` that is not the host's own keeps the
 restart line, because the service is not known to follow it until its
@@ -168,6 +204,16 @@ unchanged.
   - a file written in place, in halves, never opening `/metrics`.
 
   Against the access code before this change, the rotation subtests fail.
+- `t/660-metrics-tokens-new-workers.t`: a worker forked from a
+  `Mojo::Server::Prefork` manager after `--finish` and a malformed line, once
+  the manager has turned its loop (and once it has also found the file
+  unusable), refuses the dropped token and accepts the new one; a running
+  Prefork manager replacing its worker does the same. All three fail
+  without the manager's read. Run once against a live Hypnotoad, 14
+  workers, on a free port: after `TERM` to every worker, the 14 new ones
+  answered the dropped token 401 and the current one 200.
 - `t/601-secret-rotate-metrics-no-restart.t`: the three steps in English
   and Italian with no restart command, and the restart kept for a session
-  secret and for a file that is not the host's own.
+  secret and for a file that is not the host's own; a `0660` and a `0620`
+  file name the chmod and the restart, in both languages, and doctor lists
+  them under `!`.

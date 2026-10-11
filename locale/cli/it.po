@@ -1153,6 +1153,15 @@ msgstr ""
 "Ogni account di questo host può leggere {file}, segreti compresi: "
 "{command}"
 
+#, python-brace-format
+msgctxt "cli.secret.writable"
+msgid ""
+"Accounts other than its owner can write {file}, so the running service does "
+"not read the metrics tokens from it again: {command}"
+msgstr ""
+"Account diversi dal proprietario possono scrivere {file}, quindi il "
+"servizio in esecuzione non ne rilegge i token delle metriche: {command}"
+
 msgctxt "cli.service.caddy_whole"
 msgid ""
 "The Caddyfile is the whole of Caddy's configuration: if Caddy serves other "
@@ -1191,6 +1200,12 @@ msgid ""
 msgstr ""
 "Indica cosa stampare: gpforum service print, oppure gpforum service print "
 "nginx."
+
+#, python-brace-format
+msgctxt "cli.service.needs_root"
+msgid "Only root can write into {directory}: run it with sudo, as {command}"
+msgstr ""
+"Solo root può scrivere in {directory}: eseguilo con sudo, come {command}"
 
 msgctxt "cli.service.next_in_place_many"
 msgid "start them:"
@@ -1384,6 +1399,10 @@ msgstr "Crea il proprietario del forum, o rendi tale un membro"
 msgctxt "cli.verb.antivirus_check"
 msgid "Check that uploads are scanned"
 msgstr "Verifica che i file caricati vengano analizzati"
+
+msgctxt "cli.verb.api_role"
+msgid "Provision the PostgreSQL application role"
+msgstr "Configura il ruolo PostgreSQL dell'applicazione"
 
 msgctxt "cli.verb.backup"
 msgid "Back up the database and the uploads"
@@ -2092,6 +2111,15 @@ msgid "settings: {environment}, from the shell's environment"
 msgstr "impostazioni: {environment}, dall'ambiente della shell"
 
 #, python-brace-format
+msgctxt "doctor.settings_writable"
+msgid ""
+"settings: accounts other than its owner can write {file}, so the running "
+"service does not read the metrics tokens from it again"
+msgstr ""
+"impostazioni: account diversi dal proprietario possono scrivere {file}, "
+"quindi il servizio in esecuzione non ne rilegge i token delle metriche"
+
+#, python-brace-format
 msgctxt "doctor.size_cache"
 msgid "{count} cache entries a process"
 msgstr "{count} voci di cache per processo"
@@ -2100,6 +2128,10 @@ msgstr "{count} voci di cache per processo"
 msgctxt "doctor.size_web"
 msgid "{count} web processes"
 msgstr "{count} processi web"
+
+msgctxt "doctor.size_web_foreground"
+msgid "1 web process (gpforum start --foreground)"
+msgstr "1 processo web (gpforum start --foreground)"
 
 msgctxt "doctor.size_web_one"
 msgid "1 web process"
@@ -3161,14 +3193,15 @@ msgstr ""
 "Poi: make install-deps-postgres, oppure sudo make install-deps-production "
 "su un server"
 
-msgctxt "system.next_preflight"
-msgid "Next: check the host, with script/system-preflight"
-msgstr "Prossimo passo: controlla l'host, con script/system-preflight"
-
 #, python-brace-format
 msgctxt "system.next_setup"
 msgid "Next: set this host up, with sudo {gpforum} setup"
 msgstr "Prossimo passo: prepara questo host, con sudo {gpforum} setup"
+
+#, python-brace-format
+msgctxt "system.next_setup_checkout"
+msgid "Next: set this checkout up, with {command}"
+msgstr "Prossimo passo: prepara questa copia di lavoro, con {command}"
 
 #, python-brace-format
 msgctxt "system.perl_manager"

@@ -7,6 +7,9 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
@@ -35,6 +38,10 @@ has recorder => sub {
 };
 __PACKAGE__->requires(qw(schema));
 has events => sub { return GPForum::Service::Admin::Event->new; };
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub bind_role ( $self, $input ) {
     return $self->_txn( sub { return $self->_bind_role_once($input); } );
@@ -98,7 +105,10 @@ sub _create_binding ( $self, $input ) {
         created_at         => $created_at,
         revoked_at         => undef,
     };
-    $self->schema->resultset('RoleBinding')->create($binding);
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_insert_binding', { values => $binding } );
+    }
+    else { $self->schema->resultset('RoleBinding')->create($binding); }
     $self->_record_audit(
         {
             action        => 'role_binding.created',
@@ -124,7 +134,14 @@ sub revoke_binding ( $self, $binding_id, $actor_user_id ) {
 # the lock, both saw the binding active; the later one overwrote revoked_at
 # and recorded a second audit row.
 sub _revoke_binding_once ( $self, $binding_id, $actor_user_id ) {
-    my $binding = $self->schema->resultset('RoleBinding')
+    my $binding =
+      $self->functions
+      ? GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'admin_lock_binding', { binding_id => $binding_id }
+        )
+      )
+      : $self->schema->resultset('RoleBinding')
       ->find( $binding_id, { for => 'update' } );
     return undef if !$binding;
 
@@ -138,7 +155,11 @@ sub _revoke_binding_once ( $self, $binding_id, $actor_user_id ) {
       if defined $binding->get_column('revoked_at');
 
     my $revoked_at = $self->clock->now_iso8601;
-    $binding->update( { revoked_at => $revoked_at } );
+    if ( $self->functions ) {
+        $self->functions->row( 'admin_revoke_binding',
+            { binding_id => $binding_id, revoked_at => $revoked_at } );
+    }
+    else { $binding->update( { revoked_at => $revoked_at } ); }
     $self->_record_audit(
         {
             action        => 'role_binding.revoked',
@@ -162,6 +183,19 @@ sub _revoke_binding_once ( $self, $binding_id, $actor_user_id ) {
 }
 
 sub _active_binding ( $self, $input ) {
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'admin_lookup_binding',
+                {
+                    query => {
+                        map { $_ => $input->{$_} }
+                          qw(user_id role_id resource_type resource_id space_id)
+                    }
+                }
+            )
+        );
+    }
     my $search = $self->schema->resultset('RoleBinding')->search_rs(
         {
             user_id       => $input->{user_id},
@@ -208,14 +242,28 @@ sub _column ( $row, $column ) {
 
 # An earlier attempt may have committed the binding without its audit entry.
 sub _finish_leftover_binding ( $self, $existing, $input ) {
-    my $search = $self->schema->resultset('AuditLog')->search_rs(
-        {
-            action    => 'role_binding.created',
-            target_id => _column( $existing, 'binding_id' ),
-        },
-        { rows => $ROW_LIMIT_ONE },
-    );
-    my $audited = $search->can('single') ? $search->single : undef;
+    my $audited;
+    if ( $self->functions ) {
+        $audited = $self->functions->row(
+            'admin_lookup_audit',
+            {
+                query => {
+                    action    => 'role_binding.created',
+                    target_id => _column( $existing, 'binding_id' )
+                }
+            }
+        );
+    }
+    else {
+        my $search = $self->schema->resultset('AuditLog')->search_rs(
+            {
+                action    => 'role_binding.created',
+                target_id => _column( $existing, 'binding_id' ),
+            },
+            { rows => $ROW_LIMIT_ONE },
+        );
+        $audited = $search->can('single') ? $search->single : undef;
+    }
     if ( !$audited ) {
         $self->_record_audit(
             {

@@ -7,6 +7,10 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+
 use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
@@ -33,6 +37,10 @@ has support        => sub { return GPForum::Service::Identity::Support->new; };
 # hash already stored is reminted with its token. Any other conflict is
 # idx_identity_tokens_open_user_type: the member already holds an open token
 # of this type, which is rotated rather than duplicated.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 sub create_token ( $self, $input ) {
     my $issued = $self->_issued_token($input);
     my ( $created, $error ) =
@@ -48,7 +56,13 @@ sub create_token ( $self, $input ) {
     }
     if ( $conflict->on($ID_CONSTRAINT) ) {
         my $stored =
-          $self->_tokens->find( { token_id => $issued->{token_id} } );
+          $self->functions
+          ? GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'identity_token_by_id', { token_id => $issued->{token_id} }
+            )
+          )
+          : $self->_tokens->find( { token_id => $issued->{token_id} } );
         if ( $self->_same_issued_token( $stored, $issued ) ) {
             return {
                 row        => $stored,
@@ -93,7 +107,14 @@ sub create_token ( $self, $input ) {
 }
 
 sub _insert_issued ( $self, $issued ) {
-    my $row = $self->_tokens->create( $issued->{row} );
+    my $row =
+      $self->functions
+      ? GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row(
+            'identity_insert_token', { values => $issued->{row} }
+        )
+      )
+      : $self->_tokens->create( $issued->{row} );
 
     return {
         expires_at => $issued->{expires_at},
@@ -131,6 +152,18 @@ sub _unused_token ( $self, $input ) {
         return undef;
     }
 
+    if ( $self->functions ) {
+        return GPForum::Infrastructure::ResultRow->from(
+            $self->functions->row(
+                'identity_unused_token',
+                {
+                    user_id    => $input->{user_id},
+                    token_type => $input->{token_type}
+                }
+            )
+        );
+    }
+
     return $self->_tokens->search_rs(
         {
             token_type => $input->{token_type},
@@ -142,15 +175,28 @@ sub _unused_token ( $self, $input ) {
 }
 
 sub _rotate_token ( $self, $row, $issued ) {
-    $self->support->update_row(
-        $row,
-        {
-            email_normalized => $issued->{row}{email_normalized},
-            expires_at       => $issued->{expires_at},
-            metadata         => $issued->{row}{metadata},
-            token_hash       => $issued->{token_hash},
-        }
-    );
+    if ( $self->functions ) {
+        my $stored = $self->functions->row(
+            'identity_rotate_token',
+            {
+                token_id => $self->support->column( $row, 'token_id' ),
+                values   => $issued->{row}
+            }
+        );
+        $row = GPForum::Infrastructure::ResultRow->from(
+            { %{$stored}, expires_at => $issued->{expires_at} } );
+    }
+    else {
+        $self->support->update_row(
+            $row,
+            {
+                email_normalized => $issued->{row}{email_normalized},
+                expires_at       => $issued->{expires_at},
+                metadata         => $issued->{row}{metadata},
+                token_hash       => $issued->{token_hash},
+            }
+        );
+    }
 
     return {
         expires_at => $issued->{expires_at},
@@ -192,6 +238,26 @@ sub _issued_token ( $self, $input ) {
 sub consume_token ( $self, $token_type, $raw_token ) {
     my $token_hash =
       $self->session_tokens->hash_token( $self->support->trimmed($raw_token) );
+    if ( $self->functions ) {
+        my $result = $self->functions->row(
+            'identity_consume_token',
+            {
+                token_hash => $token_hash,
+                token_type => $token_type,
+                now        => $self->clock->now_iso8601,
+                now_epoch  => $self->clock->now_epoch
+            }
+        );
+        return { ok => 0, error => $result->{result_code} }
+          if $result->{result_code} ne 'ok';
+        my $row = delete $result->{token_row};
+        $row->{used_at} = $self->clock->now_iso8601;
+        return {
+            ok  => 1,
+            row => GPForum::Infrastructure::ResultRow->from($row),
+            map { $_ => $row->{$_} } qw(email_normalized token_id user_id)
+        };
+    }
     $self->_lock_token_hash($token_hash);
 
     my $row = $self->_tokens->search_rs(

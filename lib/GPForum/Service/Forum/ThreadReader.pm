@@ -9,6 +9,8 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
+use GPForum::Infrastructure::ResultRow::Thread;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
 
@@ -37,17 +39,53 @@ SQL
 __PACKAGE__->requires('schema');
 
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
+has functions   => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 sub list_category_threads ( $self, $request ) {
     my $plan = $self->page_window->plan($request);
+
+    if ( my $functions = $self->functions ) {
+        my $rows = $functions->rows(
+            @{ $self->category_threads_call( $request, $plan ) } );
+        return _pinned_page(
+            [
+                map { GPForum::Infrastructure::ResultRow::Thread->from($_) }
+                  @{$rows}
+            ],
+            $plan->{limit}
+        );
+    }
 
     return _pinned_page(
         [ _rows( $self->category_threads_resultset( $request, $plan ) ) ],
         $plan->{limit} );
 }
 
-# The resultset list_category_threads executes, before it is executed. Public
-# so the plan tests EXPLAIN what actually runs rather than a transcription.
+# The calls the readers execute, also used by the nested query-plan gate.
+sub category_threads_call ( $self, $request, $plan = undef ) {
+    $plan ||= $self->page_window->plan($request);
+    my $scope = $request->{viewer_scope}
+      || GPForum::Service::Forum::Viewer->anonymous;
+    my $after = _decode_pinned_cursor( $request->{after} ) || {};
+    return [
+        'forum_list_category_threads',
+        {
+            after_activity  => $after->{sort_value},
+            after_pinned    => $after->{pinned},
+            after_thread_id => $after->{id},
+            category_id     => $request->{category_id},
+            global_read     => $scope->global_read,
+            member          => $scope->member,
+            row_limit       => $plan->{fetch_rows},
+            scope_user_id   => _user_id( $scope->user_id ),
+            viewer_user_id  => _user_id( $request->{viewer_user_id} ),
+        }
+    ];
+}
+
+# The original resultset, retained for doubles and differential plan tests.
 sub category_threads_resultset ( $self, $request, $plan = undef ) {
     $plan ||= $self->page_window->plan($request);
 
@@ -82,14 +120,45 @@ sub category_threads_resultset ( $self, $request, $plan = undef ) {
 sub list_public_threads ( $self, $request ) {
     my $plan = $self->page_window->plan($request);
 
+    if ( my $functions = $self->functions ) {
+        my $rows = $functions->rows(
+            @{ $self->latest_threads_call( $request, $plan ) } );
+        return $self->page_window->page(
+            [
+                map { GPForum::Infrastructure::ResultRow::Thread->from($_) }
+                  @{$rows}
+            ],
+            $plan->{limit},
+            [ 'last_activity_at', 'thread_id' ]
+        );
+    }
+
     return $self->page_window->page(
         [ _rows( $self->latest_threads_resultset( $request, $plan ) ) ],
         $plan->{limit}, [ 'last_activity_at', 'thread_id' ],
     );
 }
 
-# The resultset list_public_threads executes.
-# Public so the query-plan evidence EXPLAINs what actually runs.
+sub latest_threads_call ( $self, $request, $plan = undef ) {
+    $plan ||= $self->page_window->plan($request);
+    my $viewer = $request->{viewer}
+      || GPForum::Service::Forum::Viewer->anonymous;
+    my $after = $plan->{after} || {};
+    return [
+        'forum_list_public_threads',
+        {
+            after_activity  => $after->{sort_value},
+            after_thread_id => $after->{id},
+            category_ids    => $viewer->category_ids,
+            global_read     => $viewer->global_read,
+            member          => $viewer->member,
+            row_limit       => $plan->{fetch_rows},
+            space_ids       => $viewer->space_ids,
+        }
+    ];
+}
+
+# The original latest-thread resultset, retained for differential plan tests.
 # Public threads only, from categories and spaces the viewer can read (ADR
 # 0102): the home page's latest list and, with an anonymous viewer, the
 # sitemap and the Atom feed.
@@ -339,6 +408,10 @@ sub _rows ($search) {
     return;
 }
 
+sub _user_id ($id) {
+    return defined $id && length $id ? $id : undef;
+}
+
 1;
 
 __END__
@@ -373,6 +446,13 @@ Version 0.001.
 Two thread listings, each a keyset page of one row more than the limit,
 planned by L<GPForum::Service::Forum::PageWindow>.
 
+On PostgreSQL the lists call C<api.forum_list_category_threads_v1> and
+C<api.forum_list_public_threads_v1>. Each keyset shape retains its own
+statement, and category pages retain the two limited scans for a viewer's
+live and deleted rows. Returned rows have the existing column accessors.
+C<functions =E<gt> undef> keeps the original resultsets for differential
+tests; schemas without a PostgreSQL function layer keep that path too.
+
 A category's threads are ordered by C<pinned>, then C<last_activity_at>,
 then C<thread_id>, all descending, so its cursor leads with C<pinned>: a
 cursor that carried only the last two columns let pinned threads repeat or
@@ -401,6 +481,17 @@ whoever may read them, so a reply a moderator hid, or one more private
 than its thread, is counted and not shown.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 category_threads_call
+
+Takes a category listing request and optional precomputed page plan. Returns
+the catalogue name and parameters the PostgreSQL category list executes.
+
+=head2 latest_threads_call
+
+Take the listing request and an optional precomputed page plan. Return the
+catalogue name and parameters the corresponding PostgreSQL list executes,
+also used by the nested query-plan evidence.
 
 =head2 new
 

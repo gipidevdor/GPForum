@@ -29,6 +29,7 @@ the command, or says `none`.
 | `bin/gpforum` | none | The front door and the application. As `gpforum VERB` it reads the service's environment file, re-runs itself under Carton when `local/` is not on `@INC`, and runs each command below (table at the end); Hypnotoad loads it as the application that serves the console. |
 | `bin/gpforum-admin-bootstrap` | none | The alias of `gpforum admin grant --user-id`. `gpforum admin create` makes the forum's owner, active and verified, before anyone can sign in to the console; `gpforum admin grant EMAIL` makes a member one. Later administrators are bound on `/admin/users/:user_id/roles`. |
 | `bin/gpforum-antivirus-check` | `admin_settings` `admin_antivirus_check` | **Run antivirus check** on `/admin/settings` runs the same check (`Service::Operations::AntivirusCheck`) with the service's scanner and audits the report (`admin.antivirus_checked`). With `GPFORUM_ANTIVIRUS=command` only the shell can run it: clamscan loads its signatures for every file and three scans outlast a web request. |
+| `bin/gpforum-api-role` | none | Plans the application login's access to the catalogued PostgreSQL functions; `--apply` provisions it after migrations. Uses the separate operator connection and environment file ([application role provisioning](sql-api-role.md)); web and worker services use the restricted login. |
 | `bin/gpforum-bench-hypnotoad` | none | Benchmark: starts the Hypnotoad it measures. Developer and operator tooling. |
 | `bin/gpforum-bench-hypnotoad-scaling` | none | Benchmark of worker counts; starts its own servers. Developer and operator tooling. |
 | `bin/gpforum-benchmark` | none | HTTP benchmark against a running instance. `/admin/status` shows the benchmark commands and whether a baseline exists; running load from inside the instance under test would measure itself. |
@@ -47,7 +48,6 @@ the command, or says `none`.
 | `bin/gpforum-query-plan-evidence` | none | Evidence tooling: EXPLAIN on a seeded database. Developer tooling. |
 | `bin/gpforum-scheduled-jobs` | none | Run by its timer (`gpforum-scheduled-jobs.service`). Running a pass from a web request would race the timer. |
 | `bin/gpforum-search-rebuild` | `admin_jobs` `admin_search_rebuild` | **Rebuild search index** on `/admin/jobs` rebuilds through the outbox and audits the request (`admin.search_rebuild_requested`). |
-| `bin/gpforum-seed-benchmark` | none | Seeds benchmark data. Never on a live forum. |
 | `bin/gpforum-seed-performance-data` | none | Seeds performance data. Never on a live forum. |
 | `bin/gpforum-staging-drill` | none | Staging drill, for release evidence. Operator's shell. |
 | `bin/gpforum-staging-drill-attachments` | none | Staging drill for attachments, for release evidence. Operator's shell. |
@@ -97,6 +97,7 @@ as a check in the front door's help, prints its lines unless given `--json`.
 | `gpforum-migrate --check --json` | `pending`: the migrations the database has not recorded, as above; `status` `fail` when any are, or (`error`) when an applied file changed since. |
 | `gpforum-migrate --apply --json` | `applied`: each `{version, description, checksum, execution_time_ms}`; left out when a migration failed (above). `partitions`: the window step after the migrations, shaped as `gpforum-partition-maintenance --json` less `command` and `mode`; left out with `--no-partitions`. `budgets`: the query budget sync after them, `{synced, written, removed}`. A conflict or error in either makes `status` `fail` with `applied` still listed. `gpforum migrate --json`, which applies without `--apply`, prints the same. |
 | `gpforum-admin --json` (`gpforum admin create`, `grant`) | `mode` (`create` or `grant`), `role`, `user` (`id`, `username`, `email_normalized`, `status`), `counts` (what the run created) and `permissions`; with `--dry-run`, `dry_run` 1 and `user`. A refusal: `status` `fail` and `error`, the sentence printed on standard error. |
+| `gpforum-api-role --role ROLE --json` | `mode` (`plan` by default) and `role`; a plan lists SQL in `statements`, while `--apply` reports the number of granted signatures in `functions`. |
 | `gpforum-secret --json` (`gpforum secret rotate`) | `kind` (`session` or `metrics`), `mode` (`rotate` or `finish`), `file`, `changed` (the variables written), `dry_run`. Never a secret. |
 | `gpforum-partition-maintenance --json` | `lookahead_months`, `skipped` (1 when another run held the maintenance lock) and the lists `created`, `existing`, `planned`, `conflicts`, `errors` (`partition-maintenance.md`). |
 | `gpforum-platform-check --json` | `mode`, `strict`, `checks`: each `{name, status, report}`, `report` being the check's own (`os-preflight --json` for `os_preflight`). `status` is the worst check's, `fail` when the exit code is 1. |
@@ -149,6 +150,7 @@ commands under their own names, with Mojolicious's and Minion's commands
 | --- | --- | --- |
 | `gpforum migrate` | `bin/gpforum-migrate --apply` | none (above) |
 | `gpforum admin create`, `gpforum admin grant` | `bin/gpforum-admin-bootstrap` | `/admin/users/:user_id/roles` for later administrators |
+| `gpforum api-role --role ROLE` | `bin/gpforum-api-role` | none: operator-managed PostgreSQL privileges |
 | `gpforum secret rotate session`, `metrics` | `GPForum::Command::Secret` | none: it writes the environment file, which the console only reads (`/admin/settings`) |
 | `gpforum start --foreground` | Mojolicious's `daemon`, for development | none |
 | `gpforum outbox` | `bin/gpforum-outbox-dispatch` | `/admin/jobs` shows the outbox |

@@ -216,10 +216,6 @@ sub identity_bad_request ($self) {
     return $self->identity_access->bad_request($self);
 }
 
-sub identity_system_failure ($self) {
-    return $self->settings_system_failure;
-}
-
 sub identity_write_failure ( $self, $result ) {
     if ( ( $result->{status} || q{} ) eq 'failed' ) {
         return $self->identity_unavailable;

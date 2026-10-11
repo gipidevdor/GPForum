@@ -106,7 +106,7 @@ jobs:
         run: script/gpforum-carton exec bin/gpforum-migrate --apply
 
       - name: Seed production evidence dataset
-        run: script/seed-benchmark --profile small
+        run: bin/gpforum performance-seed --profile small
 
       - name: Sync query budget catalog
         run: script/query-budget --sync

@@ -54,7 +54,6 @@ for my $environment (qw(development test staging production)) {
 
 my $production = GPForum::Config->new(%PRODUCTION);
 lives_ok { $production->validate } 'production validates without one';
-ok( !$production->requires_glifistore, 'and does not require one' );
 isa_ok(
     GPForum::Service::Operations::CacheFactory->build($production),
     'GPForum::Service::Operations::LocalCache',

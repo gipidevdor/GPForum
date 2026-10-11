@@ -519,6 +519,6 @@ ADR approval SHOULD be required for:
   `t/47-query-plan-check.t`, `t/integration/postgres.t`,
   `t/09-architecture-documentation.t`.
 - Scripts: `script/architecture-check`, `script/perlcritic`, `script/test`,
-  `script/coverage`, `script/profile`, `script/query-budget`,
+  `script/coverage`, `script/profile-nytprof`, `script/query-budget`,
   `script/query-plan-check`, `script/cpan-license-check`,
   `script/gpforum-carton`; lockfile `cpanfile.snapshot`.

@@ -23,7 +23,7 @@ sub check {
             },
         ],
         environment => 'production',
-        runtime     => { worker_processes => 2 },
+        runtime     => { web_processes => 2 },
         timestamp   => '2026-05-23T12:00:00Z',
     };
 }

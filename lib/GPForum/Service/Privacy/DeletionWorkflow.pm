@@ -18,6 +18,14 @@ use GPForum::X::Conflict;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
+has functions => sub {
+    my ($self) = @_;
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 our $VERSION = '0.001';
 
 const my $STATUS_PENDING         => 'pending';
@@ -45,6 +53,7 @@ has recorder => sub {
     return GPForum::Infrastructure::EventRecorder->new(
         id_service => $self->id_service,
         schema     => $self->schema,
+        functions  => $self->functions,
     );
 };
 __PACKAGE__->requires(qw(schema));
@@ -69,8 +78,9 @@ has erased_exports => sub {
     my ($self) = @_;
 
     return GPForum::Service::Privacy::ErasedExports->new(
-        record => $self->record,
-        schema => $self->schema,
+        record    => $self->record,
+        schema    => $self->schema,
+        functions => $self->functions,
     );
 };
 
@@ -82,7 +92,7 @@ sub request_deletion ( $self, $input ) {
     return $self->schema->txn_do(
         sub {
             my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
-            if ($dbh) {
+            if ( $dbh && !$self->functions ) {
                 $dbh->selectrow_array(
 'SELECT deletion_request_id FROM deletion_requests WHERE resource_type = ? AND resource_id = ? AND request_type = ? AND status IN (?, ?, ?) FOR UPDATE',
                     undef,
@@ -111,7 +121,7 @@ sub request_deletion ( $self, $input ) {
                     resource_type       => $input->{resource_type},
                     status              => $STATUS_PENDING,
                 };
-                $self->schema->resultset('DeletionRequest')->create($request);
+                $self->_insert_privacy_row( 'DeletionRequest', $request );
                 $self->_record_privacy_event_and_audit(
                     $self->events->requested(
                         {
@@ -157,14 +167,14 @@ sub approve_request ( $self, $request_id, $actor_id, $reason ) {
     return $self->schema->txn_do(
         sub {
             my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
-            if ($dbh) {
+            if ( $dbh && !$self->functions ) {
                 $dbh->selectrow_array(
 'SELECT deletion_request_id FROM deletion_requests WHERE deletion_request_id = ? FOR UPDATE',
                     undef, $request_id
                 );
             }
             my $request =
-              $self->schema->resultset('DeletionRequest')->find($request_id);
+              $self->_find_privacy_row( 'DeletionRequest', $request_id, 1 );
             if ( !$request ) {
                 return undef;
             }
@@ -212,15 +222,13 @@ sub approve_request ( $self, $request_id, $actor_id, $reason ) {
 sub complete_job ( $self, $erasure_job_id, $actor_id ) {
     return $self->schema->txn_do(
         sub {
-            my $job =
-              $self->schema->resultset('ErasureJob')->find($erasure_job_id);
+            my $job = $self->_find_privacy_row( 'ErasureJob', $erasure_job_id );
             if ( !$job ) {
                 return undef;
             }
             if ( $self->completion->job_done($job) ) {
                 my $left_open =
-                  $self->schema->resultset('DeletionRequest')
-                  ->find(
+                  $self->_find_privacy_row( 'DeletionRequest',
                     $self->record->column( $job, 'deletion_request_id' ) );
                 if ($left_open) {
                     my $completed_at =
@@ -233,8 +241,8 @@ sub complete_job ( $self, $erasure_job_id, $actor_id ) {
                 return $self->completion->completion_replay($erasure_job_id);
             }
 
-            my $request = $self->schema->resultset('DeletionRequest')
-              ->find( $job->get_column('deletion_request_id') );
+            my $request = $self->_find_privacy_row( 'DeletionRequest',
+                $self->record->column( $job, 'deletion_request_id' ) );
             if ( !$request ) {
                 return undef;
             }
@@ -261,7 +269,7 @@ sub hold_request ( $self, $request_id, $actor_id, $reason, $hold ) {
     return $self->schema->txn_do(
         sub {
             my $request =
-              $self->schema->resultset('DeletionRequest')->find($request_id);
+              $self->_find_privacy_row( 'DeletionRequest', $request_id, 1 );
             if ( !$request ) {
                 return undef;
             }
@@ -360,7 +368,7 @@ sub _insert_or_reuse_job ( $self, $input ) {
             scheduled_at        => $input->{timestamp},
             status              => $JOB_PENDING,
         };
-        $self->schema->resultset('ErasureJob')->create($job);
+        $self->_insert_privacy_row( 'ErasureJob', $job );
 
         return $job;
     };
@@ -402,7 +410,8 @@ sub _block_erasure ( $self, $input ) {
 
     $self->_set_request_status( $input->{request}, $STATUS_HELD );
     if ( !$blocked ) {
-        $input->{job}->update( { last_error => $self->events->block_error } );
+        $self->_update_privacy_row( 'ErasureJob', $input->{job},
+            { last_error => $self->events->block_error } );
     }
     if ( $held || $blocked ) {
         return $self->_blocked_result($input);
@@ -447,7 +456,9 @@ sub _finish_erasure ( $self, $input ) {
       defined $anonymized->{user_id}
       ? $self->erased_exports->discard( $anonymized->{user_id} )
       : [];
-    $input->{job}->update(
+    $self->_update_privacy_row(
+        'ErasureJob',
+        $input->{job},
         {
             completed_at => $input->{timestamp},
             last_error   => undef,
@@ -517,7 +528,7 @@ sub _record_action ( $self, $request_id, $input ) {
             deletion_request_id => $request_id,
             metadata            => $input->{metadata} || {},
         };
-        $self->schema->resultset('DeletionAction')->create($action);
+        $self->_insert_privacy_row( 'DeletionAction', $action );
 
         return $action;
     };
@@ -599,7 +610,8 @@ sub _set_request_status ( $self, $request, $status ) {
         return;
     }
 
-    $request->update( { status => $status } );
+    $self->_update_privacy_row( 'DeletionRequest', $request,
+        { status => $status } );
 
     return;
 }
@@ -609,7 +621,9 @@ sub _complete_request_row ( $self, $request, $timestamp ) {
         return;
     }
 
-    $request->update(
+    $self->_update_privacy_row(
+        'DeletionRequest',
+        $request,
         {
             completed_at => $timestamp,
             status       => $STATUS_COMPLETED,
@@ -638,6 +652,12 @@ sub _active_hold_for_request ( $self, $request ) {
 }
 
 sub _latest_row ( $self, $resultset_name, $query, $order_field ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'privacy_latest',
+            { source => $resultset_name, query => $query } );
+        return $row ? $row->{document} : undef;
+    }
+
     my $search = $self->schema->resultset($resultset_name)->search_rs(
         $query,
         {
@@ -668,7 +688,7 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
     my $user_id = $self->record->column( $request, 'resource_id' );
     my $user =
         $self->erasure->is_user_resource($request)
-      ? $self->schema->resultset('User')->find($user_id)
+      ? $self->_find_privacy_row( 'User', $user_id )
       : undef;
     my $skip = $self->erasure->skip_reason( $request, $user );
     if ($skip) {
@@ -678,7 +698,8 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
     $self->_revoke_user_rows( 'Credential', $user_id, $timestamp );
     my $already = $self->erasure->already_deleted($user);
     if ( !$already ) {
-        $user->update( $self->erasure->user_values( $user_id, $timestamp ) );
+        $self->_update_privacy_row( 'User', $user,
+            $self->erasure->user_values( $user_id, $timestamp ) );
     }
     $self->_revoke_user_rows( 'Session', $user_id, $timestamp );
 
@@ -689,6 +710,18 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
 # again. It was skipped: the account was anonymized and its credentials
 # revoked while its sessions stayed signed in (t/339).
 sub _revoke_user_rows ( $self, $resultset_name, $user_id, $timestamp ) {
+    if ( $self->functions ) {
+        $self->functions->row(
+            'privacy_revoke_user',
+            {
+                source  => $resultset_name,
+                user_id => $user_id,
+                at      => $timestamp
+            }
+        );
+        return undef;
+    }
+
     my $search = $self->schema->resultset($resultset_name)->search_rs(
         {
             revoked_at => undef,
@@ -725,6 +758,44 @@ sub _not_before_creation ( $timestamp, $created_at ) {
     }
 
     return $timestamp;
+}
+
+# Each branch is a fixed function; memory doubles retain their existing rows.
+sub _find_privacy_row ( $self, $source, $id, $lock = 0 ) {
+    if ( $self->functions ) {
+        my $row = $self->functions->row( 'privacy_find',
+            { source => $source, id => $id, lock_row => $lock } );
+        return $row ? $row->{document} : undef;
+    }
+    return $self->schema->resultset($source)->find($id);
+}
+
+sub _insert_privacy_row ( $self, $source, $row ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'privacy_insert',
+            { source => $source, row => $row } )->{document};
+    }
+    return $self->schema->resultset($source)->create($row);
+}
+
+sub _update_privacy_row ( $self, $source, $row, $changes ) {
+    if ( $self->functions ) {
+        my $id_column =
+            $source eq 'User'       ? 'id'
+          : $source eq 'ErasureJob' ? 'erasure_job_id'
+          :                           'deletion_request_id';
+        $self->functions->row(
+            'privacy_update',
+            {
+                source  => $source,
+                id      => $row->{$id_column},
+                changes => $changes
+            }
+        );
+        @{$row}{ keys %{$changes} } = values %{$changes};
+        return $row;
+    }
+    return $row->update($changes);
 }
 
 sub _record_privacy_event_and_audit ( $self, $input ) {

@@ -13,7 +13,13 @@ use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $BUILDING_STATUS   => 'building';
 const my $READY_STATUS      => 'ready';
@@ -42,6 +48,23 @@ __PACKAGE__->requires(qw(schema));
 # A generation id that collides is drawn again, once; a start from the same
 # event that a concurrent one inserted first is answered with that row.
 sub start_generation ( $self, $projection_name, $event ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'projection_generation_start',
+            {
+                row => {
+                    activated_at                => undef,
+                    built_from_event_created_at => $event->{event_created_at},
+                    built_from_event_id         => $event->{event_id},
+                    created_at                  => $self->clock->now_iso8601,
+                    generation_id               => $self->id_service->uuid,
+                    is_active                   => 0,
+                    projection_name             => $projection_name,
+                    status                      => $BUILDING_STATUS,
+                }
+            }
+        )->{document};
+    }
     my $input = {
         event           => $event,
         projection_name => $projection_name,
@@ -88,6 +111,15 @@ sub mark_failed ( $self, $generation_id ) {
 # An activation that loses the one-active index to a concurrent one keeps the
 # winner when it activated this same generation, and retires it otherwise.
 sub activate_generation ( $self, $generation_id ) {
+    if ( $self->functions ) {
+        return $self->functions->row(
+            'projection_generation_activate',
+            {
+                generation_id => $generation_id,
+                now           => $self->clock->now_iso8601,
+            }
+        )->{document};
+    }
     my $generation = $self->_find_generation($generation_id);
     return _skipped_activation($generation) if _already_active($generation);
 
@@ -193,6 +225,11 @@ sub _skipped_activation ($generation) {
 }
 
 sub _update_generation ( $self, $generation_id, $changes ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'projection_generation_update',
+            { generation_id => $generation_id, status => $changes->{status} } )
+          ->{document};
+    }
     my $generation = $self->_find_generation($generation_id);
     my $held       = $generation && ( _column( $generation, 'status' ) || q{} );
     if ( $generation && $held eq ( $changes->{status} || q{} ) ) {

@@ -12,6 +12,7 @@ use File::Path qw(remove_tree);
 use File::Spec;
 use File::Temp qw(tempdir);
 use IO::Socket::INET;
+use Mojo::File qw(path);
 use Test::More;
 use Time::HiRes qw(sleep);
 
@@ -68,6 +69,7 @@ $admin->do(q{SELECT pg_create_physical_replication_slot('gone_standby', true)});
 $admin->do('CREATE ROLE monitor LOGIN');
 $admin->do('GRANT pg_read_all_stats TO monitor');
 $admin->do('CREATE ROLE plain LOGIN');
+_install_replication_api($admin);
 
 _run( 'pg_basebackup', '-h', '127.0.0.1', '-p', $port{primary}, '-U', 'gpforum',
     '-D', $cluster{standby}, '-Fp', '-Xs', '-R', '-S', $STANDBY_NAME );
@@ -207,6 +209,40 @@ sub _dsn {
     my ($name) = @_;
 
     return "dbi:Pg:dbname=postgres;host=127.0.0.1;port=$port{$name}";
+}
+
+# This drill intentionally has no forum tables. Install the catalog-only
+# functions and their exact versioned boundaries before cloning the standby.
+sub _install_replication_api ($dbh) {
+    $dbh->do('CREATE SCHEMA api');
+    my @names =
+      qw(ops_replication_recovery ops_replication_standbys ops_replication_slots ops_replication_position);
+    for my $file (
+        'migrations/069_operations_realtime_functions.sql',
+        'migrations/099_remaining_runtime_api_boundaries.sql'
+      )
+    {
+        my $sql = path($file)->slurp;
+        for my $name (@names) {
+            my $signature = qr{api[.]\Q$name\E[_]v[12][(]}msx;
+            my $opening   = qr{CREATE\s+FUNCTION\s+$signature}msx;
+            my $closing = qr{REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+$signature}msx;
+            if ( $sql =~ /($opening.*?$closing.*?FROM\s+PUBLIC;)/msx ) {
+                $dbh->do($1);
+            }
+        }
+    }
+    $dbh->do('GRANT USAGE ON SCHEMA api TO monitor, plain');
+    for my $signature (
+        'ops_replication_recovery_v2()',     'ops_replication_standbys_v2()',
+        'ops_replication_slots_v2(boolean)', 'ops_replication_position_v2()'
+      )
+    {
+        $dbh->do( 'GRANT EXECUTE ON FUNCTION api.'
+              . $signature
+              . ' TO monitor, plain' );
+    }
+    return;
 }
 
 sub _dbh {

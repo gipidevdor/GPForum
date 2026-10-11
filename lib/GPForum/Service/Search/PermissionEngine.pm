@@ -17,6 +17,20 @@ our $VERSION = '0.001';
 # category that turns private hides its documents at once, before any
 # reindex. The rule is Forum::Visibility's, the same one every reader uses.
 # Searcher joins category and space and selects their visibility.
+# Bound values for the static PostgreSQL counterpart of search_condition.
+sub search_parameters ( $self, $actor ) {
+    my $viewer = _viewer($actor);
+    return {
+        permission_mode   => 'full',
+        visibility_values => [],
+        member            => $viewer->member,
+        global_read       => $viewer->global_read,
+        viewer_user_id    => $viewer->user_id,
+        category_ids      => $viewer->category_ids,
+        space_ids         => $viewer->space_ids,
+    };
+}
+
 sub search_condition ( $self, $actor ) {
     return {
         'category.deleted_at' => undef,
@@ -130,6 +144,10 @@ C<category_id>, C<category_visibility>, C<visibility> and C<author_user_id>.
 SQL has already applied the same rule, so for rows that came through
 L</search_condition> it only ever agrees; it guards callers that bypass it.
 Named C<permits>, not C<can> (ADR 0106).
+
+=head2 search_parameters
+
+Returns bound visibility values for the static PostgreSQL search functions. The nested plan evidence uses the same parameters as the reader.
 
 =head1 DIAGNOSTICS
 

@@ -7,7 +7,13 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
+
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $POST_CREATED => 'post.created';
 const my $BUMP_SQL => join q{ },
@@ -33,11 +39,18 @@ sub handle ( $self, $event ) {
          $event->{occurred_at}
       || $event->{timestamp}
       || _payload($event)->{created_at};
-    my $bumped = $self->schema->storage->dbh_do(
-        sub ( $, $dbh ) {
-            return $dbh->do( $BUMP_SQL, undef, $at, $thread_id );
-        }
-    );
+    my $bumped;
+    if ( $self->functions ) {
+        $bumped = $self->functions->row( 'ops_thread_activity',
+            { thread_id => $thread_id, at => $at } )->{bumped};
+    }
+    else {
+        $bumped = $self->schema->storage->dbh_do(
+            sub ( $, $dbh ) {
+                return $dbh->do( $BUMP_SQL, undef, $at, $thread_id );
+            }
+        );
+    }
 
     return {
         action    => 'thread.activity',

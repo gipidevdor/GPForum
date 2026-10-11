@@ -228,8 +228,9 @@ subtest 'production signs sessions with a long secret' => sub {
 subtest 'a boolean is on or off, however it is written' => sub {
     for my $word (qw(1 yes true on Yes TRUE On)) {
         is(
-            GPForum::Config->from_environment( { GPFORUM_SMTP_SSL => $word } )
-              ->smtp_ssl,
+            GPForum::Config->from_environment(
+                { GPFORUM_RUNTIME_PROXY => $word }
+            )->runtime_proxy,
             1,
             "$word reads as on"
         );

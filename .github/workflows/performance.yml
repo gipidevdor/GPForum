@@ -61,7 +61,7 @@ jobs:
         run: script/gpforum-carton exec bin/gpforum-migrate --apply
 
       - name: Seed production evidence dataset
-        run: script/seed-benchmark --profile small
+        run: bin/gpforum performance-seed --profile small
 
       - name: Sync query budget catalog
         run: script/query-budget --sync
@@ -74,7 +74,7 @@ jobs:
 
       - name: Run hot-path benchmark
         run: |
-          script/bench-hotpaths --json --iterations 5 --warmup 2 \
+          script/benchmark-http --fixture --check --json --iterations 5 --warmup 2 \
             --route /health/live \
             --route /categories \
             | tee artifacts/bench-hotpaths.json
@@ -117,7 +117,7 @@ jobs:
       - name: Profile a request path with NYTProf
         run: |
           set -euo pipefail
-          script/profile-route /categories
+          script/profile-nytprof --route /categories
           ls -l var/profile
 
       - name: Collect the profile output

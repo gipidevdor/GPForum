@@ -63,10 +63,6 @@ my $rotated = $profiles->evaluate(
 );
 ok( $rotated->{ok},
     q{production accepts the host's sizing with a rotated secret} );
-ok(
-    !$rotated->{profile}{requires_glifistore},
-    'production does not require GlifiStore'
-);
 
 # GlifiStore is optional in production (D2).
 my $without_l2 = $profiles->evaluate(

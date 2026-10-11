@@ -118,8 +118,8 @@ as [docs/ops/mail-check.md](docs/ops/mail-check.md) describes.
 
 For development: `make check` runs the quality checks; `make integration`
 runs the PostgreSQL tests with `GPFORUM_DATABASE_DSN` set. `make fresh-checkout`
-verifies a clean clone. Use `script/coverage`, `script/bench-http` and
-`script/profile-route` for measurement, and `make help` for the other tasks.
+verifies a clean clone. Use `script/coverage`, `script/benchmark-http` and
+`script/profile-nytprof` for measurement, and `make help` for the other tasks.
 
 ## Production on Debian or Ubuntu
 

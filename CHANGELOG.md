@@ -201,6 +201,35 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- Two `gpforum secret rotate` at once lost one's new secret. Each read the
+  environment file, edited it and renamed the edit over it, so the second
+  rename dropped the token the first had written, one a scraper may already
+  have been given. Rotations now take turns on an advisory `flock` of the
+  file itself, taken again on the file a rename put in place while one
+  waited, so no lock file is left beside it.
+
+- `gpforum secret rotate metrics` promised a re-read the service refused.
+  The running service does not read the tokens again from an environment
+  file an account other than its owner may write (`mode & 022`), while the
+  rotation and `gpforum doctor` checked only what every account may read: a
+  `0660` file got "accepts both now, with no restart" and `--finish` "refuses
+  them now", while the service kept the old token and refused the new one,
+  and doctor said the settings were fine. One rule now judges the file for
+  all three (`MetricsTokens->others_may_write`): the rotation says so with
+  `chmod 0640 FILE` and names the restart, and doctor lists it under `!`
+  with the same fix.
+
+- A metrics token `gpforum secret rotate metrics --finish` dropped could
+  come back in a worker Hypnotoad forked later. The tokens follow the
+  environment file in each process that answers a check, and the manager
+  answers none: it kept the tokens the service started with, and a worker
+  forked from it -- after its accepts, or a missed heartbeat -- while the
+  file could not be used (a line that is not `NAME=value`, a mode another
+  account may write, no token) kept them too, and took the dropped token
+  while it refused the one in use. The manager now reads the file at each
+  turn of its loop, on Hypnotoad's `wait` event, so a new worker starts from
+  the list it accepted last (ADR 0124, amended).
+
 - A password change could undo the reset that took an account back. The
   change verifies the current password before its transaction; a reset that
   committed in between replaced that password, and the change rotated the
@@ -836,6 +865,25 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **Three OS settings that changed nothing are gone**:
+  `GPFORUM_OS_SENDFILE`, `GPFORUM_OS_STATIC_XSENDFILE` and
+  `GPFORUM_OS_WORKER_PRIORITY` only changed a mode, a flag and an action in
+  the reports, and nothing acted on them. An environment file that still
+  sets them is read as before, and they are ignored. The runtime evidence
+  calls static transfer `configurable` only when
+  `GPFORUM_ATTACHMENT_ACCEL_REDIRECT` names a prefix. The reports no longer
+  carry the retired affinity flag or the retired worker and realtime process
+  counts.
+
+- **No profile says whether GlifiStore is required**: the
+  `requires_glifistore` key, always 0 since GlifiStore became optional, is
+  gone from the operational profile in `/health/ready`, and ADR 0048
+  ("Mandatory GlifiStore L2 Cache") is marked Superseded.
+
+- **`script/antivirus-check`, `script/dead-letter-replay` and
+  `script/search-rebuild` are gone**: type `gpforum antivirus-check`,
+  `gpforum dead-letters` and `gpforum search-rebuild`.
+
 - **`gpforum setup` writes the decisions alone**: the ten settings an
   installation decides, each under one line saying what it is, and the SMTP
   lines commented out under the mail -- 41 lines where it wrote 258. A file
@@ -1449,6 +1497,50 @@ CI, evidence and internal refactors with no change in behaviour.
   production floors fail the same gate as OS preflight and query-budget drift.
 
 ### Fixed
+
+- **A start with old names in the environment file warns of each once.**
+  `gpforum start --service` logged each, then ran Hypnotoad in its place,
+  which built the application again and logged each a second time, 0.9 s
+  later. It now tells Hypnotoad, in `GPFORUM_SETTINGS_WARNED`, that they
+  were said.
+- **`gpforum help secret` names this host's environment file**, Homebrew's
+  on macOS, where it named `/etc/gpforum/gpforum.env` on every host.
+
+- **Doctor's sizing line in development counts the one process** `gpforum
+  start --foreground` runs: `1 web process (gpforum start --foreground)`,
+  where it said 14 on a 10-CPU laptop. A server's line is as before.
+
+- **macOS production is eight commands from the clone, in one document.**
+  `sudo gpforum service print --to /Library/LaunchDaemons` makes the
+  directory the launchd jobs log to, the `gpforum` account's, 0750, so the
+  `install -d` step after it goes, and is printed only while the directory
+  is not there. DEPLOYMENT's macOS section carries the packages line, with
+  `nginx certbot`, the clone and `sudo /opt/gpforum/bin/gpforum setup`,
+  where it typed `sudo gpforum setup` before anything had linked `gpforum`.
+
+- **`gpforum service print --to` says what it needs.** Into a directory only
+  root can write, such as `/Library/LaunchDaemons` without `sudo`, it
+  answered with Perl's own `Error in tempfile() using template ...:
+  Permission denied`; it now says `Only root can write into DIR: run it with
+  sudo, as sudo gpforum service print TARGET --to DIR`. An nginx site
+  refused before certbot is installed names the packages first, `brew
+  install nginx certbot && sudo certbot certonly ...` (apt's or pkg's on
+  Debian and FreeBSD), as the bare print does.
+
+- **`gpforum upgrade`'s backup line makes its directory first.** It named
+  `gpforum backup --to /var/backups/gpforum`, whose parent is root's on
+  macOS and which a fresh Debian host lacks, and the backup, run as
+  `gpforum`, could not make it. Until the directory is there, the line
+  begins `sudo install -d -o gpforum -m 700 /var/backups/gpforum &&`, as
+  `docs/ops/upgrade.md` now shows.
+
+- **`make install-deps-*` names the next real step.** It ended with `Next:
+  check the host, with script/system-preflight`, a step the quick start no
+  longer has, after an upgrade's install too. A checkout not set up yet is
+  told to run `bin/gpforum setup --environment development` (with `sudo`
+  but on macOS), a production host `sudo …/bin/gpforum setup` as before,
+  and a host whose environment file is in place, upgrading, nothing:
+  `gpforum upgrade` printed the steps after it.
 
 - **A drill no longer removes a directory it did not make.**
   `script/pitr-drill` and `script/standby-drill` delete their working
@@ -2316,6 +2408,18 @@ CI, evidence and internal refactors with no change in behaviour.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- Deleted the duplicate and redundant scripts: `bin/gpforum-seed-benchmark`
+  and `script/seed-benchmark` (use `bin/gpforum performance-seed`),
+  `script/bench-http` (`bin/gpforum benchmark --fixture`),
+  `script/bench-hotpaths` (`script/benchmark-http --fixture --check`),
+  `script/profile` and `script/profile-route` (`script/profile-nytprof --
+  PROGRAM` and `--route PATH`), `script/scheduled-jobs` and
+  `script/outbox-dispatch`.
+- Deleted twelve subs that nothing called (in `PlatformCheck`,
+  `Identity::Base`, `EventEnvelope`, `BatchPurge`, `Findings` and
+  `DegradationPolicy`), `Config::requires_glifistore`,
+  `Config::environment_requires_glifistore` and `Config::smtp_ssl`.
 
 - ADR 0126 records the owner's decision to move every SQL statement into
   PostgreSQL functions created by migrations, with Perl binding parameters

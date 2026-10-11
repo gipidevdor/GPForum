@@ -61,7 +61,7 @@ run in their offline, simulate and dry-run modes, exactly as
 | Formatting validation | `ci.yml` (`script/perltidy-check`) |
 | Test execution | `ci.yml`, `platform-debian.yml`, `platform-freebsd.yml`, `platform-macos.yml`, `postgres-matrix.yml` |
 | Coverage validation | `ci.yml` (`script/coverage`, `cover_db/` artifact) |
-| Profiling smoke validation | [performance.yml](../.github/workflows/performance.yml) (`script/profile-route` under Devel::NYTProf, benchmark sweeps) |
+| Profiling smoke validation | [performance.yml](../.github/workflows/performance.yml) (`script/profile-nytprof --route` under Devel::NYTProf, benchmark sweeps) |
 | Security scanning | [security.yml](../.github/workflows/security.yml) (CPANSA advisories, license review, gitleaks, workflow and shell linting, OpenSSF Scorecard) |
 | Artifact creation | `release.yml` (reproducible `git archive` tarball, Carton vendor bundle, `SHA256SUMS`, build provenance attestation) |
 | Deployment validation | `deploy-units.yml` (`systemd-analyze verify`, `nginx -t`, `caddy validate`, `sh -n` on the rc(8) unit, deploy checklist drill) |

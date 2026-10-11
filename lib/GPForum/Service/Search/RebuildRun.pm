@@ -11,6 +11,8 @@ use GPForum::Infrastructure::CountedQuery;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
 
+use GPForum::Infrastructure::SqlFunction;
+
 our $VERSION = '0.001';
 
 const my $AGGREGATE => 'search_rebuild';
@@ -29,6 +31,10 @@ const my $LATEST_SQL => join q{ },
 
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 __PACKAGE__->requires(qw(indexer schema));
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+
 has recorder => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         id_service => $self->id_service,
@@ -101,7 +107,9 @@ sub step ( $self, $event ) {
 # completion -- with its totals so far.
 sub latest ($self) {
     my $row =
-      GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
+        $self->functions
+      ? $self->functions->row( 'search_latest_rebuild', {} )
+      : GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
         $LATEST_SQL, $AGGREGATE, $AGGREGATE );
     return undef if !$row;
 

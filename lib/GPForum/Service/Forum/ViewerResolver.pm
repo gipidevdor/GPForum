@@ -10,6 +10,7 @@ use v5.40;
 
 use GPForum::Infrastructure::CountedQuery;
 use GPForum::Infrastructure::Id;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 
 our $VERSION = '0.001';
@@ -40,6 +41,9 @@ const my $VIEWER_SQL => join q{ },
   'FROM users u WHERE u.id = ?';
 
 __PACKAGE__->requires('schema');
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 has logger => undef;    # optional: without it nothing is logged
 
@@ -73,6 +77,10 @@ sub resolve ( $self, $user_id ) {
 }
 
 sub _viewer_row ( $self, $user_id ) {
+    return $self->functions->row( 'forum_resolve_viewer',
+        { user_id => $user_id } )
+      if $self->functions;
+
     return GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
         $VIEWER_SQL, $user_id );
 }

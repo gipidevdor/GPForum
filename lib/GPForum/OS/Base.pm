@@ -158,28 +158,6 @@ sub feature_snapshot ( $self, $settings ) {
             $settings, 'reuseport',
             $self->feature_enabled( 'reuseport', $settings->{reuseport} )
         ),
-        sendfile => _feature_entry(
-            $settings, 'sendfile',
-            $self->feature_enabled( 'sendfile', $settings->{sendfile} )
-        ),
-        worker_priority => _feature_entry(
-            $settings,
-            'worker_priority',
-            $self->feature_enabled(
-                'worker_priority', $settings->{worker_priority}
-            )
-        ),
-        static_xsendfile => _feature_entry(
-            $settings,
-            'static_xsendfile',
-            $self->feature_enabled(
-                'static_xsendfile', $settings->{static_xsendfile}
-            )
-        ),
-        affinity => {
-            setting => $settings->{affinity} || 'off',
-            enabled => ( $settings->{affinity} || 'off' ) eq 'manual' ? 1 : 0,
-        },
     };
 }
 
@@ -195,7 +173,7 @@ sub snapshot ($self) {
         supports_sendfile        => $self->supports_sendfile  ? 1 : 0,
         resources                => $self->resource_probe->snapshot,
         sockets                  => $self->socket_snapshot( {} ),
-        processes                => $self->process_snapshot( {} ),
+        processes                => $self->process_snapshot,
     };
 }
 
@@ -205,9 +183,8 @@ sub socket_snapshot ( $self, $settings ) {
     );
 }
 
-sub process_snapshot ( $self, $settings ) {
-    return $self->process_policy->snapshot( $self->feature_snapshot($settings),
-    );
+sub process_snapshot ($self) {
+    return $self->process_policy->snapshot;
 }
 
 sub _feature_entry ( $settings, $name, $enabled ) {
@@ -219,8 +196,6 @@ sub _feature_entry ( $settings, $name, $enabled ) {
 
 sub _auto_feature_enabled ( $self, $feature ) {
     return $self->supports_reuseport if $feature eq 'reuseport';
-    return $self->supports_sendfile  if $feature eq 'sendfile';
-    return $self->supports_sendfile  if $feature eq 'static_xsendfile';
 
     return 0;
 }

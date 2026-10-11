@@ -96,7 +96,7 @@ jobs:
         run: script/gpforum-carton exec bin/gpforum-migrate --apply
 
       - name: Seed query plan evidence dataset
-        run: script/seed-benchmark --profile small
+        run: bin/gpforum performance-seed --profile small
 
       - name: Run architecture boundary check
         run: script/architecture-check

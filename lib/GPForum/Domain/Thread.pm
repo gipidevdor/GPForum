@@ -38,12 +38,32 @@ sub shown_to_writer ( $class, $thread, $writer ) {
     return undef;
 }
 
+# A reply's refusals by the code the post store's function answers with
+# under its lock (ADR 0126): the words are these, in one place.
+const my %REPLY_REFUSAL => (
+    thread_locked    => 'thread is locked',
+    thread_not_found => 'thread not found',
+);
+
 # A reply needs a thread its writer can read, and one that is not locked.
 sub reply_refusal ( $class, $thread ) {
-    return 'thread not found' if !$thread;
-    return 'thread is locked' if _locked($thread);
+    return $REPLY_REFUSAL{thread_not_found} if !$thread;
+    return $REPLY_REFUSAL{thread_locked}    if _locked($thread);
 
     return undef;
+}
+
+# The words of a reply refusal's code, or undef for a code that is none.
+sub reply_refusal_words ( $class, $code ) {
+    return
+      exists $REPLY_REFUSAL{ $code // q{} } ? $REPLY_REFUSAL{$code} : undef;
+}
+
+# The codes a reply can be refused with under the lock.
+sub reply_refusal_codes ($class) {
+    my @codes = sort keys %REPLY_REFUSAL;
+
+    return @codes;
 }
 
 # A title edit, a move or a delete needs a live thread; a restore, a deleted
@@ -148,6 +168,16 @@ choice; a store asks it of the row its lock returned.
 
 Takes a thread the writer can read, or undef. Returns C<thread not found>
 for undef, C<thread is locked> when it has a C<locked_at>, else undef.
+
+=head2 reply_refusal_words
+
+The words of a reply refusal by its code, as the post store's function
+answers it (C<thread_not_found>, C<thread_locked>), or undef for another
+code.
+
+=head2 reply_refusal_codes
+
+The codes L</reply_refusal_words> knows, sorted.
 
 =head2 edit_refusal
 

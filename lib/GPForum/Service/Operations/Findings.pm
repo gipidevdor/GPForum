@@ -57,13 +57,6 @@ sub add ( $self, %finding ) {
     return $self;
 }
 
-# Every finding of another list, after this one's.
-sub merge ( $self, $other ) {
-    push @{ $self->items }, @{ $other->items };
-
-    return $self;
-}
-
 # The worst status among the findings: fail, degraded, or ok.
 sub status ($self) {
     my $worst = 'ok';
@@ -121,11 +114,6 @@ sub summary ($self) {
 # language.
 sub document ($self) {
     return [ map { $self->_document_item($_) } @{ $self->items } ];
-}
-
-# A message, note or fix in the operator's language.
-sub text_of ( $self, $message ) {
-    return $self->_say($message);
 }
 
 sub _document_item ( $self, $item ) {
@@ -224,10 +212,6 @@ C<message>, and optional C<notes> and C<fixes> array references. A message,
 note or fix is a text, or C<[ key, { name => value } ]> for the catalogs.
 Returns the list. Throws L<GPForum::X::Argument> for any other status.
 
-=head2 merge
-
-Adds every finding of another list, and returns this one.
-
 =head2 status
 
 C<fail> when any finding failed, else C<degraded> when any is degraded, else
@@ -260,10 +244,6 @@ The closing line: nothing to fix, one thing, or how many.
 The findings for C<--json>: an array of C<name>, C<status>, C<message>,
 C<notes> and C<fixes> as the operator reads them, and for a message from
 the catalogs its C<key> and C<parameters>.
-
-=head2 text_of
-
-A message, note or fix in the catalog's language.
 
 =head1 DIAGNOSTICS
 

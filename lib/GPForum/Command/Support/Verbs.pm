@@ -21,6 +21,7 @@ our $VERSION = '0.001';
 const my @VERBS => (
     [qw(setup setup setup)],
     [qw(migrate setup migrate gpforum-migrate)],
+    [qw(api-role setup api_role gpforum-api-role)],
     [ 'admin',  'setup', 'admin',  'gpforum-admin-bootstrap', 'admin grant' ],
     [ 'secret', 'setup', 'secret', undef ],
     [ 'start',  'run',   'start',  undef, undef, 'application' ],
@@ -79,10 +80,6 @@ const my @VERBS => (
     ],
 );
 
-# bin/ entrypoints that run a verb's command under another name.
-const my %OTHER_ENTRYPOINT =>
-  ( 'gpforum-seed-benchmark' => 'performance-seed' );
-
 # The groups, in the order the help shows them. "more" is shown by
 # `gpforum help --all` only.
 const my @GROUPS => qw(setup run check maintain more);
@@ -130,11 +127,7 @@ sub find ( $class, $verb ) {
 sub typed_for_entrypoint ( $class, $entrypoint ) {
     my $verb =
       first { ( $_->{entrypoint} // q{} ) eq $entrypoint } @{ $class->verbs };
-    my $typed = $verb ? $verb->{typed} : undef;
-    if ( !$verb && exists $OTHER_ENTRYPOINT{$entrypoint} ) {
-        $typed = $OTHER_ENTRYPOINT{$entrypoint};
-    }
-    return defined $typed ? "$FRONT_DOOR $typed" : undef;
+    return $verb ? "$FRONT_DOOR $verb->{typed}" : undef;
 }
 
 # A text with every bin/gpforum-NAME it names written as the front door's

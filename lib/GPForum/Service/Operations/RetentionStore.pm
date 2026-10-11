@@ -11,7 +11,13 @@ use POSIX qw(strftime);
 use GPForum::Service::Clock;
 use GPForum::Service::Operations::BatchPurge;
 
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::ResultRow;
+
 our $VERSION = '0.001';
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 
 const my $DAY_SECONDS                => 86_400;
 const my $OUTBOX_RETENTION_DAYS      => 7;
@@ -92,6 +98,27 @@ sub purge_dead_letters ( $self, $input ) {
 
 # The rows a spec selects, a batch in BatchPurge's order, deleted by it.
 sub _purge ( $self, $spec ) {
+    if ( $self->functions ) {
+        my $cutoff = $self->clock->now_iso8601;
+        if ( $spec->{resultset} eq 'OutboxMessage' ) {
+            $cutoff =
+              $self->_cutoff_iso( $spec->{input}, 'outbox_retention_days',
+                $OUTBOX_RETENTION_DAYS );
+        }
+        if ( $spec->{resultset} eq 'DeadLetter' ) {
+            $cutoff =
+              $self->_cutoff_iso( $spec->{input}, 'dead_letter_retention_days',
+                $DEAD_LETTER_RETENTION_DAYS );
+        }
+        return $self->functions->row(
+            'ops_retention_purge',
+            {
+                source    => $spec->{resultset},
+                cutoff    => $cutoff,
+                row_limit => $self->batch_purge->limit( $spec->{input} )
+            }
+        );
+    }
     my $search = $self->schema->resultset( $spec->{resultset} )->search_rs(
         $spec->{query},
         $self->batch_purge->search_attrs(

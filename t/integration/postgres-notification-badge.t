@@ -45,6 +45,10 @@ my $readability =
 my $log        = Mojo::Log->new( level => 'warn' );
 my $warnings   = $log->capture('warn');
 my $dispatcher = GPForum::Service::Notification::Dispatcher->new(
+
+    # This fixture injects an invalid DBIx readability expression to make
+    # PostgreSQL fail the count; keep that deliberate legacy test path.
+    functions         => undef,
     badge_errors      => {},
     logger            => $log,
     readability       => $readability,

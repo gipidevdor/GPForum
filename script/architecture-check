@@ -307,7 +307,7 @@ check_subroutine_prototypes() {
 # select them: bin/, every .pm, .pl and .t under lib/ and t/, and the programs
 # in script/ whose first line names perl.
 perl_files() {
-    find lib t bin -type f \( -path 'bin/*' -o -name '*.pm' -o -name '*.pl' -o -name '*.t' \) 2>/dev/null
+    find lib t bin script -type f \( -path 'bin/*' -o -name '*.pm' -o -name '*.pl' -o -name '*.t' \) 2>/dev/null
     for candidate in script/*; do
         if [ -f "$candidate" ] && head -n 1 "$candidate" | grep -q perl; then
             echo "$candidate"

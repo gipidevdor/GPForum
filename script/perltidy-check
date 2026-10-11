@@ -19,7 +19,7 @@ mkdir -p "$tmp_dir"
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 
 file_list="$tmp_dir/files"
-find bin lib t \
+find bin lib t script \
     -type f \( -path 'bin/*' -o -name '*.pm' -o -name '*.pl' -o -name '*.t' \) \
     > "$file_list" 2>/dev/null || true
 

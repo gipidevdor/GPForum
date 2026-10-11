@@ -971,3 +971,12 @@ paths are excluded from performance triggers to prevent a loop. Ordinary
 pushes retry against current main so concurrent application commits survive.
 Small CI datasets and shared colocated runners are
 comparative evidence; neither establishes production capacity.
+
+The performance orchestration, resource sampling, schema validation,
+baseline comparison, publication, reports and contract tests are implemented
+in Perl under `script/lib/GPForum/Performance/` and `t/performance/`.
+The [bounded extreme workload](../benchmarks/EXTREME.md) reuses the same real
+Hypnotoad/wrk primitives for progressive anonymous reads, a weighted browsing
+mix, windowed soak, a bounded spike and recovery. It has a separate versioned
+schema and publishes immutable 14-day artifacts, preserving ordinary historical
+results and the deterministic CI gates.

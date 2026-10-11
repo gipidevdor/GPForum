@@ -62,6 +62,7 @@ run in their offline, simulate and dry-run modes, exactly as
 | Test execution | `ci.yml`, `platform-debian.yml`, `platform-freebsd.yml`, `platform-macos.yml`, `postgres-matrix.yml` |
 | Coverage validation | `ci.yml` (`script/coverage`, `cover_db/` artifact) |
 | Continuous performance evidence and profiling | [performance.yml](../.github/workflows/performance.yml) (paired PR HTTP/SQL/outbox, representative main runs, weekly/manual deep sweep and configured NYTProf) |
+| Bounded Sunday saturation and recovery evidence | [performance-extreme.yml](../.github/workflows/performance-extreme.yml), single standard runner, maximum 30 minutes, immutable artifacts |
 | Security scanning | [security.yml](../.github/workflows/security.yml) (CPANSA advisories, license review, gitleaks, workflow and shell linting, OpenSSF Scorecard) |
 | Artifact creation | `release.yml` (reproducible `git archive` tarball, Carton vendor bundle, `SHA256SUMS`, build provenance attestation) |
 | Deployment validation | `deploy-units.yml` (`systemd-analyze verify`, `nginx -t`, `caddy validate`, `sh -n` on the rc(8) unit, deploy checklist drill) |
@@ -132,6 +133,13 @@ one runner with separate disposable databases and locked dependency trees;
 main runs retain compact evidence at `benchmarks/results/` on `main`.
 The weekly Monday 01:37 UTC/manual deep run adds
 targeted worker/reactor scaling, PostgreSQL service comparisons and profiles.
+The harnesses, schema validator, comparisons, report renderer, publisher and
+contract tests are all Perl. Core-only bootstrap/report commands remain usable
+before dependency installation. Run the contracts with
+`script/gpforum-carton exec prove -I script/lib -I t/lib -lr t/performance`.
+The separate [extreme workload](../benchmarks/EXTREME.md) adds a read-only
+progressive/mixed/soak/spike/recovery job, with its own schema and artifact-only
+results. It neither writes history nor grants repository write access.
 
 Measurement jobs have a read-only token and upload summaries/artifacts even
 after failures. Only a separate trusted-main job can write history; it

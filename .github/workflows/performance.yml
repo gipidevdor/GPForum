@@ -20,7 +20,7 @@ on:
       - 'benchmarks/schema-v*.json'
       - 'benchmarks/*.lua'
       - 'benchmarks/*.pl'
-      - 't/performance_*_test.py'
+      - 't/performance/**'
       - 't/lib/GPForum/Test/PostgresHarness.pm'
       - 't/lib/GPForum/Test/OutboxTransport.pm'
       - '.github/actions/setup-gpforum-perl/**'
@@ -86,13 +86,13 @@ jobs:
           set -euo pipefail
           echo "PERF_OUTPUT=$RUNNER_TEMP/performance/head" >> "$GITHUB_ENV"
           echo "PERF_BASE=$RUNNER_TEMP/performance/base" >> "$GITHUB_ENV"
-          python3 script/performance-evidence.py init --output "$RUNNER_TEMP/performance/head" --mode "$PERF_MODE" --commit "$PERF_COMMIT"
+          perl script/performance-evidence init --output "$RUNNER_TEMP/performance/head" --mode "$PERF_MODE" --commit "$PERF_COMMIT"
         env:
           PERF_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Test evidence and harness contracts
         id: contracts
-        run: python3 -m unittest discover -s t -p 'performance_*_test.py'
+        run: prove -I script/lib -I t/lib -lr t/performance
 
       - name: Set up locked GPForum dependencies
         id: dependencies
@@ -149,8 +149,9 @@ jobs:
           # One harness version, each revision's source and locked dependencies.
           # No privileged job executes this checkout or consumes this cache.
           mkdir -p baseline-code/benchmarks
-          cp script/performance-*.py baseline-code/script/
-          cp script/performance-outbox.pl baseline-code/script/
+          cp script/performance-* baseline-code/script/
+          mkdir -p baseline-code/script/lib/GPForum
+          cp -a script/lib/GPForum/Performance baseline-code/script/lib/GPForum/
           cp benchmarks/schema-v1.json benchmarks/wrk-metrics.lua benchmarks/hypnotoad-app.pl baseline-code/benchmarks/
           # Cache versions include the path. Reuse the already checked head
           # tree when every lock input is byte-identical, then verify it with
@@ -160,7 +161,7 @@ jobs:
           fi
           baseline-code/script/bootstrap-deps --postgres
           ( cd baseline-code && script/gpforum-carton exec bin/gpforum-migrate --apply )
-          python3 script/performance-evidence.py init --output "$PERF_BASE" --mode pr --commit "$PERF_BASE_COMMIT"
+          perl script/performance-evidence init --output "$PERF_BASE" --mode pr --commit "$PERF_BASE_COMMIT"
         env:
           PERF_BASE_COMMIT: ${{ github.event.pull_request.base.sha }}
           GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=127.0.0.1;port=5432
@@ -170,7 +171,7 @@ jobs:
         if: github.event_name == 'pull_request' && steps.base-setup.outcome == 'success'
         continue-on-error: true
         working-directory: baseline-code
-        run: python3 script/performance-http.py --output "$PERF_BASE" --mode pr --generator wrk --disposable-database
+        run: script/gpforum-carton exec script/performance-http --output "$PERF_BASE" --mode pr --generator wrk --disposable-database
         env:
           GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=127.0.0.1;port=5432
 
@@ -179,7 +180,7 @@ jobs:
         if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.base-setup.outcome == 'success' }}
         continue-on-error: true
         working-directory: baseline-code
-        run: python3 script/performance-hotpaths.py --output "$PERF_BASE" --mode pr --disposable-database
+        run: script/gpforum-carton exec script/performance-hotpaths --output "$PERF_BASE" --mode pr --disposable-database
         env:
           GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=127.0.0.1;port=5432
 
@@ -187,13 +188,13 @@ jobs:
         id: http
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.tools.outcome == 'success' && steps.migrations.outcome == 'success' }}
         continue-on-error: true
-        run: python3 script/performance-http.py --output "$PERF_OUTPUT" --mode "$PERF_MODE" --generator wrk --disposable-database
+        run: script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT" --mode "$PERF_MODE" --generator wrk --disposable-database
 
       - name: Benchmark SQL, outbox and optional profiling
         id: hotpaths
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.migrations.outcome == 'success' }}
         continue-on-error: true
-        run: python3 script/performance-hotpaths.py --output "$PERF_OUTPUT" --mode "$PERF_MODE" --disposable-database
+        run: script/gpforum-carton exec script/performance-hotpaths --output "$PERF_OUTPUT" --mode "$PERF_MODE" --disposable-database
 
       - name: Fetch historical baseline data
         if: ${{ !cancelled() && github.event_name != 'pull_request' }}
@@ -212,19 +213,19 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          python3 script/performance-workflow-status.py --output "$PERF_OUTPUT"
+          perl script/performance-workflow-status --output "$PERF_OUTPUT"
           if [ -f "$PERF_BASE/metadata.json" ]; then
-            if python3 script/performance-evidence.py finalize --output "$PERF_BASE"; then
-              python3 script/performance-evidence.py finalize --output "$PERF_OUTPUT" --baseline "$PERF_BASE"
+            if perl script/performance-evidence finalize --output "$PERF_BASE"; then
+              perl script/performance-evidence finalize --output "$PERF_OUTPUT" --baseline "$PERF_BASE"
             else
               # A broken baseline must not discard the candidate's evidence.
-              PERF_BASE_REPORT=failure python3 script/performance-workflow-status.py --output "$PERF_OUTPUT"
-              python3 script/performance-evidence.py finalize --output "$PERF_OUTPUT"
+              PERF_BASE_REPORT=failure perl script/performance-workflow-status --output "$PERF_OUTPUT"
+              perl script/performance-evidence finalize --output "$PERF_OUTPUT"
             fi
           else
-            python3 script/performance-evidence.py finalize --output "$PERF_OUTPUT" --baseline-root "$RUNNER_TEMP/performance-history"
+            perl script/performance-evidence finalize --output "$PERF_OUTPUT" --baseline-root "$RUNNER_TEMP/performance-history"
           fi
-          python3 script/performance-evidence.py validate --output "$PERF_OUTPUT"
+          perl script/performance-evidence validate --output "$PERF_OUTPUT"
           cat "$PERF_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
         env:
           PERF_CONTRACTS: ${{ steps.contracts.outcome }}
@@ -259,7 +260,7 @@ jobs:
 
       - name: Keep deterministic and infrastructure failures visible
         if: always()
-        run: python3 script/performance-workflow-status.py --output "$PERF_OUTPUT" --check
+        run: perl script/performance-workflow-status --output "$PERF_OUTPUT" --check
 
   publish:
     name: Publish immutable performance history
@@ -289,6 +290,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Validate and publish only canonical JSON and Markdown
-        run: python3 script/performance-publish.py --input "$RUNNER_TEMP/performance-incoming" --repository "$GITHUB_REPOSITORY" --expected-commit "$GITHUB_SHA" --expected-run "$GITHUB_RUN_ID" --expected-attempt "$GITHUB_RUN_ATTEMPT"
+        run: perl script/performance-publish --input "$RUNNER_TEMP/performance-incoming" --repository "$GITHUB_REPOSITORY" --expected-commit "$GITHUB_SHA" --expected-run "$GITHUB_RUN_ID" --expected-attempt "$GITHUB_RUN_ATTEMPT"
         env:
           GITHUB_TOKEN: ${{ github.token }}

@@ -1,0 +1,14 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+use v5.40;
+our $VERSION = '0.001';
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use GPForum::Performance::Publish;
+try { exit GPForum::Performance::Publish::main(@ARGV); }
+catch ($error) {
+    print {*STDERR} "performance-publish: $error"
+      or die "Cannot write diagnostic\n";
+    exit 1;
+};

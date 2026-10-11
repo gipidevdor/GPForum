@@ -1,0 +1,202 @@
+name: Weekly extreme performance
+
+# Enable the native timezone schedule only after a real reduced manual trial.
+# No push/PR trigger, publisher, personal credential or external service.
+on:
+  # schedule:
+  #   - cron: '0 3 * * 0'
+  #     timezone: Europe/Rome
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Reduced validation or full weekly workload
+        type: choice
+        options: [reduced, full]
+        default: reduced
+      mixed_weights:
+        description: Anonymous read mix; positive integer percentages summing to 100
+        type: string
+        default: thread=50,category=20,home=15,search=10,other=5
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gpforum-performance-extreme
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  extreme:
+    name: Weekly extreme stress
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    # The coordinator starts its own disposable PostgreSQL container under the
+    # deadline. A service here would start before the first measurable step.
+    env:
+      EXTREME_PROFILE: ${{ github.event_name == 'schedule' && 'full' || inputs.profile || 'reduced' }}
+      EXTREME_MIX_WEIGHTS: ${{ inputs.mixed_weights || 'thread=50,category=20,home=15,search=10,other=5' }}
+      GPFORUM_PERF_RUNNER: ubuntu-26.04
+    steps:
+      - name: Establish the global deadline before checkout and setup
+        id: clock
+        timeout-minutes: 1
+        env:
+          EXTREME_CLOCK_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          perl - <<'PERL'
+          use v5.40;
+          use File::Path qw(make_path);
+          use HTTP::Tiny;
+          use JSON::PP;
+          use Time::HiRes qw(time clock_gettime CLOCK_MONOTONIC);
+          use Time::Local qw(timegm);
+          my $output = "$ENV{RUNNER_TEMP}/extreme/$ENV{GITHUB_RUN_ID}-$ENV{GITHUB_RUN_ATTEMPT}";
+          die 'Run directory already exists' if -e $output;
+          make_path($output);
+          my ($origin, $started_at, $source, @limitations);
+          try {
+              my $url = "$ENV{GITHUB_API_URL}/repos/$ENV{GITHUB_REPOSITORY}/actions/runs/$ENV{GITHUB_RUN_ID}/attempts/$ENV{GITHUB_RUN_ATTEMPT}/jobs?per_page=100";
+              my $response = HTTP::Tiny->new(timeout => 5)->get($url, {headers => {
+                  authorization => "Bearer $ENV{EXTREME_CLOCK_TOKEN}", accept => 'application/vnd.github+json',
+                  'x-github-api-version' => '2022-11-28',
+              }});
+              die 'Job clock API unavailable' if !$response->{success};
+              my $jobs = JSON::PP->new->decode($response->{content})->{jobs};
+              ($started_at) = map { $_->{started_at} } grep {
+                  $_->{name} eq 'Weekly extreme stress' && $_->{started_at}
+              } @{$jobs};
+              my @parts = $started_at =~ /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)Z$/;
+              die 'Unexpected job clock timestamp' if @parts != 6;
+              my $elapsed = time() - timegm($parts[5], $parts[4], $parts[3], $parts[2], $parts[1] - 1, $parts[0]);
+              die 'Unexpected elapsed time' if $elapsed < 0 || $elapsed >= 1800;
+              $origin = clock_gettime(CLOCK_MONOTONIC) - $elapsed;
+              $source = 'github-job-started_at';
+          }
+          catch ($error) {
+              $origin = clock_gettime(CLOCK_MONOTONIC) - 120;
+              ($source, $started_at) = ('conservative-fallback', undef);
+              push @limitations, 'Job start API unavailable; 120 seconds deducted before the first step.';
+          };
+          open my $clock, '>', "$output/clock.json" or die 'Cannot write clock checkpoint';
+          print {$clock} JSON::PP->new->canonical->pretty->encode({schema_version => 1, kind => 'clock',
+              source => $source, started_at_utc => $started_at, started_monotonic => $origin,
+              deadline_monotonic => $origin + 1800, measurement_deadline_monotonic => $origin + 1560,
+              limitations => \@limitations});
+          close $clock or die 'Cannot close clock checkpoint';
+          open my $environment, '>>', $ENV{GITHUB_ENV} or die 'Cannot write job environment';
+          print {$environment} "PERF_OUTPUT=$output\nEXTREME_STARTED_MONOTONIC=$origin\n",
+              'EXTREME_DEADLINE_MONOTONIC=', $origin + 1800, "\n",
+              'EXTREME_MEASURE_DEADLINE_MONOTONIC=', $origin + 1560, "\n";
+          close $environment or die 'Cannot close job environment';
+          PERL
+
+      - name: Checkout the exact measured commit
+        timeout-minutes: 2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize the immutable run checkpoint
+        id: initialize
+        timeout-minutes: 1
+        run: perl script/performance-extreme init --output "$PERF_OUTPUT" --profile "$EXTREME_PROFILE"
+
+      - name: Verify extreme workload contracts
+        id: contracts
+        timeout-minutes: 1
+        run: prove -I script/lib -I t/lib -lr t/performance
+
+      - name: Check remaining setup budget
+        id: setup-budget
+        if: ${{ !cancelled() && steps.initialize.outcome == 'success' && steps.contracts.outcome == 'success' }}
+        run: |
+          perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -e '
+            my $allowed = clock_gettime(CLOCK_MONOTONIC) + 20 < $ENV{EXTREME_STARTED_MONOTONIC} + 300;
+            open my $output, q{>>}, $ENV{GITHUB_OUTPUT} or die q{Cannot write setup budget};
+            print {$output} q{allowed=}, ($allowed ? q{true} : q{false}), qq{\n};
+            close $output or die q{Cannot close setup budget};'
+
+      - name: Install the existing locked Perl dependency tree
+        id: dependencies
+        if: ${{ !cancelled() && steps.setup-budget.outputs.allowed == 'true' }}
+        timeout-minutes: 5
+        continue-on-error: true
+        uses: ./.github/actions/setup-gpforum-perl
+        with:
+          postgres: 'true'
+
+      - name: Install wrk and optional EV within remaining setup budget
+        id: tools
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          setup_remaining() {
+            perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -MList::Util=min,max -e \
+              'print max(0, int(min(110, $ENV{EXTREME_STARTED_MONOTONIC} + 300 - clock_gettime(CLOCK_MONOTONIC) - 5)))'
+          }
+          budget="$(setup_remaining)"
+          if [ "$budget" -lt 20 ]; then
+            echo 'Not enough setup budget to install the required generator.' >&2
+            exit 1
+          fi
+          timeout --signal=TERM --kill-after=5s "${budget}s" sudo apt-get install -y wrk
+          budget="$(setup_remaining)"
+          if [ "$budget" -ge 20 ]; then
+            if ! timeout --signal=TERM --kill-after=5s "${budget}s" sudo apt-get install -y libev-perl; then
+              echo 'Optional EV package unavailable; record the actual reactor.'
+            fi
+          else
+            echo 'Optional EV install skipped because the setup budget is exhausted.'
+          fi
+
+      - name: Run bounded progressive, mixed and soak workloads
+        id: workload
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.tools.outcome == 'success' }}
+        timeout-minutes: 26
+        continue-on-error: true
+        run: script/gpforum-carton exec script/performance-extreme run --output "$PERF_OUTPUT" --profile "$EXTREME_PROFILE" --docker --disposable-database
+
+      - name: Clean up owned processes and disposable database
+        id: cleanup
+        if: always()
+        timeout-minutes: 1
+        continue-on-error: true
+        run: perl script/performance-extreme cleanup --output "$PERF_OUTPUT"
+
+      - name: Finalize partial evidence, validate and publish Job Summary
+        id: report
+        if: always()
+        timeout-minutes: 1
+        run: |
+          set -euo pipefail
+          perl script/performance-extreme finalize --output "$PERF_OUTPUT"
+          perl script/performance-extreme validate --output "$PERF_OUTPUT"
+          cat "$PERF_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          EXTREME_CONTRACTS: ${{ steps.contracts.outcome }}
+          EXTREME_SETUP: ${{ steps.dependencies.outcome }}
+          EXTREME_TOOLS: ${{ steps.tools.outcome }}
+          EXTREME_WORKLOAD: ${{ steps.workload.outcome }}
+          EXTREME_CLEANUP: ${{ steps.cleanup.outcome }}
+
+      - name: Upload this immutable run including partial evidence
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gpforum-extreme-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/extreme/${{ github.run_id }}-${{ github.run_attempt }}/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Keep infrastructure failures visible; saturation remains evidence
+        if: always()
+        run: perl script/performance-extreme check --output "$PERF_OUTPUT"

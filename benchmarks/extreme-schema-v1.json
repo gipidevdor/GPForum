@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gpicchiarelli/GPForum/benchmarks/extreme-schema-v1.json",
+  "title": "GPForum weekly extreme evidence v1",
+  "type": "object",
+  "required": ["schema_version", "kind", "commit", "date", "timestamp", "run_id", "run_attempt", "profile", "status", "runner", "versions", "configuration", "dataset", "budget", "phases", "measurements", "skipped", "limitations", "started", "finalized", "conclusion", "soak_trend"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "extreme"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "timestamp": {"type": "string"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+    "run_attempt": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+    "profile": {"enum": ["full", "reduced"]},
+    "status": {"$ref": "#/$defs/state"},
+    "runner": {"type": "object"},
+    "versions": {"type": "object"},
+    "configuration": {"type": "object", "required": ["plan", "workers", "mixed_weights", "read_only", "publication"], "properties": {
+      "workers": {"type": "integer", "minimum": 1}, "read_only": {"const": true},
+      "mixed_weights": {"type": "object", "required": ["thread", "category", "home", "search", "other"], "additionalProperties": {"type": "integer", "minimum": 0}}
+    }},
+    "dataset": {"type": "object"},
+    "budget": {"type": "object", "required": ["maximum_seconds", "report_cleanup_reserve_seconds", "elapsed_seconds", "clock_source"], "properties": {
+      "maximum_seconds": {"const": 1800}, "report_cleanup_reserve_seconds": {"const": 240},
+      "elapsed_seconds": {"type": "number", "minimum": 0}, "clock_source": {"type": "string"}
+    }},
+    "phases": {"type": "object", "required": ["setup", "progressive", "mixed", "soak", "spike", "recovery", "cleanup"], "additionalProperties": {"type": "object", "required": ["status", "reason"], "properties": {"status": {"$ref": "#/$defs/state"}, "reason": {"type": "string"}}}},
+    "measurements": {"type": "array", "items": {"$ref": "#/$defs/measurement"}},
+    "skipped": {"type": "array", "items": {"type": "object", "required": ["scenario", "reason"], "properties": {"scenario": {"type": "string"}, "reason": {"type": "string"}}}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "started": {"type": "boolean"}, "finalized": {"const": true},
+    "conclusion": {"type": "string"}, "soak_trend": {"type": "object"}
+  },
+  "$defs": {
+    "state": {"enum": ["ok", "partial", "failed", "skipped"]},
+    "metric": {"type": ["number", "null"], "minimum": 0},
+    "measurement": {
+      "type": "object", "required": ["phase", "scenario", "status", "concurrency", "repetition", "metrics", "evidence", "classification"],
+      "properties": {
+        "phase": {"enum": ["progressive", "mixed", "soak", "spike"]},
+        "scenario": {"type": "string"}, "status": {"$ref": "#/$defs/state"},
+        "concurrency": {"type": "integer", "minimum": 1}, "repetition": {"type": "integer", "minimum": 1},
+        "metrics": {"type": "object", "additionalProperties": {"$ref": "#/$defs/metric"}},
+        "evidence": {"type": "object"},
+        "classification": {"enum": ["observed-capacity", "application-saturation", "database-saturation", "generator-saturation", "inconclusive"]}
+      }
+    }
+  }
+}

@@ -44,7 +44,7 @@ if ( !@files ) {
 
 my $failed = 0;
 for my $file ( sort @files ) {
-    system $EXECUTABLE_NAME, '-Ilib', '-It/lib', '-c', $file;
+    system $EXECUTABLE_NAME, '-Ilib', '-It/lib', '-Iscript/lib', '-c', $file;
     if ( $CHILD_ERROR != 0 ) {
         $failed = 1;
     }

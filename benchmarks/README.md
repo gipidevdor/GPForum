@@ -9,6 +9,10 @@ and documentation. Main is the requested permanent destination; a results
 branch is not required.
 
 The preliminary findings and reuse decisions are recorded in [AUDIT.md](AUDIT.md).
+All harnesses, report/schema/baseline tools, publication and their tests are
+implemented in Perl. Bootstrap and failure reporting use only core modules;
+application/database commands use the existing locked Carton tree. The separate
+[Sunday extreme workload](EXTREME.md) adds bounded mixed/soak evidence as artifacts.
 
 ## When measurements run
 
@@ -199,14 +203,14 @@ export GPFORUM_DATABASE_USER=benchmark_user
 script/bootstrap-deps --postgres
 script/gpforum-carton exec bin/gpforum-migrate --apply
 
-python3 script/performance-evidence.py init --output artifacts/performance --mode pr
-python3 script/performance-http.py --output artifacts/performance --mode pr \
+perl script/performance-evidence init --output artifacts/performance --mode pr
+script/gpforum-carton exec script/performance-http --output artifacts/performance --mode pr \
   --generator wrk --disposable-database
-python3 script/performance-hotpaths.py --output artifacts/performance --mode pr \
+script/gpforum-carton exec script/performance-hotpaths --output artifacts/performance --mode pr \
   --disposable-database
-python3 script/performance-evidence.py finalize --output artifacts/performance
-python3 script/performance-evidence.py validate --output artifacts/performance
-python3 -m unittest discover -s t -p 'performance_*_test.py'
+perl script/performance-evidence finalize --output artifacts/performance
+perl script/performance-evidence validate --output artifacts/performance
+script/gpforum-carton exec prove -I script/lib -I t/lib -lr t/performance
 script/gpforum-carton exec prove -lv t/integration/postgres-performance-outbox.t
 
 # Existing helpers remain available independently:

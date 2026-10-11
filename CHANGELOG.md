@@ -15,6 +15,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
+- **Install the function API before starting the updated application.**
+  Apply migrations with the ordinary migration owner: 055–070 and 099
+  complete the API introduced by 052–054. To enforce API-only access,
+  create a separate application login, provision it with `gpforum api-role`,
+  and switch web and worker credentials to it. Keep migration, restore and
+  partition-maintenance credentials in a separate operator environment;
+  the migration owner must have no superuser or `BYPASSRLS` attributes.
+  The merge and provisioning command do not change service credentials or
+  restart services. Follow the [runtime role guide](docs/ops/sql-api-role.md).
+
 - **`GPFORUM_ENV=production-small` and `production-medium` are old names of
   `production`.** They still start, read as production until v0.3.0, and
   each start logs the line to write, `GPFORUM_ENV=production`; `gpforum
@@ -200,6 +210,13 @@ CI, evidence and internal refactors with no change in behaviour.
   `GPFORUM_GLIFISTORE_URL` is missing, while PostgreSQL stays authoritative.
 
 ### Security
+
+- **PostgreSQL can refuse direct access to forum tables.** The separately
+  provisioned runtime login owns no objects, belongs to no roles and can
+  execute only the 194 current API signatures. Versioned `SECURITY DEFINER`
+  entry points use a fixed search path; their implementations and helpers
+  have no public execution grant. Real login and HTTP tests verify allowed
+  workflows and denied table access under password authentication.
 
 - Two `gpforum secret rotate` at once lost one's new secret. Each read the
   environment file, edited it and renamed the edit over it, so the second
@@ -864,6 +881,15 @@ CI, evidence and internal refactors with no change in behaviour.
   foundations.
 
 ### Changed
+
+- **Runtime data operations call stored PostgreSQL functions.** Forum,
+  identity, permissions, search, notifications, moderation, administration,
+  attachments, privacy, portability, plugins, outbox, projections, workers
+  and operational data access now use fixed, typed calls. DBIx::Class
+  remains the schema and transaction bridge. Functions live in versioned
+  SQL migration files and are installed once when migrations are applied.
+  The [conversion report](docs/architecture/sql-functions-performance.md)
+  maps the implementation and records the measured effect.
 
 - **Three OS settings that changed nothing are gone**:
   `GPFORUM_OS_SENDFILE`, `GPFORUM_OS_STATIC_XSENDFILE` and
@@ -2408,6 +2434,19 @@ CI, evidence and internal refactors with no change in behaviour.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- **Published the completed function conversion and two benchmark runs.**
+  The comparison covers 20 service operations with warm-up, median and p95,
+  Perl CPU, exclusive DBIx/DBI time, statements and client round trips.
+  Averaging the two local direct-access medians gives discussion creation
+  12.38 → 1.58 ms, replies 11.00 → 1.50 ms and ranked search 20.59 → 7.91 ms;
+  these are service measurements on one host. The [report and raw JSON](docs/architecture/sql-functions-performance.md)
+  explain the workload and limitations. Differential, race, permission,
+  catalogue and plan tests cover the conversion; all 94 PostgreSQL
+  integration files / 9,263 assertions pass with mandatory SCRAM, and CI
+  passes PostgreSQL 16–18 integration and migration/restore drills.
+  Test logins now receive throwaway passwords, and POSIX script lint marks
+  two variables expanded by the quick-start command evaluator.
 
 - Deleted the duplicate and redundant scripts: `bin/gpforum-seed-benchmark`
   and `script/seed-benchmark` (use `bin/gpforum performance-seed`),

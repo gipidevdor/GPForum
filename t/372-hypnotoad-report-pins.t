@@ -308,27 +308,37 @@ sub _test_read_pid_file {
 }
 
 # A master's workers are its own children that run hypnotoad or GPForum: not
-# another process, not a grandchild. Like Hypnotoad, the fixtures set their
-# process titles instead of relying on ps recovering their original argv.
-# The worker's marker stays beyond a narrow terminal's width, so ps must
-# report the entire title. A ready file identifies the grandchild only after
-# it has set its title; ps then confirms each exact PID and parent PID.
+# another process, not a grandchild. Keep the fixture code in a file: its
+# original argv stays within FreeBSD's process argument cache even when Perl
+# cannot update the process title. The worker's marker stays beyond a narrow
+# terminal's width, so ps must report the entire title. A ready file identifies
+# the grandchild after exec; ps confirms each exact PID and parent PID.
 sub _test_worker_pids {
     local $ENV{COLUMNS} = $PROCESS_COLUMNS;
     my $worker_title =
       q{w} x ( $PROCESS_COLUMNS + 1 ) . ' gpforum-benchmark-worker';
-    my $grandchild_file = "$directory/benchmark-grandchild.pid";
-    my $worker = _spawn_sleeper( $worker_title, <<'CHILD', $grandchild_file );
-my $pid = fork // die 'cannot fork';
-if (!$pid) {
-    $0 = 'gpforum-benchmark-grandchild';
+    my $grandchild_name = 'benchmark-grandchild.pid';
+    my $grandchild_file = "$directory/$grandchild_name";
+    my $script          = 'benchmark-sleeper.pl';
+    path( $directory, $script )->spew(<<'CHILD');
+my $name = shift;
+$0 = $name;
+if ($name eq 'gpforum-benchmark-grandchild') {
     open my $ready, '>', shift or die 'cannot open ready marker';
     print {$ready} "$$\n";
     close $ready or die 'cannot close ready marker';
 }
+elsif ($name ne 'benchmark-sidecar') {
+    my $pid = fork // die 'cannot fork';
+    if (!$pid) {
+        exec $^X, __FILE__, 'gpforum-benchmark-grandchild', @ARGV
+          or die 'cannot exec grandchild';
+    }
+}
 sleep 60;
 CHILD
-    my $other = _spawn_sleeper( 'benchmark-sidecar', 'sleep 60' );
+    my $worker = _spawn_sleeper( $worker_title, $script, $grandchild_name );
+    my $other  = _spawn_sleeper( 'benchmark-sidecar', $script );
     _wait_until(
         sub {
             my $grandchild = read_pid_file($grandchild_file) or return 0;
@@ -408,11 +418,12 @@ sub _test_start_proxy {
     return;
 }
 
-sub _spawn_sleeper ( $name, $code, @arguments ) {
+sub _spawn_sleeper ( $name, $script, @arguments ) {
     my $pid = fork // croak 'cannot fork';
     if ( !$pid ) {
         POSIX::setsid();
-        exec $EXECUTABLE_NAME, '-e', '$0 = shift; ' . $code, $name, @arguments
+        chdir $directory or POSIX::_exit(1);
+        exec $EXECUTABLE_NAME, $script, $name, @arguments
           or POSIX::_exit(1);
     }
 
@@ -447,6 +458,13 @@ sub _wait_until ( $condition, @children ) {
         sleep $SETTLE_SECONDS;
     }
     @children = grep { defined $_ && $_ > 0 } @children;
+    diag(
+        'fixture processes before cleanup: '
+          . command_output(
+            'ps', '-ww', '-p', join( q{,}, @children ),
+            '-o', 'pid=,ppid=,command='
+          )
+    );
     kill 'KILL', map { -$_ } @children;
     kill 'KILL', @children;
     for my $pid (@children) {

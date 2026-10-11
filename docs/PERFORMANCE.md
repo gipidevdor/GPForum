@@ -885,7 +885,7 @@ subroutine call each) and the 8 statements' round trips.
 | Realtime fan-out across processes, and the bounded polling backstop | `t/85-realtime-outbox-multiprocess.t`; [realtime.md](realtime.md) |
 | 100, 500 and 1,000 concurrent clients | [ops/stress-load.md](ops/stress-load.md), JSON under [ops/evidence/](ops/evidence) |
 | OS and runtime posture | [OS_RUNTIME_EVIDENCE.md](OS_RUNTIME_EVIDENCE.md) |
-| Nightly JSON and a NYTProf profile | `.github/workflows/performance.yml`, kept as artifacts |
+| Continuous HTTP/SQL/outbox JSON and weekly NYTProf | `.github/workflows/performance.yml`; Job Summaries/artifacts and `benchmarks/results/` on `main` |
 | The May 2026 tables | git history: `git show 0d0ec4a:docs/PERFORMANCE_EVIDENCE.md`, and `PERFORMANCE_BASELINE.md` and `DB_PERFORMANCE.md` at the same commit |
 
 The load evidence, from a 4-vCPU Linux VM with PostgreSQL 16 and the
@@ -905,9 +905,14 @@ search, no duplicate statement, and no change in statement counts between
 
 `ci.yml` runs the static and EXPLAIN plan gates, the budget sync and check,
 a fixture smoke, a configured smoke and a two-worker Hypnotoad smoke on the
-`small` seed; `performance.yml` runs the wider set nightly and keeps the
-JSON. Neither starts today -- the Actions jobs do not run (the account's
-budget) -- so every gate above is run locally.
+`small` seed. `performance.yml` now measures relevant PRs and main pushes,
+and performs its wider sweep weekly/manual; see
+[benchmarks/README.md](../benchmarks/README.md). The earlier account-budget
+block was historical. The current 2026-10-11 audit found
+[run 38122509516](https://github.com/gpicchiarelli/GPForum/actions/runs/38122509516)
+ran the existing benchmarks successfully before its NYTProf stage failed
+with Test::More's missing `done_testing()` plan, exit 254. This is a
+profiling-harness failure, not evidence of an HTTP performance regression.
 
 ## Open work
 
@@ -916,8 +921,8 @@ Tracked in [QUALITY_PROGRAM.md](QUALITY_PROGRAM.md); the performance items:
 - the reference dataset (1M threads, 20M posts, 200k users), built by one
   command;
 - p95 within budget at 1,000 clients, scaling with workers;
-- benchmarks with concurrent clients rather than one serial client, and a
-  `pg_stat_statements` comparison in CI that fails a 20% regression;
+- a `pg_stat_statements` comparison on representative workloads; concurrent
+  HTTP evidence and advisory baseline comparisons now run in CI;
 - `LISTEN` on a dedicated connection, so PgBouncer can pool the rest
   (ADR 0111);
 - post bodies rendered once (8.4); a byte bound on the cache; the page cache
@@ -925,3 +930,44 @@ Tracked in [QUALITY_PROGRAM.md](QUALITY_PROGRAM.md); the performance items:
 - an outbox soak on PostgreSQL at 1M messages, a websocket fan-out benchmark
   with slow clients, and a long-running memory drift check on thread
   rendering.
+
+## Continuous benchmarking (2026-10-11)
+
+The [continuous harness](../benchmarks/README.md) reuses the deterministic
+seeder, query budgets, real reader/SQL-function EXPLAIN rules, outbox
+dispatcher, Mojolicious stress generator and SQL-function comparison. It
+adds an independent `wrk` generator, observed worker/reactor telemetry,
+repeatable per-endpoint scenarios and append-only evidence publication,
+without application-path performance changes.
+
+HTTP overhead (`/health/live`), home, category index, category/thread pages,
+search and SSR cache hits/misses have distinct rows. Worker scaling and
+Poll/optional EV comparisons use identical datasets and configuration;
+orders alternate over three repetitions. Existing sequential benchmark
+commands remain available for single-client and profiling evidence; they
+are not used to infer concurrent page capacity.
+
+The PostgreSQL outbox helper uses real forked workers, each with its own
+connection, on a fresh owned database with a recording no-op transport.
+Claim/renew/acknowledgement overhead and lost/duplicate counts are measured;
+external delivery work is excluded. Nested stored-function plans are
+inspected through the existing `--functions` path. SQL execution, service
+timings, HTTP latency and outbox batch timings stay separate in the report.
+
+PRs compare the actual base revision and head on one runner. Main/deep
+compare compatible historical runs, using medians/MAD and conservative
+three-repeat evidence before labelling a confirmed regression. Timing
+classification is advisory; functional, N+1/query-budget and deterministic
+plan checks remain blocking. Missing baselines, unavailable EV/NYTProf,
+exhausted deadlines and unmeasured inner plans are explicit limitations.
+
+Results use [schema-v1.json](../benchmarks/schema-v1.json), with immutable
+`benchmarks/results/<UTC-date>/<commit>/<run-id>-<attempt>/` directories on
+the `main` branch. `latest.json` selects the latest valid
+complete run and `history.json` includes partial failures. Job Summaries
+and 14-day artifacts preserve diagnostic logs and profiles. Publication
+gets only the trusted main job's scoped GitHub token; generated result/index
+paths are excluded from performance triggers to prevent a loop. Ordinary
+pushes retry against current main so concurrent application commits survive.
+Small CI datasets and shared colocated runners are
+comparative evidence; neither establishes production capacity.

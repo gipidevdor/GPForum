@@ -93,6 +93,9 @@ jobs:
       - name: Check whitespace
         run: git diff --check
 
+      - name: Check continuous performance evidence contracts
+        run: python3 -m unittest discover -s t -p 'performance_*_test.py'
+
       - name: Check Perl syntax
         run: script/gpforum-carton exec script/perl-syntax-check
 

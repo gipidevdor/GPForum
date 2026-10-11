@@ -1,25 +1,49 @@
 name: Performance and profiling
 
-# The profiling smoke validation stage of ADR 0059, plus the benchmark
-# evidence that docs/PERFORMANCE.md describes.
-# ci.yml keeps the fast smoke gates; this workflow runs the wider set and keeps
-# the measurements as artifacts.
-#
-# Shared runners are noisy: the regression thresholds that ci.yml already
-# proves stay enforced, and the wider sweeps are recorded as evidence rather
-# than gated on absolute numbers.
-
+# PR code has only a read token. Only the isolated publication job can write;
+# it consumes validated data and never executes files from an artifact.
 on:
+  push:
+    branches: [main]
+    paths: &performance-paths
+      - 'lib/**'
+      - 'templates/**'
+      - 'assets/**'
+      - 'migrations/**'
+      - 'cpanfile*'
+      - 'deploy/**'
+      - 'etc/**'
+      - 'bin/**'
+      - 'script/**'
+      # Data/index-only commits never retrigger measurement, including manual
+      # pushes made without GITHUB_TOKEN's recursion suppression.
+      - 'benchmarks/schema-v*.json'
+      - 'benchmarks/*.lua'
+      - 'benchmarks/*.pl'
+      - 't/performance_*_test.py'
+      - '.github/actions/setup-gpforum-perl/**'
+      - '.github/workflows/performance.yml'
+  pull_request:
+    branches: [main]
+    paths: *performance-paths
   schedule:
-    - cron: '37 1 * * *'
+    # Weekly, away from the top-of-hour queues.
+    - cron: '37 1 * * 1'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Measurement depth
+        type: choice
+        options: [main, deep]
+        default: deep
 
 permissions:
   contents: read
 
 concurrency:
-  group: performance-${{ github.ref }}
-  cancel-in-progress: true
+  group: performance-${{ github.event_name }}-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  # Preserve an advanced run; superseded pending runs are coalesced by GitHub.
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -27,111 +51,240 @@ defaults:
 
 jobs:
   benchmarks:
-    name: Benchmarks and NYTProf smoke
+    name: Continuous performance evidence
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: gpforum_test
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres -d gpforum_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 10s --health-timeout 5s --health-retries 5
     env:
-      GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=127.0.0.1;port=5432
+      GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_head;host=127.0.0.1;port=5432
       GPFORUM_DATABASE_USER: postgres
       GPFORUM_DATABASE_PASSWORD: postgres
-
+      PGPASSWORD: postgres
+      GPFORUM_PERF_RUNNER: ubuntu-26.04
+      PERF_MODE: ${{ github.event_name == 'pull_request' && 'pr' || github.event_name == 'push' && 'main' || inputs.mode || 'deep' }}
     steps:
-      - name: Checkout
+      - name: Checkout measured commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
-      - name: Set up GPForum
+      - name: Initialize evidence before dependency setup
+        id: evidence
+        run: |
+          set -euo pipefail
+          echo "PERF_OUTPUT=$RUNNER_TEMP/performance/head" >> "$GITHUB_ENV"
+          echo "PERF_BASE=$RUNNER_TEMP/performance/base" >> "$GITHUB_ENV"
+          python3 script/performance-evidence.py init --output "$RUNNER_TEMP/performance/head" --mode "$PERF_MODE" --commit "$PERF_COMMIT"
+        env:
+          PERF_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Test evidence and harness contracts
+        run: python3 -m unittest discover -s t -p 'performance_*_test.py'
+
+      - name: Set up locked GPForum dependencies
+        id: dependencies
         uses: ./.github/actions/setup-gpforum-perl
         with:
           postgres: 'true'
 
-      - name: Apply database migrations
-        run: script/gpforum-carton exec bin/gpforum-migrate --apply
-
-      - name: Seed production evidence dataset
-        run: bin/gpforum performance-seed --profile small
-
-      - name: Sync query budget catalog
-        run: script/query-budget --sync
-
-      - name: Check query budget catalog
-        run: script/query-budget --check
-
-      - name: Prepare the evidence directory
-        run: mkdir -p artifacts
-
-      - name: Run hot-path benchmark
-        run: |
-          script/benchmark-http --fixture --check --json --iterations 5 --warmup 2 \
-            --route /health/live \
-            --route /categories \
-            | tee artifacts/bench-hotpaths.json
-
-      - name: Run configured HTTP benchmark
-        run: |
-          script/benchmark-http --configured --check --json --iterations 5 --warmup 2 \
-            --route / \
-            --route /categories \
-            --route /c/018f1001-0001-7000-8000-000000000001 \
-            --route /t/018f1004-0001-7000-8000-000000000001 \
-            --route '/search?q=performance' \
-            --route /health/ready \
-            | tee artifacts/benchmark-http.json
-
-      - name: Run Hypnotoad benchmark
-        run: |
-          script/bench-hypnotoad --check --json --profile small --workers 2 \
-            --iterations 3 --warmup 1 --no-compare \
-            --route /categories \
-            --route /health/ready \
-            | tee artifacts/bench-hypnotoad.json
-
-      - name: Sweep Hypnotoad worker scaling
-        run: |
-          script/bench-hypnotoad-scaling --json --profile small \
-            --worker-set 2,4 --iterations 2 --warmup 1 \
-            --route /categories \
-            | tee artifacts/bench-hypnotoad-scaling.json
-
-      - name: Benchmark the outbox dispatcher
-        run: |
-          script/gpforum-carton exec script/bench-outbox-dispatcher \
-            --json --messages 1000,10000 --workers 1,2,4 \
-            | tee artifacts/bench-outbox-dispatcher.json
-
-      - name: Check query plan evidence
-        run: script/query-plan-evidence --check
-
-      - name: Profile a request path with NYTProf
+      - name: Install independent load generator and optional EV
+        id: tools
         run: |
           set -euo pipefail
-          script/profile-nytprof --route /categories
-          ls -l var/profile
+          sudo apt-get install -y wrk
+          # Optional OS package; never an application dependency.
+          if ! sudo apt-get install -y libev-perl; then
+            echo 'Optional EV unavailable; the harness records the actual backend and reason.'
+          fi
 
-      - name: Collect the profile output
+      - name: Create disposable measurement databases
+        id: databases
+        run: |
+          set -euo pipefail
+          psql 'host=127.0.0.1 user=postgres dbname=gpforum_test' -v ON_ERROR_STOP=1 -c 'CREATE DATABASE gpforum_perf_head'
+          psql 'host=127.0.0.1 user=postgres dbname=gpforum_test' -v ON_ERROR_STOP=1 -c 'CREATE DATABASE gpforum_perf_base'
+
+      - name: Migrate the candidate disposable database
+        id: migrations
+        run: script/gpforum-carton exec bin/gpforum-migrate --apply
+
+      - name: Checkout PR base for paired measurements
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline-code
+          persist-credentials: false
+
+      - name: Resolve baseline system Perl version
+        id: perl
+        if: github.event_name == 'pull_request'
+        run: printf 'version=%s\n' "$(/usr/bin/perl -MConfig -e 'print $Config{version}')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore exact locked baseline dependencies
+        if: github.event_name == 'pull_request'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: baseline-code/local
+          key: gpforum-carton-${{ runner.os }}-${{ runner.arch }}-perl${{ steps.perl.outputs.version }}-pgtrue-${{ hashFiles('baseline-code/cpanfile', 'baseline-code/cpanfile.postgres', 'baseline-code/cpanfile.snapshot') }}
+
+      - name: Prepare the same harness against the PR base
+        id: base-setup
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          # One harness version, each revision's source and locked dependencies.
+          # No privileged job executes this checkout or consumes this cache.
+          mkdir -p baseline-code/benchmarks
+          cp script/performance-*.py baseline-code/script/
+          cp script/performance-outbox.pl baseline-code/script/
+          cp benchmarks/schema-v1.json benchmarks/wrk-metrics.lua benchmarks/hypnotoad-app.pl baseline-code/benchmarks/
+          # Cache versions include the path. Reuse the already checked head
+          # tree when every lock input is byte-identical, then verify it with
+          # the base revision's normal deployment install below.
+          if [ ! -d baseline-code/local ] && cmp -s cpanfile baseline-code/cpanfile && cmp -s cpanfile.postgres baseline-code/cpanfile.postgres && cmp -s cpanfile.snapshot baseline-code/cpanfile.snapshot; then
+            cp -a local baseline-code/local
+          fi
+          baseline-code/script/bootstrap-deps --postgres
+          ( cd baseline-code && script/gpforum-carton exec bin/gpforum-migrate --apply )
+          python3 script/performance-evidence.py init --output "$PERF_BASE" --mode pr --commit "$PERF_BASE_COMMIT"
+        env:
+          PERF_BASE_COMMIT: ${{ github.event.pull_request.base.sha }}
+          GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=127.0.0.1;port=5432
+
+      - name: Benchmark PR base HTTP
+        id: base-http
+        if: github.event_name == 'pull_request' && steps.base-setup.outcome == 'success'
+        continue-on-error: true
+        working-directory: baseline-code
+        run: python3 script/performance-http.py --output "$PERF_BASE" --mode pr --generator wrk --disposable-database
+        env:
+          GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=127.0.0.1;port=5432
+
+      - name: Benchmark PR base SQL and outbox
+        id: base-hotpaths
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.base-setup.outcome == 'success' }}
+        continue-on-error: true
+        working-directory: baseline-code
+        run: python3 script/performance-hotpaths.py --output "$PERF_BASE" --mode pr --disposable-database
+        env:
+          GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=127.0.0.1;port=5432
+
+      - name: Benchmark candidate HTTP
+        id: http
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.tools.outcome == 'success' && steps.migrations.outcome == 'success' }}
+        continue-on-error: true
+        run: python3 script/performance-http.py --output "$PERF_OUTPUT" --mode "$PERF_MODE" --generator wrk --disposable-database
+
+      - name: Benchmark SQL, outbox and optional profiling
+        id: hotpaths
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.migrations.outcome == 'success' }}
+        continue-on-error: true
+        run: python3 script/performance-hotpaths.py --output "$PERF_OUTPUT" --mode "$PERF_MODE" --disposable-database
+
+      - name: Fetch historical baseline data
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+            git fetch --no-tags --depth=1 origin main
+            mkdir -p "$RUNNER_TEMP/performance-history"
+            # Read only evidence from main; no fetched program is executed.
+            git archive FETCH_HEAD benchmarks/results | tar -x -C "$RUNNER_TEMP/performance-history"
+          fi
+
+      - name: Finalize partial results, schema validation and Job Summary
+        id: report
         if: always()
         run: |
           set -euo pipefail
-          if [ -d var/profile ]; then
-            cp -R var/profile artifacts/profile
+          python3 script/performance-workflow-status.py --output "$PERF_OUTPUT"
+          if [ -f "$PERF_BASE/metadata.json" ]; then
+            if python3 script/performance-evidence.py finalize --output "$PERF_BASE"; then
+              python3 script/performance-evidence.py finalize --output "$PERF_OUTPUT" --baseline "$PERF_BASE"
+            else
+              # A broken baseline must not discard the candidate's evidence.
+              PERF_BASE_REPORT=failure python3 script/performance-workflow-status.py --output "$PERF_OUTPUT"
+              python3 script/performance-evidence.py finalize --output "$PERF_OUTPUT"
+            fi
+          else
+            python3 script/performance-evidence.py finalize --output "$PERF_OUTPUT" --baseline-root "$RUNNER_TEMP/performance-history"
           fi
+          python3 script/performance-evidence.py validate --output "$PERF_OUTPUT"
+          cat "$PERF_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          PERF_SETUP: ${{ steps.dependencies.outcome }}
+          PERF_TOOLS: ${{ steps.tools.outcome }}
+          PERF_DATABASES: ${{ steps.databases.outcome }}
+          PERF_MIGRATIONS: ${{ steps.migrations.outcome }}
+          PERF_HTTP: ${{ steps.http.outcome }}
+          PERF_HOTPATHS: ${{ steps.hotpaths.outcome }}
+          PERF_BASE_SETUP: ${{ steps.base-setup.outcome }}
+          PERF_BASE_HTTP: ${{ steps.base-http.outcome }}
+          PERF_BASE_HOTPATHS: ${{ steps.base-hotpaths.outcome }}
+          PERF_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Upload performance evidence
+      - name: Upload candidate performance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: gpforum-performance
-          path: artifacts/
+          name: gpforum-performance-head-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/performance/head/
+          retention-days: 14
           if-no-files-found: warn
+
+      - name: Upload paired PR base evidence
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gpforum-performance-base-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/performance/base/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Keep deterministic and infrastructure failures visible
+        if: always()
+        run: python3 script/performance-workflow-status.py --output "$PERF_OUTPUT" --check
+
+  publish:
+    name: Publish immutable performance history
+    needs: benchmarks
+    # PR/fork code and manual runs of other refs cannot receive this token.
+    # Validated partial/failure reports still become historical evidence.
+    if: ${{ always() && !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      # Each result gets its own pending slot; optimistic push retries below
+      # handle contention without GitHub dropping a third pending publication.
+      group: performance-evidence-publication-${{ github.run_id }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout trusted publication code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download this run's data artifact
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "gpforum-performance-head-${GITHUB_RUN_ATTEMPT}" --dir "$RUNNER_TEMP/performance-incoming"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Validate and publish only canonical JSON and Markdown
+        run: python3 script/performance-publish.py --input "$RUNNER_TEMP/performance-incoming" --repository "$GITHUB_REPOSITORY" --expected-commit "$GITHUB_SHA" --expected-run "$GITHUB_RUN_ID" --expected-attempt "$GITHUB_RUN_ATTEMPT"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

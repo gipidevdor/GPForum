@@ -61,7 +61,7 @@ run in their offline, simulate and dry-run modes, exactly as
 | Formatting validation | `ci.yml` (`script/perltidy-check`) |
 | Test execution | `ci.yml`, `platform-debian.yml`, `platform-freebsd.yml`, `platform-macos.yml`, `postgres-matrix.yml` |
 | Coverage validation | `ci.yml` (`script/coverage`, `cover_db/` artifact) |
-| Profiling smoke validation | [performance.yml](../.github/workflows/performance.yml) (`script/profile-nytprof --route` under Devel::NYTProf, benchmark sweeps) |
+| Continuous performance evidence and profiling | [performance.yml](../.github/workflows/performance.yml) (paired PR HTTP/SQL/outbox, representative main runs, weekly/manual deep sweep and configured NYTProf) |
 | Security scanning | [security.yml](../.github/workflows/security.yml) (CPANSA advisories, license review, gitleaks, workflow and shell linting, OpenSSF Scorecard) |
 | Artifact creation | `release.yml` (reproducible `git archive` tarball, Carton vendor bundle, `SHA256SUMS`, build provenance attestation) |
 | Deployment validation | `deploy-units.yml` (`systemd-analyze verify`, `nginx -t`, `caddy validate`, `sh -n` on the rc(8) unit, deploy checklist drill) |
@@ -121,3 +121,37 @@ the system Perl, the system-Perl assertion, the dependency cache, and
 `script/bootstrap-deps`. `ci.yml` keeps those steps inline on purpose — it is
 the canonical gate, pinned command by command by `t/18-github-project.t`, so the
 contract test reads the pipeline itself rather than an indirection.
+
+## Continuous performance measurements
+
+[benchmarks/README.md](../benchmarks/README.md) documents the scenarios,
+baseline rules, bounded cost, schema, local commands and publication model.
+Relevant PRs and pushes to `main` now run real Hypnotoad and PostgreSQL
+benchmarks automatically. PR jobs compare the exact base/head revisions on
+one runner with separate disposable databases and locked dependency trees;
+main runs retain compact evidence at `benchmarks/results/` on `main`.
+The weekly Monday 01:37 UTC/manual deep run adds
+targeted worker/reactor scaling, PostgreSQL service comparisons and profiles.
+
+Measurement jobs have a read-only token and upload summaries/artifacts even
+after failures. Only a separate trusted-main job can write history; it
+validates artifacts as data, rejects overwritten results and retries
+ordinary concurrent Git pushes against the latest main tip. Generated
+result/index paths are excluded from the performance trigger, so publication
+cannot create a benchmark loop. Main's branch rules must permit the
+job-scoped token to append evidence commits. Raw diagnostic
+logs/profiles have 14-day retention; permanent history contains small JSON
+and regenerated Markdown only.
+
+Timing regressions use compatible scenarios, repetitions, medians and MAD,
+and remain advisory on shared runners. Functional, query-budget, N+1 and
+plan-shape violations remain deterministic failures. Skipped/unmeasured
+tests are shown explicitly and are never converted to PASS.
+
+The earlier statement that Actions could not start because of account
+budget is historical, not the current audit result. On 2026-10-11 the
+[performance run 38122509516](https://github.com/gpicchiarelli/GPForum/actions/runs/38122509516)
+completed its benchmark sequence before failing in the NYTProf step
+(`Tests were run but no plan was declared and done_testing() was not seen`,
+exit 254). The continuous harness preserves completed data when profiling
+fails; a local configured profile must still be verified independently.

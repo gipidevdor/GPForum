@@ -25,6 +25,13 @@ asked. PostgreSQL holds the data, and search, feeds and caches are derived from
 it. It runs under Hypnotoad behind nginx or Caddy, and needs no Redis,
 OpenSearch or Kubernetes.
 
+Runtime data access uses 194 versioned PostgreSQL functions, installed by
+migrations. A separate application login can be restricted to that API.
+The [changes and performance results](docs/architecture/sql-functions-performance.md)
+include two local comparisons of 20 service operations, the raw measurements
+and reproduction commands; see the [runtime role guide](docs/ops/sql-api-role.md)
+to activate the database permission boundary.
+
 ## What it does
 
 - Threads, replies and revisions. Search, bookmarks, follows and notifications.

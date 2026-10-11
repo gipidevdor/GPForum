@@ -1,9 +1,59 @@
-# Stored-function conversion and performance
+# PostgreSQL function API: changes and measured performance
 
 The PostgreSQL runtime now uses 194 versioned catalogue operations. The
 adapter prepares fixed, typed function calls once per connection. DBIx::Class
 continues to supply the schema and transaction connection; it no longer
 builds application data statements on the PostgreSQL runtime paths.
+
+The conversion was published in [PR #59](https://github.com/gpicchiarelli/GPForum/pull/59),
+merged into `main` on 2026-10-11 as
+[`70547ce`](https://github.com/gpicchiarelli/GPForum/commit/70547ce5dd27e0254c9f2830ef2e3ae7c72d5a77).
+The definitions, adapters, tests, reproduction tool and two measured runs
+are in the repository. Production activation follows the operator steps
+below; merging code does not install routines into another database.
+
+## Main results
+
+These are arithmetic means of the two local direct-access medians, in
+milliseconds. They compare the same service operation through DBIx and
+through the function API; full HTTP request latency is outside this test.
+
+| Service operation | DBIx | Function API | Median reduction | Client round trips |
+| --- | ---: | ---: | ---: | ---: |
+| Create a discussion | 12.38 | 1.58 | 87.2% | 43 → 2 |
+| Reply | 11.00 | 1.50 | 86.4% | 33 → 2 |
+| Edit a post | 11.12 | 1.46 | 86.8% | 32 → 3 |
+| Notification inbox | 7.54 | 1.52 | 79.9% | 1 → 1 |
+| Ranked search | 20.59 | 7.91 | 61.6% | 1 → 1 |
+| Search autocomplete | 10.72 | 3.56 | 66.8% | 1 → 1 |
+
+![DBIx and function API median service times for six operations, averaged across two local runs](evidence/sql-functions-2026-10-11-comparison.svg)
+
+All 20 measured operations improved their direct medians in both runs.
+The reduction of the averaged medians ranges from 26.6% to 93.1%; this
+range describes individual operations and does not measure overall forum
+throughput. The full table includes p95, CPU and delayed-network results.
+
+## What changed
+
+The [catalogue](../../lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm)
+defines the 194 allowed operation signatures, and the
+[adapter](../../lib/GPForum/Infrastructure/SqlFunction.pm) binds parameters
+to fixed, typed calls. PostgreSQL executes the versioned routines and
+returns rows or JSON. Existing permission, visibility, audit, idempotency
+and transaction behavior is checked by differential and concurrency tests.
+
+These stored routines are PostgreSQL **functions** (`CREATE FUNCTION`) in
+the `api` schema. Their SQL definitions are in migration files, including
+the function bodies and security settings. Applying migrations installs
+them once; normal requests call the installed functions. Applied migration
+files remain immutable, and future changes receive new migrations and
+versioned entry points.
+
+The restricted login is a separate enforcement step. Moving SQL into
+functions alone does not remove an existing owner's table privileges.
+Provisioning the runtime role makes PostgreSQL deny arbitrary reads or
+writes of application tables while allowing the catalogue calls.
 
 ## Coverage and activation
 
@@ -23,9 +73,14 @@ builds application data statements on the PostgreSQL runtime paths.
 | Metrics, retention, readiness, budgets, realtime and replication | 069 |
 | Partition horizon and outbox diagnostics | 070 |
 
-Migrations 059 and 099 expose hardened `_v2` entry points. The implementation
-and helper functions have no public execution grants. A separate runtime
-login receives only the current catalogue's function grants and owns no
+[Migration 059](../../migrations/059_runtime_api_boundaries.sql) and
+[migration 099](../../migrations/099_remaining_runtime_api_boundaries.sql)
+expose hardened `_v2` entry points. For concrete function bodies, see
+[forum writes](../../migrations/057_forum_write_functions.sql),
+[search](../../migrations/064_search_functions.sql) and
+[operational data](../../migrations/069_operations_realtime_functions.sql).
+The implementation and helper functions have no public execution grants.
+A separate runtime login receives only the current catalogue's function grants and owns no
 objects. Tests connect with that login, exercise HTTP authentication and
 application workflows, and verify that direct table reads and writes fail.
 PostgreSQL still accepts session commands and expressions such as `SELECT 1`.
@@ -85,15 +140,36 @@ database also needs the privileges required for migrations and fixtures.
 
 ## Validation
 
-- Full unit tier: 401 files, 16,137 assertions, passed.
+- Full local workspace unit tier: 401 files, 16,137 assertions, passed.
 - Full PostgreSQL integration tier: 94 files, 9,263 assertions, passed.
+- After the CI authentication repair, all 94 files / 9,263 assertions also
+  passed against a disposable PostgreSQL 18 server requiring SCRAM
+  passwords. The two dedicated role tests passed 75 assertions; their
+  fixtures supply throwaway passwords to DBI, the schema and the HTTP app.
+- On the published head
+  [`e8ed651`](https://github.com/gpicchiarelli/GPForum/commit/e8ed651a9c41ced751a141b36d8169ebcc1c530d),
+  the [PostgreSQL matrix](https://github.com/gpicchiarelli/GPForum/actions/runs/38138925678)
+  passed on versions 16, 17 and 18, including migration reapplication,
+  the full integration tier and fresh/upgrade/dump-restore drills.
+  The same [matrix passed on the merged commit](https://github.com/gpicchiarelli/GPForum/actions/runs/38139267582).
+  [Security scanning](https://github.com/gpicchiarelli/GPForum/actions/runs/38138925751),
+  [deployment units](https://github.com/gpicchiarelli/GPForum/actions/runs/38138925582)
+  and [project hygiene](https://github.com/gpicchiarelli/GPForum/actions/runs/38138925690)
+  also passed. The general CI and coverage result is tracked separately in
+  [the implementation CI run](https://github.com/gpicchiarelli/GPForum/actions/runs/38138925676)
+  and [the merge CI run](https://github.com/gpicchiarelli/GPForum/actions/runs/38139267621);
+  coverage was not run locally.
+- The [dated validation snapshot](evidence/sql-functions-2026-10-11-validation.json)
+  records the tested commits, local counts and individual CI job states.
+  At 12:33:43 UTC on 2026-10-11, general CI was still running on the
+  published head and merge commit; the snapshot preserves that distinction.
 - Additional verification after benchmark refactoring: migration gate and
   benchmark smoke test, 322 assertions, passed.
 - Final checks after the last source edits: replication standby, restricted
   role workflows and provisioning CLI, 98 PostgreSQL assertions, passed.
 - System Perl, syntax, architecture and Perl::Critic baseline gates passed;
   the critic gate reports no new violations.
-- Full repository formatting gate passed; a separate check of all 131
+- Full local repository formatting gate passed; a separate check of all 131
   changed Perl files also passed after the final edits.
 - Differential tests preserve results, ACL filters, cursors, JSON, ranks,
   replay behavior and transaction outcomes. PostgreSQL tests cover concurrent
@@ -146,11 +222,13 @@ commands; it does not count SQL statements executed inside a function.
 Both runs improved the direct median for all 20 measured operations. The
 averaged median reductions range from 26.6% to 93.1%; these are
 individual operation results, not an overall forum throughput claim.
-Function medians differed by up to 14.4% between runs, while baseline
-medians differed by up to 23.2%. The rate limiter's CPU cost is essentially
+Relative to run 1, function medians changed by up to 14.4% in run 2, while
+baseline medians changed by up to 23.2%. The raw JSON contains summary
+statistics, so a pooled quantile or confidence interval cannot be derived
+from these files. The rate limiter's CPU cost is essentially
 unchanged (0.111 → 0.112 ms in run 2), even though its elapsed median falls.
 
-Opening a thread reduces client data statements from 19 to 2 and total
+Creating a discussion reduces client data statements from 19 to 2 and total
 round trips from 43 to 2. A reply reduces them from 17 to 2 and 33 to 2;
 a post edit from 18 to 3 and 32 to 3. This is why the remote proxy improves
 these writes more than reads which already issue one or two statements.

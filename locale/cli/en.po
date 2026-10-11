@@ -2822,6 +2822,16 @@ msgstr ""
 "made"
 
 #, python-brace-format
+msgctxt "setup.renamed"
+msgid "{line}, in place of the old {old}"
+msgstr "{line}, in place of the old {old}"
+
+#, python-brace-format
+msgctxt "setup.retired"
+msgid "{variable}: its line is gone, as it no longer has any effect"
+msgstr "{variable}: its line is gone, as it no longer has any effect"
+
+#, python-brace-format
 msgctxt "setup.run_again"
 msgid "then {command} again"
 msgstr "then {command} again"
@@ -2918,6 +2928,16 @@ msgid ""
 msgstr ""
 "schema: the migrations, partitions and query budgets would be brought up to "
 "date"
+
+#, python-brace-format
+msgctxt "setup.would_renamed"
+msgid "would write {line} in place of the old {old}"
+msgstr "would write {line} in place of the old {old}"
+
+#, python-brace-format
+msgctxt "setup.would_retired"
+msgid "{variable}: would drop its line, as it no longer has any effect"
+msgstr "{variable}: would drop its line, as it no longer has any effect"
 
 #, python-brace-format
 msgctxt "status.check_detail"

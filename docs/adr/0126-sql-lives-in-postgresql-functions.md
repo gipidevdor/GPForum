@@ -294,9 +294,10 @@ one PL/pgSQL call take 60 µs, where ten round trips take 341 µs.
   body, so no session setting can redirect a name; `pg_temp` last, so a
   temporary table cannot shadow one.
 - Each migration revokes `EXECUTE` on its functions from `PUBLIC`, and
-  migration 052 sets the schema's default privileges to do the same. A
-  read-only role (reporting, a standby's reader) is granted function by
-  function when one exists.
+  migration 052 sets the role's default privileges, for its database, to do
+  the same (a per-schema entry cannot take away what PostgreSQL grants
+  `PUBLIC`; see Evidence). A read-only role (reporting, a standby's reader)
+  is granted function by function when one exists.
 - Parameters are typed (`uuid`, `bigint`, `integer`, `text`, `boolean`,
   `timestamptz`, arrays of these, `jsonb` for event payloads and audit
   metadata), never `anyelement`; the call layer binds them with their
@@ -424,7 +425,8 @@ the hottest page, one branch per shape, generic plans) and the reply
 multi-step write, its locks, savepoints, command log, event, outbox and
 audit). The pilot lands the call layer, the catalogue and its test, the
 migration test, the canonical JSON proof and the plan gate's nested
-explain, and measures both paths against the baseline above.
+explain, and measures both paths against the baseline above. What it found
+and measured is under Evidence.
 
 ## Consequences
 
@@ -446,6 +448,122 @@ explain, and measures both paths against the baseline above.
 - The 135 ORM double modules retire with their areas; unit tests that
   stood on them use the call layer's double.
 - PL/pgSQL has no coverage tool here; the differential tests stand in.
+
+## Evidence: the phase-0 pilot
+
+Landed on 2026-10-10 as migrations 052 to 054: schema `api` and
+`api.core_canonical_json_v1` (052); `api.forum_thread_page_head_v1` and
+`api.forum_thread_page_posts_v1` (053); `api.forum_create_reply_v1`, the
+store's write `api.core_forum_store_reply_v1`, and the shared steps
+(`core_record_event_v1`, `core_ensure_outbox_v1`, `core_transport_payload_v1`,
+`core_record_audit_v1`, `core_append_audit_v1`, `core_unique_on_v1`,
+`core_uuid_v7_v1`, ...) (054). The call layer is
+`GPForum::Infrastructure::SqlFunction` with its catalogue; the readers and
+the reply call it on PostgreSQL, and every in-memory double keeps the path
+it had.
+
+### Numbers
+
+`script/bench-sql-functions`, on the plan-depth seed (a 3,008-post thread
+with bodies, a 1,500-thread category), each operation 200 times (a reply 100)
+after 15, on each path, at the database and through its proxy, which holds
+each chunk 0.5 ms each way: a `SELECT 1` takes 0.031 ms at the database and
+1.425 ms through it. The DBIx::Class and DBI columns are exclusive time from
+a separate, instrumented run (its wrappers add time, so a column can exceed
+the plain run's CPU). Two runs agreed within 3%. Milliseconds per operation.
+
+| Operation | Path | Perl CPU | DBIx::Class | DBI | Median | p95 | Median, proxy | p95, proxy | Statements | Round trips |
+| --- | --- | --: | --: | --: | --: | --: | --: | --: | --: | --: |
+| Reply (`PostingWorkflow::create_reply`) | DBIx::Class | 5.52 | 6.29 | 3.20 | 8.29 | 8.78 | 68.87 | 69.88 | 17 | 33 |
+| | function | 0.40 | 0.07 | 0.95 | 1.24 | 1.40 | 3.98 | 4.15 | 2 | 2 |
+| Thread page, signed in | DBIx::Class | 0.34 | 0.16 | 0.58 | 0.83 | 0.84 | 3.51 | 3.59 | 2 | 2 |
+| | function | 0.27 | 0.07 | 0.42 | 0.43 | 0.45 | 3.26 | 3.30 | 2 | 2 |
+| Thread page, signed in, position 1,500 | DBIx::Class | 0.35 | 0.17 | 0.61 | 0.87 | 0.88 | 3.61 | 4.29 | 2 | 2 |
+| | function | 0.28 | 0.07 | 0.43 | 0.44 | 0.46 | 3.28 | 3.32 | 2 | 2 |
+| Thread page, anonymous | DBIx::Class | 0.32 | 0.16 | 0.57 | 0.79 | 0.85 | 3.54 | 3.59 | 2 | 2 |
+| | function | 0.28 | 0.07 | 0.40 | 0.47 | 0.50 | 3.25 | 3.29 | 2 | 2 |
+
+The same requests through the application, the inventory's way
+(`Test::Mojo`, page caches emptied, 200 reads and 100 replies), on the same
+code with the function layer switched off and on:
+
+| Request | Path | Median | CPU | DBIx::Class | DBI | Statements | Round trips |
+| --- | --- | --: | --: | --: | --: | --: | --: |
+| Reply | DBIx::Class | 13.60 | 9.87 | 7.51 | 4.43 | 23 | 39 |
+| | function | 5.90 | 4.12 | 1.20 | 2.26 | 7 | 7 |
+| Thread page, signed in | DBIx::Class | 12.03 | 10.67 | 0.77 | 1.82 | 8 | 8 |
+| | function | 11.98 | 10.80 | 0.51 | 1.60 | 8 | 8 |
+| Thread page, anonymous | DBIx::Class | 7.88 | 7.27 | 0.32 | 0.86 | 3 | 3 |
+| | function | 7.67 | 7.40 | 0.19 | 0.63 | 3 | 3 |
+
+What they say:
+
+- **The reply's DBIx::Class cost is gone from the write:** 6.3 ms of Perl
+  per reply becomes 0.07 ms, the `dbh_do` the layer runs on until the last
+  area moves; the reply's Perl CPU falls from 5.5 to 0.4 ms. Through the
+  application the 1.2 ms of DBIx::Class left is the request's prologue
+  (session, rate limit, participation, viewer: wave 1).
+- **Round trips:** 33 to 2 for the write (the thread's head and the call),
+  39 to 7 for the request; through the proxy a reply goes from 68.9 to
+  4.0 ms.
+- **The thread page** had lost DBIx::Class to `PreparedQuery` already; the
+  functions take what was left (0.16 to 0.07 ms) and the planning: the
+  pinned generic plan makes the two statements 0.58 ms instead of 0.42
+  instead of. The page is rendering-bound (10 of its 12 ms), so its wall time
+  moves by 0.2 ms; no pilot path got slower.
+- **The query budget** observed at run time (`DbQueryStats`): a reply went
+  from 20 statements and a transaction, which failed its budget of 6, to 6
+  statements and none; the thread page stays at 8. No budget was changed:
+  each now holds what its page sends.
+- **The plan gate** reads the functions' nested plans
+  (`script/query-plan-evidence --functions`); on the plan-depth fixture
+  every function endpoint passes, the deep ones paging past 1,500 rows, and
+  the posts function fails the deep pages once its keyset bound is taken
+  out (`t/integration/postgres-sql-function-plans.t`).
+
+### What the pilot found, and changed
+
+1. **A reply is two calls.** The check before the lock reads the thread
+   through `api.forum_thread_page_head_v1`; Perl applies ADR 0102's rule
+   (`Visibility`) and the composer, whose answer depends on the thread's
+   effective visibility, and hands their refusal to
+   `api.forum_create_reply_v1` as the response to record. Folding them in
+   would give ADR 0102's rule and the composer's validation a second home
+   for one round trip (0.03 ms here, 1.4 ms through the proxy). Every write
+   of a reply is in the one call, as section 5 says; the check before the
+   lock now runs before the command log's lookup, outside the transaction,
+   which at READ COMMITTED reads what it read before.
+2. **Ids are drawn before the call.** A replay or a conflict draws ids it
+   never uses; so does an outbox row that is already there. `handled_at` is
+   the command's own time, one reading of the clock.
+3. **An id a collision draws again is drawn in SQL**
+   (`api.core_uuid_v7_v1`, a UUIDv7 as `Infrastructure::Id` mints one):
+   `uuidv7()` is PostgreSQL 18's, and 16 and 17 are supported.
+4. **`ALTER DEFAULT PRIVILEGES IN SCHEMA` cannot revoke** the `EXECUTE`
+   PostgreSQL grants `PUBLIC` on a new function, only add: 052 revokes it
+   in the role's defaults, and `t/641` holds each migration to its own
+   `REVOKE`.
+5. **DBD::Pg reads integers as numbers.** An event reused from the log puts
+   `aggregate_version` and `schema_version` in its outbox payload as
+   numbers; the differential test found the function writing strings.
+6. **Callers read rows by accessor too** (`$row->position`, in
+   `postgres-concurrency.t`'s helpers): a function's rows are
+   `ResultRow::Post` and `ResultRow::Thread`, with their table's column
+   accessors.
+7. **A race probes the old statement's text.**
+   `postgres-concurrency.t` waits for `pg_stat_activity.query` to read
+   `UPDATE thread_counters`, which a function's nested statement never
+   shows. By section 10's rule `PostStore::create_post` keeps its Perl path
+   for the callers that use the store alone until the forum writes move;
+   the store's write is the shared step `api.core_forum_store_reply_v1`,
+   and `t/integration/postgres-sql-function-reply-races.t` runs the races
+   against the function path, probing locks rather than text.
+8. **The function endpoints are not in the plan gate's default list**,
+   whose length `t/54` pins; `--functions` and `--endpoint` select them,
+   and CI runs them in a step of their own.
+9. **PostgreSQL 16 and 17 plan a `LANGUAGE sql` function's statement on
+   every call**; 18 caches it. On 16 and 17 the head function plans per call,
+   as the prepared statement's custom plans did.
 
 ## Alignment
 

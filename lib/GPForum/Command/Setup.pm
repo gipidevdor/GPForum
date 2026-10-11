@@ -827,6 +827,7 @@ sub _inspect_database ( $self, $state, $plan ) {
 # no file yet, each other line as it was.
 sub _planned_lines ( $self, $state, $plan ) {
     my @lines = @{ $state->{lines} };
+    $state->{renewed} = $state->{exists} ? _renewed( \@lines ) : [];
     for my $name (
         qw(GPFORUM_ENV GPFORUM_PUBLIC_BASE_URL),
         $SECRETS[0],
@@ -845,6 +846,80 @@ sub _planned_lines ( $self, $state, $plan ) {
     }
 
     return \@lines;
+}
+
+# Every old name the file still uses written under its new one, and every
+# retired setting's line dropped: an install carrying old names took one
+# hand edit each, five in walkthrough 4, where setup rewrote GPFORUM_ENV
+# alone. An old variable whose new one the file sets already only goes; one
+# holding a word it never took stays, for the settings check to refuse
+# under the name the operator wrote. Returns what changed, each as [ key,
+# parameters ] for the report.
+sub _renewed ($lines) {
+    my @renewed;
+    for my $setting ( @{ GPForum::Config->settings } ) {
+        my $name   = $setting->{env};
+        my $values = $EDIT->values_of($lines);
+        if ( $setting->{retired} ) {
+            next if !exists $values->{$name};
+            $EDIT->remove( $lines, $name );
+            push @renewed, [ 'retired', { variable => $name } ];
+            next;
+        }
+        for my $alias ( @{ $setting->{aliases} } ) {
+            my $renamed = _renamed_line( $lines, $values, $setting, $alias );
+            if ( defined $renamed ) {
+                push @renewed, [ 'renamed', $renamed ];
+            }
+        }
+    }
+
+    return \@renewed;
+}
+
+# One alias of a setting rewritten in the lines: { line, old }, or undef
+# when the file does not use it.
+sub _renamed_line ( $lines, $values, $setting, $alias ) {
+    my $name = $setting->{env};
+    if ( exists $alias->{value} ) {
+        return undef
+          if !defined $values->{$name} || $values->{$name} ne $alias->{value};
+        $EDIT->assign( $lines, $name, $alias->{as} );
+        return {
+            line => "$name=$alias->{as}",
+            old  => "$name=$alias->{value}",
+        };
+    }
+
+    my $old = $alias->{env};
+    return undef if !exists $values->{$old};
+    my $value = $values->{$name}
+      // $alias->{values}{ lc trim( $values->{$old} ) };
+    return undef if !defined $value;
+
+    if ( !exists $values->{$name} ) {
+        $EDIT->assign( $lines, $name, $value, $old );
+    }
+    $EDIT->remove( $lines, $old );
+
+    return {
+        line => _shown( $name, "$name=$value" ),
+        old  => _shown( $old,  "$old=$values->{$old}" ),
+    };
+}
+
+# What setup changed of the old names, or would: each a line of the report.
+sub _say_renewed ( $self, $state, $findings, $would = q{} ) {
+    for my $renewed ( @{ $state->{renewed} // [] } ) {
+        my ( $kind, $parameters ) = @{$renewed};
+        $findings->add(
+            name    => 'file',
+            status  => 'ok',
+            message => [ "setup.${would}$kind", $parameters ],
+        );
+    }
+
+    return;
 }
 
 # The problems the service would find in the file as planned, every one.
@@ -896,6 +971,7 @@ sub _dry_run ( $self, $options, $state, $plan, $database, $lines, $findings ) {
         ],
     );
     $self->_say_sender( $state, $findings );
+    $self->_say_renewed( $state, $findings, 'would_' );
 
     # In the order a run does them: the file, then the link.
     my $link = $self->_link_wanted;
@@ -1139,6 +1215,7 @@ sub _write_file ( $self, $state, $lines, $findings, $changed ) {
         message => [ $message->[0], { %{ $message->[1] }, _shape($file) } ],
     );
     $self->_say_sender( $state, $findings );
+    $self->_say_renewed( $state, $findings );
     $self->_say_if_open( $file, $findings );
 
     return 1;

@@ -85,6 +85,13 @@ places it at:
 
 ## Next
 
+The [verified product backlog](docs/PRODUCT_BACKLOG.md) reconciles proposed
+engagement, identity, messaging, discovery and integration features with the
+current code. Its P0–P2 waves are a proposed post-MVP product sequence, not
+additional completed milestones or a replacement for ADR 0068. Existing
+readiness gates below remain prerequisites; feature adoption follows the
+project's ADR and review rules.
+
 - Re-run `staging-host-verify` with `--unit-dir`, `--systemd`, and an
   `https://` `--base-url` (TLS observe phase) on a representative **staging
   TLS** host; Cloud Agent archives cover local Hypnotoad verify + stress `100`

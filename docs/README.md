@@ -37,6 +37,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | --- | --- |
 | [MVP.md](MVP.md) | Every route that is traversable today |
 | [PRODUCT_FLOWS.md](PRODUCT_FLOWS.md) | Product workflows present in the repository |
+| [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md) | Verified feature inventory and proposed post-MVP priorities, with acceptance criteria and licensing/privacy constraints |
 | [API.md](../API.md) | API posture: JSON responses today, versioning rules for later |
 
 ## Deploy and operate

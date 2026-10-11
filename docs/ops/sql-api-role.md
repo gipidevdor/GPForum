@@ -57,12 +57,14 @@ partition-maintenance, restore and other administrative commands with the
 operator environment. Provisioning does not rewrite service credentials or
 restart services.
 
-Migrations 100 and 101 add optimized search v4 entry points and the combined
-post context. The catalogue now contains 195 operations. Apply these new
-migrations; never edit or reapply a changed copy of an old migration.
+Migrations 100 and 101 introduce optimized search and the combined post
+context. Migration 102 adds search v6 using static PL/pgSQL so the custom
+search plan policy also takes effect on PostgreSQL 16/17. The catalogue
+contains 195 operations. Apply these new migrations; never edit or reapply
+a changed copy of an old migration.
 Drain and stop the previous web and worker processes before reprovisioning
 the runtime role with the updated release, then start the updated processes.
-Provisioning grants search v4 and revokes the historical search v2 grants,
+Provisioning grants search v6 and revokes the historical search v2/v4 grants,
 so workers from the previous release must not keep serving during that step.
 The old function definitions remain installed. To roll back application code,
 stop the new processes and provision with the previous release's catalogue

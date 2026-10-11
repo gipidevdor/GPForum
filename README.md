@@ -26,7 +26,8 @@ it. It runs under Hypnotoad behind nginx or Caddy, and needs no Redis,
 OpenSearch or Kubernetes.
 
 Runtime data access uses 195 versioned PostgreSQL functions, installed by
-migrations. A separate application login can be restricted to that API.
+migrations. Search v6 uses parameter-aware plans on PostgreSQL 16–18 through
+migration 102. A separate application login can be restricted to that API.
 The [conversion results](docs/architecture/sql-functions-performance.md) and
 [subsequent optimizations](docs/architecture/sql-functions-optimization.md)
 include raw measurements and reproduction commands; see the [runtime role guide](docs/ops/sql-api-role.md)

@@ -23,14 +23,121 @@ gate still runs before the atomic write. Each successful workflow now needs
 two client calls rather than three. Domain refusals, idempotency and the
 write's lock order remain unchanged.
 
+[Migration 102](../../migrations/102_search_custom_plans.sql) adds search v5
+implementations and narrow v6 definer entry points. The query bodies and return
+contracts are identical to v3/v4, but the invoker implementation uses static
+PL/pgSQL `RETURN QUERY` with `force_custom_plan`. PostgreSQL 16/17's SQL-language
+functions retain parameter-generic plans; the parameter-aware SQL-function
+cache was introduced in PostgreSQL 18. The [upstream implementation change](https://www.postgresql.org/message-id/E1u02Tn-002Kp0-0Q@gemulon.postgresql.org)
+and [release notes](https://www.postgresql.org/docs/18/release-18.html) document
+that distinction. Static PL/pgSQL applies the existing plan policy on all three
+supported versions, without dynamic SQL or changes to the ACL predicates.
+The catalogue now calls v6; previous v2/v4 entry points remain installed for
+an explicit rollback, but runtime provisioning grants only the current API.
+
+On the maintained 20,000-document fixture, the controlled PostgreSQL 17
+prototype changed the common candidate path from a 20,000-row bitmap heap
+scan to a 1,000-row ordered index walk, while returning identical results.
+The [custom-plan evidence](evidence/sql-functions-2026-10-11-custom-plan-validation.json)
+retains the original PostgreSQL 17 CI plans, controlled prototype plans,
+query-body equality hashes and the final v6 test fingerprints. Captured plan
+times include diagnostics and are not service benchmark latency.
+
 The optional ordered autocomplete index was measured and rejected: it did
 not give a stable improvement and would add maintenance cost. No new index
 is shipped in this batch.
 
-## Alternating service measurements
+## Current v6 service measurements
 
-The canonical [benchmark](../../script/bench-sql-functions) now accepts
-`--paired-functions`. Both sides use stored functions: the published search
+The code and harness are recorded at [`2cbc4e5`](https://github.com/gpicchiarelli/GPForum/commit/2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96).
+Six successful runs produced 12,000 individual measured samples on 2026-10-11,
+14:51–14:53 UTC. Each comparison ran twice with 15 warm-up pairs, 200 measured
+read pairs and 100 measured edit pairs per connection mode. Odd pairs run
+before/after; even pairs run after/before on the same handle and dataset.
+Each search pair must produce identical service JSON. All 2,400 measured edits
+returned distinct revisions within their run; command IDs and bodies change
+on every edit. Revision retrieval occurs outside the timed interval.
+
+Tables show arithmetic means of the two per-run medians and p95 values in
+milliseconds and mean Perl CPU per operation. Quantiles are not pooled; the
+canonical sorted-sample index is `int(q * (n - 1) + 0.5)`, selecting the upper
+central observation for an even-sample median.
+
+### PostgreSQL 17: isolate migration 102 (v4 → v6)
+
+Both sides use the same combined post context and atomic writer. Thus the
+search difference isolates the parameter-aware implementation; post editing
+is an unchanged control with two calls on both sides.
+
+| Operation | Direct median before → after | Median change | p95 before → after | Perl CPU before → after | Calls |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Ranked search | 10.85 → 6.02 | -44.5% | 11.46 → 6.15 | 0.834 → 0.832 | 1 → 1 |
+| Autocomplete | 5.41 → 2.76 | -49.0% | 5.52 → 2.85 | 0.334 → 0.333 | 1 → 1 |
+| Edit a post | 2.06 → 2.05 | -0.7% | 2.52 → 2.49 | 0.385 → 0.388 | 2 → 2 |
+
+| Operation | Proxy median before → after | Median change | p95 before → after | Perl CPU before → after | Calls |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Ranked search | 12.15 → 7.34 | -39.6% | 12.39 → 7.48 | 0.839 → 0.839 | 1 → 1 |
+| Autocomplete | 6.74 → 4.14 | -38.6% | 6.88 → 4.22 | 0.343 → 0.343 | 1 → 1 |
+| Edit a post | 5.97 → 5.99 | +0.3% | 6.85 → 6.93 | 0.636 → 0.651 | 2 → 2 |
+
+Search medians improved in both runs. The unchanged edit control varied by
+−0.7% direct and +0.3% through the proxy; the latter increase is retained.
+These small control differences are not evidence of a post-edit optimization.
+
+### PostgreSQL 17 and 18: original v2 → current v6
+
+These comparisons include both the search changes and the combined post
+preflight from migration 101. They are separate within-server comparisons;
+the table does not establish a performance ranking between server versions.
+
+| PostgreSQL | Operation | Direct median before → after | Median change | Direct p95 before → after | Proxy median before → after | Calls |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 17.11 | Ranked search | 15.12 → 6.18 | -59.1% | 15.76 → 6.35 | 15.93 → 7.54 | 1 → 1 |
+| 17.11 | Autocomplete | 7.37 → 2.78 | -62.2% | 7.63 → 2.88 | 8.84 → 4.20 | 1 → 1 |
+| 17.11 | Edit a post | 2.15 → 2.06 | -4.2% | 2.39 → 2.32 | 8.14 → 6.41 | 3 → 2 |
+| 18.6 | Ranked search | 8.38 → 6.84 | -18.4% | 8.69 → 7.15 | 9.94 → 8.39 | 1 → 1 |
+| 18.6 | Autocomplete | 3.78 → 3.03 | -20.0% | 4.11 → 3.30 | 6.17 → 5.43 | 1 → 1 |
+| 18.6 | Edit a post | 2.68 → 2.46 | -8.2% | 3.08 → 2.82 | 8.42 → 6.36 | 3 → 2 |
+
+![Current v6 search service medians](evidence/sql-functions-2026-10-11-v6.svg)
+
+The proxy delays each direction by 0.5 ms. Editing through the proxy improved
+by 21.3% on PostgreSQL 17 and 24.5% on PostgreSQL 18 in the v2 comparisons.
+Raw evidence retains all operations, direct/proxy medians, p95, CPU and
+individual samples:
+
+- pg17-v2: [run 1](evidence/sql-functions-2026-10-11-v6-pg17-v2-1.json) and [run 2](evidence/sql-functions-2026-10-11-v6-pg17-v2-2.json).
+- pg17-v4: [run 1](evidence/sql-functions-2026-10-11-v6-pg17-v4-1.json) and [run 2](evidence/sql-functions-2026-10-11-v6-pg17-v4-2.json).
+- pg18-v2: [run 1](evidence/sql-functions-2026-10-11-v6-pg18-v2-1.json) and [run 2](evidence/sql-functions-2026-10-11-v6-pg18-v2-2.json).
+
+The [current validation and aggregation manifest](evidence/sql-functions-2026-10-11-v6-validation.json)
+records source hashes, sample counts, commands, local integration results and
+the new NYTProf capture. Pairing reduces order and host-load bias; it does
+not eliminate it. These measurements use a fixture account on one host,
+exclude HTTP, concurrency and throughput, and make no statistical-significance
+or production-latency claim.
+
+To reproduce, use the recorded code/harness checkout and an account allowed
+to create databases. Choose the PostgreSQL 17 or 18 connection; use baseline
+`4` to isolate migration 102, or `2` for the original API comparison:
+
+```sh
+GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=127.0.0.1;port=55437' \
+GPFORUM_DATABASE_USER=gpforum \
+script/gpforum-carton exec script/bench-sql-functions \
+  --paired-functions --before-search-version 4 \
+  --implementation-reference 2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96 --json
+```
+
+The harness migrates, seeds and drops its own database. Current v6 is selected
+from the catalogue. Historical v4 measurements below use their recorded
+harness and remain available for audit.
+
+## Published v2-to-v4 service measurements on PostgreSQL 18
+
+The recorded [benchmark](../../script/bench-sql-functions) accepted
+`--paired-functions`. Both sides used stored functions: the published search
 v2 and two-call post preflight are compared with search v4 and the combined
 context. The adapter, atomic write function, database handle and dataset are
 shared. This isolates the changed paths; it is not a comparison of two complete
@@ -80,8 +187,10 @@ separately. Pairing reduces order and host-load bias but does not eliminate
 it. These are service measurements on one host, excluding HTTP, concurrency
 and throughput; no statistical significance or production latency is claimed.
 
-To reproduce on a disposable database created by the harness, use a database
-account allowed to create databases:
+To reproduce these historical v4 results, use the recorded harness checkout
+`8316f283a12b2894951ab4c892e1f6324e611a7f` and a database account allowed to
+create databases. The current harness follows the current v6 catalogue;
+the updated comparisons are reported separately above.
 
 ```sh
 GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=127.0.0.1;port=55433' \
@@ -156,11 +265,17 @@ The latter finished with a newest-first plan assertion failure after index
 creation and `ANALYZE`; it is not shipped validation. This temporary variant
 of the integration fixture saved median/p95 summaries, not individual samples
 or plan JSON, and is not the canonical service benchmark. The original fixture
-without that index passed 437 local checks; the strengthened plan fixture below
-passes 441.
+without that index passed 437 local checks; the first strengthened fixture
+passed 441 on PostgreSQL 18. The current v2/v4/v6 fixture passes 861.
 
 ## Validation and activation
 
+- The complete integration tier on the current v6 code commit
+  [`2cbc4e5`](https://github.com/gpicchiarelli/GPForum/commit/2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96)
+  passed on PostgreSQL 17.11 and 18.6: 97 files and 10,505 assertions per
+  cluster. The local host authentication is trust; these runs prove runtime
+  privileges, not mandatory password/SCRAM authentication. The PostgreSQL
+  16/17/18 CI matrix uses its separately configured services.
 - The complete `make -j3 check` quality gate passed on clean commit
   [`013dd56`](https://github.com/gpicchiarelli/GPForum/commit/013dd56c48229df986db89502db1247b3f622f36):
   system Perl, syntax for 1,369 files, the suite without DSN (400 unit files
@@ -170,7 +285,7 @@ passes 441.
   The [validation evidence](evidence/sql-functions-2026-10-11-optimization-validation.json)
   records tested commits, counts, benchmark summaries and raw artifact hashes.
 - The complete PostgreSQL integration tier passed on the isolated committed
-  checkout: 96 files and 9,916 assertions. The benchmark smoke test checks
+  v4 checkout: 96 files and 9,916 assertions. The benchmark smoke test checks
   paired sample counts, balanced order, exact comparisons and disposable
   database cleanup on success and on a missing-routine failure.
 - Both new integration tests passed under NYTProf 6.15 and decoded to CSV.
@@ -180,13 +295,24 @@ passes 441.
   profiler overhead; those times are not operation latency. The large binary
   profiles and full CSV exports remain local and can be reproduced with the
   recorded commands.
+- The current v6 search fixture also passed all 861 checks under NYTProf 6.15
+  on PostgreSQL 17. The
+  [current profile and integration metadata](evidence/sql-functions-2026-10-11-v6-validation.json)
+  records the 19.77-second whole-test capture, decoded subroutine summaries,
+  commands and hashes for the local binary and 802 CSV files. This includes
+  fixtures, all three API versions, plan collection, database waits and
+  profiler overhead; it is separate from service latency measurements.
 - [Search differential and plan test](../../t/integration/postgres-search-optimization.t):
-  441 checks, covering exact service JSON and raw typed rows, ACL combinations,
+  861 checks on PostgreSQL 17 and 18, covering exact service JSON and raw typed
+  rows for v2/v4/v6, ACL combinations,
   candidate cap after filtering, dates, ties, stale category/space moves,
   nullable authors and Unicode/wildcard prefixes. A separate maintained corpus
-  of 20,000 added documents checks actual nested plans: both retained v2 and
-  current v4 use the common newest-first index and stop at 1,000 candidates;
-  v4 ranks 1,000, materializes a 20-row page and loads at most 20 payload rows.
+  of 20,000 added documents checks actual nested plans: current v6 uses the
+  common newest-first index and stops at 1,000 candidates, ranks 1,000,
+  materializes a 20-row page and loads at most 20 payload rows. Retained v2/v4
+  are compared for exact results and ranking/page bounds, with their scan
+  choices recorded as diagnostics rather than requiring the legacy defect
+  to be fixed in immutable definitions.
   The rare-query GIN assertion is retained. Assertions use the primary plans
   without planner overrides; the collector's separate forced diagnostics are
   excluded from these assertions and the published comparison.
@@ -194,10 +320,16 @@ passes 441.
   86 checks, covering legacy column/timestamp/boolean representations,
   inherited visibility, domain refusals, malformed IDs, edit/delete/restore,
   replay, conflicts and two-call workflow counts.
-- The real runtime login can call search v4 and the post context, while direct
-  table access and the retired search v1/v2 and implementation v3 calls fail.
+- The real runtime login can call search v6 and the post context, while direct
+  table access, historical search v1/v2/v3/v4 and current implementation v5
+  calls fail.
   The static and live catalogue gates explicitly recognize retained versions
   and require exact typed forwarding for every definer boundary.
+  Their focused runs pass 2,737 assertions on each local server version.
+- The current benchmark smoke test passes 350 checks, covering baseline 2/4
+  selection, real edit revisions, balanced sample order and disposable database
+  cleanup on success and a missing-routine failure. It also passes in both
+  complete PostgreSQL integration tiers recorded above.
 - The previous general CI exposed two failures outside the SQL paths:
   locale-dependent child-process stderr and TLS handshake classification.
   The locale failure is observed directly; the specific newer OpenSSL variant
@@ -209,18 +341,22 @@ the smaller corpus after the visibility/placement mutation matrix. Its actual
 v4 plan scanned 2,200 matching documents, but still ranked 1,000 and fetched
 20 payload rows. In a controlled local comparison, both v2 and v4 selected a
 sequential scan on the refreshed 2,200-document corpus and the ordered index
-on the fresh 20,000-document corpus. This was a corpus/statistics-sensitive
-plan expectation; no v4-only regression was observed. Automatic statistics
-timing in CI was not recorded, so its exact cause remains unproven.
+on the fresh 20,000-document corpus on PostgreSQL 18. This first repair exposed
+an additional version difference: PostgreSQL 16/17 used parameter-generic
+plans and scanned 20,000 documents even in the maintained fixture, for both
+v2 and v4. PostgreSQL 18 passed that same gate. The new v6 implementation
+restores the ordered 1,000-candidate path on PostgreSQL 17 as well. Automatic
+statistics timing in the original small-fixture CI was not recorded.
 
 The test now checks the large workload independently of the semantic mutation
-matrix, compares both real function bodies, and fails bounds checks if a plan
+matrix, compares all three real function bodies, and fails bounds checks if a plan
 node is missing. [Original CI plans, controlled comparison and source hashes](evidence/sql-functions-2026-10-11-search-plan-validation.json)
-preserve the investigation. This correction changes only the test and evidence;
-migrations 100/101, production code and the paired benchmark remain unchanged.
+preserve the initial investigation. Migration 102 corrects the subsequently
+observed PostgreSQL 16/17 planning limitation; migrations 100/101 and all
+historical raw measurements remain unchanged.
 
-Apply migrations 100 and 101 with the ordinary migration owner, drain old
+Apply migrations 100, 101 and 102 with the ordinary migration owner, drain old
 processes, reprovision using the new catalogue and start the updated release.
-Reprovisioning grants current search v4 rather than v2. The
+Reprovisioning grants current search v6 rather than v2/v4. The
 [runtime role runbook](../ops/sql-api-role.md) includes upgrade and rollback
 steps and the separate optional Minion queue database boundary.

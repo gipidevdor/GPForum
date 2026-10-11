@@ -15,11 +15,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
-- **Upgrade the function API with migrations 100 and 101.** Search now calls
-  v4 and post edit/delete/restore share one context read. Apply the additive
+- **Upgrade the function API with migrations 100, 101 and 102.** Search now calls
+  v6 and post edit/delete/restore share one context read. Migration 102 makes
+  the custom search plan policy effective on PostgreSQL 16/17 using static
+  PL/pgSQL, with the same query bodies and return contracts. Apply the additive
   migrations with the ordinary migration owner, drain the old web and worker
   processes, provision the runtime login with the new catalogue, then start
-  the updated processes. Provisioning replaces old search v2 grants with v4;
+  the updated processes. Provisioning replaces old search v2/v4 grants with v6;
   mixed old and new workers cannot use that login simultaneously. Follow
   the [runtime role guide](docs/ops/sql-api-role.md) for rollback.
 
@@ -889,6 +891,12 @@ CI, evidence and internal refactors with no change in behaviour.
   foundations.
 
 ### Changed
+
+- **Search v6 selects custom plans on PostgreSQL 16–18.** Migration 102 keeps
+  the v3 query bodies and bounded payload loading, using static PL/pgSQL
+  implementations so the existing custom-plan policy takes effect on 16/17.
+  The maintained 20,000-document fixture uses the ordered 1,000-candidate
+  path; retained v2/v4 results, ACL checks and counts remain equivalent.
 
 - **Search loads result payloads after the page limit.** New ranked and
   autocomplete v4 APIs preserve filtering, live placement checks, candidate
@@ -2461,6 +2469,24 @@ CI, evidence and internal refactors with no change in behaviour.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- Publish six alternating v6 benchmark runs with all 12,000 samples and
+  2,400 distinct measured edit revisions. On PostgreSQL 17, isolating migration
+  102 against v4 reduces direct search/autocomplete medians by 44.5%/49.0%;
+  the unchanged post-edit proxy control increases 0.3% and is retained.
+  Against v2 on PostgreSQL 18, search/autocomplete improve 18.4%/20.0%, and
+  proxy post editing improves 24.5%. Publish source hashes, aggregate median,
+  p95 and CPU statistics, nested plans and the current NYTProf metadata in
+  the [measured follow-up](docs/architecture/sql-functions-optimization.md).
+
+- The paired function benchmark accepts `--before-search-version 2|4` and
+  `--implementation-reference`. A v4 baseline keeps the combined post context
+  on both sides, isolating the search plan change; v2 retains the original
+  three-call post workflow. Edit samples include distinct written revision
+  IDs. The smoke test passes 350 checks; the v2/v4/v6 search test passes 861,
+  and the complete PostgreSQL 17/18 integration tier passes 97 files and
+  10,505 assertions per cluster. Raw evidence and methods are in the
+  [optimization report](docs/architecture/sql-functions-optimization.md).
 
 - **Measure function optimizations with alternating pairs.** The stored-function
   benchmark adds `--paired-functions`, balances execution order, checks exact

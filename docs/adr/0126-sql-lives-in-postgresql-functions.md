@@ -144,6 +144,14 @@ double modules of DBIx::Class schemas, resultsets, rows and storages in
 
 ### 3. Language per kind, measured
 
+The 2026-10-11 search follow-up uses static PL/pgSQL `RETURN QUERY` with
+`force_custom_plan` inside the invoker implementation, and keeps a narrow SQL
+definer entry point. On PostgreSQL 16/17, non-inlined SQL-language functions
+cannot specialize their plans for argument values as PostgreSQL 18 can.
+Migration 102 adds v5/v6 without changing shipped v3/v4 query bodies or
+contracts. The [measured comparison and nested-plan evidence](../architecture/sql-functions-optimization.md)
+record the version difference, result equivalence and bounded candidate path.
+
 On the 3,008-post thread, 25 rows plus the look-ahead row, 1,000 to 3,000
 calls each:
 

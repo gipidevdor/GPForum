@@ -1,0 +1,2599 @@
+{
+  "captured_at_utc": "2026-10-11T14:47:08.755768+00:00",
+  "code_commit": "2cbc4e56951ce9707f9dd1eb1c06ccbe9ba98b96",
+  "migration": {
+    "path": "/Users/gpicchiarelli/.codex/worktrees/sql-functions-ci-plan/GPForum/migrations/102_search_custom_plans.sql",
+    "bytes": 11194,
+    "sha256": "47a6450a8cb57a339e855b3072eff10bf6c8e187d38b5189c0785a7203cc053f"
+  },
+  "query_body_equality": {
+    "search_ranked": {
+      "v3_and_v5_select_sha256": "f2f59c6b962d601ec50fbf08145b2bf245a9dd4dda96f4b0222b2a3fc40081bf",
+      "identical": true
+    },
+    "search_autocomplete": {
+      "v3_and_v5_select_sha256": "278d1dee5318d51a5ce08a20b1d373fc9c6f664301a48fa738f97508f697ecfa",
+      "identical": true
+    }
+  },
+  "reason": "PostgreSQL 16/17 non-inlined SQL-language functions retain generic parameter plans; PL/pgSQL static RETURN QUERY honors force_custom_plan",
+  "primary_sources": [
+    "https://www.postgresql.org/message-id/E1u02Tn-002Kp0-0Q@gemulon.postgresql.org",
+    "https://www.postgresql.org/docs/18/release-18.html",
+    "https://www.postgresql.org/docs/17/runtime-config-query.html"
+  ],
+  "method": {
+    "query": "candidateword",
+    "viewer": "anonymous",
+    "added_documents": 20000,
+    "candidate_cap": 1000,
+    "page_limit": 20,
+    "primary_plans_only": true,
+    "planner_overrides": false,
+    "exclusions": "Collector forced diagnostics omitted; actual plan times include collection and are not benchmark latency"
+  },
+  "original_ci": {
+    "head_commit": "97854c7e56e60f963fecd7123637fe9888eae018",
+    "postgresql_major": 17,
+    "job_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38146935842/job/114492166658",
+    "selection": "First analyzed v4 and first analyzed v2 bodies, duplicate/forced captures omitted",
+    "summary": [
+      [
+        {
+          "Node Type": "Limit",
+          "Subplan Name": "CTE ranked_page",
+          "Plan Rows": 1,
+          "Actual Rows": 20,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "WindowAgg",
+          "Plan Rows": 1,
+          "Actual Rows": 1000,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Bitmap Heap Scan",
+          "Alias": "me",
+          "Relation Name": "search_documents",
+          "Plan Rows": 1,
+          "Actual Rows": 20000,
+          "Actual Loops": 1,
+          "Rows Removed by Filter": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Alias": "document",
+          "Relation Name": "search_documents",
+          "Index Name": "search_documents_pkey",
+          "Plan Rows": 1,
+          "Actual Rows": 1,
+          "Actual Loops": 20
+        }
+      ],
+      [
+        {
+          "Node Type": "WindowAgg",
+          "Plan Rows": 1,
+          "Actual Rows": 1000,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Bitmap Heap Scan",
+          "Alias": "me",
+          "Relation Name": "search_documents",
+          "Plan Rows": 1,
+          "Actual Rows": 20000,
+          "Actual Loops": 1,
+          "Rows Removed by Filter": 0
+        }
+      ]
+    ],
+    "plans": [
+      {
+        "Query Text": "\nWITH ranked_page AS MATERIALIZED (\n    SELECT candidate.search_document_id,\n           candidate.entity_type, candidate.entity_id,\n           candidate.source_created_at, candidate.indexed_at,\n           candidate.category_visibility, candidate.space_visibility,\n           greatest(\n               ts_rank_cd(candidate.search_vector,\n                   websearch_to_tsquery(p_config::regconfig, p_query), 32),\n               public.similarity(candidate.title_normalized, lower(p_query)) * 0.2\n           )::double precision AS rank_score,\n           count(*) OVER () AS candidate_count\n    FROM (\n        SELECT me.search_document_id, me.entity_type, me.entity_id,\n               me.source_created_at, me.indexed_at,\n               me.search_vector, me.title_normalized,\n               c.visibility AS category_visibility,\n               s.visibility AS space_visibility\n        FROM public.search_documents me\n        JOIN public.categories c ON c.category_id = me.category_id\n        JOIN public.spaces s ON s.space_id = me.space_id\n        WHERE (CASE WHEN p_permission_mode = 'full' THEN c.deleted_at IS NULL AND (s.visibility IN ('public','members','private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (c.visibility IN ('public','members','private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (me.visibility IN ('public','members','private') AND (p_global_read OR me.visibility = 'public' OR (p_member AND me.visibility = 'members') OR (me.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (me.author_user_id = p_viewer_user_id)))))) ELSE me.visibility = ANY(p_visibility_values) END) AND me.category_id = (CASE me.entity_type WHEN 'thread' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = me.entity_id) WHEN 'post' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id)) END) AND c.space_id = me.space_id AND (me.search_vector @@ websearch_to_tsquery(p_config::regconfig, p_query) OR me.title_normalized OPERATOR(public.%) lower(p_query) OR me.title_normalized LIKE lower(p_like_pattern) ESCAPE '\\')\n    AND (p_category_filter IS NULL OR me.category_id = p_category_filter) AND (p_author_filter IS NULL OR me.author_user_id = p_author_filter)\n    AND (p_from_at IS NULL OR me.source_created_at >= p_from_at)\n    AND (p_to_at IS NULL OR (p_to_exclusive AND me.source_created_at < p_to_at) OR (NOT p_to_exclusive AND me.source_created_at <= p_to_at))\n        ORDER BY me.source_created_at DESC, me.entity_id DESC\n        LIMIT p_candidate_limit\n    ) candidate\n    ORDER BY rank_score DESC, candidate.source_created_at DESC,\n             candidate.indexed_at DESC, candidate.entity_type ASC,\n             candidate.entity_id DESC\n    LIMIT p_row_limit\n)\nSELECT page.entity_type, page.entity_id,\n       document.category_id, document.author_user_id, document.space_id,\n       document.visibility, document.title, document.body,\n       page.source_created_at, page.indexed_at, page.rank_score,\n       author.username, author.display_name,\n       page.category_visibility, page.space_visibility, page.candidate_count\nFROM ranked_page page\nJOIN public.search_documents document\n  ON document.search_document_id = page.search_document_id\nLEFT JOIN public.users author ON author.id = document.author_user_id\nORDER BY page.rank_score DESC, page.source_created_at DESC,\n         page.indexed_at DESC, page.entity_type ASC, page.entity_id DESC\n",
+        "Query Parameters": "$1 = 'full', $2 = '{}', $3 = 'f', $4 = 'f', $5 = NULL, $6 = '{}', $7 = '{}', $8 = 'candidateword', $9 = '%candidateword%', $10 = 'simple', $11 = '1000', $12 = NULL, $13 = NULL, $14 = NULL, $15 = NULL, $16 = 'f', $17 = '20'",
+        "Plan": {
+          "Node Type": "Nested Loop",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Join Type": "Left",
+          "Startup Cost": 10942.12,
+          "Total Cost": 10950.18,
+          "Plan Rows": 1,
+          "Plan Width": 435,
+          "Actual Startup Time": 86.459,
+          "Actual Total Time": 86.519,
+          "Actual Rows": 20,
+          "Actual Loops": 1,
+          "Inner Unique": true,
+          "Plans": [
+            {
+              "Node Type": "Limit",
+              "Parent Relationship": "InitPlan",
+              "Subplan Name": "CTE ranked_page",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 10941.7,
+              "Total Cost": 10941.7,
+              "Plan Rows": 1,
+              "Plan Width": 84,
+              "Actual Startup Time": 86.444,
+              "Actual Total Time": 86.449,
+              "Actual Rows": 20,
+              "Actual Loops": 1,
+              "Plans": [
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 10941.7,
+                  "Total Cost": 10941.7,
+                  "Plan Rows": 1,
+                  "Plan Width": 84,
+                  "Actual Startup Time": 86.443,
+                  "Actual Total Time": 86.447,
+                  "Actual Rows": 20,
+                  "Actual Loops": 1,
+                  "Sort Key": [
+                    "(GREATEST((ts_rank_cd(candidate.search_vector, websearch_to_tsquery(($10)::regconfig, $8), 32))::double precision, (public.similarity(candidate.title_normalized, lower($8)) * '0.2'::double precision))) DESC",
+                    "candidate.source_created_at DESC",
+                    "candidate.indexed_at DESC",
+                    "candidate.entity_type",
+                    "candidate.entity_id DESC"
+                  ],
+                  "Sort Method": "top-N heapsort",
+                  "Sort Space Used": 27,
+                  "Sort Space Type": "Memory",
+                  "Plans": [
+                    {
+                      "Node Type": "WindowAgg",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 10941.39,
+                      "Total Cost": 10941.69,
+                      "Plan Rows": 1,
+                      "Plan Width": 84,
+                      "Actual Startup Time": 84.125,
+                      "Actual Total Time": 86.259,
+                      "Actual Rows": 1000,
+                      "Actual Loops": 1,
+                      "Plans": [
+                        {
+                          "Node Type": "Subquery Scan",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Alias": "candidate",
+                          "Startup Cost": 10941.39,
+                          "Total Cost": 10941.4,
+                          "Plan Rows": 1,
+                          "Plan Width": 135,
+                          "Actual Startup Time": 83.829,
+                          "Actual Total Time": 83.982,
+                          "Actual Rows": 1000,
+                          "Actual Loops": 1,
+                          "Plans": [
+                            {
+                              "Node Type": "Limit",
+                              "Parent Relationship": "Subquery",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Startup Cost": 10941.39,
+                              "Total Cost": 10941.39,
+                              "Plan Rows": 1,
+                              "Plan Width": 135,
+                              "Actual Startup Time": 83.828,
+                              "Actual Total Time": 83.908,
+                              "Actual Rows": 1000,
+                              "Actual Loops": 1,
+                              "Plans": [
+                                {
+                                  "Node Type": "Sort",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 10941.39,
+                                  "Total Cost": 10941.39,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 135,
+                                  "Actual Startup Time": 83.827,
+                                  "Actual Total Time": 83.859,
+                                  "Actual Rows": 1000,
+                                  "Actual Loops": 1,
+                                  "Sort Key": [
+                                    "me.source_created_at DESC",
+                                    "me.entity_id DESC"
+                                  ],
+                                  "Sort Method": "top-N heapsort",
+                                  "Sort Space Used": 564,
+                                  "Sort Space Type": "Memory",
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Nested Loop",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Join Type": "Inner",
+                                      "Startup Cost": 40.7,
+                                      "Total Cost": 10941.38,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 135,
+                                      "Actual Startup Time": 0.96,
+                                      "Actual Total Time": 77.009,
+                                      "Actual Rows": 20000,
+                                      "Actual Loops": 1,
+                                      "Inner Unique": false,
+                                      "Join Filter": "((me.category_id = c.category_id) AND (s.space_id = me.space_id) AND CASE WHEN ($1 = 'full'::text) THEN ((c.deleted_at IS NULL) AND (s.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (s.visibility = 'public'::text) OR ($3 AND (s.visibility = 'members'::text)) OR ((s.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (c.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (c.visibility = 'public'::text) OR ($3 AND (c.visibility = 'members'::text)) OR ((c.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (me.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (me.visibility = 'public'::text) OR ($3 AND (me.visibility = 'members'::text)) OR ((me.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7)) OR ($3 AND (me.author_user_id = $5)))))) ELSE (me.visibility = ANY ($2)) END)",
+                                      "Rows Removed by Join Filter": 40000,
+                                      "Plans": [
+                                        {
+                                          "Node Type": "Bitmap Heap Scan",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "Relation Name": "search_documents",
+                                          "Alias": "me",
+                                          "Startup Cost": 40.7,
+                                          "Total Cost": 10938.88,
+                                          "Plan Rows": 1,
+                                          "Plan Width": 176,
+                                          "Actual Startup Time": 0.951,
+                                          "Actual Total Time": 35.679,
+                                          "Actual Rows": 20000,
+                                          "Actual Loops": 1,
+                                          "Recheck Cond": "((search_vector @@ websearch_to_tsquery(($10)::regconfig, $8)) OR (title_normalized OPERATOR(public.%) lower($8)) OR (title_normalized ~~ like_escape(lower($9), '\\'::text)))",
+                                          "Rows Removed by Index Recheck": 0,
+                                          "Filter": "((($12 IS NULL) OR (category_id = $12)) AND (($13 IS NULL) OR (author_user_id = $13)) AND (($14 IS NULL) OR (source_created_at >= $14)) AND (($15 IS NULL) OR ($16 AND (source_created_at < $15)) OR ((NOT $16) AND (source_created_at <= $15))) AND (category_id = CASE entity_type WHEN 'thread'::text THEN (SubPlan 1) WHEN 'post'::text THEN (SubPlan 3) ELSE NULL::uuid END))",
+                                          "Rows Removed by Filter": 0,
+                                          "Exact Heap Blocks": 1178,
+                                          "Lossy Heap Blocks": 0,
+                                          "Plans": [
+                                            {
+                                              "Node Type": "BitmapOr",
+                                              "Parent Relationship": "Outer",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Startup Cost": 40.7,
+                                              "Total Cost": 40.7,
+                                              "Plan Rows": 400,
+                                              "Plan Width": 0,
+                                              "Actual Startup Time": 0.85,
+                                              "Actual Total Time": 0.852,
+                                              "Actual Rows": 0,
+                                              "Actual Loops": 1,
+                                              "Plans": [
+                                                {
+                                                  "Node Type": "Bitmap Index Scan",
+                                                  "Parent Relationship": "Member",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Index Name": "idx_search_documents_vector",
+                                                  "Startup Cost": 0.0,
+                                                  "Total Cost": 13.58,
+                                                  "Plan Rows": 100,
+                                                  "Plan Width": 0,
+                                                  "Actual Startup Time": 0.827,
+                                                  "Actual Total Time": 0.827,
+                                                  "Actual Rows": 20000,
+                                                  "Actual Loops": 1,
+                                                  "Index Cond": "(search_vector @@ websearch_to_tsquery(($10)::regconfig, $8))"
+                                                },
+                                                {
+                                                  "Node Type": "Bitmap Index Scan",
+                                                  "Parent Relationship": "Member",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Index Name": "idx_search_documents_title_trgm",
+                                                  "Startup Cost": 0.0,
+                                                  "Total Cost": 13.81,
+                                                  "Plan Rows": 200,
+                                                  "Plan Width": 0,
+                                                  "Actual Startup Time": 0.016,
+                                                  "Actual Total Time": 0.017,
+                                                  "Actual Rows": 0,
+                                                  "Actual Loops": 1,
+                                                  "Index Cond": "(title_normalized OPERATOR(public.%) lower($8))"
+                                                },
+                                                {
+                                                  "Node Type": "Bitmap Index Scan",
+                                                  "Parent Relationship": "Member",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Index Name": "idx_search_documents_title_trgm",
+                                                  "Startup Cost": 0.0,
+                                                  "Total Cost": 13.31,
+                                                  "Plan Rows": 100,
+                                                  "Plan Width": 0,
+                                                  "Actual Startup Time": 0.006,
+                                                  "Actual Total Time": 0.006,
+                                                  "Actual Rows": 0,
+                                                  "Actual Loops": 1,
+                                                  "Index Cond": "(title_normalized ~~ like_escape(lower($9), '\\'::text))"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "Node Type": "Index Scan",
+                                              "Parent Relationship": "SubPlan",
+                                              "Subplan Name": "SubPlan 1",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Scan Direction": "Forward",
+                                              "Index Name": "threads_pkey",
+                                              "Relation Name": "threads",
+                                              "Alias": "t",
+                                              "Startup Cost": 0.29,
+                                              "Total Cost": 8.3,
+                                              "Plan Rows": 1,
+                                              "Plan Width": 16,
+                                              "Actual Startup Time": 0.001,
+                                              "Actual Total Time": 0.001,
+                                              "Actual Rows": 1,
+                                              "Actual Loops": 10000,
+                                              "Index Cond": "(thread_id = me.entity_id)",
+                                              "Rows Removed by Index Recheck": 0
+                                            },
+                                            {
+                                              "Node Type": "Index Scan",
+                                              "Parent Relationship": "SubPlan",
+                                              "Subplan Name": "SubPlan 3",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Scan Direction": "Forward",
+                                              "Index Name": "threads_pkey",
+                                              "Relation Name": "threads",
+                                              "Alias": "t_1",
+                                              "Startup Cost": 8.59,
+                                              "Total Cost": 16.61,
+                                              "Plan Rows": 1,
+                                              "Plan Width": 16,
+                                              "Actual Startup Time": 0.001,
+                                              "Actual Total Time": 0.001,
+                                              "Actual Rows": 1,
+                                              "Actual Loops": 10000,
+                                              "Index Cond": "(thread_id = (InitPlan 2).col1)",
+                                              "Rows Removed by Index Recheck": 0,
+                                              "Plans": [
+                                                {
+                                                  "Node Type": "Index Scan",
+                                                  "Parent Relationship": "InitPlan",
+                                                  "Subplan Name": "InitPlan 2",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Scan Direction": "Forward",
+                                                  "Index Name": "posts_pkey",
+                                                  "Relation Name": "posts",
+                                                  "Alias": "p",
+                                                  "Startup Cost": 0.29,
+                                                  "Total Cost": 8.3,
+                                                  "Plan Rows": 1,
+                                                  "Plan Width": 16,
+                                                  "Actual Startup Time": 0.001,
+                                                  "Actual Total Time": 0.001,
+                                                  "Actual Rows": 1,
+                                                  "Actual Loops": 10000,
+                                                  "Index Cond": "(post_id = me.entity_id)",
+                                                  "Rows Removed by Index Recheck": 0
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "Node Type": "Nested Loop",
+                                          "Parent Relationship": "Inner",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "Join Type": "Inner",
+                                          "Startup Cost": 0.0,
+                                          "Total Cost": 2.08,
+                                          "Plan Rows": 3,
+                                          "Plan Width": 70,
+                                          "Actual Startup Time": 0.001,
+                                          "Actual Total Time": 0.001,
+                                          "Actual Rows": 3,
+                                          "Actual Loops": 20000,
+                                          "Inner Unique": false,
+                                          "Join Filter": "(s.space_id = c.space_id)",
+                                          "Rows Removed by Join Filter": 0,
+                                          "Plans": [
+                                            {
+                                              "Node Type": "Seq Scan",
+                                              "Parent Relationship": "Outer",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Relation Name": "spaces",
+                                              "Alias": "s",
+                                              "Startup Cost": 0.0,
+                                              "Total Cost": 1.01,
+                                              "Plan Rows": 1,
+                                              "Plan Width": 23,
+                                              "Actual Startup Time": 0.0,
+                                              "Actual Total Time": 0.0,
+                                              "Actual Rows": 1,
+                                              "Actual Loops": 20000
+                                            },
+                                            {
+                                              "Node Type": "Seq Scan",
+                                              "Parent Relationship": "Inner",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Relation Name": "categories",
+                                              "Alias": "c",
+                                              "Startup Cost": 0.0,
+                                              "Total Cost": 1.03,
+                                              "Plan Rows": 3,
+                                              "Plan Width": 47,
+                                              "Actual Startup Time": 0.0,
+                                              "Actual Total Time": 0.0,
+                                              "Actual Rows": 3,
+                                              "Actual Loops": 20000
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Node Type": "Nested Loop",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Join Type": "Inner",
+              "Startup Cost": 0.29,
+              "Total Cost": 8.33,
+              "Plan Rows": 1,
+              "Plan Width": 404,
+              "Actual Startup Time": 86.455,
+              "Actual Total Time": 86.502,
+              "Actual Rows": 20,
+              "Actual Loops": 1,
+              "Inner Unique": true,
+              "Plans": [
+                {
+                  "Node Type": "CTE Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "CTE Name": "ranked_page",
+                  "Alias": "page",
+                  "Startup Cost": 0.0,
+                  "Total Cost": 0.02,
+                  "Plan Rows": 1,
+                  "Plan Width": 160,
+                  "Actual Startup Time": 86.446,
+                  "Actual Total Time": 86.45,
+                  "Actual Rows": 20,
+                  "Actual Loops": 1
+                },
+                {
+                  "Node Type": "Index Scan",
+                  "Parent Relationship": "Inner",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Scan Direction": "Forward",
+                  "Index Name": "search_documents_pkey",
+                  "Relation Name": "search_documents",
+                  "Alias": "document",
+                  "Startup Cost": 0.29,
+                  "Total Cost": 8.3,
+                  "Plan Rows": 1,
+                  "Plan Width": 276,
+                  "Actual Startup Time": 0.002,
+                  "Actual Total Time": 0.002,
+                  "Actual Rows": 1,
+                  "Actual Loops": 20,
+                  "Index Cond": "(search_document_id = page.search_document_id)",
+                  "Rows Removed by Index Recheck": 0
+                }
+              ]
+            },
+            {
+              "Node Type": "Index Scan",
+              "Parent Relationship": "Inner",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Scan Direction": "Forward",
+              "Index Name": "users_pkey",
+              "Relation Name": "users",
+              "Alias": "author",
+              "Startup Cost": 0.13,
+              "Total Cost": 0.15,
+              "Plan Rows": 1,
+              "Plan Width": 47,
+              "Actual Startup Time": 0.0,
+              "Actual Total Time": 0.0,
+              "Actual Rows": 1,
+              "Actual Loops": 20,
+              "Index Cond": "(id = document.author_user_id)",
+              "Rows Removed by Index Recheck": 0
+            }
+          ]
+        },
+        "_log_line": 22423
+      },
+      {
+        "Query Text": "\nSELECT me.search_document_id, me.entity_type, me.entity_id, me.category_id, me.author_user_id, me.space_id, me.visibility, me.permission_scope, me.visibility_version, me.permission_version, me.language, me.title, me.title_normalized, me.body, me.search_vector, me.source_version, me.source_created_at, me.indexed_at, greatest(ts_rank_cd(me.search_vector, websearch_to_tsquery(p_config::regconfig, p_query), 32), public.similarity(me.title_normalized, lower(p_query)) * 0.2), a.username, a.display_name, c.visibility, s.visibility, count(*) OVER (),\n  CASE me.entity_type WHEN 'thread' THEN me.entity_id WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id) END, (SELECT t.title FROM public.threads t WHERE t.thread_id = CASE me.entity_type WHEN 'thread' THEN me.entity_id WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id) END)\nFROM (SELECT me.* FROM public.search_documents me JOIN public.categories c ON c.category_id = me.category_id JOIN public.spaces s ON s.space_id = me.space_id\n  WHERE (CASE WHEN p_permission_mode = 'full' THEN c.deleted_at IS NULL AND (s.visibility IN ('public','members','private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (c.visibility IN ('public','members','private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (me.visibility IN ('public','members','private') AND (p_global_read OR me.visibility = 'public' OR (p_member AND me.visibility = 'members') OR (me.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (me.author_user_id = p_viewer_user_id)))))) ELSE me.visibility = ANY(p_visibility_values) END) AND me.category_id = (CASE me.entity_type WHEN 'thread' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = me.entity_id) WHEN 'post' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id)) END) AND c.space_id = me.space_id AND (me.search_vector @@ websearch_to_tsquery(p_config::regconfig, p_query) OR me.title_normalized OPERATOR(public.%) lower(p_query) OR me.title_normalized LIKE lower(p_like_pattern) ESCAPE '\\')\n    AND (p_category_filter IS NULL OR me.category_id = p_category_filter) AND (p_author_filter IS NULL OR me.author_user_id = p_author_filter)\n    AND (p_from_at IS NULL OR me.source_created_at >= p_from_at)\n    AND (p_to_at IS NULL OR (p_to_exclusive AND me.source_created_at < p_to_at) OR (NOT p_to_exclusive AND me.source_created_at <= p_to_at))\n  ORDER BY me.source_created_at DESC, me.entity_id DESC LIMIT p_candidate_limit) me\nLEFT JOIN public.users a ON a.id = me.author_user_id JOIN public.categories c ON c.category_id = me.category_id JOIN public.spaces s ON s.space_id = me.space_id\nORDER BY greatest(ts_rank_cd(me.search_vector, websearch_to_tsquery(p_config::regconfig, p_query), 32), public.similarity(me.title_normalized, lower(p_query)) * 0.2) DESC, me.source_created_at DESC, me.indexed_at DESC, me.entity_type ASC, me.entity_id DESC LIMIT p_row_limit\n",
+        "Query Parameters": "$1 = 'full', $2 = '{}', $3 = 'f', $4 = 'f', $5 = NULL, $6 = '{}', $7 = '{}', $8 = 'candidateword', $9 = '%candidateword%', $10 = 'simple', $11 = '1000', $12 = NULL, $13 = NULL, $14 = NULL, $15 = NULL, $16 = 'f', $17 = '20'",
+        "Plan": {
+          "Node Type": "Limit",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 10944.9,
+          "Total Cost": 10970.1,
+          "Plan Rows": 1,
+          "Plan Width": 528,
+          "Actual Startup Time": 93.044,
+          "Actual Total Time": 93.088,
+          "Actual Rows": 20,
+          "Actual Loops": 1,
+          "Plans": [
+            {
+              "Node Type": "Result",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 10944.9,
+              "Total Cost": 10970.1,
+              "Plan Rows": 1,
+              "Plan Width": 528,
+              "Actual Startup Time": 93.042,
+              "Actual Total Time": 93.086,
+              "Actual Rows": 20,
+              "Actual Loops": 1,
+              "Plans": [
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 10944.9,
+                  "Total Cost": 10944.9,
+                  "Plan Rows": 1,
+                  "Plan Width": 480,
+                  "Actual Startup Time": 93.031,
+                  "Actual Total Time": 93.037,
+                  "Actual Rows": 20,
+                  "Actual Loops": 1,
+                  "Sort Key": [
+                    "(GREATEST((ts_rank_cd(me.search_vector, websearch_to_tsquery(($10)::regconfig, $8), 32))::double precision, (public.similarity(me.title_normalized, lower($8)) * '0.2'::double precision))) DESC",
+                    "me.source_created_at DESC",
+                    "me.indexed_at DESC",
+                    "me.entity_type",
+                    "me.entity_id DESC"
+                  ],
+                  "Sort Method": "top-N heapsort",
+                  "Sort Space Used": 35,
+                  "Sort Space Type": "Memory",
+                  "Plans": [
+                    {
+                      "Node Type": "WindowAgg",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 10941.39,
+                      "Total Cost": 10944.89,
+                      "Plan Rows": 1,
+                      "Plan Width": 480,
+                      "Actual Startup Time": 90.522,
+                      "Actual Total Time": 92.666,
+                      "Actual Rows": 1000,
+                      "Actual Loops": 1,
+                      "Plans": [
+                        {
+                          "Node Type": "Nested Loop",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Join Type": "Inner",
+                          "Startup Cost": 10941.39,
+                          "Total Cost": 10944.61,
+                          "Plan Rows": 1,
+                          "Plan Width": 464,
+                          "Actual Startup Time": 88.029,
+                          "Actual Total Time": 90.201,
+                          "Actual Rows": 1000,
+                          "Actual Loops": 1,
+                          "Inner Unique": true,
+                          "Join Filter": "(s.space_id = me.space_id)",
+                          "Rows Removed by Join Filter": 0,
+                          "Plans": [
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 10941.39,
+                              "Total Cost": 10943.58,
+                              "Plan Rows": 1,
+                              "Plan Width": 457,
+                              "Actual Startup Time": 88.027,
+                              "Actual Total Time": 89.551,
+                              "Actual Rows": 1000,
+                              "Actual Loops": 1,
+                              "Inner Unique": true,
+                              "Join Filter": "(me.category_id = c.category_id)",
+                              "Rows Removed by Join Filter": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "Nested Loop",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Join Type": "Left",
+                                  "Startup Cost": 10941.39,
+                                  "Total Cost": 10942.52,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 450,
+                                  "Actual Startup Time": 88.025,
+                                  "Actual Total Time": 88.879,
+                                  "Actual Rows": 1000,
+                                  "Actual Loops": 1,
+                                  "Inner Unique": true,
+                                  "Join Filter": "(a.id = me.author_user_id)",
+                                  "Rows Removed by Join Filter": 0,
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Limit",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Startup Cost": 10941.39,
+                                      "Total Cost": 10941.39,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 419,
+                                      "Actual Startup Time": 88.019,
+                                      "Actual Total Time": 88.101,
+                                      "Actual Rows": 1000,
+                                      "Actual Loops": 1,
+                                      "Plans": [
+                                        {
+                                          "Node Type": "Sort",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "Startup Cost": 10941.39,
+                                          "Total Cost": 10941.39,
+                                          "Plan Rows": 1,
+                                          "Plan Width": 419,
+                                          "Actual Startup Time": 88.018,
+                                          "Actual Total Time": 88.052,
+                                          "Actual Rows": 1000,
+                                          "Actual Loops": 1,
+                                          "Sort Key": [
+                                            "me.source_created_at DESC",
+                                            "me.entity_id DESC"
+                                          ],
+                                          "Sort Method": "top-N heapsort",
+                                          "Sort Space Used": 1065,
+                                          "Sort Space Type": "Memory",
+                                          "Plans": [
+                                            {
+                                              "Node Type": "Nested Loop",
+                                              "Parent Relationship": "Outer",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Join Type": "Inner",
+                                              "Startup Cost": 40.7,
+                                              "Total Cost": 10941.38,
+                                              "Plan Rows": 1,
+                                              "Plan Width": 419,
+                                              "Actual Startup Time": 0.958,
+                                              "Actual Total Time": 77.672,
+                                              "Actual Rows": 20000,
+                                              "Actual Loops": 1,
+                                              "Inner Unique": false,
+                                              "Join Filter": "((me.category_id = c_1.category_id) AND (s_1.space_id = me.space_id) AND CASE WHEN ($1 = 'full'::text) THEN ((c_1.deleted_at IS NULL) AND (s_1.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (s_1.visibility = 'public'::text) OR ($3 AND (s_1.visibility = 'members'::text)) OR ((s_1.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (c_1.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (c_1.visibility = 'public'::text) OR ($3 AND (c_1.visibility = 'members'::text)) OR ((c_1.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (me.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (me.visibility = 'public'::text) OR ($3 AND (me.visibility = 'members'::text)) OR ((me.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7)) OR ($3 AND (me.author_user_id = $5)))))) ELSE (me.visibility = ANY ($2)) END)",
+                                              "Rows Removed by Join Filter": 40000,
+                                              "Plans": [
+                                                {
+                                                  "Node Type": "Bitmap Heap Scan",
+                                                  "Parent Relationship": "Outer",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Relation Name": "search_documents",
+                                                  "Alias": "me",
+                                                  "Startup Cost": 40.7,
+                                                  "Total Cost": 10938.88,
+                                                  "Plan Rows": 1,
+                                                  "Plan Width": 419,
+                                                  "Actual Startup Time": 0.946,
+                                                  "Actual Total Time": 35.515,
+                                                  "Actual Rows": 20000,
+                                                  "Actual Loops": 1,
+                                                  "Recheck Cond": "((search_vector @@ websearch_to_tsquery(($10)::regconfig, $8)) OR (title_normalized OPERATOR(public.%) lower($8)) OR (title_normalized ~~ like_escape(lower($9), '\\'::text)))",
+                                                  "Rows Removed by Index Recheck": 0,
+                                                  "Filter": "((($12 IS NULL) OR (category_id = $12)) AND (($13 IS NULL) OR (author_user_id = $13)) AND (($14 IS NULL) OR (source_created_at >= $14)) AND (($15 IS NULL) OR ($16 AND (source_created_at < $15)) OR ((NOT $16) AND (source_created_at <= $15))) AND (category_id = CASE entity_type WHEN 'thread'::text THEN (SubPlan 4) WHEN 'post'::text THEN (SubPlan 6) ELSE NULL::uuid END))",
+                                                  "Rows Removed by Filter": 0,
+                                                  "Exact Heap Blocks": 1178,
+                                                  "Lossy Heap Blocks": 0,
+                                                  "Plans": [
+                                                    {
+                                                      "Node Type": "BitmapOr",
+                                                      "Parent Relationship": "Outer",
+                                                      "Parallel Aware": false,
+                                                      "Async Capable": false,
+                                                      "Startup Cost": 40.7,
+                                                      "Total Cost": 40.7,
+                                                      "Plan Rows": 400,
+                                                      "Plan Width": 0,
+                                                      "Actual Startup Time": 0.844,
+                                                      "Actual Total Time": 0.845,
+                                                      "Actual Rows": 0,
+                                                      "Actual Loops": 1,
+                                                      "Plans": [
+                                                        {
+                                                          "Node Type": "Bitmap Index Scan",
+                                                          "Parent Relationship": "Member",
+                                                          "Parallel Aware": false,
+                                                          "Async Capable": false,
+                                                          "Index Name": "idx_search_documents_vector",
+                                                          "Startup Cost": 0.0,
+                                                          "Total Cost": 13.58,
+                                                          "Plan Rows": 100,
+                                                          "Plan Width": 0,
+                                                          "Actual Startup Time": 0.809,
+                                                          "Actual Total Time": 0.809,
+                                                          "Actual Rows": 20000,
+                                                          "Actual Loops": 1,
+                                                          "Index Cond": "(search_vector @@ websearch_to_tsquery(($10)::regconfig, $8))"
+                                                        },
+                                                        {
+                                                          "Node Type": "Bitmap Index Scan",
+                                                          "Parent Relationship": "Member",
+                                                          "Parallel Aware": false,
+                                                          "Async Capable": false,
+                                                          "Index Name": "idx_search_documents_title_trgm",
+                                                          "Startup Cost": 0.0,
+                                                          "Total Cost": 13.81,
+                                                          "Plan Rows": 200,
+                                                          "Plan Width": 0,
+                                                          "Actual Startup Time": 0.014,
+                                                          "Actual Total Time": 0.014,
+                                                          "Actual Rows": 0,
+                                                          "Actual Loops": 1,
+                                                          "Index Cond": "(title_normalized OPERATOR(public.%) lower($8))"
+                                                        },
+                                                        {
+                                                          "Node Type": "Bitmap Index Scan",
+                                                          "Parent Relationship": "Member",
+                                                          "Parallel Aware": false,
+                                                          "Async Capable": false,
+                                                          "Index Name": "idx_search_documents_title_trgm",
+                                                          "Startup Cost": 0.0,
+                                                          "Total Cost": 13.31,
+                                                          "Plan Rows": 100,
+                                                          "Plan Width": 0,
+                                                          "Actual Startup Time": 0.021,
+                                                          "Actual Total Time": 0.021,
+                                                          "Actual Rows": 0,
+                                                          "Actual Loops": 1,
+                                                          "Index Cond": "(title_normalized ~~ like_escape(lower($9), '\\'::text))"
+                                                        }
+                                                      ]
+                                                    },
+                                                    {
+                                                      "Node Type": "Index Scan",
+                                                      "Parent Relationship": "SubPlan",
+                                                      "Subplan Name": "SubPlan 4",
+                                                      "Parallel Aware": false,
+                                                      "Async Capable": false,
+                                                      "Scan Direction": "Forward",
+                                                      "Index Name": "threads_pkey",
+                                                      "Relation Name": "threads",
+                                                      "Alias": "t_1",
+                                                      "Startup Cost": 0.29,
+                                                      "Total Cost": 8.3,
+                                                      "Plan Rows": 1,
+                                                      "Plan Width": 16,
+                                                      "Actual Startup Time": 0.001,
+                                                      "Actual Total Time": 0.001,
+                                                      "Actual Rows": 1,
+                                                      "Actual Loops": 10000,
+                                                      "Index Cond": "(thread_id = me.entity_id)",
+                                                      "Rows Removed by Index Recheck": 0
+                                                    },
+                                                    {
+                                                      "Node Type": "Index Scan",
+                                                      "Parent Relationship": "SubPlan",
+                                                      "Subplan Name": "SubPlan 6",
+                                                      "Parallel Aware": false,
+                                                      "Async Capable": false,
+                                                      "Scan Direction": "Forward",
+                                                      "Index Name": "threads_pkey",
+                                                      "Relation Name": "threads",
+                                                      "Alias": "t_2",
+                                                      "Startup Cost": 8.59,
+                                                      "Total Cost": 16.61,
+                                                      "Plan Rows": 1,
+                                                      "Plan Width": 16,
+                                                      "Actual Startup Time": 0.001,
+                                                      "Actual Total Time": 0.001,
+                                                      "Actual Rows": 1,
+                                                      "Actual Loops": 10000,
+                                                      "Index Cond": "(thread_id = (InitPlan 5).col1)",
+                                                      "Rows Removed by Index Recheck": 0,
+                                                      "Plans": [
+                                                        {
+                                                          "Node Type": "Index Scan",
+                                                          "Parent Relationship": "InitPlan",
+                                                          "Subplan Name": "InitPlan 5",
+                                                          "Parallel Aware": false,
+                                                          "Async Capable": false,
+                                                          "Scan Direction": "Forward",
+                                                          "Index Name": "posts_pkey",
+                                                          "Relation Name": "posts",
+                                                          "Alias": "p_2",
+                                                          "Startup Cost": 0.29,
+                                                          "Total Cost": 8.3,
+                                                          "Plan Rows": 1,
+                                                          "Plan Width": 16,
+                                                          "Actual Startup Time": 0.001,
+                                                          "Actual Total Time": 0.001,
+                                                          "Actual Rows": 1,
+                                                          "Actual Loops": 10000,
+                                                          "Index Cond": "(post_id = me.entity_id)",
+                                                          "Rows Removed by Index Recheck": 0
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "Node Type": "Nested Loop",
+                                                  "Parent Relationship": "Inner",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Join Type": "Inner",
+                                                  "Startup Cost": 0.0,
+                                                  "Total Cost": 2.08,
+                                                  "Plan Rows": 3,
+                                                  "Plan Width": 70,
+                                                  "Actual Startup Time": 0.001,
+                                                  "Actual Total Time": 0.001,
+                                                  "Actual Rows": 3,
+                                                  "Actual Loops": 20000,
+                                                  "Inner Unique": false,
+                                                  "Join Filter": "(s_1.space_id = c_1.space_id)",
+                                                  "Rows Removed by Join Filter": 0,
+                                                  "Plans": [
+                                                    {
+                                                      "Node Type": "Seq Scan",
+                                                      "Parent Relationship": "Outer",
+                                                      "Parallel Aware": false,
+                                                      "Async Capable": false,
+                                                      "Relation Name": "spaces",
+                                                      "Alias": "s_1",
+                                                      "Startup Cost": 0.0,
+                                                      "Total Cost": 1.01,
+                                                      "Plan Rows": 1,
+                                                      "Plan Width": 23,
+                                                      "Actual Startup Time": 0.0,
+                                                      "Actual Total Time": 0.0,
+                                                      "Actual Rows": 1,
+                                                      "Actual Loops": 20000
+                                                    },
+                                                    {
+                                                      "Node Type": "Seq Scan",
+                                                      "Parent Relationship": "Inner",
+                                                      "Parallel Aware": false,
+                                                      "Async Capable": false,
+                                                      "Relation Name": "categories",
+                                                      "Alias": "c_1",
+                                                      "Startup Cost": 0.0,
+                                                      "Total Cost": 1.03,
+                                                      "Plan Rows": 3,
+                                                      "Plan Width": 47,
+                                                      "Actual Startup Time": 0.0,
+                                                      "Actual Total Time": 0.0,
+                                                      "Actual Rows": 3,
+                                                      "Actual Loops": 20000
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "Node Type": "Seq Scan",
+                                      "Parent Relationship": "Inner",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Relation Name": "users",
+                                      "Alias": "a",
+                                      "Startup Cost": 0.0,
+                                      "Total Cost": 1.05,
+                                      "Plan Rows": 5,
+                                      "Plan Width": 47,
+                                      "Actual Startup Time": 0.0,
+                                      "Actual Total Time": 0.0,
+                                      "Actual Rows": 1,
+                                      "Actual Loops": 1000
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Node Type": "Seq Scan",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Relation Name": "categories",
+                                  "Alias": "c",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 1.03,
+                                  "Plan Rows": 3,
+                                  "Plan Width": 23,
+                                  "Actual Startup Time": 0.0,
+                                  "Actual Total Time": 0.0,
+                                  "Actual Rows": 1,
+                                  "Actual Loops": 1000
+                                }
+                              ]
+                            },
+                            {
+                              "Node Type": "Seq Scan",
+                              "Parent Relationship": "Inner",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Relation Name": "spaces",
+                              "Alias": "s",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 1.01,
+                              "Plan Rows": 1,
+                              "Plan Width": 23,
+                              "Actual Startup Time": 0.0,
+                              "Actual Total Time": 0.0,
+                              "Actual Rows": 1,
+                              "Actual Loops": 1000
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Node Type": "Index Scan",
+                  "Parent Relationship": "SubPlan",
+                  "Subplan Name": "SubPlan 1",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Scan Direction": "Forward",
+                  "Index Name": "posts_pkey",
+                  "Relation Name": "posts",
+                  "Alias": "p",
+                  "Startup Cost": 0.29,
+                  "Total Cost": 8.3,
+                  "Plan Rows": 1,
+                  "Plan Width": 16,
+                  "Actual Startup Time": 0.001,
+                  "Actual Total Time": 0.001,
+                  "Actual Rows": 1,
+                  "Actual Loops": 11,
+                  "Index Cond": "(post_id = me.entity_id)",
+                  "Rows Removed by Index Recheck": 0
+                },
+                {
+                  "Node Type": "Index Scan",
+                  "Parent Relationship": "SubPlan",
+                  "Subplan Name": "SubPlan 3",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Scan Direction": "Forward",
+                  "Index Name": "threads_pkey",
+                  "Relation Name": "threads",
+                  "Alias": "t",
+                  "Startup Cost": 8.59,
+                  "Total Cost": 16.61,
+                  "Plan Rows": 1,
+                  "Plan Width": 12,
+                  "Actual Startup Time": 0.001,
+                  "Actual Total Time": 0.001,
+                  "Actual Rows": 1,
+                  "Actual Loops": 20,
+                  "Index Cond": "(thread_id = CASE me.entity_type WHEN 'thread'::text THEN me.entity_id WHEN 'post'::text THEN (InitPlan 2).col1 ELSE NULL::uuid END)",
+                  "Rows Removed by Index Recheck": 0,
+                  "Plans": [
+                    {
+                      "Node Type": "Index Scan",
+                      "Parent Relationship": "InitPlan",
+                      "Subplan Name": "InitPlan 2",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Scan Direction": "Forward",
+                      "Index Name": "posts_pkey",
+                      "Relation Name": "posts",
+                      "Alias": "p_1",
+                      "Startup Cost": 0.29,
+                      "Total Cost": 8.3,
+                      "Plan Rows": 1,
+                      "Plan Width": 16,
+                      "Actual Startup Time": 0.001,
+                      "Actual Total Time": 0.001,
+                      "Actual Rows": 1,
+                      "Actual Loops": 11,
+                      "Index Cond": "(post_id = me.entity_id)",
+                      "Rows Removed by Index Recheck": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "_log_line": 27397
+      }
+    ],
+    "source": {
+      "path": "/tmp/gpforum-pr63-pg17-search-plans.json",
+      "bytes": 671268,
+      "sha256": "65690042673e926a35bb798fe65e9cc534a513e125ea1766a6e4d20ce5be714c"
+    }
+  },
+  "controlled_prototype": {
+    "server_version": "17.11 (Homebrew)",
+    "names": "Temporary v77 invoker and v78 narrow SQL generic definer; query bodies identical to installed v5/v6",
+    "result": "PASS",
+    "assertions": 772,
+    "runtime_login_tested": true,
+    "source_artifacts": {
+      "/Users/gpicchiarelli/.codex/worktrees/sql-functions-ci-plan/GPForum/migrations/102_search_custom_plans.sql": {
+        "bytes": 11194,
+        "sha256": "47a6450a8cb57a339e855b3072eff10bf6c8e187d38b5189c0785a7203cc053f"
+      },
+      "/private/tmp/gpforum-search-plpgsql-wrapper-prototype.sql": {
+        "bytes": 10743,
+        "sha256": "531f87c7f47fe969fee698fedf470e5326f13383333be30f74b877cd1fa09d0b"
+      },
+      "/private/tmp/gpforum-search-plpgsql-runtime-prototype.t": {
+        "bytes": 24520,
+        "sha256": "6c8ccfb3a0b7cf8a90563c7a9b089aec5f313a905552d9e3e036f6f8a31a4b14"
+      },
+      "/private/tmp/gpforum-search-plpgsql-runtime-prototype-pg17.log": {
+        "bytes": 220,
+        "sha256": "3d1f516db22c3a01ff559a429bfa8b513539a6aa078d1e0de5799134b02e6886"
+      },
+      "/private/tmp/gpforum-search-plpgsql-runtime-prototype-plans.json": {
+        "bytes": 114228,
+        "sha256": "0f51004ff458c9be735f1c785669c3e63f8779f84ddb2a562e00c3bdc95c22ce"
+      }
+    },
+    "summaries": {
+      "legacy_v2": [
+        {
+          "Node Type": "WindowAgg",
+          "Plan Rows": 1,
+          "Actual Rows": 1000,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Bitmap Heap Scan",
+          "Alias": "me",
+          "Relation Name": "search_documents",
+          "Plan Rows": 1,
+          "Actual Rows": 20000,
+          "Actual Loops": 1,
+          "Rows Removed by Filter": 0
+        }
+      ],
+      "published_v4": [
+        {
+          "Node Type": "Limit",
+          "Subplan Name": "CTE ranked_page",
+          "Plan Rows": 1,
+          "Actual Rows": 20,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "WindowAgg",
+          "Plan Rows": 1,
+          "Actual Rows": 1000,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Bitmap Heap Scan",
+          "Alias": "me",
+          "Relation Name": "search_documents",
+          "Plan Rows": 1,
+          "Actual Rows": 20000,
+          "Actual Loops": 1,
+          "Rows Removed by Filter": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Alias": "document",
+          "Relation Name": "search_documents",
+          "Index Name": "search_documents_pkey",
+          "Plan Rows": 1,
+          "Actual Rows": 1,
+          "Actual Loops": 20
+        }
+      ],
+      "prototype": [
+        {
+          "Node Type": "Limit",
+          "Subplan Name": "CTE ranked_page",
+          "Plan Rows": 20,
+          "Actual Rows": 20,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "WindowAgg",
+          "Plan Rows": 100,
+          "Actual Rows": 1000,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Alias": "me",
+          "Relation Name": "search_documents",
+          "Index Name": "idx_search_documents_created",
+          "Plan Rows": 100,
+          "Actual Rows": 1000,
+          "Actual Loops": 1,
+          "Rows Removed by Filter": 12
+        },
+        {
+          "Node Type": "Index Scan",
+          "Alias": "document",
+          "Relation Name": "search_documents",
+          "Index Name": "search_documents_pkey",
+          "Plan Rows": 1,
+          "Actual Rows": 1,
+          "Actual Loops": 20
+        }
+      ]
+    },
+    "nested_plans": {
+      "legacy_v2": [
+        {
+          "Plan": {
+            "Actual Loops": 1,
+            "Actual Rows": 20,
+            "Actual Startup Time": 110.011,
+            "Actual Total Time": 110.061,
+            "Async Capable": false,
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Plan Rows": 1,
+            "Plan Width": 528,
+            "Plans": [
+              {
+                "Actual Loops": 1,
+                "Actual Rows": 20,
+                "Actual Startup Time": 110.011,
+                "Actual Total Time": 110.059,
+                "Async Capable": false,
+                "Node Type": "Result",
+                "Parallel Aware": false,
+                "Parent Relationship": "Outer",
+                "Plan Rows": 1,
+                "Plan Width": 528,
+                "Plans": [
+                  {
+                    "Actual Loops": 1,
+                    "Actual Rows": 20,
+                    "Actual Startup Time": 109.998,
+                    "Actual Total Time": 110.001,
+                    "Async Capable": false,
+                    "Node Type": "Sort",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 1,
+                    "Plan Width": 480,
+                    "Plans": [
+                      {
+                        "Actual Loops": 1,
+                        "Actual Rows": 1000,
+                        "Actual Startup Time": 106.653,
+                        "Actual Total Time": 109.389,
+                        "Async Capable": false,
+                        "Node Type": "WindowAgg",
+                        "Parallel Aware": false,
+                        "Parent Relationship": "Outer",
+                        "Plan Rows": 1,
+                        "Plan Width": 480,
+                        "Plans": [
+                          {
+                            "Actual Loops": 1,
+                            "Actual Rows": 1000,
+                            "Actual Startup Time": 103.462,
+                            "Actual Total Time": 106.219,
+                            "Async Capable": false,
+                            "Inner Unique": true,
+                            "Join Filter": "(s.space_id = me.space_id)",
+                            "Join Type": "Inner",
+                            "Node Type": "Nested Loop",
+                            "Parallel Aware": false,
+                            "Parent Relationship": "Outer",
+                            "Plan Rows": 1,
+                            "Plan Width": 464,
+                            "Plans": [
+                              {
+                                "Actual Loops": 1,
+                                "Actual Rows": 1000,
+                                "Actual Startup Time": 103.459,
+                                "Actual Total Time": 105.373,
+                                "Async Capable": false,
+                                "Inner Unique": true,
+                                "Join Filter": "(me.category_id = c.category_id)",
+                                "Join Type": "Inner",
+                                "Node Type": "Nested Loop",
+                                "Parallel Aware": false,
+                                "Parent Relationship": "Outer",
+                                "Plan Rows": 1,
+                                "Plan Width": 457,
+                                "Plans": [
+                                  {
+                                    "Actual Loops": 1,
+                                    "Actual Rows": 1000,
+                                    "Actual Startup Time": 103.457,
+                                    "Actual Total Time": 104.516,
+                                    "Async Capable": false,
+                                    "Inner Unique": true,
+                                    "Join Filter": "(a.id = me.author_user_id)",
+                                    "Join Type": "Left",
+                                    "Node Type": "Nested Loop",
+                                    "Parallel Aware": false,
+                                    "Parent Relationship": "Outer",
+                                    "Plan Rows": 1,
+                                    "Plan Width": 450,
+                                    "Plans": [
+                                      {
+                                        "Actual Loops": 1,
+                                        "Actual Rows": 1000,
+                                        "Actual Startup Time": 103.447,
+                                        "Actual Total Time": 103.541,
+                                        "Async Capable": false,
+                                        "Node Type": "Limit",
+                                        "Parallel Aware": false,
+                                        "Parent Relationship": "Outer",
+                                        "Plan Rows": 1,
+                                        "Plan Width": 419,
+                                        "Plans": [
+                                          {
+                                            "Actual Loops": 1,
+                                            "Actual Rows": 1000,
+                                            "Actual Startup Time": 103.446,
+                                            "Actual Total Time": 103.483,
+                                            "Async Capable": false,
+                                            "Node Type": "Sort",
+                                            "Parallel Aware": false,
+                                            "Parent Relationship": "Outer",
+                                            "Plan Rows": 1,
+                                            "Plan Width": 419,
+                                            "Plans": [
+                                              {
+                                                "Actual Loops": 1,
+                                                "Actual Rows": 20000,
+                                                "Actual Startup Time": 1.062,
+                                                "Actual Total Time": 91.147,
+                                                "Async Capable": false,
+                                                "Inner Unique": false,
+                                                "Join Filter": "((me.category_id = c_1.category_id) AND (s_1.space_id = me.space_id) AND CASE WHEN ($1 = 'full'::text) THEN ((c_1.deleted_at IS NULL) AND (s_1.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (s_1.visibility = 'public'::text) OR ($3 AND (s_1.visibility = 'members'::text)) OR ((s_1.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (c_1.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (c_1.visibility = 'public'::text) OR ($3 AND (c_1.visibility = 'members'::text)) OR ((c_1.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (me.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (me.visibility = 'public'::text) OR ($3 AND (me.visibility = 'members'::text)) OR ((me.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7)) OR ($3 AND (me.author_user_id = $5)))))) ELSE (me.visibility = ANY ($2)) END)",
+                                                "Join Type": "Inner",
+                                                "Node Type": "Nested Loop",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "Outer",
+                                                "Plan Rows": 1,
+                                                "Plan Width": 419,
+                                                "Plans": [
+                                                  {
+                                                    "Actual Loops": 1,
+                                                    "Actual Rows": 20000,
+                                                    "Actual Startup Time": 1.052,
+                                                    "Actual Total Time": 40.292,
+                                                    "Alias": "me",
+                                                    "Async Capable": false,
+                                                    "Exact Heap Blocks": 1178,
+                                                    "Filter": "((($12 IS NULL) OR (category_id = $12)) AND (($13 IS NULL) OR (author_user_id = $13)) AND (($14 IS NULL) OR (source_created_at >= $14)) AND (($15 IS NULL) OR ($16 AND (source_created_at < $15)) OR ((NOT $16) AND (source_created_at <= $15))) AND (category_id = CASE entity_type WHEN 'thread'::text THEN (SubPlan 4) WHEN 'post'::text THEN (SubPlan 6) ELSE NULL::uuid END))",
+                                                    "Lossy Heap Blocks": 0,
+                                                    "Node Type": "Bitmap Heap Scan",
+                                                    "Parallel Aware": false,
+                                                    "Parent Relationship": "Outer",
+                                                    "Plan Rows": 1,
+                                                    "Plan Width": 419,
+                                                    "Plans": [
+                                                      {
+                                                        "Actual Loops": 1,
+                                                        "Actual Rows": 0,
+                                                        "Actual Startup Time": 0.923,
+                                                        "Actual Total Time": 0.924,
+                                                        "Async Capable": false,
+                                                        "Node Type": "BitmapOr",
+                                                        "Parallel Aware": false,
+                                                        "Parent Relationship": "Outer",
+                                                        "Plan Rows": 400,
+                                                        "Plan Width": 0,
+                                                        "Plans": [
+                                                          {
+                                                            "Actual Loops": 1,
+                                                            "Actual Rows": 20000,
+                                                            "Actual Startup Time": 0.905,
+                                                            "Actual Total Time": 0.905,
+                                                            "Async Capable": false,
+                                                            "Index Cond": "(search_vector @@ websearch_to_tsquery(($10)::regconfig, $8))",
+                                                            "Index Name": "idx_search_documents_vector",
+                                                            "Node Type": "Bitmap Index Scan",
+                                                            "Parallel Aware": false,
+                                                            "Parent Relationship": "Member",
+                                                            "Plan Rows": 100,
+                                                            "Plan Width": 0,
+                                                            "Startup Cost": 0.0,
+                                                            "Total Cost": 13.58
+                                                          },
+                                                          {
+                                                            "Actual Loops": 1,
+                                                            "Actual Rows": 0,
+                                                            "Actual Startup Time": 0.012,
+                                                            "Actual Total Time": 0.013,
+                                                            "Async Capable": false,
+                                                            "Index Cond": "(title_normalized OPERATOR(public.%) lower($8))",
+                                                            "Index Name": "idx_search_documents_title_trgm",
+                                                            "Node Type": "Bitmap Index Scan",
+                                                            "Parallel Aware": false,
+                                                            "Parent Relationship": "Member",
+                                                            "Plan Rows": 200,
+                                                            "Plan Width": 0,
+                                                            "Startup Cost": 0.0,
+                                                            "Total Cost": 13.81
+                                                          },
+                                                          {
+                                                            "Actual Loops": 1,
+                                                            "Actual Rows": 0,
+                                                            "Actual Startup Time": 0.006,
+                                                            "Actual Total Time": 0.006,
+                                                            "Async Capable": false,
+                                                            "Index Cond": "(title_normalized ~~ like_escape(lower($9), '\\'::text))",
+                                                            "Index Name": "idx_search_documents_title_trgm",
+                                                            "Node Type": "Bitmap Index Scan",
+                                                            "Parallel Aware": false,
+                                                            "Parent Relationship": "Member",
+                                                            "Plan Rows": 100,
+                                                            "Plan Width": 0,
+                                                            "Startup Cost": 0.0,
+                                                            "Total Cost": 13.31
+                                                          }
+                                                        ],
+                                                        "Startup Cost": 40.7,
+                                                        "Total Cost": 40.7
+                                                      },
+                                                      {
+                                                        "Actual Loops": 10000,
+                                                        "Actual Rows": 1,
+                                                        "Actual Startup Time": 0.001,
+                                                        "Actual Total Time": 0.001,
+                                                        "Alias": "t_1",
+                                                        "Async Capable": false,
+                                                        "Index Cond": "(thread_id = me.entity_id)",
+                                                        "Index Name": "threads_pkey",
+                                                        "Node Type": "Index Scan",
+                                                        "Parallel Aware": false,
+                                                        "Parent Relationship": "SubPlan",
+                                                        "Plan Rows": 1,
+                                                        "Plan Width": 16,
+                                                        "Relation Name": "threads",
+                                                        "Rows Removed by Index Recheck": 0,
+                                                        "Scan Direction": "Forward",
+                                                        "Startup Cost": 0.29,
+                                                        "Subplan Name": "SubPlan 4",
+                                                        "Total Cost": 8.3
+                                                      },
+                                                      {
+                                                        "Actual Loops": 10000,
+                                                        "Actual Rows": 1,
+                                                        "Actual Startup Time": 0.001,
+                                                        "Actual Total Time": 0.001,
+                                                        "Alias": "t_2",
+                                                        "Async Capable": false,
+                                                        "Index Cond": "(thread_id = (InitPlan 5).col1)",
+                                                        "Index Name": "threads_pkey",
+                                                        "Node Type": "Index Scan",
+                                                        "Parallel Aware": false,
+                                                        "Parent Relationship": "SubPlan",
+                                                        "Plan Rows": 1,
+                                                        "Plan Width": 16,
+                                                        "Plans": [
+                                                          {
+                                                            "Actual Loops": 10000,
+                                                            "Actual Rows": 1,
+                                                            "Actual Startup Time": 0.001,
+                                                            "Actual Total Time": 0.001,
+                                                            "Alias": "p_2",
+                                                            "Async Capable": false,
+                                                            "Index Cond": "(post_id = me.entity_id)",
+                                                            "Index Name": "posts_pkey",
+                                                            "Node Type": "Index Scan",
+                                                            "Parallel Aware": false,
+                                                            "Parent Relationship": "InitPlan",
+                                                            "Plan Rows": 1,
+                                                            "Plan Width": 16,
+                                                            "Relation Name": "posts",
+                                                            "Rows Removed by Index Recheck": 0,
+                                                            "Scan Direction": "Forward",
+                                                            "Startup Cost": 0.29,
+                                                            "Subplan Name": "InitPlan 5",
+                                                            "Total Cost": 8.3
+                                                          }
+                                                        ],
+                                                        "Relation Name": "threads",
+                                                        "Rows Removed by Index Recheck": 0,
+                                                        "Scan Direction": "Forward",
+                                                        "Startup Cost": 8.59,
+                                                        "Subplan Name": "SubPlan 6",
+                                                        "Total Cost": 16.61
+                                                      }
+                                                    ],
+                                                    "Recheck Cond": "((search_vector @@ websearch_to_tsquery(($10)::regconfig, $8)) OR (title_normalized OPERATOR(public.%) lower($8)) OR (title_normalized ~~ like_escape(lower($9), '\\'::text)))",
+                                                    "Relation Name": "search_documents",
+                                                    "Rows Removed by Filter": 0,
+                                                    "Rows Removed by Index Recheck": 0,
+                                                    "Startup Cost": 40.7,
+                                                    "Total Cost": 10938.88
+                                                  },
+                                                  {
+                                                    "Actual Loops": 20000,
+                                                    "Actual Rows": 3,
+                                                    "Actual Startup Time": 0.001,
+                                                    "Actual Total Time": 0.002,
+                                                    "Async Capable": false,
+                                                    "Inner Unique": false,
+                                                    "Join Filter": "(s_1.space_id = c_1.space_id)",
+                                                    "Join Type": "Inner",
+                                                    "Node Type": "Nested Loop",
+                                                    "Parallel Aware": false,
+                                                    "Parent Relationship": "Inner",
+                                                    "Plan Rows": 3,
+                                                    "Plan Width": 70,
+                                                    "Plans": [
+                                                      {
+                                                        "Actual Loops": 20000,
+                                                        "Actual Rows": 1,
+                                                        "Actual Startup Time": 0.0,
+                                                        "Actual Total Time": 0.0,
+                                                        "Alias": "s_1",
+                                                        "Async Capable": false,
+                                                        "Node Type": "Seq Scan",
+                                                        "Parallel Aware": false,
+                                                        "Parent Relationship": "Outer",
+                                                        "Plan Rows": 1,
+                                                        "Plan Width": 23,
+                                                        "Relation Name": "spaces",
+                                                        "Startup Cost": 0.0,
+                                                        "Total Cost": 1.01
+                                                      },
+                                                      {
+                                                        "Actual Loops": 20000,
+                                                        "Actual Rows": 3,
+                                                        "Actual Startup Time": 0.0,
+                                                        "Actual Total Time": 0.0,
+                                                        "Alias": "c_1",
+                                                        "Async Capable": false,
+                                                        "Node Type": "Seq Scan",
+                                                        "Parallel Aware": false,
+                                                        "Parent Relationship": "Inner",
+                                                        "Plan Rows": 3,
+                                                        "Plan Width": 47,
+                                                        "Relation Name": "categories",
+                                                        "Startup Cost": 0.0,
+                                                        "Total Cost": 1.03
+                                                      }
+                                                    ],
+                                                    "Rows Removed by Join Filter": 0,
+                                                    "Startup Cost": 0.0,
+                                                    "Total Cost": 2.08
+                                                  }
+                                                ],
+                                                "Rows Removed by Join Filter": 40000,
+                                                "Startup Cost": 40.7,
+                                                "Total Cost": 10941.38
+                                              }
+                                            ],
+                                            "Sort Key": [
+                                              "me.source_created_at DESC",
+                                              "me.entity_id DESC"
+                                            ],
+                                            "Sort Method": "top-N heapsort",
+                                            "Sort Space Type": "Memory",
+                                            "Sort Space Used": 1065,
+                                            "Startup Cost": 10941.39,
+                                            "Total Cost": 10941.39
+                                          }
+                                        ],
+                                        "Startup Cost": 10941.39,
+                                        "Total Cost": 10941.39
+                                      },
+                                      {
+                                        "Actual Loops": 1000,
+                                        "Actual Rows": 1,
+                                        "Actual Startup Time": 0.0,
+                                        "Actual Total Time": 0.0,
+                                        "Alias": "a",
+                                        "Async Capable": false,
+                                        "Node Type": "Seq Scan",
+                                        "Parallel Aware": false,
+                                        "Parent Relationship": "Inner",
+                                        "Plan Rows": 5,
+                                        "Plan Width": 47,
+                                        "Relation Name": "users",
+                                        "Startup Cost": 0.0,
+                                        "Total Cost": 1.05
+                                      }
+                                    ],
+                                    "Rows Removed by Join Filter": 0,
+                                    "Startup Cost": 10941.39,
+                                    "Total Cost": 10942.52
+                                  },
+                                  {
+                                    "Actual Loops": 1000,
+                                    "Actual Rows": 1,
+                                    "Actual Startup Time": 0.0,
+                                    "Actual Total Time": 0.0,
+                                    "Alias": "c",
+                                    "Async Capable": false,
+                                    "Node Type": "Seq Scan",
+                                    "Parallel Aware": false,
+                                    "Parent Relationship": "Inner",
+                                    "Plan Rows": 3,
+                                    "Plan Width": 23,
+                                    "Relation Name": "categories",
+                                    "Startup Cost": 0.0,
+                                    "Total Cost": 1.03
+                                  }
+                                ],
+                                "Rows Removed by Join Filter": 0,
+                                "Startup Cost": 10941.39,
+                                "Total Cost": 10943.58
+                              },
+                              {
+                                "Actual Loops": 1000,
+                                "Actual Rows": 1,
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Alias": "s",
+                                "Async Capable": false,
+                                "Node Type": "Seq Scan",
+                                "Parallel Aware": false,
+                                "Parent Relationship": "Inner",
+                                "Plan Rows": 1,
+                                "Plan Width": 23,
+                                "Relation Name": "spaces",
+                                "Startup Cost": 0.0,
+                                "Total Cost": 1.01
+                              }
+                            ],
+                            "Rows Removed by Join Filter": 0,
+                            "Startup Cost": 10941.39,
+                            "Total Cost": 10944.61
+                          }
+                        ],
+                        "Startup Cost": 10941.39,
+                        "Total Cost": 10944.89
+                      }
+                    ],
+                    "Sort Key": [
+                      "(GREATEST((ts_rank_cd(me.search_vector, websearch_to_tsquery(($10)::regconfig, $8), 32))::double precision, (public.similarity(me.title_normalized, lower($8)) * '0.2'::double precision))) DESC",
+                      "me.source_created_at DESC",
+                      "me.indexed_at DESC",
+                      "me.entity_type",
+                      "me.entity_id DESC"
+                    ],
+                    "Sort Method": "top-N heapsort",
+                    "Sort Space Type": "Memory",
+                    "Sort Space Used": 36,
+                    "Startup Cost": 10944.9,
+                    "Total Cost": 10944.9
+                  },
+                  {
+                    "Actual Loops": 11,
+                    "Actual Rows": 1,
+                    "Actual Startup Time": 0.001,
+                    "Actual Total Time": 0.001,
+                    "Alias": "p",
+                    "Async Capable": false,
+                    "Index Cond": "(post_id = me.entity_id)",
+                    "Index Name": "posts_pkey",
+                    "Node Type": "Index Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "SubPlan",
+                    "Plan Rows": 1,
+                    "Plan Width": 16,
+                    "Relation Name": "posts",
+                    "Rows Removed by Index Recheck": 0,
+                    "Scan Direction": "Forward",
+                    "Startup Cost": 0.29,
+                    "Subplan Name": "SubPlan 1",
+                    "Total Cost": 8.3
+                  },
+                  {
+                    "Actual Loops": 20,
+                    "Actual Rows": 1,
+                    "Actual Startup Time": 0.001,
+                    "Actual Total Time": 0.001,
+                    "Alias": "t",
+                    "Async Capable": false,
+                    "Index Cond": "(thread_id = CASE me.entity_type WHEN 'thread'::text THEN me.entity_id WHEN 'post'::text THEN (InitPlan 2).col1 ELSE NULL::uuid END)",
+                    "Index Name": "threads_pkey",
+                    "Node Type": "Index Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "SubPlan",
+                    "Plan Rows": 1,
+                    "Plan Width": 12,
+                    "Plans": [
+                      {
+                        "Actual Loops": 11,
+                        "Actual Rows": 1,
+                        "Actual Startup Time": 0.001,
+                        "Actual Total Time": 0.001,
+                        "Alias": "p_1",
+                        "Async Capable": false,
+                        "Index Cond": "(post_id = me.entity_id)",
+                        "Index Name": "posts_pkey",
+                        "Node Type": "Index Scan",
+                        "Parallel Aware": false,
+                        "Parent Relationship": "InitPlan",
+                        "Plan Rows": 1,
+                        "Plan Width": 16,
+                        "Relation Name": "posts",
+                        "Rows Removed by Index Recheck": 0,
+                        "Scan Direction": "Forward",
+                        "Startup Cost": 0.29,
+                        "Subplan Name": "InitPlan 2",
+                        "Total Cost": 8.3
+                      }
+                    ],
+                    "Relation Name": "threads",
+                    "Rows Removed by Index Recheck": 0,
+                    "Scan Direction": "Forward",
+                    "Startup Cost": 8.59,
+                    "Subplan Name": "SubPlan 3",
+                    "Total Cost": 16.61
+                  }
+                ],
+                "Startup Cost": 10944.9,
+                "Total Cost": 10970.1
+              }
+            ],
+            "Startup Cost": 10944.9,
+            "Total Cost": 10970.1
+          },
+          "Query Parameters": "$1 = 'full', $2 = '{}', $3 = 'f', $4 = 'f', $5 = NULL, $6 = '{}', $7 = '{}', $8 = 'candidateword', $9 = '%candidateword%', $10 = 'simple', $11 = '1000', $12 = NULL, $13 = NULL, $14 = NULL, $15 = NULL, $16 = 'f', $17 = '20'",
+          "Query Text": "\nSELECT me.search_document_id, me.entity_type, me.entity_id, me.category_id, me.author_user_id, me.space_id, me.visibility, me.permission_scope, me.visibility_version, me.permission_version, me.language, me.title, me.title_normalized, me.body, me.search_vector, me.source_version, me.source_created_at, me.indexed_at, greatest(ts_rank_cd(me.search_vector, websearch_to_tsquery(p_config::regconfig, p_query), 32), public.similarity(me.title_normalized, lower(p_query)) * 0.2), a.username, a.display_name, c.visibility, s.visibility, count(*) OVER (),\n  CASE me.entity_type WHEN 'thread' THEN me.entity_id WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id) END, (SELECT t.title FROM public.threads t WHERE t.thread_id = CASE me.entity_type WHEN 'thread' THEN me.entity_id WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id) END)\nFROM (SELECT me.* FROM public.search_documents me JOIN public.categories c ON c.category_id = me.category_id JOIN public.spaces s ON s.space_id = me.space_id\n  WHERE (CASE WHEN p_permission_mode = 'full' THEN c.deleted_at IS NULL AND (s.visibility IN ('public','members','private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (c.visibility IN ('public','members','private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (me.visibility IN ('public','members','private') AND (p_global_read OR me.visibility = 'public' OR (p_member AND me.visibility = 'members') OR (me.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (me.author_user_id = p_viewer_user_id)))))) ELSE me.visibility = ANY(p_visibility_values) END) AND me.category_id = (CASE me.entity_type WHEN 'thread' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = me.entity_id) WHEN 'post' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id)) END) AND c.space_id = me.space_id AND (me.search_vector @@ websearch_to_tsquery(p_config::regconfig, p_query) OR me.title_normalized OPERATOR(public.%) lower(p_query) OR me.title_normalized LIKE lower(p_like_pattern) ESCAPE '\\')\n    AND (p_category_filter IS NULL OR me.category_id = p_category_filter) AND (p_author_filter IS NULL OR me.author_user_id = p_author_filter)\n    AND (p_from_at IS NULL OR me.source_created_at >= p_from_at)\n    AND (p_to_at IS NULL OR (p_to_exclusive AND me.source_created_at < p_to_at) OR (NOT p_to_exclusive AND me.source_created_at <= p_to_at))\n  ORDER BY me.source_created_at DESC, me.entity_id DESC LIMIT p_candidate_limit) me\nLEFT JOIN public.users a ON a.id = me.author_user_id JOIN public.categories c ON c.category_id = me.category_id JOIN public.spaces s ON s.space_id = me.space_id\nORDER BY greatest(ts_rank_cd(me.search_vector, websearch_to_tsquery(p_config::regconfig, p_query), 32), public.similarity(me.title_normalized, lower(p_query)) * 0.2) DESC, me.source_created_at DESC, me.indexed_at DESC, me.entity_type ASC, me.entity_id DESC LIMIT p_row_limit\n"
+        },
+        {
+          "Plan": {
+            "Actual Loops": 1,
+            "Actual Rows": 20,
+            "Actual Startup Time": 111.384,
+            "Actual Total Time": 111.385,
+            "Alias": "search_ranked_v1",
+            "Async Capable": false,
+            "Function Name": "search_ranked_v1",
+            "Node Type": "Function Scan",
+            "Parallel Aware": false,
+            "Plan Rows": 1000,
+            "Plan Width": 568,
+            "Startup Cost": 0.25,
+            "Total Cost": 10.25
+          },
+          "Query Parameters": "$1 = 'full', $2 = '{}', $3 = 'f', $4 = 'f', $5 = NULL, $6 = '{}', $7 = '{}', $8 = 'candidateword', $9 = '%candidateword%', $10 = 'simple', $11 = '1000', $12 = NULL, $13 = NULL, $14 = NULL, $15 = NULL, $16 = 'f', $17 = '20'",
+          "Query Text": "\nSELECT * FROM api.search_ranked_v1(p_permission_mode, p_visibility_values, p_member, p_global_read, p_viewer_user_id, p_category_ids, p_space_ids, p_query, p_like_pattern, p_config, p_candidate_limit, p_category_filter, p_author_filter, p_from_at, p_to_at, p_to_exclusive, p_row_limit);\n"
+        }
+      ],
+      "prototype": [
+        {
+          "Plan": {
+            "Actual Loops": 1,
+            "Actual Rows": 20,
+            "Actual Startup Time": 6.637,
+            "Actual Total Time": 6.68,
+            "Async Capable": false,
+            "Inner Unique": true,
+            "Join Filter": "(author.id = document.author_user_id)",
+            "Join Type": "Left",
+            "Node Type": "Nested Loop",
+            "Parallel Aware": false,
+            "Plan Rows": 20,
+            "Plan Width": 435,
+            "Plans": [
+              {
+                "Actual Loops": 1,
+                "Actual Rows": 20,
+                "Actual Startup Time": 6.622,
+                "Actual Total Time": 6.625,
+                "Async Capable": false,
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Parent Relationship": "InitPlan",
+                "Plan Rows": 20,
+                "Plan Width": 84,
+                "Plans": [
+                  {
+                    "Actual Loops": 1,
+                    "Actual Rows": 20,
+                    "Actual Startup Time": 6.621,
+                    "Actual Total Time": 6.623,
+                    "Async Capable": false,
+                    "Node Type": "Sort",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 100,
+                    "Plan Width": 84,
+                    "Plans": [
+                      {
+                        "Actual Loops": 1,
+                        "Actual Rows": 1000,
+                        "Actual Startup Time": 3.737,
+                        "Actual Total Time": 6.391,
+                        "Async Capable": false,
+                        "Node Type": "WindowAgg",
+                        "Parallel Aware": false,
+                        "Parent Relationship": "Outer",
+                        "Plan Rows": 100,
+                        "Plan Width": 84,
+                        "Plans": [
+                          {
+                            "Actual Loops": 1,
+                            "Actual Rows": 1000,
+                            "Actual Startup Time": 0.064,
+                            "Actual Total Time": 3.527,
+                            "Alias": "candidate",
+                            "Async Capable": false,
+                            "Node Type": "Subquery Scan",
+                            "Parallel Aware": false,
+                            "Parent Relationship": "Outer",
+                            "Plan Rows": 100,
+                            "Plan Width": 135,
+                            "Plans": [
+                              {
+                                "Actual Loops": 1,
+                                "Actual Rows": 1000,
+                                "Actual Startup Time": 0.063,
+                                "Actual Total Time": 3.449,
+                                "Async Capable": false,
+                                "Node Type": "Limit",
+                                "Parallel Aware": false,
+                                "Parent Relationship": "Subquery",
+                                "Plan Rows": 100,
+                                "Plan Width": 135,
+                                "Plans": [
+                                  {
+                                    "Actual Loops": 1,
+                                    "Actual Rows": 1000,
+                                    "Actual Startup Time": 0.063,
+                                    "Actual Total Time": 3.39,
+                                    "Async Capable": false,
+                                    "Inner Unique": true,
+                                    "Join Filter": "((s.space_id = me.space_id) AND ((s.visibility = 'public'::text) OR ((s.visibility = 'private'::text) AND ((me.category_id = ANY ('{}'::uuid[])) OR (me.space_id = ANY ('{}'::uuid[]))))))",
+                                    "Join Type": "Inner",
+                                    "Node Type": "Nested Loop",
+                                    "Parallel Aware": false,
+                                    "Parent Relationship": "Outer",
+                                    "Plan Rows": 100,
+                                    "Plan Width": 135,
+                                    "Plans": [
+                                      {
+                                        "Actual Loops": 1,
+                                        "Actual Rows": 1000,
+                                        "Actual Startup Time": 0.059,
+                                        "Actual Total Time": 3.21,
+                                        "Async Capable": false,
+                                        "Inner Unique": true,
+                                        "Join Filter": "((me.category_id = c.category_id) AND (c.space_id = me.space_id) AND ((c.visibility = 'public'::text) OR ((c.visibility = 'private'::text) AND ((me.category_id = ANY ('{}'::uuid[])) OR (me.space_id = ANY ('{}'::uuid[]))))))",
+                                        "Join Type": "Inner",
+                                        "Node Type": "Nested Loop",
+                                        "Parallel Aware": false,
+                                        "Parent Relationship": "Outer",
+                                        "Plan Rows": 100,
+                                        "Plan Width": 176,
+                                        "Plans": [
+                                          {
+                                            "Actual Loops": 1,
+                                            "Actual Rows": 1000,
+                                            "Actual Startup Time": 0.053,
+                                            "Actual Total Time": 2.998,
+                                            "Alias": "me",
+                                            "Async Capable": false,
+                                            "Filter": "((visibility = ANY ('{public,members,private}'::text[])) AND ((visibility = 'public'::text) OR ((visibility = 'private'::text) AND ((category_id = ANY ('{}'::uuid[])) OR (space_id = ANY ('{}'::uuid[]))))) AND ((search_vector @@ websearch_to_tsquery(('simple'::cstring)::regconfig, 'candidateword'::text)) OR (title_normalized OPERATOR(public.%) 'candidateword'::text) OR (title_normalized ~~ '%candidateword%'::text)) AND (category_id = CASE entity_type WHEN 'thread'::text THEN (SubPlan 1) WHEN 'post'::text THEN (SubPlan 3) ELSE NULL::uuid END))",
+                                            "Index Name": "idx_search_documents_created",
+                                            "Node Type": "Index Scan",
+                                            "Parallel Aware": false,
+                                            "Parent Relationship": "Outer",
+                                            "Plan Rows": 100,
+                                            "Plan Width": 153,
+                                            "Plans": [
+                                              {
+                                                "Actual Loops": 502,
+                                                "Actual Rows": 1,
+                                                "Actual Startup Time": 0.001,
+                                                "Actual Total Time": 0.001,
+                                                "Alias": "t",
+                                                "Async Capable": false,
+                                                "Index Cond": "(thread_id = me.entity_id)",
+                                                "Index Name": "threads_pkey",
+                                                "Node Type": "Index Scan",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "SubPlan",
+                                                "Plan Rows": 1,
+                                                "Plan Width": 16,
+                                                "Relation Name": "threads",
+                                                "Rows Removed by Index Recheck": 0,
+                                                "Scan Direction": "Forward",
+                                                "Startup Cost": 0.29,
+                                                "Subplan Name": "SubPlan 1",
+                                                "Total Cost": 8.3
+                                              },
+                                              {
+                                                "Actual Loops": 498,
+                                                "Actual Rows": 1,
+                                                "Actual Startup Time": 0.001,
+                                                "Actual Total Time": 0.001,
+                                                "Alias": "t_1",
+                                                "Async Capable": false,
+                                                "Index Cond": "(thread_id = (InitPlan 2).col1)",
+                                                "Index Name": "threads_pkey",
+                                                "Node Type": "Index Scan",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "SubPlan",
+                                                "Plan Rows": 1,
+                                                "Plan Width": 16,
+                                                "Plans": [
+                                                  {
+                                                    "Actual Loops": 498,
+                                                    "Actual Rows": 1,
+                                                    "Actual Startup Time": 0.001,
+                                                    "Actual Total Time": 0.001,
+                                                    "Alias": "p",
+                                                    "Async Capable": false,
+                                                    "Index Cond": "(post_id = me.entity_id)",
+                                                    "Index Name": "posts_pkey",
+                                                    "Node Type": "Index Scan",
+                                                    "Parallel Aware": false,
+                                                    "Parent Relationship": "InitPlan",
+                                                    "Plan Rows": 1,
+                                                    "Plan Width": 16,
+                                                    "Relation Name": "posts",
+                                                    "Rows Removed by Index Recheck": 0,
+                                                    "Scan Direction": "Forward",
+                                                    "Startup Cost": 0.29,
+                                                    "Subplan Name": "InitPlan 2",
+                                                    "Total Cost": 8.3
+                                                  }
+                                                ],
+                                                "Relation Name": "threads",
+                                                "Rows Removed by Index Recheck": 0,
+                                                "Scan Direction": "Forward",
+                                                "Startup Cost": 8.59,
+                                                "Subplan Name": "SubPlan 3",
+                                                "Total Cost": 16.61
+                                              }
+                                            ],
+                                            "Relation Name": "search_documents",
+                                            "Rows Removed by Filter": 12,
+                                            "Scan Direction": "Forward",
+                                            "Startup Cost": 0.29,
+                                            "Total Cost": 507791.77
+                                          },
+                                          {
+                                            "Actual Loops": 1000,
+                                            "Actual Rows": 1,
+                                            "Actual Startup Time": 0.0,
+                                            "Actual Total Time": 0.0,
+                                            "Async Capable": false,
+                                            "Node Type": "Materialize",
+                                            "Parallel Aware": false,
+                                            "Parent Relationship": "Inner",
+                                            "Plan Rows": 3,
+                                            "Plan Width": 39,
+                                            "Plans": [
+                                              {
+                                                "Actual Loops": 1,
+                                                "Actual Rows": 1,
+                                                "Actual Startup Time": 0.004,
+                                                "Actual Total Time": 0.004,
+                                                "Alias": "c",
+                                                "Async Capable": false,
+                                                "Filter": "((deleted_at IS NULL) AND (visibility = ANY ('{public,members,private}'::text[])))",
+                                                "Node Type": "Seq Scan",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "Outer",
+                                                "Plan Rows": 3,
+                                                "Plan Width": 39,
+                                                "Relation Name": "categories",
+                                                "Rows Removed by Filter": 0,
+                                                "Startup Cost": 0.0,
+                                                "Total Cost": 1.04
+                                              }
+                                            ],
+                                            "Startup Cost": 0.0,
+                                            "Total Cost": 1.06
+                                          }
+                                        ],
+                                        "Rows Removed by Join Filter": 0,
+                                        "Startup Cost": 0.29,
+                                        "Total Cost": 507798.46
+                                      },
+                                      {
+                                        "Actual Loops": 1000,
+                                        "Actual Rows": 1,
+                                        "Actual Startup Time": 0.0,
+                                        "Actual Total Time": 0.0,
+                                        "Async Capable": false,
+                                        "Node Type": "Materialize",
+                                        "Parallel Aware": false,
+                                        "Parent Relationship": "Inner",
+                                        "Plan Rows": 1,
+                                        "Plan Width": 23,
+                                        "Plans": [
+                                          {
+                                            "Actual Loops": 1,
+                                            "Actual Rows": 1,
+                                            "Actual Startup Time": 0.002,
+                                            "Actual Total Time": 0.002,
+                                            "Alias": "s",
+                                            "Async Capable": false,
+                                            "Filter": "(visibility = ANY ('{public,members,private}'::text[]))",
+                                            "Node Type": "Seq Scan",
+                                            "Parallel Aware": false,
+                                            "Parent Relationship": "Outer",
+                                            "Plan Rows": 1,
+                                            "Plan Width": 23,
+                                            "Relation Name": "spaces",
+                                            "Rows Removed by Filter": 0,
+                                            "Startup Cost": 0.0,
+                                            "Total Cost": 1.01
+                                          }
+                                        ],
+                                        "Startup Cost": 0.0,
+                                        "Total Cost": 1.02
+                                      }
+                                    ],
+                                    "Rows Removed by Join Filter": 0,
+                                    "Startup Cost": 0.29,
+                                    "Total Cost": 507801.47
+                                  }
+                                ],
+                                "Startup Cost": 0.29,
+                                "Total Cost": 507801.47
+                              }
+                            ],
+                            "Startup Cost": 0.29,
+                            "Total Cost": 507802.47
+                          }
+                        ],
+                        "Startup Cost": 502725.69,
+                        "Total Cost": 507830.47
+                      }
+                    ],
+                    "Sort Key": [
+                      "(GREATEST((ts_rank_cd(candidate.search_vector, websearch_to_tsquery(('simple'::cstring)::regconfig, 'candidateword'::text), 32))::double precision, (public.similarity(candidate.title_normalized, 'candidateword'::text) * '0.2'::double precision))) DESC",
+                      "candidate.source_created_at DESC",
+                      "candidate.indexed_at DESC",
+                      "candidate.entity_type",
+                      "candidate.entity_id DESC"
+                    ],
+                    "Sort Method": "top-N heapsort",
+                    "Sort Space Type": "Memory",
+                    "Sort Space Used": 27,
+                    "Startup Cost": 507833.14,
+                    "Total Cost": 507833.39
+                  }
+                ],
+                "Startup Cost": 507833.14,
+                "Subplan Name": "CTE ranked_page",
+                "Total Cost": 507833.19
+              },
+              {
+                "Actual Loops": 1,
+                "Actual Rows": 20,
+                "Actual Startup Time": 6.628,
+                "Actual Total Time": 6.666,
+                "Async Capable": false,
+                "Inner Unique": true,
+                "Join Type": "Inner",
+                "Node Type": "Nested Loop",
+                "Parallel Aware": false,
+                "Parent Relationship": "Outer",
+                "Plan Rows": 20,
+                "Plan Width": 404,
+                "Plans": [
+                  {
+                    "Actual Loops": 1,
+                    "Actual Rows": 20,
+                    "Actual Startup Time": 6.622,
+                    "Actual Total Time": 6.626,
+                    "Alias": "page",
+                    "Async Capable": false,
+                    "CTE Name": "ranked_page",
+                    "Node Type": "CTE Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 20,
+                    "Plan Width": 160,
+                    "Startup Cost": 0.0,
+                    "Total Cost": 0.4
+                  },
+                  {
+                    "Actual Loops": 20,
+                    "Actual Rows": 1,
+                    "Actual Startup Time": 0.002,
+                    "Actual Total Time": 0.002,
+                    "Alias": "document",
+                    "Async Capable": false,
+                    "Index Cond": "(search_document_id = page.search_document_id)",
+                    "Index Name": "search_documents_pkey",
+                    "Node Type": "Index Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Inner",
+                    "Plan Rows": 1,
+                    "Plan Width": 276,
+                    "Relation Name": "search_documents",
+                    "Rows Removed by Index Recheck": 0,
+                    "Scan Direction": "Forward",
+                    "Startup Cost": 0.29,
+                    "Total Cost": 8.1
+                  }
+                ],
+                "Startup Cost": 0.29,
+                "Total Cost": 162.5
+              },
+              {
+                "Actual Loops": 20,
+                "Actual Rows": 1,
+                "Actual Startup Time": 0.0,
+                "Actual Total Time": 0.0,
+                "Async Capable": false,
+                "Node Type": "Materialize",
+                "Parallel Aware": false,
+                "Parent Relationship": "Inner",
+                "Plan Rows": 5,
+                "Plan Width": 47,
+                "Plans": [
+                  {
+                    "Actual Loops": 1,
+                    "Actual Rows": 1,
+                    "Actual Startup Time": 0.007,
+                    "Actual Total Time": 0.007,
+                    "Alias": "author",
+                    "Async Capable": false,
+                    "Node Type": "Seq Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 5,
+                    "Plan Width": 47,
+                    "Relation Name": "users",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 1.05
+                  }
+                ],
+                "Startup Cost": 0.0,
+                "Total Cost": 1.07
+              }
+            ],
+            "Rows Removed by Join Filter": 0,
+            "Startup Cost": 507833.47,
+            "Total Cost": 507998.05
+          },
+          "Query Text": "WITH ranked_page AS MATERIALIZED (\n    SELECT candidate.search_document_id,\n           candidate.entity_type, candidate.entity_id,\n           candidate.source_created_at, candidate.indexed_at,\n           candidate.category_visibility, candidate.space_visibility,\n           greatest(\n               ts_rank_cd(candidate.search_vector,\n                   websearch_to_tsquery(p_config::regconfig, p_query), 32),\n               public.similarity(candidate.title_normalized, lower(p_query)) * 0.2\n           )::double precision AS rank_score,\n           count(*) OVER () AS candidate_count\n    FROM (\n        SELECT me.search_document_id, me.entity_type, me.entity_id,\n               me.source_created_at, me.indexed_at,\n               me.search_vector, me.title_normalized,\n               c.visibility AS category_visibility,\n               s.visibility AS space_visibility\n        FROM public.search_documents me\n        JOIN public.categories c ON c.category_id = me.category_id\n        JOIN public.spaces s ON s.space_id = me.space_id\n        WHERE (CASE WHEN p_permission_mode = 'full' THEN c.deleted_at IS NULL AND (s.visibility IN ('public','members','private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (c.visibility IN ('public','members','private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (me.visibility IN ('public','members','private') AND (p_global_read OR me.visibility = 'public' OR (p_member AND me.visibility = 'members') OR (me.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (me.author_user_id = p_viewer_user_id)))))) ELSE me.visibility = ANY(p_visibility_values) END) AND me.category_id = (CASE me.entity_type WHEN 'thread' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = me.entity_id) WHEN 'post' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id)) END) AND c.space_id = me.space_id AND (me.search_vector @@ websearch_to_tsquery(p_config::regconfig, p_query) OR me.title_normalized OPERATOR(public.%) lower(p_query) OR me.title_normalized LIKE lower(p_like_pattern) ESCAPE '\\')\n    AND (p_category_filter IS NULL OR me.category_id = p_category_filter) AND (p_author_filter IS NULL OR me.author_user_id = p_author_filter)\n    AND (p_from_at IS NULL OR me.source_created_at >= p_from_at)\n    AND (p_to_at IS NULL OR (p_to_exclusive AND me.source_created_at < p_to_at) OR (NOT p_to_exclusive AND me.source_created_at <= p_to_at))\n        ORDER BY me.source_created_at DESC, me.entity_id DESC\n        LIMIT p_candidate_limit\n    ) candidate\n    ORDER BY rank_score DESC, candidate.source_created_at DESC,\n             candidate.indexed_at DESC, candidate.entity_type ASC,\n             candidate.entity_id DESC\n    LIMIT p_row_limit\n)\nSELECT page.entity_type, page.entity_id,\n       document.category_id, document.author_user_id, document.space_id,\n       document.visibility, document.title, document.body,\n       page.source_created_at, page.indexed_at, page.rank_score,\n       author.username, author.display_name,\n       page.category_visibility, page.space_visibility, page.candidate_count\nFROM ranked_page page\nJOIN public.search_documents document\n  ON document.search_document_id = page.search_document_id\nLEFT JOIN public.users author ON author.id = document.author_user_id\nORDER BY page.rank_score DESC, page.source_created_at DESC,\n         page.indexed_at DESC, page.entity_type ASC, page.entity_id DESC"
+        },
+        {
+          "Plan": {
+            "Actual Loops": 1,
+            "Actual Rows": 20,
+            "Actual Startup Time": 7.827,
+            "Actual Total Time": 7.828,
+            "Alias": "search_ranked_v77",
+            "Async Capable": false,
+            "Function Name": "search_ranked_v77",
+            "Node Type": "Function Scan",
+            "Parallel Aware": false,
+            "Plan Rows": 1000,
+            "Plan Width": 352,
+            "Startup Cost": 0.25,
+            "Total Cost": 10.25
+          },
+          "Query Parameters": "$1 = 'full', $2 = '{}', $3 = 'f', $4 = 'f', $5 = NULL, $6 = '{}', $7 = '{}', $8 = 'candidateword', $9 = '%candidateword%', $10 = 'simple', $11 = '1000', $12 = NULL, $13 = NULL, $14 = NULL, $15 = NULL, $16 = 'f', $17 = '20'",
+          "Query Text": "\nSELECT * FROM api.search_ranked_v77(p_permission_mode, p_visibility_values, p_member, p_global_read, p_viewer_user_id, p_category_ids, p_space_ids, p_query, p_like_pattern, p_config, p_candidate_limit, p_category_filter, p_author_filter, p_from_at, p_to_at, p_to_exclusive, p_row_limit)\n"
+        }
+      ],
+      "published_v4": [
+        {
+          "Plan": {
+            "Actual Loops": 1,
+            "Actual Rows": 20,
+            "Actual Startup Time": 103.019,
+            "Actual Total Time": 103.07,
+            "Async Capable": false,
+            "Inner Unique": true,
+            "Join Type": "Left",
+            "Node Type": "Nested Loop",
+            "Parallel Aware": false,
+            "Plan Rows": 1,
+            "Plan Width": 435,
+            "Plans": [
+              {
+                "Actual Loops": 1,
+                "Actual Rows": 20,
+                "Actual Startup Time": 103.008,
+                "Actual Total Time": 103.011,
+                "Async Capable": false,
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Parent Relationship": "InitPlan",
+                "Plan Rows": 1,
+                "Plan Width": 84,
+                "Plans": [
+                  {
+                    "Actual Loops": 1,
+                    "Actual Rows": 20,
+                    "Actual Startup Time": 103.007,
+                    "Actual Total Time": 103.01,
+                    "Async Capable": false,
+                    "Node Type": "Sort",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 1,
+                    "Plan Width": 84,
+                    "Plans": [
+                      {
+                        "Actual Loops": 1,
+                        "Actual Rows": 1000,
+                        "Actual Startup Time": 100.102,
+                        "Actual Total Time": 102.777,
+                        "Async Capable": false,
+                        "Node Type": "WindowAgg",
+                        "Parallel Aware": false,
+                        "Parent Relationship": "Outer",
+                        "Plan Rows": 1,
+                        "Plan Width": 84,
+                        "Plans": [
+                          {
+                            "Actual Loops": 1,
+                            "Actual Rows": 1000,
+                            "Actual Startup Time": 99.715,
+                            "Actual Total Time": 99.888,
+                            "Alias": "candidate",
+                            "Async Capable": false,
+                            "Node Type": "Subquery Scan",
+                            "Parallel Aware": false,
+                            "Parent Relationship": "Outer",
+                            "Plan Rows": 1,
+                            "Plan Width": 135,
+                            "Plans": [
+                              {
+                                "Actual Loops": 1,
+                                "Actual Rows": 1000,
+                                "Actual Startup Time": 99.712,
+                                "Actual Total Time": 99.804,
+                                "Async Capable": false,
+                                "Node Type": "Limit",
+                                "Parallel Aware": false,
+                                "Parent Relationship": "Subquery",
+                                "Plan Rows": 1,
+                                "Plan Width": 135,
+                                "Plans": [
+                                  {
+                                    "Actual Loops": 1,
+                                    "Actual Rows": 1000,
+                                    "Actual Startup Time": 99.711,
+                                    "Actual Total Time": 99.747,
+                                    "Async Capable": false,
+                                    "Node Type": "Sort",
+                                    "Parallel Aware": false,
+                                    "Parent Relationship": "Outer",
+                                    "Plan Rows": 1,
+                                    "Plan Width": 135,
+                                    "Plans": [
+                                      {
+                                        "Actual Loops": 1,
+                                        "Actual Rows": 20000,
+                                        "Actual Startup Time": 1.095,
+                                        "Actual Total Time": 91.248,
+                                        "Async Capable": false,
+                                        "Inner Unique": false,
+                                        "Join Filter": "((me.category_id = c.category_id) AND (s.space_id = me.space_id) AND CASE WHEN ($1 = 'full'::text) THEN ((c.deleted_at IS NULL) AND (s.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (s.visibility = 'public'::text) OR ($3 AND (s.visibility = 'members'::text)) OR ((s.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (c.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (c.visibility = 'public'::text) OR ($3 AND (c.visibility = 'members'::text)) OR ((c.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7))))) AND (me.visibility = ANY ('{public,members,private}'::text[])) AND ($4 OR (me.visibility = 'public'::text) OR ($3 AND (me.visibility = 'members'::text)) OR ((me.visibility = 'private'::text) AND ((me.category_id = ANY ($6)) OR (me.space_id = ANY ($7)) OR ($3 AND (me.author_user_id = $5)))))) ELSE (me.visibility = ANY ($2)) END)",
+                                        "Join Type": "Inner",
+                                        "Node Type": "Nested Loop",
+                                        "Parallel Aware": false,
+                                        "Parent Relationship": "Outer",
+                                        "Plan Rows": 1,
+                                        "Plan Width": 135,
+                                        "Plans": [
+                                          {
+                                            "Actual Loops": 1,
+                                            "Actual Rows": 20000,
+                                            "Actual Startup Time": 1.084,
+                                            "Actual Total Time": 40.287,
+                                            "Alias": "me",
+                                            "Async Capable": false,
+                                            "Exact Heap Blocks": 1178,
+                                            "Filter": "((($12 IS NULL) OR (category_id = $12)) AND (($13 IS NULL) OR (author_user_id = $13)) AND (($14 IS NULL) OR (source_created_at >= $14)) AND (($15 IS NULL) OR ($16 AND (source_created_at < $15)) OR ((NOT $16) AND (source_created_at <= $15))) AND (category_id = CASE entity_type WHEN 'thread'::text THEN (SubPlan 1) WHEN 'post'::text THEN (SubPlan 3) ELSE NULL::uuid END))",
+                                            "Lossy Heap Blocks": 0,
+                                            "Node Type": "Bitmap Heap Scan",
+                                            "Parallel Aware": false,
+                                            "Parent Relationship": "Outer",
+                                            "Plan Rows": 1,
+                                            "Plan Width": 176,
+                                            "Plans": [
+                                              {
+                                                "Actual Loops": 1,
+                                                "Actual Rows": 0,
+                                                "Actual Startup Time": 0.952,
+                                                "Actual Total Time": 0.953,
+                                                "Async Capable": false,
+                                                "Node Type": "BitmapOr",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "Outer",
+                                                "Plan Rows": 400,
+                                                "Plan Width": 0,
+                                                "Plans": [
+                                                  {
+                                                    "Actual Loops": 1,
+                                                    "Actual Rows": 20000,
+                                                    "Actual Startup Time": 0.933,
+                                                    "Actual Total Time": 0.933,
+                                                    "Async Capable": false,
+                                                    "Index Cond": "(search_vector @@ websearch_to_tsquery(($10)::regconfig, $8))",
+                                                    "Index Name": "idx_search_documents_vector",
+                                                    "Node Type": "Bitmap Index Scan",
+                                                    "Parallel Aware": false,
+                                                    "Parent Relationship": "Member",
+                                                    "Plan Rows": 100,
+                                                    "Plan Width": 0,
+                                                    "Startup Cost": 0.0,
+                                                    "Total Cost": 13.58
+                                                  },
+                                                  {
+                                                    "Actual Loops": 1,
+                                                    "Actual Rows": 0,
+                                                    "Actual Startup Time": 0.013,
+                                                    "Actual Total Time": 0.013,
+                                                    "Async Capable": false,
+                                                    "Index Cond": "(title_normalized OPERATOR(public.%) lower($8))",
+                                                    "Index Name": "idx_search_documents_title_trgm",
+                                                    "Node Type": "Bitmap Index Scan",
+                                                    "Parallel Aware": false,
+                                                    "Parent Relationship": "Member",
+                                                    "Plan Rows": 200,
+                                                    "Plan Width": 0,
+                                                    "Startup Cost": 0.0,
+                                                    "Total Cost": 13.81
+                                                  },
+                                                  {
+                                                    "Actual Loops": 1,
+                                                    "Actual Rows": 0,
+                                                    "Actual Startup Time": 0.006,
+                                                    "Actual Total Time": 0.006,
+                                                    "Async Capable": false,
+                                                    "Index Cond": "(title_normalized ~~ like_escape(lower($9), '\\'::text))",
+                                                    "Index Name": "idx_search_documents_title_trgm",
+                                                    "Node Type": "Bitmap Index Scan",
+                                                    "Parallel Aware": false,
+                                                    "Parent Relationship": "Member",
+                                                    "Plan Rows": 100,
+                                                    "Plan Width": 0,
+                                                    "Startup Cost": 0.0,
+                                                    "Total Cost": 13.31
+                                                  }
+                                                ],
+                                                "Startup Cost": 40.7,
+                                                "Total Cost": 40.7
+                                              },
+                                              {
+                                                "Actual Loops": 10000,
+                                                "Actual Rows": 1,
+                                                "Actual Startup Time": 0.001,
+                                                "Actual Total Time": 0.001,
+                                                "Alias": "t",
+                                                "Async Capable": false,
+                                                "Index Cond": "(thread_id = me.entity_id)",
+                                                "Index Name": "threads_pkey",
+                                                "Node Type": "Index Scan",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "SubPlan",
+                                                "Plan Rows": 1,
+                                                "Plan Width": 16,
+                                                "Relation Name": "threads",
+                                                "Rows Removed by Index Recheck": 0,
+                                                "Scan Direction": "Forward",
+                                                "Startup Cost": 0.29,
+                                                "Subplan Name": "SubPlan 1",
+                                                "Total Cost": 8.3
+                                              },
+                                              {
+                                                "Actual Loops": 10000,
+                                                "Actual Rows": 1,
+                                                "Actual Startup Time": 0.001,
+                                                "Actual Total Time": 0.001,
+                                                "Alias": "t_1",
+                                                "Async Capable": false,
+                                                "Index Cond": "(thread_id = (InitPlan 2).col1)",
+                                                "Index Name": "threads_pkey",
+                                                "Node Type": "Index Scan",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "SubPlan",
+                                                "Plan Rows": 1,
+                                                "Plan Width": 16,
+                                                "Plans": [
+                                                  {
+                                                    "Actual Loops": 10000,
+                                                    "Actual Rows": 1,
+                                                    "Actual Startup Time": 0.001,
+                                                    "Actual Total Time": 0.001,
+                                                    "Alias": "p",
+                                                    "Async Capable": false,
+                                                    "Index Cond": "(post_id = me.entity_id)",
+                                                    "Index Name": "posts_pkey",
+                                                    "Node Type": "Index Scan",
+                                                    "Parallel Aware": false,
+                                                    "Parent Relationship": "InitPlan",
+                                                    "Plan Rows": 1,
+                                                    "Plan Width": 16,
+                                                    "Relation Name": "posts",
+                                                    "Rows Removed by Index Recheck": 0,
+                                                    "Scan Direction": "Forward",
+                                                    "Startup Cost": 0.29,
+                                                    "Subplan Name": "InitPlan 2",
+                                                    "Total Cost": 8.3
+                                                  }
+                                                ],
+                                                "Relation Name": "threads",
+                                                "Rows Removed by Index Recheck": 0,
+                                                "Scan Direction": "Forward",
+                                                "Startup Cost": 8.59,
+                                                "Subplan Name": "SubPlan 3",
+                                                "Total Cost": 16.61
+                                              }
+                                            ],
+                                            "Recheck Cond": "((search_vector @@ websearch_to_tsquery(($10)::regconfig, $8)) OR (title_normalized OPERATOR(public.%) lower($8)) OR (title_normalized ~~ like_escape(lower($9), '\\'::text)))",
+                                            "Relation Name": "search_documents",
+                                            "Rows Removed by Filter": 0,
+                                            "Rows Removed by Index Recheck": 0,
+                                            "Startup Cost": 40.7,
+                                            "Total Cost": 10938.88
+                                          },
+                                          {
+                                            "Actual Loops": 20000,
+                                            "Actual Rows": 3,
+                                            "Actual Startup Time": 0.001,
+                                            "Actual Total Time": 0.002,
+                                            "Async Capable": false,
+                                            "Inner Unique": false,
+                                            "Join Filter": "(s.space_id = c.space_id)",
+                                            "Join Type": "Inner",
+                                            "Node Type": "Nested Loop",
+                                            "Parallel Aware": false,
+                                            "Parent Relationship": "Inner",
+                                            "Plan Rows": 3,
+                                            "Plan Width": 70,
+                                            "Plans": [
+                                              {
+                                                "Actual Loops": 20000,
+                                                "Actual Rows": 1,
+                                                "Actual Startup Time": 0.0,
+                                                "Actual Total Time": 0.0,
+                                                "Alias": "s",
+                                                "Async Capable": false,
+                                                "Node Type": "Seq Scan",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "Outer",
+                                                "Plan Rows": 1,
+                                                "Plan Width": 23,
+                                                "Relation Name": "spaces",
+                                                "Startup Cost": 0.0,
+                                                "Total Cost": 1.01
+                                              },
+                                              {
+                                                "Actual Loops": 20000,
+                                                "Actual Rows": 3,
+                                                "Actual Startup Time": 0.0,
+                                                "Actual Total Time": 0.0,
+                                                "Alias": "c",
+                                                "Async Capable": false,
+                                                "Node Type": "Seq Scan",
+                                                "Parallel Aware": false,
+                                                "Parent Relationship": "Inner",
+                                                "Plan Rows": 3,
+                                                "Plan Width": 47,
+                                                "Relation Name": "categories",
+                                                "Startup Cost": 0.0,
+                                                "Total Cost": 1.03
+                                              }
+                                            ],
+                                            "Rows Removed by Join Filter": 0,
+                                            "Startup Cost": 0.0,
+                                            "Total Cost": 2.08
+                                          }
+                                        ],
+                                        "Rows Removed by Join Filter": 40000,
+                                        "Startup Cost": 40.7,
+                                        "Total Cost": 10941.38
+                                      }
+                                    ],
+                                    "Sort Key": [
+                                      "me.source_created_at DESC",
+                                      "me.entity_id DESC"
+                                    ],
+                                    "Sort Method": "top-N heapsort",
+                                    "Sort Space Type": "Memory",
+                                    "Sort Space Used": 564,
+                                    "Startup Cost": 10941.39,
+                                    "Total Cost": 10941.39
+                                  }
+                                ],
+                                "Startup Cost": 10941.39,
+                                "Total Cost": 10941.39
+                              }
+                            ],
+                            "Startup Cost": 10941.39,
+                            "Total Cost": 10941.4
+                          }
+                        ],
+                        "Startup Cost": 10941.39,
+                        "Total Cost": 10941.69
+                      }
+                    ],
+                    "Sort Key": [
+                      "(GREATEST((ts_rank_cd(candidate.search_vector, websearch_to_tsquery(($10)::regconfig, $8), 32))::double precision, (public.similarity(candidate.title_normalized, lower($8)) * '0.2'::double precision))) DESC",
+                      "candidate.source_created_at DESC",
+                      "candidate.indexed_at DESC",
+                      "candidate.entity_type",
+                      "candidate.entity_id DESC"
+                    ],
+                    "Sort Method": "top-N heapsort",
+                    "Sort Space Type": "Memory",
+                    "Sort Space Used": 27,
+                    "Startup Cost": 10941.7,
+                    "Total Cost": 10941.7
+                  }
+                ],
+                "Startup Cost": 10941.7,
+                "Subplan Name": "CTE ranked_page",
+                "Total Cost": 10941.7
+              },
+              {
+                "Actual Loops": 1,
+                "Actual Rows": 20,
+                "Actual Startup Time": 103.015,
+                "Actual Total Time": 103.055,
+                "Async Capable": false,
+                "Inner Unique": true,
+                "Join Type": "Inner",
+                "Node Type": "Nested Loop",
+                "Parallel Aware": false,
+                "Parent Relationship": "Outer",
+                "Plan Rows": 1,
+                "Plan Width": 404,
+                "Plans": [
+                  {
+                    "Actual Loops": 1,
+                    "Actual Rows": 20,
+                    "Actual Startup Time": 103.008,
+                    "Actual Total Time": 103.012,
+                    "Alias": "page",
+                    "Async Capable": false,
+                    "CTE Name": "ranked_page",
+                    "Node Type": "CTE Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 1,
+                    "Plan Width": 160,
+                    "Startup Cost": 0.0,
+                    "Total Cost": 0.02
+                  },
+                  {
+                    "Actual Loops": 20,
+                    "Actual Rows": 1,
+                    "Actual Startup Time": 0.002,
+                    "Actual Total Time": 0.002,
+                    "Alias": "document",
+                    "Async Capable": false,
+                    "Index Cond": "(search_document_id = page.search_document_id)",
+                    "Index Name": "search_documents_pkey",
+                    "Node Type": "Index Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Inner",
+                    "Plan Rows": 1,
+                    "Plan Width": 276,
+                    "Relation Name": "search_documents",
+                    "Rows Removed by Index Recheck": 0,
+                    "Scan Direction": "Forward",
+                    "Startup Cost": 0.29,
+                    "Total Cost": 8.3
+                  }
+                ],
+                "Startup Cost": 0.29,
+                "Total Cost": 8.33
+              },
+              {
+                "Actual Loops": 20,
+                "Actual Rows": 1,
+                "Actual Startup Time": 0.0,
+                "Actual Total Time": 0.0,
+                "Alias": "author",
+                "Async Capable": false,
+                "Index Cond": "(id = document.author_user_id)",
+                "Index Name": "users_pkey",
+                "Node Type": "Index Scan",
+                "Parallel Aware": false,
+                "Parent Relationship": "Inner",
+                "Plan Rows": 1,
+                "Plan Width": 47,
+                "Relation Name": "users",
+                "Rows Removed by Index Recheck": 0,
+                "Scan Direction": "Forward",
+                "Startup Cost": 0.13,
+                "Total Cost": 0.15
+              }
+            ],
+            "Startup Cost": 10942.12,
+            "Total Cost": 10950.18
+          },
+          "Query Parameters": "$1 = 'full', $2 = '{}', $3 = 'f', $4 = 'f', $5 = NULL, $6 = '{}', $7 = '{}', $8 = 'candidateword', $9 = '%candidateword%', $10 = 'simple', $11 = '1000', $12 = NULL, $13 = NULL, $14 = NULL, $15 = NULL, $16 = 'f', $17 = '20'",
+          "Query Text": "\nWITH ranked_page AS MATERIALIZED (\n    SELECT candidate.search_document_id,\n           candidate.entity_type, candidate.entity_id,\n           candidate.source_created_at, candidate.indexed_at,\n           candidate.category_visibility, candidate.space_visibility,\n           greatest(\n               ts_rank_cd(candidate.search_vector,\n                   websearch_to_tsquery(p_config::regconfig, p_query), 32),\n               public.similarity(candidate.title_normalized, lower(p_query)) * 0.2\n           )::double precision AS rank_score,\n           count(*) OVER () AS candidate_count\n    FROM (\n        SELECT me.search_document_id, me.entity_type, me.entity_id,\n               me.source_created_at, me.indexed_at,\n               me.search_vector, me.title_normalized,\n               c.visibility AS category_visibility,\n               s.visibility AS space_visibility\n        FROM public.search_documents me\n        JOIN public.categories c ON c.category_id = me.category_id\n        JOIN public.spaces s ON s.space_id = me.space_id\n        WHERE (CASE WHEN p_permission_mode = 'full' THEN c.deleted_at IS NULL AND (s.visibility IN ('public','members','private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (c.visibility IN ('public','members','private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (me.visibility IN ('public','members','private') AND (p_global_read OR me.visibility = 'public' OR (p_member AND me.visibility = 'members') OR (me.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (me.author_user_id = p_viewer_user_id)))))) ELSE me.visibility = ANY(p_visibility_values) END) AND me.category_id = (CASE me.entity_type WHEN 'thread' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = me.entity_id) WHEN 'post' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id)) END) AND c.space_id = me.space_id AND (me.search_vector @@ websearch_to_tsquery(p_config::regconfig, p_query) OR me.title_normalized OPERATOR(public.%) lower(p_query) OR me.title_normalized LIKE lower(p_like_pattern) ESCAPE '\\')\n    AND (p_category_filter IS NULL OR me.category_id = p_category_filter) AND (p_author_filter IS NULL OR me.author_user_id = p_author_filter)\n    AND (p_from_at IS NULL OR me.source_created_at >= p_from_at)\n    AND (p_to_at IS NULL OR (p_to_exclusive AND me.source_created_at < p_to_at) OR (NOT p_to_exclusive AND me.source_created_at <= p_to_at))\n        ORDER BY me.source_created_at DESC, me.entity_id DESC\n        LIMIT p_candidate_limit\n    ) candidate\n    ORDER BY rank_score DESC, candidate.source_created_at DESC,\n             candidate.indexed_at DESC, candidate.entity_type ASC,\n             candidate.entity_id DESC\n    LIMIT p_row_limit\n)\nSELECT page.entity_type, page.entity_id,\n       document.category_id, document.author_user_id, document.space_id,\n       document.visibility, document.title, document.body,\n       page.source_created_at, page.indexed_at, page.rank_score,\n       author.username, author.display_name,\n       page.category_visibility, page.space_visibility, page.candidate_count\nFROM ranked_page page\nJOIN public.search_documents document\n  ON document.search_document_id = page.search_document_id\nLEFT JOIN public.users author ON author.id = document.author_user_id\nORDER BY page.rank_score DESC, page.source_created_at DESC,\n         page.indexed_at DESC, page.entity_type ASC, page.entity_id DESC\n"
+        },
+        {
+          "Plan": {
+            "Actual Loops": 1,
+            "Actual Rows": 20,
+            "Actual Startup Time": 104.266,
+            "Actual Total Time": 104.268,
+            "Alias": "search_ranked_v3",
+            "Async Capable": false,
+            "Function Name": "search_ranked_v3",
+            "Node Type": "Function Scan",
+            "Parallel Aware": false,
+            "Plan Rows": 1000,
+            "Plan Width": 352,
+            "Startup Cost": 0.25,
+            "Total Cost": 10.25
+          },
+          "Query Parameters": "$1 = 'full', $2 = '{}', $3 = 'f', $4 = 'f', $5 = NULL, $6 = '{}', $7 = '{}', $8 = 'candidateword', $9 = '%candidateword%', $10 = 'simple', $11 = '1000', $12 = NULL, $13 = NULL, $14 = NULL, $15 = NULL, $16 = 'f', $17 = '20'",
+          "Query Text": "\nSELECT * FROM api.search_ranked_v3(p_permission_mode, p_visibility_values, p_member, p_global_read, p_viewer_user_id, p_category_ids, p_space_ids, p_query, p_like_pattern, p_config, p_candidate_limit, p_category_filter, p_author_filter, p_from_at, p_to_at, p_to_exclusive, p_row_limit)\n"
+        }
+      ],
+      "server_version": "17.11 (Homebrew)"
+    }
+  },
+  "committed_search_test": {
+    "file": "t/integration/postgres-search-optimization.t",
+    "source": {
+      "path": "/Users/gpicchiarelli/.codex/worktrees/sql-functions-ci-plan/GPForum/t/integration/postgres-search-optimization.t",
+      "bytes": 25249,
+      "sha256": "fa63deaadecfa03255c36e37e4347f42905ca84c0c6c8fcecc8cf1f6e4a2405a"
+    },
+    "postgresql_17_assertions": 861,
+    "postgresql_18_assertions": 861,
+    "result": "PASS",
+    "logs": [
+      {
+        "path": "/tmp/gpforum-search-optimization-v6-pg17.log",
+        "bytes": 356,
+        "sha256": "596ff34a3c737c80c262614392bf7303a1e691aab537cc176fcfb11779b3e19d"
+      },
+      {
+        "path": "/tmp/gpforum-search-optimization-v6-pg18.log",
+        "bytes": 481,
+        "sha256": "7728d8c175265f907ba31fb19f6afb74a07b067d588f60117d5e0c7ed8a47fbb"
+      }
+    ]
+  }
+}

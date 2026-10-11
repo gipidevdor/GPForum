@@ -77,6 +77,14 @@ The completed conversion and measured results are recorded in
 The [runtime role runbook](../ops/sql-api-role.md) describes activation and
 the separate credentials needed for migrations and partition maintenance.
 
+The measured search and combined-post-context follow-up adds one operation
+(195 in total) through migrations 100–102. The current search boundary is v6,
+forwarding typed arguments to its own v5 implementation; v2/v4 remain installed
+for explicit rollback. Provisioning grants only the current catalogue and
+revokes historical entry points, so an upgrade drains old processes before
+switching runtime grants. The [follow-up comparison](../architecture/sql-functions-optimization.md)
+records PostgreSQL 17/18 service measurements and supported-version plan gates.
+
 ## References
 
 - [PostgreSQL function security](https://www.postgresql.org/docs/18/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY)

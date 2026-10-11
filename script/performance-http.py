@@ -111,13 +111,29 @@ def parse_wrk(output):
     return result
 
 
-def wrk_version():
+def wrk_version(diagnostics=None):
     # The CLI prints usage and exits 1 even for a successful version query.
-    output = run_command(["wrk", "--version"], 5, accepted_codes=(0, 1))
+    log = Path(diagnostics) / "wrk-version.log" if diagnostics else None
+    output = run_command(["wrk", "--version"], 5, log=log, accepted_codes=(0, 1))
     match = re.search(r"^wrk [0-9]+(?:\.[0-9]+)+[^\n]*", output, re.MULTILINE)
-    if not match:
-        raise ValueError("wrk did not identify its version")
-    return match[0]
+    if match:
+        return match[0]
+    if not re.search(r"^wrk(?:[ \t]|$)", output, re.MULTILINE):
+        raise ValueError("wrk did not identify itself in its version output")
+    # Distribution builds can omit the upstream git-derived version banner.
+    # Query the installed package, rather than assigning an assumed release.
+    if shutil.which("dpkg-query"):
+        package_log = Path(diagnostics) / "wrk-package-version.log" if diagnostics else None
+        try:
+            package = run_command(["dpkg-query", "--show", "--showformat=${Version}", "wrk"],
+                                  5, log=package_log).strip()
+            if re.fullmatch(r"[0-9][A-Za-z0-9.+:~_-]*", package):
+                return f"wrk (distribution package {package}; CLI upstream unspecified)"
+        except (OSError, RuntimeError, subprocess.SubprocessError):
+            pass
+    # The recognizable tool can still measure; this string explicitly records
+    # that its release was not verified. The runner adds a binary fingerprint.
+    return "wrk (CLI upstream version unspecified; distribution package unavailable)"
 
 
 def parse_mojo(output):
@@ -517,8 +533,8 @@ def main(argv=None):
         versions = json.loads(run_command(["script/gpforum-carton", "exec", "perl", "-MMojolicious", "-MJSON::MaybeXS=encode_json", "-e",
                     "print encode_json({perl => \"$^V\", mojolicious => $Mojolicious::VERSION, ev => eval {require EV; \"$EV::VERSION\"}})"], 10))
         versions["postgres"] = pg["postgres"]
-        versions["wrk"] = wrk_version() if wrk_available else None
-        write_json(args.output / "http-environment.json", {
+        versions["wrk"] = None
+        environment = {
             "versions": versions, "dataset": dataset,
             "configuration": {"http_duration_seconds": args.duration,
                 "http_repetitions": args.repetitions, "http_concurrency": levels or DEFAULTS[args.mode]["concurrency"],
@@ -526,7 +542,26 @@ def main(argv=None):
                 "cache_miss_policy": "SSR store expires immediately; category model cache remains warm",
                 "read_rate_limit": 100000000, "database_settings": pg["database_settings"],
                 "backlog": 1024, "clients_per_worker": 2048,
-                "mojo_requests": "at least 100 total; at least 10 per client"}})
+                "mojo_requests": "at least 100 total; at least 10 per client"}}
+        # Preserve completed seed/PG/runtime evidence even if a generator probe
+        # fails: database/outbox suites still need accurate dataset provenance.
+        write_json(args.output / "http-environment.json", environment)
+        if wrk_available:
+            try:
+                versions["wrk"] = wrk_version(diagnostics)
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+                if generator == "wrk":
+                    raise
+                skips.append({"scenario": "wrk_version", "reason": "unused optional wrk probe failed: " + sanitize(error)})
+            if versions["wrk"] and "CLI upstream" in versions["wrk"]:
+                skips.append({"scenario": "wrk_upstream_version", "reason": versions["wrk"]})
+                binary = Path(shutil.which("wrk"))
+                if binary.is_file():
+                    environment["configuration"]["wrk_binary_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+                elif generator == "wrk":
+                    raise RuntimeError("cannot fingerprint wrk with unspecified upstream version")
+            environment["configuration"]["wrk_upstream_version_verified"] = bool(versions["wrk"] and re.match(r"^wrk [0-9]+(?:\.[0-9]+)+", versions["wrk"]))
+            write_json(args.output / "http-environment.json", environment)
         reactors = ["Poll"]
         if args.mode == "pr":
             skips.append({"scenario": "reactor_EV", "reason": "PR smoke fixes Poll; Linux main/deep compare optional EV"})

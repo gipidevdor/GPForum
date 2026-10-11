@@ -13,9 +13,11 @@ use Mojo::File       qw(path);
 use Test::More;
 
 use lib 'lib';
+use lib 't/lib';
 
 use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::HttpProbe;
+use GPForum::Test::RecordingUserAgent;
 
 our $VERSION = '0.001';
 
@@ -125,6 +127,45 @@ subtest 'plain HTTP through Mojo::UserAgent' => sub {
     is( $answer->{kind},   'refused', 'a closed port is refused' );
 };
 
+subtest 'OpenSSL handshake variants and certificate errors stay distinct' =>
+  sub {
+    for my $case (
+        [
+'SSL connect attempt failed error:0A00010B:SSL routines::wrong version number',
+            'handshake'
+        ],
+        [
+'SSL connect attempt failed error:0A0000C6:SSL routines::packet length too long',
+            'handshake'
+        ],
+        [
+'SSL connect attempt failed error:0A000139:SSL routines::record layer failure',
+            'handshake'
+        ],
+        [
+            'SSL read error error:0A000139:SSL routines::record layer failure',
+            'tls'
+        ],
+        [
+'SSL read error error:0A0000C6:SSL routines::packet length too long',
+            'tls'
+        ],
+        [
+'SSL connect attempt failed error:0A000086:SSL routines::certificate verify failed',
+            'tls'
+        ],
+      )
+    {
+        my $answer = GPForum::Service::Operations::HttpProbe->new(
+            user_agent =>
+              GPForum::Test::RecordingUserAgent->new( error => $case->[0] ),
+            can_tls => 1,
+        )->get('https://forum.example.test/health/live');
+        is( $answer->{kind},  $case->[1], $case->[0] );
+        is( $answer->{error}, $case->[0], 'the transport error is preserved' );
+    }
+  };
+
 subtest 'a port that answers plain HTTP is a handshake, through Mojo too' =>
   sub {
     if ( !Mojo::IOLoop::TLS->can_tls ) {
@@ -149,7 +190,8 @@ subtest 'a port that answers plain HTTP is a handshake, through Mojo too' =>
     waitpid $pid, 0;
     close $listener or BAIL_OUT("cannot close: $OS_ERROR");
     is( $answer->{client}, 'mojo',      'Mojo asked' );
-    is( $answer->{kind},   'handshake', 'a handshake, as curl says it' );
+    is( $answer->{kind},   'handshake', 'a handshake, as curl says it' )
+      or diag( $answer->{error} // 'no transport error returned' );
   };
 
 subtest 'why there was no answer, as an operator reads it' => sub {
@@ -182,7 +224,8 @@ done_testing();
 # 443 does when its server block has no ssl, until it is killed.
 sub _answer_plain_http ($listener) {
     while ( my $client = $listener->accept ) {
-        sysread $client, my $request, $READ_SIZE;
+        my $request;
+        sysread $client, $request, $READ_SIZE;
         print {$client} "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n"
           . "Connection: close\r\n\r\n"
           or last;

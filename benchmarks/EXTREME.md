@@ -191,3 +191,23 @@ The first ordinary CI trial preserved an infrastructure failure when a test
 assumed the caller's password could not equal `postgres`; the test was isolated
 and the complete contracts rerun with the real CI environment. Historical
 archived files were not rewritten during the language migration.
+
+The subsequent ordinary [main run 38158530813](https://github.com/gpicchiarelli/GPForum/actions/runs/38158530813)
+also completed and published its
+[permanent report](results/2026-10-11/d7bc8a523ef7f7c35515c9f1413738910b3e6d15/38158530813-1/report.md):
+210 HTTP observations (204 wrk, six Mojolicious), 121 SQL observations and six
+real PostgreSQL outbox observations, all successful. HTTP/transport errors,
+outbox losses and duplicates were zero. Measurement took 10 minutes 29 seconds;
+publication took 12 seconds and preserved the concurrently committed Sunday
+schedule. `latest.json` now points to this valid run. The data-only publication
+has no resulting CI run, confirming the publication does not loop.
+
+No compatible cross-revision baseline was available after the harness migration.
+Within that run, the three-repeat configuration comparisons found EV thread
+p99 higher by 34.2% at concurrency 10 and 25.8% at 50; EV search p95 was 18.0%
+higher at 10. Four Poll workers improved thread throughput by 45.7% at 50,
+with about 64% more summed RSS. Those are advisory configuration findings on
+this shared runner, and do not justify changing application defaults.
+The complete general CI (including its broad coverage tier) was still in
+progress when these performance runs completed; its pending stages are not
+claimed as validated by the two benchmark jobs.

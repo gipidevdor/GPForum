@@ -8,6 +8,8 @@ at the canonical path `benchmarks/results/`, alongside the harness, schema
 and documentation. Main is the requested permanent destination; a results
 branch is not required.
 
+The preliminary findings and reuse decisions are recorded in [AUDIT.md](AUDIT.md).
+
 ## When measurements run
 
 | Mode | Trigger | HTTP workload | Other evidence |

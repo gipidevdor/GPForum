@@ -76,6 +76,9 @@ class HotpathsTest(unittest.TestCase):
             self.assertEqual(plans[0]["metrics"]["sql_execution_ms"], 0.2)
             self.assertNotIn("plan", plans[0]["evidence"])
             self.assertEqual(json.loads((Path(directory) / "outbox.json").read_text())["measurements"][0]["metrics"]["lost"], 0)
+            configuration = json.loads((Path(directory) / "hotpaths-environment.json").read_text())["configuration"]["hotpaths"]
+            self.assertEqual(configuration["outbox"]["messages"], 3000)
+            self.assertEqual(configuration["outbox"]["workers"], [1, 2])
 
     def test_failure_preserves_partial_data(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_test"}):

@@ -54,6 +54,24 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["measurements"][0]["metrics"], {})
 
+    def test_worker_comparison_report_and_complete_provenance(self):
+        output = self.run_data("workers")
+        payload = evidence.read(output / "http.json")
+        scaled = copy.deepcopy(payload["measurements"])
+        for row in scaled:
+            row["workers"] = 4
+            row["metrics"]["requests_per_second"] *= 2
+        payload["measurements"].extend(scaled)
+        evidence.write(output / "http.json", payload)
+        evidence.finalize(output)
+        workers = evidence.read(output / "workers.json")
+        self.assertEqual(workers["status"], "ok")
+        self.assertEqual(len(workers["differences"]), 1)
+        self.assertEqual(workers["differences"][0]["comparison"]["classification"], "improvement")
+        self.assertEqual(workers["provenance"]["run_id"], evidence.read(output / "metadata.json")["run_id"])
+        self.assertEqual(evidence.read(output / "reactor.json")["status"], "partial")
+        self.assertIn("workers=4", (output / "report.md").read_text())
+
     def test_empty_skip_produces_no_measurement_files(self):
         output = self.root / "skip"
         evidence.write(output / "metadata.json", evidence.initial("pr"))

@@ -156,6 +156,21 @@ def compare(current, baseline):
     return result
 
 
+def configuration_differences(rows, field):
+    differences = []
+    for row in rows:
+        peers = [r for r in rows if all(r.get(k) == row.get(k) for k in KEYS if k != field)]
+        if field == "workers":
+            peers.sort(key=lambda r: r[field])
+        else:
+            peers.sort(key=lambda r: (r[field] != "Mojo::Reactor::Poll", r[field]))
+        peer = peers[0]
+        if row[field] != peer[field]:
+            differences.append({k: row[k] for k in KEYS if k in row} | {
+                "value": row[field], "baseline_value": peer[field], "comparison": compare(row, peer)})
+    return differences
+
+
 def schema_validate(value, schema, definitions=None, path="$", top=None):
     """Validate the explicit JSON Schema subset used in schema-v1.json; fail on unknown keywords."""
     top = top or schema
@@ -372,13 +387,10 @@ def finalize(output, baseline=None, baseline_root=None):
         rows = [r for r in measurements if r["kind"] == "http" and field in r]
         if not rows:
             continue
-        differences = []
-        for row in rows:
-            peer = next((r for r in rows if all(r.get(k) == row.get(k) for k in KEYS if k != field) and r.get(field) != row.get(field)), None)
-            if peer:
-                differences.append({"scenario": row["scenario"], "value": row[field], "baseline_value": peer[field], "comparison": compare(row, peer)})
-        write(output / (kind + ".json"), {"schema_version": 1, "kind": kind, "status": "ok", "measurements": rows, "differences": differences,
-             "provenance": {k: metadata[k] for k in ("commit", "date", "runner", "dataset", "configuration")},
+        differences = configuration_differences(rows, field)
+        derived_status = "failed" if any(r["status"] != "ok" for r in rows) else "ok" if differences else "partial"
+        write(output / (kind + ".json"), {"schema_version": 1, "kind": kind, "status": derived_status, "measurements": rows, "differences": differences,
+             "provenance": {k: metadata[k] for k in ("commit", "date", "timestamp", "run_id", "run_attempt", "runner", "versions", "dataset", "configuration")},
              "limitations": [] if differences else [f"Only one {field} configuration measured; comparison not executed."]})
     (output / "report.md").write_text(report(metadata, summary), encoding="utf-8")
     validate(output)
@@ -415,6 +427,16 @@ def report(metadata, summary):
         comparison = row["comparison"]
         if comparison["deltas_pct"]:
             lines.append(f"| {cell(row['scenario'])} | {comparison['classification']} | {cell(', '.join(f'{k}: {v:+.1f}%' for k, v in comparison['deltas_pct'].items()))} |")
+    lines.extend(["", "## Reactor and worker configuration changes", "",
+                  "These compare configurations within this run; they are not commit regressions.", "",
+                  "| Scenario | Configuration | Compared with | Concurrency | Classification | Percentage changes |",
+                  "| --- | --- | --- | ---: | --- | --- |"])
+    for field in ("reactor", "workers"):
+        rows = [r for r in summary["measurements"] if r["kind"] == "http" and field in r]
+        for difference in configuration_differences(rows, field):
+            comparison = difference["comparison"]
+            deltas = ', '.join(f'{k}: {v:+.1f}%' for k, v in comparison['deltas_pct'].items())
+            lines.append(f"| {cell(difference['scenario'])} | {field}={cell(difference['value'])} | {cell(difference['baseline_value'])} | {difference.get('concurrency', '—')} | {comparison['classification']} | {cell(deltas)} |")
     lines.extend(["", "## Suite status and skipped tests", ""])
     for name, state in summary["suites"].items():
         lines.append(f"- {cell(name)}: **{cell(state.get('status'))}** — {cell(state.get('reason', ''))}")

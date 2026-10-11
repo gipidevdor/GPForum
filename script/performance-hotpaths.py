@@ -121,6 +121,18 @@ def collect(output, mode, disposable=False, runner=execute, deadline=None):
     profile = metadata.get("dataset", {}).get("profile", "small" if mode == "pr" else "medium")
     if profile not in ("small", "medium", "hot-thread"):
         profile = "medium"  # Legacy plan CLI label; exact custom counts remain in run metadata.
+    workers = "1" if mode == "pr" else "1,2" if mode == "main" else "1,2,4"
+    messages = 1000 if mode == "pr" else 3000 if mode == "main" else 10000
+    write(output / "hotpaths-environment.json", {"configuration": {"hotpaths": {
+        "deadline_seconds": DEADLINES[mode] if deadline is None else deadline,
+        "plan_repetitions": repeats, "plan_cli_profile_label": profile,
+        "plans": ["readers", "functions"], "analyze": True,
+        "outbox": {"messages": messages, "workers": [int(value) for value in workers.split(",")],
+                   "repetitions": repeats, "batch_size": 100, "transport": "recording no-op", "database": "fresh owned"},
+        "sql_service_comparison": {"enabled": mode == "deep", "read_iterations": 30,
+                                   "write_iterations": 10, "warmup": 5, "proxy_delay_ms": 0.5},
+        "profiling": "configured NYTProf deep only",
+    }}})
     # The static index/OFFSET gate is reused without rerunning its own plan
     # subprocess. Plans below keep machine-readable timing and full evidence.
     static_env = dict(os.environ)
@@ -173,8 +185,6 @@ def collect(output, mode, disposable=False, runner=execute, deadline=None):
                            "failure_kind": "deterministic" if any(row.get("evidence", {}).get("violations") for row in database
                                                                   if row["scenario"] == "sql-plan-" + backend)
                            else None if "failed" not in states else "infrastructure_or_harness"})
-        workers = "1" if mode == "pr" else "1,2" if mode == "main" else "1,2,4"
-        messages = 1000 if mode == "pr" else 3000 if mode == "main" else 10000
         result = runner(["script/gpforum-carton", "exec", "script/performance-outbox.pl", "--json",
                          "--messages", str(messages), "--workers", workers, "--repetitions", str(repeats)],
                         output, "outbox-postgres", timeout=300 if mode == "deep" else 150)
@@ -198,7 +208,7 @@ def collect(output, mode, disposable=False, runner=execute, deadline=None):
                        "diagnostic": result["diagnostic"]})
         if mode == "deep":
             result = runner(["script/gpforum-carton", "exec", "script/bench-sql-functions", "--json",
-                             "--read-iterations", "30", "--write-iterations", "10", "--warmup", "5"],
+                             "--read-iterations", "30", "--write-iterations", "10", "--warmup", "5", "--delay-ms", "0.5"],
                             output, "sql-functions", timeout=240)
             if result["payload"]:
                 # The existing structured operation breakdown remains intact;

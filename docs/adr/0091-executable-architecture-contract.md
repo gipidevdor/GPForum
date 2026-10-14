@@ -5,7 +5,9 @@
 Accepted. Its Mandatory Interfaces are amended by ADR 0106 (`permits`)
 and ADR 0110, which maps each to the module that implements it. Its
 reply-count rules (a `thread_counter_shards` delta, no direct counter
-update) are amended by ADR 0119.
+update) are amended by ADR 0119. Its `RunbookValidator` and
+`RuntimeSizing` boundaries are withdrawn (2026-10-14): nothing called
+either, so both modules were deleted.
 
 ## Date
 
@@ -212,15 +214,17 @@ Attachments:
 
 Operations hardening:
 
-- Operations hardening MUST use narrow `RateLimiter`, `MetricsSnapshot`,
-  `RunbookValidator`, and `RuntimeSizing` boundaries.
+- Operations hardening MUST use narrow `RateLimiter` and `MetricsSnapshot`
+  boundaries.
 - `RateLimiter` MUST provide bounded abuse throttling metadata without using
   canonical business tables as ephemeral counters.
 - `MetricsSnapshot` MUST expose runtime, realtime, rate-limit, and
   projection-lag state without secrets.
-- `RunbookValidator` MUST reject incomplete backup/restore and rollback
-  contracts.
-- `RuntimeSizing` MUST validate process pool settings before deployment.
+- Withdrawn on 2026-10-14: `RunbookValidator` (reject incomplete
+  backup/restore and rollback contracts) and `RuntimeSizing` (validate
+  process pool settings before deployment). No command, route or worker
+  ever called either, and the only process count left to size is the web
+  pool, which `GPForum::Config` derives itself.
 
 Advanced community features:
 

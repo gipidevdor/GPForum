@@ -186,7 +186,7 @@ for persistence, search, edge routing and storage.
   profiles), 0048 (mandatory GlifiStore L2, a coordination dependency
   justified by ADR).
 - Code: `lib/GPForum/OS.pm`, `lib/GPForum/OS/`, `lib/GPForum/Runtime.pm`,
-  `lib/GPForum/Config.pm`, `lib/GPForum/Service/Operations/RuntimeSizing.pm`,
+  `lib/GPForum/Config.pm`,
   `lib/GPForum/Service/Realtime/ListenerSupervisor.pm`,
   `lib/GPForum/Worker/MinionRegistrar.pm`.
 - Commands: `bin/gpforum-bench-hypnotoad`,

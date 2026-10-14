@@ -138,9 +138,9 @@ alerts where appropriate; rollback or mitigation; runbook coverage.
   (emergency toggles), 0079 (emergency controls), 0086 (deploy-time
   migrations), 0090 (search rebuild); 0009 and 0025 (outbox retry), 0012
   (operational profiles).
-- Code: `lib/GPForum/Service/Operations/RunbookValidator.pm`,
-  `bin/gpforum-migrate`, `bin/gpforum-outbox-dispatch`.
-- Tests: `t/23-operations-hardening.t`.
+- Code: `bin/gpforum-migrate`, `bin/gpforum-outbox-dispatch`.
+  `RunbookValidator`, which nothing called, was deleted on 2026-10-14.
+- Tests: `t/33-health-readiness.t`, `t/299-readiness-runbook-sections.t`.
 - Docs: `docs/DEPLOYMENT.md`, `docs/ops/upgrade.md`,
   `docs/OBSERVABILITY.md`, `docs/OUTBOX_LIFECYCLE.md`,
   `docs/ops/reactor-backend.md`, `docs/audit/failure-modes.md`,

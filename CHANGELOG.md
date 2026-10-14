@@ -2522,6 +2522,12 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **Three modules nothing called are gone.**
+  `GPForum::Service::Operations::RunbookValidator`,
+  `GPForum::Service::Operations::RuntimeSizing` and `GPForum::I18N::Namespace`
+  had no caller outside their own tests (`t/23`, `t/75`), which lose those
+  cases. ADR 0091 withdraws the two operations boundaries, and ADRs 0075 and
+  0088 stop naming the files.
 - **The dated snapshot documents are gone.** `docs/BASELINE.md`,
   `docs/OPERATIONAL_BASELINE.md`, `docs/SECURITY_BASELINE.md`,
   `docs/SECURITY_HARDENING.md`, `docs/PRODUCTION_READINESS.md` and

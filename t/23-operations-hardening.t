@@ -21,8 +21,6 @@ use GPForum::Service::Operations::OSPreflight;
 use GPForum::Service::Operations::QueryBudget;
 use GPForum::Service::Operations::RateLimiter;
 use GPForum::Service::Operations::SecurityTelemetry;
-use GPForum::Service::Operations::RunbookValidator;
-use GPForum::Service::Operations::RuntimeSizing;
 use GPForum::Service::Realtime::Hub;
 use GPForum::Test::MetricsSnapshot;
 use GPForum::Test::OperationsClock;
@@ -33,20 +31,16 @@ use GPForum::Test::RealtimeSupervisor;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS            => 106;
+const my $EXPECTED_TESTS            => 96;
 const my $HTTP_OK                   => 200;
 const my $HTTP_UNAUTHORIZED         => 401;
 const my $RATE_LIMIT                => 2;
 const my $WINDOW_SECONDS            => 60;
 const my $RESET_EPOCH               => 160;
 const my $RESET_CLOCK_EPOCH         => 200;
-const my $RETENTION_DAYS            => 30;
 const my $WEB_PROCESSES             => 2;
 const my $WORKER_PROCESSES          => 4;
 const my $REALTIME_PROCESSES        => 1;
-const my $BAD_WEB_PROCESSES         => 1;
-const my $BAD_WORKER_PROCESSES      => 99;
-const my $BAD_REALTIME_PROCESSES    => 0;
 const my $FIRST_REMAINING_ALLOWANCE => 1;
 const my $EXHAUSTED_ALLOWANCE       => 0;
 const my $BUCKET_COUNT              => 1;
@@ -253,52 +247,6 @@ is( $metrics->{query_budgets}{endpoints}{thread_view}{max_queries},
 is_deeply( $metrics->{query_budget_drift},
     {}, 'metrics omit query budget drift without schema' );
 
-my $runbook_validator = GPForum::Service::Operations::RunbookValidator->new;
-my $bad_backup        = $runbook_validator->validate_backup(
-    {
-        postgres_method => 'pg_basebackup',
-    }
-);
-ok( !$bad_backup->{ok}, 'incomplete backup runbook is rejected' );
-ok(
-    $bad_backup->{missing}{retention_days},
-    'backup runbook requires retention'
-);
-
-my $good_backup = $runbook_validator->validate_backup(
-    {
-        postgres_method       => 'pg_basebackup',
-        object_storage_policy => 'versioned bucket backup',
-        configuration_policy  => 'encrypted repository snapshot',
-        retention_days        => $RETENTION_DAYS,
-        restore_test_cadence  => 'monthly',
-    }
-);
-ok( $good_backup->{ok}, 'complete backup runbook is accepted' );
-
-my $bad_rollback = $runbook_validator->validate_rollback(
-    {
-        trigger => 'failed health checks',
-    }
-);
-ok( !$bad_rollback->{ok}, 'incomplete rollback runbook is rejected' );
-ok(
-    $bad_rollback->{missing}{health_check},
-    'rollback runbook requires health check'
-);
-
-my $good_rollback = $runbook_validator->validate_rollback(
-    {
-        trigger      => 'failed health checks',
-        owner        => 'operator',
-        health_check => '/health/ready',
-        forward_fix  => 'documented',
-    }
-);
-ok( $good_rollback->{ok}, 'complete rollback runbook is accepted' );
-
-my $sizing = GPForum::Service::Operations::RuntimeSizing->new;
-ok( $sizing->validate($runtime)->{ok}, 'balanced runtime sizing is accepted' );
 ok(
     GPForum::Service::Operations::OSPreflight->new( runtime => $runtime )
       ->check->{status},
@@ -430,23 +378,6 @@ my $drift_metrics = GPForum::Service::Operations::MetricsSnapshot->new(
 )->collect;
 is( $drift_metrics->{query_budget_drift}{status},
     'fail', 'metrics expose query budget drift when schema is available' );
-my $bad_runtime = GPForum::Runtime->new(
-    web_processes      => $BAD_WEB_PROCESSES,
-    worker_processes   => $BAD_WORKER_PROCESSES,
-    realtime_processes => $BAD_REALTIME_PROCESSES,
-);
-my $bad_sizing = $sizing->validate($bad_runtime);
-ok( !$bad_sizing->{ok}, 'bad runtime sizing is rejected' );
-is(
-    $bad_sizing->{errors}{realtime_processes},
-    'realtime_processes must be positive',
-    'runtime sizing requires realtime process count'
-);
-is(
-    $bad_sizing->{errors}{worker_processes},
-    'worker process count exceeds web ratio',
-    'runtime sizing limits worker ratio'
-);
 
 my $test = Test::Mojo->new('GPForum');
 $test->get_ok('/metrics');

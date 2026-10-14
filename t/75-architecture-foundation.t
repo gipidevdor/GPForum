@@ -13,7 +13,6 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Domain::EventEnvelope;
-use GPForum::I18N::Namespace;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Jobs::EventPayload;
 use GPForum::Security::BrowserHeaders;
@@ -663,18 +662,6 @@ subtest 'theme registry exposes explicit theme contracts' => sub {
     );
     is( $registry->theme_options('dark')->[2]{current},
         1, 'theme options mark the current theme' );
-};
-
-subtest 'i18n namespace helper validates translation key discipline' => sub {
-    my $namespace = GPForum::I18N::Namespace->new;
-
-    ok( $namespace->valid_key('nav.home'), 'namespaced key is valid' );
-    is( $namespace->namespace_for('moderation.report_post'),
-        'moderation', 'namespace can be extracted from key' );
-    ok(
-        !$namespace->valid_key('Missing Key'),
-        'free text is not a valid translation key'
-    );
 };
 
 done_testing();

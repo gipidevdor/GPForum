@@ -27,7 +27,7 @@ Usage: script/gpforum-evidence-archive-check [--json|--human|--help]
   --human  short plain-text validator report (default)
 
 Validates docs/ops/evidence/**/*.json with
-`script/evidence-validate --strict`, skipping blobs whose `.exit`
+`bin/gpforum evidence-validate --strict`, skipping blobs whose `.exit`
 sidecar records a harness that never produced evidence.
 EOF
 }
@@ -81,4 +81,4 @@ fi
 printf 'gpforum-evidence-archive-check: validating %s archive(s), skipped %s\n' \
     "$#" "$skipped"
 
-exec script/evidence-validate --strict "$format" "$@"
+exec bin/gpforum evidence-validate --strict "$format" "$@"

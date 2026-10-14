@@ -174,18 +174,19 @@ like(
 );
 like( $human, qr/^Nothing [ ] to [ ] fix[.]$/msx, 'and says it is fine' );
 
-my $script_json   = _capture_command( 'script/os-preflight', '--json' );
+my $script_json   = _capture_command( 'bin/gpforum', 'os-preflight', '--json' );
 my $script_report = decode_json($script_json);
-ok( $script_report->{os}{name}, 'script JSON reports detected OS name' );
+ok( $script_report->{os}{name},
+    'the front door JSON reports the detected OS name' );
 
 my $script_human = do {
     local $ENV{LC_ALL} = 'C';
-    _capture_command( 'script/os-preflight', '--human' );
+    _capture_command( 'bin/gpforum', 'os-preflight', '--human' );
 };
 like(
     $script_human,
     qr/^\S+ [ ] host: [ ] /msx,
-    'script human output names the host first'
+    'its human output names the host first'
 );
 unlike( $script_human, qr/=/msx, 'in sentences, not key=value lines' );
 

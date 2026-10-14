@@ -13,7 +13,7 @@ in-process `Test::Mojo` harness and run through a persistent multi-worker server
 Reduced CI gate:
 
 ```sh
-script/bench-hypnotoad --check --profile small --workers 2 \
+bin/gpforum hypnotoad-benchmark --check --profile small --workers 2 \
   --iterations 2 --warmup 1 --no-compare \
   --route /categories --route /health/ready
 ```
@@ -21,7 +21,7 @@ script/bench-hypnotoad --check --profile small --workers 2 \
 Local deployment evidence gate:
 
 ```sh
-script/bench-hypnotoad --check --profile small --workers 2 \
+bin/gpforum hypnotoad-benchmark --check --profile small --workers 2 \
   --iterations 20 --warmup 3 \
   --route /categories \
   --route /t/018f1004-0001-7000-8000-000000000001 \
@@ -33,7 +33,7 @@ script/bench-hypnotoad --check --profile small --workers 2 \
 Optional seeded run:
 
 ```sh
-script/bench-hypnotoad --seed --check --profile medium --workers 2 \
+bin/gpforum hypnotoad-benchmark --seed --check --profile medium --workers 2 \
   --iterations 20 --warmup 3
 ```
 
@@ -47,7 +47,7 @@ export GPFORUM_DATABASE_PASSWORD=''
 
 ## Runtime Methodology
 
-`script/bench-hypnotoad`:
+`bin/gpforum hypnotoad-benchmark`:
 
 * creates a temporary Hypnotoad app file that returns a `GPForum` application
   object;
@@ -96,16 +96,16 @@ local Perl runtime does not have a native kqueue reactor module installed.
 
 ## Worker Scaling Evidence
 
-`script/bench-hypnotoad-scaling` repeats the Hypnotoad benchmark across a worker
+`bin/gpforum hypnotoad-scaling` repeats the Hypnotoad benchmark across a worker
 set, usually `2,4,8`, using the real forum/search route surface. It reuses the
-same benchmark implementation as `script/bench-hypnotoad`, so query headers,
+same benchmark implementation as `bin/gpforum hypnotoad-benchmark`, so query headers,
 duplicate-query detection, OS runtime evidence and route thresholds remain
 consistent.
 
 Local scaling smoke:
 
 ```sh
-script/bench-hypnotoad-scaling --seed --check --profile small \
+bin/gpforum hypnotoad-scaling --seed --check --profile small \
   --worker-set 2,4,8 --iterations 2 --warmup 1 \
   --route /categories \
   --route /t/018f1004-0001-7000-8000-000000000001 \
@@ -153,7 +153,7 @@ Environment:
 Observed local run:
 
 ```sh
-script/bench-hypnotoad --check --profile small --workers 2 \
+bin/gpforum hypnotoad-benchmark --check --profile small --workers 2 \
   --iterations 3 --warmup 1 \
   --route /categories \
   --route /t/018f1004-0001-7000-8000-000000000001 \

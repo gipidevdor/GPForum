@@ -202,9 +202,9 @@ Prerequisites:
   - GPFORUM_DATABASE_DSN configured for the target app (not this client)
 
 Examples:
-  script/stress-load --dry-run --profile 100 --human
-  script/stress-load --profile smoke --base-url http://127.0.0.1:8080 --human
-  script/stress-load --profile 100 --base-url https://forum.example --check --json
+  bin/gpforum stress-load --dry-run --profile 100 --human
+  bin/gpforum stress-load --profile smoke --base-url http://127.0.0.1:8080 --human
+  bin/gpforum stress-load --profile 100 --base-url https://forum.example --check --json
   make stress-load PROFILE=smoke BASE_URL=http://127.0.0.1:8080
 
 Not part of make check / default CI.

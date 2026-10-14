@@ -106,7 +106,7 @@ mkdir -p "$evidence_dir"
 
 # 1) Live staging-host-verify (values in env file are never printed by the tool)
 # Prefer https://… so the TLS observe phase records scheme with the health probe.
-script/staging-host-verify --json \
+bin/gpforum staging-host-verify --json \
   --env-file "$evidence_env_file" \
   --base-url "$STAGING_BASE_URL" \
   ${GPFORUM_METRICS_TOKEN:+--metrics-token "$GPFORUM_METRICS_TOKEN"} \
@@ -114,42 +114,42 @@ script/staging-host-verify --json \
 
 # Staging TLS + systemd target (operator host with units installed):
 # export STAGING_BASE_URL='https://staging.example'
-# script/staging-host-verify --json --env-file "$evidence_env_file" \
+# bin/gpforum staging-host-verify --json --env-file "$evidence_env_file" \
 #   --unit-dir /etc/systemd/system --nginx-conf /etc/nginx/sites-enabled/gpforum \
 #   --systemd --base-url "$STAGING_BASE_URL" \
 #   ${GPFORUM_METRICS_TOKEN:+--metrics-token "$GPFORUM_METRICS_TOKEN"} \
 #   > "$evidence_dir/staging-host-verify-tls-systemd.json"
 
 # 2) Stress profiles (raise GPFORUM_FORUM_READ_RATE_LIMIT for single-IP capacity windows)
-script/stress-load --json --profile smoke --base-url "$STAGING_BASE_URL" \
+bin/gpforum stress-load --json --profile smoke --base-url "$STAGING_BASE_URL" \
   > "$evidence_dir/stress-smoke.json"
-script/stress-load --json --profile 100 --base-url "$STAGING_BASE_URL" \
+bin/gpforum stress-load --json --profile 100 --base-url "$STAGING_BASE_URL" \
   > "$evidence_dir/stress-100.json"
 # Profiles 100/500 archived on Cloud Agent VM; 1000 optional (p95 residual on 4 vCPU):
-script/stress-load --json --profile 500 --base-url "$STAGING_BASE_URL" \
+bin/gpforum stress-load --json --profile 500 --base-url "$STAGING_BASE_URL" \
   > "$evidence_dir/stress-500.json"
-script/stress-load --json --profile 1000 --base-url "$STAGING_BASE_URL" \
+bin/gpforum stress-load --json --profile 1000 --base-url "$STAGING_BASE_URL" \
   > "$evidence_dir/stress-1000.json"
 
 # 3) Mail (dry-run always; --send only on a mailbox you control on staging SMTP)
-script/mail-check --json --dry-run \
+bin/gpforum mail-check --json --dry-run \
   > "$evidence_dir/mail-check-dry.json"
 # Staging SMTP/sendmail controlled send (never commit secrets; JSON is redacted):
-# script/mail-check --json --send --to you@example.test \
+# bin/gpforum mail-check --json --send --to you@example.test \
 #   > "$evidence_dir/mail-check-send.json"
 # Confirm evidence: secrets_redacted=true and no password/token plaintext.
 
 # 3b) Identity mail lifecycle (test transport; not a substitute for SMTP --send)
-script/mail-lifecycle-check --json --simulate \
+bin/gpforum mail-lifecycle-check --json --simulate \
   > "$evidence_dir/mail-lifecycle-simulate.json"
 
 # 3c) Dead-letter staging check (in-memory Dispatcher path; live /admin/jobs still open)
-script/dead-letter-check --json --simulate \
+bin/gpforum dead-letter-check --json --simulate \
   > "$evidence_dir/dead-letter-simulate.json"
 
 # Copy JSON into docs/ops/evidence/<date>-*/ only after redacting secrets.
 # Validate before archiving:
-# script/evidence-validate --strict --json \
+# bin/gpforum evidence-validate --strict --json \
 #   "$evidence_dir"/staging-host-verify-live.json \
 #   "$evidence_dir"/stress-100.json \
 #   "$evidence_dir"/mail-check-dry.json \
@@ -174,13 +174,13 @@ status_line() {
 print_status() {
     print_banner
     printf 'entrypoint\tlabel\tpath\n'
-    status_line script/staging-host-verify staging-host-verify
-    status_line script/stress-load stress-load
-    status_line script/mail-check mail-check
-    status_line script/mail-lifecycle-check mail-lifecycle-check
-    status_line script/dead-letter-check dead-letter-check
-    status_line script/evidence-validate evidence-validate
-    status_line script/evidence-meta evidence-meta
+    status_line bin/gpforum staging-host-verify
+    status_line bin/gpforum stress-load
+    status_line bin/gpforum mail-check
+    status_line bin/gpforum mail-lifecycle-check
+    status_line bin/gpforum dead-letter-check
+    status_line bin/gpforum evidence-validate
+    status_line bin/gpforum evidence-meta
     status_line script/bootstrap-deps bootstrap-deps
     status_line docs/ops/staging-host.md staging-host-doc
     status_line docs/ops/stress-load.md stress-load-doc

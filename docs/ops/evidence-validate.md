@@ -8,11 +8,11 @@ treating it as private-beta *preparation* evidence.
 ## Entrypoint
 
 ```sh
-script/evidence-validate --human \
+bin/gpforum evidence-validate --human \
   docs/ops/evidence/2026-09-20-cloud-agent-live/staging-host-verify.json \
   docs/ops/evidence/2026-09-20-cloud-agent-live/stress-load-100.json
 
-script/evidence-validate --strict --json /tmp/gpforum-evidence-live/*.json
+bin/gpforum evidence-validate --strict --json /tmp/gpforum-evidence-live/*.json
 # or: make evidence-validate FILES='a.json b.json'
 ```
 
@@ -33,7 +33,7 @@ without the markers validate as `degraded` (or `fail` under `--strict`).
 Re-stamp with:
 
 ```sh
-script/evidence-meta --write path/to/archive.json
+bin/gpforum evidence-meta --write path/to/archive.json
 ```
 
 Exit `0` for `pass` or `degraded`. `fail` is non-zero (`1`); misuse is `2`.
@@ -46,7 +46,7 @@ not every PostgreSQL metric or recovery invariant:
 ```sh
 script/postgres-diagnostics --validate diagnostics.json
 script/pitr-drill --validate pitr.json
-script/evidence-validate --strict --human diagnostics.json pitr.json
+bin/gpforum evidence-validate --strict --human diagnostics.json pitr.json
 ```
 
 Every harness above, and this validator, reports an error it raises instead

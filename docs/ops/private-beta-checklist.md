@@ -28,17 +28,17 @@ on a real target, and operator runbook evidence.
 | Carton deps | `script/bootstrap-deps --postgres` (`--rebuild-local` if `local/` incomplete) | `script/bootstrap-deps`, `Makefile` | `script/gpforum-carton exec perl -MConst::Fast -e 1` succeeds |
 | Homebrew PATH | `script/gpforum-homebrew-env` | `docs/ops/staging-drills.md` | On macOS, `psql` / `pg_dump` / `pg_config` resolve under Homebrew's `postgresql@NN` keg (no-op skip on Linux) |
 | Migrations | `gpforum migrate` | `docs/DEPLOYMENT.md` | Target DB schema at current migration head (`001`–`036` on `main`) |
-| Query budget | `script/query-budget --sync` then `--check` | `docs/PERFORMANCE.md#query-budgets` | Catalog synced; readiness not 503 for empty budgets |
-| Staging DB drill | `script/staging-drill` | `docs/ops/staging-drills.md` | Fresh migrate, upgrade path, dump/restore on throwaway DBs |
-| Attachments + deploy checklist | `script/staging-drill-attachments` | `docs/ops/staging-drills.md` | Populated throwaway `var/attachments` restore + static (and optional host) nginx/systemd checks — **not** live install/reload |
-| Staging host verify | `script/staging-host-verify` | `docs/ops/staging-host.md` | Repo artifacts; optional env-file keys, systemd `is-active`, HTTP health — **not** an install |
-| Stress / load | `script/stress-load` | `docs/ops/stress-load.md` | Cloud Agent VM 100/500/1000 archived (`evidence/2026-09-20-cloud-agent-live/`, `…-stress500/`); staging TLS 100/500/1000 still open |
-| Mail | `script/mail-check` | `docs/ops/mail-check.md` | Transport config + dry-run / optional `--send` on staging |
-| Mail lifecycle | `script/mail-lifecycle-check` | `docs/ops/mail-check.md` | Test-transport reset/change/verify kinds; SMTP `--send` still open |
-| Dead letters | `script/dead-letter-check` | `docs/ops/dead-letters.md` | Simulate permanent→dead-letter→redispatch; live `/admin/jobs` still open |
+| Query budget | `bin/gpforum budgets --sync` then `--check` | `docs/PERFORMANCE.md#query-budgets` | Catalog synced; readiness not 503 for empty budgets |
+| Staging DB drill | `bin/gpforum staging-drill` | `docs/ops/staging-drills.md` | Fresh migrate, upgrade path, dump/restore on throwaway DBs |
+| Attachments + deploy checklist | `bin/gpforum staging-drill-attachments` | `docs/ops/staging-drills.md` | Populated throwaway `var/attachments` restore + static (and optional host) nginx/systemd checks — **not** live install/reload |
+| Staging host verify | `bin/gpforum staging-host-verify` | `docs/ops/staging-host.md` | Repo artifacts; optional env-file keys, systemd `is-active`, HTTP health — **not** an install |
+| Stress / load | `bin/gpforum stress-load` | `docs/ops/stress-load.md` | Cloud Agent VM 100/500/1000 archived (`evidence/2026-09-20-cloud-agent-live/`, `…-stress500/`); staging TLS 100/500/1000 still open |
+| Mail | `bin/gpforum mail-check` | `docs/ops/mail-check.md` | Transport config + dry-run / optional `--send` on staging |
+| Mail lifecycle | `bin/gpforum mail-lifecycle-check` | `docs/ops/mail-check.md` | Test-transport reset/change/verify kinds; SMTP `--send` still open |
+| Dead letters | `bin/gpforum dead-letter-check` | `docs/ops/dead-letters.md` | Simulate permanent→dead-letter→redispatch; live `/admin/jobs` still open |
 | Live evidence pack | `script/gpforum-evidence-live` | `docs/ops/staging-host.md` | Prints verify+stress+mail archive commands; does **not** run them or claim readiness |
-| Evidence validate | `script/evidence-validate` | `docs/ops/evidence-validate.md` | Validates archived JSON shape/secrets/claims; does **not** claim readiness |
-| Evidence meta stamp | `script/evidence-meta` | `docs/ops/evidence/README.md` | Stamps shared meta markers on legacy archives; does **not** claim readiness |
+| Evidence validate | `bin/gpforum evidence-validate` | `docs/ops/evidence-validate.md` | Validates archived JSON shape/secrets/claims; does **not** claim readiness |
+| Evidence meta stamp | `bin/gpforum evidence-meta` | `docs/ops/evidence/README.md` | Stamps shared meta markers on legacy archives; does **not** claim readiness |
 
 Print the same map as shell commands (without running drills):
 
@@ -76,14 +76,14 @@ export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum;host=…;port=5432'
 export GPFORUM_DATABASE_USER='…'
 export GPFORUM_DATABASE_PASSWORD='…'
 gpforum migrate
-script/query-budget --sync
-script/query-budget --check
+bin/gpforum budgets --sync
+bin/gpforum budgets --check
 ```
 
 ### 3. Staging DB drill
 
 ```sh
-script/staging-drill --json
+bin/gpforum staging-drill --json
 # or: make staging-drill
 ```
 
@@ -92,7 +92,7 @@ See [staging-drills.md](staging-drills.md). Throwaway databases only.
 ### 4. Attachment filesystem + deploy checklist
 
 ```sh
-script/staging-drill-attachments --json
+bin/gpforum staging-drill-attachments --json
 # or: make staging-drill-attachments
 ```
 
@@ -102,9 +102,9 @@ Missing host tools → `degraded` / `skipped`, not a live target install.
 ### 5. Staging host verify (after Hypnotoad + TLS bring-up)
 
 ```sh
-script/staging-host-verify --json
+bin/gpforum staging-host-verify --json
 # on the live host:
-script/staging-host-verify --json \
+bin/gpforum staging-host-verify --json \
   --env-file /etc/gpforum/gpforum.env \
   --unit-dir /etc/systemd/system \
   --nginx-conf /etc/nginx/sites-enabled/gpforum \
@@ -119,9 +119,9 @@ See [staging-host.md](staging-host.md). Does not install units or start Hypnotoa
 
 ```sh
 # Point at a live Hypnotoad (operator-started). Example smoke:
-script/stress-load --profile smoke --base-url http://127.0.0.1:8080 --human
+bin/gpforum stress-load --profile smoke --base-url http://127.0.0.1:8080 --human
 # Capacity profiles (staging evidence still required for beta claim):
-script/stress-load --profile 100 --base-url https://forum.example --check --json
+bin/gpforum stress-load --profile 100 --base-url https://forum.example --check --json
 ```
 
 See [stress-load.md](stress-load.md). Elevating
@@ -130,9 +130,9 @@ See [stress-load.md](stress-load.md). Elevating
 ### 7. Mail probe
 
 ```sh
-script/mail-check --human --dry-run
+bin/gpforum mail-check --human --dry-run
 # after SMTP/sendmail is configured on staging:
-script/mail-check --send --to you@example.test --human
+bin/gpforum mail-check --send --to you@example.test --human
 ```
 
 See [mail-check.md](mail-check.md).
@@ -158,7 +158,7 @@ commit on the **staging** target (not only laptop smoke):
 | CI | Green on the candidate commit | Red or skipped |
 | System Perl / Homebrew | Preflight (and Homebrew `--check` on Darwin) recorded | Version-manager Perl, missing `pg_dump` on Mac |
 | Migrate + query budget | `--apply`, `--sync`, `--check` on staging DB | Fresh install never applied; readiness 503 |
-| Staging DB drill | `script/staging-drill --json` `status=pass` | Fail or only local throwaway without notes |
+| Staging DB drill | `bin/gpforum staging-drill --json` `status=pass` | Fail or only local throwaway without notes |
 | Attachments + deploy | Attachments phase pass; deploy static pass; host verify noted | No attachment evidence; live systemd/nginx install never attempted |
 | Live deploy | Hypnotoad + TLS + env file on staging host healthy; `staging-host-verify` archived | Only rendered-sample `nginx -t`; verify never run with live flags |
 | Stress | At least profile `100` `--check` on staging hardware archived | Only VM laptop smoke / dry-run |

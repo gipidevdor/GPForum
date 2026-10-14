@@ -12,7 +12,7 @@ Use the operator environment in the shell, with the locked Perl dependencies:
 ```sh
 script/gpforum-carton exec script/postgres-diagnostics --json > diagnostics.json
 script/postgres-diagnostics --validate diagnostics.json
-script/evidence-validate --strict --human diagnostics.json
+bin/gpforum evidence-validate --strict --human diagnostics.json
 ```
 
 The first command reads `GPFORUM_DATABASE_DSN`, `GPFORUM_DATABASE_USER` and
@@ -73,7 +73,7 @@ restricted web/worker login. Limited visibility is explicitly reported.
 Use the existing command on a disposable seeded database:
 
 ```sh
-script/query-plan-evidence --functions --analyze --check --json > plans.json
+bin/gpforum query-plan-evidence --functions --analyze --check --json > plans.json
 ```
 
 It loads `auto_explain` only for its dedicated diagnostic session, sets

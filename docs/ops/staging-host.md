@@ -2,7 +2,7 @@
 
 Operator runbook for a long-lived **staging** host after the throwaway drills in
 [`staging-drills.md`](staging-drills.md). Passing
-`script/staging-host-verify` does **not** mean private-beta readiness. It only
+`bin/gpforum staging-host-verify` does **not** mean private-beta readiness. It only
 checks that in-repo artifacts exist and, when you pass live flags, that the
 env file has required **key names**, selected systemd units are active, and
 HTTP health endpoints answer.
@@ -11,17 +11,17 @@ HTTP health endpoints answer.
 
 | Step | What it proves | Tool |
 | --- | --- | --- |
-| Repo prerequisites | Deploy templates, carton wrapper, ops docs present | `script/staging-host-verify` (always) |
+| Repo prerequisites | Deploy templates, carton wrapper, ops docs present | `bin/gpforum staging-host-verify` (always) |
 | Env file settings | every setting in `/etc/gpforum/gpforum.env` passes the checks the service makes at its start, the ones `gpforum doctor` reports, under the file's `GPFORUM_ENV` (else `production`, as the units set); each problem named, values never printed | `--env-file` |
 | systemd units | `gpforum` / `gpforum-outbox` / `gpforum-scheduled-jobs.timer` report active | `--systemd` |
 | Installed unit files | Deploy contract (User / EnvironmentFile / ExecStart) for web, outbox, scheduled-jobs | `--unit-dir` |
 | Installed nginx site | Deploy contract (tcp or unix-socket template) | `--nginx-conf` |
 | HTTP health | `/health/live`, `/health/ready` by HTTP code (optional `/metrics`) | `--base-url` |
 | TLS observe | `https` scheme recorded (pair with health probe) | `--base-url https://…` |
-| DB migrate / dump | Throwaway or staging DB path | `script/staging-drill` |
-| Attachments + templates | Filesystem restore + static/host nginx/systemd samples | `script/staging-drill-attachments` |
-| Mail | Transport dry-run / optional send | `script/mail-check` |
-| Load | Concurrent HTTP profiles | `script/stress-load` |
+| DB migrate / dump | Throwaway or staging DB path | `bin/gpforum staging-drill` |
+| Attachments + templates | Filesystem restore + static/host nginx/systemd samples | `bin/gpforum staging-drill-attachments` |
+| Mail | Transport dry-run / optional send | `bin/gpforum mail-check` |
+| Load | Concurrent HTTP profiles | `bin/gpforum stress-load` |
 
 ## What this does not do
 
@@ -66,14 +66,14 @@ sudo -u gpforum gpforum budgets --check
 Repo-only (safe on a laptop, no staging required):
 
 ```sh
-script/staging-host-verify --human
+bin/gpforum staging-host-verify --human
 # or: make staging-host-verify
 ```
 
 On the staging host after bring-up:
 
 ```sh
-script/staging-host-verify --json \
+bin/gpforum staging-host-verify --json \
   --env-file /etc/gpforum/gpforum.env \
   --unit-dir /etc/systemd/system \
   --nginx-conf /etc/nginx/sites-enabled/gpforum \
@@ -101,7 +101,7 @@ commit secrets.
 
 ```sh
 # 1) Host verify
-script/staging-host-verify --json \
+bin/gpforum staging-host-verify --json \
   --env-file /etc/gpforum/gpforum.env \
   --unit-dir /etc/systemd/system \
   --nginx-conf /etc/nginx/sites-enabled/gpforum \
@@ -110,19 +110,19 @@ script/staging-host-verify --json \
   > /tmp/gpforum-staging-host-verify.json
 
 # 2) DB migrate / upgrade / dump-restore (throwaway DBs OK if major version matches)
-script/staging-drill --json > /tmp/gpforum-staging-drill.json
+bin/gpforum staging-drill --json > /tmp/gpforum-staging-drill.json
 
 # 3) Attachments filesystem + deploy template/host sample checks
-script/staging-drill-attachments --json > /tmp/gpforum-staging-drill-attachments.json
+bin/gpforum staging-drill-attachments --json > /tmp/gpforum-staging-drill-attachments.json
 
 # 4) Mail dry-run (then optional --send to a mailbox you control)
-script/mail-check --json --dry-run > /tmp/gpforum-mail-check-dry.json
-# script/mail-check --json --send --to you@example.test
+bin/gpforum mail-check --json --dry-run > /tmp/gpforum-mail-check-dry.json
+# bin/gpforum mail-check --json --send --to you@example.test
 
 # 5) Stress profiles against the live staging URL
-script/stress-load --json --profile smoke --base-url "$STAGING_BASE_URL" \
+bin/gpforum stress-load --json --profile smoke --base-url "$STAGING_BASE_URL" \
   > /tmp/gpforum-stress-smoke.json
-script/stress-load --json --profile 100 --base-url "$STAGING_BASE_URL" \
+bin/gpforum stress-load --json --profile 100 --base-url "$STAGING_BASE_URL" \
   > /tmp/gpforum-stress-100.json
 # then 500 / 1000 when the host is sized for them
 

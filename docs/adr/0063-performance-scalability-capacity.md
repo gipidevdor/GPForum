@@ -283,10 +283,10 @@ rendering and benchmarking across all bounded contexts.
   (GlifiStore L2 cache).
 - `lib/GPForum/OS.pm`, `lib/GPForum/OS/`, `bin/gpforum-benchmark`,
   `bin/gpforum-query-budget`, `bin/gpforum-query-plan-evidence`.
-- `script/query-budget`, `script/query-plan-check`,
-  `script/query-plan-evidence`, `script/benchmark-http`,
-  `script/bench-hypnotoad`, `script/bench-hypnotoad-scaling`,
-  `script/profile-nytprof`, `script/seed-performance-data`.
+- `bin/gpforum budgets`, `script/query-plan-check`,
+  `bin/gpforum query-plan-evidence`, `script/benchmark-http`,
+  `bin/gpforum hypnotoad-benchmark`, `bin/gpforum hypnotoad-scaling`,
+  `script/profile-nytprof`, `bin/gpforum performance-seed`.
 - `docs/PERFORMANCE.md`, `docs/PERFORMANCE.md#evidence-and-how-to-reproduce-it`,
   `docs/PERFORMANCE.md#database`, `docs/PERFORMANCE.md#query-budgets`,
   `docs/PERFORMANCE.md#profiling`, `docs/PERFORMANCE.md#os-tuning`,

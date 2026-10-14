@@ -24,12 +24,8 @@ on:
       - 'lib/GPForum/Command/Staging*'
       - 'lib/GPForum/Command/Evidence*'
       - 'lib/GPForum/CLI/staging_*.pm'
-      - 'script/staging-*'
-      - 'script/stress-load'
-      - 'script/gpforum-mail-*'
-      - 'script/mail-*'
-      - 'script/evidence-*'
-      - 'script/dead-letter-check'
+      - 'bin/gpforum'
+      - 'lib/GPForum/CLI/**'
       - 'script/gpforum-evidence-*'
       - 'script/gpforum-private-beta-checklist'
       - 'docs/ops/evidence/**'
@@ -48,12 +44,8 @@ on:
       - 'lib/GPForum/Command/Staging*'
       - 'lib/GPForum/Command/Evidence*'
       - 'lib/GPForum/CLI/staging_*.pm'
-      - 'script/staging-*'
-      - 'script/stress-load'
-      - 'script/gpforum-mail-*'
-      - 'script/mail-*'
-      - 'script/evidence-*'
-      - 'script/dead-letter-check'
+      - 'bin/gpforum'
+      - 'lib/GPForum/CLI/**'
       - 'script/gpforum-evidence-*'
       - 'script/gpforum-private-beta-checklist'
       - 'docs/ops/evidence/**'
@@ -117,28 +109,28 @@ jobs:
         run: mkdir -p artifacts
 
       - name: Rehearse backup and restore against PostgreSQL
-        run: script/staging-drill --json | tee artifacts/staging-drill.json
+        run: bin/gpforum staging-drill --json | tee artifacts/staging-drill.json
 
       - name: Rehearse attachment restore and deploy templates
-        run: script/staging-drill-attachments --json | tee artifacts/staging-drill-attachments.json
+        run: bin/gpforum staging-drill-attachments --json | tee artifacts/staging-drill-attachments.json
 
       - name: Verify staging host artifacts
-        run: script/staging-host-verify --json | tee artifacts/staging-host-verify.json
+        run: bin/gpforum staging-host-verify --json | tee artifacts/staging-host-verify.json
 
       - name: Probe the identity mail transport
-        run: script/mail-check --json --dry-run | tee artifacts/gpforum-mail-check-dry.json
+        run: bin/gpforum mail-check --json --dry-run | tee artifacts/gpforum-mail-check-dry.json
 
       - name: Exercise the identity mail lifecycle
-        run: script/mail-lifecycle-check --json --simulate | tee artifacts/gpforum-mail-lifecycle-check.json
+        run: bin/gpforum mail-lifecycle-check --json --simulate | tee artifacts/gpforum-mail-lifecycle-check.json
 
       - name: Exercise the dead-letter lifecycle
-        run: script/dead-letter-check --json --simulate | tee artifacts/gpforum-dead-letter-check.json
+        run: bin/gpforum dead-letter-check --json --simulate | tee artifacts/gpforum-dead-letter-check.json
 
       - name: Plan the stress-load profiles
         run: |
           set -euo pipefail
           for profile in smoke 100 500 1000; do
-            script/stress-load --dry-run --profile "$profile" --json \
+            bin/gpforum stress-load --dry-run --profile "$profile" --json \
               | tee "artifacts/stress-load-${profile}-dry.json"
           done
 
@@ -149,7 +141,7 @@ jobs:
           script/gpforum-evidence-live --status | tee artifacts/evidence-live-status.txt
 
       - name: Validate the evidence produced by this run
-        run: script/evidence-validate --strict --human artifacts/*.json
+        run: bin/gpforum evidence-validate --strict --human artifacts/*.json
 
       - name: Validate the archived evidence
         run: script/gpforum-evidence-archive-check

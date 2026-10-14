@@ -110,10 +110,10 @@ Latest local hardening verification:
 | `script/query-plan-check` | passed with 23 indexed hot-path checks and DB-backed evidence |
 | `script/gpforum-carton exec prove -lr t` | passed: 55 files, 2767 tests |
 | `script/coverage` | passed: total coverage 93.0% |
-| `script/query-plan-evidence --dry-run` | passed |
+| `bin/gpforum query-plan-evidence --dry-run` | passed |
 | `script/benchmark-http --fixture --check --iterations 5 --warmup 1` | passed |
 | `script/bench-hotpaths --iterations 1 --warmup 0 --route /health` | passed |
-| `script/query-budget --check` | passed against synchronized PostgreSQL-backed query budget rows |
+| `bin/gpforum budgets --check` | passed against synchronized PostgreSQL-backed query budget rows |
 
 ## PostgreSQL Rate Limit Storage
 

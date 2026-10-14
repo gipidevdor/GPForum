@@ -6,10 +6,10 @@ files here does **not** mean private beta is ready.
 Validate candidates before/after archiving:
 
 ```sh
-script/evidence-validate --human docs/ops/evidence/<archive>/*.json
+bin/gpforum evidence-validate --human docs/ops/evidence/<archive>/*.json
 
 # Stamp legacy archives with shared meta markers (stdout or --write):
-script/evidence-meta --write docs/ops/evidence/<archive>/staging-host-verify.json
+bin/gpforum evidence-meta --write docs/ops/evidence/<archive>/staging-host-verify.json
 ```
 
 Harness-produced JSON already includes `secrets_redacted` /

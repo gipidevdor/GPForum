@@ -465,7 +465,7 @@ sub prepare_dataset ( $mode, $diagnostics, $timeout ) {
       qw(users categories threads posts-per-thread);
     my $seed = decode_json(
         run_bounded(
-            [ 'script/seed-performance-data', '--json', @options ],
+            [ 'bin/gpforum', 'performance-seed', '--json', @options ],
             {
                 timeout => $deadline - monotonic(),
                 log     => "$diagnostics/seed.log"
@@ -473,7 +473,7 @@ sub prepare_dataset ( $mode, $diagnostics, $timeout ) {
         )
     );
     run_bounded(
-        [ 'script/query-budget', '--sync' ],
+        [ 'bin/gpforum', 'budgets', '--sync' ],
         {
             timeout => min( MAX_DURATION, $deadline - monotonic() ),
             log     => "$diagnostics/query-budget-sync.log"
@@ -657,13 +657,17 @@ sub mojo_measure ( $server, $cell, $args, $log, $deadline ) {
     );
     my $raw = run_bounded(
         [
-            'script/stress-load',    '--profile',
-            'smoke',                 '--json',
-            '--base-url',            $server->{base},
-            '--route',               $route,
-            '--concurrency',         $cell->{concurrency},
-            '--requests-per-client', $requests,
-            '--request-timeout',     REQUEST_TIMEOUT,
+            qw(bin/gpforum stress-load --profile smoke --json),
+            '--base-url',
+            $server->{base},
+            '--route',
+            $route,
+            '--concurrency',
+            $cell->{concurrency},
+            '--requests-per-client',
+            $requests,
+            '--request-timeout',
+            REQUEST_TIMEOUT,
         ],
         {
             timeout => min( MOJO_TIMEOUT, $deadline - $started ),

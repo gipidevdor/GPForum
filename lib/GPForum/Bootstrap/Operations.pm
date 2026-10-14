@@ -455,9 +455,9 @@ sub _request_id ($controller) {
     return join q{-}, 'gpforum', $PROCESS_ID, time, $request_sequence;
 }
 
-# Per-request database counts, for script/bench-hypnotoad to read back. Never
-# in production: there they would tell every client how the database is
-# queried, whatever the environment says.
+# Per-request database counts, for `gpforum hypnotoad-benchmark` to read
+# back. Never in production: there they would tell every client how the
+# database is queried, whatever the environment says.
 sub _add_benchmark_query_headers ( $controller, $request_stats, $observation ) {
     return if ( $ENV{GPFORUM_BENCHMARK_QUERY_HEADERS} || q{} ) ne '1';
     return if $controller->gp_config->is_production;

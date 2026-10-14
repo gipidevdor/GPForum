@@ -5,7 +5,7 @@ evidence. A feature is not considered materially active just because an OS
 profile declares support for it.
 
 `GPForum::OS::RuntimeEvidence` is the benchmark evidence probe used by
-`script/bench-hypnotoad`. It reports:
+`bin/gpforum hypnotoad-benchmark`. It reports:
 
 * declared event backend versus actual Mojolicious reactor class;
 * native reactor dependency status for `Mojo::Reactor::EV`, `EV` and
@@ -82,7 +82,7 @@ GPForum does not make `EV` mandatory because it is an XS dependency and the
 project must remain portable across macOS, FreeBSD and Linux. Production
 operators who need high socket concurrency should explicitly test an
 environment with `EV` installed and compare it with the Poll fallback using
-`script/bench-hypnotoad-scaling`.
+`bin/gpforum hypnotoad-scaling`.
 
 `reuse=1` is portable at the GPForum policy layer only when the detected OS
 supports `SO_REUSEPORT`. UNIX socket listen URLs intentionally do not receive
@@ -93,14 +93,14 @@ serve large static files or attachments through Perl controllers on the hot path
 
 ## Worker Scaling Evidence
 
-`script/bench-hypnotoad-scaling` runs the same real forum/search route set
+`bin/gpforum hypnotoad-scaling` runs the same real forum/search route set
 against multiple Hypnotoad worker counts. It is intended for local or nightly
 evidence, not as a heavy CI default.
 
 Example:
 
 ```sh
-script/bench-hypnotoad-scaling --seed --check --profile hot-thread \
+bin/gpforum hypnotoad-scaling --seed --check --profile hot-thread \
   --worker-set 2,4,8 --iterations 20 --warmup 3 \
   --route /categories \
   --route /c/018f1001-0001-7000-8000-000000000001 \

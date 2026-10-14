@@ -140,9 +140,9 @@ It does not revive cancelled outbox rows.
 Automate the rehearsal (in-memory dispatcher stack; EvidenceMeta JSON):
 
 ```sh
-script/dead-letter-check --simulate --human
-script/dead-letter-check --dry-run --json
-# Archive: script/dead-letter-check --json > /tmp/dead-letter-check.json
+bin/gpforum dead-letter-check --simulate --human
+bin/gpforum dead-letter-check --dry-run --json
+# Archive: bin/gpforum dead-letter-check --json > /tmp/dead-letter-check.json
 ```
 
 Exit `0` when the rehearsal passes, `1` when it fails, `2` on misuse. An

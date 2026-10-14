@@ -296,8 +296,8 @@ projection, and query in all bounded contexts.
   `lib/GPForum/Infrastructure/Id.pm`, `lib/GPForum/Infrastructure/EventRecorder.pm`,
   `lib/GPForum/Infrastructure/AuditRecord.pm`,
   `lib/GPForum/Service/Operations/`.
-- `script/query-budget`, `script/query-plan-check`,
-  `script/query-plan-evidence`, `bin/gpforum-migrate`.
+- `bin/gpforum budgets`, `script/query-plan-check`,
+  `bin/gpforum query-plan-evidence`, `bin/gpforum-migrate`.
 - `t/05-database.t`, `t/10-migrate-command.t`, `t/14-projection-offset.t`,
   `t/15-projection-generation.t`, `t/38-query-budget-command.t`,
   `t/47-query-plan-check.t`, `t/99-partition-lifecycle.t`,

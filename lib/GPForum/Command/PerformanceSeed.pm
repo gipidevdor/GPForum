@@ -268,7 +268,7 @@ sub _usage {
 
 sub _seed_error ($error) {
     return
-        'script/seed-performance-data: PostgreSQL seed failed. '
+        'gpforum performance-seed: PostgreSQL seed failed. '
       . 'Ensure DBD::Pg is installed with script/bootstrap-deps --postgres, '
       . 'the database is reachable, and migrations are applied. Error: '
       . $error;

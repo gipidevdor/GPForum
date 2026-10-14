@@ -26,7 +26,7 @@ if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all => 'set GPFORUM_TEST_DSN to run the query budget sync';
 }
 
-# script/query-budget --sync against PostgreSQL. It writes the catalog into
+# bin/gpforum budgets --sync against PostgreSQL. It writes the catalog into
 # endpoint_query_budgets -- and deletes the rows of endpoints the catalog no
 # longer has. It used to leave those, so --check reported them extra after
 # every sync, and readiness failed on query_budget_drift, until someone

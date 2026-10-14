@@ -123,7 +123,7 @@ script/gpforum-carton exec prove -lr t/05-database.t t/06-identity-web.t \
   t/103-identity-workflow.t t/146-identity-mailer.t \
   t/147-identity-email-verification.t t/152-write-unavailable.t \
   t/153-lost-response-retry.t t/154-identity-mail.t t/162-mail-check.t
-script/mail-check --human --dry-run
+bin/gpforum mail-check --human --dry-run
 script/perltidy-check
 script/perlcritic
 ```

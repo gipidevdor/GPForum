@@ -57,7 +57,7 @@ Result:
   violations, and DB-backed evidence activation when a DSN is configured;
 * `git diff --check` passed.
 
-`script/query-budget --check` now passes when pointed at the local Postgres.app
+`bin/gpforum budgets --check` now passes when pointed at the local Postgres.app
 evidence database with synchronized budget rows.
 
 ## Negative Coverage Added

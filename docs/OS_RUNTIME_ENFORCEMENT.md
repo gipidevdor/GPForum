@@ -214,7 +214,7 @@ GPFORUM_MINION_PG_URL=postgresql://gpforum_worker:password@127.0.0.1/gpforum
 ## Acceptance Commands
 
 ```sh
-script/os-preflight --json
+bin/gpforum os-preflight --json
 script/gpforum-carton exec prove -lr t/52-os-preflight.t t/53-os-runtime-policy.t
 script/perlcritic --severity 5
 ```

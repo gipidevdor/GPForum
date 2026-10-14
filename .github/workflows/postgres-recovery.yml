@@ -89,7 +89,7 @@ jobs:
         if: always() && steps.drill.outcome != 'skipped'
         run: |
           script/gpforum-carton exec script/pitr-drill --validate artifacts/postgres-recovery.json
-          script/evidence-validate --strict --human artifacts/postgres-recovery.json
+          bin/gpforum evidence-validate --strict --human artifacts/postgres-recovery.json
 
       # Never upload the cluster, physical backup or WAL archive: only the
       # structured report and the drill's sanitised diagnostic logs.

@@ -48,8 +48,8 @@ has check => undef;    # optional: a test's double; else the real check
 
 # What it prints without --human or --json. The front door's verb answers in
 # the lines an operator reads, as every other gpforum verb does (owner
-# decision D12); bin/gpforum-mail-check and script/mail-check keep the JSON
-# evidence the archived runs were made with.
+# decision D12); bin/gpforum-mail-check keeps the JSON evidence the archived
+# runs were made with, and `gpforum mail-check --json` gives it.
 has default_format => 'json';
 
 # Misuse -- an option this command does not know, all its parser rejects --

@@ -61,20 +61,20 @@ places it at:
   `t/integration/postgres-idempotency.t`, expired outbox `running` lock
   reclaim in `t/integration/postgres-outbox-reclaim.t` (wired in CI beside
   `postgres.t`). Audits treat those residuals as evidence-closed.
-- Operator staging DB drill: `script/staging-drill` /
+- Operator staging DB drill: `bin/gpforum staging-drill` /
   `docs/ops/staging-drills.md` for fresh migrate, upgrade-from-previous, and
   `pg_dump`/`pg_restore` on throwaway databases (Homebrew PostgreSQL path
   notes included).
 - Attachment filesystem + deploy checklist drill:
-  `script/staging-drill-attachments` (populated throwaway `var/attachments`
+  `bin/gpforum staging-drill-attachments` (populated throwaway `var/attachments`
   backup/restore; static nginx/systemd checks plus host `systemd-analyze
   verify` / `nginx -t` when tools are on `PATH`). Live target install/
   reload evidence remains open.
 - Staging host bring-up runbook + non-destructive verify:
-  `docs/ops/staging-host.md` / `script/staging-host-verify` (repo artifacts;
+  `docs/ops/staging-host.md` / `bin/gpforum staging-host-verify` (repo artifacts;
   optional env-file key presence, systemd `is-active`, HTTP health/metrics).
   Does not install units; live staging evidence archive remains open.
-- Operator stress-load harness: `script/stress-load` /
+- Operator stress-load harness: `bin/gpforum stress-load` /
   `docs/ops/stress-load.md` with profiles `smoke` / `100` / `500` / `1000`
   (live Hypnotoad+PG VM appendix recorded; staging target numbers still open).
 - Operator private-beta go/no-go checklist aggregating system-perl,

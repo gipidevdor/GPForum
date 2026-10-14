@@ -66,14 +66,10 @@ jobs:
           test -f .github/pull_request_template.md
           test -f .github/dependabot.yml
           test -f docs/adr/0000-template.md
-          test -x script/bench-hypnotoad
-          test -x script/bench-hypnotoad-scaling
           test -x script/cpan-license-check
           test -x script/gpforum-system-perl
           test -x script/perltidy-check
-          test -x script/os-preflight
           test -x script/query-plan-check
-          test -x script/query-plan-evidence
           test -x script/cpan-audit
           test -x script/gpforum-evidence-archive-check
 

@@ -11,7 +11,7 @@ on:
     paths:
       - 'deploy/**'
       - 'bin/gpforum-staging-drill-attachments'
-      - 'script/staging-drill-attachments'
+      - 'bin/gpforum'
       - '.github/workflows/deploy-units.yml'
   pull_request:
     branches:
@@ -19,7 +19,7 @@ on:
     paths:
       - 'deploy/**'
       - 'bin/gpforum-staging-drill-attachments'
-      - 'script/staging-drill-attachments'
+      - 'bin/gpforum'
       - '.github/workflows/deploy-units.yml'
   schedule:
     - cron: '29 5 * * 1'
@@ -127,10 +127,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          script/staging-drill-attachments --json | tee artifacts/staging-drill-attachments.json
+          bin/gpforum staging-drill-attachments --json | tee artifacts/staging-drill-attachments.json
 
       - name: Validate drill evidence
-        run: script/evidence-validate --strict --human artifacts/staging-drill-attachments.json
+        run: bin/gpforum evidence-validate --strict --human artifacts/staging-drill-attachments.json
 
       - name: Upload deploy evidence
         if: always()

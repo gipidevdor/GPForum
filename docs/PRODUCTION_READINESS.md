@@ -16,7 +16,7 @@ that matches the production PostgreSQL major version.
 | Persistence | `GPForum::Schema`, `Schema::Result::*`, SQL migrations in `migrations/`, PostgreSQL as the authority |
 | Worker | `Command::OutboxDispatch`, `Worker::MinionGuard`, `Worker::MinionRegistrar`, `Worker::Handler::*`, `Service::Outbox::*`, optional Minion PostgreSQL backend |
 | Realtime | `/realtime`, `Service::Realtime::*`, PostgreSQL LISTEN/NOTIFY plus outbox polling fallback; SSR remains authoritative |
-| Infra | `deploy/nginx`, `deploy/systemd`, `deploy/freebsd`, `deploy/launchd`, `script/os-preflight`, runtime policy classes |
+| Infra | `deploy/nginx`, `deploy/systemd`, `deploy/freebsd`, `deploy/launchd`, `bin/gpforum os-preflight`, runtime policy classes |
 | Observability | `/health/live`, `/health/ready`, `/metrics`, DB query observer, query budget gates, query plan evidence, benchmarks |
 
 Entrypoints:
@@ -156,8 +156,8 @@ make install-deps-postgres
 script/gpforum-carton check
 script/gpforum-carton exec bin/gpforum-migrate --plan
 script/gpforum-carton exec bin/gpforum-migrate --apply
-script/query-budget --sync
-script/query-budget --check
+bin/gpforum budgets --sync
+bin/gpforum budgets --check
 script/gpforum-carton exec bin/gpforum-admin-bootstrap --user-id USER_ID
 ```
 
@@ -178,8 +178,8 @@ script/perlcritic
 script/architecture-check
 script/query-plan-check
 script/gpforum-carton exec prove -lr t
-script/query-budget --check
-script/os-preflight --strict --json
+bin/gpforum budgets --check
+bin/gpforum os-preflight --strict --json
 ```
 
 With a real PostgreSQL evidence database:
@@ -187,7 +187,7 @@ With a real PostgreSQL evidence database:
 ```sh
 script/gpforum-carton exec bin/gpforum-migrate --apply
 script/seed-benchmark --profile small
-script/query-plan-evidence --check --profile small
+bin/gpforum query-plan-evidence --check --profile small
 script/benchmark-http --configured --check --iterations 20 --warmup 3
 script/gpforum-carton exec bin/gpforum-platform-check --with-db
 ```
@@ -214,7 +214,7 @@ Rules:
   letters, jobs/import/export, notifications, feeds, reports, rate limits, and
   search.
 - Query-shape changes must update `script/query-plan-check`,
-  `script/query-plan-evidence`, and query-budget docs/tests together.
+  `bin/gpforum query-plan-evidence`, and query-budget docs/tests together.
 
 Rollback stance:
 
@@ -378,11 +378,11 @@ Before production:
 - Restore into a staging database at least once before launch.
 - Run migrations and readiness after restore.
 - Prefer the automated throwaway drills in `docs/ops/staging-drills.md`
-  (`script/staging-drill` for migrate + dump/restore;
-  `script/staging-drill-attachments` for populated `var/attachments` restore
+  (`bin/gpforum staging-drill` for migrate + dump/restore;
+  `bin/gpforum staging-drill-attachments` for populated `var/attachments` restore
   and static plus host-available nginx/systemd checks). For live Hypnotoad/TLS
   staging bring-up and non-destructive verify, see `docs/ops/staging-host.md`
-  (`script/staging-host-verify`).
+  (`bin/gpforum staging-host-verify`).
 
 Use the existing database-and-attachment backup and integrity check:
 
@@ -399,8 +399,8 @@ dump/archive interval; a sequential copy alone is not a consistent snapshot.
 Rehearse the actual restore on newly created disposable databases:
 
 ```sh
-script/gpforum-carton exec script/staging-drill --json
-script/gpforum-carton exec script/staging-drill-attachments --json
+script/gpforum-carton exec bin/gpforum staging-drill --json
+script/gpforum-carton exec bin/gpforum staging-drill-attachments --json
 script/gpforum-carton exec script/pitr-drill --json --timeout 180
 ```
 
@@ -417,7 +417,7 @@ attachments to the same instant.
 2. Install dependencies with `make install-deps-production`
    (`carton install --deployment --without develop` from `cpanfile.snapshot`).
 3. Run `script/gpforum-carton check`.
-4. Run `script/os-preflight --strict --json`.
+4. Run `bin/gpforum os-preflight --strict --json`.
 5. Backup database and attachment storage.
 6. Apply migrations with the migrator role.
 7. Sync and check endpoint query budgets.
@@ -431,9 +431,9 @@ attachments to the same instant.
 
 Do not tune without measurement. Required evidence:
 
-- cold start: `script/bench-hypnotoad --check`;
+- cold start: `bin/gpforum hypnotoad-benchmark --check`;
 - request latency: `script/benchmark-http --configured --check`;
-- DB query shape and latency: `script/query-plan-evidence --check`;
+- DB query shape and latency: `bin/gpforum query-plan-evidence --check`;
 - worker throughput: `script/bench-outbox-dispatcher`;
 - query counts: benchmark-only DB query headers and query budget catalog.
 

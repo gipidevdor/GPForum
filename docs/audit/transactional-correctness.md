@@ -837,11 +837,11 @@ bin/gpforum performance-seed --profile hot-thread
 3. Run the read-heavy matrix with the existing harness:
 
 ```sh
-script/bench-hypnotoad-scaling --profile medium --worker-set 4,8 \
+bin/gpforum hypnotoad-scaling --profile medium --worker-set 4,8 \
   --clients 100 --iterations 100 --warmup 10 --json
-script/bench-hypnotoad-scaling --profile medium --worker-set 4,8 \
+bin/gpforum hypnotoad-scaling --profile medium --worker-set 4,8 \
   --clients 500 --iterations 100 --warmup 10 --json
-script/bench-hypnotoad-scaling --profile hot-thread --worker-set 4,8 \
+bin/gpforum hypnotoad-scaling --profile hot-thread --worker-set 4,8 \
   --clients 1000 --iterations 100 --warmup 10 --json
 ```
 

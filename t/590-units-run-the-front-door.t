@@ -35,8 +35,9 @@ our $VERSION = '0.001';
 # which finds the Perl and the dependencies the checkout installed itself:
 # `gpforum os-preflight --strict --json` before the start, `gpforum start
 # --service` for Hypnotoad, and the verbs for the outbox worker and the jobs.
-# A unit copied before this release keeps working, so it keeps the deploy
-# contract, and doctor says it differs from the release's.
+# A unit copied before this release still matches the deploy contract's
+# text, and doctor says it differs from the release's: its script/os-preflight
+# is gone, so it is printed again rather than kept.
 
 const my $ROOT          => path(q{.})->to_abs->to_string;
 const my $LABEL         => 'ExecStart through bin/gpforum';
@@ -194,7 +195,7 @@ subtest 'gpforum start --service runs Hypnotoad from local/ in its place' =>
     );
   };
 
-subtest 'a unit copied before this release keeps working' => sub {
+subtest 'a unit copied before this release is told apart' => sub {
     my $host      = _host('linux');
     my $directory = tempdir( CLEANUP => 1 );
     my $files     = _files( 'linux', $ROOT );

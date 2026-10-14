@@ -45,10 +45,10 @@ the outbox or realtime delivery.
 | --- | --- | --- |
 | Statements per page | 15 pages, anonymous and signed in, 1 to 8 statements each, the same for 1 row and 50 | `t/integration/postgres-query-budget.t` |
 | Endpoint catalog | `max_queries` from 2 (search) to 8 (thread view, admin status), at most 1 transaction, no duplicate statement | `QueryBudget`; readiness, platform check, benchmarks |
-| Query plan | the rules under [The plan gate](#the-plan-gate) | `script/query-plan-evidence --check` |
+| Query plan | the rules under [The plan gate](#the-plan-gate) | `bin/gpforum query-plan-evidence --check` |
 | Single-client latency | p95 500 to 1,000 ms, p99 1,000 to 2,000 ms, at least 1 req/s per route | `script/benchmark-http --check` |
 | Regression | 25% on p95, p99 or req/s against a saved baseline | `--baseline`, `--regression-tolerance` |
-| Concurrent load | p95 at most 2,000 ms | `script/stress-load --check` |
+| Concurrent load | p95 at most 2,000 ms | `bin/gpforum stress-load --check` |
 | PostgreSQL session | `statement_timeout` 15 s, `lock_timeout` 3 s, `idle_in_transaction_session_timeout` 10 s | `GPFORUM_DATABASE_*_TIMEOUT_MS` |
 | Search | its own `statement_timeout` of 2 s; ranks the newest 1,000 matches | `GPFORUM_SEARCH_STATEMENT_TIMEOUT_MS`, `GPFORUM_SEARCH_CANDIDATE_LIMIT` |
 
@@ -132,12 +132,12 @@ Two commands. `script/query-plan-check` is the gate CI and the operator run:
 
 1. the 26 required indexes, as the migrations leave the schema;
 2. no `OFFSET` in application or template code;
-3. with `GPFORUM_DATABASE_DSN` set, `script/query-plan-evidence --check
+3. with `GPFORUM_DATABASE_DSN` set, `bin/gpforum query-plan-evidence --check
    --analyze --profile medium`. Without a DSN that half is reported as
    `db_evidence=skipped`; CI passes `--require-db`, which turns a missing DSN
    into a failure, so the EXPLAIN half cannot quietly stop running.
 
-`script/query-plan-evidence` EXPLAINs, on the configured database, the
+`bin/gpforum query-plan-evidence` EXPLAINs, on the configured database, the
 statement each endpoint really sends. Nothing is transcribed: the SQL is
 rendered from the resultset the named method returns -- the method the
 application calls -- or, for the outbox claim, taken from `ClaimQuery::sql`
@@ -306,8 +306,8 @@ extra, or stored with other limits, usually after a deploy that changed the
 catalog. The check fails until the table matches:
 
 ```sh
-script/query-budget --sync     # bin/gpforum-query-budget --sync; makes the table match the catalog
-script/query-budget --check    # exits non-zero while drift remains, naming each endpoint
+bin/gpforum budgets --sync     # makes the table match the catalog
+bin/gpforum budgets --check    # exits non-zero while drift remains, naming each endpoint
 ```
 
 `--sync` inserts missing rows, updates rows that differ and deletes the rows
@@ -327,7 +327,7 @@ now.
 
 With `GPFORUM_BENCHMARK_QUERY_HEADERS=1` every response carries
 `X-GPForum-DB-Queries`, `-Transactions`, `-Duplicate-Queries`, `-Budget`,
-`-Budget-Endpoint` and `-Budget-Max-Queries`; `script/bench-hypnotoad` sets
+`-Budget-Endpoint` and `-Budget-Max-Queries`; `bin/gpforum hypnotoad-benchmark` sets
 it to read the counts back from a real server.
 
 ## Caching
@@ -514,9 +514,9 @@ file-descriptor limits and kernel tuning; the reverse proxy owns TLS,
 compression, buffering and static transfer.
 
 ```sh
-script/os-preflight            # human report; fails only on fail
-script/os-preflight --json
-script/os-preflight --strict   # also each finding on stderr, as the units run it
+bin/gpforum os-preflight            # human report; fails only on fail
+bin/gpforum os-preflight --json
+bin/gpforum os-preflight --strict   # also each finding on stderr, as the units run it
 ```
 
 The preflight reports the OS profile (`darwin`, `freebsd`, `linux` or
@@ -575,7 +575,7 @@ posts with bodies and revisions, counters, search documents, read state,
 bookmarks, subscriptions, notifications, feed items, reports and moderation
 actions, with fixed UUIDv7-like ids. It clears its own fixture rows first,
 so running profiles one after another on the same database is idempotent
-and leaves the last one. `script/seed-performance-data` is the older name
+and leaves the last one. `bin/gpforum performance-seed` is the older name
 for the same command; `--users`, `--categories`, `--threads` and
 `--posts-per-thread` make a custom size.
 
@@ -600,11 +600,11 @@ a 1,500-thread category).
 script/bootstrap-deps --postgres
 script/gpforum-carton exec bin/gpforum-migrate --apply
 bin/gpforum performance-seed --profile medium
-script/query-budget --sync
+bin/gpforum budgets --sync
 
 script/query-plan-check                  # static half; the plans too when GPFORUM_DATABASE_DSN is set
-script/query-plan-evidence --check --profile medium
-script/query-budget --check
+bin/gpforum query-plan-evidence --check --profile medium
+bin/gpforum budgets --check
 make integration                         # plans, budgets, page cache, migrations, on PostgreSQL
 
 script/benchmark-http --configured --check --iterations 20 --warmup 3 --profile medium
@@ -651,15 +651,15 @@ Against real processes:
 
 ```sh
 # a temporary Hypnotoad on a free port, query-count headers on
-script/bench-hypnotoad --check --profile medium --workers 4 \
+bin/gpforum hypnotoad-benchmark --check --profile medium --workers 4 \
   --iterations 10 --warmup 2 --route / --route /t/018f1004-0001-7000-8000-000000000001
 # the same routes across worker counts: run it before raising GPFORUM_WEB_PROCESSES
-script/bench-hypnotoad-scaling --seed --check --profile hot-thread \
+bin/gpforum hypnotoad-scaling --seed --check --profile hot-thread \
   --worker-set 2,4,8 --iterations 20 --warmup 3 --route /categories \
   --route /t/018f1004-0001-7000-8000-000000000001 --route '/search?q=performance'
 # concurrent clients against a running deployment; not part of make check
-script/stress-load --dry-run --profile 100 --human
-script/stress-load --profile 1000 --base-url https://forum.example --check --json
+bin/gpforum stress-load --dry-run --profile 100 --human
+bin/gpforum stress-load --profile 1000 --base-url https://forum.example --check --json
 ```
 
 `bench-hypnotoad` also runs behind a local nginx or HAProxy

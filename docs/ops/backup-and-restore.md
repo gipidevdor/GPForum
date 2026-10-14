@@ -192,7 +192,7 @@ filesystem backend does not implement object versioning. If only nightly
 copies exist, constrain the recovery point to a verified consistent backup
 and document the resulting loss of newer data.
 
-`script/staging-drill-attachments` verifies filesystem copy/restore integrity
+`bin/gpforum staging-drill-attachments` verifies filesystem copy/restore integrity
 separately; it does not verify a common PITR instant or application attachment
 references. Before resuming the forum, inspect attachment metadata and stored
 objects on an isolated restore and resolve missing objects. Keep the original

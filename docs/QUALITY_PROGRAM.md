@@ -207,7 +207,7 @@ the runbooks alone, and is warned before anything runs out.
 | A restore drill that was run, with its timings recorded | point-in-time recovery run and recorded on the development host (`docs/ops/evidence/2026-10-01-pitr-drill/`, 108 s, PostgreSQL 18.6); not yet on a production-sized database | evidence under `docs/ops/evidence/` |
 | Every readiness warning names its runbook | done: a check that is not ok carries its `runbook` path | `t/33-health-readiness.t` (every check has one, and the file exists) |
 | Each supported platform installed and run from its unit files | Debian units checked statically; FreeBSD rc script never run on FreeBSD | the platform workflows (CI not running) |
-| Upgrades are rehearsed: migrate forward from the previous release on a copy | `script/staging-drill` covers it on throwaway databases | the drill, against a release tag (none yet) |
+| Upgrades are rehearsed: migrate forward from the previous release on a copy | `bin/gpforum staging-drill` covers it on throwaway databases | the drill, against a release tag (none yet) |
 | A standby, or a written decision that there is none | done: a streaming standby through a slot, a multi-host DSN, manual failover (ADR 0112); rehearsed, with a connected application reconnecting by itself (`docs/ops/evidence/2026-10-01-standby-drill/`) | `script/standby-drill` |
 
 ### Admin console
@@ -899,7 +899,7 @@ advisory lock. Migration 049 drops the empty past months migration 038
 named. Detaching and dropping old months stays the owner's decision.
 
 **3.8 Document and test a restore. — DONE, and the finding was half wrong.**
-`script/staging-drill` **is** a restore drill: it dumps a migrated database,
+`bin/gpforum staging-drill` **is** a restore drill: it dumps a migrated database,
 restores it into a throwaway one and asserts the row counts match. That half of
 the claim does not hold.
 
@@ -1449,8 +1449,8 @@ uncaught exception, not a status anyone can branch on.
 All 24 now exit **0** on `--help`, print to stdout, and leak no `at FILE line
 N`. Five also named the wrong program — `bin/gpforum-bench-hypnotoad --help`
 answered `Usage: script/bench-hypnotoad`, and `gpforum-seed-benchmark` claimed
-to be `script/seed-performance-data`. Both entrypoints exist (`script/` is a
-shell wrapper that `exec`s the `bin/` one), so the name is taken from `$0`
+to be `script/seed-performance-data`. Both entrypoints then existed (`script/` was a
+shell wrapper that `exec`ed the `bin/` one), so the name is taken from `$0`
 rather than hardcoded: whichever was typed, the answer is truthful and
 runnable.
 

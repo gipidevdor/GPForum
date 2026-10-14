@@ -47,17 +47,17 @@ unlike(
     );
     like(
         $out,
-        qr/script\/staging-host-verify [ ] --json/msx,
+        qr/gpforum [ ] staging-host-verify [ ] --json/msx,
         '--commands prints staging-host-verify'
     );
     like(
         $out,
-        qr/script\/mail-lifecycle-check/msx,
+        qr/gpforum [ ] mail-lifecycle-check/msx,
         '--commands prints mail-lifecycle-check'
     );
     like(
         $out,
-        qr/script\/dead-letter-check/msx,
+        qr/gpforum [ ] dead-letter-check/msx,
         '--commands prints dead-letter-check'
     );
 }

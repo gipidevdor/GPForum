@@ -46,7 +46,7 @@ like( $profile_help, qr/--route/msx,
     'profile-nytprof usage documents route profiling' );
 
 my $seed_json =
-  _capture_command( 'script/seed-performance-data', '--dry-run', '--json' );
+  _capture_command( 'bin/gpforum', 'performance-seed', '--dry-run', '--json' );
 my $seed = decode_json($seed_json);
 is( $seed->{status}, 'dry-run', 'seed script supports dry-run mode' );
 is(
@@ -100,7 +100,8 @@ is( $hot_thread_seed->{dataset}{posts_per_thread},
     $HOT_THREAD_POSTS, 'hot-thread profile creates deep threads' );
 
 my $query_plan_json =
-  _capture_command( 'script/query-plan-evidence', '--dry-run', '--json' );
+  _capture_command( 'bin/gpforum', 'query-plan-evidence', '--dry-run',
+    '--json' );
 my $query_plan = decode_json($query_plan_json);
 is( $query_plan->{status}, 'ok', 'query plan evidence has dry-run mode' );
 

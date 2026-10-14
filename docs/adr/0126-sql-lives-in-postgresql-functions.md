@@ -524,7 +524,7 @@ What they say:
   statements and none; the thread page stays at 8. No budget was changed:
   each now holds what its page sends.
 - **The plan gate** reads the functions' nested plans
-  (`script/query-plan-evidence --functions`); on the plan-depth fixture
+  (`bin/gpforum query-plan-evidence --functions`); on the plan-depth fixture
   every function endpoint passes, the deep ones paging past 1,500 rows, and
   the posts function fails the deep pages once its keyset bound is taken
   out (`t/integration/postgres-sql-function-plans.t`).

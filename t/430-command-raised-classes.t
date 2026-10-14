@@ -189,7 +189,7 @@ sub _test_benchmark_without_database {
     _is_class(
         _raised( sub { $assert->() } ),
         'GPForum::X::Config',
-        'script/bench-hypnotoad requires GPFORUM_DATABASE_DSN',
+        'gpforum hypnotoad-benchmark requires GPFORUM_DATABASE_DSN',
         'a hypnotoad benchmark without a database'
     );
 

@@ -150,7 +150,7 @@ prints evidence, then drops throwaways.
   --help                 show this help
 
 Attachment blobs under var/attachments are not covered by dump/restore;
-use script/staging-drill-attachments for throwaway filesystem restore and
+use bin/gpforum staging-drill-attachments for throwaway filesystem restore and
 static nginx/systemd template checks.
 USAGE
 }

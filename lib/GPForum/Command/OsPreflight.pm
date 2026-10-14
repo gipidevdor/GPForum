@@ -226,7 +226,7 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-The command behind C<gpforum os-preflight> and C<script/os-preflight>. It
+The command behind C<gpforum os-preflight>. It
 reads the host through L<GPForum::OS::Preflight> and writes what it found
 through L<GPForum::Service::Operations::OSPreflight/findings>, in the
 operator's language, or the whole report as JSON.

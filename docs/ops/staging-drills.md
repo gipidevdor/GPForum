@@ -3,17 +3,17 @@
 Operator-runnable rehearsal for private-beta *preparation*. Passing these drills
 does **not** mean GPForum is private-beta ready. A live Hypnotoad + TLS staging
 host deploy is covered by the operator runbook in
-[`staging-host.md`](staging-host.md) (`script/staging-host-verify`).
+[`staging-host.md`](staging-host.md) (`bin/gpforum staging-host-verify`).
 
 ## What this covers
 
 | Phase | PASS means | Entrypoint |
 | --- | --- | --- |
-| Fresh migrate | Throwaway empty DB applies every migration; `schema_versions` count matches `migrations/`; a second `--apply` adds zero versions | `script/staging-drill` |
-| Upgrade path | Throwaway DB applies all but the latest migration, then `bin/gpforum-migrate --apply` reaches the full count | `script/staging-drill` |
-| Dump / restore | `pg_dump -Fc` of a migrated (optionally seeded) DB restores into a second throwaway DB with matching `schema_versions`, `users`, and `threads` counts | `script/staging-drill` |
-| Attachment filesystem | Throwaway workspace with a populated `var/attachments` tree is written via `FilesystemStorage`, copied to a backup tree, wiped, restored into the same layout, and SHA-256 / byte verified | `script/staging-drill-attachments` |
-| Deploy checklist | Static: `deploy/systemd/*.service` and `deploy/nginx/*.conf` templates include `User`, `EnvironmentFile`, `ExecStart` via `script/gpforum-carton`, and nginx `upstream`. Host (when available): `systemd-analyze verify` on rendered sample units and `nginx -t` on rendered sample configs (temp paths + unprivileged listen rewrite for non-root distro nginx); missing tools → phase `skipped`, overall may be `degraded` | `script/staging-drill-attachments` |
+| Fresh migrate | Throwaway empty DB applies every migration; `schema_versions` count matches `migrations/`; a second `--apply` adds zero versions | `bin/gpforum staging-drill` |
+| Upgrade path | Throwaway DB applies all but the latest migration, then `bin/gpforum-migrate --apply` reaches the full count | `bin/gpforum staging-drill` |
+| Dump / restore | `pg_dump -Fc` of a migrated (optionally seeded) DB restores into a second throwaway DB with matching `schema_versions`, `users`, and `threads` counts | `bin/gpforum staging-drill` |
+| Attachment filesystem | Throwaway workspace with a populated `var/attachments` tree is written via `FilesystemStorage`, copied to a backup tree, wiped, restored into the same layout, and SHA-256 / byte verified | `bin/gpforum staging-drill-attachments` |
+| Deploy checklist | Static: `deploy/systemd/*.service` and `deploy/nginx/*.conf` templates include `User`, `EnvironmentFile`, `ExecStart` via `script/gpforum-carton`, and nginx `upstream`. Host (when available): `systemd-analyze verify` on rendered sample units and `nginx -t` on rendered sample configs (temp paths + unprivileged listen rewrite for non-root distro nginx); missing tools → phase `skipped`, overall may be `degraded` | `bin/gpforum staging-drill-attachments` |
 
 ## What this does not cover
 
@@ -26,7 +26,7 @@ host deploy is covered by the operator runbook in
   deploy drill may run `systemd-analyze verify` / `nginx -t` against
   **rendered sample** configs when those binaries are on `PATH`; that is not
   a live host install. Use [`staging-host.md`](staging-host.md) for bring-up
-  and `script/staging-host-verify` for non-destructive observation.
+  and `bin/gpforum staging-host-verify` for non-destructive observation.
 - Mail delivery, load tests, or private-beta product gates.
 
 ## Prerequisites
@@ -72,7 +72,7 @@ export GPFORUM_DATABASE_USER="$USER"
 ```
 
 You still need OS system Perl 5.40+ (Homebrew's `perl` or distro
-`/usr/bin/perl`) and `make install-deps-postgres` before `script/staging-drill`.
+`/usr/bin/perl`) and `make install-deps-postgres` before `bin/gpforum staging-drill`.
 Stop with `pg_ctl -D "$HOME/gpforum-pgdata" stop` when finished.
 
 The DSN database name is only the admin/maintenance connection target. The drill
@@ -86,24 +86,24 @@ Default JSON evidence (paste into ops notes):
 ```sh
 gpforum staging-drill --json
 # equivalent wrapper:
-script/staging-drill --json
+bin/gpforum staging-drill --json
 ```
 
 Human summary:
 
 ```sh
-script/staging-drill --human
+bin/gpforum staging-drill --human
 ```
 
 Optional knobs:
 
 ```sh
-script/staging-drill --database gpforum_drill_manual \
+bin/gpforum staging-drill --database gpforum_drill_manual \
   --seed-profile small \
   --json
 
-script/staging-drill --skip-upgrade --seed-profile none --json
-script/staging-drill --keep-databases --human   # debug; operator must drop later
+bin/gpforum staging-drill --skip-upgrade --seed-profile none --json
+bin/gpforum staging-drill --keep-databases --human   # debug; operator must drop later
 ```
 
 Make target (optional; not part of `make check` / default CI):
@@ -119,15 +119,15 @@ No PostgreSQL required. Default JSON evidence:
 ```sh
 gpforum staging-drill-attachments --json
 # equivalent wrapper:
-script/staging-drill-attachments --json
+bin/gpforum staging-drill-attachments --json
 ```
 
 Human summary / phase filters:
 
 ```sh
-script/staging-drill-attachments --human
-script/staging-drill-attachments --attachments-only --json
-script/staging-drill-attachments --deploy-only --human
+bin/gpforum staging-drill-attachments --human
+bin/gpforum staging-drill-attachments --attachments-only --json
+bin/gpforum staging-drill-attachments --deploy-only --human
 ```
 
 Make target (optional; not part of `make check` / default CI):
@@ -178,8 +178,8 @@ reason in `error` and the EvidenceMeta markers.
 
 ## Recording a run
 
-1. Run `script/staging-drill --json` against a staging-like PostgreSQL major version.
-2. Run `script/staging-drill-attachments --json` (no DB needed) and paste both
+1. Run `bin/gpforum staging-drill --json` against a staging-like PostgreSQL major version.
+2. Run `bin/gpforum staging-drill-attachments --json` (no DB needed) and paste both
    evidence blobs into the staging ops notes for that commit. Note which host
    checks ran live (`systemd-analyze verify`, `nginx -t`) versus skipped.
 3. Separately note whether a live operator attachment root (or production

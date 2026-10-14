@@ -338,9 +338,8 @@ sub trimmed ( $, $error ) {
 
 # The name the operator actually invoked. Five usage texts hardcoded a
 # script/ path, so running bin/gpforum-bench-hypnotoad --help answered with
-# "Usage: script/bench-hypnotoad". Both entrypoints exist -- script/ is a shell
-# wrapper that execs the bin/ one -- so $0 is the truthful, runnable name
-# whichever was typed.
+# "Usage: script/bench-hypnotoad", a wrapper that has since gone. $0 is
+# the truthful, runnable name whichever entrypoint was typed.
 #
 # The invocant is named rather than written as a lone `$`: a one-element
 # signature holding only a sigil is the one shape Perl itself cannot

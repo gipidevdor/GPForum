@@ -67,32 +67,32 @@ script/bootstrap-deps --postgres --rebuild-local
 
 # 2. Migrate + query budget (requires GPFORUM_DATABASE_*)
 script/gpforum-carton exec bin/gpforum-migrate --apply
-script/query-budget --sync
-script/query-budget --check
+bin/gpforum budgets --sync
+bin/gpforum budgets --check
 
 # 3. Staging DB drill (throwaway DBs)
-script/staging-drill --json
+bin/gpforum staging-drill --json
 
 # 4. Attachments + deploy checklist (static; host verify when tools exist)
-script/staging-drill-attachments --json
+bin/gpforum staging-drill-attachments --json
 
 # 5. Staging host verify (non-destructive; live flags on the host)
-script/staging-host-verify --json
-# script/staging-host-verify --json --env-file /etc/gpforum/gpforum.env \
+bin/gpforum staging-host-verify --json
+# bin/gpforum staging-host-verify --json --env-file /etc/gpforum/gpforum.env \
 #   --unit-dir /etc/systemd/system --nginx-conf /etc/nginx/sites-enabled/gpforum \
 #   --systemd --base-url https://staging.example
 
 # 6. Stress / load (requires running Hypnotoad --base-url)
-script/stress-load --dry-run --profile smoke --human
-script/stress-load --profile 100 --base-url http://127.0.0.1:8080 --check --json
+bin/gpforum stress-load --dry-run --profile smoke --human
+bin/gpforum stress-load --profile 100 --base-url http://127.0.0.1:8080 --check --json
 
 # 7. Mail probe
-script/mail-check --human --dry-run
-# script/mail-check --send --to you@example.test --human
-script/mail-lifecycle-check --simulate --human
+bin/gpforum mail-check --human --dry-run
+# bin/gpforum mail-check --send --to you@example.test --human
+bin/gpforum mail-lifecycle-check --simulate --human
 
 # 7b. Dead-letter staging check (in-memory simulate; live /admin/jobs still open)
-script/dead-letter-check --simulate --human
+bin/gpforum dead-letter-check --simulate --human
 
 # 8. Live evidence command pack (verify + stress + mail → /tmp JSON)
 # script/gpforum-evidence-live --commands
@@ -123,14 +123,14 @@ print_status() {
     status_line script/gpforum-system-perl system-perl
     status_line script/gpforum-homebrew-env homebrew-env
     status_line bin/gpforum-migrate migrate
-    status_line script/query-budget query-budget
-    status_line script/staging-drill staging-drill
-    status_line script/staging-drill-attachments staging-drill-attachments
-    status_line script/staging-host-verify staging-host-verify
-    status_line script/stress-load stress-load
-    status_line script/mail-check mail-check
-    status_line script/mail-lifecycle-check mail-lifecycle-check
-    status_line script/dead-letter-check dead-letter-check
+    status_line bin/gpforum budgets
+    status_line bin/gpforum staging-drill
+    status_line bin/gpforum staging-drill-attachments
+    status_line bin/gpforum staging-host-verify
+    status_line bin/gpforum stress-load
+    status_line bin/gpforum mail-check
+    status_line bin/gpforum mail-lifecycle-check
+    status_line bin/gpforum dead-letter-check
     status_line script/gpforum-evidence-live evidence-live
     status_line docs/ops/private-beta-checklist.md checklist-doc
     status_line docs/ops/staging-host.md staging-host-doc

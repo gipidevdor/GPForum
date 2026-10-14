@@ -307,7 +307,7 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-The CLI behind C<bin/gpforum-query-budget> and C<script/query-budget>, over
+The CLI behind C<bin/gpforum-query-budget> and C<bin/gpforum budgets>, over
 L<GPForum::Service::Operations::QueryBudget>. C<--print> shows the catalog
 in the code. C<--sync> makes the C<endpoint_query_budgets> table match it:
 missing rows are inserted, rows with other limits or notes updated, and rows

@@ -151,16 +151,16 @@ unlike(
     'and no longer describes observed query plans'
 );
 
-my $script_output = _capture_command( 'script/query-budget', '--print' );
+my $script_output = _capture_command( 'bin/gpforum', 'budgets', '--print' );
 like(
     $script_output,
     qr/thread_view [ ] queries=8/msx,
-    'query budget script wrapper prints thread view budget'
+    'the front door prints the thread view budget'
 );
 like(
     $script_output,
     qr/search [ ] queries=3/msx,
-    'query budget script wrapper prints search budget'
+    'the front door prints the search budget'
 );
 
 sub _capture_stdout {

@@ -36,7 +36,7 @@ if [ "$configured" -eq 1 ]; then
             my $error = $@ || "unknown database error";
             print STDERR "script/benchmark-http: PostgreSQL database unavailable. ";
             print STDERR "Run script/bootstrap-deps --postgres, apply migrations, ";
-            print STDERR "and run script/seed-performance-data. Error: $error";
+            print STDERR "and run bin/gpforum performance-seed. Error: $error";
             exit 2;
         }
     '

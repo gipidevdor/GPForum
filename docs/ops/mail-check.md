@@ -8,10 +8,10 @@ gpforum mail-check                                # a dry run: what it can prove
 gpforum mail-check --send --to ADDRESS            # one real message, to an address you read
 ```
 
-`gpforum doctor` runs the same dry run among its checks. The old names,
-`bin/gpforum-mail-check` and `script/mail-check`, still work and answer with
-the JSON evidence unless given `--human`; `make mail-check` runs the dry run
-as JSON.
+`gpforum doctor` runs the same dry run among its checks. The old name,
+`bin/gpforum-mail-check`, still works and answers with the JSON evidence
+unless given `--human`, as `gpforum mail-check --json` does; `make
+mail-check` runs the dry run as JSON.
 
 ## What a dry run proves, and what it does not
 
@@ -108,8 +108,8 @@ Exercise all three identity mail kinds through `Identity::Mailer` under the
 test transport (not a staging SMTP send):
 
 ```sh
-script/mail-lifecycle-check --simulate --human
-script/mail-lifecycle-check --dry-run --json
+bin/gpforum mail-lifecycle-check --simulate --human
+bin/gpforum mail-lifecycle-check --dry-run --json
 make mail-lifecycle-check
 ```
 

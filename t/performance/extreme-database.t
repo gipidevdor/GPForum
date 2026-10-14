@@ -94,8 +94,8 @@ sub prepared( $profile = 'full', $deadline = FULL_DEADLINE, $options = {} ) {
         push @calls, { command => $command, timeout => $arguments->{timeout} };
         croak 'Unexpected command without remaining budget'
           if $arguments->{timeout} <= 0;
-        if ( $command->[0] eq 'script/seed-performance-data' ) {
-            my %flags   = @{$command}[ 2 .. $#{$command} ];
+        if ( ( $command->[1] // q{} ) eq 'performance-seed' ) {
+            my ( undef, undef, undef, %flags ) = @{$command};
             my $current = $flags{'--users'} == FULL_USERS ? 'full' : 'reduced';
             if ( $current eq 'full' && $options->{timeout} ) {
                 $now += $arguments->{timeout};
@@ -201,8 +201,7 @@ subtest 'full profile observes 96,000 posts and provenance' => sub {
         '<=', FULL_ALLOCATION, 'full allocation bounded' );
     is(
         scalar(
-            grep { $_->{command}[0] eq 'script/seed-performance-data' }
-              @{$calls}
+            grep { ( $_->{command}[1] // q{} ) eq 'performance-seed' } @{$calls}
         ),
         1,
         'existing seeder runs once'
@@ -235,7 +234,7 @@ subtest 'short setup budget skips full then measures reduced' => sub {
     is( $dataset->{attempts}[0]{status},
         'skipped', 'full skipped before allocation' );
     is( $dataset->{counts}{posts}, REDUCED_COUNT, 'reduced measured' );
-    my %flags = @{ $calls->[0]{command} }[ 2 .. $#{ $calls->[0]{command} } ];
+    my ( undef, undef, undef, %flags ) = @{ $calls->[0]{command} };
     is( $flags{'--users'}, REDUCED_USERS,
         'first actual seed uses reduced profile' );
 };

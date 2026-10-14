@@ -11,7 +11,7 @@ use Test::More;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 196;
+const my $EXPECTED_TESTS => 178;
 const my $CURLY_CLASS    => '[{]';
 const my $LAUNCHD_FRONT_DOOR =>
   qr{<string>/opt/gpforum/bin/gpforum</string> \s*}msx;
@@ -100,8 +100,6 @@ for my $required_file (
     bin/gpforum-dead-letter-replay
     bin/gpforum-search-rebuild
     bin/gpforum-mail-lifecycle-check
-    script/bench-hypnotoad
-    script/bench-hypnotoad-scaling
     script/benchmark-http
     script/cpan-license-check
     script/gpforum-carton
@@ -109,21 +107,9 @@ for my $required_file (
     script/gpforum-system-perl
     script/perl-syntax-check
     script/perltidy-check
-    script/os-preflight
     script/profile-nytprof
-    script/query-budget
-    script/query-plan-evidence
-    script/seed-performance-data
-    script/staging-drill
-    script/staging-drill-attachments
-    script/staging-host-verify
-    script/stress-load
     script/gpforum-private-beta-checklist
     script/gpforum-evidence-live
-    script/evidence-validate
-    script/evidence-meta
-    script/dead-letter-check
-    script/mail-lifecycle-check
     )
   )
 {
@@ -184,8 +170,11 @@ like(
 );
 like( $ci, qr/script\/coverage/msx,  'CI runs coverage' );
 like( $ci, qr/gpforum-benchmark/msx, 'CI runs benchmark smoke' );
-like( $ci, qr/script\/bench-hypnotoad/msx,
-    'CI runs Hypnotoad benchmark smoke' );
+like(
+    $ci,
+    qr/gpforum [ ] hypnotoad-benchmark/msx,
+    'CI runs Hypnotoad benchmark smoke'
+);
 like( $ci, qr/script\/perltidy-check/msx, 'CI checks Perl formatting' );
 like(
     $ci,
@@ -204,15 +193,15 @@ like(
 );
 like(
     $ci,
-    qr/script\/query-budget [ ] --check/msx,
-    'CI checks query budget through script wrapper'
+    qr/gpforum [ ] budgets [ ] --check/msx,
+    'CI checks the query budget through the front door'
 );
 like(
     $ci,
-    qr/script\/query-plan-evidence [ ] --check/msx,
+    qr/gpforum [ ] query-plan-evidence [ ] --check/msx,
     'CI checks DB-backed query plan evidence'
 );
-like( $ci, qr/script\/os-preflight [ ] --json/msx, 'CI runs OS preflight' );
+like( $ci, qr/gpforum [ ] os-preflight [ ] --json/msx, 'CI runs OS preflight' );
 like(
     $ci,
     qr/gpforum-platform-check [ ] --with-db/msx,
@@ -276,7 +265,7 @@ like(
 );
 like(
     $readiness,
-    qr/script\/query-budget [ ] --sync/msx,
+    qr/gpforum [ ] budgets [ ] --sync/msx,
     'production readiness docs require query budget sync'
 );
 like(
@@ -438,7 +427,7 @@ like( $deployment, qr/gpforum-scheduled-jobs/msx,
     'deployment docs name the scheduled jobs timer' );
 like(
     path('docs/ops/staging-drills.md')->slurp,
-    qr/script\/staging-drill-attachments/msx,
+    qr/gpforum [ ] staging-drill-attachments/msx,
     'staging drills docs cover attachment/deploy rehearsal entrypoint'
 );
 like( path('docs/ops/staging-drills.md')->slurp,
@@ -446,7 +435,7 @@ like( path('docs/ops/staging-drills.md')->slurp,
     'staging drills docs cover the Homebrew PATH helper' );
 like(
     path('docs/ops/staging-host.md')->slurp,
-    qr/script\/staging-host-verify/msx,
+    qr/gpforum [ ] staging-host-verify/msx,
     'staging host docs cover verify entrypoint'
 );
 like(
@@ -517,37 +506,19 @@ like(
     'evidence-validate docs cover validator entrypoint'
 );
 like(
-    path('script/evidence-validate')->slurp,
-    qr/gpforum-evidence-validate/msx,
-    'evidence-validate wrapper invokes bin entrypoint'
-);
-like(
     path('docs/ops/evidence/README.md')->slurp,
     qr/gpforum-evidence-meta|EvidenceMeta/msx,
     'evidence archive README covers meta stamp'
 );
-like( path('script/evidence-meta')->slurp,
-    qr/gpforum-evidence-meta/msx,
-    'evidence-meta wrapper invokes bin entrypoint' );
 like(
     path('docs/ops/dead-letters.md')->slurp,
     qr/dead-letter-check|PRIVATE BETA|private-beta/msx,
     'dead-letters docs cover check entrypoint'
 );
 like(
-    path('script/dead-letter-check')->slurp,
-    qr/gpforum-dead-letter-check/msx,
-    'dead-letter-check wrapper invokes bin entrypoint'
-);
-like(
     path('docs/ops/mail-check.md')->slurp,
     qr/mail-lifecycle-check|PRIVATE BETA|private-beta/msx,
     'mail-check docs cover lifecycle entrypoint'
-);
-like(
-    path('script/mail-lifecycle-check')->slurp,
-    qr/gpforum-mail-lifecycle-check/msx,
-    'mail-lifecycle-check wrapper invokes bin entrypoint'
 );
 
 # A service file's lines that run something: its comments name script/ to

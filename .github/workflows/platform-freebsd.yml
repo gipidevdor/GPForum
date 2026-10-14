@@ -81,7 +81,7 @@ jobs:
             sh -n deploy/freebsd/gpforum
 
             echo '--- OS preflight'
-            script/os-preflight --json
+            bin/gpforum os-preflight --json
 
             echo '--- tests (PostgreSQL integration tests skip without a server)'
             script/gpforum-carton exec prove -lr t

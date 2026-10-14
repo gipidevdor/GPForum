@@ -96,7 +96,7 @@ Result:
 * `script/query-plan-check` passed with 23 indexed query plans, 0 `OFFSET`
   violations, and DB-backed evidence activation when a DSN is configured.
 
-`script/query-budget --check` passes when pointed at the synchronized local
+`bin/gpforum budgets --check` passes when pointed at the synchronized local
 Postgres.app evidence database. `--sync` does not rewrite an already-aligned
 catalog row.
 

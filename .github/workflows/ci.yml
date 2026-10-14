@@ -121,10 +121,10 @@ jobs:
         run: bin/gpforum performance-seed --profile small
 
       - name: Sync query budget catalog
-        run: script/query-budget --sync
+        run: bin/gpforum budgets --sync
 
       - name: Check query budget catalog
-        run: script/query-budget --check
+        run: bin/gpforum budgets --check
 
       - name: Run architecture boundary check
         run: script/architecture-check
@@ -133,7 +133,7 @@ jobs:
         run: script/query-plan-check --require-db
 
       - name: Run OS preflight
-        run: script/os-preflight --json
+        run: bin/gpforum os-preflight --json
 
       # ADR 0108: the antivirus is the one the operating system's package
       # installs. Ubuntu's clamav-daemon, started with a database holding only
@@ -180,7 +180,7 @@ jobs:
         run: script/gpforum-carton exec bin/gpforum-benchmark --fixture --check --iterations 2 --warmup 1 --route /health/live --route /categories
 
       - name: Run query plan evidence
-        run: script/query-plan-evidence --check
+        run: bin/gpforum query-plan-evidence --check
 
       - name: Run configured benchmark smoke
         run: >-
@@ -193,7 +193,7 @@ jobs:
           --route /health/ready
 
       - name: Run Hypnotoad benchmark smoke
-        run: script/bench-hypnotoad --check --profile small --workers 2 --iterations 2 --warmup 1 --no-compare --route /categories --route /health/ready
+        run: bin/gpforum hypnotoad-benchmark --check --profile small --workers 2 --iterations 2 --warmup 1 --no-compare --route /categories --route /health/ready
 
       - name: Run platform check
         run: script/gpforum-carton exec bin/gpforum-platform-check --with-db

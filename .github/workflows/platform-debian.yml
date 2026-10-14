@@ -106,7 +106,7 @@ jobs:
         run: script/architecture-check
 
       - name: Run OS preflight
-        run: script/os-preflight --json
+        run: bin/gpforum os-preflight --json
 
       - name: Run tests
         run: script/gpforum-carton exec prove -lr t

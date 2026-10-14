@@ -30,9 +30,9 @@ const my $EXIT_SHIFT       => 8;
 const my $REPO_ROOT_MARKER => 'cpanfile';
 const my $ROOT_WALK_LIMIT  => 8;
 const my @STUB_SCRIPTS => (
-    'script/gpforum-carton',      'script/os-preflight',
-    'bin/gpforum',                'bin/gpforum-outbox-dispatch',
-    'bin/gpforum-scheduled-jobs', 'bin/hypnotoad',
+    'script/gpforum-carton',       'bin/gpforum',
+    'bin/gpforum-outbox-dispatch', 'bin/gpforum-scheduled-jobs',
+    'bin/hypnotoad',
 );
 const my $RESIDUAL_HOST =>
 'Installing units into a live systemd, nginx reload on a host vhost, Hypnotoad process start, and TLS termination remain operator steps beyond this drill.';

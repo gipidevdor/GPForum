@@ -2515,6 +2515,20 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **`script/` no longer wraps the front door.** The fifteen shell wrappers
+  that only exec'd a `bin/gpforum-*` command (`bench-hypnotoad`,
+  `bench-hypnotoad-scaling`, `query-budget`, `query-plan-evidence`,
+  `seed-performance-data`, `dead-letter-check`, `evidence-meta`,
+  `evidence-validate`, `mail-check`, `mail-lifecycle-check`, `os-preflight`,
+  `staging-drill`, `staging-drill-attachments`, `staging-host-verify`,
+  `stress-load`) are gone. The Makefile, the CI workflows, the performance
+  harness, the private-beta helpers and the documents type `bin/gpforum
+  VERB` (`bin/gpforum budgets`, `bin/gpforum hypnotoad-benchmark`,
+  `bin/gpforum performance-seed`, and the verb of the same name for the
+  rest); `docs/ENTRYPOINTS.md` says `script/` holds no such wrapper. A
+  service unit printed before the units ran `bin/gpforum` alone still names
+  `script/os-preflight`: print it again with `gpforum service print`.
+
 - Composer JavaScript behavior checks run with
   `node --test t/js/composer.test.cjs` in Ubuntu CI. They use Node's built-in
   runner with no npm packages; Node is a development/CI tool, adds no application

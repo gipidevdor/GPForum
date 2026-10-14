@@ -106,7 +106,7 @@ sub _run ( $self, @arguments ) {
     }
     catch ($error) {
         print {*STDERR}
-          'script/query-plan-evidence: PostgreSQL query plan evidence failed. '
+          'gpforum query-plan-evidence: PostgreSQL query plan evidence failed. '
           . 'Run script/bootstrap-deps --postgres, apply migrations, '
           . "seed benchmark data, and ensure the database is reachable.\n"
           or croak 'failed to write the query plan error';

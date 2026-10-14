@@ -170,7 +170,7 @@ sub _command_json ( $command, $timeout, $log ) {
 }
 
 sub _seed ( $profile, $diagnostics, $timeout ) {
-    my @command = ( 'script/seed-performance-data', '--json' );
+    my @command = ( 'bin/gpforum', 'performance-seed', '--json' );
     for my $key ( sort keys %{ $PROFILES{$profile} } ) {
         ( my $option = $key ) =~ tr/_/-/;
         push @command, q{--} . $option, $PROFILES{$profile}{$key};
@@ -231,7 +231,7 @@ sub prepare ( $profile, $diagnostics, $deadline ) {
           };
     }
     run_bounded(
-        [ 'script/query-budget', '--sync' ],
+        [ 'bin/gpforum', 'budgets', '--sync' ],
         {
             timeout => _min(
                 SYNC_TIMEOUT, _max( 0, _remaining($deadline) - SYNC_RESERVE )

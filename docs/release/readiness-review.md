@@ -25,7 +25,7 @@ public production.
 | --- | --- | --- | --- | --- |
 | HIGH | Qualified the `me.*` filters in `PostReader::list_thread_posts` | `lib/GPForum/Service/Forum/PostReader.pm` | 500 on `/t/:thread_id` against real PostgreSQL from an ambiguous `deleted_at` after joining `post_bodies` and `users` | `t/21-forum-pagination.t`, `t/31-forum-http-readers.t`, real-DB reproduction on a seeded thread |
 | HIGH | Added `EnvironmentFile=/etc/gpforum/gpforum.env` to the systemd units | `deploy/systemd/*.service` | Production systemd deploy without explicit secret/DB environment | `t/18-github-project.t` |
-| HIGH | Documented `script/query-budget --sync` before readiness | `docs/DEPLOYMENT.md`, `docs/PRODUCTION_READINESS.md` | Fresh install migrated but readiness returning 503 because the query budget catalog is empty | `t/18-github-project.t`, real DB with `query-budget --sync --check` |
+| HIGH | Documented `bin/gpforum budgets --sync` before readiness | `docs/DEPLOYMENT.md`, `docs/PRODUCTION_READINESS.md` | Fresh install migrated but readiness returning 503 because the query budget catalog is empty | `t/18-github-project.t`, real DB with `query-budget --sync --check` |
 
 ## Go / No-Go table
 
@@ -40,14 +40,14 @@ public production.
 | Coverage | GO | `script/coverage`: PASS (gate) | Alcuni moduli operativi hanno coverage basso, ma gate passa | Aumentare coverage su realtime/controller solo se toccati |
 | Benchmark smoke | GO | Fixture e configured benchmark verdi | Numeri locali, non staging | Ripetere con dataset rappresentativo |
 | Benchmark stress | PARTIAL | Harness + live VM archives: smoke/100 + `docs/ops/evidence/2026-09-20-cloud-agent-stress500/` (500 `--check` pass ~574 req/s; 1000 peak ok, p95 residual ~2.1–2.5 s); see `docs/ops/stress-load.md` | Staging/TLS target 100/500/1000 not yet recorded; 1000 p95 on 4 vCPU | Re-run on staging hardware; archive JSON beside VM appendix |
-| Query budget | GO | `script/query-budget --sync`, `--check`: PASS; route thread max 3 query, budget ok | Catalog deve essere sincronizzato in deploy | Eseguire sync/check dopo ogni migration deploy |
+| Query budget | GO | `bin/gpforum budgets --sync`, `--check`: PASS; route thread max 3 query, budget ok | Catalog deve essere sincronizzato in deploy | Eseguire sync/check dopo ogni migration deploy |
 | Query plan | GO | `script/query-plan-check`: `offset_violations=0`; `query-plan-evidence` PASS su small | Dataset locale piccolo | Medium/hot-thread staging evidence |
 | Security audit | PARTIAL GO | Security suite mirata PASS | Bot/device anomaly non avanzati | Estendere security tests prima beta |
 | Failure mode tests | GO evidence | FM-001–FM-007 + FM-008–FM-010; reclaim OUT-002 chiuso in audit (`t/152`/`t/153`/`t/150`/`t/86`, `t/integration/postgres-{concurrency,idempotency,outbox-reclaim}.t`) | Skip senza DSN; staging reclaim end-to-end ancora manuale | Tenere suite verde con DSN in CI/ops |
-| Backup/restore | GO locale / PARTIAL staging | `pg_dump -Fc` / `pg_restore`; `script/staging-drill` + `script/staging-drill-attachments` (Homebrew notes in `docs/ops/staging-drills.md`) | Live staging RPO/RTO incompleto | Restore drill staging con allegati + deploy target |
+| Backup/restore | GO locale / PARTIAL staging | `pg_dump -Fc` / `pg_restore`; `bin/gpforum staging-drill` + `bin/gpforum staging-drill-attachments` (Homebrew notes in `docs/ops/staging-drills.md`) | Live staging RPO/RTO incompleto | Restore drill staging con allegati + deploy target |
 | Session security | GO | Sessioni server-side, revoca, scadenza, cookie flags e CSRF coperti da suite security | Revoca globale sessioni/device anomaly non avanzata | Accettabile per locale, estendere per beta |
 | Rate limiting | GO | PostgreSQL limiter, fallback telemetry e blocked audit coperti | Fallback local memory non cluster-wide | In beta usare PostgreSQL store e monitorare fallback |
-| Email lifecycle | GO codice | Reset/cambio password/email, token monouso, `Identity::Mailer`, `Worker::Handler::IdentityMail`, `docs/audit/email-lifecycle.md`, `t/146-identity-mailer.t`, `t/154-identity-mail.t`, operator `script/mail-check` (`docs/ops/mail-check.md`) | Staging SMTP/sendmail evidence not yet recorded | Run `script/mail-check --dry-run` / `--send` on staging before beta self-service |
+| Email lifecycle | GO codice | Reset/cambio password/email, token monouso, `Identity::Mailer`, `Worker::Handler::IdentityMail`, `docs/audit/email-lifecycle.md`, `t/146-identity-mailer.t`, `t/154-identity-mail.t`, operator `bin/gpforum mail-check` (`docs/ops/mail-check.md`) | Staging SMTP/sendmail evidence not yet recorded | Run `bin/gpforum mail-check --dry-run` / `--send` on staging before beta self-service |
 | Moderation workflow | GO evidence | Report/hide/lock/workflow PASS; `FOR UPDATE` + unique `command_id`; race hide in `t/integration/postgres-concurrency.t` | Staging con utenti reali ancora da drillare | Drill moderazione su staging prima beta |
 | Privacy/export/deletion | GO evidence / PARTIAL ops | Privacy rights PASS; erasure idempotency `024`; approval race in `postgres-concurrency.t` | Restore evidence con allegati ancora aperto | Attachment restore drill |
 | Audit trail integrity | GO evidence | `record_hash` + `pg_advisory_xact_lock`; due append in `postgres-concurrency.t` | Nessun gap evidence residuo prioritario | Tenere verde con DSN |
@@ -66,11 +66,11 @@ public production.
 | Coverage | GO | `script/coverage`: PASS (gate) | Some operational modules have low coverage, but the gate passes | Raise coverage on realtime/controllers only when they are touched |
 | Smoke benchmarks | GO | Fixture and configured benchmarks green | Local numbers, not staging | Repeat with a representative dataset |
 | Stress benchmarks | PARTIAL | Harness + live VM archives: smoke/100 + `docs/ops/evidence/2026-09-20-cloud-agent-stress500/` (500 `--check` pass ~574 req/s; 1000 peak ok, p95 residual ~2.1–2.5 s); see `docs/ops/stress-load.md` | Staging/TLS target 100/500/1000 not yet recorded; 1000 p95 on 4 vCPU | Re-run on staging hardware; archive JSON beside the VM appendix |
-| Query budget | GO | `script/query-budget --sync`, `--check`: PASS; the thread route uses at most 3 queries, budget ok | The catalog must be synchronized on deploy | Run sync/check after every migration deploy |
+| Query budget | GO | `bin/gpforum budgets --sync`, `--check`: PASS; the thread route uses at most 3 queries, budget ok | The catalog must be synchronized on deploy | Run sync/check after every migration deploy |
 | Query plan | GO | `script/query-plan-check`: `offset_violations=0`; `query-plan-evidence` PASS on small | Small local dataset | Medium/hot-thread staging evidence |
 | Security audit | PARTIAL GO | Targeted security suite PASS | Bot/device anomaly detection is not advanced | Extend the security tests before beta |
 | Failure mode tests | GO evidence | FM-001–FM-007 + FM-008–FM-010; reclaim OUT-002 closed in the audit (`t/152`/`t/153`/`t/150`/`t/86`, `t/integration/postgres-{concurrency,idempotency,outbox-reclaim}.t`) | Skipped without a DSN; staging reclaim end-to-end is still manual | Keep the suite green with a DSN in CI/ops |
-| Backup/restore | GO locally / PARTIAL on staging | `pg_dump -Fc` / `pg_restore`; `script/staging-drill` + `script/staging-drill-attachments` (Homebrew notes in `docs/ops/staging-drills.md`) | Live staging RPO/RTO incomplete | Staging restore drill with attachments + deploy target |
+| Backup/restore | GO locally / PARTIAL on staging | `pg_dump -Fc` / `pg_restore`; `bin/gpforum staging-drill` + `bin/gpforum staging-drill-attachments` (Homebrew notes in `docs/ops/staging-drills.md`) | Live staging RPO/RTO incomplete | Staging restore drill with attachments + deploy target |
 | Session security | GO | Server-side sessions, revocation, expiry, cookie flags, and CSRF covered by the security suite | Global session revocation / device anomaly detection are not advanced | Acceptable locally, extend for beta |
 | Rate limiting | GO | PostgreSQL limiter, fallback telemetry, and blocked-audit coverage | The local-memory fallback is not cluster-wide | In beta use the PostgreSQL store and monitor the fallback |
 | Email lifecycle | GO in code | Password/email reset and change, single-use tokens, `Identity::Mailer`, `Worker::Handler::IdentityMail`, `docs/audit/email-lifecycle.md`, `t/146-identity-mailer.t`, `t/154-identity-mail.t`, operator `script/gpforum-mail-check` (`docs/ops/mail-check.md`) | Staging SMTP/sendmail evidence not yet recorded | Run `script/gpforum-mail-check --dry-run` / `--send` on staging before self-service beta |
@@ -103,21 +103,21 @@ were not re-run for this documentation refresh. The schema on `main` is now at
 | Fresh migrate on a temporary DB | PASS | 25 migrations at the time; `001`–`036` today |
 | Upgrade 024 -> 025 on a temporary DB | PASS | `upgrade_schema_versions_before=24`, `25` afterwards, `identity_tokens_after=t` |
 | `script/seed-benchmark --profile small` | PASS | 5 users, 3 categories, 12 threads, 96 posts |
-| `script/query-budget --sync` | PASS | `synced 24 endpoint query budgets` |
-| `script/query-budget --check` | PASS | `ok endpoint query budgets aligned` |
-| `script/query-plan-evidence --check` | PASS | 12 endpoint ok, violazioni none |
+| `bin/gpforum budgets --sync` | PASS | `synced 24 endpoint query budgets` |
+| `bin/gpforum budgets --check` | PASS | `ok endpoint query budgets aligned` |
+| `bin/gpforum query-plan-evidence --check` | PASS | 12 endpoint ok, violazioni none |
 | `script/gpforum-carton exec bin/gpforum-platform-check --with-db` | PARTIAL | `query_budget_drift status=ok`, `os_preflight status=degraded` sul Mac locale per CPU/processi |
 | `pg_dump -Fc` + `pg_restore` | PASS | Restore con 25 migrazioni all'epoca; oggi 36 versioni |
-| `script/os-preflight --json` | DEGRADED | CPU count locale 1, web process default 4 cap-to-cpu; fd limit OK |
-| `script/query-plan-evidence --check` | PASS | 12 endpoints ok, no violations |
+| `bin/gpforum os-preflight --json` | DEGRADED | CPU count locale 1, web process default 4 cap-to-cpu; fd limit OK |
+| `bin/gpforum query-plan-evidence --check` | PASS | 12 endpoints ok, no violations |
 | `script/gpforum-carton exec bin/gpforum-platform-check --with-db` | PARTIAL | `query_budget_drift status=ok`, `os_preflight status=degraded` on the local Mac because of CPU/process counts |
 | `pg_dump -Fc` + `pg_restore` | PASS | Restore with 25 migrations at the time; 36 versions today |
 | `script/gpforum-os-preflight --json` | DEGRADED | Local CPU count 1, web process default 4 capped to CPU; fd limit OK |
 | `script/benchmark-http --fixture --check ...` | PASS | `/categories` p95 1.637 ms, thread fixture p95 23.375 ms |
 | `script/gpforum-carton exec script/bench-outbox-dispatcher --messages 1000,10000 --workers 1,2,4` | PASS | 0 lost, 0 duplicates, up to 10k messages |
 | `script/benchmark-http --configured --check ...` | PASS after fix | Thread hot path p95 7.917 ms, max 3 DB queries, budget ok |
-| `script/bench-hypnotoad --check --profile hot-thread --workers 2 ...` | PASS | Error rate 0, thread p95 7.295 ms, budget ok |
-| `script/bench-hypnotoad-scaling --check --profile hot-thread --worker-set 2,4 ...` | PASS | Workers 2/4 ok, 0 duplicate DB queries |
+| `bin/gpforum hypnotoad-benchmark --check --profile hot-thread --workers 2 ...` | PASS | Error rate 0, thread p95 7.295 ms, budget ok |
+| `bin/gpforum hypnotoad-scaling --check --profile hot-thread --worker-set 2,4 ...` | PASS | Workers 2/4 ok, 0 duplicate DB queries |
 | Targeted security/failure suite | PASS | 15 files, 773 tests |
 | Production config default-secret check | PASS | `production requires GPFORUM_SESSION_SECRET` |
 | Production config with secret/token | PASS | `clients=250 backlog=256 requests=1000 nofile=65536 metrics_token=set` |
@@ -129,13 +129,13 @@ were not re-run for this documentation refresh. The schema on `main` is now at
 
 | Blocker | Impact | Required action |
 | --- | --- | --- |
-| Nessun deploy staging completo con systemd/nginx/Hypnotoad e DB target | Drill DB throwaway + `script/staging-host-verify` / `docs/ops/staging-host.md` shippati; manca nginx/systemd end-to-end sul target | Eseguire bring-up da `docs/ops/staging-host.md`, poi `script/staging-host-verify --env-file … --systemd --base-url …` e archiviare JSON |
+| Nessun deploy staging completo con systemd/nginx/Hypnotoad e DB target | Drill DB throwaway + `bin/gpforum staging-host-verify` / `docs/ops/staging-host.md` shippati; manca nginx/systemd end-to-end sul target | Eseguire bring-up da `docs/ops/staging-host.md`, poi `bin/gpforum staging-host-verify --env-file … --systemd --base-url …` e archiviare JSON |
 | Stress test rappresentativo non eseguito | Live Hypnotoad+PG evidence on Cloud Agent VM archived in `docs/ops/stress-load.md` + `docs/ops/evidence/2026-09-20-cloud-agent-stress500/` (smoke/100/500 pass; 1000 peak ok, p95 residual); manca staging target | Re-run load test on staging with p50/p95/p99, error rate, worker distribution, DB latency |
-| Backup/restore non provato su staging con attachment storage | DB dump/restore + `script/staging-drill-attachments` shippati; manca evidenza live target | Drill restore completo DB + allegati + readiness su staging |
-| Mail delivery su staging non drillata | Adapter + `script/mail-check` in codice; staging evidence non ancora archiviata | Eseguire `script/mail-check --dry-run` / `--send` su staging |
-| No full staging deploy with systemd/nginx/Hypnotoad and a target DB | Throwaway DB drill + `script/staging-host-verify` / `docs/ops/staging-host.md` are shipped; end-to-end nginx/systemd on the target is missing | Run the bring-up from `docs/ops/staging-host.md`, then `script/staging-host-verify --env-file … --systemd --base-url …` and archive the JSON |
+| Backup/restore non provato su staging con attachment storage | DB dump/restore + `bin/gpforum staging-drill-attachments` shippati; manca evidenza live target | Drill restore completo DB + allegati + readiness su staging |
+| Mail delivery su staging non drillata | Adapter + `bin/gpforum mail-check` in codice; staging evidence non ancora archiviata | Eseguire `bin/gpforum mail-check --dry-run` / `--send` su staging |
+| No full staging deploy with systemd/nginx/Hypnotoad and a target DB | Throwaway DB drill + `bin/gpforum staging-host-verify` / `docs/ops/staging-host.md` are shipped; end-to-end nginx/systemd on the target is missing | Run the bring-up from `docs/ops/staging-host.md`, then `bin/gpforum staging-host-verify --env-file … --systemd --base-url …` and archive the JSON |
 | Representative stress test not executed | Live Hypnotoad+PG evidence on the Cloud Agent VM archived in `docs/ops/stress-load.md` + `docs/ops/evidence/2026-09-20-cloud-agent-stress500/` (smoke/100/500 pass; 1000 peak ok, p95 residual); the staging target is missing | Re-run the load test on staging with p50/p95/p99, error rate, worker distribution, DB latency |
-| Backup/restore not rehearsed on staging with attachment storage | DB dump/restore + `script/staging-drill-attachments` are shipped; live target evidence is missing | Full restore drill: DB + attachments + readiness on staging |
+| Backup/restore not rehearsed on staging with attachment storage | DB dump/restore + `bin/gpforum staging-drill-attachments` are shipped; live target evidence is missing | Full restore drill: DB + attachments + readiness on staging |
 | Mail delivery not drilled on staging | Adapter + `script/gpforum-mail-check` are in code; staging evidence is not yet archived | Run `script/gpforum-mail-check --dry-run` / `--send` on staging |
 
 ### HIGH
@@ -178,26 +178,26 @@ Before a self-service private beta:
 
 - CI verde sul commit candidato.
 - Fresh install e upgrade applicati a staging (attraverso migrazione `036`).
-- `script/query-budget --sync` e `--check` verdi su staging.
+- `bin/gpforum budgets --sync` e `--check` verdi su staging.
 - `/health/live`, `/health/ready`, `/metrics` con token verdi su staging.
 - Mail delivery configurato e drillato per reset password e cambio email
-  (`script/mail-check`).
+  (`bin/gpforum mail-check`).
 - Backup/restore DB + attachment storage provato
 - CI green on the candidate commit.
 - Fresh install and upgrade applied to staging (through migration `036`).
-- `script/query-budget --sync` and `--check` green on staging.
+- `bin/gpforum budgets --sync` and `--check` green on staging.
 - `/health/live`, `/health/ready`, and `/metrics` with a token green on staging.
 - Mail delivery configured and drilled for password reset and email change
   (`script/gpforum-mail-check`).
 - DB backup/restore + attachment storage rehearsed
-  (`script/staging-drill`, `script/staging-drill-attachments`).
+  (`bin/gpforum staging-drill`, `bin/gpforum staging-drill-attachments`).
 - Failure suite FM-001–FM-010 green; PG integration
   (`postgres-concurrency` / `postgres-idempotency` / `postgres-outbox-reclaim`)
   green with a DSN, or an accepted manual support runbook.
 - Basic moderation rehearsed with real users and seeded roles.
 - Outbox dead letters observed with a controlled failure.
 - Stress test with at least 100 concurrent users on `/categories`, the thread
-  view, search, and replies (`script/stress-load`).
+  view, search, and replies (`bin/gpforum stress-load`).
 
 ## Public production checklist
 

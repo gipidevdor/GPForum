@@ -342,10 +342,9 @@ before the start, `gpforum start --service` for Hypnotoad (`--service
 --foreground` under launchd and daemon(8)), and `gpforum outbox`, `gpforum
 scheduled-jobs` and `gpforum partitions` for the others. `script/` is the
 maintainers' (owner decision D9). Units copied before this release ran
-`script/gpforum-carton exec` and `script/os-preflight`; both are still
-there, so those units keep starting, and `gpforum doctor` says they differ
-from this release's, with the `gpforum service print` that writes them
-again and the restart that reads them.
+`script/gpforum-carton exec` and `script/os-preflight`, which is gone:
+`gpforum doctor` says they differ from this release's, with the `gpforum
+service print` that writes them again and the restart that reads them.
 
 ## Identity mail delivery
 
@@ -374,7 +373,7 @@ Run the Hypnotoad evidence gate before treating a deployment profile as
 measured:
 
 ```sh
-script/bench-hypnotoad --check --profile small --workers 2 \
+bin/gpforum hypnotoad-benchmark --check --profile small --workers 2 \
   --iterations 20 --warmup 3 \
   --route /categories \
   --route /t/018f1004-0001-7000-8000-000000000001 \
@@ -851,11 +850,11 @@ Minimum recommended posture:
 
 For a repeatable local/staging migrate + `pg_dump`/`pg_restore` rehearsal on
 throwaway databases, see `docs/ops/staging-drills.md`
-(`script/staging-drill`). For populated `var/attachments` filesystem
+(`bin/gpforum staging-drill`). For populated `var/attachments` filesystem
 backup/restore plus static and host-available nginx/systemd checks, use
-`script/staging-drill-attachments`. Live Hypnotoad/TLS host bring-up is
+`bin/gpforum staging-drill-attachments`. Live Hypnotoad/TLS host bring-up is
 documented in `docs/ops/staging-host.md` with non-destructive
-`script/staging-host-verify` (env-file key presence, systemd activity, HTTP
+`bin/gpforum staging-host-verify` (env-file key presence, systemd activity, HTTP
 health). That verify does not install units or claim private-beta readiness.
 
 ## Tuning By OS

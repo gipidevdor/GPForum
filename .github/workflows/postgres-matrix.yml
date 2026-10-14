@@ -44,7 +44,7 @@ on:
       - 't/lib/GPForum/Test/QueryPlanEvidenceDbh.pm'
       - 'bin/gpforum-migrate'
       - 'bin/gpforum-staging-drill'
-      - 'script/staging-drill'
+      - 'bin/gpforum'
       - 'script/query-plan-*'
       - 'script/postgres-diagnostics'
       - 'script/lib/GPForum/PostgreSQL/**'
@@ -93,7 +93,7 @@ on:
       - 't/lib/GPForum/Test/QueryPlanEvidenceDbh.pm'
       - 'bin/gpforum-migrate'
       - 'bin/gpforum-staging-drill'
-      - 'script/staging-drill'
+      - 'bin/gpforum'
       - 'script/query-plan-*'
       - 'script/postgres-diagnostics'
       - 'script/lib/GPForum/PostgreSQL/**'
@@ -244,18 +244,18 @@ jobs:
         run: |
           script/gpforum-carton exec script/postgres-diagnostics --validate \
             "artifacts/postgres-diagnostics-pg${{ matrix.postgres }}.json"
-          script/evidence-validate --strict --human \
+          bin/gpforum evidence-validate --strict --human \
             "artifacts/postgres-diagnostics-pg${{ matrix.postgres }}.json"
 
       - name: Run fresh/upgrade/dump-restore migration drill
         run: |
           mkdir -p artifacts
-          script/staging-drill --json \
+          bin/gpforum staging-drill --json \
             | tee "artifacts/staging-drill-pg${{ matrix.postgres }}.json"
 
       - name: Validate drill evidence
         run: |
-          script/evidence-validate --strict --human \
+          bin/gpforum evidence-validate --strict --human \
             "artifacts/staging-drill-pg${{ matrix.postgres }}.json"
 
       - name: Upload drill evidence

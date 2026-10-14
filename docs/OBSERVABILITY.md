@@ -204,7 +204,7 @@ script/benchmark-http --configured --check --profile hot-thread \
 
 ## PostgreSQL Plan Evidence
 
-`script/query-plan-evidence --check --profile small|medium|hot-thread`
+`bin/gpforum query-plan-evidence --check --profile small|medium|hot-thread`
 executes `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` over the current configured
 database.
 

@@ -267,7 +267,7 @@ sub _test_query_plan_database_error {
     is( $status, $EXIT_USAGE, 'a database failure exits 2' );
     is(
         $stderr,
-        'script/query-plan-evidence: PostgreSQL query plan evidence failed. '
+        'gpforum query-plan-evidence: PostgreSQL query plan evidence failed. '
           . 'Run script/bootstrap-deps --postgres, apply migrations, '
           . "seed benchmark data, and ensure the database is reachable.\n",
         'and gives constant guidance for checking the database'

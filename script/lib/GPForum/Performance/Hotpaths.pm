@@ -282,7 +282,7 @@ sub _optional( $runner, $states, $database, $output, $mode ) {
 
 sub _budget( $runner, $states, $database ) {
     my $result = $runner->(
-        [ 'script/query-budget', '--check', '--json' ],
+        [ 'bin/gpforum', 'budgets', '--check', '--json' ],
         'query-budget', GATE_TIMEOUT
     );
     my $payload = $result->{payload};
@@ -314,8 +314,8 @@ sub _plans( $runner, $states, $database, $config ) {
         my @statuses;
         for my $repetition ( 1 .. $config->{repeats} ) {
             my @command = (
-                'script/query-plan-evidence', '--check', '--json', '--analyze',
-                '--profile', $config->{profile},
+                'bin/gpforum', 'query-plan-evidence', '--check', '--json',
+                '--analyze',   '--profile',           $config->{profile},
             );
             if ( $backend eq 'functions' ) { push @command, '--functions'; }
             my $result = $runner->(

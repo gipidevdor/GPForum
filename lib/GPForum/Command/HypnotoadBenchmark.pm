@@ -445,8 +445,8 @@ sub _reverse_proxy_runtime_metadata ( $backend_runtime, $proxy_runtime,
 sub _assert_database_available {
     my $config = GPForum::Config->from_environment;
     if ( !defined $config->database_dsn || !length $config->database_dsn ) {
-        GPForum::X::Config->throw(
-            message => 'script/bench-hypnotoad requires GPFORUM_DATABASE_DSN' );
+        GPForum::X::Config->throw( message =>
+              'gpforum hypnotoad-benchmark requires GPFORUM_DATABASE_DSN' );
     }
 
     my $schema = GPForum::Schema->connect_from_config($config);

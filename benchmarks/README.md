@@ -49,7 +49,7 @@ resources; it is never scheduled by default.
 Each endpoint is measured separately: `/health/live`, home, categories,
 category, thread, search, category page cache hit and category page cache
 miss. The independent `wrk` generator is primary; the existing Mojolicious
-`script/stress-load` generator supplies a smaller comparison. The two
+`bin/gpforum stress-load` generator supplies a smaller comparison. The two
 generators' throughput is not interchangeable. Authentication is explicitly
 skipped because there is no isolated reproducible session setup in this
 read-only HTTP suite.
@@ -71,7 +71,7 @@ the measured span; `ps` CPU averages are a marked fallback. RSS is a final
 sample and can double-count shared pages. Neither is a precise per-request
 resource cost.
 
-SQL plans reuse `script/query-plan-evidence --analyze --check`, including
+SQL plans reuse `bin/gpforum query-plan-evidence --analyze --check`, including
 `--functions` to expose nested stored-function SQL with `auto_explain`.
 Missing privileges/extensions produce failed or unmeasured evidence rather
 than a pass. Plan execution times include EXPLAIN overhead and exclude HTTP.
@@ -214,8 +214,8 @@ script/gpforum-carton exec prove -I script/lib -I t/lib -lr t/performance
 script/gpforum-carton exec prove -lv t/integration/postgres-performance-outbox.t
 
 # Existing helpers remain available independently:
-script/query-budget --check --json
-script/query-plan-evidence --analyze --functions --check --json
+bin/gpforum budgets --check --json
+bin/gpforum query-plan-evidence --analyze --functions --check --json
 script/gpforum-carton exec script/performance-outbox.pl \
   --json --messages 1000 --workers 1,2 --repetitions 3
 ```

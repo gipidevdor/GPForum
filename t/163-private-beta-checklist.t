@@ -49,7 +49,7 @@ unlike(
     );
     like(
         $out,
-        qr/script\/staging-drill [ ] --json/msx,
+        qr/gpforum [ ] staging-drill [ ] --json/msx,
         '--commands prints staging-drill'
     );
 }

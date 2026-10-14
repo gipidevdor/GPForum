@@ -31,7 +31,7 @@ req/s, and p50/p95/p99/max latency.
 
 Related sequential benches remain:
 
-- `script/bench-hypnotoad` / `script/bench-hypnotoad-scaling`
+- `bin/gpforum hypnotoad-benchmark` / `bin/gpforum hypnotoad-scaling`
 - `script/benchmark-http` / `bin/gpforum-benchmark`
 - `script/bench-outbox-dispatcher`
 
@@ -45,14 +45,14 @@ export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum;host=127.0.0.1;port=5432'
 export GPFORUM_DATABASE_USER='…'
 export GPFORUM_DATABASE_PASSWORD='…'
 gpforum migrate
-script/seed-performance-data --profile small
+bin/gpforum performance-seed --profile small
 ```
 
 3. Running Hypnotoad (or reverse proxy) serving that database, for example:
 
 ```sh
 # operator-managed process; ports/workers per docs/DEPLOYMENT.md
-script/bench-hypnotoad --seed --profile small --workers 2 ...
+bin/gpforum hypnotoad-benchmark --seed --profile small --workers 2 ...
 # or a long-lived Hypnotoad started from the normal deploy unit
 ```
 
@@ -64,14 +64,14 @@ script/bench-hypnotoad --seed --profile small --workers 2 ...
 Dry-run plan (safe; no HTTP; fine for CI unit tests):
 
 ```sh
-script/stress-load --dry-run --profile 100 --human
+bin/gpforum stress-load --dry-run --profile 100 --human
 gpforum stress-load --dry-run --profile 1000 --json
 ```
 
 Local smoke against a live base URL:
 
 ```sh
-script/stress-load --profile smoke \
+bin/gpforum stress-load --profile smoke \
   --base-url http://127.0.0.1:8080 \
   --human
 ```
@@ -79,15 +79,15 @@ script/stress-load --profile smoke \
 Capacity profiles:
 
 ```sh
-script/stress-load --profile 100 --base-url https://forum.example --check --json
-script/stress-load --profile 500 --base-url https://forum.example --check --json
-script/stress-load --profile 1000 --base-url https://forum.example --check --json
+bin/gpforum stress-load --profile 100 --base-url https://forum.example --check --json
+bin/gpforum stress-load --profile 500 --base-url https://forum.example --check --json
+bin/gpforum stress-load --profile 1000 --base-url https://forum.example --check --json
 ```
 
 Concurrency knobs without changing the named profile:
 
 ```sh
-script/stress-load --profile 100 --concurrency 120 \
+bin/gpforum stress-load --profile 100 --concurrency 120 \
   --requests-per-client 20 \
   --base-url http://127.0.0.1:8080 \
   --route /categories --route /health/live \
@@ -129,7 +129,7 @@ shown as `[redacted]`) and JSON evidence of `mode` `stress-load`, `status`
 1. Run the intended profile on staging-like hardware with a seeded DB and live
    Hypnotoad.
 2. Paste JSON (or `--human` lines) into ops notes for that commit.
-3. Keep `script/bench-hypnotoad-scaling` worker evidence alongside this external
+3. Keep `bin/gpforum hypnotoad-scaling` worker evidence alongside this external
    concurrency evidence.
 4. Do not mark private beta ready from a smoke profile alone.
 
@@ -150,7 +150,7 @@ stress route set includes seeded forum pages, so capacity profiles should set
 the override when measuring stack throughput rather than abuse-protection
 behavior.
 
-Also run `script/query-budget --sync` after migrate so `/health/ready` returns
+Also run `bin/gpforum budgets --sync` after migrate so `/health/ready` returns
 `200` (an empty budget catalog yields `503` and inflates error rate).
 
 ## Prep evidence archive pointer (2026-09-20)
@@ -168,7 +168,7 @@ unchanged.
 
 Host: Linux 4 vCPU / ~15 GiB RAM, PostgreSQL 16, system Perl 5.38, Hypnotoad
 `GPFORUM_WEB_PROCESSES=4`, seed profile `medium`, base
-`http://127.0.0.1:8080`. Harness: `script/stress-load --check --json` (or
+`http://127.0.0.1:8080`. Harness: `bin/gpforum stress-load --check --json` (or
 `--json` without check). Capacity rows used
 `GPFORUM_FORUM_READ_RATE_LIMIT=100000` unless noted.
 
@@ -217,7 +217,7 @@ seed `medium`, `GPFORUM_FORUM_READ_RATE_LIMIT=100000`, base
 `GPFORUM_WEB_PROCESSES=8` and `GPFORUM_RUNTIME_WORKER_POLICY=configured`
 (eight live workers confirmed). Commit base `603f0c7` plus this branch’s
 deploy-drill nginx `-t` fixes. Harness:
-`script/stress-load --profile 1000 --check --json`.
+`bin/gpforum stress-load --profile 1000 --check --json`.
 
 | Profile | Workers | Status | Peak | Completed | Errors | Err % | req/s | p50 ms | p95 ms | p99 ms | max ms | Wall s |
 | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

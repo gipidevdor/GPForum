@@ -35,9 +35,9 @@ const my @HUMAN_FIELDS =>
   qw(schema_versions schema_versions_after users threads);
 const my %PHASE_OK => map { $_ => 1 } qw(pass skipped);
 const my $ATTACHMENTS_LIMITATION =>
-'pg_dump/pg_restore covers PostgreSQL only. Attachment blobs under var/attachments (FilesystemStorage) are not dumped or restored by this drill. Rehearse populated var/attachments blob restore with script/staging-drill-attachments; back up live operator trees separately.';
+'pg_dump/pg_restore covers PostgreSQL only. Attachment blobs under var/attachments (FilesystemStorage) are not dumped or restored by this drill. Rehearse populated var/attachments blob restore with bin/gpforum staging-drill-attachments; back up live operator trees separately.';
 const my $RESIDUAL_DEPLOY_GAP =>
-'Live Hypnotoad/TLS host bring-up remains manual; run script/staging-drill-attachments for nginx/systemd template checks (static plus host verify/-t when tools exist) and populated var/attachments restore.';
+'Live Hypnotoad/TLS host bring-up remains manual; run bin/gpforum staging-drill-attachments for nginx/systemd template checks (static plus host verify/-t when tools exist) and populated var/attachments restore.';
 const my $RESIDUAL_BETA_GAP =>
   'This drill does not claim private-beta readiness.';
 const my $PG_TOOLS => 'GPForum::Service::Operations::StagingDrill::PgTools';

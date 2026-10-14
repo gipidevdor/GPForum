@@ -163,7 +163,7 @@ sub _db_evidence {
     }
 
     my $output = q{};
-    open my $evidence, q{-|}, 'script/query-plan-evidence', '--check',
+    open my $evidence, q{-|}, 'bin/gpforum', 'query-plan-evidence', '--check',
       '--analyze', '--profile', 'medium'
       or croak 'failed to run DB-backed query plan evidence';
 

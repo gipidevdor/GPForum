@@ -82,23 +82,23 @@ preflight: ## Report whether this host can run GPForum
 # Optional operator drill; requires GPFORUM_DATABASE_DSN and pg_dump/pg_restore.
 # Not part of `make check` or default CI.
 staging-drill: ## Run the staging backup and restore drill
-	script/staging-drill --json
+	bin/gpforum staging-drill --json
 
 # Optional HTTP stress/load harness against a running Hypnotoad/GPForum.
 # Not part of `make check` or default CI. PROFILE=smoke|100|500|1000.
 PROFILE ?= smoke
 FORMAT ?= human
 stress-load-dry: ## Plan the stress load without running it
-	script/stress-load --dry-run --profile "$(PROFILE)" --$(FORMAT)
+	bin/gpforum stress-load --dry-run --profile "$(PROFILE)" --$(FORMAT)
 
 stress-load: ## Run the stress load generator
 	@test -n "$(BASE_URL)" || (echo 'make stress-load requires BASE_URL=...' >&2; exit 2)
-	script/stress-load --profile "$(PROFILE)" --base-url "$(BASE_URL)" --$(FORMAT)
+	bin/gpforum stress-load --profile "$(PROFILE)" --base-url "$(BASE_URL)" --$(FORMAT)
 
 # Optional attachment filesystem + deploy checklist (static + host when available).
 # Not part of `make check` or default CI.
 staging-drill-attachments: ## Run the attachment store drill
-	script/staging-drill-attachments --json
+	bin/gpforum staging-drill-attachments --json
 
 # Optional identity mail delivery probe; uses GPFORUM_MAIL_* / SMTP settings.
 # Not part of `make check` or default CI.
@@ -106,11 +106,11 @@ antivirus-check: ## Prove the upload antivirus detects the EICAR test file
 	bin/gpforum antivirus-check --human
 
 mail-check: ## Send a test message through the configured mailer
-	script/mail-check --json --dry-run
+	bin/gpforum mail-check --json --dry-run
 
 # Optional identity mail lifecycle drill (test transport). Not part of make check.
 mail-lifecycle-check: ## Exercise the mail lifecycle end to end
-	script/mail-lifecycle-check --json --simulate
+	bin/gpforum mail-lifecycle-check --json --simulate
 
 # Optional dead-letter staging check (in-memory simulate). Not part of make check.
 pitr-drill: ## Rehearse point-in-time recovery on a throwaway cluster
@@ -123,12 +123,12 @@ partition-maintenance: ## Plan next month's log partitions (add --apply to run)
 	script/gpforum-carton exec bin/gpforum-partition-maintenance --plan
 
 dead-letter-check: ## Report the dead-letter queue
-	script/dead-letter-check --json --simulate
+	bin/gpforum dead-letter-check --json --simulate
 
 # Optional non-destructive staging host verify (repo artifacts; live flags optional).
 # Not part of `make check` or default CI.
 staging-host-verify: ## Verify a staging host against the deploy contract
-	script/staging-host-verify --json
+	bin/gpforum staging-host-verify --json
 
 # Print-only private-beta prep commands/status. Does not run drills or claim
 # readiness. See docs/ops/private-beta-checklist.md.
@@ -144,14 +144,14 @@ evidence-live: ## Collect live runtime evidence
 #   make evidence-meta FILES='a.json' WRITE=1
 evidence-meta: ## Summarise an evidence bundle
 	@test -n "$(FILES)" || (echo 'make evidence-meta requires FILES="..."' >&2; exit 2)
-	script/evidence-meta $(if $(WRITE),--write,) $(FILES)
+	bin/gpforum evidence-meta $(if $(WRITE),--write,) $(FILES)
 
 # Validate archived evidence JSON (secrets/claims/shape). Not part of make check.
 # Example: make evidence-validate FILES='a.json b.json'
 FILES ?=
 evidence-validate: ## Validate an evidence bundle
 	@test -n "$(FILES)" || (echo 'make evidence-validate requires FILES="..."' >&2; exit 2)
-	script/evidence-validate --json $(FILES)
+	bin/gpforum evidence-validate --json $(FILES)
 
 # Audit the dependency lock against CPANSA advisories. Needs CPAN::Audit
 # installed for the system Perl (a host tool, like Carton), so it is not part

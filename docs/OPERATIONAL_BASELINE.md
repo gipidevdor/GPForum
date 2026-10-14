@@ -44,7 +44,7 @@ Last local verification: 2026-05-26, with `script/test`,
    PostgreSQL, and Hypnotoad routes.
 3. Keep documented p50/p95/p99/req-s thresholds aligned with the benchmark
    command output and release-gate tolerance.
-4. Keep `script/query-plan-check` and `script/query-plan-evidence`
+4. Keep `script/query-plan-check` and `bin/gpforum query-plan-evidence`
    synchronized with selected hot queries and indexes.
 5. Add more negative authorization tests for admin/moderation boundaries before
    expanding operator workflows.

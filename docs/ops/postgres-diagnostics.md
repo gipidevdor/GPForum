@@ -108,7 +108,7 @@ PostgreSQL 16 checkpoint counters come from `pg_stat_bgwriter`; 17/18 use
 `pg_stat_checkpointer`. Table diagnostics inspect heap/materialized-view
 relations and partition leaves; partition parents have no heap or meaningful
 `relfrozenxid`. Their existing horizon/retention diagnostics remain in
-`partition-maintenance`. Rankings are bounded and are not an exhaustive
+`gpforum partitions`. Rankings are bounded and are not an exhaustive
 catalog audit.
 
 Use multiple snapshots and real growth/churn before tuning per-table vacuum

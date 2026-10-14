@@ -285,10 +285,11 @@ dependencies the checkout installed: `gpforum os-preflight --strict --json`
 before the start, `gpforum start --service` for Hypnotoad (`--service
 --foreground` under launchd and daemon(8)), and `gpforum outbox`, `gpforum
 scheduled-jobs` and `gpforum partitions` for the others. `script/` is the
-maintainers' (owner decision D9). Units copied before this release ran
-`script/gpforum-carton exec` and `script/os-preflight`, which is gone:
-`gpforum doctor` says they differ from this release's, with the `gpforum
-service print` that writes them again and the restart that reads them.
+maintainers' (owner decision D9). A unit copied before that ran
+`script/os-preflight` and a `bin/gpforum-*` command through
+`script/gpforum-carton exec`, and both are gone: `gpforum doctor` fails
+such a unit and gives the `gpforum service print` that writes it again and
+the restart that reads it.
 
 ## Identity mail delivery
 
@@ -399,8 +400,8 @@ cache (`--cached`). Carton itself runs module tests as `--notest` (Carton
 `local/bin/hypnotoad`. It does **not** install `local/bin/carton`: Carton is a
 host tool for system Perl, and only installing needs it -- the `make
 install-deps-*` targets find it next to that Perl. Running needs no Carton:
-`gpforum`, every `bin/gpforum-*` and the provided systemd, rc.d and launchd
-units put `local/` on `@INC` themselves, under the Perl that installed it,
+`gpforum` and the provided systemd, rc.d and launchd units put `local/` on
+`@INC` themselves, under the Perl that installed it,
 so nothing about Carton goes in the environment file.
 
 Reproduce an install:

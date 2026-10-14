@@ -17,7 +17,7 @@ our $VERSION = '0.001';
 
 # An adapter, not a reimplementation: the work stays in
 # GPForum::Command::AntivirusCheck; this makes it discoverable as
-# `gpforum antivirus_check`.
+# `gpforum antivirus-check`.
 has description => 'Prove the upload antivirus detects a test file';
 has usage       => sub ($self) {
     return GPForum::Command::AntivirusCheck->usage_text;

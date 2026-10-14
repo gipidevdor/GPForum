@@ -80,8 +80,8 @@ and prints the usage on standard error, and nothing on standard output. When the
 itself fails -- the database cannot be reached -- the reason goes to standard
 error, the exit code is 1, and the object still comes, with `status` `fail`,
 the reason in `error` and the lists empty. Work already done shows where the
-command knows it: `dead-letter-replay` keeps the ids it replayed before the
-failure, and a looping `outbox-dispatch` has printed a line for each batch
+command knows it: `dead-letters --id` keeps the ids it replayed before the
+failure, and a looping `outbox` has printed a line for each batch
 before it. `migrate` leaves `applied` out when a migration failed:
 each one commits as it goes, so those before the failure are in the schema,
 and `--check` lists what is left (`applied` is `[]` only when the database

@@ -143,10 +143,10 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-The commands that read the configuration themselves (C<bin/gpforum-*>) print
-the same report in the operator's language through
-L<GPForum::Command::Usage/failure>, and exit 1 as any failed command does;
-C<bin/gpforum> and its subcommands go through here and exit 78. Under
+The commands that read the configuration themselves print the same report
+in the operator's language through L<GPForum::Command::Usage/failure>, and
+exit 78 as well; C<gpforum doctor> lists the problems among its findings
+and exits 1. Under
 Hypnotoad, Mojolicious prefixes the report with C<Can't load application>
 and exits 255.
 

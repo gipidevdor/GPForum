@@ -73,7 +73,7 @@ public production.
 | Backup/restore | GO locally / PARTIAL on staging | `pg_dump -Fc` / `pg_restore`; `bin/gpforum staging-drill` + `bin/gpforum staging-drill-attachments` (Homebrew notes in `docs/ops/staging-drills.md`) | Live staging RPO/RTO incomplete | Staging restore drill with attachments + deploy target |
 | Session security | GO | Server-side sessions, revocation, expiry, cookie flags, and CSRF covered by the security suite | Global session revocation / device anomaly detection are not advanced | Acceptable locally, extend for beta |
 | Rate limiting | GO | PostgreSQL limiter, fallback telemetry, and blocked-audit coverage | The local-memory fallback is not cluster-wide | In beta use the PostgreSQL store and monitor the fallback |
-| Email lifecycle | GO in code | Password/email reset and change, single-use tokens, `Identity::Mailer`, `Worker::Handler::IdentityMail`, `docs/audit/email-lifecycle.md`, `t/146-identity-mailer.t`, `t/154-identity-mail.t`, operator `script/gpforum-mail-check` (`docs/ops/mail-check.md`) | Staging SMTP/sendmail evidence not yet recorded | Run `script/gpforum-mail-check --dry-run` / `--send` on staging before self-service beta |
+| Email lifecycle | GO in code | Password/email reset and change, single-use tokens, `Identity::Mailer`, `Worker::Handler::IdentityMail`, `docs/audit/email-lifecycle.md`, `t/146-identity-mailer.t`, `t/154-identity-mail.t`, operator `bin/gpforum mail-check` (`docs/ops/mail-check.md`) | Staging SMTP/sendmail evidence not yet recorded | Run `bin/gpforum mail-check --dry-run` / `--send` on staging before self-service beta |
 | Moderation workflow | GO evidence | Report/hide/lock/workflow PASS; `FOR UPDATE` + unique `command_id`; hide race in `t/integration/postgres-concurrency.t` | Staging with real users still has to be drilled | Drill moderation on staging before beta |
 | Privacy/export/deletion | GO evidence / PARTIAL ops | Privacy rights PASS; erasure idempotency `024`; approval race in `postgres-concurrency.t` | Restore evidence with attachments is still open | Attachment restore drill |
 | Audit trail integrity | GO evidence | `record_hash` + `pg_advisory_xact_lock`; two appends in `postgres-concurrency.t` | No priority residual evidence gap | Keep it green with a DSN |
@@ -136,7 +136,7 @@ were not re-run for this documentation refresh. The schema on `main` is now at
 | No full staging deploy with systemd/nginx/Hypnotoad and a target DB | Throwaway DB drill + `bin/gpforum staging-host-verify` / `docs/ops/staging-host.md` are shipped; end-to-end nginx/systemd on the target is missing | Run the bring-up from `docs/ops/staging-host.md`, then `bin/gpforum staging-host-verify --env-file … --systemd --base-url …` and archive the JSON |
 | Representative stress test not executed | Live Hypnotoad+PG evidence on the Cloud Agent VM archived in `docs/ops/stress-load.md` + `docs/ops/evidence/2026-09-20-cloud-agent-stress500/` (smoke/100/500 pass; 1000 peak ok, p95 residual); the staging target is missing | Re-run the load test on staging with p50/p95/p99, error rate, worker distribution, DB latency |
 | Backup/restore not rehearsed on staging with attachment storage | DB dump/restore + `bin/gpforum staging-drill-attachments` are shipped; live target evidence is missing | Full restore drill: DB + attachments + readiness on staging |
-| Mail delivery not drilled on staging | Adapter + `script/gpforum-mail-check` are in code; staging evidence is not yet archived | Run `script/gpforum-mail-check --dry-run` / `--send` on staging |
+| Mail delivery not drilled on staging | Adapter + `bin/gpforum mail-check` are in code; staging evidence is not yet archived | Run `bin/gpforum mail-check --dry-run` / `--send` on staging |
 
 ### HIGH
 
@@ -188,7 +188,7 @@ Before a self-service private beta:
 - `bin/gpforum budgets --sync` and `--check` green on staging.
 - `/health/live`, `/health/ready`, and `/metrics` with a token green on staging.
 - Mail delivery configured and drilled for password reset and email change
-  (`script/gpforum-mail-check`).
+  (`bin/gpforum mail-check`).
 - DB backup/restore + attachment storage rehearsed
   (`bin/gpforum staging-drill`, `bin/gpforum staging-drill-attachments`).
 - Failure suite FM-001–FM-010 green; PG integration

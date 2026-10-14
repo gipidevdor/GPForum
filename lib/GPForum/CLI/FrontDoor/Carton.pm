@@ -154,8 +154,7 @@ Version 0.001.
 
 Loaded before anything outside Perl's core, it runs the program again under
 C<script/gpforum-carton exec> when the checkout's F<local/lib/perl5> is not
-on C<@INC>, so C<bin/gpforum> and every C<bin/gpforum-*> entrypoint work
-when typed on their own, under the Perl the checkout was installed for
+on C<@INC>, so C<bin/gpforum> works when typed on its own, under the Perl the checkout was installed for
 (ADR 0120). Nothing happens when F<local/> is already on C<@INC>, when the
 checkout has no F<local/>, or when Hypnotoad loads C<bin/gpforum> as the
 application (C<MOJO_APP_LOADER>). C<gpforum setup> on a checkout without

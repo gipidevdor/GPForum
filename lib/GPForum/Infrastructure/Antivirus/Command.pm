@@ -50,7 +50,7 @@ sub answers_immediately {
 }
 
 # For readiness: the program must exist and be executable. Whether it works is
-# what bin/gpforum antivirus_check proves, with a test file.
+# what gpforum antivirus-check proves, with a test file.
 # For readiness: the program must resolve to an executable file, through PATH
 # when it is a bare name, as exec itself would find it. Whether it detects
 # anything is what gpforum antivirus-check proves, with a test file.

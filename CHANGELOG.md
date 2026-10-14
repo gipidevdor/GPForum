@@ -2554,6 +2554,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **No text names a deleted file or command any more.** `docs/PERFORMANCE.md`
+  linked the deleted `BASELINE.md` for the reverse-proxy benchmark and now
+  links `DEPLOYMENT_EVIDENCE.md`; `docs/DEPLOYMENT.md` no longer says
+  `bin/gpforum-*` runs without Carton, and says `gpforum doctor` fails a unit
+  copied before the units ran `bin/gpforum` rather than that it differs;
+  `release/readiness-review.md` types `bin/gpforum mail-check` for the
+  missing `script/gpforum-mail-check`; `console-and-cli.md`,
+  `postgres-diagnostics.md`, two antivirus comments, t/590's header and the
+  POD of `Bootstrap::Config` and `CLI::FrontDoor::Carton` name the verbs
+  (`gpforum dead-letters`, `outbox`, `partitions`, `antivirus-check`) instead
+  of the old names the front door now refuses.
 - **Three modules nothing called are gone.**
   `GPForum::Service::Operations::RunbookValidator`,
   `GPForum::Service::Operations::RuntimeSizing` and `GPForum::I18N::Namespace`

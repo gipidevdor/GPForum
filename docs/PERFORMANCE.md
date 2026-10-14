@@ -662,7 +662,8 @@ bin/gpforum stress-load --profile 1000 --base-url https://forum.example --check 
 ```
 
 `gpforum hypnotoad-benchmark` also runs behind a local nginx or HAProxy
-(`--reverse-proxy --proxy auto`, see [BASELINE.md](BASELINE.md)), and the
+(`--reverse-proxy --proxy auto`, see
+[DEPLOYMENT_EVIDENCE.md](DEPLOYMENT_EVIDENCE.md#behind-a-reverse-proxy)), and the
 scaling run records the reactor class: macOS reports
 `Mojo::Reactor::Poll`, so compare high socket concurrency with a host where
 `EV` is installed. `stress-load` profiles are `smoke`, `100`, `500` and

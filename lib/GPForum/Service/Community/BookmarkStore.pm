@@ -342,8 +342,11 @@ sub bookmarks_resultset ( $self, $user_id, $options ) {
     );
 }
 
-sub _save_by_function ( $self, $input, $restore ) {
-    my $row = {
+# The row a save sends to api.community_save_bookmark: a new id, the
+# request and the time. Public so a command that saves in one call
+# (api.community_bookmark_command) sends the same.
+sub new_bookmark_row ( $self, $input ) {
+    return {
         bookmark_id => $self->id_service->uuid,
         user_id     => $input->{user_id},
         target_type => $input->{target_type},
@@ -352,6 +355,10 @@ sub _save_by_function ( $self, $input, $restore ) {
         created_at  => $self->clock->now_iso8601,
         deleted_at  => undef
     };
+}
+
+sub _save_by_function ( $self, $input, $restore ) {
+    my $row    = $self->new_bookmark_row($input);
     my $result = $self->functions->row( 'community_save_bookmark',
         { row => $row, restore => $restore } )->{result};
     if ( $result->{retry_id} ) {
@@ -449,6 +456,14 @@ bookmark used to keep pointing at a thread after its category turned
 private, showing its title to someone who had lost access.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 new_bookmark_row
+
+Takes C<user_id>, C<target_type>, C<target_id> and C<note>. Returns the row
+a save sends to C<api.community_save_bookmark>: a new id, the request, the
+time, and no deletion. Public so C<api.community_bookmark_command>, which
+saves a bookmark in one call with its command log
+(L<GPForum::Service::Community::Workflow>), sends the same row.
 
 =head2 save_bookmark
 

@@ -910,6 +910,19 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **Marking a thread read, bookmarking it and subscribing to it are one
+  call each.** Each ran its work as a function while Perl kept the command
+  log around it in a DBIx::Class transaction: a lookup, a savepoint, an
+  insert, the work, an update, `BEGIN` and `COMMIT`, 12 round trips a
+  request. Migration 104 adds `api.forum_read_marker_command_v1`,
+  `api.community_bookmark_command_v1` and `api.community_subscribe_command_v1`
+  (with their ADR 0127 `_v2` boundaries) and the command log's two shared
+  steps, `api.core_command_open_v1` and `api.core_command_close_v1`; each
+  request is its prologue and one call, 5 round trips, and the answer
+  recorded is the Perl path's key for key, so a response stored before
+  replays as it did (ADR 0126, section 5;
+  `t/integration/postgres-sql-function-thread-actions.t`, `t/652`).
+
 - **Search v6 selects custom plans on PostgreSQL 16–18.** Migration 102 keeps
   the v3 query bodies and bounded payload loading, using static PL/pgSQL
   implementations so the existing custom-plan policy takes effect on 16/17.

@@ -291,8 +291,11 @@ sub _preference_allows ( $preference, $options ) {
     return $notification_type && $notification_type eq 'mention' ? 1 : 0;
 }
 
-sub _save_by_function ( $self, $input, $restore ) {
-    my $row = {
+# The row a save sends to api.notification_save_subscription: a new id, the
+# request and the time. Public so a command that saves in one call
+# (api.community_subscribe_command) sends the same.
+sub new_subscription_row ( $self, $input ) {
+    return {
         subscription_id => $self->id_service->uuid,
         user_id         => $input->{user_id},
         target_type     => $input->{target_type},
@@ -302,6 +305,10 @@ sub _save_by_function ( $self, $input, $restore ) {
         muted_at        => undef,
         revoked_at      => undef
     };
+}
+
+sub _save_by_function ( $self, $input, $restore ) {
+    my $row    = $self->new_subscription_row($input);
     my $result = $self->functions->row(
         'notification_save_subscription',
         { row => $row, restore => $restore }
@@ -398,6 +405,15 @@ restored instead. If it collides on the subscription id
 still no row, the insert is retried once with a fresh id.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 new_subscription_row
+
+Takes C<user_id>, C<target_type>, C<target_id> and C<preference> (C<all>
+when omitted). Returns the row a save sends to
+C<api.notification_save_subscription>: a new id, the request, the time,
+neither muted nor revoked. Public so C<api.community_subscribe_command>,
+which subscribes in one call with its command log
+(L<GPForum::Service::Community::Workflow>), sends the same row.
 
 =head2 save_subscription
 

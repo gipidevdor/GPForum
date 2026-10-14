@@ -449,6 +449,15 @@ const my %FUNCTION => (
     forum_mark_read =>
       { version => 2, parameters => [ row => 'jsonb' ], json => ['result'] },
 
+    # The thread actions as one call each (ADR 0126, section 5): the command
+    # log and the work, with the answer the workflow records. p_answer is a
+    # refusal decided before the call, recorded without the work.
+    forum_read_marker_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
+    },
+
     attachment_find => {
         version    => 2,
         parameters =>
@@ -561,6 +570,16 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ row => 'jsonb', restore => 'boolean' ],
         json       => ['result']
+    },
+    community_bookmark_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
+    },
+    community_subscribe_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
     },
     community_find_bookmark => {
         version    => 2,

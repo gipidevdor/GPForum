@@ -7,6 +7,10 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Service::Operations::CommandIdempotency;
+
+use Scalar::Util qw(blessed);
+
 our $VERSION = '0.001';
 
 const my $REPORT_DETAILS_MAX => 2_000;
@@ -29,15 +33,30 @@ __PACKAGE__->requires(qw(bookmark_store report_store subscription_store));
 has command_idempotency => undef;    # optional: writes run unlogged without one
 has logger              => undef;    # optional: errors are dropped without one
 
+# The stores' call layer (Infrastructure::SqlFunction) on PostgreSQL, undef
+# on a double: with it and a command log, a bookmark or a subscription is
+# one call.
+has functions => sub ($self) {
+    my $store = $self->bookmark_store;
+    return blessed $store && $store->can('functions')
+      ? $store->functions
+      : undef;
+};
+
 sub save_bookmark ( $self, $input ) {
     return $self->_commanded_op(
         {
             command_type => 'community.bookmark',
+            function     => 'community_bookmark_command',
             input        => $input,
             kind         => 'bookmark',
             not_found    => 'bookmark not found',
             request      => {
                 %{ _target_request($input) }, note => $input->{note} || q{},
+            },
+            row => sub {
+                return $self->bookmark_store->new_bookmark_row(
+                    _target_write($input) );
             },
             run => sub {
                 return $self->bookmark_store->save_bookmark(
@@ -67,6 +86,7 @@ sub save_subscription ( $self, $input ) {
     return $self->_commanded_op(
         {
             command_type => 'community.subscribe',
+            function     => 'community_subscribe_command',
             input        => $input,
             kind         => 'subscription',
             not_found    => 'subscription not found',
@@ -74,15 +94,13 @@ sub save_subscription ( $self, $input ) {
                 %{ _target_request($input) },
                 preference => $input->{preference} || 'all',
             },
+            row => sub {
+                return $self->subscription_store->new_subscription_row(
+                    _subscription_write($input) );
+            },
             run => sub {
                 return $self->subscription_store->save_subscription(
-                    {
-                        preference  => $input->{preference},
-                        target_id   => $input->{target_id},
-                        target_type => $input->{target_type},
-                        user_id     => $input->{user_id},
-                    }
-                );
+                    _subscription_write($input) );
             },
         }
     );
@@ -173,6 +191,8 @@ sub _commanded_op ( $self, $job ) {
     if ($invalid) {
         return $invalid;
     }
+    return $self->_commanded_by_function($job)
+      if $job->{function} && $self->functions && $self->command_idempotency;
 
     my $run = sub {
         my $value;
@@ -218,6 +238,65 @@ sub _commanded_op ( $self, $job ) {
     };
 
     return $result;
+}
+
+# The command as one call (ADR 0126, section 5): the command log's steps and
+# the store's write run in the job's function, which records the answer the
+# Perl path records -- the row's public fields under the command id.
+sub _commanded_by_function ( $self, $job ) {
+    my $row;
+    try {
+        $row = $self->functions->row(
+            $job->{function},
+            {
+                log    => $self->_command_log($job),
+                answer => undef,
+                row    => $job->{row}->(),
+            }
+        );
+    }
+    catch ($error) {
+        $self->_log_error("community command failed: $error");
+        return _failed_result();
+    };
+    my $outcome = $row->{outcome} // q{};
+    return $row->{response}
+      if $outcome eq 'recorded' || $outcome eq 'replayed';
+    return _result(
+        error =>
+          GPForum::Service::Operations::CommandIdempotency->refusal_error(
+            $outcome),
+        status => 'conflict',
+    );
+}
+
+# The command log's row as CommandIdempotency writes it, with the ids and
+# the time drawn in its order: the command's id, its correlation id, its
+# time, and then the store's.
+sub _command_log ( $self, $job ) {
+    my $log = $self->command_idempotency;
+    return {
+        actor_id               => _nullable( $job->{input}{user_id} ),
+        command_id             => $log->id_service->uuid,
+        command_correlation_id => $log->id_service->uuid,
+        command_at             => $log->clock->now_iso8601,
+        command_type           => $job->{command_type},
+        idempotency_key        => _trim( $job->{input}{command_id} ),
+        request_hash           => $log->request_hash( $job->{request} ),
+    };
+}
+
+sub _nullable ($value) {
+    return defined $value && length $value ? $value : undef;
+}
+
+sub _subscription_write ($input) {
+    return {
+        preference  => $input->{preference},
+        target_id   => $input->{target_id},
+        target_type => $input->{target_type},
+        user_id     => $input->{user_id},
+    };
 }
 
 sub _missing_command_id ( $, $input ) {
@@ -342,6 +421,13 @@ Version 0.001.
     );
 
 =head1 DESCRIPTION
+
+On PostgreSQL, with a command log, a bookmark and a subscription are one
+call each: C<api.community_bookmark_command> and
+C<api.community_subscribe_command> open the command log's row, write the
+store's row and record the answer (ADR 0126, section 5). The call layer is
+the stores'; stores that have none, test doubles, write through
+C<command_idempotency> as before.
 
 Application boundary for thread bookmark, subscription, and member report
 writes from HTTP controllers. Requires C<command_id> and replays from

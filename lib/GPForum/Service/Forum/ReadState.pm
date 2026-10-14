@@ -106,6 +106,19 @@ sub summary_for_page ( $self, $user_id, $thread_id, $posts ) {
 }
 
 sub mark_thread_read ( $self, $input ) {
+    my $invalid = $self->invalid_mark($input);
+    return $invalid if $invalid;
+    my $mark = sub { return $self->_mark_thread_read($input); };
+    return $self->schema->txn_do($mark) if $self->schema->can('txn_do');
+
+    return $mark->();
+}
+
+# What the store refuses a mark request with -- the answer mark_thread_read
+# gives and the command log records -- or undef when the request is sound.
+# Public so a command that runs the mark in one call
+# (api.forum_read_marker_command) records the same refusal without the call.
+sub invalid_mark ( $, $input ) {
     my %errors =
       map { _has_value( $input->{$_} ) ? () : ( $_ => "$_ is required" ) }
       qw(user_id thread_id);
@@ -114,18 +127,18 @@ sub mark_thread_read ( $self, $input ) {
         $errors{last_read_position} =
           'last_read_position must be a non-negative integer';
     }
-    if (%errors) {
-        return {
-            errors => \%errors,
-            ok     => 0,
-            status => 'invalid',
-        };
-    }
+    return undef if !%errors;
+    return {
+        errors => \%errors,
+        ok     => 0,
+        status => 'invalid',
+    };
+}
 
-    my $mark = sub { return $self->_mark_thread_read($input); };
-    return $self->schema->txn_do($mark) if $self->schema->can('txn_do');
-
-    return $mark->();
+# The row a mark sends to api.forum_mark_read: the request and the mark's
+# time. Public so a command that runs the mark in one call sends the same.
+sub mark_row ( $self, $input ) {
+    return { %{$input}, last_read_at => $self->clock->now_iso8601 };
 }
 
 # The marker only moves forward: a mark behind the stored one keeps the
@@ -133,8 +146,7 @@ sub mark_thread_read ( $self, $input ) {
 sub _mark_thread_read ( $self, $input ) {
     if ( $self->functions ) {
         return $self->functions->row( 'forum_mark_read',
-            { row => { %{$input}, last_read_at => $self->clock->now_iso8601 } }
-        )->{result};
+            { row => $self->mark_row($input) } )->{result};
     }
     my $current =
       $self->state_for_thread( $input->{user_id}, $input->{thread_id}, );
@@ -369,6 +381,10 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
+C<invalid_mark> and C<mark_row> are the halves of a mark the read-marker
+command (L<GPForum::Service::Forum::ReadWorkflow>) sends in one call: the
+refusal the store would answer, and the row the function takes.
+
 A member's read marker is the highest post position they have seen in a
 thread, kept in C<thread_read_state> with a copy in
 C<user_read_marker_deltas>. It only moves forward: marking an earlier
@@ -402,6 +418,21 @@ C<first_unread_anchor> (C<post-POST_ID>) of the first post past the marker,
 and C<unread_in_page>, the number of posts past it. For an anonymous viewer
 (an empty user id) C<authenticated> is 0, the first-unread fields are undef
 and C<unread_in_page> is 0.
+
+=head2 invalid_mark
+
+Takes a mark request (C<user_id>, C<thread_id>, C<last_read_position>).
+Returns undef when the request is sound, or the answer C<mark_thread_read>
+refuses it with: C<< { errors, ok => 0, status => 'invalid' } >>, one
+error per missing id and one for a position that is not a non-negative
+integer. Public so C<api.forum_read_marker_command>, which marks in one
+call with its command log (L<GPForum::Service::Forum::ReadWorkflow>),
+records the same refusal without the call.
+
+=head2 mark_row
+
+Takes a mark request and returns the row C<api.forum_mark_read> takes: the
+request and C<last_read_at>, the clock's time. Public for the same command.
 
 =head2 mark_thread_read
 

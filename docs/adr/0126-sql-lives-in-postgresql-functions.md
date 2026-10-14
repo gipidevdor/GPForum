@@ -573,6 +573,41 @@ What they say:
    every call**; 18 caches it. On 16 and 17 the head function plans per call,
    as the prepared statement's custom plans did.
 
+### Amended 2026-10-14: the thread actions as one call
+
+With every area calling its functions, three commands a signed-in reader
+runs most still kept section 5's ceremony: marking a thread read,
+bookmarking it and subscribing to it ran their work as one function each
+(`forum_mark_read`, `community_save_bookmark`,
+`notification_save_subscription`) while `CommandIdempotency` kept the
+command log around the call in a DBIx::Class transaction. Logged on the
+development laptop (`log_statement = all`, `medium` seed, one signed-in
+request each), each was `session_validate > rate_limit_check >
+resolve_viewer > thread_page_head > BEGIN > command_lookup > SAVEPOINT >
+command_insert > RELEASE > work > command_finish > COMMIT`: 12 round trips,
+5 of them the command's and 7 the ceremony's. Migration 104 makes each one
+call -- `api.forum_read_marker_command_v1`,
+`api.community_bookmark_command_v1`, `api.community_subscribe_command_v1`
+-- around the work function it had, with the command log's opening and
+close shared as `api.core_command_open_v1` and `api.core_command_close_v1`
+(the steps `forum_create_reply_v1` and `forum_write_command_v1` inline).
+The same requests are now the prologue and one call, 5 round trips, with
+no transaction statement. The answer each records is the Perl path's key
+for key -- `ReadWorkflow`'s marked state, `Community::Workflow`'s public
+fields under `error`, `errors`, `ok`, `status` and `stored` -- so a
+response stored before the migration replays as it did and the same
+request hashes the same; `t/integration/postgres-sql-function-thread-actions.t`
+holds the two paths to the same answers and the same rows in
+`thread_read_state`, `user_read_marker_deltas`, `bookmarks`, `subscriptions`
+and `command_log` for the first run, its replay, a conflict under the same
+command id, a mark behind the stored one and a request the store refuses.
+A refusal decided before the call (a malformed position) is handed to the
+function as the answer to record, as the reply hands the composer's. The
+registration and the login still carry their ceremony (one transaction
+and four savepoints, one transaction), and so does every command that
+`CommandIdempotency::run` still guards in Perl: the same fold applies to
+each, area by area, until `run` has no caller on PostgreSQL.
+
 ## Alignment
 
 - ADR 0005 and ADR 0110 (amended), ADR 0118 (extended), ADR 0102, ADR 0111,

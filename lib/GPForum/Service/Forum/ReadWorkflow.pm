@@ -3,15 +3,31 @@
 
 package GPForum::Service::Forum::ReadWorkflow;
 
+use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Service::Operations::CommandIdempotency;
+
+use Scalar::Util qw(blessed);
+
 our $VERSION = '0.001';
+
+const my $COMMAND_TYPE => 'forum.read_marker';
 
 __PACKAGE__->requires('read_state');
 
 has command_idempotency => undef;    # optional: without it every call runs
 has logger              => undef;    # optional: without it nothing is logged
+
+# The store's call layer (Infrastructure::SqlFunction) on PostgreSQL, undef
+# on a double: with it and a command log, a mark is one call.
+has functions => sub ($self) {
+    my $store = $self->read_state;
+    return blessed $store && $store->can('functions')
+      ? $store->functions
+      : undef;
+};
 
 sub mark_thread_read ( $self, $input ) {
     my $invalid = $self->_missing_command_id($input);
@@ -23,15 +39,77 @@ sub mark_thread_read ( $self, $input ) {
 }
 
 sub _commanded_mark ( $self, $input ) {
+    return $self->_mark_by_function($input)
+      if $self->functions && $self->command_idempotency;
+
     return $self->_commanded_write(
         {
             actor_id     => $input->{user_id},
             command_id   => $input->{command_id},
-            command_type => 'forum.read_marker',
+            command_type => $COMMAND_TYPE,
             request      => _mark_request($input),
             run          => sub { return $self->_run_store($input); },
         }
     );
+}
+
+# The command as one call (ADR 0126, section 5): the command log's steps and
+# the mark run in api.forum_read_marker_command, which records the answer
+# the Perl path records. A request the store would refuse is recorded as
+# the store's refusal, without the mark.
+sub _mark_by_function ( $self, $input ) {
+    my $request = _mark_request($input);
+    my $answer  = $self->read_state->invalid_mark($request);
+    my $row;
+    try {
+        $row = $self->functions->row(
+            'forum_read_marker_command',
+            {
+                log    => $self->_command_log( $input, $request ),
+                answer => $answer,
+                row => $answer ? undef : $self->read_state->mark_row($request),
+            }
+        );
+    }
+    catch ($error) {
+        $self->_log_error("forum read marker command failed: $error");
+        return _failed_result();
+    };
+    return _commanded_result($row);
+}
+
+# The command log's row as CommandIdempotency writes it, with the ids and
+# the time drawn in its order: the command's id, its correlation id, its
+# time.
+sub _command_log ( $self, $input, $request ) {
+    my $log = $self->command_idempotency;
+    return {
+        actor_id               => _nullable( $input->{user_id} ),
+        command_id             => $log->id_service->uuid,
+        command_correlation_id => $log->id_service->uuid,
+        command_at             => $log->clock->now_iso8601,
+        command_type           => $COMMAND_TYPE,
+        idempotency_key        => _trim( $input->{command_id} ),
+        request_hash           => $log->request_hash($request),
+    };
+}
+
+# The function's row as the result the Perl path answers: the answer it
+# recorded or replays, or a conflict in the command log's words.
+sub _commanded_result ($row) {
+    my $outcome = $row->{outcome} // q{};
+    return $row->{response}
+      if $outcome eq 'recorded' || $outcome eq 'replayed';
+    return _result(
+        error =>
+          GPForum::Service::Operations::CommandIdempotency->refusal_error(
+            $outcome),
+        status => 'conflict',
+    );
+}
+
+sub _nullable ($value) {
+    return defined $value && length $value ? $value : undef;
 }
 
 sub _commanded_write ( $self, $job ) {
@@ -163,6 +241,12 @@ Version 0.001.
     );
 
 =head1 DESCRIPTION
+
+On PostgreSQL, with a command log, a mark is one call:
+C<api.forum_read_marker_command> opens the command log's row, runs the
+mark and records the answer (ADR 0126, section 5). The call layer is the
+store's; a store that has none, a test double, runs the mark through
+C<command_idempotency> as before.
 
 Requires C<command_id> and replays from C<command_log> when the helper is
 present. Persistence stays on L<GPForum::Service::Forum::ReadState>. Command

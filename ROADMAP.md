@@ -111,11 +111,18 @@ project's ADR and review rules.
 
 A public release requires:
 
-- stable migrations and rollback discipline;
-- CI green on every pull request;
+- stable migrations and rollback discipline: a migration is never undone, a
+  broken one is fixed forward ([docs/ops/upgrade.md](docs/ops/upgrade.md));
+- CI green on every pull request, with no gate that holds only on a
+  maintainer's machine;
 - coverage and profiling artifacts for hot paths;
 - security policy and private reporting path;
 - documented support boundaries;
-- ADR coverage for major deviations.
-
-The full gate is [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md).
+- ADR coverage for major deviations;
+- on a staging host that runs the production PostgreSQL major: the
+  migrations applied to an empty and to a restored database, a backup
+  restored ([docs/ops/backup-and-restore.md](docs/ops/backup-and-restore.md)),
+  outbox retries and dead letters observed, query-plan evidence green on a
+  representative dataset, and a rollback rehearsed with the shipped systemd
+  and nginx files;
+- `/metrics` unreachable from outside the host, with its token set.

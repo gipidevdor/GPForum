@@ -272,8 +272,7 @@ Observability is an engineering invariant under ADR 0093.
   `SecurityTelemetry.pm`, `DbQueryStats.pm`, `QueryBudget.pm`),
   `lib/GPForum/Infrastructure/AuditRecord.pm`
 - `script/profile-nytprof`
-- `docs/OBSERVABILITY.md`, `docs/PERFORMANCE.md#profiling`,
-  `docs/OPERATIONAL_BASELINE.md`, `docs/PRODUCTION_READINESS.md`
+- `docs/OBSERVABILITY.md`, `docs/PERFORMANCE.md#profiling`
 - `t/02-health.t`, `t/23-operations-hardening.t`,
   `t/33-health-readiness.t`, `t/56-db-query-stats.t`,
   `t/81-realtime-operational.t`, `t/116-infrastructure-audit-record.t`,

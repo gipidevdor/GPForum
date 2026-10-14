@@ -44,7 +44,7 @@ controllers and bootstrap identity keep calling `SecurityAudit`.
 - `docs/adr/0034-identity-event.md`
 - `docs/adr/0014-identity-workflow-boundary.md`
 - `docs/architecture/identity-workflow.md`
-- `docs/SECURITY_BASELINE.md`
+- `docs/THREAT_MODEL.md`
 - `EVENTS.md`
 - `t/129-identity-event.t`
 - `t/50-security-hardening.t`

@@ -72,12 +72,14 @@ decides.
 | --- | --- | --- |
 | Replaying a login without the password | logins are not idempotent commands; no token is stored in `command_log`; stored ones were scrubbed and their sessions revoked (migration 045) | `t/integration/postgres-login-replay.t` |
 | Account enumeration by timing | an unknown or deleted account pays the same Argon2 verification as a wrong password | `t/111-identity-auth-store.t`, `t/04-services.t` |
+| Account enumeration by the answers | a registration naming a taken username or address gets the generic refusal any rejected registration gets; a wrong password gets the `invalid_credentials` an unknown account gets | `t/103-identity-workflow.t`, `t/integration/postgres-identity-stores.t` |
 | Password guessing | per address (10 / 5 min) and per account (20 / 5 min, every address together) | `t/203-login-account-limit.t` |
 | A login racing a password reset or change, its session outliving the revocation | the login verifies Argon2 outside any transaction, then opens its session in one that holds the verified credential `FOR SHARE` and opens none once it is revoked; the rotation locks the credential `FOR UPDATE` before the same transaction revokes every session, so a login that got there first has its session revoked and one that came after is refused; a revocation is stamped no earlier than the session's creation, so a reset that waited for such a login, or a logout on a host whose clock is behind, revokes the session instead of failing on `sessions_revoked_after_created_check` | `t/integration/postgres-login-reset-race.t` |
 | A password change racing a reset, or another change | the change verifies the current password before its transaction, then goes on only while the credential it verified is still the member's active one, locked `FOR UPDATE`; a rotation that waited for another locks the credential that one created, so a change verified against a password a reset replaced is refused as `invalid_current_password` and a reset that waited for a change replaces the change's password | `t/integration/postgres-password-rotation-race.t` |
 | A revoked session acting while the database hiccups | a session that cannot be validated gets 503, not its user | `t/177-session-validation-resilience.t` |
 | Session fixation | login rotates the session and overwrites pre-authentication markers | `t/06-identity-web.t` |
 | Offline cracking after a database leak | Argon2id with a per-password salt | `t/04-services.t` |
+| Login identifiers and client addresses read from the audit log | login and logout audit rows hold the SHA-256 of the identifier and of the address, never the values | `t/129-identity-event.t` |
 
 ### Authorization and visibility (ADR 0102)
 
@@ -85,6 +87,8 @@ decides.
 | --- | --- | --- |
 | Reading restricted content through any surface | one readability rule, applied to pages, lists, search, feeds, notifications, mentions, bookmarks, attachments, realtime and caches | `t/integration/postgres-effective-visibility.t`, `t/200-readable-lists.t` |
 | A pending or suspended account reading as a member | only `active` accounts without a suspension in force are members; resolution failures read as anonymous | `t/integration/postgres-effective-visibility.t` |
+| A suspended member writing with a session opened before the suspension | every participating write (thread, reply, edit, delete, draft) checks the suspension on its request, answers 403 and counts a `suspended_user_block` | `t/378-controller-security-events.t` |
+| A websocket opened from another site, or subscribed to another member's notifications | the handshake refuses an `Origin` other than the forum's own (one without `Origin` passes); the channel authorizer refuses unknown channels and gives `notifications:<id>` to that member alone | `t/113-web-realtime-access.t`, `t/20-realtime.t` |
 | Replying into, or editing in, a thread locked or hidden meanwhile | replies and an author's post edits, deletes, restores and title edits re-check the thread (and post) under their row locks | `t/integration/postgres-concurrency.t` |
 | Hidden content served from a cache | moderation purges page and category caches in every process; the L2 invalidates by tag token; an L1 copy expires with its L2 entry | `t/89-tiered-cache.t`, `t/integration/postgres-public-cache.t` |
 | Console actions without the role | the permission gate on every admin and moderation route, denials logged | `t/44-admin-web.t`, `t/55-security-abuse-hardening.t` |
@@ -95,6 +99,7 @@ decides.
 | --- | --- | --- |
 | Stored XSS through posts | the renderer escapes everything first, then adds a closed set of markup; links only on allowed schemes, with `rel` set | `t/179-forum-body-renderer.t`, `t/186-identity-and-markup-safety.t` |
 | Malware in uploads | every upload is scanned by the system's ClamAV before it can be served; an infected or unscanned file is never served (ADR 0108) | `t/integration/clamav.t` (run against Homebrew's clamd 1.5.4 on 2026-09-30) |
+| Floods aimed at other members through reports and mentions | a member's second open report of the same target returns the first; a post notifies at most 10 mentioned members by default and audits the rest as skipped | `t/55-security-abuse-hardening.t` |
 | SQL injection | statements go through DBIx::Class or bound placeholders; no SQL is built from request text | code review; `t/191-resultset-context.t` guards the ORM usage |
 
 ### Availability
@@ -130,6 +135,12 @@ decides.
   write; under load it is an availability risk (ADR 0020, ADR 0111).
 - **Per-process realtime quotas.** The per-user connection limit is a memory
   bound per process; the cross-node control is the connect rate limit.
+- **Unsalted audit hashes.** The audit log's SHA-256 of a client address
+  or a login identifier can be reversed by trying every IPv4 address or a
+  list of known usernames.
+- **No external anchor for the audit chain.** Someone who can write the
+  database can rewrite the whole chain consistently; only an anchor kept
+  outside it would show that (proposed in ADR 0114).
 - **Degraded rate limiting.** When PostgreSQL is unavailable the limiter falls
   back to process-local memory.
 - **`img-src data:`** is allowed by the CSP.

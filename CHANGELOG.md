@@ -2522,6 +2522,21 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **The dated snapshot documents are gone.** `docs/BASELINE.md`,
+  `docs/OPERATIONAL_BASELINE.md`, `docs/SECURITY_BASELINE.md`,
+  `docs/SECURITY_HARDENING.md`, `docs/PRODUCTION_READINESS.md` and
+  `docs/architecture/longevity-review.md` recorded the tree of May and June
+  2026. What they said that is still true and had no other home moved to
+  the document that owns it: `docs/THREAT_MODEL.md` gains account
+  enumeration by the answers, suspended members writing, websocket origin
+  and channel checks, report and mention floods, the audit log's hashes, and
+  two residual risks (unsalted audit hashes, no external audit anchor);
+  `ROADMAP.md`'s release criteria gain the staging verdict rule;
+  `docs/ops/upgrade.md` says a broken migration is fixed forward;
+  `docs/DEPLOYMENT_EVIDENCE.md` describes the reverse-proxy benchmark; and
+  `docs/DEPLOYMENT.md` names `gpforum budgets --sync`. The README, the docs
+  index, the ADR references, t/18 (178 -> 173), t/144 and the
+  project-hygiene workflow follow.
 - **`script/` no longer wraps the front door.** The fifteen shell wrappers
   that only exec'd a `bin/gpforum-*` command (`bench-hypnotoad`,
   `bench-hypnotoad-scaling`, `query-budget`, `query-plan-evidence`,

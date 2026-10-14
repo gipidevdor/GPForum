@@ -14,7 +14,7 @@ draft/preview increment is recorded in the [composer guide][draft-flow]. This
 is not a deployed-instance audit. Existing unrelated setup changes are outside this review.
 
 [ADR 0068](adr/0068-mvp-roadmap-sequencing.md) remains the binding roadmap.
-[Production readiness](PRODUCTION_READINESS.md), the
+The [release criteria](../ROADMAP.md#release-readiness), the
 [readiness review](release/readiness-review.md) and
 [quality program](QUALITY_PROGRAM.md) retain their gates and work priorities.
 The historical completion of milestones 0–10 does not establish completion

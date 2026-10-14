@@ -135,5 +135,4 @@ path.
   `deploy/freebsd/`, `deploy/launchd/`, `deploy/caddy/`.
 - Tests: `t/33-health-readiness.t`, `t/98-operational-profiles.t`,
   `t/144-cpan-install.t`.
-- Docs: `docs/DEPLOYMENT.md`, `docs/DEPLOYMENT_EVIDENCE.md`,
-  `docs/PRODUCTION_READINESS.md`.
+- Docs: `docs/DEPLOYMENT.md`, `docs/DEPLOYMENT_EVIDENCE.md`.

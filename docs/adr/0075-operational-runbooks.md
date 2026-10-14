@@ -126,7 +126,7 @@ alerts where appropriate; rollback or mitigation; runbook coverage.
   emergency controls (ADR 0079) and configuration toggles (ADR 0077).
 - Open conflicts: the repository does not yet hold the mandatory runbook
   set. Backup/restore and deploy procedures live in
-  `docs/PRODUCTION_READINESS.md` and `docs/DEPLOYMENT.md`, but there are no
+  `docs/DEPLOYMENT.md`, but there are no
   documented runbooks for secret rotation, cache purge, compromised account
   response and several other mandatory entries, and
   `docs/release/readiness-review.md` records that the rollback runbook has
@@ -141,7 +141,7 @@ alerts where appropriate; rollback or mitigation; runbook coverage.
 - Code: `lib/GPForum/Service/Operations/RunbookValidator.pm`,
   `bin/gpforum-migrate`, `bin/gpforum-outbox-dispatch`.
 - Tests: `t/23-operations-hardening.t`.
-- Docs: `docs/DEPLOYMENT.md`, `docs/PRODUCTION_READINESS.md`,
+- Docs: `docs/DEPLOYMENT.md`, `docs/ops/upgrade.md`,
   `docs/OBSERVABILITY.md`, `docs/OUTBOX_LIFECYCLE.md`,
   `docs/ops/reactor-backend.md`, `docs/audit/failure-modes.md`,
   `docs/release/readiness-review.md`.

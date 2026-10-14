@@ -204,7 +204,7 @@ and their consequences. [GOVERNANCE.md](GOVERNANCE.md) describes how they change
 Ready for local and personal use. Public production and private beta still
 need evidence from a real staging host for TLS, mail delivery and load.
 There is no tagged release or independent security review.
-[Readiness criteria](docs/PRODUCTION_READINESS.md) ·
+[Release criteria](ROADMAP.md#release-readiness) ·
 [Current review](docs/release/readiness-review.md)
 
 ## Contributing

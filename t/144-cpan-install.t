@@ -197,7 +197,6 @@ sub _assert_operator_surface {
     my $makefile   = path($MAKEFILE)->slurp;
     my $readme     = path('README.md')->slurp;
     my $deployment = path('docs/DEPLOYMENT.md')->slurp;
-    my $readiness  = path('docs/PRODUCTION_READINESS.md')->slurp;
     my $ci         = path('.github/workflows/ci.yml')->slurp;
 
     like( $makefile, qr/^install-deps:/msx, 'Makefile has install-deps' );
@@ -232,11 +231,6 @@ sub _assert_operator_surface {
         $deployment,
 qr/live [ ] next [ ] to [ ] `perl` [ ] [(]perlbrew[)]|plenv [ ]install/msx,
         'DEPLOYMENT has no version-manager install assumptions'
-    );
-    like(
-        $readiness,
-        qr/carton [ ] install [ ] --deployment/msx,
-        'PRODUCTION_READINESS documents carton --deployment'
     );
     like(
         $ci,

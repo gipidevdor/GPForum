@@ -190,17 +190,30 @@ denial, disposable cache behavior, and realtime degradation. The Hypnotoad gate
 proves those paths can run in a real prefork runtime; it does not replace the
 deeper workflow tests.
 
-## Reverse Proxy Status
+## Behind a Reverse Proxy
 
-Reverse proxy evidence is optional and not a CI requirement. Deployment examples
-exist for nginx and Caddy in `deploy/`. The next external load-test step should
-place nginx or Caddy in front of the same Hypnotoad harness and compare:
+`--reverse-proxy` puts a temporary nginx or HAProxy in front of the same
+temporary Hypnotoad and records the frontend and backend ports, the proxy's
+version and the comparison with direct Hypnotoad. `--proxy auto` takes the
+first of `nginx` and `haproxy` on `PATH`; `--proxy nginx` or `--proxy haproxy`
+asks for one. When none is found the run fails and says which it searched,
+rather than reporting a pass:
 
-* connection reuse;
-* static transfer behavior;
-* WebSocket upgrade behavior;
-* request buffering;
-* TLS and compression overhead.
+```sh
+bin/gpforum hypnotoad-benchmark --reverse-proxy --proxy auto --check \
+  --profile small --workers 2 --iterations 2 --warmup 1
+```
+
+It needs the PostgreSQL database above. `--dry-run` checks the command line
+without a database, a proxy or a server:
+
+```sh
+bin/gpforum hypnotoad-benchmark --dry-run --reverse-proxy --json \
+  --iterations 1 --warmup 0 --route /health/live
+```
+
+This evidence is optional and not a CI requirement. Caddy, also in
+`deploy/`, is not one of the proxies it starts.
 
 ## Limitations
 

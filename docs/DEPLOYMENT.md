@@ -85,8 +85,9 @@ site=forum.example.com
    and the database as PostgreSQL's superuser, the `postgres` account, and
    brings the schema up to date as `gpforum migrate` does: the tables, the
    monthly partitions and the query budgets `/health/ready` compares the
-   plans with. Run again, it changes nothing and says so; a setting the
-   file has is replaced only when you say so.
+   plans with (`gpforum budgets --sync` syncs those alone; without them
+   readiness answers 503). Run again, it changes nothing and says so; a
+   setting the file has is replaced only when you say so.
 
    For a database on another host, answer its data source
    (`dbi:Pg:dbname=gpforum;host=db.internal;port=5432`). Setup reaches its

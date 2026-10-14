@@ -292,4 +292,4 @@ realtime, APIs, administration, and operations.
   `t/55-security-abuse-hardening.t`, `t/108-web-access.t`,
   `t/114-web-cookie-session.t`, `t/116-infrastructure-audit-record.t`,
   `t/09-architecture-documentation.t`.
-- `SECURITY.md`, `docs/SECURITY_BASELINE.md`, `docs/SECURITY_HARDENING.md`.
+- `SECURITY.md`, `docs/THREAT_MODEL.md`.

@@ -25,7 +25,7 @@ public production.
 | --- | --- | --- | --- | --- |
 | HIGH | Qualified the `me.*` filters in `PostReader::list_thread_posts` | `lib/GPForum/Service/Forum/PostReader.pm` | 500 on `/t/:thread_id` against real PostgreSQL from an ambiguous `deleted_at` after joining `post_bodies` and `users` | `t/21-forum-pagination.t`, `t/31-forum-http-readers.t`, real-DB reproduction on a seeded thread |
 | HIGH | Added `EnvironmentFile=/etc/gpforum/gpforum.env` to the systemd units | `deploy/systemd/*.service` | Production systemd deploy without explicit secret/DB environment | `t/18-github-project.t` |
-| HIGH | Documented `bin/gpforum budgets --sync` before readiness | `docs/DEPLOYMENT.md`, `docs/PRODUCTION_READINESS.md` | Fresh install migrated but readiness returning 503 because the query budget catalog is empty | `t/18-github-project.t`, real DB with `query-budget --sync --check` |
+| HIGH | Documented `bin/gpforum budgets --sync` before readiness | `docs/DEPLOYMENT.md`, `docs/ops/doctor.md` | Fresh install migrated but readiness returning 503 because the query budget catalog is empty | `t/18-github-project.t`, real DB with `query-budget --sync --check` |
 
 ## Go / No-Go table
 
@@ -34,7 +34,7 @@ public production.
 | Test suite completa | GO | `script/gpforum-carton exec script/test` PASS (suite cresciuta oltre la baseline 2026-06-02) | Nessuno bloccante locale | Mantenere in CI |
 | Migrazioni fresh install | GO locale | Schema versioni `001`–`036` (36 migrazioni) su `main`; percorso fresh ancora da ripetere su staging target | Non ancora su staging target | Ripetere su staging PostgreSQL uguale alla produzione |
 | Migrazioni upgrade | GO locale | Percorso 024→025 storico; successive uniqueness/concurrency (`026`–`036`) presenti nel tree | Upgrade full chain non riprovato end-to-end su staging | Ripetere da snapshot staging/restored attraverso `036` |
-| Rollback migrazioni | NO-GO produzione | Documentata strategia forward-fix in `docs/PRODUCTION_READINESS.md` | Rollback non provato con sistema/nginx/systemd reale | Rehearsal forward-fix e restore drill su staging |
+| Rollback migrazioni | NO-GO produzione | Documentata strategia forward-fix in `docs/ops/upgrade.md` | Rollback non provato con sistema/nginx/systemd reale | Rehearsal forward-fix e restore drill su staging |
 | Perl::Critic | GO | `script/perlcritic`: `new_violations=0` | Restano baseline note, non nuove | Non allargare baseline senza review |
 | Perltidy | GO | `script/perltidy-check`: PASS | Nessuno | Mantenere gate |
 | Coverage | GO | `script/coverage`: PASS (gate) | Alcuni moduli operativi hanno coverage basso, ma gate passa | Aumentare coverage su realtime/controller solo se toccati |
@@ -60,7 +60,7 @@ public production.
 | Full test suite | GO | `script/gpforum-carton exec script/test` PASS (suite has grown past the 2026-06-02 baseline) | None blocking locally | Keep it in CI |
 | Fresh install migrations | GO locally | Schema versions `001`–`036` (36 migrations) on `main`; the fresh path still has to be repeated on the staging target | Not yet on the staging target | Repeat on a staging PostgreSQL identical to production |
 | Upgrade migrations | GO locally | Historical 024→025 path; the later uniqueness/concurrency migrations (`026`–`036`) are present in the tree | The full upgrade chain has not been re-run end-to-end on staging | Repeat from a staging/restored snapshot through `036` |
-| Migration rollback | NO-GO for production | Forward-fix strategy documented in `docs/PRODUCTION_READINESS.md` | Rollback not rehearsed with a real system/nginx/systemd | Forward-fix rehearsal and restore drill on staging |
+| Migration rollback | NO-GO for production | Forward-fix strategy documented in `docs/ops/upgrade.md` | Rollback not rehearsed with a real system/nginx/systemd | Forward-fix rehearsal and restore drill on staging |
 | Perl::Critic | GO | `script/perlcritic`: `new_violations=0` | Known baseline violations remain, but no new ones | Do not widen the baseline without review |
 | Perltidy | GO | `script/perltidy-check`: PASS | None | Keep the gate |
 | Coverage | GO | `script/coverage`: PASS (gate) | Some operational modules have low coverage, but the gate passes | Raise coverage on realtime/controllers only when they are touched |

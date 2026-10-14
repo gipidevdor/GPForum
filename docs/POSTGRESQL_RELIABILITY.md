@@ -250,7 +250,7 @@ and the extreme-performance workflow were preserved.
 | Existing application-side diagnostic/operations tools | `lib/GPForum/Command/QueryPlanEvidence.pm`, `lib/GPForum/Service/Operations/{EvidenceValidate,StagingDrill}.pm` |
 | CI | `.github/workflows/{postgres-matrix,postgres-recovery,ops-drills}.yml` |
 | Operator schemas/runbooks | `docs/ops/{postgres-diagnostics-schema-v1.json,postgres-pitr-schema-v1.json,postgres-diagnostics.md,backup-and-restore.md,evidence-validate.md}` |
-| Project documentation | `docs/{POSTGRESQL_RELIABILITY,CI,DEPLOYMENT,PERFORMANCE,PRODUCTION_READINESS,README}.md` |
+| Project documentation | `docs/{POSTGRESQL_RELIABILITY,CI,DEPLOYMENT,PERFORMANCE,README}.md` |
 | Existing test contracts | `t/{54-query-plan-evidence,166-deploy-contract,371-query-plan-report-pins,431-benchmark-folded-paths,614-drills-take-flags}.t`, `t/lib/GPForum/Test/QueryPlanEvidenceDbh.pm` |
 | New deterministic tests | `t/{671-postgres-diagnostics,672-postgres-reliability-workflows,673-postgres-pitr-drill,674-postgres-evidence-types,675-staging-drill-cleanup}.t` |
 | Live PostgreSQL tests | `t/integration/{postgres-diagnostics,postgres-sql-function-plans}.t` |

@@ -153,7 +153,7 @@ context in the order they become available.
   moderation), ADR 0062 and ADR 0090 (search), ADR 0065 (community
   operations), ADR 0069 (schema), ADR 0071 (events), ADR 0075
   (runbooks), ADR 0078 (notifications), ADR 0081 (import/export).
-- `ROADMAP.md`, `README.md`, `docs/MVP.md`, `docs/PRODUCTION_READINESS.md`,
+- `ROADMAP.md`, `README.md`, `docs/MVP.md`,
   `docs/release/readiness-review.md`
 - `script/coverage`, `script/profile-nytprof`, `script/perlcritic`,
   `script/gpforum-carton`, `bin/gpforum-migrate`, `.perlcriticrc`,

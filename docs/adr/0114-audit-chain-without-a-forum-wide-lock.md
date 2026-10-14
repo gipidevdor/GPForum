@@ -354,7 +354,7 @@ oldest pending age, last verification and its result (`Bootstrap::Admin`,
   becomes the unlinked window and the need for exported anchors),
   `docs/audit/transactional-correctness.md` AUD-001,
   `docs/audit/failure-modes.md` FM-010, `docs/QUALITY_PROGRAM.md` 1.3,
-  `docs/SECURITY_BASELINE.md` (anchors), `docs/ENGINEERING_CORRECTNESS.md`,
+  `docs/THREAT_MODEL.md` (anchors), `docs/ENGINEERING_CORRECTNESS.md`,
   `docs/release/readiness-review.md`, `docs/ops/console-and-cli.md`,
   `docs/ops/scheduled-jobs.md`, `docs/OBSERVABILITY.md`, `CHANGELOG.md`.
 

@@ -67,4 +67,7 @@ In a development checkout it prints `cd` to the checkout, `git pull` and
 To roll back, check out the release before, install its dependencies and
 restart. A migration is not undone. Restore the backup taken before the
 first command ([backup-and-restore.md](backup-and-restore.md#restoring-a-backup))
-if the release before cannot run on the new schema.
+if the release before cannot run on the new schema. A migration that breaks
+the forum is fixed forward, by a new migration in the next release: an
+applied one is never edited, and the runner refuses a file whose checksum
+differs from the one the database recorded.

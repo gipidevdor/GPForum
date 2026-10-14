@@ -179,5 +179,4 @@ optimism.
 - [dead-letters.md](dead-letters.md)
 - [evidence/](evidence) (archived blobs; laptop vs staging — never a go decision)
 - [../release/readiness-review.md](../release/readiness-review.md)
-- [../PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md)
 - [../../ROADMAP.md](../../ROADMAP.md)

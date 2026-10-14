@@ -56,7 +56,7 @@ it, which also makes RequireFinalReturn misfire on a sub ending in
   `script/gpforum-system-perl --require` and `script/bootstrap-deps` refuse
   older interpreters, and the CI jobs that run the repository's Perl on the
   runner's system perl use `ubuntu-26.04` (the Debian job already ran
-  trixie). The README, `docs/DEPLOYMENT.md`, `docs/PRODUCTION_READINESS.md`
+  trixie). The README, `docs/DEPLOYMENT.md`
   and `docs/ops/staging-drills.md` say 5.40+.
 - **Every Perl file declares `use v5.40;`** -- under `lib/`, `t/`, `t/lib/`,
   `t/integration/`, `bin/` and the Perl programs in `script/` -- and no file
@@ -129,7 +129,7 @@ it, which also makes RequireFinalReturn misfire on a sub ending in
 - `lib/GPForum/Service/Identity/Support.pm`,
   `lib/GPForum/Service/I18N/Locale.pm` (`trimmed`),
   `lib/GPForum/Infrastructure/Storage.pm`.
-- `README.md`, `docs/DEPLOYMENT.md`, `docs/PRODUCTION_READINESS.md`,
+- `README.md`, `docs/DEPLOYMENT.md`,
   `docs/ops/staging-drills.md`, `docs/ops/private-beta-checklist.md`.
 - `t/321-preamble.t`, `t/144-cpan-install.t`,
   `t/182-dependency-declaration.t`, `t/34-architecture-discipline.t`.

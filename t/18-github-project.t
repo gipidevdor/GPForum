@@ -11,7 +11,7 @@ use Test::More;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 178;
+const my $EXPECTED_TESTS => 173;
 const my $CURLY_CLASS    => '[{]';
 const my $LAUNCHD_FRONT_DOOR =>
   qr{<string>/opt/gpforum/bin/gpforum</string> \s*}msx;
@@ -39,12 +39,9 @@ for my $required_file (
     CHANGELOG.md
     docs/adr/README.md
     docs/adr/0000-template.md
-    docs/BASELINE.md
     docs/ENTRYPOINTS.md
     docs/CPAN_LICENSE_REVIEW.md
-    docs/OPERATIONAL_BASELINE.md
     docs/PERFORMANCE.md
-    docs/SECURITY_HARDENING.md
     docs/OS_RUNTIME_ENFORCEMENT.md
     docs/OS_RUNTIME_EVIDENCE.md
     docs/DEPLOYMENT.md
@@ -68,7 +65,6 @@ for my $required_file (
     docs/ops/evidence/2026-09-20-cloud-agent-stress500/stress-load-500.json
     docs/ops/evidence/2026-09-20-cloud-agent-stress500/stress-load-1000.json
     docs/ops/evidence/README.md
-    docs/PRODUCTION_READINESS.md
     deploy/systemd/gpforum.service
     deploy/systemd/gpforum-outbox.service
     deploy/systemd/gpforum-scheduled-jobs.service
@@ -123,7 +119,6 @@ my $project_contract =
 my $readme         = path('README.md')->slurp;
 my $governance     = path('GOVERNANCE.md')->slurp;
 my $deployment     = path('docs/DEPLOYMENT.md')->slurp;
-my $readiness      = path('docs/PRODUCTION_READINESS.md')->slurp;
 my $systemd_web    = path('deploy/systemd/gpforum.service')->slurp;
 my $systemd_outbox = path('deploy/systemd/gpforum-outbox.service')->slurp;
 my $systemd_jobs = path('deploy/systemd/gpforum-scheduled-jobs.service')->slurp;
@@ -254,19 +249,14 @@ like(
     'deployment docs name the systemd environment file'
 );
 like(
-    $readiness,
-    qr/\/etc\/gpforum\/gpforum[.]env/msx,
-    'production readiness docs name the systemd environment file'
-);
-like(
     $deployment,
     qr/query-budget [ ] --sync/msx,
     'deployment docs require query budget sync before readiness'
 );
 like(
-    $readiness,
+    $deployment,
     qr/gpforum [ ] budgets [ ] --sync/msx,
-    'production readiness docs require query budget sync'
+    'deployment docs name the query budget sync'
 );
 like(
     $systemd_web,

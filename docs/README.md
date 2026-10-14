@@ -17,7 +17,7 @@ starting work on any of the areas below.
 | Document | What it covers |
 | --- | --- |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | The SSR-first modular monolith and its boundaries |
-| [architecture/](architecture) | Bootstrap, presentation, web access, per-area workflow boundaries, operational profiles, partition lifecycle, and the longevity review |
+| [architecture/](architecture) | Bootstrap, presentation, web access, per-area workflow boundaries, operational profiles and partition lifecycle |
 | [architecture/composer-drafts.md](architecture/composer-drafts.md) | Private thread/reply drafts, native Save/Preview, progressive autosave, publication and retention contracts |
 | [EVENTS.md](../EVENTS.md) | Event envelope and delivery contracts |
 | [OUTBOX_LIFECYCLE.md](OUTBOX_LIFECYCLE.md) | Transactional outbox, retries, and dead letters |
@@ -45,9 +45,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 
 | Document | What it covers |
 | --- | --- |
-| [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) | The release contract: environment, gates, backup, deploy |
 | [DEPLOYMENT.md](DEPLOYMENT.md) · [DEPLOYMENT_EVIDENCE.md](DEPLOYMENT_EVIDENCE.md) | Running GPForum behind a reverse proxy, and the evidence gate |
-| [OPERATIONAL_BASELINE.md](OPERATIONAL_BASELINE.md) · [BASELINE.md](BASELINE.md) | Current operational baseline |
 | [OBSERVABILITY.md](OBSERVABILITY.md) | Health, logs, and metrics |
 | [POSTGRESQL_RELIABILITY.md](POSTGRESQL_RELIABILITY.md) | PostgreSQL 16–18 audit, feature matrix, implementation decisions and verification |
 | [ops/postgres-diagnostics.md](ops/postgres-diagnostics.md) | Optional SQL cost statistics and read-only lock, vacuum, freeze, WAL and checkpoint diagnostics |
@@ -84,7 +82,6 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | Document | What it covers |
 | --- | --- |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, actors, trust boundaries, and the mitigation and test at each |
-| [SECURITY_BASELINE.md](SECURITY_BASELINE.md) · [SECURITY_HARDENING.md](SECURITY_HARDENING.md) | Security baseline and abuse hardening |
 | [ENGINEERING_CORRECTNESS.md](ENGINEERING_CORRECTNESS.md) | Engineering correctness freeze |
 | [audit/](audit) | Audits of transactional correctness, failure modes, and the email lifecycle |
 | [CPAN_LICENSE_REVIEW.md](CPAN_LICENSE_REVIEW.md) | Dependency license gate |

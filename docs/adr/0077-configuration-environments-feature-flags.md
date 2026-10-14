@@ -98,4 +98,4 @@ silently.
   `lib/GPForum/Service/Operations/Profile.pm`.
 - Tests: `t/01-config.t`, `t/98-operational-profiles.t`.
 - Docs: `docs/architecture/operational-profiles.md`,
-  `docs/PRODUCTION_READINESS.md`.
+  `docs/DEPLOYMENT.md`.

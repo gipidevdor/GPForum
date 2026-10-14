@@ -44,8 +44,8 @@ bin/gpforum --env-file /etc/gpforum/admin.env api-role --role gpforum_runtime --
 bin/gpforum --env-file /etc/gpforum/admin.env api-role --role gpforum_runtime --apply
 ```
 
-`bin/gpforum-api-role` is the standalone alias. Without `--apply` it prints the
-plan. `--json` returns the same plan or provisioning result as JSON. The
+Without `--apply` it prints the plan. `--json` returns the same plan or
+provisioning result as JSON. The
 command refuses a privileged role, an object owner, a role with memberships,
 or API functions owned by a superuser. Provisioning runs in one transaction
 and checks that effective table and column privileges are absent before it

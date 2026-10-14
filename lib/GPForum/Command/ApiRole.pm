@@ -118,7 +118,7 @@ sub _options (@arguments) {
 
 sub usage_text ($self) {
     return <<'USAGE';
-Usage: bin/gpforum-api-role --role ROLE [--plan|--apply] [--json]
+Usage: gpforum api-role --role ROLE [--plan|--apply] [--json]
 
 Plans by default; --apply provisions access to the catalogued API functions.
 The role must already exist, own no objects, inherit no roles and have no
@@ -146,8 +146,8 @@ Version 0.001.
 
 =head1 SYNOPSIS
 
-    bin/gpforum-api-role --role gpforum_runtime --plan
-    bin/gpforum-api-role --role gpforum_runtime --apply
+    gpforum api-role --role gpforum_runtime --plan
+    gpforum api-role --role gpforum_runtime --apply
 
 =head1 DESCRIPTION
 

@@ -116,7 +116,7 @@ sub _test_command_help {
     }
     like(
         $usage,
-        qr/gpforum-staging-drill-attachments/msx,
+        qr/gpforum [ ] staging-drill-attachments/msx,
         'help names command'
     );
     like( $usage, qr/private-beta/msx,    'help denies private-beta claim' );

@@ -1859,7 +1859,7 @@ C<on_connect_do>; the query statistics know them by these texts.
 Returns DBI connection arguments for DBIx::Class. Session
 C<statement_timeout>, C<idle_in_transaction_session_timeout>,
 C<lock_timeout>, and C<application_name> are applied on connect. Zero
-milliseconds disables that PostgreSQL timeout. C<gpforum-migrate --apply>
+milliseconds disables that PostgreSQL timeout. C<gpforum migrate>
 clears C<statement_timeout> after connect so DDL is not capped at the web
 budget.
 

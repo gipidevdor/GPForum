@@ -89,7 +89,7 @@ sub _host {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-antivirus-check [--human | --json]
+Usage: gpforum antivirus-check [--human | --json]
 
 Prove the upload antivirus works: report the scanner the configuration names
 (GPFORUM_ANTIVIRUS), its signatures, and scan the EICAR test file -- which it

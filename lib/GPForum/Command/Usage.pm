@@ -14,7 +14,6 @@ use v5.40;
 use Mojo::Util qw(encode);
 
 use GPForum::Command::Support::ServiceEnvironment;
-use GPForum::Command::Support::Verbs;
 use GPForum::Command::Support::Words;
 use GPForum::Service::Operations::DatabaseFailure;
 use GPForum::Service::Admin::Settings;
@@ -43,10 +42,6 @@ const our $EXIT_USAGE   => 2;
 # run unless it came in through one door.
 const our $EXIT_CONFIG => 78;
 
-# What the front door calls itself; a program invoked as "gpforum VERB" came
-# in through it.
-const my $FRONT_DOOR => qr/\A gpforum (?: \s | \z )/msx;
-
 # Sorted keys: the same state prints the same bytes, so two runs diff cleanly
 # and a test can compare a document whole.
 const my %JSON_SETTINGS => ( canonical => 1, utf8 => 1 );
@@ -63,9 +58,9 @@ qr/\A (?: [[:digit:]]+ (?: [.] [[:digit:]]+ )? | [.] [[:digit:]]+ ) \z/msx,
 # Help goes to stdout and succeeds: an operator running `cmd --help | less`
 # should not be reading stderr, and a wrapper script should not see a failure.
 # What bin/gpforum's adapters answer with. Mojolicious ignores a command's
-# return value, so `gpforum search_rebuild --entity bogus` exited 0 where
-# bin/gpforum-search-rebuild exits 2: the front door exits with the
-# command's status when it is not success.
+# return value, so `gpforum search-rebuild --entity bogus` exited 0 where
+# the command returned 2: the front door exits with the command's status
+# when it is not success.
 sub front_door ( $, $status ) {
     if ($status) {
         exit $status;
@@ -75,7 +70,7 @@ sub front_door ( $, $status ) {
 }
 
 sub help ( $class, $output, $text ) {
-    print {$output} _for_terminal( _terminated( $class->as_invoked($text) ) )
+    print {$output} _for_terminal( _terminated($text) )
       or croak 'failed to write usage';
 
     return $EXIT_OK;
@@ -95,9 +90,7 @@ sub error ( $class, $message, $text ) {
         $text = undef;
         $body =~ s/\s+\z/\n/msx;
     }
-    print {*STDERR}
-      _for_terminal(
-        $class->as_invoked( $body . ( _terminated($text) // q{} ) ) )
+    print {*STDERR} _for_terminal( $body . ( _terminated($text) // q{} ) )
       or croak 'failed to write usage error';
 
     return $EXIT_USAGE;
@@ -236,11 +229,9 @@ sub json ( $, $output, $document ) {
 # ending with the environment file this process read, where the error itself
 # carries the English; and the status is EX_CONFIG, 78, as bin/gpforum's.
 #
-# Through the front door, a reason that names a bin/ entrypoint -- "run
-# bin/gpforum-partition-maintenance --plan" -- names the verb instead, and a
-# gpforum command it offers reads the file this run read: "apply the
-# migrations with gpforum migrate", after gpforum --env-file FILE partitions,
-# migrated the database the host's file names.
+# A gpforum command a reason offers reads the file this run read: "apply
+# the migrations with gpforum migrate", after gpforum --env-file FILE
+# partitions, migrated the database the host's file names.
 sub failure ( $class, $error, $output = undef, $document = undef ) {
     my $text   = $class->trimmed($error);
     my $reason = GPForum::Service::Admin::Settings->new->redact( $text, [] );
@@ -250,7 +241,7 @@ sub failure ( $class, $error, $output = undef, $document = undef ) {
           // $class->_explained($text) );
     print {*STDERR} _for_terminal(
         GPForum::Command::Support::ServiceEnvironment->as_read(
-            $class->as_invoked( $explained // $reason )
+            $explained // $reason
         )
       )
       . "\n"
@@ -336,24 +327,15 @@ sub trimmed ( $, $error ) {
     return $text;
 }
 
-# The name the operator actually invoked. Five usage texts hardcoded a
-# script/ path, so running bin/gpforum-bench-hypnotoad --help answered with
-# "Usage: script/bench-hypnotoad", a wrapper that has since gone. $0 is
-# the truthful, runnable name whichever entrypoint was typed.
+# The name the operator actually invoked: "gpforum hypnotoad-benchmark"
+# through the front door, which sets $0 to the verb typed. Five usage texts
+# hardcoded a script/ path that has since gone.
 #
 # The invocant is named rather than written as a lone `$`: a one-element
 # signature holding only a sigil is the one shape Perl itself cannot
 # distinguish from a prototype, which is why architecture-check refuses it.
 sub program ($class) {
     return $PROGRAM_NAME;
-}
-
-# A text as the operator invoked the program: through the front door, each
-# bin/ entrypoint it names is written as the verb that runs it.
-sub as_invoked ( $class, $text ) {
-    return $text if $class->program !~ $FRONT_DOOR;
-
-    return GPForum::Command::Support::Verbs->as_typed($text);
 }
 
 sub _option_named ($option) {
@@ -398,8 +380,6 @@ suffix that C<croak> appends. A failure of the work itself exits 1 with its
 reason on standard error -- 78, EX_CONFIG, when it is settings the command
 cannot use -- and a command's C<--json> mode prints one JSON object per line,
 each with a C<status>; F<docs/ops/console-and-cli.md> lists the shapes.
-Through the front door (C<gpforum VERB>), a text that names a C<bin/>
-entrypoint names its verb instead.
 
 =head1 SUBROUTINES/METHODS
 
@@ -409,7 +389,7 @@ Exits with a command's status when it is not success; returns it otherwise.
 
 =head2 help
 
-Prints the usage text, as invoked, to the given handle and returns
+Prints the usage text to the given handle and returns
 C<$EXIT_OK>.
 
 =head2 is_usage
@@ -496,12 +476,6 @@ L</misuse> otherwise, listing them.
 Returns an option's value when it matches the pattern; throws L</misuse>
 otherwise.
 
-=head2 as_invoked
-
-A text as the operator invoked the program: through the front door, each
-C<bin/gpforum-NAME> it names written as the verb
-(L<GPForum::Command::Support::Verbs/as_typed>); otherwise unchanged.
-
 =head2 error
 
 Prints an optional message and the usage text to standard error, and returns
@@ -526,8 +500,7 @@ Uses L<Const::Fast>, L<JSON::MaybeXS>, L<List::Util>, L<Mojo::Base>, for
 database failures L<GPForum::Service::Operations::DatabaseFailure>, for a
 configuration's report and for misuse L<GPForum::Command::Support::Words>,
 L<GPForum::Command::Support::ServiceEnvironment>, L<Mojo::Util> and
-L<GPForum::X::Config>, for the front door's names
-L<GPForum::Command::Support::Verbs>, for its redaction
+L<GPForum::X::Config>, for its redaction
 L<GPForum::Service::Admin::Settings>, for an evidence command's failure
 L<GPForum::Service::Operations::EvidenceMeta>, and to recognise misuse
 L<GPForum::X::Usage>.

@@ -103,7 +103,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-dead-letter-check [options]
+Usage: gpforum dead-letter-check [options]
 
 Automate the docs/ops/dead-letters.md staging check against an in-memory
 outbox stack (simulate) or print the plan (dry-run). Emits EvidenceMeta JSON.

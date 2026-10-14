@@ -18,8 +18,7 @@ our $VERSION = '0.001';
 
 # An adapter, not a reimplementation: the work stays in
 # GPForum::Command::Migrate. `gpforum migrate` does it -- the migrations, the
-# partition window, the query budgets -- where bin/gpforum-migrate, its
-# alias, still plans unless told --apply.
+# partition window, the query budgets -- without being told --apply.
 has description => 'Bring the database up to date';
 has usage       => sub ($self) {
     return GPForum::Command::Migrate->new( default_mode => 'apply' )

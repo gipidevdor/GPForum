@@ -106,7 +106,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-evidence-validate [options] FILE [FILE...]
+Usage: gpforum evidence-validate [options] FILE [FILE...]
 
 Validate archived private-beta *preparation* evidence JSON. Rejects obvious
 secrets and readiness claims. With --strict, also require modern redaction /

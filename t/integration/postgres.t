@@ -219,8 +219,8 @@ sub _register_accounts {
     is(
         _quietly(
             sub {
-                GPForum::Command::AdminBootstrap->new->run( '--user-id',
-                    $user_id );
+                GPForum::Command::AdminBootstrap->new->run( 'grant',
+                    '--user-id', $user_id );
             }
         ),
         0,

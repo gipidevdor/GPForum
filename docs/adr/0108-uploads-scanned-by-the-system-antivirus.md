@@ -88,7 +88,7 @@ ignore unknown fields, so the payload version is unchanged.
 
 Readiness reports the antivirus as `degraded`, never `fail`: an antivirus that
 cannot scan holds uploads back, and the rest of the forum works. Signatures
-older than three days also degrade it. `bin/gpforum-antivirus-check` proves
+older than three days also degrade it. `gpforum antivirus-check` proves
 detection by scanning the EICAR test file, which readiness does not.
 
 ## Consequences

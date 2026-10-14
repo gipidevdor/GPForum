@@ -366,7 +366,8 @@ subtest 'admin-bootstrap says it as a failure, not misuse' => sub {
         sub {
             GPForum::Command::AdminBootstrap->new(
                 schema => GPForum::Test::RefusedSchema->new )
-              ->run( '--user-id', '018f1004-0001-7000-8000-000000000001' );
+              ->run( 'grant', '--user-id',
+                '018f1004-0001-7000-8000-000000000001' );
         }
     );
     is( $status, 1, 'exit 1' );
@@ -377,7 +378,10 @@ subtest 'admin-bootstrap says it as a failure, not misuse' => sub {
     );
 
     my ( $misuse, undef, $usage ) = _capture(
-        sub { GPForum::Command::AdminBootstrap->new->run('--user-id') } );
+        sub {
+            GPForum::Command::AdminBootstrap->new->run( 'grant', '--user-id' );
+        }
+    );
     is( $misuse, 2, 'misuse is still 2' );
     like( $usage, qr/Usage:/msx, 'with the usage text' );
 };

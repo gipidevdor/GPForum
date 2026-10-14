@@ -51,7 +51,7 @@ my $usage   = q{};
     is( $command->run('--help'), 0, 'help exits 0' );
     close $stdout or croak 'close stdout';
 }
-like( $usage, qr/gpforum-mail-lifecycle-check/msx, 'help names command' );
+like( $usage, qr/gpforum [ ] mail-lifecycle-check/msx, 'help names command' );
 like( $usage, qr/private-beta/msx, 'help denies private-beta claim' );
 
 my $json = q{};

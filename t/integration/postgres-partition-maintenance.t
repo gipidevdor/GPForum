@@ -141,7 +141,7 @@ subtest '049 on an installation that wrote rows into 038 partitions' =>
   \&_rolling_keeps_rows;
 subtest '049 beside a transaction writing two of the tables' =>
   \&_rolling_without_deadlock;
-subtest 'gpforum-migrate --apply ensures the window' => \&_migrate_window;
+subtest 'gpforum migrate ensures the window' => \&_migrate_window;
 
 done_testing();
 

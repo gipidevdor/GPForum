@@ -106,11 +106,11 @@ were not re-run for this documentation refresh. The schema on `main` is now at
 | `bin/gpforum budgets --sync` | PASS | `synced 24 endpoint query budgets` |
 | `bin/gpforum budgets --check` | PASS | `ok endpoint query budgets aligned` |
 | `bin/gpforum query-plan-evidence --check` | PASS | 12 endpoint ok, violazioni none |
-| `script/gpforum-carton exec bin/gpforum-platform-check --with-db` | PARTIAL | `query_budget_drift status=ok`, `os_preflight status=degraded` sul Mac locale per CPU/processi |
+| `gpforum platform-check --with-db` | PARTIAL | `query_budget_drift status=ok`, `os_preflight status=degraded` sul Mac locale per CPU/processi |
 | `pg_dump -Fc` + `pg_restore` | PASS | Restore con 25 migrazioni all'epoca; oggi 36 versioni |
 | `bin/gpforum os-preflight --json` | DEGRADED | CPU count locale 1, web process default 4 cap-to-cpu; fd limit OK |
 | `bin/gpforum query-plan-evidence --check` | PASS | 12 endpoints ok, no violations |
-| `script/gpforum-carton exec bin/gpforum-platform-check --with-db` | PARTIAL | `query_budget_drift status=ok`, `os_preflight status=degraded` on the local Mac because of CPU/process counts |
+| `gpforum platform-check --with-db` | PARTIAL | `query_budget_drift status=ok`, `os_preflight status=degraded` on the local Mac because of CPU/process counts |
 | `pg_dump -Fc` + `pg_restore` | PASS | Restore with 25 migrations at the time; 36 versions today |
 | `script/gpforum-os-preflight --json` | DEGRADED | Local CPU count 1, web process default 4 capped to CPU; fd limit OK |
 | `script/benchmark-http --fixture --check ...` | PASS | `/categories` p95 1.637 ms, thread fixture p95 23.375 ms |

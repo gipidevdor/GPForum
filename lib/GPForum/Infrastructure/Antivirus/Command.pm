@@ -53,7 +53,7 @@ sub answers_immediately {
 # what bin/gpforum antivirus_check proves, with a test file.
 # For readiness: the program must resolve to an executable file, through PATH
 # when it is a bare name, as exec itself would find it. Whether it detects
-# anything is what bin/gpforum-antivirus-check proves, with a test file.
+# anything is what gpforum antivirus-check proves, with a test file.
 sub health ( $self, $ ) {
     my ($program) = @{ $self->command };
     my %check = ( mode => 'command', program => $program );

@@ -3,7 +3,7 @@
 ## Status
 
 Accepted. Amended by ADR 0113: partition DDL runs from operator processes --
-`bin/gpforum-migrate --apply` and a daily maintenance timer -- though still
+`gpforum migrate` and a daily maintenance timer -- though still
 never from a web request or worker.
 
 ## Context
@@ -33,7 +33,7 @@ The application does not execute partition DDL.
 ## Consequences
 
 Operators can select a named profile and compare a running config against its
-floors through `evaluate`, `bin/gpforum-platform-check`, and `/health/ready`. Partition work has a testable policy version without moving schema
+floors through `evaluate`, `gpforum platform-check`, and `/health/ready`. Partition work has a testable policy version without moving schema
 mutation into services. Sample files live under `etc/`.
 
 ## Alternatives Rejected

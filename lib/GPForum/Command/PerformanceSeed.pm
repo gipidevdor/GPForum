@@ -150,8 +150,7 @@ sub _assert_migrated ($dbh) {
             undef, 'public.' . $table );
         if ( !$exists ) {
             GPForum::X::Config->throw( message =>
-'database schema is not migrated; run script/gpforum-carton exec bin/gpforum-migrate --apply'
-            );
+                  'database schema is not migrated; run gpforum migrate' );
         }
     }
 

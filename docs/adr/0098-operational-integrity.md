@@ -305,7 +305,7 @@ If the implementation cannot answer these questions, it is incomplete.
 - `docs/adr/0009-outbox-retry-semantics.md`
 - `docs/adr/0020-audit-record-hashing.md`
 - `script/architecture-check`, `script/perlcritic`, `script/coverage`,
-  `bin/gpforum-migrate`
+  `gpforum migrate`
 - `docs/ENGINEERING_CORRECTNESS.md`, `docs/MVP.md`,
   `docs/audit/transactional-correctness.md`, `docs/audit/failure-modes.md`
 - `t/09-architecture-documentation.t`, `t/34-architecture-discipline.t`,

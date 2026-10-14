@@ -25,7 +25,7 @@ contract step below.
   count as the replies after the opening post.
 - `thread_counters.reply_count` has `CHECK (reply_count >= 0)`. Writing the
   deltas there as they were would have failed that opening-post delete.
-- A deploy runs `bin/gpforum-migrate --apply` and then restarts Hypnotoad
+- A deploy runs `gpforum migrate` and then restarts Hypnotoad
   (`docs/DEPLOYMENT.md`, `docs/ops/reload-and-restart.md`). The previous
   release serves while the migration runs, and its workers finish their
   requests after the restart begins, so for a while both releases write.
@@ -158,7 +158,7 @@ Evidence for the trigger:
 ### 3. Deploy order and the contract step
 
 1. **This release: 051 must be applied before its code starts.**
-   `bin/gpforum-migrate --apply`, then the restart, as every deploy does;
+   `gpforum migrate`, then the restart, as every deploy does;
    a deploy whose migration fails stops there, and the previous release
    keeps serving correctly on whatever steps of 051 committed. Starting
    this release's code first is not safe. A thread the application created

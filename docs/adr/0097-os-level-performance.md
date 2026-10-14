@@ -401,7 +401,7 @@ Forbidden:
   `Linux`, `Socket`, `Resource`, `Process`, `Filesystem`, `Preflight`,
   `RuntimePolicy`, `RuntimeEvidence`)
 - `lib/GPForum/Config.pm` (`os_*` feature settings)
-- `bin/gpforum-os-preflight`, `bin/gpforum-platform-check`,
+- `gpforum os-preflight`, `gpforum platform-check`,
   `script/system-preflight`, `script/profile-nytprof`,
   `script/query-plan-check`
 - `docs/PERFORMANCE.md#os-tuning`, `docs/OS_RUNTIME_ENFORCEMENT.md`,

@@ -246,8 +246,8 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-dead-letter-replay --list [--limit N] [--json]
-       bin/gpforum-dead-letter-replay --id DEAD_LETTER_ID [--id ...] [--json]
+Usage: gpforum dead-letters --list [--limit N] [--json]
+       gpforum dead-letters --id DEAD_LETTER_ID [--id ...] [--json]
 
 Review dead letters, and put their work back in the outbox once the cause is
 fixed. A replay is a new outbox message for the same event; the cancelled
@@ -271,8 +271,8 @@ Version 0.001.
 
 =head1 SYNOPSIS
 
-    bin/gpforum-dead-letter-replay --list
-    bin/gpforum-dead-letter-replay --id 018f...
+    gpforum dead-letters --list
+    gpforum dead-letters --id 018f...
 
 =head1 DESCRIPTION
 

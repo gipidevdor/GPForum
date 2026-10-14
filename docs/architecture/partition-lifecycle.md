@@ -22,8 +22,8 @@ The lifecycle contract is:
 - recommend detach when a created window is older than the profile retention;
 - emit restore evidence from created registry rows.
 
-Who runs the DDL (ADR 0113, amending ADR 0012): `bin/gpforum-migrate --apply`
-after its migrations, and `bin/gpforum-partition-maintenance --apply` from a
+Who runs the DDL (ADR 0113, amending ADR 0012): `gpforum migrate`
+after its migrations, and `gpforum partitions --apply` from a
 daily timer (`deploy/systemd/gpforum-partition-maintenance.timer`, its
 launchd and FreeBSD counterparts). Both are operator processes. No web
 request and no long-running worker executes partition DDL: that is what ADR

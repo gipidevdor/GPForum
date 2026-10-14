@@ -15,7 +15,7 @@ usage() {
 Usage: script/gpforum-private-beta-checklist [--commands|--status|--help]
 
   --commands  print operator commands for each prep phase (default)
-  --status    print whether known entrypoints exist (executable / missing)
+  --status    print whether each entrypoint answers (ok / fails / missing)
   --help      show this help
 
 Does not execute migrate, staging drills, staging-host-verify, stress-load,
@@ -66,7 +66,7 @@ script/bootstrap-deps --postgres --rebuild-local
 # or: make install-deps-postgres
 
 # 2. Migrate + query budget (requires GPFORUM_DATABASE_*)
-script/gpforum-carton exec bin/gpforum-migrate --apply
+bin/gpforum migrate
 bin/gpforum budgets --sync
 bin/gpforum budgets --check
 
@@ -117,20 +117,32 @@ status_line() {
     fi
 }
 
+# A verb of the front door: ok when bin/gpforum VERB --help answers.
+verb_line() {
+    verb=$1
+    if [ ! -x bin/gpforum ]; then
+        printf 'missing\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    elif bin/gpforum "$verb" --help >/dev/null 2>&1; then
+        printf 'ok\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    else
+        printf 'fails\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    fi
+}
+
 print_status() {
     print_banner
     printf 'entrypoint\tlabel\tpath\n'
     status_line script/gpforum-system-perl system-perl
     status_line script/gpforum-homebrew-env homebrew-env
-    status_line bin/gpforum-migrate migrate
-    status_line bin/gpforum budgets
-    status_line bin/gpforum staging-drill
-    status_line bin/gpforum staging-drill-attachments
-    status_line bin/gpforum staging-host-verify
-    status_line bin/gpforum stress-load
-    status_line bin/gpforum mail-check
-    status_line bin/gpforum mail-lifecycle-check
-    status_line bin/gpforum dead-letter-check
+    verb_line migrate
+    verb_line budgets
+    verb_line staging-drill
+    verb_line staging-drill-attachments
+    verb_line staging-host-verify
+    verb_line stress-load
+    verb_line mail-check
+    verb_line mail-lifecycle-check
+    verb_line dead-letter-check
     status_line script/gpforum-evidence-live evidence-live
     status_line docs/ops/private-beta-checklist.md checklist-doc
     status_line docs/ops/staging-host.md staging-host-doc

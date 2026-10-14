@@ -267,7 +267,7 @@ propagation assistance.
   `lib/GPForum/Bootstrap/Workers.pm`, `lib/GPForum/Jobs/EventPayload.pm`,
   `lib/GPForum/Service/Outbox/` (`Retry.pm`, `FailureType.pm`,
   `DeadLetterRecorder.pm`), `lib/GPForum/Command/OutboxDispatch.pm`
-- `bin/gpforum-outbox-dispatch`, `script/bench-outbox-dispatcher`
+- `gpforum outbox`, `script/bench-outbox-dispatcher`
 - `migrations/004_platform_governance.sql` (`dead_letters`,
   `projection_offsets`, `projection_generations`),
   `migrations/021_outbox_delivery_reliability.sql`,

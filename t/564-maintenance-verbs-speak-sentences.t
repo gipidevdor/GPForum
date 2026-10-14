@@ -38,8 +38,9 @@ our $VERSION = '0.001';
 # status=ok pending=0`, a `scheduled_jobs ok=1 ...` line, a partition plan of
 # DDL that exited 0 on a database never migrated, and a bare `gpforum
 # budgets` that listed the catalog with no verdict. Through the front door
-# they say it in the operator's language; their bin/gpforum-* names keep the
-# lines the units' journals and older scripts read, and --json is unchanged.
+# they say it in the operator's language; built directly, as the tests and
+# the benchmark scripts build them, they keep the terse lines, and --json is
+# unchanged.
 
 const my $MONTH => qr/\d{4}-\d{2}/msx;
 
@@ -99,7 +100,7 @@ subtest 'gpforum outbox says what it sent' => sub {
             { human => 0 }, '--once'
         )->{output},
         qr/\A outbox_dispatch [ ] selected=3 [ ] dispatched=3 /msx,
-        'bin/gpforum-outbox-dispatch keeps its line'
+        'built directly, it keeps its line'
     );
 };
 
@@ -162,7 +163,7 @@ qr/\A \N{CHECK MARK} [ ] Created [ ] \d+ [ ] monthly [ ] partitions;/msx,
         _partitions( $english, _migrated(), { human => 0 }, '--plan' )
           ->{output},
         qr/\A partition_maintenance [ ] mode=plan /msx,
-        'bin/gpforum-partition-maintenance keeps its lines'
+        'built directly, it keeps its lines'
     );
   };
 
@@ -240,7 +241,7 @@ qr/\A \N{CHECK MARK} [ ] Schema [ ] is [ ] current [ ] [(]\d+[)][.]\n \z/msx,
     like(
         _check( $english, [], default_mode => 'plan' )->{output},
         qr/\A migrate [ ] check [ ] status=ok [ ] pending=0\n \z/msx,
-        'bin/gpforum-migrate --check keeps its line'
+        'built directly, --check keeps its line'
     );
 };
 
@@ -276,7 +277,7 @@ subtest 'gpforum scheduled-jobs says what each job did' => sub {
     like(
         _jobs( $english, $summary, human => 0 )->{output},
         qr/\A scheduled_jobs [ ] ok=0 /msx,
-        'bin/gpforum-scheduled-jobs keeps its line'
+        'built directly, it keeps its line'
     );
 };
 

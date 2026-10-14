@@ -175,7 +175,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-stress-load [options]
+Usage: gpforum stress-load [options]
 
 Operator-runnable HTTP stress/load harness for a running Hypnotoad/GPForum
 instance. Profiles map to concurrent in-flight request slots (equivalent to

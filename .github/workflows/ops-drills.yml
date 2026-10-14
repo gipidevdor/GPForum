@@ -14,12 +14,9 @@ on:
     branches:
       - main
     paths:
-      - 'bin/gpforum-staging-drill*'
-      - 'bin/gpforum-staging-host-verify'
-      - 'bin/gpforum-stress-load'
-      - 'bin/gpforum-mail-*'
-      - 'bin/gpforum-dead-letter-check'
-      - 'bin/gpforum-evidence-*'
+      - 'lib/GPForum/Command/StressLoad.pm'
+      - 'lib/GPForum/Command/Mail*'
+      - 'lib/GPForum/Command/DeadLetterCheck.pm'
       - 'lib/GPForum/Service/Operations/**'
       - 'lib/GPForum/Command/Staging*'
       - 'lib/GPForum/Command/Evidence*'
@@ -34,12 +31,9 @@ on:
     branches:
       - main
     paths:
-      - 'bin/gpforum-staging-drill*'
-      - 'bin/gpforum-staging-host-verify'
-      - 'bin/gpforum-stress-load'
-      - 'bin/gpforum-mail-*'
-      - 'bin/gpforum-dead-letter-check'
-      - 'bin/gpforum-evidence-*'
+      - 'lib/GPForum/Command/StressLoad.pm'
+      - 'lib/GPForum/Command/Mail*'
+      - 'lib/GPForum/Command/DeadLetterCheck.pm'
       - 'lib/GPForum/Service/Operations/**'
       - 'lib/GPForum/Command/Staging*'
       - 'lib/GPForum/Command/Evidence*'
@@ -103,7 +97,7 @@ jobs:
           postgres-client-version: '18'
 
       - name: Apply database migrations
-        run: script/gpforum-carton exec bin/gpforum-migrate --apply
+        run: bin/gpforum migrate
 
       - name: Prepare the evidence directory
         run: mkdir -p artifacts

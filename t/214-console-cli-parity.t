@@ -12,15 +12,17 @@ use Test::More;
 
 use lib 'lib';
 
+use GPForum::Command::Support::Verbs;
+
 our $VERSION = '0.001';
 
 const my $PARITY_DOC => 'docs/ops/console-and-cli.md';
 
 # Quality program 6.5: the console and the shell drifted apart because
 # nothing listed one against the other. docs/ops/console-and-cli.md does, and
-# this keeps it true: every bin/ command has a row, every row is a command
-# that exists, and every console route a row names is one the
-# application's router registers. A command without a route says why.
+# this keeps it true: every verb of bin/gpforum has a row, every row is a
+# verb that exists, and every console route a row names is one the
+# application's router registers. A verb without a route says why.
 # The application's own router: a route commented out in Routes.pm is not
 # registered, which reading the file's text would not notice.
 my $routes           = Test::Mojo->new('GPForum')->app->routes;
@@ -34,7 +36,7 @@ ok( !$route_registered->('no_such_route'),  'and knows what it lacks' );
 
 my %row_for;
 for my $line ( split /\n/msx, path($PARITY_DOC)->slurp ) {
-    next if $line !~ /\A [|] \s* `bin\/[^`]+` \s* [|]/msx;
+    next if $line !~ /\A [|] \s* `gpforum [ ] [[:lower:]-]+` \s* [|]/msx;
 
     my ( undef, $command, $console, $notes ) = split /\s* [|] \s*/msx, $line;
     $command =~ s/`//gmsx;
@@ -42,15 +44,17 @@ for my $line ( split /\n/msx, path($PARITY_DOC)->slurp ) {
     $row_for{$command} = { console => $console, notes => $notes // q{} };
 }
 
-my @commands = sort map { 'bin/' . $_->basename } path('bin')->list->each;
-ok( scalar @commands, 'bin/ holds commands' );
+my @commands =
+  sort map { "gpforum $_->{verb}" }
+  @{ GPForum::Command::Support::Verbs->verbs };
+ok( scalar @commands, 'the front door has verbs' );
 for my $command (@commands) {
     ok( exists $row_for{$command}, "$command is in $PARITY_DOC" );
 }
 
 my %command = map { $_ => 1 } @commands;
 for my $command ( sort keys %row_for ) {
-    ok( $command{$command}, "$command, listed, exists in bin/" );
+    ok( $command{$command}, "$command, listed, is a verb" );
 
     my $row    = $row_for{$command};
     my @routes = $row->{console} =~ /`([^`]+)`/gmsx;

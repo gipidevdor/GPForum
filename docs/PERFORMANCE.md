@@ -53,7 +53,7 @@ the outbox or realtime delivery.
 | Search | its own `statement_timeout` of 2 s; ranks the newest 1,000 matches | `GPFORUM_SEARCH_STATEMENT_TIMEOUT_MS`, `GPFORUM_SEARCH_CANDIDATE_LIMIT` |
 
 The session timeouts are set on connect with `application_name=gpforum`; 0
-disables one. `gpforum-migrate --apply` clears `statement_timeout`, so DDL is
+disables one. `gpforum migrate` clears `statement_timeout`, so DDL is
 not capped at the web budget.
 
 ## Database
@@ -469,7 +469,7 @@ step with the forum.
 
 The plan gate EXPLAINs search at the configured candidate cap, because the
 cap is the inner `LIMIT` that decides between the walk and the sort.
-Rebuilding the whole index is `bin/gpforum-search-rebuild`
+Rebuilding the whole index is `gpforum search-rebuild`
 ([ops/search-rebuild.md](ops/search-rebuild.md)).
 
 ## Profiling
@@ -597,7 +597,7 @@ a 1,500-thread category).
 
 ```sh
 script/bootstrap-deps --postgres
-script/gpforum-carton exec bin/gpforum-migrate --apply
+bin/gpforum migrate
 bin/gpforum performance-seed --profile medium
 bin/gpforum budgets --sync
 

@@ -130,7 +130,7 @@ fi
 
 # The host itself, once GPForum can run: os-preflight's own lines.
 if [ "$installed" -eq 1 ]; then
-    host=$(script/gpforum-carton exec perl -Ilib bin/gpforum-os-preflight 2>&1) || failed=1
+    host=$(bin/gpforum os-preflight 2>&1) || failed=1
     host=$(printf '%s\n' "$host" | sed -e '/^$/,$d')
     printf '%s\n' "$host"
     cross=$(printf '\342\234\227')

@@ -43,7 +43,7 @@ if [ "$configured" -eq 1 ]; then
 fi
 
 if [ "$has_route" -eq 1 ]; then
-    exec "$gpforum_carton" exec bin/gpforum-benchmark "$@"
+    exec "$gpforum_carton" exec bin/gpforum benchmark "$@"
 fi
 
 if [ "$configured" -eq 1 ]; then
@@ -60,7 +60,7 @@ if [ "$has_profile" -eq 0 ]; then
     set -- "$@" --profile "$profile"
 fi
 
-exec "$gpforum_carton" exec bin/gpforum-benchmark "$@" \
+exec "$gpforum_carton" exec bin/gpforum benchmark "$@" \
     --route / \
     --route /categories \
     --route "/c/$category_id" \

@@ -99,12 +99,13 @@ done_testing();
 sub _test_admin_bootstrap {
     my $usage = GPForum::Command::AdminBootstrap->usage_text;
     for my $case (
-        [ ['--unknown'],               '--unknown is not an option' ],
-        [ ['zzz'],                     q{'zzz' is not something} ],
-        [ [qw(--user-id 1 --bogus x)], '--bogus is not an option' ],
-        [ [qw(--user-id -1)],          '--user-id needs a value' ],
-        [ ['--user-id'],               '--user-id needs a value' ],
-        [ [qw(--role-name admin)],     'Say whom to make the owner' ],
+        [ ['--unknown'],                     'Say what to do' ],
+        [ [qw(--user-id 1)],                 'Say what to do' ],
+        [ ['zzz'],                           q{'zzz' is not something} ],
+        [ [qw(grant --user-id 1 --bogus x)], '--bogus is not an option' ],
+        [ [qw(grant --user-id -1)],          '--user-id needs a value' ],
+        [ [qw(grant --user-id)],             '--user-id needs a value' ],
+        [ [qw(grant --role-name admin)],     'Say whom to make the owner' ],
       )
     {
         my ( $arguments, $reason ) = @{$case};

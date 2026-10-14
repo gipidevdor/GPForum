@@ -51,7 +51,7 @@ sub _setup ( $context, $docker ) {
     }
     local %ENV = ( %ENV, %{ $context->{environment} } );
     run_bounded(
-        [ 'script/gpforum-carton', 'exec', 'bin/gpforum-migrate', '--apply' ],
+        [ 'bin/gpforum', 'migrate' ],
         {
             timeout => min( MIGRATION_SECONDS, $budget->remaining($deadline) ),
             log     => File::Spec->catfile( $output, 'diagnostics/migrate.log' )

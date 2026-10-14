@@ -281,8 +281,8 @@ rendering and benchmarking across all bounded contexts.
 - ADR 0006 (LISTEN/NOTIFY realtime transport), ADR 0012 (operational
   profiles and partition lifecycle), ADR 0019 (public HTTP cache), ADR 0048
   (GlifiStore L2 cache).
-- `lib/GPForum/OS.pm`, `lib/GPForum/OS/`, `bin/gpforum-benchmark`,
-  `bin/gpforum-query-budget`, `bin/gpforum-query-plan-evidence`.
+- `lib/GPForum/OS.pm`, `lib/GPForum/OS/`, `gpforum benchmark`,
+  `gpforum budgets`, `gpforum query-plan-evidence`.
 - `bin/gpforum budgets`, `script/query-plan-check`,
   `bin/gpforum query-plan-evidence`, `script/benchmark-http`,
   `bin/gpforum hypnotoad-benchmark`, `bin/gpforum hypnotoad-scaling`,

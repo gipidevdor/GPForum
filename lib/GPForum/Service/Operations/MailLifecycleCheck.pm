@@ -25,7 +25,7 @@ const my $PROBE_VERIFY => 'mail-lifecycle-verify-token';
 const my $RESIDUAL_BETA =>
   'This mail-lifecycle check does not claim private-beta readiness by itself.';
 const my $RESIDUAL_SMTP =>
-'Transport under test here is Email::Sender::Transport::Test; staging SMTP/sendmail --send evidence remains open via gpforum-mail-check.';
+'Transport under test here is Email::Sender::Transport::Test; staging SMTP/sendmail --send evidence remains open via gpforum mail-check.';
 const my $RESIDUAL_SEED =>
 'Seeded-role DB identity flows (register/reset/change with outbox dispatch) remain a separate staging walk.';
 const my %VALID_MODE => map { $_ => 1 } qw(dry_run simulate);

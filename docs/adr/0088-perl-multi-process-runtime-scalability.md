@@ -189,8 +189,8 @@ for persistence, search, edge routing and storage.
   `lib/GPForum/Config.pm`,
   `lib/GPForum/Service/Realtime/ListenerSupervisor.pm`,
   `lib/GPForum/Worker/MinionRegistrar.pm`.
-- Commands: `bin/gpforum-bench-hypnotoad`,
-  `bin/gpforum-bench-hypnotoad-scaling`, `bin/gpforum-os-preflight`.
+- Commands: `gpforum hypnotoad-benchmark`,
+  `gpforum hypnotoad-scaling`, `gpforum os-preflight`.
 - Tests: `t/36-os-performance.t`, `t/53-os-runtime-policy.t`,
   `t/57-hypnotoad-benchmark.t`, `t/59-hypnotoad-scaling.t`,
   `t/82-realtime-supervisor.t`, `t/84-outbox-concurrent-dispatcher.t`,

@@ -6,10 +6,10 @@ DEFAULT partition, and once rows are sitting there PostgreSQL will refuse to
 attach a partition covering that range. So the months are created ahead of
 time, from the date, and recorded in `partition_registry` (ADR 0113):
 
-- `bin/gpforum-migrate --apply` creates the current month and the two after
+- `gpforum migrate` creates the current month and the two after
   it, where they are missing, right after the migrations. A fresh install has
   its month before its first write, and every deploy refreshes the window.
-- A daily timer runs `bin/gpforum-partition-maintenance --apply`, which does
+- A daily timer runs `gpforum partitions --apply`, which does
   the same, so the window moves on between deploys.
 
 No migration names a month any more. Migration 038 named September to
@@ -24,11 +24,10 @@ The plan is the default and writes nothing: `9 monthly partitions to create,
 up to 2026-12.` and `Next: gpforum partitions --apply`, or `✓ The monthly
 partitions reach 2026-12.` when nothing is missing. `--apply` creates them.
 A database the migrations have not reached yet is refused, exit 1, with
-`gpforum migrate` to run first. `bin/gpforum-partition-maintenance`, which
-the timer runs, prints the DDL and one `key=value` line for its journal.
+`gpforum migrate` to run first.
 
 ```
-Usage: bin/gpforum-partition-maintenance [--plan|--apply] [--lookahead N] [--json]
+Usage: gpforum partitions [--plan|--apply] [--lookahead N] [--json]
 
   --plan       report the DDL without executing it (default)
   --apply      create each missing month and ATTACH it, and upsert the registry
@@ -132,7 +131,7 @@ A run first takes the advisory lock `4021970002` (the migration runner holds
 `4021970001`) with `pg_try_advisory_lock`. Two nodes' timers, or a timer and
 a deploy's migrate, can therefore overlap: the timer run that does not get
 it prints `skipped=1` and exits 0, because the run that has it is doing the
-same work. `bin/gpforum-migrate --apply` waits up to a minute for the lock
+same work. `gpforum migrate` waits up to a minute for the lock
 instead, so the application a deploy starts next finds its month in place;
 only past that does it skip.
 
@@ -157,7 +156,7 @@ overlapping rows and reattaches. It takes `ACCESS EXCLUSIVE` locks on the
 parent and holds them while the rows move: run it in a maintenance window,
 never pasted into a live system.
 
-`bin/gpforum-migrate --apply` reports the same refusal after its migrations
+`gpforum migrate` reports the same refusal after its migrations
 have committed: it prints each partition and this page on standard error and
 exits 1, with the migrations applied (`--json`: `status` `fail`, `applied`
 and `partitions` both present). The deploy should stop there until the
@@ -226,7 +225,7 @@ PATH=/usr/local/bin:/usr/bin:/bin
 ```
 
 It is idempotent: a partition that already exists is reported as existing
-and its registry row synced. `bin/gpforum-scheduled-jobs` reports partition
+and its registry row synced. `gpforum scheduled-jobs` reports partition
 plan, retention and restore **evidence** only -- it never creates a
 partition, so it is not a substitute.
 

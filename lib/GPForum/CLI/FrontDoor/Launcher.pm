@@ -7,7 +7,7 @@ use Carp qw(croak);
 use Const::Fast;
 use Cwd        qw(getcwd);
 use English    qw(-no_match_vars);
-use List::Util qw(any first min);
+use List::Util qw(any min);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::File   qw(path);
@@ -147,38 +147,34 @@ sub help ( $self, $options, @arguments ) {
     my $usage =
       $verb->{class}->new->usage =~ s/\b APPLICATION \b/$FRONT_DOOR/grmsx;
 
-    return $self->_print( GPForum::Command::Usage->as_invoked($usage) );
+    return $self->_print($usage);
 }
 
-# What a typed verb runs: { class, group, needs_application }, or undef. A
-# verb of the table first; then a command by its own name, dashes or
-# underscores, as Mojolicious read them (`gpforum outbox-dispatch`,
-# `gpforum search_rebuild`); then one of Mojolicious's own.
+# What a typed verb runs: { class, group, name, needs_application }, or
+# undef: a verb of the table, or one of Mojolicious's own commands.
 sub resolve ( $self, $typed ) {
     return undef if $typed !~ /\A [[:lower:]] [[:lower:][:digit:]_-]* \z/msx;
 
-    my $listed = GPForum::Command::Support::Verbs->find($typed);
-    my $name   = $listed ? $listed->{command} : $typed =~ tr/-/_/r;
-    my $verb   = $listed // first { $_->{command} eq $name }
-      @{ GPForum::Command::Support::Verbs->verbs };
-
-    my $class = "GPForum::CLI::$name";
-    if ( _is_command($class) ) {
+    my $verb = GPForum::Command::Support::Verbs->find($typed);
+    if ($verb) {
+        my $class = "GPForum::CLI::$verb->{command}";
+        return undef if !_is_command($class);
         return {
             class             => $class,
-            group             => $verb ? $verb->{group} : undef,
-            name              => $name,
-            needs_application =>
-              ( $verb && ( $verb->{needs} // q{} ) eq 'application' ) ? 1 : 0,
+            group             => $verb->{group},
+            name              => $verb->{command},
+            needs_application => ( $verb->{needs} // q{} ) eq 'application'
+            ? 1
+            : 0,
         };
     }
-    if ( any { $_ eq $name } @{ GPForum::CLI::FrontDoor::Help->framework } ) {
-        my $framework = GPForum::CLI::FrontDoor::Help->framework_class($name);
+    if ( any { $_ eq $typed } @{ GPForum::CLI::FrontDoor::Help->framework } ) {
+        my $framework = GPForum::CLI::FrontDoor::Help->framework_class($typed);
         return undef if !_is_command($framework);
         return {
             class             => $framework,
             group             => undef,
-            name              => $name,
+            name              => $typed,
             needs_application => 1,
         };
     }
@@ -398,10 +394,9 @@ C<bin/gpforum>, the front door: C<gpforum [--env-file FILE] VERB
 (L<GPForum::Command::Support::ServiceEnvironment>), with the process
 environment first; runs the verb's command from the code directory, as the
 service's units do; and answers C<gpforum help> with help of its own
-(L<GPForum::CLI::FrontDoor::Help>). Every C<bin/gpforum-*> entrypoint's
-command answers to its verb (L<GPForum::Command::Support::Verbs>) and to its
-old name, and Mojolicious's own commands still run, C<daemon> as C<gpforum
-start --foreground>.
+(L<GPForum::CLI::FrontDoor::Help>). Each command answers to its verb
+(L<GPForum::Command::Support::Verbs>), and Mojolicious's own commands still
+run, C<daemon> as C<gpforum start --foreground>.
 
 =head1 SUBROUTINES/METHODS
 

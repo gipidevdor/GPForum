@@ -41,8 +41,8 @@ has output    => sub { return \*STDOUT; };
 
 # Sentences in the operator's language rather than key=value lines: `gpforum
 # partitions`, the front door's verb, says how far the partitions reach and
-# what to do, where bin/gpforum-partition-maintenance keeps the lines the
-# timers' journals and the scripts that read them were written for.
+# what to do. A caller that builds the command directly (the tests) gets the
+# terse key=value lines.
 has human => 0;
 has words => sub { return GPForum::Command::Support::Words->new; };
 
@@ -273,7 +273,7 @@ sub _json_document ( $result, $options ) {
     };
 }
 
-# Public so bin/gpforum-migrate, which ensures the window after migrating,
+# Public so Command::Migrate, which ensures the window after migrating,
 # reports it in the same shape as this command's --json.
 sub result_document ( $class, $result ) {
     return {
@@ -405,7 +405,7 @@ sub usage_text ($class) {
 
 sub _usage ( $message = undef ) {
     return ( defined $message ? "$message\n" : q{} ) . <<'USAGE';
-Usage: bin/gpforum-partition-maintenance [--plan|--apply] [--lookahead N] [--json]
+Usage: gpforum partitions [--plan|--apply] [--lookahead N] [--json]
 
 Creates the monthly range partitions of event_log, audit_log and
 notifications ahead of time and records them in partition_registry.
@@ -445,8 +445,8 @@ Version 0.001.
 Oneshot maintenance entrypoint for
 L<GPForum::Service::Operations::PartitionLifecycle>. The daily
 F<deploy/systemd/gpforum-partition-maintenance.timer>, its launchd and
-FreeBSD counterparts, and C<bin/gpforum-migrate --apply> at every deploy
-invoke C<bin/gpforum-partition-maintenance --apply> or its lifecycle, so the
+FreeBSD counterparts, and C<gpforum migrate> at every deploy
+invoke C<gpforum partitions --apply> or its lifecycle, so the
 lookahead window never runs out (ADR 0113). It is not a long-running daemon.
 
 C<--plan> prints the C<CREATE TABLE ... (LIKE ...)> and C<ATTACH PARTITION>

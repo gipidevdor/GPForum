@@ -463,7 +463,7 @@ L<GPForum::Bootstrap::Operations> observes every request that carries an
 endpoint name against it, and the benchmark reads its budgets.
 
 The C<endpoint_query_budgets> table holds a copy of the catalog:
-C<sync_schema> makes it match (C<bin/gpforum-query-budget --sync>) and
+C<sync_schema> makes it match (C<gpforum budgets --sync>) and
 C<drift_report> compares it, for the platform check, readiness, the metrics
 snapshot and the admin console.
 

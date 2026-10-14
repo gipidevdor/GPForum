@@ -109,7 +109,7 @@ emergency operations.
   (audit record hashing), 0038 (admin event), 0046 (admin access).
 - Code: `lib/GPForum/Controller/Admin.pm`, `lib/GPForum/Controller/Admin/`,
   `lib/GPForum/Service/Admin/`, `lib/GPForum/Web/AdminAccess.pm`,
-  `bin/gpforum-admin-bootstrap`, `templates/admin/`.
+  `gpforum admin`, `templates/admin/`.
 - Migrations: `migrations/009_admin_authorization.sql`.
 - Tests: `t/integration/postgres-admin-authorization.t` (roles, bindings,
   reviews and the permission gate), `t/26-admin-authorization.t` (the console

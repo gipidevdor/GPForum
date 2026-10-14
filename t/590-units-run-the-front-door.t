@@ -195,7 +195,7 @@ subtest 'gpforum start --service runs Hypnotoad from local/ in its place' =>
     );
   };
 
-subtest 'a unit copied before this release is told apart' => sub {
+subtest 'a unit copied before the front door breaks the contract' => sub {
     my $host      = _host('linux');
     my $directory = tempdir( CLEANUP => 1 );
     my $files     = _files( 'linux', $ROOT );
@@ -212,9 +212,11 @@ subtest 'a unit copied before this release is told apart' => sub {
     for my $check ( grep { -e path( $directory, $_->{name} ) }
         deploy_unit_checks() )
     {
-        my $text  = path( $directory, $check->{name} )->slurp;
+        my $text = path( $directory, $check->{name} )->slurp;
+        next if $text !~ /gpforum-carton/msx;
         my $match = deploy_match_text( $text, $check );
-        is( $match->{status}, 'pass', "$check->{name} keeps the contract" );
+        is( $match->{status}, 'fail',
+            "$check->{name}, run through script/gpforum-carton, does not" );
     }
 
     my $found = GPForum::Service::Operations::ServiceUnits->new(
@@ -223,17 +225,23 @@ subtest 'a unit copied before this release is told apart' => sub {
         root      => $ROOT,
         systemctl => sub { return undef },
     )->units( _findings() );
-    is( $found->status, 'degraded', 'doctor says it, without a failure' );
+    is( $found->status, 'fail', 'doctor fails it' );
     like(
         $found->human_text,
-        qr/differ [ ] from [ ] this [ ] release/msx,
-        'as units that differ from the release'
+        qr{lacks [ ] ExecStart [ ] through [ ] bin/gpforum}msx,
+        'as units that do not run the front door'
     ) or diag $found->human_text;
+    like(
+        $found->human_text,
+        qr{Fix: [ ] sudo [ ] gpforum [ ] service [ ] print}msx,
+        'with the command that prints them again'
+    );
 };
 
 done_testing();
 
-# The commands as the units before this release ran them.
+# The commands as the units before the front door ran them, through the
+# bin/gpforum-* entrypoints that are gone.
 sub _as_before ($text) {
     $text =~ s{^ExecStartPre=(\S+)/bin/gpforum[ ]os-preflight[ ]}
               {ExecStartPre=$1/script/os-preflight }gmsx;

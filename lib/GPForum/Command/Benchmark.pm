@@ -408,7 +408,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return
-'Usage: bin/gpforum-benchmark [--fixture|--configured] [--json] [--check] [--profile fixture|small|medium|hot-thread] [--iterations N] [--warmup N] [--route /path] [--baseline file] [--write-baseline file] [--regression-tolerance N] ...';
+'Usage: gpforum benchmark [--fixture|--configured] [--json] [--check] [--profile fixture|small|medium|hot-thread] [--iterations N] [--warmup N] [--route /path] [--baseline file] [--write-baseline file] [--regression-tolerance N] ...';
 }
 
 1;

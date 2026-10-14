@@ -315,7 +315,7 @@ Version 0.001.
 Runs the operational jobs GPForum does not execute during request handling:
 bounded retention deletes, attachment orphan cleanup, and partition
 policy/evidence. It executes no partition DDL and does not persist
-partition registry rows; C<bin/gpforum-partition-maintenance> does both.
+partition registry rows; C<gpforum partitions> does both.
 
 =head1 SUBROUTINES/METHODS
 
@@ -406,8 +406,8 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Partition DDL is not this runner's: C<bin/gpforum-partition-maintenance
---apply>, on its own daily timer, and C<bin/gpforum-migrate --apply> create
+Partition DDL is not this runner's: C<gpforum partitions
+--apply>, on its own daily timer, and C<gpforum migrate> create
 the planned windows (ADR 0113). FreeBSD hosts still need an operator crontab
 because this runner is oneshot.
 

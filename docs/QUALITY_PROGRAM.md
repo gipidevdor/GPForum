@@ -558,7 +558,7 @@ macOS `docs/ops/antivirus.md` has the operator set
   and the signature found (migration 043). A media mismatch is now `failed`,
   not `infected`.
 - Readiness reports the antivirus `degraded`, never `fail`;
-  `bin/gpforum-antivirus-check` proves detection with the EICAR test file.
+  `gpforum antivirus-check` proves detection with the EICAR test file.
 
 Tests drive a real UNIX socket speaking clamd's protocol (chunk framing checked
 byte for byte, a mid-stream size-limit hang-up, a timeout) and a real scanner
@@ -875,7 +875,7 @@ extending stays the monthly command.** Partitions exist only
 through 2027-01-01; extending them is a manual operator task and nothing warns
 when the horizon approaches.
 
-`bin/gpforum-partition-maintenance --apply` already extends the horizon and
+`gpforum partitions --apply` already extends the horizon and
 must stay a deliberate, windowed operation: `CREATE TABLE ... PARTITION OF`
 takes `ACCESS EXCLUSIVE` on `audit_log`, which every audited write waits on,
 so it was not moved into the hourly job. What was missing was the warning.
@@ -893,7 +893,7 @@ with `CREATE TABLE ... (LIKE ...)` and `ATTACH PARTITION`, which holds the
 parent in `SHARE UPDATE EXCLUSIVE`, so plain writes go on; DEFAULT's `ACCESS
 EXCLUSIVE` still stops unpruned reads, and the event and audit writes that
 begin with one, for at most a half-second lock wait plus the DEFAULT scan;
-`bin/gpforum-migrate --apply` ensures the window after every deploy's
+`gpforum migrate` ensures the window after every deploy's
 migrations and a daily timer runs `--apply` between deploys, under an
 advisory lock. Migration 049 drops the empty past months migration 038
 named. Detaching and dropping old months stays the owner's decision.
@@ -1017,7 +1017,7 @@ caller in list context. Before signatures each helper silently bound the first
 row. Checked against a checkout of the tree as it was before 4.1:
 
 * **The retention purge had never worked against PostgreSQL.**
-  `bin/gpforum-scheduled-jobs` died on its first job with
+  `gpforum scheduled-jobs` died on its first job with
   `Can't locate object method "all" via package "…::Session"` — sessions,
   identity tokens, rate-limit windows, outbox rows and dead letters were never
   purged by it. No test had run a purge against a database.
@@ -1447,7 +1447,7 @@ program how to use it is not an error, and 255 is what Perl reports for an
 uncaught exception, not a status anyone can branch on.
 
 All 24 now exit **0** on `--help`, print to stdout, and leak no `at FILE line
-N`. Five also named the wrong program — `bin/gpforum-bench-hypnotoad --help`
+N`. Five also named the wrong program — `gpforum hypnotoad-benchmark --help`
 answered `Usage: script/bench-hypnotoad`, and `gpforum-seed-benchmark` claimed
 to be `script/seed-performance-data`. Both entrypoints then existed (`script/` was a
 shell wrapper that `exec`ed the `bin/` one), so the name is taken from `$0`
@@ -1629,13 +1629,13 @@ UUID reached PostgreSQL and came back as a 500.
 `t/integration/postgres-audit-viewer.t` pins each filter, the paging and the
 index each filter uses on the partitioned table.
 
-**6.7 Document `bin/gpforum-partition-maintenance`. — DONE.** It was an
+**6.7 Document `gpforum partitions`. — DONE.** It was an
 orphan: zero mentions in `docs/`, the README, the Makefile or `deploy/`, for a
 command that takes `ACCESS EXCLUSIVE` locks on `audit_log` — which blocks every
 auditable write, because the event recorder reads the hash-chain tip on each
 one. `docs/ops/partition-maintenance.md` covers the cadence, the lock
 behaviour, the maintenance-window requirement, what `default_partition_overlap`
-means and why `bin/gpforum-scheduled-jobs` is not a substitute. Linked from
+means and why `gpforum scheduled-jobs` is not a substitute. Linked from
 `docs/README.md` and reachable as `make partition-maintenance`.
 
 ## Phase 7 — Frontend, accessibility and aesthetics
@@ -1842,7 +1842,7 @@ entry bound, key rewrites and `clear` resetting the list.
 *`purge_expired` is reachable one level up from where the audit looked, and
 dead one level above that.* `TieredCache::purge_expired` calls it; nothing
 calls `TieredCache::purge_expired`. The effect the audit described is correct.
-It was **not** wired into `bin/gpforum-scheduled-jobs`, deliberately:
+It was **not** wired into `gpforum scheduled-jobs`, deliberately:
 `LocalCache` is per-process, so a oneshot job would purge its *own* empty
 cache and report success — the same shape as the config files nothing read and
 the antivirus MUST nothing met. Expiry is already lazy on lookup, so a stale
@@ -1996,7 +1996,7 @@ the development laptop, linear in the forum's size, and the `simple` text
 configuration keeps stop words, so "the" is such a word. Options, in order of
 cost: rank only the newest N matches (a candidate cap, with the page saying
 so), drop stop words from the configuration the documents are built with
-(needs a reindex, which `bin/gpforum-search-rebuild` now provides), or keep a
+(needs a reindex, which `gpforum search-rebuild` now provides), or keep a
 per-word document frequency and refuse to rank words above a threshold. The
 query-plan gate records the case as `seq_scan_most_rows` rather than failing
 it.
@@ -2132,7 +2132,7 @@ review, and ordinary fixes update only the documentation they affect.
 **10.2 Make clone-to-green achievable. — DONE, with one correction.** `make
 check` itself never needed a database — the integration tier skips without a
 DSN — so the break was one step earlier: the README's quick start ran
-`bin/gpforum-migrate --apply` without ever creating a database, naming the
+`gpforum migrate` without ever creating a database, naming the
 `gpforum` role, or mentioning `GPFORUM_DATABASE_DSN`. It now creates both,
 names the variables, points at the user-space cluster for hosts without a
 system server, and says plainly that `make check` needs no database while the
@@ -2184,7 +2184,7 @@ operator's `explain` for permission denials, and entry points for search
 `EventRecorder::event_recorded` replaces six copies of the replay lookup,
 proven on PostgreSQL by replaying a category whose event was lost.
 
-The search gaps followed: `bin/gpforum-search-rebuild` rebuilds the index
+The search gaps followed: `gpforum search-rebuild` rebuilds the index
 and `--status` reports its lag. The rebuild it wraps had never been run by
 anything: it loaded every row into memory and returned them all, skipped
 locked threads, never removed documents whose source was deleted or hidden,

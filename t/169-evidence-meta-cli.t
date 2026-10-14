@@ -60,6 +60,10 @@ my $usage = q{};
     is( $command->run('--help'), 0, 'help exits 0' );
     close $out or croak 'close stdout';
 }
-like( $usage, qr/gpforum-evidence-meta|private-beta/msx, 'help names command' );
+like(
+    $usage,
+    qr/gpforum [ ] evidence-meta|private-beta/msx,
+    'help names command'
+);
 
 1;

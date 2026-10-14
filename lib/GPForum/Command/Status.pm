@@ -10,7 +10,6 @@ use v5.40;
 use Mojo::Util qw(encode);
 
 use GPForum::Command::Support::ServiceEnvironment;
-use GPForum::Command::Support::Verbs;
 use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::Service::I18N::CliCatalog;
@@ -104,12 +103,8 @@ sub run ( $self, @arguments ) {
     if ( defined $shown->{heading} ) {
         $text = "$shown->{heading}\n\n$text";
     }
-    print encode(
-        'UTF-8',
-        $self->service_environment->as_read(
-            GPForum::Command::Support::Verbs->as_typed($text)
-        )
-    ) or croak 'failed to write the status report';
+    print encode( 'UTF-8', $self->service_environment->as_read($text) )
+      or croak 'failed to write the status report';
 
     return $findings->exit_status;
 }

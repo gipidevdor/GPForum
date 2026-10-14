@@ -10,7 +10,7 @@ host deploy is covered by the operator runbook in
 | Phase | PASS means | Entrypoint |
 | --- | --- | --- |
 | Fresh migrate | Throwaway empty DB applies every migration; `schema_versions` count matches `migrations/`; a second `--apply` adds zero versions | `bin/gpforum staging-drill` |
-| Upgrade path | Throwaway DB applies all but the latest migration, then `bin/gpforum-migrate --apply` reaches the full count | `bin/gpforum staging-drill` |
+| Upgrade path | Throwaway DB applies all but the latest migration, then `gpforum migrate` reaches the full count | `bin/gpforum staging-drill` |
 | Dump / restore | `pg_dump -Fc` of a migrated (optionally seeded) DB restores into a second throwaway DB with matching `schema_versions`, `users`, and `threads` counts | `bin/gpforum staging-drill` |
 | Attachment filesystem | Throwaway workspace with a populated `var/attachments` tree is written via `FilesystemStorage`, copied to a backup tree, wiped, restored into the same layout, and SHA-256 / byte verified | `bin/gpforum staging-drill-attachments` |
 | Deploy checklist | Static: `deploy/systemd/*.service` and `deploy/nginx/*.conf` templates include `User`, `EnvironmentFile`, `ExecStart` via `script/gpforum-carton`, and nginx `upstream`. Host (when available): `systemd-analyze verify` on rendered sample units and `nginx -t` on rendered sample configs (temp paths + unprivileged listen rewrite for non-root distro nginx); missing tools → phase `skipped`, overall may be `degraded` | `bin/gpforum staging-drill-attachments` |

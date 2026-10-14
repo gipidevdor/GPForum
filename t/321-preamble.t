@@ -74,7 +74,7 @@ my $guard =
 is_deeply( [ _code_problems( $guard, $builtin, 'bin/gpforum' ) ],
     [], 'bin/gpforum may find the supported Perl before use v5.40' );
 is_deeply(
-    [ _code_problems( $guard, $builtin, 'bin/gpforum-migrate' ) ],
+    [ _code_problems( $guard, $builtin, 'lib/GPForum/Command/Migrate.pm' ) ],
     ['code before use v5.40: BEGIN {'],
     'no other file may'
 );

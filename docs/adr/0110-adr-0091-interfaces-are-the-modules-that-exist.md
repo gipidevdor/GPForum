@@ -80,7 +80,7 @@ All five methods exist under their contract names. `rebuild($scope)` had no
 operator entry point and `observe_lag()` returned nothing unless an offset
 tracker was wired; an operator needs both, to rebuild the projection after a
 search configuration change and to tell a stalled indexer from a healthy
-one. Closed with this ADR: `bin/gpforum-search-rebuild` (and `--status`),
+one. Closed with this ADR: `gpforum search-rebuild` (and `--status`),
 a rebuild that streams in batches and removes orphaned documents, and a lag
 read from the outbox (`docs/ops/search-rebuild.md`).
 

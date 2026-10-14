@@ -100,7 +100,7 @@ sub overview ( $self, $user_id ) {
     };
 }
 
-# 6.5: the console's bin/gpforum-mail-check. One message, to the signed-in
+# 6.5: the console's gpforum mail-check. One message, to the signed-in
 # administrator's own address and never to one the request names -- the
 # console must not become a relay -- and the outcome audited either way.
 sub send_test_mail ( $self, $input ) {
@@ -138,7 +138,7 @@ sub send_test_mail ( $self, $input ) {
     return $result;
 }
 
-# 6.5: the console's bin/gpforum-antivirus-check, audited with its report.
+# 6.5: the console's gpforum antivirus-check, audited with its report.
 sub check_antivirus ( $self, $input ) {
     $self->_allow_slow_answer;
     my $report = evidence_scrub_structure( $self->_antivirus_report,
@@ -345,11 +345,11 @@ Version 0.001.
 =head1 DESCRIPTION
 
 The console side of two shell checks (quality program 6.5).
-C<send_test_mail> is C<bin/gpforum-mail-check --send>, restricted to the
+C<send_test_mail> is C<gpforum mail-check --send>, restricted to the
 signed-in administrator's own address: it never takes a recipient from the
 request, so the console cannot be used to send mail anywhere else.
 C<check_antivirus> runs L<GPForum::Service::Operations::AntivirusCheck>, what
-C<bin/gpforum-antivirus-check> runs, against the application's scanner within
+C<gpforum antivirus-check> runs, against the application's scanner within
 the request budget. Each is audited (C<admin.mail_test_sent>,
 C<admin.antivirus_checked>) with its outcome, in the caller's transaction, and
 a transport error or report is shown with every configured secret redacted

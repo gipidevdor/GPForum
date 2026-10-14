@@ -24,7 +24,7 @@ Version 0.001.
 
 =head1 SYNOPSIS
 
-    GPForum::X::Usage->throw( message => 'Usage: bin/gpforum-migrate [--apply]' );
+    GPForum::X::Usage->throw( message => 'Usage: gpforum migrate [--apply]' );
 
 =head1 DESCRIPTION
 

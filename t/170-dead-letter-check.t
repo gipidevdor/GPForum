@@ -58,7 +58,7 @@ my $help_err = q{};
     close $stdout or croak 'close stdout';
     close $stderr or croak 'close stderr';
 }
-like( $usage, qr/gpforum-dead-letter-check/msx, 'help names command' );
+like( $usage, qr/gpforum [ ] dead-letter-check/msx, 'help names command' );
 like( $usage, qr/private-beta/msx, 'help denies private-beta claim' );
 unlike(
     $help_err,

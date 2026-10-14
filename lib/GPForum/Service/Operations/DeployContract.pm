@@ -20,20 +20,12 @@ our @EXPORT_OK = qw(
 # ExecStart runs the front door, bin/gpforum, which finds the Perl and the
 # dependencies the checkout installed by itself: the web unit as `gpforum
 # start --service`, which runs Hypnotoad, the others as a verb (owner
-# decision D9: the units run no script/). A unit copied before this release
-# ran Hypnotoad, or the command, through script/gpforum-carton exec; it still
-# runs as it did, so it keeps the contract, and doctor says it differs from
-# the release's.
-const my $FRONT_DOOR  => qr{/bin/gpforum (?: \s+ --env-file \s+ \S+ )?}msx;
-const my $CARTON_EXEC => qr{/script/gpforum-carton \s+ exec \s+}msx;
-const my $WEB_THROUGH_FRONT_DOOR =>
-  qr{\S* $FRONT_DOOR \s+ start \s+ --service}msx;
-const my $WEB_THROUGH_CARTON =>
-  qr{.* ${CARTON_EXEC}hypnotoad \s+ .* /bin/gpforum}msx;
+# decision D9: the units run no script/).
+const my $FRONT_DOOR => qr{/bin/gpforum (?: \s+ --env-file \s+ \S+ )?}msx;
 const my $EXEC_START_WEB =>
-  qr{^ExecStart= (?: $WEB_THROUGH_FRONT_DOOR | $WEB_THROUGH_CARTON ) \s* $}msx;
+  qr{^ExecStart= \S* $FRONT_DOOR \s+ start \s+ --service \s* $}msx;
 const my $EXEC_START_COMMAND =>
-  qr{^ExecStart= (?: \S* $FRONT_DOOR \s+ [[:lower:]] | .* $CARTON_EXEC )}msx;
+  qr{^ExecStart= \S* $FRONT_DOOR \s+ [[:lower:]]}msx;
 const my $THROUGH_THE_FRONT_DOOR => 'ExecStart through bin/gpforum';
 
 const my @UNIT_CHECKS => (

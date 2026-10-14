@@ -790,7 +790,7 @@ redirects. Do not widen `Controller::Forum`.
 | --- | --- | --- |
 | DB unavailable on readiness/realtime | partially covered by readiness/realtime | the write routes `create_reply`, report, hide, and export now return 503 without leakage (`t/152`) |
 | DB timeout in a write transaction | timeout on the EventLog, outbox, and audit inserts with rollback | `t/86-engineering-correctness.t` |
-| Minion unavailable | fail-closed when `GPFORUM_MINION_ENABLED=1` and the backend is missing; `gpforum-outbox-dispatch` skips Minion | `t/83-outbox-worker-wiring.t` |
+| Minion unavailable | fail-closed when `GPFORUM_MINION_ENABLED=1` and the backend is missing; `gpforum outbox` skips Minion | `t/83-outbox-worker-wiring.t` |
 | Outbox retry/dead letter | cancelled + dead-letter; permanent fail-fast; no re-claim | `t/13-outbox-dispatcher.t`, `docs/ops/dead-letters.md` |
 | Worker crash | crash between claim and dispatch, or between dispatch and mark done | `t/84-outbox-concurrent-dispatcher.t`, `t/150-outbox-handler-idempotency.t`, `t/integration/postgres-outbox-reclaim.t` |
 | Slow batch | a batch outlives its claim; a failure after the claim was taken | `t/510-outbox-claim-renewal.t`, `t/511-outbox-lost-failure-no-dead-letter.t`, `t/integration/postgres-outbox-lease-race.t` |

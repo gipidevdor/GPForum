@@ -6,15 +6,11 @@ one a new command belongs in. It is enforced by `check_entrypoint_layout` in
 
 ## The rule
 
-- **`bin/`** holds **Perl application entrypoints**. These are deployed and
-  they load `GPForum::*` runtime code. Every file is a thin shim:
-
-  ```perl
-  use GPForum::Command::Example;
-  exit GPForum::Command::Example->new->run(@ARGV);
-  ```
-
-  `bin/` never contains shell.
+- **`bin/`** holds **one Perl application entrypoint**, `bin/gpforum`, the
+  front door. It is deployed, and it is the file Hypnotoad loads. Every
+  command is one of its verbs (`bin/gpforum migrate`): a `GPForum::CLI`
+  adapter, listed in `GPForum::Command::Support::Verbs`, over the
+  `GPForum::Command` class that does the work. `bin/` never contains shell.
 
 - **`script/`** holds **repository tooling** for developers and CI. It is not
   deployed. Most of it is POSIX `sh`; six tools are standalone Perl because
@@ -24,16 +20,15 @@ one a new command belongs in. It is enforced by `check_entrypoint_layout` in
   `GPForum::*` code: it measures `GPForum::Service::Outbox::Dispatcher`
   against the outbox test doubles, and reads its options through
   `GPForum::Command::Usage`.
-  Three `sh` tools run a one-line `perl -Ilib` that does too: `benchmark-http`
-  and `standby-drill` connect through `GPForum::Config` and `GPForum::Schema`,
-  and `system-preflight` asks `GPForum::Runtime` and
-  `GPForum::Service::Operations::OSPreflight`.
+  Two `sh` tools run a one-line `perl -Ilib` that does too: `benchmark-http`
+  and `standby-drill` connect through `GPForum::Config` and `GPForum::Schema`.
+  `system-preflight` runs `bin/gpforum os-preflight`.
 
-- **No wrappers.** A command in `bin/` is typed through the front door,
-  `bin/gpforum VERB` (`bin/gpforum stress-load`), which finds the Perl and
-  the dependencies itself; `script/` holds no shell wrapper that only execs
-  one. The `gpforum-` prefix inside `script/` is reserved for standalone
-  tools that have no `bin/` counterpart:
+- **No wrappers.** A command is typed through the front door, `bin/gpforum
+  VERB` (`bin/gpforum stress-load`), which finds the Perl and the
+  dependencies itself; neither `bin/` nor `script/` holds a file that only
+  runs one. The `gpforum-` prefix inside `script/` is reserved for standalone
+  tools:
   `gpforum-carton`, `gpforum-system-perl`, `gpforum-homebrew-env`,
   `gpforum-private-beta-checklist`, `gpforum-evidence-live`.
 

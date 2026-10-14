@@ -183,7 +183,7 @@ into `RoleCatalog` and `RoleBindingStore`, and reviews state through
 `PermissionReview` and `AuditReview`. Role binding changes are CSRF-protected
 and audit-backed. The
 initial operator path is now explicit and repeatable:
-`bin/gpforum-admin-bootstrap --user-id USER_ID` creates the owner role,
+`gpforum admin create` (or `gpforum admin grant EMAIL`) creates the owner role,
 default admin/moderation permissions, role-permission links, and a global role
 binding idempotently.
 

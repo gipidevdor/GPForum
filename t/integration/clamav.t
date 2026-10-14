@@ -69,7 +69,7 @@ my $check = GPForum::Service::Operations::AntivirusCheck->new(
     )
 )->run;
 is( $check->{test_file}{status},
-    'infected', 'bin/gpforum-antivirus-check proves detection' );
+    'infected', 'gpforum antivirus-check proves detection' );
 is_deeply( $check->{problems}, [], 'with no problems' );
 
 done_testing();

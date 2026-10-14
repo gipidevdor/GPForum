@@ -24,12 +24,9 @@ outbox queue.
 
 `gpforum scheduled-jobs` says what each job did, a line each:
 `✓ expired sessions: 12 removed`, `✗ uploads waiting for a scan: antivirus
-unavailable`, `uploads never scanned: not run (scanning is off)`. The
-timer's `bin/gpforum-scheduled-jobs` prints one line for its journal: `ok`,
-then each job with its count, and for a job that did not complete, its
-`_error`, `_errors` count or `_skipped` reason. Both exit 1 when any job
-failed, so a systemd timer marks the unit failed, and 2 on misuse (an
-unknown option or job name; this used to die with 255).
+unavailable`, `uploads never scanned: not run (scanning is off)`. It
+exits 1 when any job failed, so a systemd timer marks the unit failed, and
+2 on misuse (an unknown option or job name; this used to die with 255).
 
 `--json` prints the same summary as one JSON object instead:
 
@@ -147,8 +144,8 @@ dispatcher remains the only looping worker command.
 `gpforum service print rc` writes that crontab for the checkout and the
 environment file of the host, with the rc scripts, and ends with the
 commands that put them in place. Its line runs through `bin/gpforum`, which
-reads the service's environment file itself; `bin/gpforum-scheduled-jobs`
-reads none, and from cron it ran with the development defaults:
+reads the service's environment file itself, so from cron the jobs run with
+the service's settings, not the development defaults:
 
 ```cron
 PATH=/usr/local/bin:/usr/bin:/bin

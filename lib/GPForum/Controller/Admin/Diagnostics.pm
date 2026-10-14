@@ -72,8 +72,8 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-The console side of C<bin/gpforum-mail-check --send> and
-C<bin/gpforum-antivirus-check> (quality program 6.5). The work, and the audit
+The console side of C<gpforum mail-check --send> and
+C<gpforum antivirus-check> (quality program 6.5). The work, and the audit
 of it, is L<GPForum::Service::Admin::Diagnostics>'s; both run under a command
 id, behind the admin write permission, CSRF check and rate limit.
 

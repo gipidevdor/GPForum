@@ -13,7 +13,7 @@ Recommended baseline:
 nginx or Caddy
 -> Hypnotoad / Mojolicious
 -> PostgreSQL
--> gpforum-outbox-dispatch (required worker)
+-> gpforum outbox (required worker)
 -> optional Minion workers
 ```
 
@@ -207,29 +207,14 @@ prints for this host. The last one, `sudo -u gpforum gpforum doctor
 --upgrade`, says what the upgrade left behind
 ([ops/upgrade.md](ops/upgrade.md)).
 
-### The front door and the old commands
+### The front door
 
-`gpforum VERB` replaces the `bin/gpforum-*` commands, which keep working
-under their old names, through `gpforum` (`gpforum partition-maintenance`)
-or on their own (`bin/gpforum-partition-maintenance`, which runs under the
-checkout's dependencies as `gpforum` does, but does not read the
-environment file). The verbs answer in sentences, in the operator's
-language; the old names keep the `key=value` lines the units' journals and
-older scripts read, and `--json` is the same under both. `gpforum help
---all` lists every command.
-
-| Before | Now |
-| --- | --- |
-| `bin/gpforum-migrate --apply`, then `bin/gpforum-query-budget --sync` | `gpforum migrate` (`--quiet` keeps the old silence for scripts) |
-| `bin/gpforum-admin-bootstrap --user-id UUID` | `gpforum admin create --email ... --username ...`, or `gpforum admin grant EMAIL` |
-| `bin/gpforum daemon -l http://127.0.0.1:3000` | `gpforum start --foreground` |
-| `bin/gpforum-outbox-dispatch` | `gpforum outbox` |
-| `bin/gpforum-partition-maintenance` | `gpforum partitions` |
-| `bin/gpforum-query-budget` | `gpforum budgets` |
-| `bin/gpforum-dead-letter-replay` | `gpforum dead-letters` |
-| `useradd`, `createuser --pwprompt`, `createdb`, a copied template, its secrets and an editor, then `gpforum migrate` | `sudo gpforum setup` |
-| `openssl rand -hex 32` into the environment file | `gpforum secret rotate session` or `metrics` |
-| a shell that sources the environment file before each command | nothing: `gpforum` reads the file |
+Every command is a verb of `gpforum`, the one entrypoint in `bin/`. It
+reads the service's environment file and the checkout's dependencies by
+itself, so no shell sources the file first and nothing runs
+`script/gpforum-carton exec`. `gpforum help --all` lists every verb, and
+[ops/console-and-cli.md](ops/console-and-cli.md) gives each one's console
+counterpart, or why there is none.
 
 ### Rotating a secret
 
@@ -781,7 +766,7 @@ Minimum recommended posture:
 - application role is not PostgreSQL superuser;
 - migrations use a separate role;
 - `statement_timeout` defaults to 15s on app connect
-  (`GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS`; `gpforum-migrate --apply`
+  (`GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS`; `gpforum migrate`
   clears it);
 - `idle_in_transaction_session_timeout` defaults to 10s on app connect
   (`GPFORUM_DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS`);

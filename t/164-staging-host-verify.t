@@ -147,21 +147,21 @@ sub _test_unit_files_observe {
 User=gpforum
 EnvironmentFile=/etc/gpforum/gpforum.env
 Environment=GPFORUM_LOG_PATH=/var/log/gpforum/gpforum.log
-ExecStart=/srv/gpforum/script/gpforum-carton exec hypnotoad /srv/gpforum/bin/gpforum
+ExecStart=/srv/gpforum/bin/gpforum start --service
 UNIT
     path( $dir, 'gpforum-outbox.service' )->spew(<<'UNIT');
 [Service]
 User=gpforum
 EnvironmentFile=/etc/gpforum/gpforum.env
 Environment=GPFORUM_LOG_PATH=/var/log/gpforum/gpforum.log
-ExecStart=/srv/gpforum/script/gpforum-carton exec bin/gpforum-outbox-dispatch
+ExecStart=/srv/gpforum/bin/gpforum outbox --loop
 UNIT
     path( $dir, 'gpforum-scheduled-jobs.service' )->spew(<<'UNIT');
 [Service]
 User=gpforum
 EnvironmentFile=/etc/gpforum/gpforum.env
 Environment=GPFORUM_LOG_PATH=/var/log/gpforum/gpforum.log
-ExecStart=/srv/gpforum/script/gpforum-carton exec bin/gpforum-scheduled-jobs --once
+ExecStart=/srv/gpforum/bin/gpforum scheduled-jobs --once
 UNIT
 
     my $pass = GPForum::Service::Operations::StagingHostVerify->new->run(
@@ -212,7 +212,8 @@ sub _test_command_help {
         is( $command->run('--help'), 0, 'help exits 0' );
         close $stdout or croak 'close stdout';
     }
-    like( $usage, qr/gpforum-staging-host-verify/msx, 'help names command' );
+    like( $usage, qr/gpforum [ ] staging-host-verify/msx,
+        'help names command' );
     like( $usage, qr/private-beta/msx, 'help denies private-beta claim' );
     like( $usage, qr/TLS|https/msx,    'help mentions TLS observe' );
     like( $usage, qr/--unit-dir/msx,   'help mentions unit-dir observe' );

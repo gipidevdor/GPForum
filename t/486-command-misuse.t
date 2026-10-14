@@ -7,7 +7,6 @@ use v5.40;
 
 use Carp qw(croak);
 use Const::Fast;
-use English qw(-no_match_vars);
 use Test::More;
 
 use lib 'lib';
@@ -75,34 +74,6 @@ subtest 'a usage error prints the usage once' => sub {
     like( $errors, qr/\A --bogus [ ] is [ ] wrong/msx, 'after the reason' );
 };
 
-subtest 'through the front door, usage names the verb typed' => sub {
-    local $PROGRAM_NAME = 'gpforum partitions';
-    my ( undef, $errors ) = _stderr(
-        sub {
-            GPForum::Command::Usage->error( 'no such thing',
-                "Usage: bin/gpforum-partition-maintenance [--plan]\n" );
-        }
-    );
-    like(
-        $errors,
-        qr/^Usage: [ ] gpforum [ ] partitions [ ] \[--plan\]/msx,
-        'bin/gpforum-partition-maintenance reads gpforum partitions'
-    );
-
-    local $PROGRAM_NAME = 'bin/gpforum-partition-maintenance';
-    ( undef, $errors ) = _stderr(
-        sub {
-            GPForum::Command::Usage->error( 'no such thing',
-                "Usage: bin/gpforum-partition-maintenance [--plan]\n" );
-        }
-    );
-    like(
-        $errors,
-        qr{^Usage: [ ] bin/gpforum-partition-maintenance}msx,
-        'and the entrypoint keeps its own name'
-    );
-};
-
 subtest 'admin says what was wrong with its command line' => sub {
     for my $case (
         [ [],          qr/\A Say [ ] what [ ] to [ ] do/msx ],
@@ -122,7 +93,7 @@ subtest 'admin says what was wrong with its command line' => sub {
         [ ['grant'],                            qr/\A Say [ ] whom/msx ],
         [ [ 'grant', 'you', '--user-id', 'x' ], qr/one [ ] of [ ] them/msx ],
         [
-            [ '--user-id', 'x', '--bogus' ],
+            [ 'grant', '--user-id', 'x', '--bogus' ],
             qr/\A --bogus [ ] is [ ] not [ ] an [ ] option/msx
         ],
       )

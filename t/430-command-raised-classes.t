@@ -202,8 +202,7 @@ sub _test_seed_on_unmigrated_schema {
     _is_class(
         _raised( sub { $assert->( GPForum::Test::BindRecordingDbh->new ) } ),
         'GPForum::X::Config',
-        'database schema is not migrated; '
-          . 'run script/gpforum-carton exec bin/gpforum-migrate --apply',
+        'database schema is not migrated; run gpforum migrate',
         'a seed on a database without its tables'
     );
 

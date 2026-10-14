@@ -146,9 +146,7 @@ address or username, or by its id with --user-id.
   --json            one JSON object on stdout instead of sentences
   --help            show this help
 
-Both are audited, and running either again changes nothing. The
-gpforum-admin-bootstrap entrypoint, from before the front door, takes grant's
---user-id options without the word grant.
+Both are audited, and running either again changes nothing.
 
 Exit status: 0 done; 1 refused (an account already has that address, a
 password too short, the database unreachable); 78 settings it cannot use;
@@ -156,8 +154,7 @@ password too short, the database unreachable); 78 settings it cannot use;
 USAGE
 }
 
-# The action and its options. Without create or grant, the command line is
-# the old bin/gpforum-admin-bootstrap's: --user-id and its company.
+# The action and its options.
 sub _request ( $self, @arguments ) {
     my %request = ( action => $self->_action( \@arguments ) );
     my $options =
@@ -169,13 +166,11 @@ sub _request ( $self, @arguments ) {
     return $self->_checked( \%request );
 }
 
-# create or grant, taken off the command line; grant when it opens with an
-# option, as the alias's --user-id does.
+# create or grant, taken off the command line.
 sub _action ( $self, $arguments ) {
-    if ( !@{$arguments} ) {
+    if ( !@{$arguments} || $arguments->[0] =~ /\A -/msx ) {
         $self->_misuse('cli.admin.needs_action');
     }
-    return 'grant' if $arguments->[0] =~ /\A -/msx;
 
     my $action = shift @{$arguments};
     if ( $action ne 'create' && $action ne 'grant' ) {
@@ -319,8 +314,7 @@ sub _grant ( $self, $request ) {
     return 0;
 }
 
-# The old bin/gpforum-admin-bootstrap: an account given by its id, which is
-# not looked up, as it never was.
+# grant --user-id: an account given by its id, which is not looked up.
 sub _grant_id ( $self, $request ) {
     my $granted = $self->_bootstrapper->bootstrap(
         {
@@ -541,13 +535,12 @@ Version 0.001.
 
     # gpforum admin create --email you@example.com --username you
     # gpforum admin grant you@example.com
-    # bin/gpforum-admin-bootstrap --user-id UUID
+    # gpforum admin grant --user-id UUID
     exit GPForum::Command::AdminBootstrap->new->run(@ARGV);
 
 =head1 DESCRIPTION
 
-C<gpforum admin> and its alias C<bin/gpforum-admin-bootstrap>, through
-L<GPForum::Service::Admin::Bootstrapper>.
+C<gpforum admin>, through L<GPForum::Service::Admin::Bootstrapper>.
 
 C<create> makes a new account that can sign in at once -- active, its
 address verified -- and holds the owner role, audited as
@@ -558,8 +551,8 @@ https://.../login>.
 
 C<grant> gives the owner role to an account found by its email address or
 username, and says when that account cannot sign in yet (its address not
-verified). C<grant --user-id> -- and the alias, which takes the same options
-without C<grant> -- binds the role to an id, which is not looked up.
+verified). C<grant --user-id> binds the role to an id, which is not looked
+up.
 
 C<--dry-run> checks and says what it would do, writing nothing. C<--json>
 prints one object with C<status>, C<mode>, C<role>, C<user>, C<counts> and
@@ -597,8 +590,7 @@ L<GPForum::Command::Support::Terminal> for the password prompt.
 
 =head1 INCOMPATIBILITIES
 
-The alias printed C<admin bootstrap role=... user=... created_bindings=1>;
-it now says what it did in a sentence, and C<--json> carries the counts.
+None known.
 
 =head1 BUGS AND LIMITATIONS
 

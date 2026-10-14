@@ -41,10 +41,9 @@ use lib "$FindBin::RealBin/../lib";
 # The dependencies live in local/, installed by Carton for one validated
 # Perl; a shell started without them on @INC is re-run under
 # script/gpforum-carton, which puts them there and picks that Perl
-# (GPForum::CLI::FrontDoor::Carton, which every bin/gpforum-* loads too). So
-# an operator types `gpforum migrate`, not `script/gpforum-carton exec perl
-# -Ilib bin/gpforum-migrate`. Only core modules are loaded before that, since
-# the others may be the ones missing.
+# (GPForum::CLI::FrontDoor::Carton). So an operator types `gpforum migrate`,
+# not `script/gpforum-carton exec perl -Ilib bin/gpforum migrate`. Only core
+# modules are loaded before that, since the others may be the ones missing.
 use GPForum::CLI::FrontDoor::Carton;
 
 our $VERSION = '0.001';

@@ -35,7 +35,7 @@ id service. The same value is recorded as the DB query observation
 
 ## Benchmark Integration
 
-`script/benchmark-http --configured` and `bin/gpforum-benchmark --configured`
+`script/benchmark-http --configured` and `gpforum benchmark --configured`
 now include observed DB query data in both text and JSON output.
 
 Example text field:
@@ -132,7 +132,7 @@ lookup it joins) or at NOTIFY (`badge NOTIFY failed: notify_unavailable`,
 `notify_failed`, or a serialization reason such as `payload_too_large`).
 
 The counter is per process. A web worker reports its own on `/metrics`; the
-outbox worker (`bin/gpforum-outbox-dispatch`, or a Minion worker) serves no
+outbox worker (`gpforum outbox`, or a Minion worker) serves no
 `/metrics`, so its fanout's badge failures are visible only in its log, where
 the `(N more since last logged)` of each line is their count.
 

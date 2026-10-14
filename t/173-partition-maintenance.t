@@ -396,8 +396,8 @@ sub _assert_command {
     is( $usage->{status}, 0, 'help exits 0' );
     like(
         $usage->{output},
-        qr{bin/gpforum-partition-maintenance}msx,
-        'help names the entrypoint'
+        qr{gpforum [ ] partitions}msx,
+        'help names the verb'
     );
 
     my $handle = _handle();

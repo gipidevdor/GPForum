@@ -108,7 +108,7 @@ checking the effective visibility. Authors get a narrow override:
 
 - New permission `category.read` (`resource_type = 'category'`,
   `action = 'read'`), added to the bootstrap owner role, so the operator
-  bound through `gpforum-admin-bootstrap` (a global binding) can read private
+  bound through `gpforum admin` (a global binding) can read private
   content. Moderator or member roles only receive it through an explicit
   admin grant.
 - `PermissionGate::scoped_grants` returns the scopes an actor holds a
@@ -207,7 +207,7 @@ existence is not confirmed.
 No event, audit, or outbox shape changes. Search documents, notifications,
 and mentions rebuilt by replay apply the same rules at write and read time,
 so a replay cannot widen access. No migration is required: the new
-permission row is created by `gpforum-admin-bootstrap` (idempotent) or by
+permission row is created by `gpforum admin` (idempotent) or by
 admins through the existing catalog.
 
 ### Required implementation review (ADR 0100 section 20)
@@ -244,7 +244,7 @@ admins through the existing catalog.
 - Implemented in stages (quality program 2.8). **Stage 1, on `main`
   2026-09-26:** `GPForum::Service::Forum::Visibility`, `::Viewer` and
   `::ViewerResolver` (one query per signed-in request), the `gp_forum_viewer`
-  helper, the `category.read` permission (granted by `gpforum-admin-bootstrap`),
+  helper, the `category.read` permission (granted by `gpforum admin`),
   and the viewer-aware `CategoryReader` (lists and `find_category`),
   `ThreadReader` (category lists and the latest-threads list),
   `ThreadDetailReader::find_thread`, `PostReader` (thread posts and

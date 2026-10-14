@@ -169,9 +169,15 @@ ok(
 );
 ok(
     !GPForum::Worker::MinionGuard->requested(
-        _enabled_minion_config(), '/opt/gpforum/bin/gpforum-outbox-dispatch'
+        _enabled_minion_config(), 'gpforum outbox'
     ),
-    'direct outbox process skips Minion when it is enabled'
+    'the outbox process, as the front door names it, skips Minion'
+);
+ok(
+    GPForum::Worker::MinionGuard->requested(
+        _enabled_minion_config(), 'gpforum outboxes'
+    ),
+    'and only that one'
 );
 ok(
     !GPForum::Worker::MinionGuard->requested(

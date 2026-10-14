@@ -174,7 +174,7 @@ sub _assert_evidence_failure {
     is( $misuse->{status}, $EXIT_USAGE, "$name misused is 2" );
     like(
         $misuse->{errors},
-        qr/\A Unknown [ ] option: [ ] --bogus \n Usage: [ ] bin\//msx,
+        qr/\A Unknown [ ] option: [ ] --bogus \n Usage: [ ] gpforum [ ]/msx,
         'with the usage on stderr'
     );
     unlike(

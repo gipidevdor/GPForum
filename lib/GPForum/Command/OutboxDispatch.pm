@@ -52,8 +52,8 @@ has output     => sub { return \*STDOUT; };
 
 # Sentences in the operator's language rather than the key=value line:
 # `gpforum outbox`, the front door's verb, says what it sent, as every verb
-# does, where bin/gpforum-outbox-dispatch keeps the line the units' journals
-# and the scripts that read them were written for.
+# does. A caller that builds the command directly (the tests) gets the terse
+# key=value line.
 has human   => 0;
 has words   => sub { return GPForum::Command::Support::Words->new; };
 has sleeper => sub {
@@ -208,7 +208,7 @@ sub _json_document ($summary) {
 }
 
 # A batch's summary: one JSON object, the sentences of the front door's
-# verb, or the line bin/gpforum-outbox-dispatch prints.
+# verb, or the terse line.
 sub _report ( $self, $summary, $options ) {
     if ( $options->{json} ) {
         GPForum::Command::Usage->json( $self->output,
@@ -309,7 +309,7 @@ sub usage_text ($class) {
 
 sub _usage ( $message = undef ) {
     return ( defined $message ? "$message\n" : q{} )
-      . "Usage: bin/gpforum-outbox-dispatch [--once|--loop] [--limit N] [--sleep N] [--max-iterations N] [--json]\n";
+      . "Usage: gpforum outbox [--once|--loop] [--limit N] [--sleep N] [--max-iterations N] [--json]\n";
 }
 
 1;

@@ -13,8 +13,8 @@ use List::Util qw(any);
 our $VERSION = '0.001';
 
 # The dependencies live in local/, installed by Carton for one validated
-# Perl. A program started without them on @INC -- bin/gpforum-migrate typed
-# on its own, `perl bin/gpforum-outbox-dispatch` -- died at its first
+# Perl. A program started without them on @INC -- `perl bin/gpforum outbox`
+# from a shell that never set them up -- died at its first
 # dependency with "Can't locate Const/Fast.pm in @INC". Loaded first, this
 # runs the program again under script/gpforum-carton exec, which puts local/
 # on @INC and picks that Perl, as bin/gpforum always did. Only core modules
@@ -106,9 +106,8 @@ sub has_dependencies ($class) {
 }
 
 # The program as gpforum-carton finds it: a name with no slash -- `perl
-# gpforum-migrate`, typed in bin/ -- is a file in this directory, where the
-# shell's exec looked for a command on the PATH ("gpforum-migrate: not
-# found"). A program found on the PATH has its whole path already.
+# gpforum`, typed in bin/ -- is a file in this directory, where the shell's
+# exec looked for a command on the PATH ("gpforum: not found"). A program found on the PATH has its whole path already.
 sub program ( $class, $name ) {
     return $name =~ m{/}msx ? $name : "./$name";
 }

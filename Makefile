@@ -3,9 +3,8 @@
 # All targets use the OS system Perl via script/gpforum-carton /
 # script/gpforum-system-perl (not version managers or custom PREFIX builds).
 #
-# bin/ holds Perl application entrypoints; script/ holds repository tooling.
-# A script/ wrapper drops the gpforum- prefix of the bin/ entrypoint it wraps,
-# and no basename may exist in both directories. The rule is documented in
+# bin/ holds the front door, bin/gpforum; script/ holds repository tooling.
+# No basename may exist in both directories. The rule is documented in
 # docs/ENTRYPOINTS.md and enforced by script/architecture-check.
 
 # The Makefile is the operator's front door for repository tasks, so it names
@@ -120,7 +119,7 @@ standby-drill: ## Rehearse a streaming standby and a failover on throwaway clust
 	script/standby-drill
 
 partition-maintenance: ## Plan next month's log partitions (add --apply to run)
-	script/gpforum-carton exec bin/gpforum-partition-maintenance --plan
+	bin/gpforum partitions --plan
 
 dead-letter-check: ## Report the dead-letter queue
 	bin/gpforum dead-letter-check --json --simulate

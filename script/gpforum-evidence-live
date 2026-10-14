@@ -16,7 +16,7 @@ Usage: script/gpforum-evidence-live [--commands|--status|--help]
                                     [--env-file PATH] [--out DIR]
 
   --commands       print live verify + stress evidence commands (default)
-  --status         print whether entrypoints exist
+  --status         print whether each entrypoint answers
   --env-file PATH  the env file the printed verify reads (never commit it;
                    default /tmp/gpforum-evidence.env)
   --out DIR        where the printed commands write their JSON
@@ -159,16 +159,28 @@ status_line() {
     fi
 }
 
+# A verb of the front door: ok when bin/gpforum VERB --help answers.
+verb_line() {
+    verb=$1
+    if [ ! -x bin/gpforum ]; then
+        printf 'missing\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    elif bin/gpforum "$verb" --help >/dev/null 2>&1; then
+        printf 'ok\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    else
+        printf 'fails\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    fi
+}
+
 print_status() {
     print_banner
     printf 'entrypoint\tlabel\tpath\n'
-    status_line bin/gpforum staging-host-verify
-    status_line bin/gpforum stress-load
-    status_line bin/gpforum mail-check
-    status_line bin/gpforum mail-lifecycle-check
-    status_line bin/gpforum dead-letter-check
-    status_line bin/gpforum evidence-validate
-    status_line bin/gpforum evidence-meta
+    verb_line staging-host-verify
+    verb_line stress-load
+    verb_line mail-check
+    verb_line mail-lifecycle-check
+    verb_line dead-letter-check
+    verb_line evidence-validate
+    verb_line evidence-meta
     status_line script/bootstrap-deps bootstrap-deps
     status_line docs/ops/staging-host.md staging-host-doc
     status_line docs/ops/stress-load.md stress-load-doc

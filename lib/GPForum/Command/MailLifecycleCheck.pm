@@ -116,12 +116,12 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-mail-lifecycle-check [options]
+Usage: gpforum mail-lifecycle-check [options]
 
 Exercise Identity::Mailer password_reset / email_change / email_verification
 under Email::Sender::Transport::Test. Emits EvidenceMeta JSON. Does not claim
 private-beta readiness. Staging SMTP --send remains a residual
-(gpforum-mail-check).
+(gpforum mail-check --send).
 
   --simulate  deliver all three identity kinds (default)
   --dry-run   print the plan only
@@ -190,7 +190,7 @@ None known.
 =head1 BUGS AND LIMITATIONS
 
 Delivery through the staging SMTP server is not exercised; that is
-C<bin/gpforum-mail-check --send>.
+C<gpforum mail-check --send>.
 
 =head1 AUTHOR
 

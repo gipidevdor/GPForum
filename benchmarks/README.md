@@ -201,7 +201,7 @@ export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum_perf_local;host=127.0.0.1;por
 export GPFORUM_DATABASE_USER=benchmark_user
 # Supply a password via the local environment if required, not a tracked file.
 script/bootstrap-deps --postgres
-script/gpforum-carton exec bin/gpforum-migrate --apply
+bin/gpforum migrate
 
 perl script/performance-evidence init --output artifacts/performance --mode pr
 script/gpforum-carton exec script/performance-http --output artifacts/performance --mode pr \

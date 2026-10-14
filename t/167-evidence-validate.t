@@ -222,7 +222,7 @@ my $usage   = q{};
     is( $command->run('--help'), 0, 'help exits 0' );
     close $stdout or croak 'close stdout';
 }
-like( $usage, qr/gpforum-evidence-validate/msx, 'help names command' );
+like( $usage, qr/gpforum [ ] evidence-validate/msx, 'help names command' );
 like( $usage, qr/private-beta/msx, 'help denies private-beta claim' );
 like( $usage, qr/--strict/msx,     'help mentions strict mode' );
 

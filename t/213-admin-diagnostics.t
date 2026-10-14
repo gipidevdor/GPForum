@@ -409,7 +409,7 @@ $test->element_exists_not(
     'form[action="/admin/antivirus/check"]',
     'a command scanner offers no button'
 );
-$test->content_like( qr/bin\/gpforum-antivirus-check/msx,
+$test->content_like( qr/gpforum [ ] antivirus-check/msx,
     'and points at the shell' );
 $web->antivirus($scanner);
 

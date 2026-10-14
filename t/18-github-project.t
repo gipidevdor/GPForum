@@ -11,7 +11,7 @@ use Test::More;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 173;
+const my $EXPECTED_TESTS => 156;
 const my $CURLY_CLASS    => '[{]';
 const my $LAUNCHD_FRONT_DOOR =>
   qr{<string>/opt/gpforum/bin/gpforum</string> \s*}msx;
@@ -79,23 +79,7 @@ for my $required_file (
     deploy/nginx/gpforum-unix-socket.conf
     deploy/caddy/Caddyfile
     docs/adr/0092-github-project-success-contract.md
-    bin/gpforum-benchmark
-    bin/gpforum-bench-hypnotoad
-    bin/gpforum-bench-hypnotoad-scaling
-    bin/gpforum-os-preflight
-    bin/gpforum-scheduled-jobs
-    bin/gpforum-query-plan-evidence
-    bin/gpforum-seed-performance-data
-    bin/gpforum-staging-drill
-    bin/gpforum-staging-drill-attachments
-    bin/gpforum-staging-host-verify
-    bin/gpforum-stress-load
-    bin/gpforum-evidence-validate
-    bin/gpforum-evidence-meta
-    bin/gpforum-dead-letter-check
-    bin/gpforum-dead-letter-replay
-    bin/gpforum-search-rebuild
-    bin/gpforum-mail-lifecycle-check
+    bin/gpforum
     script/benchmark-http
     script/cpan-license-check
     script/gpforum-carton
@@ -163,8 +147,8 @@ like(
     qr/script\/gpforum-carton [ ] exec [ ] prove [ ] -lr [ ] t/msx,
     'CI runs prove -lr t through system-Perl Carton'
 );
-like( $ci, qr/script\/coverage/msx,  'CI runs coverage' );
-like( $ci, qr/gpforum-benchmark/msx, 'CI runs benchmark smoke' );
+like( $ci, qr/script\/coverage/msx,          'CI runs coverage' );
+like( $ci, qr/gpforum [ ] benchmark [ ]/msx, 'CI runs benchmark smoke' );
 like(
     $ci,
     qr/gpforum [ ] hypnotoad-benchmark/msx,
@@ -183,7 +167,7 @@ like(
 );
 like(
     $ci,
-    qr/gpforum-migrate [ ] --apply/msx,
+    qr/bin\/gpforum [ ] migrate/msx,
     'CI applies migrations against PostgreSQL'
 );
 like(
@@ -199,7 +183,7 @@ like(
 like( $ci, qr/gpforum [ ] os-preflight [ ] --json/msx, 'CI runs OS preflight' );
 like(
     $ci,
-    qr/gpforum-platform-check [ ] --with-db/msx,
+    qr/gpforum [ ] platform-check [ ] --with-db/msx,
     'CI runs database-backed platform check'
 );
 like(
@@ -247,11 +231,6 @@ like(
     $deployment,
     qr/\/etc\/gpforum\/gpforum[.]env/msx,
     'deployment docs name the systemd environment file'
-);
-like(
-    $deployment,
-    qr/query-budget [ ] --sync/msx,
-    'deployment docs require query budget sync before readiness'
 );
 like(
     $deployment,

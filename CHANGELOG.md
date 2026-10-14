@@ -15,10 +15,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
-- **Write the new names of the old settings and drill variables by hand.**
-  Nothing was released with the old ones, so they are no longer read, and
-  neither the start, `gpforum setup` nor `gpforum doctor` mentions them (ADR
-  0125, amended). An old `GPFORUM_ENV` value now stops the start. In the
+- **Write the new names of the old settings, drill variables and commands by
+  hand.** Nothing was released with the old ones, so they are no longer
+  read or installed, and neither the start, `gpforum setup` nor `gpforum
+  doctor` mentions them (ADRs 0120 and 0125, amended). An old `GPFORUM_ENV`
+  value now stops the start. In the
   environment file: `GPFORUM_ENV=production-small` or `production-medium`
   becomes `GPFORUM_ENV=production` (add `GPFORUM_EVENT_RETENTION_DAYS=730` to
   keep production-medium's retention); `GPFORUM_SMTP_SSL=on` becomes
@@ -30,7 +31,21 @@ CI, evidence and internal refactors with no change in behaviour.
   `GPFORUM_STANDBY_PORT` and `GPFORUM_STANDBY_DIR` become `script/standby-drill
   --primary-port N --standby-port N --dir PATH`; `GPFORUM_EVIDENCE_DIR` and
   `GPFORUM_EVIDENCE_ENV_FILE` become `script/gpforum-evidence-live --out DIR
-  --env-file PATH`.
+  --env-file PATH`. `bin/` holds `bin/gpforum` alone: a unit, crontab or
+  script that still runs a `bin/gpforum-NAME` (or `script/gpforum-carton exec`
+  it) runs `bin/gpforum VERB` instead, and `gpforum service print` writes the
+  units again. `gpforum-migrate --apply` becomes `gpforum migrate`;
+  `gpforum-admin-bootstrap --user-id ID` becomes `gpforum admin grant
+  --user-id ID`; `gpforum-outbox-dispatch` becomes `gpforum outbox`;
+  `gpforum-partition-maintenance` becomes `gpforum partitions`;
+  `gpforum-query-budget` becomes `gpforum budgets`; `gpforum-dead-letter-replay`
+  becomes `gpforum dead-letters`; `gpforum-seed-performance-data` becomes
+  `gpforum performance-seed`; `gpforum-bench-hypnotoad` and
+  `gpforum-bench-hypnotoad-scaling` become `gpforum hypnotoad-benchmark` and
+  `gpforum hypnotoad-scaling`; every other `bin/gpforum-NAME` becomes `gpforum
+  NAME`. The old spellings through the front door (`gpforum
+  partition-maintenance`, `gpforum outbox_dispatch`, `gpforum
+  admin-bootstrap`) are no verbs any more.
 
 - **Apply migration 103 before starting the draft-enabled application.** It adds
   private composer storage and new draft/publication/export/erasure routine

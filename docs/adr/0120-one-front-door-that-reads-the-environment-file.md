@@ -8,7 +8,11 @@ by GPForum as well as by the supervisor, with a documented precedence (owner
 decision D1 of the operator walkthrough, 2026-10-07). Builds on ADR 0117
 (`use v5.40`) and ADR 0118 (`GPForum::X::Config`, `GPForum::X::Usage`). Amended
 by ADR 0124 (2026-10-10): the running service reads its metrics tokens from
-the file again, so `gpforum secret rotate metrics` names no restart.
+the file again, so `gpforum secret rotate metrics` names no restart. Amended
+(2026-10-14) by the owner's decision O1 of the essentiality audit: nothing
+was ever released, so the old entrypoints are gone. `bin/` holds the front
+door alone, a command answers to its verb only, and no text is rewritten
+from a `bin/gpforum-X` name to its verb: the texts name the verbs.
 
 ## Context
 
@@ -63,13 +67,10 @@ second reader, so its precedence must be written down.
   `gpforum help VERB` is the verb's usage. `daemon` is, for development,
   `gpforum start --foreground`.
 - **The verb table** (`GPForum::Command::Support::Verbs`) names each verb's
-  group, the `GPForum::CLI` command that runs it, and the `bin/` entrypoint
-  that ran it before. A command still answers to its old name, dashes or
-  underscores (`gpforum partition-maintenance`, `gpforum query_budget`), and
-  every `bin/gpforum-*` entrypoint keeps working on its own: they are the
-  verbs' aliases. Through the front door a help, usage or failure text that
-  names a `bin/gpforum-X` names the verb instead (`GPForum::Command::Usage`
-  reads `$0`, which the front door sets to `gpforum VERB`).
+  group and the `GPForum::CLI` command that runs it. (The first version kept
+  every `bin/gpforum-*` entrypoint and each command's old name as aliases,
+  and rewrote the texts that named them; the amendment above removed all
+  three.)
 - **The verbs that work on the forum run from the code directory**, as the
   service's units do (`WorkingDirectory=/opt/gpforum`): `migrations/` and a
   relative attachment root are read from there. The more group's commands
@@ -153,8 +154,7 @@ second reader, so its precedence must be written down.
   (051).` -- and names the next step: the forum's owner when it has none, a
   restart after a change in staging and production. `--plan` connects and
   lists what is pending; `--quiet` prints nothing unless something failed,
-  for scripts that checked the old silence. `bin/gpforum-migrate` keeps
-  planning without `--apply`.
+  for scripts that checked the old silence.
 - **`gpforum admin create --email --username`** asks for the password twice
   without echo (or reads it with `--password-stdin`) and makes an account
   active, its address verified, bound to the owner role, audited as
@@ -182,9 +182,7 @@ second reader, so its precedence must be written down.
 - `GPFORUM_ENV` and every other setting can come from the file for a command
   run by hand, so "the front door sees what the service sees" holds without
   the operator recreating the unit's environment.
-- `bin/gpforum-*` run directly do not read the file, as before: the units
-  and the crontabs that start them have their own environment.
-- `gpforum-migrate --apply` writes the `endpoint_query_budgets` table after
+- `gpforum migrate` writes the `endpoint_query_budgets` table after
   the partitions; a role that may migrate may write it. Its output changed
   from a line per migration to one line; CI's idempotency check passes
   `--quiet`.

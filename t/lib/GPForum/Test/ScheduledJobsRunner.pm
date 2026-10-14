@@ -9,7 +9,7 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-# The scheduled-jobs runner as bin/gpforum-scheduled-jobs sees it: one pass
+# The scheduled-jobs runner as gpforum scheduled-jobs sees it: one pass
 # that answers with a fixed summary, or dies as a runner whose database is
 # gone would. It keeps the options each pass was given, and can hold the
 # attachment store the command lends the application's attachment storage to.

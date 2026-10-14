@@ -152,12 +152,9 @@ sub _report ( $self, $options, $result ) {
         $text .= "\n" . $self->catalog->text('doctor.waiting') . "\n";
     }
     $text .= "\n" . $findings->summary . "\n";
-    print encode(
-        'UTF-8',
-        GPForum::Command::Support::ServiceEnvironment->as_read(
-            GPForum::Command::Usage->as_invoked($text)
-        )
-    ) or croak 'failed to write the doctor report';
+    print encode( 'UTF-8',
+        GPForum::Command::Support::ServiceEnvironment->as_read($text) )
+      or croak 'failed to write the doctor report';
 
     return $exit;
 }

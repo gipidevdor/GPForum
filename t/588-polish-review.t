@@ -46,11 +46,13 @@ const my $PASSWORD   => 'hunter2';
 # - `mail-check --send --to ADDRESS`, typed as doctor offers it, went to
 #   sendmail with ADDRESS as a local user and said a message was sent;
 # - `perl gpforum-migrate`, typed in bin/, died with "gpforum-migrate: not
-#   found" when it ran itself again under the checkout's dependencies;
+#   found" when it ran itself again under the checkout's dependencies (the
+#   front door, `perl gpforum`, is held to the same now that it is the only
+#   entrypoint);
 # - `gpforum --env-file F service print rc` ended with `sudo service gpforum
 #   --env-file F start`: the FreeBSD service's name read as gpforum, and its
 #   start as the verb;
-# - bin/gpforum-scheduled-jobs, which the systemd timer runs, died with
+# - the scheduled-jobs command, which the systemd timer runs, died with
 #   "Can't locate object method gp_scheduled_jobs": the application it built
 #   was gone before the controller asked it for the jobs;
 # - in Italian, `gpforum scheduled-jobs` gave the jobs' reasons in English,
@@ -162,25 +164,21 @@ sub _mail_check_needs_an_address {
 }
 
 sub _bare_entrypoint_runs {
-    is(
-        GPForum::CLI::FrontDoor::Carton->program('gpforum-migrate'),
-        './gpforum-migrate',
-        'a bare name is a file here'
-    );
-    is( GPForum::CLI::FrontDoor::Carton->program('bin/gpforum-migrate'),
-        'bin/gpforum-migrate', 'a path stays as typed' );
+    is( GPForum::CLI::FrontDoor::Carton->program('gpforum'),
+        './gpforum', 'a bare name is a file here' );
+    is( GPForum::CLI::FrontDoor::Carton->program('bin/gpforum'),
+        'bin/gpforum', 'a path stays as typed' );
 
     if ( !-d 'local/lib/perl5' ) {
         note 'no local/ here to run the entrypoints under';
         return;
     }
-    my $ran =
-      _run( 'bin', $EXECUTABLE_NAME, 'gpforum-outbox-dispatch', '--help' );
-    is( $ran->{status}, 0, 'perl gpforum-outbox-dispatch, in bin/, runs' )
+    my $ran = _run( 'bin', $EXECUTABLE_NAME, 'gpforum', 'outbox', '--help' );
+    is( $ran->{status}, 0, 'perl gpforum outbox, in bin/, runs' )
       or diag $ran->{errors};
     like(
         $ran->{output},
-        qr/\A Usage: [ ] bin\/gpforum-outbox-dispatch [ ]/msx,
+        qr/\A Usage: [ ] gpforum [ ] outbox [ ]/msx,
         'and prints its usage'
     );
 

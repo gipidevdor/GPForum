@@ -153,7 +153,7 @@ None. The gate returns 0 rather than throwing for unknown actors.
 =head1 CONFIGURATION AND ENVIRONMENT
 
 Requires a schema with a C<RoleBinding> resultset joined to roles,
-role permissions, and permissions. C<gpforum-admin-bootstrap> creates the
+role permissions, and permissions. C<gpforum admin> creates the
 first binding with both scope columns NULL, so bootstrap grants stay global.
 
 =head1 DEPENDENCIES

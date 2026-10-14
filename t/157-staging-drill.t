@@ -55,8 +55,8 @@ my $usage   = q{};
     is( $command->run('--help'), 0, 'help exits 0' );
     close $stdout or croak 'close stdout';
 }
-like( $usage, qr/gpforum-staging-drill/msx, 'help names the command' );
-like( $usage, qr/var\/attachments/msx,      'help mentions attachment gap' );
+like( $usage, qr/gpforum [ ] staging-drill/msx, 'help names the command' );
+like( $usage, qr/var\/attachments/msx, 'help mentions attachment gap' );
 
 my $stderr = q{};
 {

@@ -156,7 +156,7 @@ context in the order they become available.
 - `ROADMAP.md`, `README.md`, `docs/MVP.md`,
   `docs/release/readiness-review.md`
 - `script/coverage`, `script/profile-nytprof`, `script/perlcritic`,
-  `script/gpforum-carton`, `bin/gpforum-migrate`, `.perlcriticrc`,
+  `script/gpforum-carton`, `gpforum migrate`, `.perlcriticrc`,
   `.github/workflows/ci.yml`
 - `t/02-health.t`, `t/16-workers-phase.t`, `t/17-notifications.t`,
   `t/19-search.t`, `t/20-realtime.t`, `t/22-attachments.t`,

@@ -36,8 +36,8 @@ has schema => undef;    # optional: connected from the environment otherwise
 
 # `gpforum budgets`, the front door's verb: bare, it checks, with a verdict
 # and the fix, as doctor says it; --check and --sync answer in the operator's
-# language. bin/gpforum-query-budget keeps printing the catalog bare and the
-# lines the scripts that read it were written for.
+# language. A caller that builds the command directly (the tests) gets the
+# catalog bare and the terse lines.
 has human => 0;
 has words => sub { return GPForum::Command::Support::Words->new; };
 
@@ -263,7 +263,7 @@ sub _usage ( $front_door = 0 ) {
       $front_door ? ( q{}, ' (the default)' ) : ( ' (the default)', q{} );
 
     return <<"USAGE";
-Usage: bin/gpforum-query-budget [--print|--sync|--check] [--json]
+Usage: gpforum budgets [--print|--sync|--check] [--json]
 
 Reads the endpoint query budget catalog in the code and compares it with
 the copy in the endpoint_query_budgets table.
@@ -307,7 +307,7 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-The CLI behind C<bin/gpforum-query-budget> and C<bin/gpforum budgets>, over
+The CLI behind C<gpforum budgets>, over
 L<GPForum::Service::Operations::QueryBudget>. C<--print> shows the catalog
 in the code. C<--sync> makes the C<endpoint_query_budgets> table match it:
 missing rows are inserted, rows with other limits or notes updated, and rows

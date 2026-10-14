@@ -133,7 +133,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-staging-host-verify [options]
+Usage: gpforum staging-host-verify [options]
 
 Non-destructive staging host verify. Always checks in-repo deploy/runbook
 artifacts. Optionally checks every setting in the env file as the service

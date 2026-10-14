@@ -10,7 +10,7 @@ DDL" now reads "no web request or worker executes partition DDL".
 `audit_log`, `event_log` and `notifications` are `PARTITION BY RANGE
 (created_at)` with a DEFAULT partition. Migration 038 created their monthly
 partitions for September to December 2026 by name, and nothing created any
-other month on its own: `bin/gpforum-partition-maintenance --apply` existed,
+other month on its own: `gpforum partitions --apply` existed,
 but only an operator ran it, ADR 0012 having kept partition DDL out of the
 application, and the hourly scheduled jobs only reported evidence. Three
 things followed.
@@ -62,10 +62,10 @@ file.
   `pg_try_advisory_lock(4021970002)`, next to the migration runner's
   `4021970001`. A timer run that cannot is reported as skipped, status ok,
   and does nothing: two nodes' timers and a deploy can overlap, and the one
-  holding the lock is doing the work. `bin/gpforum-migrate --apply` waits up
+  holding the lock is doing the work. `gpforum migrate` waits up
   to a minute for the lock instead, so the application the deploy starts
   next finds its month there.
-- **The window is computed.** `bin/gpforum-migrate --apply` ensures the
+- **The window is computed.** `gpforum migrate` ensures the
   current UTC month and the two after it once the migrations are in, so a
   fresh install has its month before its first write and every deploy
   refreshes the window. `--no-partitions` skips it. The step runs with the
@@ -81,7 +81,7 @@ file.
   hardening), `deploy/launchd/com.gpforum.partition-maintenance.plist`, and
   a documented crontab line on FreeBSD, where no periodic sample is shipped
   for the scheduled jobs either. Each runs
-  `bin/gpforum-partition-maintenance --apply`.
+  `gpforum partitions --apply`.
 - **Migration 049 clears what 038 left.** It names no month: every month
   partition of the three tables whose range ended before the current UTC
   month and that holds no row is dropped, with its registry row. A month
@@ -116,7 +116,7 @@ file.
 - The maintenance role must own the partitioned tables. Where the
   application connects as a role that does not, the timer gets the migration
   role's DSN.
-- `bin/gpforum-migrate --apply` can now fail after committing its
+- `gpforum migrate` can now fail after committing its
   migrations. The applied list is still printed (and kept in `--json`), and
   the message names what to do.
 - The test templates are rebuilt once per UTC month, because migrating

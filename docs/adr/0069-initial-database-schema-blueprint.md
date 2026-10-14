@@ -208,7 +208,7 @@ Every schema change MUST be:
   `migrations/005_notifications_subscriptions.sql`,
   `migrations/006_attachments.sql`, `migrations/008_moderation_review.sql`,
   `migrations/009_admin_authorization.sql`
-- `lib/GPForum/Schema.pm`, `lib/GPForum/Schema`, `bin/gpforum-migrate`
+- `lib/GPForum/Schema.pm`, `lib/GPForum/Schema`, `gpforum migrate`
 - `docs/architecture/partition-lifecycle.md`, `docs/PERFORMANCE.md#database`,
   `docs/PERFORMANCE.md#query-budgets`
 - `t/05-database.t`, `t/10-migrate-command.t`, `t/99-partition-lifecycle.t`,

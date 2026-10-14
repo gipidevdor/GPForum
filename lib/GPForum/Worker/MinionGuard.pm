@@ -26,7 +26,7 @@ sub direct_outbox_process ( $, $program_name ) {
     if ( !defined $program_name ) {
         $program_name = $PROGRAM_NAME;
     }
-    if ( $program_name =~ m{gpforum-outbox-dispatch \z}msx ) {
+    if ( $program_name =~ m{(?:\A|/) gpforum [ ] outbox \z}msx ) {
         return 1;
     }
 

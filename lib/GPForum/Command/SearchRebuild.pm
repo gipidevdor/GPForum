@@ -179,8 +179,8 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-search-rebuild [--entity thread|post|all] [--json]
-       bin/gpforum-search-rebuild --status [--json]
+Usage: gpforum search-rebuild [--entity thread|post|all] [--json]
+       gpforum search-rebuild --status [--json]
 
 Rebuild the search index from the forum's threads and posts: every live
 thread and post is indexed again, in batches, and documents whose thread or
@@ -208,9 +208,9 @@ Version 0.001.
 
 =head1 SYNOPSIS
 
-    bin/gpforum-search-rebuild
-    bin/gpforum-search-rebuild --entity post
-    bin/gpforum-search-rebuild --status
+    gpforum search-rebuild
+    gpforum search-rebuild --entity post
+    gpforum search-rebuild --status
 
 =head1 DESCRIPTION
 

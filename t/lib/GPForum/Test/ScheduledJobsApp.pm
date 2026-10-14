@@ -8,7 +8,7 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-# The application as bin/gpforum-scheduled-jobs builds it, reduced to what the
+# The application as gpforum scheduled-jobs builds it, reduced to what the
 # command asks of it: a controller -- this object again -- whose
 # gp_scheduled_jobs is the runner given and whose gp_attachment_storage is the
 # storage given. It counts the controllers built, so a test can tell whether

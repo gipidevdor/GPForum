@@ -124,7 +124,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-evidence-meta [options] FILE [FILE...]
+Usage: gpforum evidence-meta [options] FILE [FILE...]
 
 Apply the shared EvidenceMeta contract to archived ops JSON
 (secrets_redacted, private_beta_claimed=0, deduped residual_gaps).

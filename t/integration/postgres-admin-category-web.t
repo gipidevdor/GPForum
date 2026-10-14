@@ -191,8 +191,8 @@ sub _administrator {
     is(
         GPForum::Test::PostgresHarness::quietly(
             sub {
-                return GPForum::Command::AdminBootstrap->new->run( '--user-id',
-                    $id );
+                return GPForum::Command::AdminBootstrap->new->run( 'grant',
+                    '--user-id', $id );
             }
         ),
         0,

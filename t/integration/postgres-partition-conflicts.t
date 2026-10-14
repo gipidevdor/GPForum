@@ -303,7 +303,7 @@ sub _nested_partitions {
     return;
 }
 
-# bin/gpforum-partition-maintenance adds next month's partitions while the
+# gpforum partitions adds next month's partitions while the
 # application runs; a family remembered from an earlier conflict would not
 # know them.
 sub _partition_added_later {

@@ -67,8 +67,8 @@ has output => sub { return \*STDOUT; };
 
 # A line a job in the operator's language rather than the key=value line:
 # `gpforum scheduled-jobs`, the front door's verb, says what each job did,
-# where bin/gpforum-scheduled-jobs keeps the line the timers' journals and
-# the scripts that read them were written for.
+# where a caller that builds the command directly (the tests) gets the
+# terse key=value line.
 has human => 0;
 has words => sub { return GPForum::Command::Support::Words->new; };
 
@@ -127,7 +127,7 @@ sub run_once ( $self, $options ) {
 
     # The application lives as long as the run: a controller holds it
     # weakly, and one built from an application nothing else held had
-    # none by the next line -- bin/gpforum-scheduled-jobs, which the systemd
+    # none by the next line -- the scheduled-jobs command, which the systemd
     # timer runs, died with "Can't locate object method gp_scheduled_jobs".
     my $application;
     if ( !$jobs ) {
@@ -392,7 +392,7 @@ sub usage_text ($class) {
 
 sub _usage ( $message = undef ) {
     return ( defined $message ? "$message\n" : q{} )
-      . "Usage: bin/gpforum-scheduled-jobs [--once] [--limit N] [--job NAME] [--json]\n";
+      . "Usage: gpforum scheduled-jobs [--once] [--limit N] [--job NAME] [--json]\n";
 }
 
 1;

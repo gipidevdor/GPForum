@@ -9,7 +9,7 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-# The dead-letter replay service as bin/gpforum-dead-letter-replay sees it:
+# The dead-letter replay service as gpforum dead-letters sees it:
 # each call answers with the next outcome in turn, and an outcome that is a
 # plain string dies with it, as a replay whose database went away would.
 has outcomes => sub { return []; };

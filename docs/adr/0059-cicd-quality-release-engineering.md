@@ -329,7 +329,7 @@ platform architecture.
   `script/perltidy-check`, `script/perlcritic`, `script/cpan-license-check`,
   `script/coverage`, `script/test`, `script/profile-nytprof`,
   `script/architecture-check`.
-- `bin/gpforum-migrate`, `bin/gpforum-platform-check`, `migrations/`.
+- `gpforum migrate`, `gpforum platform-check`, `migrations/`.
 - `docs/CPAN_LICENSE_REVIEW.md`, `docs/DEPLOYMENT.md`, `docs/PERFORMANCE.md#profiling`,
   `docs/release/readiness-review.md`, `docs/UI_ACCESSIBILITY.md`.
 - `t/09-architecture-documentation.t`, `t/10-migrate-command.t`, `t/144-cpan-install.t`,

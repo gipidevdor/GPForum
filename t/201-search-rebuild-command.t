@@ -30,7 +30,7 @@ my ( $help, $help_status ) = _run('--help');
 is( $help_status, $EXIT_OK, '--help succeeds' );
 like(
     $help,
-    qr/\A Usage: [ ] bin\/gpforum-search-rebuild/msx,
+    qr/\A Usage: [ ] gpforum [ ] search-rebuild/msx,
     'and prints the usage'
 );
 

@@ -158,28 +158,20 @@ subtest 'misuse says what was wrong' => sub {
     );
 };
 
-subtest 'old names answer, and every entrypoint has its verb' => sub {
+subtest 'each verb runs its command, and old names are no verbs' => sub {
     my $launcher = GPForum::CLI::FrontDoor::Launcher->new;
-    for my $case (
-        [qw(outbox outbox-dispatch outbox_dispatch)],
-        [qw(partitions partition-maintenance)],
-        [qw(budgets query-budget query_budget)],
-        [qw(admin admin-bootstrap)],
+    for my $old (
+        qw(outbox-dispatch outbox_dispatch partition-maintenance query-budget
+        query_budget admin-bootstrap search_rebuild)
       )
     {
-        my ( $verb, @old ) = @{$case};
-        my $class   = $launcher->resolve($verb)->{class};
-        my $command = _command_of($class);
-        for my $name (@old) {
-            is( _command_of( $launcher->resolve($name)->{class} ),
-                $command, "gpforum $name runs what gpforum $verb runs" );
-        }
+        is( $launcher->resolve($old), undef, "gpforum $old is no verb" );
     }
     ok( $launcher->resolve('daemon')->{needs_application},
         q{Mojolicious's daemon still runs} );
     ok( $launcher->resolve('start')->{needs_application},
         'and start runs the application too' );
-    for my $worker (qw(outbox outbox-dispatch scheduled-jobs)) {
+    for my $worker (qw(outbox scheduled-jobs)) {
         ok(
             $launcher->resolve($worker)->{needs_application},
             "gpforum $worker builds the application its work comes from"
@@ -188,42 +180,8 @@ subtest 'old names answer, and every entrypoint has its verb' => sub {
     for my $nonsense ( 'Migrate', '../migrate', 'generate' ) {
         is( $launcher->resolve($nonsense), undef, "'$nonsense' is no verb" );
     }
-
-    for my $entrypoint ( grep { $_->basename ne 'gpforum' }
-        path('bin')->list->each )
-    {
-        my $name = $entrypoint->basename;
-        my $typed =
-          GPForum::Command::Support::Verbs->typed_for_entrypoint($name);
-        ok( defined $typed, "bin/$name has a verb" );
-        next if !defined $typed;
-        my ( undef, $verb ) = split q{ }, $typed;
-        my $resolved = $launcher->resolve($verb);
-        my ($runs) = $entrypoint->slurp =~ /(GPForum::Command::\w+)->/msx;
-        is( _command_of( $resolved && $resolved->{class} ),
-            $runs, "$typed runs what bin/$name runs" );
-    }
-
-    is(
-        GPForum::Command::Support::Verbs->as_typed(
-'run script/gpforum-carton exec perl -Ilib bin/gpforum-migrate --apply'
-        ),
-        'run gpforum migrate',
-        'a documented incantation reads as the front door, which applies'
-    );
-    is(
-        GPForum::Command::Support::Verbs->as_typed(
-'bin/gpforum-migrate --plan, then bin/gpforum-partition-maintenance --apply'
-        ),
-        'gpforum migrate --plan, then gpforum partitions --apply',
-        'an option the verb does not imply stays'
-    );
-    is(
-        GPForum::Command::Support::Verbs->as_typed(
-            'ExecStart=/opt/gpforum/bin/gpforum-outbox-dispatch --loop'),
-        'ExecStart=/opt/gpforum/bin/gpforum-outbox-dispatch --loop',
-        'while a path under another directory is left alone'
-    );
+    is_deeply( [ map { $_->basename } path('bin')->list->each ],
+        ['gpforum'], 'bin/ holds the front door alone' );
 };
 
 subtest 'the front door reads the service environment file' => sub {
@@ -404,17 +362,6 @@ sub _started ( $environment, @arguments ) {
     waitpid $pid, 0;
 
     return { %read, status => $CHILD_ERROR >> $STATUS_SHIFT };
-}
-
-# The GPForum::Command class an adapter runs, read from its source.
-sub _command_of ($class) {
-    return undef if !defined $class;
-
-    my $file = $class =~ s{::}{/}grmsx;
-    my ($command) =
-      path("$root/lib/$file.pm")->slurp =~ /(GPForum::Command::\w+)->/msx;
-
-    return $command;
 }
 
 1;

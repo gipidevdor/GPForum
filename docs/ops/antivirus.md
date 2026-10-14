@@ -71,7 +71,7 @@ Install the system's ClamAV package and set `GPFORUM_ANTIVIRUS_SOCKET` to the
   `StreamMaxLength 26M`. A file above the limit is not scanned, is not
   served, and the check below reports clamd's own `size limit` error.
 - **The socket must admit the `gpforum` user.** If it cannot connect,
-  `bin/gpforum-antivirus-check` says `Permission denied`. Give the socket a
+  `gpforum antivirus-check` says `Permission denied`. Give the socket a
   group the `gpforum` user belongs to (`LocalSocketGroup`, `LocalSocketMode`)
   or add the user to the socket's group.
 
@@ -85,7 +85,7 @@ does; `gpforum` reads the service's environment file itself
 sudo -u gpforum gpforum antivirus-check
 ```
 
-(`bin/gpforum-antivirus-check` and `make antivirus-check` run the same check
+(`gpforum antivirus-check` and `make antivirus-check` run the same check
 in whatever environment they are given.)
 
 ```text
@@ -157,7 +157,7 @@ Uploads are then checked for format only, recorded as
 - An upload that cannot be scanned stays `pending` and is **not served**.
 - The attachment worker retries it through the outbox with backoff. After
   the last attempt the event becomes a dead letter, which
-  `bin/gpforum-dead-letter-check` reports.
+  `gpforum dead-letter-check` reports.
 - The hourly scheduled jobs (`attachment_scans`) scan whatever is still
   pending, oldest first, so a file uploaded during a long outage becomes
   available within the hour after clamd is back. While clamd is still down

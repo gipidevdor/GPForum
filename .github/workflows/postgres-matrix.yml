@@ -42,8 +42,8 @@ on:
       - 't/lib/GPForum/Test/PostgresHarness.pm'
       - 't/lib/GPForum/Test/OutboxTransport.pm'
       - 't/lib/GPForum/Test/QueryPlanEvidenceDbh.pm'
-      - 'bin/gpforum-migrate'
-      - 'bin/gpforum-staging-drill'
+      - 'lib/GPForum/Command/Migrate.pm'
+      - 'lib/GPForum/Command/StagingDrill.pm'
       - 'bin/gpforum'
       - 'script/query-plan-*'
       - 'script/postgres-diagnostics'
@@ -91,8 +91,8 @@ on:
       - 't/lib/GPForum/Test/PostgresHarness.pm'
       - 't/lib/GPForum/Test/OutboxTransport.pm'
       - 't/lib/GPForum/Test/QueryPlanEvidenceDbh.pm'
-      - 'bin/gpforum-migrate'
-      - 'bin/gpforum-staging-drill'
+      - 'lib/GPForum/Command/Migrate.pm'
+      - 'lib/GPForum/Command/StagingDrill.pm'
       - 'bin/gpforum'
       - 'script/query-plan-*'
       - 'script/postgres-diagnostics'
@@ -202,21 +202,21 @@ jobs:
           PGPASSWORD: postgres
 
       - name: Print migration plan
-        run: script/gpforum-carton exec bin/gpforum-migrate --plan
+        run: bin/gpforum migrate --plan
 
       - name: Apply database migrations
         id: migrate
-        run: script/gpforum-carton exec bin/gpforum-migrate --apply
+        run: bin/gpforum migrate
 
       - name: Re-apply migrations is a no-op
         run: |
-          applied="$(script/gpforum-carton exec bin/gpforum-migrate --apply --quiet)"
+          applied="$(bin/gpforum migrate --quiet)"
           if [ -n "$applied" ]; then
-            echo 'migrations are not idempotent; the second --apply re-applied:' >&2
+            echo 'migrations are not idempotent; the second migrate re-applied:' >&2
             printf '%s\n' "$applied" >&2
             exit 1
           fi
-          echo 'ok: second --apply applied nothing'
+          echo 'ok: second migrate applied nothing'
 
       - name: Seed production evidence dataset
         run: bin/gpforum performance-seed --profile small
@@ -227,7 +227,7 @@ jobs:
         run: make integration
 
       - name: Run platform check
-        run: script/gpforum-carton exec bin/gpforum-platform-check --with-db
+        run: bin/gpforum platform-check --with-db
 
       - name: Collect read-only PostgreSQL diagnostics
         id: diagnostics

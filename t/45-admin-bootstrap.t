@@ -115,9 +115,10 @@ my $command          = GPForum::Command::AdminBootstrap->new(
 my $command_output = _capture_stdout(
     sub {
         return $command->run(
-            '--user-id',       'user-2',
-            '--actor-user-id', 'operator-2',
-            '--role-name',     'custom_owner',
+            'grant',      '--user-id',
+            'user-2',     '--actor-user-id',
+            'operator-2', '--role-name',
+            'custom_owner',
         );
     }
 );
@@ -144,7 +145,7 @@ is(
 is(
     _usage_status(
         sub {
-            return $command->run('--user-id');
+            return $command->run( 'grant', '--user-id' );
         }
     ),
     $EXIT_USAGE,

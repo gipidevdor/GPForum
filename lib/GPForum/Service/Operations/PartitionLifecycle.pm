@@ -524,13 +524,13 @@ sub _horizon_problems ( $self, $state ) {
     my $table = $state->{table};
     if ( !defined $state->{days_left} ) {
         push @problems, "$table has no range partition at all;"
-          . ' run bin/gpforum-partition-maintenance --apply';
+          . ' run gpforum partitions --apply';
     }
     elsif ( $state->{days_left} < $HORIZON_WARNING_DAYS ) {
         push @problems,
             "$table has partitions only until $state->{horizon},"
           . " $state->{days_left} days away;"
-          . ' run bin/gpforum-partition-maintenance --apply';
+          . ' run gpforum partitions --apply';
     }
     if ( $state->{default_rows} ) {
         push @problems,

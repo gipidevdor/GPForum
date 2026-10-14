@@ -257,7 +257,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-staging-drill-attachments [options]
+Usage: gpforum staging-drill-attachments [options]
 
 Rehearses attachment filesystem backup/restore on a populated throwaway
 var/attachments tree and validates nginx/systemd deploy templates

@@ -175,13 +175,16 @@ subtest 'bin/gpforum stops with EX_CONFIG and the whole report' => sub {
 # The commands report a configuration they cannot use through
 # Command::Usage->failure: the same report, in the same language, and
 # EX_CONFIG, 78, as bin/gpforum (ADR 0120).
-subtest 'a bin/gpforum-* command reports it the same way' => sub {
+subtest 'a command run on its own reports it the same way' => sub {
     my $problems =
       _refusal( sub { GPForum::Config->from_environment( \%THREE_WRONG ) } )
       ->problems;
-    my $italian =
-      _start( { %THREE_WRONG, LC_ALL => q{}, LANG => 'it_IT.UTF-8' },
-        'bin/gpforum-os-preflight' );
+    my $italian = _start(
+        { %THREE_WRONG, LC_ALL => q{}, LANG => 'it_IT.UTF-8' },
+        '-MGPForum::Command::OsPreflight',
+        '-e',
+        'exit GPForum::Command::OsPreflight->new->run(@ARGV)'
+    );
     is( $italian->{status}, $EX_CONFIG, 'exit status 78, EX_CONFIG' );
     is( $italian->{output}, q{},        'nothing on standard output' );
     is(

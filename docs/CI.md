@@ -29,7 +29,7 @@ dependency and takes much longer than the contract checks.
 
 | Target | Workflow | What it proves |
 | --- | --- | --- |
-| PostgreSQL 16, 17, 18 | [postgres-matrix.yml](../.github/workflows/postgres-matrix.yml) | migration plan, apply, apply-again idempotency, every PostgreSQL integration test in `t/integration/` (`make integration`), `bin/gpforum-platform-check --with-db`, and the fresh/upgrade/dump-restore drill with a version-matched `pg_dump` |
+| PostgreSQL 16, 17, 18 | [postgres-matrix.yml](../.github/workflows/postgres-matrix.yml) | migration plan, apply, apply-again idempotency, every PostgreSQL integration test in `t/integration/` (`make integration`), `gpforum platform-check --with-db`, and the fresh/upgrade/dump-restore drill with a version-matched `pg_dump` |
 
 `ci.yml` keeps one server (PostgreSQL 16) in the blocking gate; the matrix runs
 on migration/schema paths and their SQL consumers, database tooling and

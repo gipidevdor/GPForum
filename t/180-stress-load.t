@@ -57,7 +57,7 @@ my $usage   = q{};
     is( $command->run('--help'), 0, 'help exits 0' );
     close $stdout or croak 'close stdout';
 }
-like( $usage, qr/gpforum-stress-load/msx, 'help names the command' );
+like( $usage, qr/gpforum [ ] stress-load/msx, 'help names the command' );
 like(
     $usage,
     qr/100 [ ]\/ [ ]500 [ ]\/ [ ]1000/msx,

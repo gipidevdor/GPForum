@@ -396,7 +396,7 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-The engine behind C<bin/gpforum-stress-load>
+The engine behind C<gpforum stress-load>
 (L<GPForum::Command::StressLoad>). It sends GET requests to a set of routes
 on an instance that is already running, and never starts one. Up to
 C<concurrency> requests are in flight at once on one L<Mojo::IOLoop>,

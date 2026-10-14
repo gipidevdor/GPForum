@@ -48,8 +48,9 @@ has check => undef;    # optional: a test's double; else the real check
 
 # What it prints without --human or --json. The front door's verb answers in
 # the lines an operator reads, as every other gpforum verb does (owner
-# decision D12); bin/gpforum-mail-check keeps the JSON evidence the archived
-# runs were made with, and `gpforum mail-check --json` gives it.
+# decision D12); `gpforum mail-check --json` gives the JSON evidence the
+# archived runs were made with, which a caller building the command directly
+# gets by default.
 has default_format => 'json';
 
 # Misuse -- an option this command does not know, all its parser rejects --
@@ -179,7 +180,7 @@ sub _host {
 
 sub _usage ($formats) {
     return <<"USAGE";
-Usage: bin/gpforum-mail-check [--human | --json] [--dry-run | --send --to ADDRESS]
+Usage: gpforum mail-check [--human | --json] [--dry-run | --send --to ADDRESS]
 
 Prove that GPForum's mail leaves this host. A dry run sends nothing and says
 what it proved -- a sendmail program that exists, an SMTP port that answers,

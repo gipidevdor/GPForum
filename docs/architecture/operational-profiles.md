@@ -86,5 +86,5 @@ every setting.
 - `t/613-event-retention-is-a-setting.t` for retention;
 - `t/01-config.t`, `t/33-health-readiness.t`, `t/39-platform-check-command.t`.
 
-`bin/gpforum-platform-check` and `/health/ready` both evaluate the selected
+`gpforum platform-check` and `/health/ready` both evaluate the selected
 profile against the running config.

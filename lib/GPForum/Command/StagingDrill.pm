@@ -134,7 +134,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-staging-drill [options]
+Usage: gpforum staging-drill [options]
 
 Requires GPFORUM_DATABASE_DSN (and user/password env as for other tools).
 Creates throwaway databases, migrates, optionally seeds, dumps/restores,

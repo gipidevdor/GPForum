@@ -220,7 +220,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: bin/gpforum-platform-check [--local|--strict-local|--with-db|--strict-with-db] [--json]
+Usage: gpforum platform-check [--local|--strict-local|--with-db|--strict-with-db] [--json]
 
 Reports whether this host satisfies the platform prerequisites.
 

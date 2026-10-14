@@ -87,6 +87,6 @@ jobs:
             script/gpforum-carton exec prove -lr t
 
             echo '--- platform check'
-            script/gpforum-carton exec bin/gpforum-platform-check --local
+            bin/gpforum platform-check --local
         env:
           PERL_CARTON_MIRROR: https://cpan.metacpan.org/

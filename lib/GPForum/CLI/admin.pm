@@ -17,8 +17,7 @@ use GPForum::Command::Usage;
 our $VERSION = '0.001';
 
 # `gpforum admin create` and `gpforum admin grant`. The work is
-# GPForum::Command::AdminBootstrap's, which bin/gpforum-admin-bootstrap and
-# `gpforum admin-bootstrap` run too.
+# GPForum::Command::AdminBootstrap's.
 has description => q{Create the forum's owner, or make a member one};
 has usage       => sub ($self) {
     return GPForum::Command::AdminBootstrap->usage_text;

@@ -51,9 +51,8 @@ opendir my $cli, 'lib/GPForum/CLI' or croak "opendir: $ERRNO";
 my @adapters = sort map { s/[.]pm\z//msxr } grep { /[.]pm\z/msx } readdir $cli;
 closedir $cli or croak "closedir: $ERRNO";
 
-# Each command is reached by an adapter: its verb, and its old name where the
-# verb differs (admin and admin-bootstrap both run AdminBootstrap). start runs
-# Mojolicious's daemon and has no command of its own.
+# Each command is reached by an adapter, its verb's. start runs Mojolicious's
+# daemon and has no command of its own.
 my %reached;
 for my $adapter (@adapters) {
     my $source = path("lib/GPForum/CLI/$adapter.pm")->slurp;
@@ -117,18 +116,18 @@ isnt( $EXIT_USAGE, $EXIT_FAILURE, 'misuse and failure are distinguishable' );
 # And the front door keeps it: Mojolicious ignores a command's return value,
 # so misuse through bin/gpforum exited 0.
 my $status = system {$EXECUTABLE_NAME} $EXECUTABLE_NAME, '-Ilib', 'bin/gpforum',
-  'search_rebuild', '--entity', 'bogus';
+  'search-rebuild', '--entity', 'bogus';
 is( $status >> $EXIT_STATUS_SHIFT,
     $EXIT_USAGE, 'bin/gpforum exits 2 on misuse, as the command does' );
 
 # --json reaches the command through the front door too.
-open my $json, q{-|}, $EXECUTABLE_NAME, '-Ilib', 'bin/gpforum', 'query_budget',
+open my $json, q{-|}, $EXECUTABLE_NAME, '-Ilib', 'bin/gpforum', 'budgets',
   '--print', '--json'
   or croak "bin/gpforum: $ERRNO";
 my $printed = do { local $INPUT_RECORD_SEPARATOR = undef; <$json> };
-close $json or croak 'bin/gpforum query_budget --json failed';
+close $json or croak 'bin/gpforum budgets --json failed';
 is( decode_json($printed)->{status},
-    'ok', 'bin/gpforum query_budget --json prints a document' );
+    'ok', 'bin/gpforum budgets --json prints a document' );
 
 done_testing();
 

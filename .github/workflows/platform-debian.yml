@@ -97,7 +97,7 @@ jobs:
         run: script/gpforum-carton exec script/perl-syntax-check
 
       - name: Apply database migrations
-        run: script/gpforum-carton exec bin/gpforum-migrate --apply
+        run: bin/gpforum migrate
 
       - name: Seed query plan evidence dataset
         run: bin/gpforum performance-seed --profile small
@@ -112,4 +112,4 @@ jobs:
         run: script/gpforum-carton exec prove -lr t
 
       - name: Run platform check
-        run: script/gpforum-carton exec bin/gpforum-platform-check --with-db
+        run: bin/gpforum platform-check --with-db

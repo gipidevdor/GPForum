@@ -14,7 +14,7 @@ const my $LAG_SECONDS => 42;
 const my $PENDING     => 2;
 const my $UNCHANGED   => 5;
 
-# The search indexer as bin/gpforum-search-rebuild sees it: a rebuild that
+# The search indexer as gpforum search-rebuild sees it: a rebuild that
 # reports fixed counts and remembers its scope, and a fixed lag.
 sub new {
     my ($class) = @_;

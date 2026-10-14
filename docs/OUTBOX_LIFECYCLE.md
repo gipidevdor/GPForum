@@ -112,7 +112,7 @@ warning that says when it was lost: `outbox message ID: WORKER lost its claim
 before dispatching it; skipped`, `... after dispatching it; another worker
 may deliver it again`, or `... after it failed; the failure is left to the
 worker that owns it`. `gpforum outbox` says the count too, `N left to the
-worker that took them over`; `bin/gpforum-outbox-dispatch`, which the
+worker that took them over`; `gpforum outbox`, which the
 systemd unit runs, prints it as `lost=`, after `acknowledged=`, the messages
 written `done`, and `--json` as `lost`. Another worker's claim
 rewrites `locked_by` while it holds the row's lock, so the condition on
@@ -147,7 +147,7 @@ purged.
 
 Minion integration is opt-in so development and single-process SSR do not gain
 mandatory worker infrastructure. Canonical writes still go to PostgreSQL
-`outbox_messages`. `bin/gpforum-outbox-dispatch` is the required dispatcher and
+`outbox_messages`. `gpforum outbox` is the required dispatcher and
 does not load Minion, even when `GPFORUM_MINION_ENABLED=1` is present in the
 shared environment file.
 

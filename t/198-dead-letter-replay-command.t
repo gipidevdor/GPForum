@@ -28,7 +28,7 @@ my ( $help, $help_status ) = _run('--help');
 is( $help_status, $EXIT_OK, '--help succeeds' );
 like(
     $help,
-    qr/\A Usage: [ ] bin\/gpforum-dead-letter-replay/msx,
+    qr/\A Usage: [ ] gpforum [ ] dead-letters/msx,
     'and prints the usage'
 );
 like( $help, qr/replayed[ ]once/msx, 'including that a replay happens once' );

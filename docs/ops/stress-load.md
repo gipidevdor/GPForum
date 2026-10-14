@@ -32,7 +32,7 @@ req/s, and p50/p95/p99/max latency.
 Related sequential benches remain:
 
 - `bin/gpforum hypnotoad-benchmark` / `bin/gpforum hypnotoad-scaling`
-- `script/benchmark-http` / `bin/gpforum-benchmark`
+- `script/benchmark-http` / `gpforum benchmark`
 - `script/bench-outbox-dispatcher`
 
 ## Prerequisites

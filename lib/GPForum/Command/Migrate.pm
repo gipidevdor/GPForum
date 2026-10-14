@@ -45,11 +45,11 @@ const my $PARTITION_LOCK_WAIT_MS => 60_000;
 
 # Where an operator goes when the partition step after the migrations fails.
 const my $PARTITION_RUNBOOK => 'see docs/ops/partition-maintenance.md and run'
-  . ' bin/gpforum-partition-maintenance --plan';
+  . ' gpforum partitions --plan';
 
 # Where an operator goes when the query budgets could not be brought in line.
 const my $BUDGET_RUNBOOK => 'see docs/PERFORMANCE.md#query-budgets and run'
-  . ' bin/gpforum-query-budget --sync';
+  . ' gpforum budgets --sync';
 
 # Environments where a schema change reaches a running service, which reads
 # the schema it was started on until it is restarted.
@@ -78,8 +78,10 @@ has owner_check => sub { return \&_has_owner; };
 # milliseconds; a test shortens it.
 has partition_lock_wait_ms => sub { return $PARTITION_LOCK_WAIT_MS; };
 
-# The mode without --plan, --apply or --check. bin/gpforum-migrate plans, as
-# it always has; `gpforum migrate`, the front door's verb, does the work.
+# The mode without --plan, --apply or --check. `gpforum migrate`, the front
+# door's verb, does the work; a caller that builds the command directly (the
+# tests, script/bench-sql-functions) plans unless told --apply, and reads
+# the terse status= lines.
 has default_mode => 'plan';
 
 has words => sub { return GPForum::Command::Support::Words->new; };
@@ -128,15 +130,13 @@ sub _options ( $self, @arguments ) {
 }
 
 # Public so the Mojolicious command adapter in GPForum::CLI can show the same
-# text `--help` prints, instead of a second copy that drifts. The front
-# door's verb applies by default, and says so.
+# text `--help` prints, instead of a second copy that drifts. It is the front
+# door's verb's, which applies by default.
 sub usage_text ($invocant) {
-    my $applies = ref $invocant && $invocant->default_mode eq 'apply';
-
-    return ( $applies ? _front_door_head() : _entrypoint_head() ) . _body();
+    return _head() . _body();
 }
 
-sub _front_door_head {
+sub _head {
     return <<'USAGE';
 Usage: gpforum migrate [--plan|--dry-run|--check] [--no-partitions] [--quiet]
                        [--json]
@@ -149,23 +149,6 @@ that are missing, then makes the endpoint query budgets match the code.
   (no option)      do all of that
   --plan           say which migrations are pending, changing nothing
   --dry-run        the same as --plan
-USAGE
-}
-
-sub _entrypoint_head {
-    return <<'USAGE';
-Usage: bin/gpforum-migrate [--plan|--dry-run|--apply|--check] [--no-partitions]
-                           [--quiet] [--json]
-
-The alias of gpforum migrate, which applies without --apply. Applies the SQL
-migrations in migrations/ the database has not recorded, then creates the
-monthly partitions from this month through the lookahead that are missing,
-then makes the endpoint query budgets match the code.
-
-  --plan           say which migrations are pending, changing nothing
-                   (default)
-  --dry-run        the same as --plan
-  --apply          apply them, then the partitions and the budgets
 USAGE
 }
 
@@ -479,7 +462,7 @@ sub _check ( $self, $options ) {
 
 # The check as the front door's verb says it, in the words the plan uses:
 # the schema current, or how many migrations wait and the command that
-# applies them. bin/gpforum-migrate --check keeps its status= line.
+# applies them. Built directly, --check keeps its status= line.
 sub _say_check ( $self, $pending ) {
     if ( !@{$pending} ) {
         $self->_say(
@@ -615,12 +598,12 @@ Version 0.001.
     # gpforum migrate
     exit GPForum::Command::Migrate->new( default_mode => 'apply' )->run(@ARGV);
 
-    # bin/gpforum-migrate, its alias
+    # the terse lines, planning unless told --apply
     exit GPForum::Command::Migrate->new->run(@ARGV);
 
 =head1 DESCRIPTION
 
-C<gpforum migrate> and its alias C<bin/gpforum-migrate>: the SQL migrations,
+C<gpforum migrate>: the SQL migrations,
 then the partition window, then the endpoint query budgets, so a fresh
 install and every deploy end with a schema the code and the readiness report
 agree with.
@@ -668,8 +651,7 @@ without its full stop.
 
 =head2 usage_text
 
-The text C<--help> prints: the front door's when C<default_mode> is
-C<apply>, the alias's otherwise.
+The text C<--help> prints, the front door's verb's.
 
 =head1 DIAGNOSTICS
 

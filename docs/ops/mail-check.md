@@ -8,10 +8,9 @@ gpforum mail-check                                # a dry run: what it can prove
 gpforum mail-check --send --to ADDRESS            # one real message, to an address you read
 ```
 
-`gpforum doctor` runs the same dry run among its checks. The old name,
-`bin/gpforum-mail-check`, still works and answers with the JSON evidence
-unless given `--human`, as `gpforum mail-check --json` does; `make
-mail-check` runs the dry run as JSON.
+`gpforum doctor` runs the same dry run among its checks. `gpforum
+mail-check --json` answers with the JSON evidence; `make mail-check` runs
+the dry run as JSON.
 
 ## What a dry run proves, and what it does not
 
@@ -71,7 +70,7 @@ ADDRESS`, with an address you read.
 | `sendmail` | Confirm a `sendmail` binary is present | Real sendmail delivery |
 | `log` | Nothing to reach; passes | The message is written to the log |
 
-`--json` (the old names' default, for archived evidence) reports
+`--json` (the format of the archived evidence) reports
 `mail_transport`, `mail_from`, `public_base_url` and `smtp.*` (host, port,
 `tls` -- `starttls`, `implicit` or `off` -- the older `ssl`, 1 unless TLS is
 off, and whether a username is set, **never** the password); `--human`, the

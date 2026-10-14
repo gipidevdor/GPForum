@@ -130,8 +130,8 @@ path.
 - Packaging: `cpanfile`, `cpanfile.snapshot`, `cpanfile.postgres`,
   `script/gpforum-carton`, `script/bootstrap-deps`, `script/system-preflight`,
   `Makefile`.
-- Runtime: `bin/gpforum`, `bin/gpforum-migrate`,
-  `bin/gpforum-outbox-dispatch`, `deploy/systemd/`, `deploy/nginx/`,
+- Runtime: `bin/gpforum`, `gpforum migrate`,
+  `gpforum outbox`, `deploy/systemd/`, `deploy/nginx/`,
   `deploy/freebsd/`, `deploy/launchd/`, `deploy/caddy/`.
 - Tests: `t/33-health-readiness.t`, `t/98-operational-profiles.t`,
   `t/144-cpan-install.t`.

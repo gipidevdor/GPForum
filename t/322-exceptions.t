@@ -59,15 +59,15 @@ for my $class ( sort keys %FAILURE_TYPE ) {
 }
 
 # The string is the message, and only the message.
-my $usage = GPForum::X::Usage->new( message => 'Usage: bin/gpforum-migrate' );
-is( "$usage", 'Usage: bin/gpforum-migrate', 'it stringifies to its message' );
-ok( $usage eq 'Usage: bin/gpforum-migrate', 'and compares as that string' );
+my $usage = GPForum::X::Usage->new( message => 'Usage: gpforum migrate' );
+is( "$usage", 'Usage: gpforum migrate', 'it stringifies to its message' );
+ok( $usage eq 'Usage: gpforum migrate', 'and compares as that string' );
 like( $usage, qr/\A Usage: /msx, 'so the regexes reading croaks still match' );
 ok( GPForum::X->new( message => '0' ),
     'it is true even when its message is 0' );
 is(
     JSON->new->convert_blessed->encode( { error => $usage } ),
-    '{"error":"Usage: bin/gpforum-migrate"}',
+    '{"error":"Usage: gpforum migrate"}',
     'it encodes in JSON as its message'
 );
 

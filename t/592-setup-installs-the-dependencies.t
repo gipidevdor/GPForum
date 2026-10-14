@@ -65,10 +65,10 @@ subtest 'gpforum setup, and nothing else, installs them first' => sub {
         'and installing nothing under --dry-run'
     );
     for my $other (
-        [ 'gpforum',             'migrate' ],
-        [ 'gpforum',             qw(setup --help) ],
-        [ 'gpforum',             '--help' ],
-        [ 'bin/gpforum-migrate', 'setup' ],
+        [ 'gpforum',               'migrate' ],
+        [ 'gpforum',               qw(setup --help) ],
+        [ 'gpforum',               '--help' ],
+        [ 'script/gpforum-carton', 'setup' ],
         ['gpforum'],
       )
     {

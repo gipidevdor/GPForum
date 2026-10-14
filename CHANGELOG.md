@@ -924,6 +924,13 @@ CI, evidence and internal refactors with no change in behaviour.
   login keeps its transaction: the race tests pin the window in which it
   holds the credential.
 
+- **A hot deployment keeps the metrics tokens the service accepted last.**
+  Hypnotoad's `USR2`, or a second `gpforum start --service`, started a new
+  manager from the environment the service started with: after a rotation
+  and its `--finish` it did not follow the environment file, accepted the
+  dropped token and refused the current one until a restart. The manager now
+  carries the list it accepts in its own environment (ADR 0124, amended).
+
 - **Marking a thread read, bookmarking it and subscribing to it are one
   call each.** Each ran its work as a function while Perl kept the command
   log around it in a DBIx::Class transaction: a lookup, a savepoint, an

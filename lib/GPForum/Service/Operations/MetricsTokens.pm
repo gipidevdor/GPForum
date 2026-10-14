@@ -60,6 +60,10 @@ has parser => undef;    # optional: with no file, nothing is read
 has log     => undef;   # optional: a Mojo::Log
 has catalog => sub { return GPForum::Service::I18N::CliCatalog->new; };
 
+# The process environment the service started from, which Hypnotoad's
+# manager hands on to a manager it starts in its place; a test gives its own.
+has environment => sub { return \%ENV; };
+
 # Starts following the file a configuration's service was started with: the
 # one its service file names in GPFORUM_ENV_FILE, else the one the parser
 # read when the service loaded. Returns the tokens, which for_config gives
@@ -71,10 +75,11 @@ sub watch ( $class, $config, %options ) {
       ( defined $parser ? $parser->loaded : undef );
 
     my $self = $class->new(
-        config => $config,
-        file   => $file,
-        parser => $parser,
-        log    => $options{log},
+        config      => $config,
+        file        => $file,
+        parser      => $parser,
+        log         => $options{log},
+        environment => $environment,
     );
     $self->_start;
     $WATCHED{$config} = $self;
@@ -104,7 +109,14 @@ sub following ($self) {
 sub follow_in_manager ( $self, $server ) {
     return 0 if !$self->{following} || !$server->isa($PREFORK);
 
-    $server->on( wait => sub { $self->_refresh } );
+    # Only the manager emits wait, and it may have daemonized -- forked --
+    # since this hook ran, so its process is known from there.
+    $server->on(
+        wait => sub {
+            $self->{manager} = $PROCESS_ID;
+            $self->_refresh;
+        }
+    );
 
     return 1;
 }
@@ -184,8 +196,28 @@ sub _refresh ($self) {
     return if _same( $accepted, $self->{accepted} );
 
     $self->{accepted} = $accepted;
+    $self->_hand_on;
     return $self->_said( 'info', 'runtime.metrics_tokens_read',
         [ 'runtime.metrics_tokens_read', { count => scalar @{$accepted} } ] );
+}
+
+# Hypnotoad's hot deployment -- USR2, or hypnotoad run against the live
+# service, which gpforum start --service is -- execs a new manager with this
+# one's environment. That environment held the tokens the service started
+# with, so the new manager found the file holding others, did not follow it,
+# and accepted a token --finish had dropped while refusing the one in use.
+# The manager's environment carries the list it accepted last instead, so a
+# manager started in its place starts from that list and follows the file.
+# The earlier tokens are set even when there are none: left unset, the
+# file's own line would fill them when the new manager loads it.
+sub _hand_on ($self) {
+    return if ( $self->{manager} // 0 ) != $PROCESS_ID;
+
+    my ( $current, @previous ) = @{ $self->{accepted} };
+    $self->environment->{$CURRENT}  = $current;
+    $self->environment->{$PREVIOUS} = join q{,}, @previous;
+
+    return;
 }
 
 # The file's tokens as { signature, accepted, settled, problem }: settled
@@ -327,6 +359,11 @@ forks later -- after its accepts, or a missed heartbeat -- starts from the
 list the manager accepted last, so a token C<--finish> dropped never comes
 back in it, even when the file cannot be used at that moment.
 
+The manager also keeps that list in its process environment. Hypnotoad's
+hot deployment -- C<USR2>, or Hypnotoad run against the live service --
+execs a new manager with the old one's environment: it starts from the list
+accepted last, finds the file holding it, and follows the file in turn.
+
 =head1 SUBROUTINES/METHODS
 
 =head2 watch
@@ -352,8 +389,9 @@ True when the tokens follow the file.
 Takes the server about to start, from a C<before_server_start> hook. For a
 L<Mojo::Server::Prefork> (Hypnotoad's) and a followed file, subscribes the
 manager's C<wait> event, so the manager reads the file at each turn of its
-loop and the workers it forks start from the list it accepted last.
-Returns whether it did.
+loop and the workers it forks start from the list it accepted last, and
+keeps that list in the manager's C<environment> for a manager a hot
+deployment starts in its place. Returns whether it did.
 
 =head2 others_may_write
 
@@ -387,6 +425,12 @@ The L<Mojo::Log> the decisions are written to, or undef.
 
 The L<GPForum::Service::I18N::CliCatalog> the log lines are written from.
 
+=head2 environment
+
+The process environment, C<%ENV> unless C<watch> was given another: the
+manager writes C<GPFORUM_METRICS_TOKEN> and C<GPFORUM_METRICS_TOKENS> into
+it each time it accepts a new list.
+
 =head1 DIAGNOSTICS
 
 Logs, once each and without a token: why the file is not followed (at
@@ -398,7 +442,8 @@ read again (info).
 Reads C<GPFORUM_ENV_FILE>, and the C<GPFORUM_METRICS_TOKEN> and
 C<GPFORUM_METRICS_TOKENS> lines of the file it follows. The process
 environment decides the tokens the service starts with, as it decides every
-other setting (ADR 0120).
+other setting (ADR 0120); Hypnotoad's manager writes the two back into its
+own environment when it accepts a new list.
 
 =head1 DEPENDENCIES
 
@@ -423,6 +468,10 @@ after a change starts from the list before it and reads the file at its
 first check; only when the file was changed again, into one it cannot use,
 within the same second does that worker keep the list before, until the file
 can be used again.
+
+A hot deployment made while the file cannot be used starts a manager from
+the list accepted last, which does not follow the file until the service
+restarts, and logs why at its start.
 
 =head1 AUTHOR
 

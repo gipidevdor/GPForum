@@ -16,6 +16,11 @@ Amended 2026-10-11, after the iteration-4 token review and walkthrough 4
 later never starts from the tokens the service started with (sections 2
 and 4).
 
+Amended 2026-10-14, after the adversarial review of that fix: the manager
+also writes the list it accepts into its own environment, so a manager
+Hypnotoad's hot deployment starts in its place follows the file too
+(section 2).
+
 ## Context
 
 Walkthrough 3 (`docs/ops/evidence/2026-10-10-operator-walkthrough-3`,
@@ -76,6 +81,21 @@ as a worker does, at each turn of its loop, and a worker it forks starts
 from the list the manager accepted last. A server that does not fork
 (`gpforum start --foreground`, the tests' client) has no manager and is not
 subscribed.
+
+Hypnotoad's hot deployment -- `USR2`, or Hypnotoad run against the live
+service, which a second `gpforum start --service` is -- does not fork the
+new manager from the old one's memory: it execs `bin/gpforum` again, with
+the old manager's environment. That environment held the tokens the
+service started with. The review reproduced it against a live Hypnotoad:
+rotate A to B, `--finish`, `USR2`. The new manager found the file holding B,
+not A, did not follow it, and its workers accepted A and refused B until a
+restart. So the manager, each time it accepts a new list, writes it into
+its environment: `GPFORUM_METRICS_TOKEN` and `GPFORUM_METRICS_TOKENS`, the
+latter set even when empty, so the file's own line cannot fill it. The
+manager a hot deployment starts begins from the list accepted last, finds
+the file holding it, and follows the file. If the file cannot be used at
+that moment, it keeps that list, not the start-time one, and does not
+follow the file until a restart, logging why at its start.
 
 The file is followed only when its tokens are exactly the ones the service
 started with. The supervisor read that same file a moment earlier. If the
@@ -212,6 +232,15 @@ unchanged.
   without the manager's read. Run once against a live Hypnotoad, 14
   workers, on a free port: after `TERM` to every worker, the 14 new ones
   answered the dropped token 401 and the current one 200.
+- `t/680-metrics-tokens-hot-deploy.t`: the manager's environment carries
+  the list it accepted, empty earlier tokens included; a service built from
+  it follows the file, refuses the token `--finish` dropped and takes a
+  later rotation with no restart; built while the file cannot be used, it
+  still refuses that token; a worker leaves its environment alone. The
+  first three fail without the change. Run once against a live Hypnotoad,
+  4 workers, on a free port, with a scraper polling every token: after
+  `USR2`, the new manager's workers answered the dropped token 401 and the
+  current one 200, and followed the next rotation and its `--finish`.
 - `t/601-secret-rotate-metrics-no-restart.t`: the three steps in English
   and Italian with no restart command, and the restart kept for a session
   secret and for a file that is not the host's own; a `0660` and a `0620`

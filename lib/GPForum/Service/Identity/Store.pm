@@ -8,6 +8,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Clock;
 use GPForum::Service::Identity::AccountStore;
 use GPForum::Service::Identity::Audit;
@@ -26,7 +27,14 @@ our $VERSION = '0.001';
 const my $DAY_SECONDS  => 86_400;
 const my $SESSION_DAYS => 30;
 
-has schema     => undef;    # optional: handed to the stores it builds lazily
+has schema => undef;    # optional: handed to the stores it builds lazily
+
+# The call layer (Infrastructure::SqlFunction) on PostgreSQL, undef on a
+# double, handed to every store built here so the stores and the workflow
+# take the same path; a differential test passes undef to keep the Perl one.
+has functions => sub ($self) {
+    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub {
     require GPForum::Infrastructure::Id;
@@ -37,6 +45,7 @@ has recorder => sub {
     my ($self) = @_;
 
     return GPForum::Infrastructure::EventRecorder->new(
+        functions  => $self->functions,
         id_service => $self->id_service,
         schema     => $self->schema,
     );
@@ -58,6 +67,7 @@ has credential_store => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::CredentialStore->new(
+        functions  => $self->functions,
         clock      => $self->clock,
         id_service => $self->id_service,
         schema     => $self->schema,
@@ -68,6 +78,7 @@ has session_store => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::SessionStore->new(
+        functions       => $self->functions,
         clock           => $self->clock,
         id_service      => $self->id_service,
         schema          => $self->schema,
@@ -81,6 +92,7 @@ has token_store => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::TokenStore->new(
+        functions      => $self->functions,
         clock          => $self->clock,
         id_service     => $self->id_service,
         schema         => $self->schema,
@@ -92,15 +104,17 @@ has preference_store => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::PreferenceStore->new(
-        clock   => $self->clock,
-        schema  => $self->schema,
-        support => $self->support,
+        functions => $self->functions,
+        clock     => $self->clock,
+        schema    => $self->schema,
+        support   => $self->support,
     );
 };
 has account_store => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::AccountStore->new(
+        functions        => $self->functions,
         audit            => $self->audit,
         clock            => $self->clock,
         credential_store => $self->credential_store,
@@ -115,6 +129,7 @@ has auth_store => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::AuthStore->new(
+        functions        => $self->functions,
         credential_store => $self->credential_store,
         password         => $self->password,
         schema           => $self->schema,
@@ -126,6 +141,7 @@ has registration_store => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::RegistrationStore->new(
+        functions        => $self->functions,
         audit            => $self->audit,
         credential_store => $self->credential_store,
         id_service       => $self->id_service,
@@ -135,6 +151,40 @@ has registration_store => sub {
 
 sub create_registration ( $self, $registration ) {
     return $self->registration_store->create_registration($registration);
+}
+
+# What a registration as one call sends (api.identity_register_command):
+# the rows and the documents create_registration and the verification
+# request would write one by one, drawn in the order they would draw them.
+# The raw token goes to the mail's outbox payload, as record_mail's does,
+# and is answered to the caller for nothing else.
+sub register_call ( $self, $registration, $input = {} ) {
+    my $user       = $registration->{user};
+    my $credential = $registration->{credential};
+    $user->{password_hash} ||= $credential->{secret_hash};
+    my $credential_row = $self->credential_store->new_password_credential_row(
+        {
+            secret_hash => $credential->{secret_hash},
+            type        => $credential->{type},
+            user_id     => $user->{id},
+        }
+    );
+    my $recorded =
+      $self->audit->registration_calls( $user, $self->id_service->uuid );
+    my $verification =
+      $self->account_store->verification_calls( $user, $input );
+    return {
+        user               => $user,
+        credential         => $credential_row,
+        event              => $recorded->{event}{event},
+        event_outbox_id    => $recorded->{event}{outbox_id},
+        audit              => $recorded->{audit}{audit},
+        token              => $verification->{token},
+        token_audit        => $verification->{audit}{audit},
+        mail_event         => $verification->{mail}{event},
+        mail_outbox_id     => $verification->{mail}{outbox_id},
+        mail_outbox_extras => $verification->{mail}{outbox_extras},
+    };
 }
 
 sub authenticate_login ( $self, $input ) {
@@ -229,6 +279,17 @@ login, password, email, session, and preference persistence live outside this
 facade.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 register_call
+
+Takes a prepared registration (its C<user> and C<credential>) and the
+request, and returns what C<api.identity_register_command> takes after the
+command log and the answers: the user row, the credential row, the
+registration's event with its outbox id and its audit, the verification
+token with its audit and its mail event, outbox id and outbox payload --
+the rows and documents L</create_registration> and
+L</request_email_verification> would write one by one, drawn in the order
+they would draw them.
 
 =head2 create_registration
 

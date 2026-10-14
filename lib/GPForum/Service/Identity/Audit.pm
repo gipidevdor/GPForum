@@ -35,6 +35,29 @@ sub record_registration ( $self, $user, $correlation_id ) {
     return;
 }
 
+# The calls record_registration makes, prepared and not sent, in its order:
+# the event, then the audit. For api.identity_register_command, which
+# records them in one call with the rest of the registration.
+sub registration_calls ( $self, $user, $correlation_id ) {
+    my $event = $self->recorder->event_call(
+        %{ $self->events->registered_envelope( $user, $correlation_id ) } );
+    my $audit = $self->recorder->audit_call(
+        %{ $self->events->registered_audit( $user, $correlation_id ) } );
+    return { audit => $audit, event => $event };
+}
+
+# The call record_action makes, prepared and not sent.
+sub action_call ( $self, $input ) {
+    return $self->recorder->audit_call( %{ $self->events->action($input) } );
+}
+
+# The call record_mail makes, prepared and not sent.
+sub mail_call ( $self, $input ) {
+    return $self->recorder->event_call(
+        %{ $self->events->mail_envelope($input) },
+        outbox_payload => $self->events->mail_outbox_payload($input), );
+}
+
 sub record_action ( $self, $input ) {
     $self->recorder->record_audit( %{ $self->events->action($input) } );
 
@@ -76,6 +99,24 @@ audit hashes live in L<GPForum::Service::Identity::Event>.
 =head2 record_registration
 
 Writes the C<user.registered> event and audit pair.
+
+=head2 registration_calls
+
+Takes the user row and the correlation id L</record_registration> takes and
+returns the calls it would make, prepared and not sent, as
+L<GPForum::Infrastructure::EventRecorder/event_call> and
+L<GPForum::Infrastructure::EventRecorder/audit_call> prepare them: C<event>
+and C<audit>, the event drawn first.
+
+=head2 action_call
+
+Takes what L</record_action> takes and returns its audit call, prepared
+and not sent.
+
+=head2 mail_call
+
+Takes what L</record_mail> takes and returns its event call with the
+mail's outbox payload, prepared and not sent.
 
 =head2 record_action
 

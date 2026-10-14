@@ -887,6 +887,30 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ user_id => 'uuid', credential_id => 'uuid' ],
     },
+
+    # A registration as one call (ADR 0126, section 5): the command log, the
+    # duplicates, the user, the credential, the registration's event and
+    # audit, the verification token with its audit and mail.
+    identity_register_command => {
+        version    => 2,
+        parameters => [
+            log                => 'jsonb',
+            answer             => 'jsonb',
+            accepted           => 'jsonb',
+            refused            => 'jsonb',
+            user               => 'jsonb',
+            credential         => 'jsonb',
+            event              => 'jsonb',
+            event_outbox_id    => 'text',
+            audit              => 'jsonb',
+            token              => 'jsonb',
+            token_audit        => 'jsonb',
+            mail_event         => 'jsonb',
+            mail_outbox_id     => 'text',
+            mail_outbox_extras => 'jsonb',
+        ],
+        json => [ 'response', 'stored_user' ],
+    },
     identity_lock_passwords => {
         version    => 2,
         parameters => [ user_id => 'uuid' ],

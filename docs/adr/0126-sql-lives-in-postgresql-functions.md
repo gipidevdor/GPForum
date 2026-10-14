@@ -608,6 +608,54 @@ and four savepoints, one transaction), and so does every command that
 `CommandIdempotency::run` still guards in Perl: the same fold applies to
 each, area by area, until `run` has no caller on PostgreSQL.
 
+### Amended 2026-10-14: the registration as one call
+
+Logged the same way, a registration was `rate_limit_check > BEGIN >
+command_lookup > SAVEPOINT > command_insert > RELEASE >
+registration_duplicates > SAVEPOINT > insert_user > active_password >
+SAVEPOINT > insert_credential > RELEASE > record_event > record_audit >
+RELEASE > user_by_id > SAVEPOINT > insert_token > RELEASE > record_audit >
+record_event > command_finish > COMMIT`: 24 round trips for 14 calls, the
+stores each recovering a taken id in a savepoint of their own. Migration 106 makes
+the registration one call, `api.identity_register_command_v1`, around the
+functions the stores called -- `identity_registration_duplicates_v1`,
+`identity_insert_user_v1`, `identity_active_password_v1`,
+`identity_insert_credential_v1`, `ops_record_event_v1`,
+`ops_record_audit_v1`, `identity_insert_token_v1` -- with the recovery each
+store had for a taken id folded into `core_identity_store_user_v1`,
+`core_identity_store_credential_v1` and `core_identity_store_token_v1`. Perl
+keeps what section 1 gives it: the validation, the Argon2 hash, the ids,
+the clock, the raw token; `Identity::Store::register_call` draws them in
+the order the stores drew them and hands every row and document ready,
+with the three answers the command may record (the composer's refusal, a
+taken username or email, the account stored), each reduced as the command
+log keeps them. Two departures from the Perl path, both where it drew
+again: a user id that is another account's makes the call raise and Perl
+draw the registration again, with fresh ids throughout; a token whose hash
+is taken fails the registration instead of drawing another token, since
+the raw token is Perl's to mail. A registration is now the rate-limit
+check and one call.
+`t/integration/postgres-sql-function-identity-commands.t` holds the two
+paths to the same answers and the same rows in `users`, `credentials`,
+`identity_tokens`, `event_log`, `outbox_messages`, `audit_log`,
+and `command_log`, with the ids, the clock, the password hash and the tokens
+scripted, for the first run, its replay, a conflict, a taken username and
+a refused input.
+
+The login was folded the same way and withdrawn: its hold of the credential
+and the session's insert as one call left no window in which Perl holds the
+credential, and `t/integration/postgres-login-reset-race.t` and
+`postgres-identity-stores.t` pin that window (the reset waits for the login
+that holds the credential; the login opens its session in one transaction).
+Section 10 wants the races unchanged against the new paths; folding the
+login is a change to what they protect, for the owner to decide.
+
+What `CommandIdempotency::run` still guards in Perl on PostgreSQL after
+this: the identity commands other than the registration (password,
+email, preferences, logout), the community commands other than the
+bookmark and the subscription, moderation, admin and privacy. The same
+fold applies to each.
+
 ## Alignment
 
 - ADR 0005 and ADR 0110 (amended), ADR 0118 (extended), ADR 0102, ADR 0111,

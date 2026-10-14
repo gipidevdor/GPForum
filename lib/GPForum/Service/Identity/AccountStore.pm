@@ -345,6 +345,55 @@ sub confirm_email_verification ( $self, $input ) {
 # The member is named by id when signed in, by username or address when not.
 # Only a pending account is sent a verification; any other is audited as not
 # found, like an unknown one.
+# What a verification request writes for an account, prepared and not
+# sent, in the order _email_verification_in_txn draws it: the token issued
+# (its row for api.identity_insert_token, its raw text for the mail), the
+# audit of the request, and the mail's event with its outbox payload. For
+# api.identity_register_command, which records them in one call with the
+# registration.
+sub verification_calls ( $self, $user, $input ) {
+    my $user_id = $self->support->column( $user, 'id' );
+    my $email   = $self->support->column( $user, 'email_normalized' );
+    my $address = $self->support->hash_value( $input->{request_address} );
+    my $issue   = $self->token_store->new_token_issue(
+        {
+            email_normalized => $email,
+            metadata         => { request_address_hash => $address },
+            token_type       => 'email_verification',
+            ttl_seconds      => $EMAIL_CHANGE_TOKEN_SECONDS,
+            user_id          => $user_id,
+        }
+    );
+    my $audit = $self->audit->action_call(
+        {
+            action   => 'identity.email_verification.requested',
+            actor_id => $user_id,
+            metadata => {
+                outcome              => 'issued',
+                request_address_hash => $address,
+                token_id             => $issue->{token_id},
+            },
+            target_id   => $user_id,
+            target_type => $USER_AGGREGATE,
+        }
+    );
+    my $mail = $self->audit->mail_call(
+        {
+            kind     => 'email_verification',
+            to       => $email,
+            token    => $issue->{raw_token},
+            token_id => $issue->{token_id},
+            user_id  => $user_id,
+        }
+    );
+    return {
+        mail      => $mail,
+        raw_token => $issue->{raw_token},
+        token     => $issue->{row},
+        audit     => $audit,
+    };
+}
+
 sub _email_verification_in_txn ( $self, $input ) {
     my $user =
         $self->support->has_text( $input->{user_id} )
@@ -743,6 +792,16 @@ confirmation of the same already-verified address returns C<skipped>
 and does not restamp C<email_verified_at>. A unique race on
 C<email_normalized> returns C<email_already_registered> and does not
 restamp the user.
+
+=head2 verification_calls
+
+Takes the user row and the request and returns what
+L</request_email_verification> would write for the account, prepared and
+not sent, in the order it would draw it: C<token>, the token's row;
+C<raw_token>, its text for the mail; C<audit>, the request's audit call;
+C<mail>, the mail's event call with its outbox payload. For a command that
+records them in one call with the registration
+(C<api.identity_register_command>).
 
 =head2 request_email_verification
 

@@ -3,12 +3,30 @@
 
 package GPForum::Service::Identity::Workflow;
 
+use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Service::Identity::Support;
 
+use Scalar::Util qw(blessed);
+
+use GPForum::Infrastructure::ResultRow::IdentityUser;
+use GPForum::Service::Operations::CommandIdempotency;
+use GPForum::X::Conflict;
+
 our $VERSION = '0.001';
+
+const my $REGISTER           => 'identity.register';
+const my $REGISTER_ATTEMPTS  => 2;
+const my $USER_ID_CONSTRAINT => 'users_pkey';
+
+# api.identity_register_command's parameters after the command log, in its
+# order; `answer`, `accepted` and `refused` are the answers it may record.
+const my @REGISTER_PARAMETERS => qw(
+  answer accepted refused user credential event event_outbox_id audit token
+  token_audit mail_event mail_outbox_id mail_outbox_extras
+);
 
 has command_idempotency => undef;    # optional: writes run unlogged without one
 has logger              => undef;    # optional: errors are dropped without one
@@ -20,6 +38,9 @@ sub register ( $self, $input ) {
     if ($invalid) {
         return $invalid;
     }
+
+    return $self->_register_by_function($input)
+      if $self->command_idempotency && $self->_functions;
 
     return $self->_commanded_write(
         {
@@ -306,6 +327,168 @@ sub _preference_write ( $self, $job ) {
             },
         }
     );
+}
+
+# The store's call layer (Infrastructure::SqlFunction), when the command
+# log runs on one too: then a registration is one call. A command log that
+# is a double, or a store that is, keeps the Perl path (ADR 0126, section
+# 10: the unit tests stand on doubles of the call layer).
+sub _functions ($self) {
+    return undef if !_call_layer( $self->command_idempotency );
+    return _call_layer( $self->store );
+}
+
+sub _call_layer ($service) {
+    return blessed $service && $service->can('functions')
+      ? $service->functions
+      : undef;
+}
+
+# The registration as one call (ADR 0126, section 5): the command log's
+# steps, the duplicates, the user and the credential, the registration's
+# event and audit, the verification token with its audit and its mail run
+# in api.identity_register_command, which records the answer the Perl path
+# records. The composer's refusal is recorded without a write; a taken
+# username or email records the refusal prepared here. A user id the
+# database already holds for another account is drawn again, once.
+sub _register_by_function ( $self, $input ) {
+    my $request = {
+        email    => _trim( $input->{email} ),
+        username => _trim( $input->{username} ),
+    };
+
+    # The command log's ids and time are drawn before the registration's, as
+    # CommandIdempotency draws them before the work it guards.
+    my $log = $self->_command_log( $input, $REGISTER, $request );
+    my $tried =
+      $self->_try_store( sub { return $self->registration->prepare($input); } );
+    my $prepared = $tried->{value};
+    if ( $tried->{failed} || !$prepared ) {
+        return _failed_result();
+    }
+    if ( !$prepared->{ok} ) {
+        my $invalid = _result(
+            errors => $prepared->{errors},
+            status => 'invalid',
+            stored => { values => $prepared->{values} },
+        );
+        my $row = $self->_registered( $log, { answer => $invalid } );
+        return $row->{result} // $invalid;
+    }
+    my $registration = $prepared->{registration};
+    my $refused      = _result(
+        errors => {
+            registration => 'registration request could not be accepted',
+        },
+        status => 'invalid',
+        stored => { values => $prepared->{values} },
+    );
+    for my $attempt ( 1 .. $REGISTER_ATTEMPTS ) {
+        my $call;
+        try {
+            $call = $self->store->register_call( $registration, $input );
+        }
+        catch ($error) {
+            $self->_log_error("identity registration failed: $error");
+            return _failed_result();
+        };
+        my $row = $self->_registered(
+            $log,
+            {
+                %{$call},
+                accepted => _result(
+                    status => 'ok',
+                    stored => {
+                        registration => $registration,
+                        user         => $registration->{user},
+                        values       => $prepared->{values},
+                    }
+                ),
+                refused => $refused,
+            }
+        );
+        if ( $row->{retry} && $attempt < $REGISTER_ATTEMPTS ) {
+            $registration->{user}{id} = $self->store->id_service->uuid;
+            next;
+        }
+        if ( !$row->{recorded} ) {
+            return $row->{result} // _failed_result();
+        }
+        if ( ( $row->{response}{status} // q{} ) ne 'ok' ) {
+            return $refused;
+        }
+        return _result(
+            status => 'ok',
+            stored => {
+                registration => $registration,
+                user => GPForum::Infrastructure::ResultRow::IdentityUser->from(
+                    $row->{stored_user}, $self->_functions
+                ),
+                values => $prepared->{values},
+            },
+        );
+    }
+    return _failed_result();
+}
+
+# One call to api.identity_register_command, with the answers to record
+# reduced as the command log keeps them. Answers: the result to return
+# when the call did not record (a replay, a conflict, a failure), `retry`
+# when the user's id is another account's, or `recorded` with the row's
+# response and the user stored.
+sub _registered ( $self, $log, $call ) {
+    my %documents = %{$call};
+    for my $answer ( grep { $documents{$_} } qw(answer accepted refused) ) {
+        $documents{$answer} = _command_log_response( $documents{$answer} );
+    }
+    my $row;
+    try {
+        $row = $self->_functions->row(
+            'identity_register_command',
+            {
+                log => $log,
+                map { $_ => $documents{$_} } @REGISTER_PARAMETERS
+            }
+        );
+    }
+    catch ($error) {
+        my $conflict = GPForum::X::Conflict->caught($error);
+        return { retry => 1 }
+          if $conflict && $conflict->on($USER_ID_CONSTRAINT);
+        $self->_log_error("identity command log failed: $error");
+        return { result => _failed_result() };
+    };
+    my $outcome = $row->{outcome} // q{};
+    return { result => $row->{response} } if $outcome eq 'replayed';
+    return {
+        result => _result(
+            error =>
+              GPForum::Service::Operations::CommandIdempotency->refusal_error(
+                $outcome),
+            status => 'conflict',
+        )
+      }
+      if $outcome ne 'recorded';
+    return {
+        recorded    => 1,
+        response    => $row->{response},
+        stored_user => $row->{stored_user},
+    };
+}
+
+# The command log's row as CommandIdempotency writes it, its ids and time
+# drawn in its order.
+sub _command_log ( $self, $input, $type, $request ) {
+    my $log = $self->command_idempotency;
+    return {
+        actor_id               => undef,
+        command_id             => $log->id_service->uuid,
+        command_correlation_id => $log->id_service->uuid,
+        command_at             => $log->clock->now_iso8601,
+        command_type           => $type,
+        idempotency_key        => _trim( $input->{command_id} ),
+        request_hash           => $log->request_hash($request),
+    };
 }
 
 # The registration is prepared, then stored. A stored account is sent its

@@ -62,13 +62,7 @@ sub create_password_credential ( $self, $input ) {
         return $self->_skipped_credential($existing);
     }
 
-    my $row = {
-        created_at  => $self->clock->now_iso8601,
-        id          => $self->id_service->uuid,
-        secret_hash => $input->{secret_hash},
-        type        => $input->{type} || 'password',
-        user_id     => $input->{user_id},
-    };
+    my $row = $self->new_password_credential_row($input);
     my ( $created, $error ) =
       GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
         sub { return $self->_insert_credential($row); } );
@@ -169,6 +163,19 @@ sub active_password_credential ( $self, $user_id ) {
 # caller's transaction ends, so a rotation that has not reached the row yet
 # waits for that transaction, and one that already has makes this wait for
 # it and then find the row revoked.
+# The row create_password_credential inserts: the time, a new id, the
+# secret and its type, the account. Public so a command that creates the
+# credential in one call (api.identity_register_command) sends the same.
+sub new_password_credential_row ( $self, $input ) {
+    return {
+        created_at  => $self->clock->now_iso8601,
+        id          => $self->id_service->uuid,
+        secret_hash => $input->{secret_hash},
+        type        => $input->{type} || 'password',
+        user_id     => $input->{user_id},
+    };
+}
+
 sub hold_active_password_credential ( $self, $user_id, $credential_id ) {
     if (   !$self->support->has_text($user_id)
         || !$self->support->has_text($credential_id) )
@@ -325,6 +332,13 @@ this user and type, still open, reuses the active password.
 =head2 active_password_credential
 
 Returns the newest non-revoked password credential for a user.
+
+=head2 new_password_credential_row
+
+Takes C<secret_hash>, C<type> (C<password> when omitted) and C<user_id> and
+returns the row L</create_password_credential> would insert: the clock's
+time, a new id, the secret and its type, the account. For a command that
+creates the credential in one call (C<api.identity_register_command>).
 
 =head2 hold_active_password_credential
 

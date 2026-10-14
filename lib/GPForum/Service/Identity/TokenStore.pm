@@ -42,7 +42,7 @@ has functions => sub ($self) {
 };
 
 sub create_token ( $self, $input ) {
-    my $issued = $self->_issued_token($input);
+    my $issued = $self->new_token_issue($input);
     my ( $created, $error ) =
       GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
         sub { return $self->_insert_issued($issued); } );
@@ -208,7 +208,11 @@ sub _rotate_token ( $self, $row, $issued ) {
     };
 }
 
-sub _issued_token ( $self, $input ) {
+# A token as create_token issues it, drawn and not stored: the time, the
+# raw token and its hash, the expiry, a new id, and the row. Public so a
+# command that stores the token in one call (api.identity_register_command)
+# sends the same row and mails the same token.
+sub new_token_issue ( $self, $input ) {
     my $created_at = $self->clock->now_iso8601;
     my $raw_token  = $self->session_tokens->issue_token;
     my $expires_at = $self->support->iso8601_from_epoch(
@@ -341,6 +345,14 @@ Issues and consumes hashed identity tokens for password reset, email
 change, and registration verification.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 new_token_issue
+
+Takes what L</create_token> takes and returns the token it would issue,
+drawn and not stored: C<expires_at>, C<raw_token>, C<token_hash>,
+C<token_id> and C<row>, the row C<api.identity_insert_token> takes. For a
+command that stores the token in one call (C<api.identity_register_command>)
+and mails the raw token from its outbox payload.
 
 =head2 create_token
 

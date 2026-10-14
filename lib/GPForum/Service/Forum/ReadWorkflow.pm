@@ -40,7 +40,7 @@ sub mark_thread_read ( $self, $input ) {
 
 sub _commanded_mark ( $self, $input ) {
     return $self->_mark_by_function($input)
-      if $self->functions && $self->command_idempotency;
+      if $self->functions && _call_layer( $self->command_idempotency );
 
     return $self->_commanded_write(
         {
@@ -110,6 +110,14 @@ sub _commanded_result ($row) {
 
 sub _nullable ($value) {
     return defined $value && length $value ? $value : undef;
+}
+
+# A command log that runs on the call layer; a double of it keeps the Perl
+# path (ADR 0126, section 10).
+sub _call_layer ($service) {
+    return blessed $service && $service->can('functions')
+      ? $service->functions
+      : undef;
 }
 
 sub _commanded_write ( $self, $job ) {

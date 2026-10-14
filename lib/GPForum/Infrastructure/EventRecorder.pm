@@ -61,19 +61,12 @@ has audit_record => sub {
 };
 
 sub record_event ( $self, %input ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'ops_record_event',
+            $self->event_call(%input) )->{event};
+    }
     my $outbox_payload = delete $input{outbox_payload};
     my $event          = $self->_recorded_event( \%input );
-    if ( $self->functions ) {
-        return $self->functions->row(
-            'ops_record_event',
-            {
-                event         => $event,
-                outbox_id     => $self->outbox_builder->id_service->uuid,
-                outbox_extras => $outbox_payload,
-                explicit => $self->audit_record->has_text( $input{event_id} ),
-            }
-        )->{event};
-    }
     if ( !$self->audit_record->has_text( $input{event_id} ) ) {
         return $self->_reuse_or_insert_event( $event, $outbox_payload );
     }
@@ -317,15 +310,34 @@ sub _event_hash ($event) {
     return {};
 }
 
+# What record_event sends to api.ops_record_event, prepared and not sent:
+# the event as the envelope records it (its ids and time drawn here, in
+# record_event's order), the outbox row's id, the outbox payload and whether
+# the caller named the event's id. Public so a command that records the
+# event in one call (api.identity_register_command) sends the same.
+sub event_call ( $self, %input ) {
+    my $outbox_payload = delete $input{outbox_payload};
+    my $event          = $self->_recorded_event( \%input );
+    return {
+        event         => $event,
+        outbox_id     => $self->outbox_builder->id_service->uuid,
+        outbox_extras => $outbox_payload,
+        explicit      => $self->audit_record->has_text( $input{event_id} ),
+    };
+}
+
+# What record_audit sends to api.ops_record_audit, prepared and not sent.
+sub audit_call ( $self, %input ) {
+    return {
+        audit    => $self->audit_record->build( \%input ),
+        explicit => $self->audit_record->has_text( $input{audit_id} ),
+    };
+}
+
 sub record_audit ( $self, %input ) {
     if ( $self->functions ) {
-        return $self->functions->row(
-            'ops_record_audit',
-            {
-                audit    => $self->audit_record->build( \%input ),
-                explicit => $self->audit_record->has_text( $input{audit_id} ),
-            }
-        )->{audit};
+        return $self->functions->row( 'ops_record_audit',
+            $self->audit_call(%input) )->{audit};
     }
     my $work = sub {
         $self->_lock_audit_chain;
@@ -568,6 +580,22 @@ collision: the record is written under a newly minted id, as it is after a
 conflict on the key.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 event_call
+
+Takes what L</record_event> takes and returns what it would send to
+C<api.ops_record_event>, prepared and not sent: C<event>, the envelope's
+record with its ids and time drawn here in C<record_event>'s order;
+C<outbox_id>, the outbox row's id; C<outbox_extras>, the outbox payload;
+and C<explicit>, whether the caller named the event's id. For a command
+that records the event in one call with its other writes
+(C<api.identity_register_command>).
+
+=head2 audit_call
+
+Takes what L</record_audit> takes and returns what it would send to
+C<api.ops_record_audit>, prepared and not sent: C<audit>, the record built,
+and C<explicit>.
 
 =head2 record_event
 

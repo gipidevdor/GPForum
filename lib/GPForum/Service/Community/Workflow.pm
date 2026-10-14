@@ -192,7 +192,9 @@ sub _commanded_op ( $self, $job ) {
         return $invalid;
     }
     return $self->_commanded_by_function($job)
-      if $job->{function} && $self->functions && $self->command_idempotency;
+      if $job->{function}
+      && $self->functions
+      && _call_layer( $self->command_idempotency );
 
     my $run = sub {
         my $value;
@@ -288,6 +290,14 @@ sub _command_log ( $self, $job ) {
 
 sub _nullable ($value) {
     return defined $value && length $value ? $value : undef;
+}
+
+# A command log that runs on the call layer; a double of it keeps the Perl
+# path (ADR 0126, section 10).
+sub _call_layer ($service) {
+    return blessed $service && $service->can('functions')
+      ? $service->functions
+      : undef;
 }
 
 sub _subscription_write ($input) {

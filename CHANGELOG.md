@@ -910,6 +910,20 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **A registration is one call.** It ran as seven functions while Perl kept
+  the command log, a transaction and four savepoints around them, 24 round
+  trips. Migration 106 adds `api.identity_register_command_v1` -- the
+  command log, the duplicates, the user and the credential, the
+  registration's event and audit, the verification token with its audit
+  and mail, with the stores' recovery for a taken id -- and its ADR 0127
+  `_v2` boundary. Perl still validates, hashes the password, mints the
+  ids, reads the clock and draws the token, and hands every row and
+  document ready. A registration is the rate-limit check and one call. The
+  answers recorded are the Perl path's key for key (ADR 0126, section 5;
+  `t/integration/postgres-sql-function-identity-commands.t`, `t/653`). The
+  login keeps its transaction: the race tests pin the window in which it
+  holds the credential.
+
 - **Marking a thread read, bookmarking it and subscribing to it are one
   call each.** Each ran its work as a function while Perl kept the command
   log around it in a DBIx::Class transaction: a lookup, a savepoint, an

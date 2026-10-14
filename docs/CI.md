@@ -129,7 +129,7 @@ sudo "$(script/gpforum-system-perl --print)" -S cpanm -M https://cpan.metacpan.o
   `cpanfile.postgres`, `cpanfile.snapshot`), the runner OS and architecture, and
   the system Perl version, so a cache hit can never change the installed tree.
 - **Evidence is validated, not trusted.** Every JSON blob a workflow produces
-  goes through `script/gpforum-evidence-validate --strict`, and archived
+  goes through `bin/gpforum evidence-validate --strict`, and archived
   evidence goes through `script/gpforum-evidence-archive-check`.
 
 ## Shared setup

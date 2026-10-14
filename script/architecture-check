@@ -52,9 +52,9 @@ check_authority_language() {
 # bin/    Perl application entrypoints (deployed; load GPForum::* at runtime).
 # script/ repository tooling for developers and CI (not deployed).
 #
-# A script/ wrapper is named after the bin/ entrypoint it wraps without the
-# gpforum- prefix, so no basename may appear in both directories. The frozen
-# legacy set below is now empty and may only shrink: do not add entries.
+# script/ holds no wrapper of a bin/ entrypoint (bin/gpforum VERB runs it),
+# so no basename may appear in both directories, and the allowlist below
+# stays empty.
 ENTRYPOINT_COLLISION_ALLOWLIST=''
 
 is_allowed_entrypoint_collision() {

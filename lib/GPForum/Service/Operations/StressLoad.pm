@@ -262,7 +262,7 @@ sub _prerequisites ($options) {
         base_url          => $options->{base_url},
         database_dsn      => $ENV{GPFORUM_DATABASE_DSN} ? 'set' : 'unset',
         seeded_db_hint    =>
-'Seed with bin/gpforum performance-seed (or --seed on bench-hypnotoad) so forum routes return 200.',
+'Seed with bin/gpforum performance-seed (or bin/gpforum hypnotoad-benchmark --seed) so forum routes return 200.',
         running_app_hint =>
 'Point --base-url at a running Hypnotoad (or reverse-proxy fronting it). This harness does not start the server.',
         ci_default =>

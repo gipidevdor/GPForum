@@ -662,7 +662,7 @@ bin/gpforum stress-load --dry-run --profile 100 --human
 bin/gpforum stress-load --profile 1000 --base-url https://forum.example --check --json
 ```
 
-`bench-hypnotoad` also runs behind a local nginx or HAProxy
+`gpforum hypnotoad-benchmark` also runs behind a local nginx or HAProxy
 (`--reverse-proxy --proxy auto`, see [BASELINE.md](BASELINE.md)), and the
 scaling run records the reactor class: macOS reports
 `Mojo::Reactor::Poll`, so compare high socket concurrency with a host where

@@ -17,6 +17,12 @@ It builds on ADR 0120 (the front door reads the environment file) and ADR
 0122 (setup writes that file). It answers the owner's brief of 2026-10-10:
 "Cancella tutto il superfluo".
 
+Amended (2026-10-14) by the owner's decision O1 of the essentiality audit:
+nothing was ever released, so the deprecation path is withdrawn. No old
+name, old value, retired setting or drill variable is read any more
+(sections 5 and 6 below say what stands); an install of the unreleased code
+writes the new names by hand, as `CHANGELOG.md` lists them.
+
 ## Context
 
 `GPFORUM_ENV` said two things at once:
@@ -109,46 +115,17 @@ lines:
 `render_reference` is `deploy/gpforum.env.example`, every setting, as
 before. The file setup writes names it for the rest.
 
-### 5. Old names are read, and named, until v0.3.0
+### 5. Old names are not read
 
-Each row of `@SETTINGS` has `aliases`. Each alias carries `read_until`
-(`v0.3.0`) and is one of two kinds:
+`GPFORUM_ENV=production-small` and `production-medium` are refused like any
+other word that is not an environment. `GPFORUM_SMTP_SSL` is not read:
+`GPFORUM_SMTP_TLS` is the setting. `GPFORUM_WORKER_PROCESSES`,
+`GPFORUM_REALTIME_PROCESSES` and `GPFORUM_OS_AFFINITY`, which had no effect,
+are gone from the settings table. The first draft of this ADR read each old
+name until v0.3.0 with a warning; the amendment above withdrew it.
 
-- **An old variable**, `{ env, values, refusal }`. `GPFORUM_SMTP_SSL`,
-  which was `renamed_from`, is the first.
-- **An old value**, `{ value, as }`. `GPFORUM_ENV=production-small` and
-  `production-medium` are read as `production`.
-
-What happens to an old name:
-
-- **The start** logs one line with the line to write. An old value reads:
-
-  ```text
-  GPFORUM_ENV=production-medium is now called production; write GPFORUM_ENV=production in the environment file in its place.
-  ```
-
-  In Italian:
-
-  ```text
-  GPFORUM_ENV=production-medium ora si chiama production; scrivi GPFORUM_ENV=production nel file d'ambiente al suo posto.
-  ```
-
-- **`gpforum doctor`** lists the same line under `!`. Its fix is
-  `set GPFORUM_ENV=production in /etc/gpforum/gpforum.env` for an old
-  value. For an old variable it is two steps, the new line to write and
-  the old one to remove: removed alone, `GPFORUM_SMTP_SSL=off` would leave
-  TLS on. When the new variable is set too, only the old line goes.
-- **Retired settings** (`GPFORUM_WORKER_PROCESSES`,
-  `GPFORUM_REALTIME_PROCESSES`, `GPFORUM_OS_AFFINITY`) stay read and ignored
-  as before, each with its warning.
-- **`docs/DEPLOYMENT.md`, "Renamed settings"**, lists each old name, what
-  replaces it and until when.
-- **`t/615`** fails if an alias stops resolving, or outlives its release.
-
-An install on `production-medium` keeps everything but its old retention
-and floors. To keep its 730 days, set `GPFORUM_EVENT_RETENTION_DAYS=730`.
-Its web floor of 8 meant nothing: the web processes were already sized
-from the CPUs.
+An install that ran `production-medium` and wants its 730 days of events
+sets `GPFORUM_EVENT_RETENTION_DAYS=730`.
 
 ### 6. The drills take flags
 
@@ -162,13 +139,7 @@ other command takes flags. They take flags now:
 The old variables (`GPFORUM_PITR_PORT`, `GPFORUM_PITR_DIR`,
 `GPFORUM_STANDBY_PRIMARY_PORT`, `GPFORUM_STANDBY_PORT`,
 `GPFORUM_STANDBY_DIR`, `GPFORUM_EVIDENCE_DIR`, `GPFORUM_EVIDENCE_ENV_FILE`)
-are read until v0.3.0, each with one line on standard error:
-
-```text
-pitr-drill: GPFORUM_PITR_PORT is deprecated; use --port 55500
-```
-
-These scripts are maintainer tools (D9), so the line is English only.
+are not read.
 
 A drill removes its working directory when it ends. `--dir` names a new or
 empty directory: one that holds files is refused, before any cluster
@@ -189,14 +160,13 @@ commands from inside the data directory.
   Development keeps its events 365 days, where it kept 30.
 - **`/health/ready`'s profile report changes.** It reads `production`,
   version 2, without the worker, realtime and retention fields.
-- **`production-small` and `production-medium` stop working in v0.3.0.**
-  Until then they start, and say so.
+- **`production-small` and `production-medium` are refused**, as any word
+  that is not an environment is.
 
 ## Verification
 
 - `t/610-environment-is-where-not-how-big.t`: the three environments, the
-  refusal without the old names, the old names read as production, the
-  start's line in English and Italian, and doctor's `!` with its fix.
+  refusal without the old names, and the old names refused.
 - `t/611-sized-from-the-host.t`: memory read per system and held to a
   cgroup, the cache formula with its bounds, `auto` as the only word, what
   `sizing` reports, a small host meeting production's floors, and doctor's
@@ -207,7 +177,5 @@ commands from inside the data directory.
   under mail.
 - `t/613-event-retention-is-a-setting.t`: the setting, the settings page,
   and the partitions job reading it.
-- `t/614-drills-take-flags.t`: the drills' flags, their usage errors, a
-  `--dir` with files in it refused and kept, and each old variable's line.
-- `t/615-every-alias-resolves.t`: every alias in the settings table resolves
-  until its release, and each is in DEPLOYMENT's "Renamed settings".
+- `t/614-drills-take-flags.t`: the drills' flags, their usage errors, and a
+  `--dir` with files in it refused and kept.

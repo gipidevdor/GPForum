@@ -14,8 +14,6 @@ our $VERSION = '0.001';
 const my $POLICY_CAP_TO_CPU => 'cap-to-cpu';
 
 has web_processes         => 1;
-has worker_processes      => 1;
-has realtime_processes    => 1;
 has os_profile            => sub { return GPForum::OS->detect; };
 has os_feature_settings   => sub { return {}; };
 has os_preflight_settings => sub { return {}; };
@@ -25,8 +23,6 @@ has max_web_per_cpu       => 2;
 sub from_config ( $class, $config ) {
     return $class->new(
         web_processes         => $config->web_processes,
-        worker_processes      => $config->worker_processes,
-        realtime_processes    => $config->realtime_processes,
         os_profile            => GPForum::OS->detect,
         os_feature_settings   => $config->os_feature_settings,
         os_preflight_settings => $config->os_preflight_settings,

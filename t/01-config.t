@@ -39,7 +39,7 @@ const my %PRODUCTION_ENV => (
     GPFORUM_SESSION_SECRET  => $PRODUCTION_SECRET,
 );
 
-const my $EXPECTED_TESTS             => 313;
+const my $EXPECTED_TESTS             => 303;
 const my $DEFAULT_LOG_LEVEL          => 'info';
 const my $DEFAULT_RUNTIME_LISTEN     => 'http://127.0.0.1:8080';
 const my $DEFAULT_RUNTIME_BACKLOG    => 256;
@@ -53,10 +53,8 @@ const my $DEFAULT_MIN_OS_WORKERS     => 2;
 const my $DEFAULT_MAX_OPEN_FDS       => 65_536;
 const my $DEFAULT_CATEGORY_CACHE_TTL => 60;
 const my $CUSTOM_WEB_PROCESSES       => 8;
-const my $CUSTOM_WORKER_PROCESSES    => 3;
 const my $CUSTOM_MAX_WEB_PER_CPU     => 3;
 const my $CONNECT_ATTR_INDEX         => 3;
-const my $CUSTOM_REALTIME_PROCESSES  => 2;
 const my $CUSTOM_RUNTIME_BACKLOG     => 256;
 const my $CUSTOM_RUNTIME_CLIENTS     => 80;
 const my $CUSTOM_RUNTIME_REQUESTS    => 120;
@@ -98,8 +96,6 @@ my %environment = (
     GPFORUM_DATABASE_USER                => 'gpforum_test',
     GPFORUM_DATABASE_PASSWORD            => 'database-secret',
     GPFORUM_WEB_PROCESSES                => $CUSTOM_WEB_PROCESSES,
-    GPFORUM_WORKER_PROCESSES             => $CUSTOM_WORKER_PROCESSES,
-    GPFORUM_REALTIME_PROCESSES           => $CUSTOM_REALTIME_PROCESSES,
     GPFORUM_RUNTIME_LISTEN               => 'http://127.0.0.1:9000',
     GPFORUM_RUNTIME_WORKER_POLICY        => 'configured',
     GPFORUM_RUNTIME_MAX_WEB_PER_CPU      => $CUSTOM_MAX_WEB_PER_CPU,
@@ -112,7 +108,6 @@ my %environment = (
     GPFORUM_RUNTIME_PROXY                => 0,
     GPFORUM_RUNTIME_PID_FILE             => '/tmp/gpforum-test.pid',
     GPFORUM_OS_REUSEPORT                 => 'off',
-    GPFORUM_OS_AFFINITY                  => 'manual',
     GPFORUM_OS_MIN_RECOMMENDED_WORKERS   => $CUSTOM_MIN_OS_WORKERS,
     GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS => $CUSTOM_MAX_OPEN_FDS,
     GPFORUM_LOCAL_CACHE_MAX_ENTRIES      => $CUSTOM_CACHE_MAX_ENTRIES,
@@ -133,7 +128,7 @@ my %environment = (
     GPFORUM_SMTP_PORT      => 2525,
     GPFORUM_SMTP_USERNAME  => 'mailer',
     GPFORUM_SMTP_PASSWORD  => 'mail-secret',
-    GPFORUM_SMTP_SSL       => 1,
+    GPFORUM_SMTP_TLS       => 'starttls',
 );
 
 my $config  = GPForum::Config->from_environment( \%environment );
@@ -162,10 +157,6 @@ is( $config->database_password,
     'database-secret', 'database password loads from env' );
 is( $config->web_processes, $CUSTOM_WEB_PROCESSES,
     'web process count loads from env' );
-is( $config->worker_processes, $CUSTOM_WORKER_PROCESSES,
-    'worker process count loads from env' );
-is( $config->realtime_processes,
-    $CUSTOM_REALTIME_PROCESSES, 'realtime process count loads from env' );
 is( $runtime->as_hash->{web_processes},
     $CUSTOM_WEB_PROCESSES, 'runtime mirrors web process count' );
 is_deeply( $config->runtime_listen_locations,
@@ -206,8 +197,7 @@ is(
 );
 is( $config->runtime_pid_file, '/tmp/gpforum-test.pid',
     'runtime pid file loads from env' );
-is( $config->os_reuseport, 'off',    'OS reuseport flag loads from env' );
-is( $config->os_affinity,  'manual', 'OS affinity flag loads from env' );
+is( $config->os_reuseport, 'off', 'OS reuseport flag loads from env' );
 is( $config->os_min_recommended_workers,
     $CUSTOM_MIN_OS_WORKERS, 'OS minimum worker threshold loads from env' );
 is( $config->os_max_open_file_descriptors,
@@ -236,8 +226,7 @@ is( $config->glifistore_url,
 is( $config->mail_transport, 'smtp', 'mail transport loads from env' );
 is( $config->mail_from,      'forum@example.test', 'mail from loads from env' );
 is( $config->smtp_host,      'smtp.example.test',  'SMTP host loads from env' );
-is( $config->smtp_tls, 'starttls',
-    'the old GPFORUM_SMTP_SSL=1 still reads, as STARTTLS' );
+is( $config->smtp_tls,       'starttls',           'SMTP TLS loads from env' );
 my $default_config = GPForum::Config->new;
 is( $default_config->log_level,
     $DEFAULT_LOG_LEVEL, 'log level default is production-oriented' );
@@ -258,9 +247,9 @@ ok(
     'staging requires secure transport'
 );
 ok(
-    GPForum::Config->new( environment => 'production-small' )
+    GPForum::Config->new( environment => 'production' )
       ->requires_secure_transport,
-    'production-small requires secure transport'
+    'production requires secure transport'
 );
 is_deeply( $default_config->runtime_listen_locations,
     [$DEFAULT_RUNTIME_LISTEN],
@@ -572,9 +561,7 @@ lives_ok {
 }
 'staging starts without GlifiStore';
 
-# production-medium is an old name of production, and refused as production.
-for my $environment (qw(production staging production-medium)) {
-    my $named = $environment =~ s/-medium \z//rmsx;
+for my $environment (qw(production staging)) {
     like(
         _refusal(
             sub {
@@ -589,7 +576,7 @@ for my $environment (qw(production staging production-medium)) {
             }
         ),
         qr{^GPFORUM_SESSION_SECRET [ ] is [ ] required [ ] in [ ]
-          \Q$named\E [.] $}msx,
+          \Q$environment\E [.] $}msx,
         "$environment rejects the default session secret",
     );
 }
@@ -693,13 +680,13 @@ is(
         sub {
             GPForum::Config->new(
                 %PRODUCTION,
-                environment   => 'production-small',
+                environment   => 'production',
                 metrics_token => undef,
             )->validate;
         }
     ),
-    'GPFORUM_METRICS_TOKEN is required in production-small.',
-    'production-small rejects an undefined metrics scrape token',
+    'GPFORUM_METRICS_TOKEN is required in production.',
+    'production rejects an undefined metrics scrape token',
 );
 
 is(
@@ -874,9 +861,7 @@ my @every_setting   = (
         search_candidate_limit => 'GPFORUM_SEARCH_CANDIDATE_LIMIT',
         '1000', '900'
     ],
-    [ web_processes      => 'GPFORUM_WEB_PROCESSES',      $automatic_web, '3' ],
-    [ worker_processes   => 'GPFORUM_WORKER_PROCESSES',   '2',            '5' ],
-    [ realtime_processes => 'GPFORUM_REALTIME_PROCESSES', '1',            '2' ],
+    [ web_processes => 'GPFORUM_WEB_PROCESSES', $automatic_web, '3' ],
     [
         runtime_listen => 'GPFORUM_RUNTIME_LISTEN',
         'http://127.0.0.1:8080', 'http://0.0.0.0:9000'
@@ -930,7 +915,6 @@ my @every_setting   = (
         '127.0.0.1,::1', '10.0.0.1'
     ],
     [ os_reuseport => 'GPFORUM_OS_REUSEPORT', 'auto', 'on' ],
-    [ os_affinity  => 'GPFORUM_OS_AFFINITY',  'off',  'manual' ],
     [
         os_min_recommended_workers => 'GPFORUM_OS_MIN_RECOMMENDED_WORKERS',
         '2', '3'

@@ -39,8 +39,7 @@ const my $WINDOW_SECONDS            => 60;
 const my $RESET_EPOCH               => 160;
 const my $RESET_CLOCK_EPOCH         => 200;
 const my $WEB_PROCESSES             => 2;
-const my $WORKER_PROCESSES          => 4;
-const my $REALTIME_PROCESSES        => 1;
+const my $REALTIME_CONNECTIONS      => 1;
 const my $FIRST_REMAINING_ALLOWANCE => 1;
 const my $EXHAUSTED_ALLOWANCE       => 0;
 const my $BUCKET_COUNT              => 1;
@@ -116,12 +115,8 @@ ok( $reset->{ok}, 'rate limit resets after window' );
 is( $reset->{observed_count}, $BUCKET_COUNT,
     'reset window starts fresh count' );
 
-my $runtime = GPForum::Runtime->new(
-    web_processes      => $WEB_PROCESSES,
-    worker_processes   => $WORKER_PROCESSES,
-    realtime_processes => $REALTIME_PROCESSES,
-);
-my $hub = GPForum::Service::Realtime::Hub->new;
+my $runtime = GPForum::Runtime->new( web_processes => $WEB_PROCESSES );
+my $hub     = GPForum::Service::Realtime::Hub->new;
 $hub->register_connection( 'connection-1', { user_id => 'user-1' }, undef );
 my $local_cache = GPForum::Service::Operations::LocalCache->new(
     clock     => $clock,
@@ -198,7 +193,7 @@ is( $metrics->{local_caches}[0]{entries},
 is( $metrics->{local_caches}[0]{stats}{writes},
     $CACHE_ENTRIES, 'metrics exposes local cache writes' );
 is( $metrics->{realtime}{connections},
-    $REALTIME_PROCESSES, 'metrics exposes realtime snapshot' );
+    $REALTIME_CONNECTIONS, 'metrics exposes realtime snapshot' );
 ok(
     exists $metrics->{realtime}{broadcast},
     'metrics exposes realtime broadcast counter'

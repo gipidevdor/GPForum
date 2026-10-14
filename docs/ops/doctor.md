@@ -61,7 +61,7 @@ What each line checks:
 
 | Line | What it checks | When it is not fine |
 | --- | --- | --- |
-| `settings` | every setting, as the service checks them when it starts (TLS to an SMTP server this Perl cannot speak included), and, on staging and production, that the environment file is not readable by every account | each problem on its own line, with the value to set or `gpforum secret rotate` for a missing secret; the other checks wait until the settings are right. An open file is a warning with the `chmod 0640` that closes it, and so is a retired setting, or one still under its old name (`GPFORUM_SMTP_SSL`), with the line to remove |
+| `settings` | every setting, as the service checks them when it starts (TLS to an SMTP server this Perl cannot speak included), and, on staging and production, that the environment file is not readable by every account | each problem on its own line, with the value to set or `gpforum secret rotate` for a missing secret; the other checks wait until the settings are right. An open file is a warning with the `chmod 0640` that closes it |
 | `host`, `web processes`, `open files` | what `gpforum os-preflight` checks | the limit or the setting to change |
 | `database` | that PostgreSQL answers with the configured DSN, role and password | one sentence: refused, unknown host, wrong password, no such role or database, `pg_hba.conf` |
 | `schema` | migrations still to apply, or applied files that changed since | `gpforum migrate` |

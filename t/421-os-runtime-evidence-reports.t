@@ -142,10 +142,8 @@ sub _evidence ( $listen, %settings ) {
     return GPForum::OS::RuntimeEvidence->new(
         config  => $config,
         runtime => GPForum::Runtime->new(
-            web_processes      => 1,
-            worker_processes   => 1,
-            realtime_processes => 1,
-            os_profile         => GPForum::OS::Base->new(
+            web_processes => 1,
+            os_profile    => GPForum::OS::Base->new(
                 resource_probe => GPForum::Test::OSResourceSnapshot->new,
             ),
             os_feature_settings => $config->os_feature_settings,

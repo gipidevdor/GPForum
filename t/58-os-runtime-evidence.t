@@ -36,10 +36,8 @@ my $config = GPForum::Config->new(
 $config->validate;
 
 my $runtime = GPForum::Runtime->new(
-    web_processes      => $WORKERS,
-    worker_processes   => 1,
-    realtime_processes => 1,
-    os_profile         => GPForum::OS::Base->new(
+    web_processes => $WORKERS,
+    os_profile    => GPForum::OS::Base->new(
         resource_probe => GPForum::Test::OSResourceSnapshot->new,
     ),
     os_feature_settings => $config->os_feature_settings,

@@ -220,8 +220,8 @@ sub check ($self) {
 }
 
 # The settings an environment holds, checked as the service checks them at
-# its start: every problem a finding, with what fixes it; a retired setting,
-# or one still under its old name, a warning; one line when they are fine.
+# its start: every problem a finding, with what fixes it; one line when they
+# are fine.
 # The start also stops when mail leaves by smtp with TLS on and this Perl
 # cannot speak it (GPForum::Config::smtp_tls_problem): doctor said the
 # settings were fine, then the service refused them. Returns the
@@ -270,79 +270,8 @@ sub settings ( $self, $environment, $findings ) {
     );
     $self->_sizing( $findings, $config, $host );
     $self->_open_file( $findings, $host );
-    for my $variable ( @{ $config->retired_settings } ) {
-        $findings->add(
-            name    => 'settings',
-            status  => 'degraded',
-            message => [ 'config.retired', { variable => $variable } ],
-            fixes   => [
-                $self->_from_shell($variable)
-                ? "unset $variable"
-                : [
-                    'doctor.fix_remove',
-                    {
-                        variable => $variable,
-                        file     => $file // $host->settings_file
-                    }
-                ]
-            ],
-        );
-    }
-    $self->_renamed( $findings, $config, $host );
 
     return $config;
-}
-
-# A setting the environment still names by its old name is read, and the
-# start logs the line that replaces it (Bootstrap::Config); doctor says the
-# same, with the fix. An old value -- GPFORUM_ENV=production-medium -- is
-# fixed by the line that replaces it, where it is set. An old variable is
-# fixed by writing the new line, then removing the old one: removed alone,
-# GPFORUM_SMTP_SSL=off would leave TLS on. When the new variable is set as
-# well, it is already the one read, and the old line only goes.
-sub _renamed ( $self, $findings, $config, $host ) {
-    for my $renamed ( @{ $config->renamed_settings } ) {
-        my $variable = $renamed->{variable};
-        my $message  = GPForum::Config::Report->renamed($renamed);
-        my @fixes;
-        if ( defined $renamed->{old} ) {
-            push @fixes, $self->_set_fix( $host, $variable, $message );
-        }
-        else {
-            my $new = $self->environment->{ $renamed->{replacement} };
-            if ( !defined $new || !length $new ) {
-                push @fixes, $self->_set_fix( $host, $variable, $message );
-            }
-            push @fixes,
-              $self->_from_shell($variable)
-              ? "unset $variable"
-              : [
-                'doctor.fix_remove',
-                {
-                    variable => $variable,
-                    file     => $self->file // $host->settings_file
-                }
-              ];
-        }
-        $findings->add(
-            name    => 'settings',
-            status  => 'degraded',
-            message => $message,
-            fixes   => \@fixes,
-        );
-    }
-
-    return;
-}
-
-sub _set_fix ( $self, $host, $variable, $message ) {
-    return [
-        'doctor.fix_set',
-        {
-            assignment => $message->[1]{assignment},
-            where      => $self->_where( $host, $variable ),
-        }
-    ];
 }
 
 # How the node is sized for this host: its CPUs and memory, and the web
@@ -1229,8 +1158,7 @@ L<GPForum::Service::Operations::Findings>:
 
 Every problem the service would refuse to start with, each with the
 variable, the file and what to set or run (C<gpforum secret rotate> for a
-missing secret); a retired setting, or an old name or value, as a warning
-with the line to write; what the host's CPUs and memory size the node for;
+missing secret); what the host's CPUs and memory size the node for;
 and, deployed, an environment file every account on the host can read.
 With a problem here the other checks wait.
 
@@ -1342,9 +1270,7 @@ Runs the checks. Returns C<{ findings, config, waiting }>.
 
 Takes an environment hash reference and a findings list; adds the settings'
 findings -- each problem the service's start would refuse, TLS to an SMTP
-server this Perl cannot speak among them; a warning for each retired
-setting and each old name or old value still set, with the line that
-replaces it; and, when they are fine, what the node is sized for on this
+server this Perl cannot speak among them; and, when they are fine, what the node is sized for on this
 host ("sized for 2 CPUs, 2 GB: 4 web processes, 4096 cache entries a
 process") -- and returns the configuration, or undef when it cannot be
 used.

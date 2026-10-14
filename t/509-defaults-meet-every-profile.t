@@ -25,7 +25,7 @@ const my %DEPLOYED => (
     GPFORUM_MAIL_FROM       => 'forum@forum.gpforum.test',
 );
 
-# GPFORUM_ENV=production-medium failed readiness out of the box: its local
+# A sized production profile failed readiness out of the box: its local
 # cache floor was 4096 entries and the default 2048 (iteration-1 reviews,
 # walkthrough 1, friction 16). An operator who changed nothing was told a
 # setting was below a floor. The default now meets every profile's floor.
@@ -49,11 +49,7 @@ subtest 'the default cache meets every profile' => sub {
             "$name: the cache floor is at most the unmeasured default" );
     }
 
-    for my $environment (
-        qw(development test staging production production-small
-        production-medium)
-      )
-    {
+    for my $environment (qw(development test staging production)) {
         my $config = GPForum::Config->from_environment(
             { %DEPLOYED, GPFORUM_ENV => $environment } );
         ok(

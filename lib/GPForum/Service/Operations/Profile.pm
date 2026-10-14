@@ -18,16 +18,11 @@ our $VERSION = '0.001';
 const my $PROFILE_VERSION    => 2;
 const my $DEVELOPMENT_SECRET => 'gpforum-development-secret-change-me';
 
-# production-small and production-medium are old names of production, read
-# as it until GPForum::Config stops reading them; a configuration built with
-# new may still carry one.
 const my %ENV_TO_PROFILE => (
-    development         => 'development',
-    test                => 'development',
-    staging             => 'staging',
-    production          => 'production',
-    'production-small'  => 'production',
-    'production-medium' => 'production',
+    development => 'development',
+    test        => 'development',
+    staging     => 'staging',
+    production  => 'production',
 );
 const my %PROFILES => (
     development => {
@@ -175,9 +170,7 @@ Version 0.001.
 Defines what the C<development>, C<staging> and C<production> environments
 require, version 2 (ADR 0125): a rotated session secret where it is
 deployed, restore evidence, and the least a node may run at -- web processes
-and cache entries a process. C<test> maps to C<development>;
-C<production-small> and C<production-medium>, the old size profiles, map to
-C<production>. A profile no longer sizes a node: the web processes and the
+and cache entries a process. C<test> maps to C<development>. A profile no longer sizes a node: the web processes and the
 cache are sized from the host's CPUs and memory
 (L<GPForum::Config/automatic_web_processes>,
 L<GPForum::Config/automatic_local_cache_max_entries>), and each floor is the

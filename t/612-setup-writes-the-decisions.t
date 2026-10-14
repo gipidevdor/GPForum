@@ -126,8 +126,7 @@ subtest 'an smtp answer lands under mail, where its line is offered' => sub {
 
 subtest 'the reference still holds every setting' => sub {
     my $reference = GPForum::Config::EnvironmentFile->render_reference;
-    my @current =
-      map { $_->{env} } grep { !$_->{retired} } @{ GPForum::Config->settings };
+    my @current   = map { $_->{env} } @{ GPForum::Config->settings };
     is_deeply(
         [ sort $reference =~ /^ [#]? (GPFORUM_\w+) = /gmsx ],
         [ sort @current ],

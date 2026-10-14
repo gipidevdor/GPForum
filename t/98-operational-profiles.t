@@ -24,10 +24,8 @@ is_deeply(
     [ 'development', 'production', 'staging' ],
     'three profiles, one for each environment (ADR 0125)'
 );
-for my $old (qw(production-small production-medium)) {
-    is( $profiles->name_for_environment($old),
-        'production', "$old, the old size profile, maps onto production" );
-}
+is( $profiles->name_for_environment('production-small'),
+    undef, 'an old size profile is no environment' );
 is( $profiles->name_for_environment('test'),
     'development', 'test maps onto development' );
 is( $profiles->get('staging')->{version},

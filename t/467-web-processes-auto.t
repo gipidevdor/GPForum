@@ -106,15 +106,15 @@ subtest q{a profile's web floor is what the host carries, when that is less} =>
     my $profiles = GPForum::Service::Operations::Profile->new;
     my $small    = $profiles->evaluate(
         GPForum::Test::SmallHostConfig->new(
-            environment    => 'production-small',
+            environment    => 'production',
             session_secret => 'rotated-production-secret',
         )
     );
-    ok( $small->{ok}, 'auto on a two-process host meets production-small' );
+    ok( $small->{ok}, 'auto on a two-process host meets production' );
 
     my $undersized = $profiles->evaluate(
         GPForum::Config->new(
-            environment             => 'production-small',
+            environment             => 'production',
             session_secret          => 'rotated-production-secret',
             runtime_max_web_per_cpu => $MOST,
             web_processes           => $SMALL_HOST,

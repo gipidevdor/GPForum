@@ -43,10 +43,6 @@ const my $MINIMUM_AUTOMATIC_CACHE => 1_024;
 const my $MAXIMUM_AUTOMATIC_CACHE => 16_384;
 const my $UNMEASURED_CACHE        => 4_096;
 
-# The release in which the old names of a setting, and its old values, stop
-# being read (audit 5.6); docs/DEPLOYMENT.md's "Renamed settings" lists them.
-const my $ALIASES_UNTIL => 'v0.3.0';
-
 # A resident clamd answers in well under a second. clamscan, run per file,
 # loads its whole signature database first, which alone can take most of 30
 # seconds on a small server.
@@ -96,26 +92,17 @@ const my $LANGUAGE_TAG =>
 
 # Where a node runs. test is the suite's own. The size of a node is not one
 # of them: it comes from the host (automatic_web_processes,
-# automatic_local_cache_max_entries), so production-small and
-# production-medium are old names of production, read until $ALIASES_UNTIL.
+# automatic_local_cache_max_entries).
 const my @ENVIRONMENTS => qw(development test staging production);
 const my @LOG_LEVELS   => qw(trace debug info warn error fatal);
 
 # The deployed environments. They need a rotated session secret, a metrics
 # token and Secure cookies, they refuse the log mail transport, and they
 # default to the system's clamd and sendmail. Production, on top, needs an
-# https address, a sender mail servers accept and a long session secret. The
-# old names stay here for a configuration built with new, which reads no
-# alias.
-const my @DEPLOYED => qw(
-  production
-  production-medium
-  production-small
-  staging
-);
-const my %IS_DEPLOYED => map { $_ => 1 } @DEPLOYED;
-const my %IS_PRODUCTION => map { $_ => 1 }
-  grep { /\A production/msx } @DEPLOYED;
+# https address, a sender mail servers accept and a long session secret.
+const my @DEPLOYED      => qw(production staging);
+const my %IS_DEPLOYED   => map { $_ => 1 } @DEPLOYED;
+const my %IS_PRODUCTION => ( production => 1 );
 
 # How a boolean may be written. Each word reads as 1 or 0.
 const my %BOOLEAN => (
@@ -173,9 +160,6 @@ const my $SET_SEARCH_SIMILARITY => q{SET pg_trgm.similarity_threshold = 0.18};
 #            the file setup writes offers it commented out
 #   example  a value shown when the setting is wrong, and in the template
 #   generate the command that makes a value, for a secret
-#   retired  1 for a setting that no longer has any effect: still read, never
-#            refused -- an old environment file starts, whatever it holds --
-#            and named in a warning when set
 #   type     text (the default), integer (digits only), boolean (on/off,
 #            yes/no, true/false or 1/0, read as 1 or 0), list (comma
 #            separated) or words (whitespace separated); a list's default is
@@ -190,15 +174,6 @@ const my $SET_SEARCH_SIMILARITY => q{SET pg_trgm.similarity_threshold = 0.18};
 #            from_environment uses when a setting read before this one holds
 #            one of the values; a configuration built with new keeps the plain
 #            default
-#   aliases  the names and values this setting had before, each read until
-#            $ALIASES_UNTIL (audit 5.6) and named, with the line that
-#            replaces it, in a warning when set:
-#            { env => OLD, values => { old word => value }, refusal => key }
-#              an old variable, read when the new one is not set, its words
-#              turned into this setting's values -- any other is refused with
-#              the refusal's sentence, under the old name;
-#            { value => OLD, as => NEW }
-#              an old value, read as the new one
 const my @SETTINGS => map {
     +{
         type          => 'text',
@@ -209,27 +184,18 @@ const my @SETTINGS => map {
         default_when  => undef,
         operator      => 0,
         operator_when => undef,
-        retired       => 0,
         automatic     => 0,
         example       => undef,
         generate      => undef,
         %{$_},
-        aliases => [
-            map { +{ read_until => $ALIASES_UNTIL, %{$_} } }
-              @{ $_->{aliases} // [] }
-        ],
     }
 } (
     {
-        name    => 'environment',
-        env     => 'GPFORUM_ENV',
-        default => 'development',
-        check   => 'required',
-        one_of  => \@ENVIRONMENTS,
-        aliases => [
-            map { +{ value => $_, as => 'production' } }
-              qw(production-small production-medium)
-        ],
+        name     => 'environment',
+        env      => 'GPFORUM_ENV',
+        default  => 'development',
+        check    => 'required',
+        one_of   => \@ENVIRONMENTS,
         section  => 'application',
         summary  => 'Where this node runs: development, staging or production.',
         operator => 1,
@@ -459,26 +425,6 @@ const my @SETTINGS => map {
         summary   => 'Web processes; auto runs as many as the CPUs carry.',
     },
     {
-        name    => 'worker_processes',
-        env     => 'GPFORUM_WORKER_PROCESSES',
-        default => 2,
-        type    => 'integer',
-        check   => 'process_count',
-        section => 'processes',
-        summary => 'No longer used.',
-        retired => 1,
-    },
-    {
-        name    => 'realtime_processes',
-        env     => 'GPFORUM_REALTIME_PROCESSES',
-        default => 1,
-        type    => 'integer',
-        check   => 'process_count',
-        section => 'processes',
-        summary => 'No longer used.',
-        retired => 1,
-    },
-    {
         name    => 'runtime_listen',
         env     => 'GPFORUM_RUNTIME_LISTEN',
         default => 'http://127.0.0.1:8080',
@@ -637,15 +583,6 @@ const my @SETTINGS => map {
         summary => 'SO_REUSEPORT on the listen socket: auto, on or off.',
     },
     {
-        name    => 'os_affinity',
-        env     => 'GPFORUM_OS_AFFINITY',
-        default => 'off',
-        one_of  => [qw(off manual)],
-        section => 'operating_system',
-        summary => 'No longer used.',
-        retired => 1,
-    },
-    {
         name    => 'os_min_recommended_workers',
         env     => 'GPFORUM_OS_MIN_RECOMMENDED_WORKERS',
         default => 2,
@@ -754,9 +691,7 @@ const my @SETTINGS => map {
     },
 
     # How long the event log is kept: the partitions job lists each monthly
-    # partition older than this as due to detach. It was the size profile's
-    # (365 days in production-small, 730 in production-medium); it is one
-    # setting now, at production-small's value.
+    # partition older than this as due to detach.
     {
         name    => 'event_retention_days',
         env     => 'GPFORUM_EVENT_RETENTION_DAYS',
@@ -892,27 +827,15 @@ const my @SETTINGS => map {
     },
 
     # TLS follows the port unless the operator says otherwise: STARTTLS on
-    # 587, the submission port, implicit TLS on 465. GPFORUM_SMTP_SSL, a
-    # boolean that meant STARTTLS and defaulted to off -- a password sent in
-    # the clear on 587 -- is still read, on as starttls and off as off.
+    # 587, the submission port, implicit TLS on 465.
     {
         name         => 'smtp_tls',
         env          => 'GPFORUM_SMTP_TLS',
         default      => 'starttls',
         one_of       => [qw(starttls implicit off)],
         default_when => [ [ smtp_port => [$IMPLICIT_TLS_PORT], 'implicit' ] ],
-        aliases      => [
-            {
-                env     => 'GPFORUM_SMTP_SSL',
-                refusal => 'config.not_boolean',
-                values  => {
-                    ( map { $_ => 'starttls' } qw(1 yes true on) ),
-                    ( map { $_ => 'off' } qw(0 no false off) ),
-                },
-            }
-        ],
-        section => 'mail',
-        summary => 'TLS to the SMTP server: starttls, implicit or off; it'
+        section      => 'mail',
+        summary      => 'TLS to the SMTP server: starttls, implicit or off; it'
           . ' follows the port, starttls on 587 and implicit on 465.',
     },
 
@@ -1004,37 +927,12 @@ for my $setting (@SETTINGS) {
     has $name => $is_list ? sub { return [] } : $setting->{default};
 }
 
-# The variables of retired settings the environment set, for the warning the
-# start-up logs (Bootstrap::Config).
-has retired_settings => sub { return [] };
-
-# The old names the environment still set, each as { setting, variable,
-# replacement, value }: the old variable, the new one and the value it now
-# holds, for the warning the start-up logs. An old value (GPFORUM_ENV=
-# production-small) is named under its own variable, with old, the value
-# the environment wrote.
-has renamed_settings => sub { return [] };
-
 sub from_environment ( $class, $environment = undef ) {
     $environment //= \%ENV;
 
-    my ( %read, @problems, @retired, @renamed );
+    my ( %read, @problems );
     for my $setting (@SETTINGS) {
-        my ( $source, $misread ) =
-          _renamed( $environment, $setting, \@renamed, \%read );
-        my ( $value, $problem ) = _read( $source, $setting, \%read );
-        $problem //= $misread;
-        $value = _old_value( $setting, $value, \@renamed );
-
-        # A retired setting never stops a start, whatever an old environment
-        # file holds: a value that does not parse keeps the default, and the
-        # start names the variable to remove.
-        if ( $setting->{retired} ) {
-            if ( _is_set( $environment, $setting ) ) {
-                push @retired, $setting->{env};
-            }
-            $problem = undef;
-        }
+        my ( $value, $problem ) = _read( $environment, $setting, \%read );
         push @problems, $problem // ();
         next if !defined $value;
 
@@ -1042,12 +940,7 @@ sub from_environment ( $class, $environment = undef ) {
     }
     push @problems, _test_transport_problem( $environment, \%read ) // ();
 
-    my $self = $class->new(
-        %read,
-        retired_settings => \@retired,
-        renamed_settings =>
-          [ map { +{ %{$_}, value => $read{ $_->{setting} } } } @renamed ],
-    );
+    my $self    = $class->new(%read);
     my %refused = map { $_->{variable} => 1 } @problems;
     push @problems, grep { !$refused{ $_->{variable} } } @{ $self->problems };
     _refuse(
@@ -1350,63 +1243,6 @@ sub _read_integer ( $setting, $value, $read ) {
     return $limit && $number > $limit ? $limit : $number;
 }
 
-# The environment as a renamed setting reads it, and the problem reading it:
-# when only the old variable is set, its word turned into the new one's
-# value, and either way the old name noted for the warning. A word the old
-# variable never took is a problem under the name the operator wrote, and
-# the setting keeps its default. A setting never renamed, or whose old name
-# is not set, reads the environment as it is.
-sub _renamed ( $environment, $setting, $renamed, $read ) {
-    my ($old) =
-      grep { exists $_->{env} && _is_set( $environment, $_ ) }
-      @{ $setting->{aliases} };
-    return ($environment) if !$old;
-
-    push @{$renamed},
-      {
-        setting     => $setting->{name},
-        variable    => $old->{env},
-        replacement => $setting->{env},
-      };
-    return ($environment) if _is_set( $environment, $setting );
-
-    my $raw  = $environment->{ $old->{env} };
-    my $word = lc trim($raw);
-    return { $setting->{env} => $old->{values}{$word} }
-      if exists $old->{values}{$word};
-
-    return (
-        {},
-        {
-            %{ _problem_of( $setting, $old->{refusal}, $raw ) },
-            variable   => $old->{env},
-            example    => undef,
-            suggestion => "$setting->{env}=" . _default( $setting, $read ),
-        }
-    );
-}
-
-# The value an old one stands for, noted for the warning: GPFORUM_ENV=
-# production-medium reads as production. Any other value is left as it is.
-sub _old_value ( $setting, $value, $renamed ) {
-    return $value if !defined $value || ref $value;
-
-    my ($old) =
-      grep { exists $_->{value} && $_->{value} eq $value }
-      @{ $setting->{aliases} };
-    return $value if !$old;
-
-    push @{$renamed},
-      {
-        setting     => $setting->{name},
-        variable    => $setting->{env},
-        replacement => $setting->{env},
-        old         => $value,
-      };
-
-    return $old->{as};
-}
-
 sub _is_set ( $environment, $setting ) {
     my $variable = $setting->{env};
 
@@ -1439,9 +1275,6 @@ sub _problem ( $self, $setting ) {
     # every command, whether it needs the number or not.
     return undef if $setting->{automatic} && !exists $self->{$name};
 
-    # Nothing runs from a retired setting, so no value of it is wrong.
-    return undef if $setting->{retired};
-
     my $value = $self->$name;
 
     my $rule    = $setting->{check};
@@ -1450,13 +1283,8 @@ sub _problem ( $self, $setting ) {
         return $problem;
     }
 
-    # An old value -- production-small, in a configuration built with new --
-    # is one of them, under the name it now has; the refusal lists only the
-    # current ones.
     my $choices = $setting->{one_of};
-    my @old =
-      map { exists $_->{value} ? $_->{value} : () } @{ $setting->{aliases} };
-    if ( $choices && !any { $_ eq ( $value // q{} ) } @{$choices}, @old ) {
+    if ( $choices && !any { $_ eq ( $value // q{} ) } @{$choices} ) {
         return _choice_problem( $setting, $value, $choices );
     }
 
@@ -1917,10 +1745,7 @@ C<generate> or C<suggestion>. L<GPForum::Config::Report> renders them.
 
 Class method. A copy of the settings table, one hash reference per setting
 with C<name>, C<env>, C<default>, C<type>, C<section>, C<summary>,
-C<operator>, C<operator_when>, C<example>, C<generate>, C<retired> and
-C<aliases>, in table order. Each alias is an old variable (C<env>, with the C<values> its words
-read as) or an old value (C<value>, read C<as> the current one), with
-C<read_until>, the release that stops reading it.
+C<operator>, C<operator_when>, C<example> and C<generate>, in table order.
 
 =head2 requires_secure_transport
 
@@ -1929,9 +1754,7 @@ rotated session secret, Secure cookies, and HSTS.
 
 =head2 is_production
 
-True for production (and its old names production-small and
-production-medium, in a configuration built with C<new>): the environment
-that also requires an https address, a sender mail servers
+True for production: the environment that also requires an https address, a sender mail servers
 accept and a long session secret, and that never send the benchmark query
 headers.
 
@@ -2072,19 +1895,12 @@ so the C</metrics> scrape endpoint is never left unauthenticated.
 C<GPFORUM_ENV> is one of development, staging and production (and test, the
 suite's own), and a mistyped one is answered with the nearest (C<prod>:
 production). The size of a node is not an environment: web processes and
-the cache are sized from the host. C<production-small> and
-C<production-medium> are old names of production, read as it until v0.3.0;
-L</from_environment> notes each in C<renamed_settings>, with C<old>, the
-value written. C<GPFORUM_EVENT_RETENTION_DAYS> (365) is how long the event
-log is kept, which the size profiles used to set. Production also requires an C<https://>
+the cache are sized from the host. C<GPFORUM_EVENT_RETENTION_DAYS> (365) is
+how long the event log is kept. Production also requires an C<https://>
 C<GPFORUM_PUBLIC_BASE_URL>, a C<GPFORUM_MAIL_FROM> that is not at
 localhost and a session secret of at least 32 characters. Booleans read
 C<on>/C<off>, C<yes>/C<no>, C<true>/C<false> or C<1>/C<0>.
 C<GPFORUM_GLIFISTORE_URL> is optional everywhere and empty by default.
-C<GPFORUM_WORKER_PROCESSES>, C<GPFORUM_REALTIME_PROCESSES> and
-C<GPFORUM_OS_AFFINITY> no longer have any effect; they are still read but
-never refused (a value that does not parse keeps the default), and
-L</from_environment> lists those set in C<retired_settings>.
 
 Staging and production refuse a C<GPFORUM_PUBLIC_BASE_URL> or a
 C<GPFORUM_MAIL_FROM> under a name RFC 2606 keeps for examples
@@ -2096,11 +1912,7 @@ test suite.
 
 C<GPFORUM_SMTP_TLS> is C<starttls>, C<implicit> or C<off>, and defaults to
 C<implicit> when C<GPFORUM_SMTP_PORT> is 465 and to C<starttls> otherwise.
-It was C<GPFORUM_SMTP_SSL>, a boolean, which is still read when
-C<GPFORUM_SMTP_TLS> is not set (on as C<starttls>, off as C<off>);
-L</from_environment> lists each old name the environment set in
-C<renamed_settings>, as C<variable>, C<replacement> and the C<value> it now
-holds. C<GPFORUM_FORUM_READ_RATE_LIMIT> is the forum pages one visitor may
+C<GPFORUM_FORUM_READ_RATE_LIMIT> is the forum pages one visitor may
 read per minute, 60 by default.
 
 Search and autocomplete run under their own C<statement_timeout>,

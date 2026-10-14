@@ -498,10 +498,9 @@ sub _add_benchmark_query_headers ( $controller, $request_stats, $observation ) {
     return;
 }
 
-# Every server profile ignores the flag -- production, production-small,
-# production-medium and staging -- so a breach there shows in metrics and the
-# release gates instead of failing a response. Only the name 'production' used
-# to: the sized profiles and staging honoured it.
+# Every server profile ignores the flag -- production and staging -- so a
+# breach there shows in metrics and the release gates instead of failing a
+# response.
 sub _enforce_query_budget ( $config, $request_stats, $observation ) {
     return if ( $ENV{GPFORUM_QUERY_BUDGET_ENFORCE} || q{} ) ne '1';
     my $profile = GPForum::Service::Operations::Profile->name_for_environment(

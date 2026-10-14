@@ -70,12 +70,11 @@ TEXT
 
 # The file setup writes: each decision with its one-line summary, and the
 # settings that are decisions only with another's value -- the SMTP server,
-# when mail leaves by smtp -- commented out under it. Retired settings are
-# left out.
+# when mail leaves by smtp -- commented out under it.
 sub render ( $class, $settings = GPForum::Config->settings ) {
     my @lines = ($HEADER);
     my %shown;
-    for my $setting ( grep { !$_->{retired} } @{$settings} ) {
+    for my $setting ( @{$settings} ) {
         if ( $setting->{operator} ) {
             push @lines, _decision( $setting, generate => 0 );
             next;
@@ -101,11 +100,10 @@ sub render ( $class, $settings = GPForum::Config->settings ) {
 
 # The reference, deploy/gpforum.env.example: the settings every installation
 # decides, uncommented, then the rest by section, commented out at their
-# defaults. Retired settings are left out.
+# defaults.
 sub render_reference ( $class, $settings = GPForum::Config->settings ) {
-    my @current   = grep { !$_->{retired} } @{$settings};
-    my @decisions = grep { $_->{operator} } @current;
-    my @advanced  = grep { !$_->{operator} } @current;
+    my @decisions = grep { $_->{operator} } @{$settings};
+    my @advanced  = grep { !$_->{operator} } @{$settings};
 
     return join "\n", $REFERENCE_HEADER,
       _banner('Decide these'),
@@ -215,7 +213,7 @@ L</render_reference> is C<deploy/gpforum.env.example>: a header saying where
 the file goes and who may read it, the same decisions -- a secret with the
 command that generates it -- and an "Advanced" block with every other
 setting, by section, commented out at its default. C<t/463> holds the
-shipped file to what it renders. Retired settings are in neither.
+shipped file to what it renders.
 
 =head1 SUBROUTINES/METHODS
 

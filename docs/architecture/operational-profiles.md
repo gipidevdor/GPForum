@@ -36,26 +36,10 @@ says what the host sized the node for:
 
 ## Retention is a setting
 
-`GPFORUM_EVENT_RETENTION_DAYS` (365, production-small's value) is how long
+`GPFORUM_EVENT_RETENTION_DAYS` (365) is how long
 the event log is kept. After that, the partitions job lists each monthly
 partition as due to detach. The job plans partitions over the lookahead the
-partition timer keeps (three months). Both values used to come with the
-size profile.
-
-## Old names
-
-`production-small` and `production-medium` were size profiles. They are now
-old names of `production`, read as it until v0.3.0. The start logs one line
-for each, and `gpforum doctor` lists it under `!` with the line to write:
-
-```text
-! GPFORUM_ENV=production-medium is now called production; write GPFORUM_ENV=production in the environment file in its place.
-    Fix: set GPFORUM_ENV=production in /etc/gpforum/gpforum.env
-```
-
-`production-medium` held the event log 730 days. To keep that, set
-`GPFORUM_EVENT_RETENTION_DAYS=730`. Every renamed setting is in
-`docs/DEPLOYMENT.md`, "Renamed settings".
+partition timer keeps (three months).
 
 ## No profile files
 
@@ -97,7 +81,7 @@ every setting.
 
 - `t/98-operational-profiles.t`, `t/509-defaults-meet-every-profile.t`;
 - `t/610-environment-is-where-not-how-big.t` for the three environments and
-  the old names;
+  the old size names refused;
 - `t/611-sized-from-the-host.t` for the size and doctor's line;
 - `t/613-event-retention-is-a-setting.t` for retention;
 - `t/01-config.t`, `t/33-health-readiness.t`, `t/39-platform-check-command.t`.

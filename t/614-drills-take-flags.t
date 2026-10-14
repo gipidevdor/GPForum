@@ -19,9 +19,9 @@ our $VERSION = '0.001';
 # The drills and the evidence helper took their ports, directories and output
 # from variables -- GPFORUM_PITR_PORT, GPFORUM_STANDBY_DIR,
 # GPFORUM_EVIDENCE_DIR -- where every other command takes flags (audit 2.2,
-# D4'). They take flags now. The old variables still work until v0.3.0, each
-# with one line naming the flag that replaces it. No case here starts a
-# cluster: each stops at its arguments.
+# D4'). They take flags now, and the old variables are not read: nothing was
+# released with them. No case here starts a cluster: each stops at its
+# arguments.
 
 const my $USAGE        => 2;
 const my $FAILURE      => 1;
@@ -30,18 +30,17 @@ const my $PITR_PORT    => 55_991;
 const my $PITR_TIMEOUT => 15;
 const my %DRILL => (
     'script/pitr-drill' => {
-        flags => [qw(--port --dir --keep --json --timeout --validate)],
-        old   => { GPFORUM_PITR_PORT => '--port', GPFORUM_PITR_DIR => '--dir' },
+        flags          => [qw(--port --dir --keep --json --timeout --validate)],
+        old            => [qw(GPFORUM_PITR_PORT GPFORUM_PITR_DIR)],
         refusal_status => $FAILURE,
         inline_help    => 1,
     },
     'script/standby-drill' => {
         flags => [qw(--primary-port --standby-port --dir --keep)],
-        old   => {
-            GPFORUM_STANDBY_PRIMARY_PORT => '--primary-port',
-            GPFORUM_STANDBY_PORT         => '--standby-port',
-            GPFORUM_STANDBY_DIR          => '--dir',
-        },
+        old   => [
+            qw(GPFORUM_STANDBY_PRIMARY_PORT GPFORUM_STANDBY_PORT
+              GPFORUM_STANDBY_DIR)
+        ],
         refusal_status => $USAGE,
         inline_help    => 0,
     },
@@ -94,16 +93,9 @@ for my $drill ( sort keys %DRILL ) {
         }
         ok( -e path( $caller, 'mine', 'notes.txt' ), 'and nothing is removed' );
 
-        for my $old ( sort keys %{ $DRILL{$drill}{old} } ) {
-            my $flag   = $DRILL{$drill}{old}{$old};
-            my $value  = $flag =~ /port/msx ? 'old' : '/tmp/gpforum-old';
-            my $result = _run( { $old => $value }, $drill, '--bogus' );
-            my ($name) = $drill =~ m{([^/]+) \z}msx;
-            is(
-                ( split /\n/msx, $result->{err} )[0],
-                "$name: $old is deprecated; use $flag $value",
-                "$old still reads, with one line naming $flag"
-            );
+        for my $old ( @{ $DRILL{$drill}{old} } ) {
+            my $result = _run( { $old => 'old' }, $drill, '--bogus' );
+            unlike( $result->{err}, qr/\Q$old\E/msx, "$old is not read" );
         }
     };
 }
@@ -190,14 +182,12 @@ subtest 'script/gpforum-evidence-live' => sub {
         'with no old variable in them' );
 
     my $old = _run( { GPFORUM_EVIDENCE_DIR => '/var/tmp/evidence' }, $helper );
-    is(
-        $old->{err},
-        'gpforum-evidence-live: GPFORUM_EVIDENCE_DIR is deprecated; use --out'
-          . " /var/tmp/evidence\n",
-        'GPFORUM_EVIDENCE_DIR still reads, in one line naming --out'
+    is( $old->{err}, q{}, 'GPFORUM_EVIDENCE_DIR is not read' );
+    like(
+        $old->{out},
+        qr/^ evidence_dir='\/tmp\/gpforum-evidence-live' $/msx,
+        'the default directory is used'
     );
-    like( $old->{out}, qr/^ evidence_dir='\/var\/tmp\/evidence' $/msx,
-        'and is used' );
 };
 
 done_testing();

@@ -284,10 +284,8 @@ sub _preflight (%input) {
         minimum_file_descriptor_limit => $given{floor},
         max_open_file_descriptors     => $given{max_open},
         profile                       => {
-            web_processes      => $WEB_PROCESSES,
-            worker_processes   => undef,
-            realtime_processes => 1,
-            os                 => {
+            web_processes => $WEB_PROCESSES,
+            os            => {
                 name                     => 'linux',
                 event_backend            => 'epoll',
                 cpu_count                => $CPU_COUNT,

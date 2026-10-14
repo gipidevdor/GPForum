@@ -60,10 +60,6 @@ sub startup ($self) {
         runtime        => $runtime,
         runtime_policy => $runtime_policy,
     );
-    GPForum::Bootstrap::Config->register(
-        application => $self,
-        config      => $config,
-    );
     GPForum::Bootstrap::Identity->register(
         application => $self,
         config      => $config,

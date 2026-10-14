@@ -36,7 +36,7 @@ isa_ok(
 isa_ok(
     GPForum::Service::Operations::CacheFactory->build(
         GPForum::Config->new(
-            environment    => 'production-small',
+            environment    => 'production',
             glifistore_url => q{},
         )
     ),
@@ -46,7 +46,7 @@ isa_ok(
 
 my $production = GPForum::Service::Operations::CacheFactory->build(
     GPForum::Config->new(
-        environment    => 'production-small',
+        environment    => 'production',
         glifistore_url => 'tcp://127.0.0.1:1',
         session_secret => 'rotated-production-secret',
     )

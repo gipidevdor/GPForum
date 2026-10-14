@@ -6,10 +6,7 @@ package main;
 use v5.40;
 
 use Const::Fast;
-use English    qw(-no_match_vars);
-use Mojo::File qw(tempfile);
-use Mojo::Log;
-use Mojolicious;
+use English qw(-no_match_vars);
 use Test::Exception;
 use Test::More;
 
@@ -29,8 +26,8 @@ const my $SMTPS_PORT => 465;
 # D11: GPFORUM_SMTP_SSL was a boolean that meant STARTTLS, off by default,
 # so an SMTP relay on 587 got its password in the clear unless the operator
 # knew to turn it on, and port 465 (TLS from the first byte) could not be
-# used at all. GPFORUM_SMTP_TLS names the three ways and follows the port;
-# the old name still reads, and the start says the line to write instead.
+# used at all. GPFORUM_SMTP_TLS names the three ways and follows the port.
+# Nothing was released with the old name, so it is not read.
 
 subtest 'TLS follows the port unless it is set' => sub {
     is( _tls( {} ), 'starttls', 'STARTTLS by default, for 587' );
@@ -58,84 +55,9 @@ subtest 'TLS follows the port unless it is set' => sub {
     );
 };
 
-subtest 'the old GPFORUM_SMTP_SSL still reads' => sub {
-    for my $word (qw(1 on yes true ON)) {
-        is( _tls( { GPFORUM_SMTP_SSL => $word } ),
-            'starttls', "GPFORUM_SMTP_SSL=$word is starttls" );
-    }
-    for my $word (qw(0 off no false)) {
-        is( _tls( { GPFORUM_SMTP_SSL => $word } ),
-            'off', "GPFORUM_SMTP_SSL=$word is off" );
-    }
-    is( _tls( { GPFORUM_SMTP_SSL => 1, GPFORUM_SMTP_TLS => 'implicit' } ),
-        'implicit', 'the new name wins when both are set' );
-
-    my $config = GPForum::Config->from_environment( { GPFORUM_SMTP_SSL => 1 } );
-    is_deeply(
-        $config->renamed_settings,
-        [
-            {
-                setting     => 'smtp_tls',
-                variable    => 'GPFORUM_SMTP_SSL',
-                replacement => 'GPFORUM_SMTP_TLS',
-                value       => 'starttls',
-            }
-        ],
-        'and the configuration notes the old name, with what it now holds'
-    );
-    is_deeply( GPForum::Config->from_environment( {} )->renamed_settings,
-        [], 'an environment without it notes nothing' );
-};
-
-subtest 'an old value it never took is refused under the old name' => sub {
-    my ($problem) = @{ _problems( { GPFORUM_SMTP_SSL => 'maybe' } ) };
-    is( $problem->{variable}, 'GPFORUM_SMTP_SSL',
-        'the name the operator wrote' );
-    is(
-        GPForum::Config::Report->render( [$problem] ),
-        join( "\n",
-            q{GPForum's settings need attention:},
-            q{},
-            q{  GPFORUM_SMTP_SSL must be on or off, not 'maybe'.},
-            '    Did you mean GPFORUM_SMTP_TLS=starttls?',
-            q{},
-            q{Set these in the service's environment file}
-              . ' (deploy/gpforum.env.example describes every setting),'
-              . ' then try again.' )
-          . "\n",
-        'with the new line to write'
-    );
-    my ($on_465) =
-      @{ _problems( { GPFORUM_SMTP_SSL => 'maybe', GPFORUM_SMTP_PORT => 465 } )
-      };
-    is( $on_465->{suggestion}, 'GPFORUM_SMTP_TLS=implicit',
-        'which follows the port' );
-};
-
-subtest 'the start says the line to write instead' => sub {
-    my $config = GPForum::Config->from_environment( { GPFORUM_SMTP_SSL => 1 } );
-    my $file   = tempfile;
-    my $application = Mojolicious->new;
-    $application->log( Mojo::Log->new( path => "$file" ) );
-    {
-        local $ENV{LC_ALL} = 'en_US.UTF-8';
-        GPForum::Bootstrap::Config->register(
-            application => $application,
-            config      => $config,
-        );
-    }
-    my $warning = 'GPFORUM_SMTP_SSL is now called GPFORUM_SMTP_TLS; write'
-      . ' GPFORUM_SMTP_TLS=starttls in the environment file in its place.';
-    like( $file->slurp, qr/[[]warn[]] [ ] \Q$warning\E/msx, 'in English' );
-    is(
-        GPForum::Bootstrap::Config->renamed_warning(
-            $config->renamed_settings->[0],
-            GPForum::Service::I18N::CliCatalog->new( language => 'it' )
-        ),
-        'GPFORUM_SMTP_SSL ora si chiama GPFORUM_SMTP_TLS; scrivi'
-          . q{ GPFORUM_SMTP_TLS=starttls nel file d'ambiente al suo posto.},
-        'and in Italian'
-    );
+subtest 'the old GPFORUM_SMTP_SSL is not read' => sub {
+    is( _tls( { GPFORUM_SMTP_SSL => 'off' } ),
+        'starttls', 'GPFORUM_SMTP_SSL=off leaves the default' );
 };
 
 subtest 'a host that cannot speak TLS is told so at the start' => sub {
@@ -212,8 +134,8 @@ subtest 'a host that cannot speak TLS is told so at the start' => sub {
     );
 };
 
-subtest 'the settings page shows it under its new name' => sub {
-    my $environment = { GPFORUM_SMTP_SSL => 'on' };
+subtest 'the settings page shows it' => sub {
+    my $environment = { GPFORUM_SMTP_TLS => 'starttls' };
     my $view        = GPForum::Service::Admin::Settings->new(
         config      => GPForum::Config->from_environment($environment),
         environment => $environment,
@@ -221,10 +143,9 @@ subtest 'the settings page shows it under its new name' => sub {
     my %by_env =
       map { $_->{env} => $_ }
       map { @{ $_->{settings} } } @{ $view->{sections} };
-    ok( !exists $by_env{GPFORUM_SMTP_SSL}, 'not under the old one' );
     is( $by_env{GPFORUM_SMTP_TLS}{value}, 'starttls', 'with its value' );
     is( $by_env{GPFORUM_SMTP_TLS}{source},
-        'environment', 'which the environment gave it, by its old name' );
+        'environment', 'which the environment gave it' );
 };
 
 subtest 'the mailer connects the way the setting says' => sub {

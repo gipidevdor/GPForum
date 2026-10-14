@@ -7,23 +7,11 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
-use GPForum::Config;
 use GPForum::Config::Report;
 
 our $VERSION = '0.001';
 
 const my $REDACTED => '[redacted]';
-
-# The old names of each renamed setting, by its new one: an environment that
-# still sets an old one gave the value the page shows.
-const my %OLD_NAMES => map { $_->[0] => $_->[1] }
-  grep { @{ $_->[1] } }
-  map {
-    [
-        $_->{env},
-        [ map { exists $_->{env} ? $_->{env} : () } @{ $_->{aliases} } ]
-    ]
-  } @{ GPForum::Config->settings };
 
 # Where an operator changes what this page shows. Configuration lives in the
 # service's environment by design (GPForum::Config); the console reads it and
@@ -42,9 +30,7 @@ const my %CHANGE => (
 # Every variable GPForum::Config reads, with the Config attribute holding its
 # effective value, grouped as an operator looks for them. t/212 fails when
 # Config reads a GPFORUM_ variable missing here, so a new setting cannot be
-# left off the page. A renamed setting is listed under its new name only,
-# with the value the old one gave it (audit 5.6). A retired setting has no
-# effect, so it is not listed: the start names it, to remove.
+# left off the page.
 const my @SECTIONS => (
     {
         name     => 'application',
@@ -334,19 +320,11 @@ sub _setting ( $self, $env_name, $attribute, $secrets ) {
     };
 }
 
-# Config takes a variable when it is present and not empty, as here, and a
-# renamed setting's old name when the new one is not.
+# Config takes a variable when it is present and not empty, as here.
 sub _source ( $self, $env_name ) {
-    my @names = (
-        $env_name,
-        exists $OLD_NAMES{$env_name} ? @{ $OLD_NAMES{$env_name} } : ()
-    );
-    for my $name (@names) {
-        my $raw = $self->environment->{$name};
-        return 'environment' if defined $raw && length $raw;
-    }
+    my $raw = $self->environment->{$env_name};
 
-    return 'default';
+    return defined $raw && length $raw ? 'environment' : 'default';
 }
 
 sub _text ($value) {

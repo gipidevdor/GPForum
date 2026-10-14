@@ -47,10 +47,8 @@ my $config   = GPForum::Config->new(
 $config->validate;
 
 my $runtime = GPForum::Runtime->new(
-    web_processes      => $WEB_PROCESSES,
-    worker_processes   => 1,
-    realtime_processes => 1,
-    os_profile         => GPForum::Test::OSTinyLinux->new(
+    web_processes => $WEB_PROCESSES,
+    os_profile    => GPForum::Test::OSTinyLinux->new(
         resource_probe => $resource,
     ),
     os_feature_settings => $config->os_feature_settings,

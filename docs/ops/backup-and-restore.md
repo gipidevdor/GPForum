@@ -339,9 +339,7 @@ Without `--keep`, only the owned workspace is removed; an originally empty
 directory is left empty.
 An occupied or symlink workspace is refused with exit 1 and, with `--json`,
 `reason=owned_workspace_refused`; existing files are preserved. Malformed
-arguments use exit 2. The deprecated `GPFORUM_PITR_PORT` and `GPFORUM_PITR_DIR`
-adapter remains until v0.3.0, warns with the replacement flag, and gives explicit
-`--port`/`--dir` flags precedence.
+arguments use exit 2.
 TERM/INT and command timeouts converge on cleanup. SIGKILL or a
 host crash cannot run cleanup: inspect the owned workspace before removing it.
 Publish only the evidence JSON and `.log` files as CI artifacts, with finite

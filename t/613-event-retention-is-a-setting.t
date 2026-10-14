@@ -34,7 +34,7 @@ const my $LOOKAHEAD    => 3;
 const my $SECRET       => 's' x 64;
 
 subtest 'a plain setting, the same in every environment' => sub {
-    for my $environment (qw(development staging production production-medium)) {
+    for my $environment (qw(development staging production)) {
         is(
             GPForum::Config->from_environment(
                 {
@@ -83,7 +83,7 @@ subtest 'the partitions job reads it, and the timer horizon' => sub {
     );
     is(
         GPForum::Service::Operations::PartitionLifecycle->new->lookahead_months,
-        $LOOKAHEAD, q{three months, production-small's horizon}
+        $LOOKAHEAD, 'three months'
     );
 };
 

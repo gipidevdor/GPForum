@@ -595,8 +595,7 @@ name mentions a password, secret, token, authorization or credential.
 Without a C<config>, the settings come from
 L<GPForum::Config/from_environment>: C<GPFORUM_MAIL_TRANSPORT>,
 C<GPFORUM_MAIL_FROM>, C<GPFORUM_PUBLIC_BASE_URL>, C<GPFORUM_SMTP_HOST>,
-C<GPFORUM_SMTP_PORT>, C<GPFORUM_SMTP_TLS> (or its old name
-C<GPFORUM_SMTP_SSL>), C<GPFORUM_SMTP_USERNAME> and C<GPFORUM_SMTP_PASSWORD>.
+C<GPFORUM_SMTP_PORT>, C<GPFORUM_SMTP_TLS>, C<GPFORUM_SMTP_USERNAME> and C<GPFORUM_SMTP_PASSWORD>.
 The evidence's C<config.smtp> gives C<tls> (C<starttls>, C<implicit> or
 C<off>) and, for the archived runs that read it, C<ssl> (1 unless C<off>).
 The C<sendmail> lookup reads C<PATH>.

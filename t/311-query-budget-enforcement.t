@@ -23,18 +23,12 @@ our $VERSION = '0.001';
 const my $HTTP_OK                => 200;
 const my $OVER_SEARCH_BUDGET     => 4;
 const my $CLIENT_TIMEOUT_SECONDS => 1;
-const my @SERVER_ENVIRONMENTS => qw(
-  production
-  production-small
-  production-medium
-  staging
-);
-const my @LOCAL_ENVIRONMENTS => qw(development test testing);
+const my @SERVER_ENVIRONMENTS    => qw(production staging);
+const my @LOCAL_ENVIRONMENTS     => qw(development test testing);
 
 # GPFORUM_QUERY_BUDGET_ENFORCE=1 turns a breached budget into a failed
-# response, for tests and benchmarks. Every server profile ignores it: only
-# the name 'production' used to, so production-small, production-medium and
-# staging failed real responses when the flag was left set on a server.
+# response, for tests and benchmarks. Every server profile ignores it: a
+# flag left set on a server must not fail real responses.
 local $ENV{GPFORUM_QUERY_BUDGET_ENFORCE}    = 1;
 local $ENV{GPFORUM_BENCHMARK_QUERY_HEADERS} = 1;
 
@@ -43,7 +37,7 @@ local $ENV{GPFORUM_BENCHMARK_QUERY_HEADERS} = 1;
 # shows the breach it observed.
 for my $environment (@SERVER_ENVIRONMENTS) {
     my $client   = _over_budget_client($environment);
-    my $observed = $environment =~ /\A production/msx ? undef : 'fail';
+    my $observed = $environment eq 'production' ? undef : 'fail';
     $client->{test}->get_ok('/__budget/search')
       ->status_is( $HTTP_OK, "$environment ignores the enforcement flag" )
       ->header_is(

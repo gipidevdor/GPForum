@@ -50,8 +50,7 @@ sub new ( $class, $options = {} ) {
 
 sub main (@arguments) {
     my %options = ( port => DEFAULT_PORT, timeout => DEFAULT_TIMEOUT );
-    _deprecated_defaults( \%options );
-    my $valid = GetOptionsFromArray(
+    my $valid   = GetOptionsFromArray(
         \@arguments, \%options, 'port=i',    'dir=s',
         'keep',      'json',    'timeout=f', 'validate=s',
         'help|h'
@@ -95,24 +94,6 @@ sub _valid_options ($options) {
       && $options->{port} <= MAX_PORT
       && $options->{timeout} >= MIN_TIMEOUT
       && $options->{timeout} <= MAX_TIMEOUT;
-}
-
-# Keep the documented pre-v0.3.0 adapter. Defaults are assigned before option
-# parsing so explicit flags always win, including over invalid old values.
-sub _deprecated_defaults ($options) {
-    for my $name (qw(port dir)) {
-        my $variable = 'GPFORUM_PITR_' . uc $name;
-        my $value    = $ENV{$variable};
-        next if !defined $value || $value eq q{};
-        my $printed = redact($value);
-        $printed =~ s/\r/\\r/gmsx;
-        $printed =~ s/\n/\\n/gmsx;
-        print {*STDERR}
-          "pitr-drill: $variable is deprecated; use --$name $printed\n"
-          or croak 'Cannot write deprecated setting warning';
-        $options->{$name} = $value;
-    }
-    return undef;
 }
 
 sub _usage {

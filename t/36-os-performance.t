@@ -98,8 +98,6 @@ ok( $linux->supports_sendfile,  'Linux profile supports sendfile' );
 
 my $runtime = GPForum::Runtime->new(
     web_processes       => $WEB_PROCESSES,
-    worker_processes    => 1,
-    realtime_processes  => 1,
     os_profile          => $linux,
     os_feature_settings => { reuseport => 'off' },
 );

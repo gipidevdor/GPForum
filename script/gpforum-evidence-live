@@ -37,18 +37,6 @@ mode=commands
 env_file=/tmp/gpforum-evidence.env
 out=/tmp/gpforum-evidence-live
 
-# GPFORUM_EVIDENCE_ENV_FILE and GPFORUM_EVIDENCE_DIR were read by the printed
-# commands; they are flags now (audit D4'), read until v0.3.0 with a note
-# naming the flag.
-if [ -n "${GPFORUM_EVIDENCE_ENV_FILE:-}" ]; then
-    echo "gpforum-evidence-live: GPFORUM_EVIDENCE_ENV_FILE is deprecated; use --env-file $GPFORUM_EVIDENCE_ENV_FILE" >&2
-    env_file=$GPFORUM_EVIDENCE_ENV_FILE
-fi
-if [ -n "${GPFORUM_EVIDENCE_DIR:-}" ]; then
-    echo "gpforum-evidence-live: GPFORUM_EVIDENCE_DIR is deprecated; use --out $GPFORUM_EVIDENCE_DIR" >&2
-    out=$GPFORUM_EVIDENCE_DIR
-fi
-
 while [ $# -gt 0 ]; do
     case "$1" in
         --commands)

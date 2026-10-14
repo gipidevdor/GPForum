@@ -259,49 +259,7 @@ sudo gpforum secret rotate metrics --finish     # once every scraper sends the n
 Both commands keep the file's owner and mode, print no secret, and say each
 next step. `--dry-run` says what would change.
 
-## Retired settings
-
-A setting that no longer has any effect is still accepted, whatever it
-holds, so an old environment file keeps starting; each start logs one line
-naming it, such as `GPFORUM_WORKER_PROCESSES no longer has any effect;
-remove it from the environment file.` Remove the line when you next edit the
-file.
-
-| Setting | Retired in | Why |
-| --- | --- | --- |
-| `GPFORUM_WORKER_PROCESSES` | Unreleased | Nothing started processes from it; the outbox worker and the timers are their own units. |
-| `GPFORUM_REALTIME_PROCESSES` | Unreleased | Live updates run inside each web process. |
-| `GPFORUM_OS_AFFINITY` | Unreleased | It only flipped a reported flag; CPU affinity is a non-goal. |
-
-### Renamed settings
-
-An old name, or an old value, is still read until the release in the table
-(ADR 0125). A renamed setting is read under its old name while the new one
-is not set; an old value is read as the one it is now called. Each start
-logs the line to write instead, and `gpforum doctor` lists it under `!`
-with that line:
-
-```text
-! GPFORUM_ENV=production-medium is now called production; write GPFORUM_ENV=production in the environment file in its place.
-    Fix: set GPFORUM_ENV=production in /etc/gpforum/gpforum.env
-```
-
-The settings page shows each under its new name. The drills are
-maintainer tools: an old variable prints one line naming its flag.
-
-| Old name | Write instead | Renamed in | Read until | Notes |
-| --- | --- | --- | --- | --- |
-| `GPFORUM_SMTP_SSL` | `GPFORUM_SMTP_TLS` | Unreleased | v0.3.0 | `on` (or `1`, `yes`, `true`) is `starttls`, `off` (or `0`, `no`, `false`) is `off`. Unset, the new default follows the port: `implicit` on 465, `starttls` on any other. |
-| `GPFORUM_ENV=production-small` | `GPFORUM_ENV=production` | Unreleased | v0.3.0 | The size comes from the host, and its other values are production's defaults. |
-| `GPFORUM_ENV=production-medium` | `GPFORUM_ENV=production` | Unreleased | v0.3.0 | The size comes from the host. It kept the event log 730 days: add `GPFORUM_EVENT_RETENTION_DAYS=730` to keep them. |
-| `GPFORUM_PITR_PORT`, `GPFORUM_PITR_DIR` | `script/pitr-drill --port N --dir PATH` | Unreleased | v0.3.0 | |
-| `GPFORUM_STANDBY_PRIMARY_PORT`, `GPFORUM_STANDBY_PORT`, `GPFORUM_STANDBY_DIR` | `script/standby-drill --primary-port N --standby-port N --dir PATH` | Unreleased | v0.3.0 | |
-| `GPFORUM_EVIDENCE_DIR`, `GPFORUM_EVIDENCE_ENV_FILE` | `script/gpforum-evidence-live --out DIR --env-file PATH` | Unreleased | v0.3.0 | |
-
-`GPFORUM_LOCAL_CACHE_MAX_ENTRIES` keeps its name; its default is `auto` now,
-sized from the host's memory. Set `4096` to keep the old fixed size.
-
-Values production refuses now, which an older release took:
+## Values production refuses
 
 | Setting | Refused | Why |
 | --- | --- | --- |

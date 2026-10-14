@@ -15,6 +15,23 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
+- **Write the new names of the old settings and drill variables by hand.**
+  Nothing was released with the old ones, so they are no longer read, and
+  neither the start, `gpforum setup` nor `gpforum doctor` mentions them (ADR
+  0125, amended). An old `GPFORUM_ENV` value now stops the start. In the
+  environment file: `GPFORUM_ENV=production-small` or `production-medium`
+  becomes `GPFORUM_ENV=production` (add `GPFORUM_EVENT_RETENTION_DAYS=730` to
+  keep production-medium's retention); `GPFORUM_SMTP_SSL=on` becomes
+  `GPFORUM_SMTP_TLS=starttls` and `GPFORUM_SMTP_SSL=off` becomes
+  `GPFORUM_SMTP_TLS=off`; remove `GPFORUM_WORKER_PROCESSES`,
+  `GPFORUM_REALTIME_PROCESSES` and `GPFORUM_OS_AFFINITY`, which had no
+  effect. For the drills: `GPFORUM_PITR_PORT` and `GPFORUM_PITR_DIR` become
+  `script/pitr-drill --port N --dir PATH`; `GPFORUM_STANDBY_PRIMARY_PORT`,
+  `GPFORUM_STANDBY_PORT` and `GPFORUM_STANDBY_DIR` become `script/standby-drill
+  --primary-port N --standby-port N --dir PATH`; `GPFORUM_EVIDENCE_DIR` and
+  `GPFORUM_EVIDENCE_ENV_FILE` become `script/gpforum-evidence-live --out DIR
+  --env-file PATH`.
+
 - **Apply migration 103 before starting the draft-enabled application.** It adds
   private composer storage and new draft/publication/export/erasure routine
   versions. Drain the old processes, migrate with the migration owner, provision

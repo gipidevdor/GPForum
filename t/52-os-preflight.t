@@ -139,11 +139,9 @@ ok( _has_check_status( $swap_report, 'swap_pressure', 'degraded' ),
 # Under the configured worker policy Hypnotoad is given all three; under
 # cap-to-cpu, the default, it would be given two (t/471).
 my $tiny_runtime = GPForum::Runtime->new(
-    web_processes      => 3,
-    worker_processes   => 1,
-    realtime_processes => 1,
-    worker_policy      => 'configured',
-    os_profile         => GPForum::Test::OSTinyLinux->new(
+    web_processes => 3,
+    worker_policy => 'configured',
+    os_profile    => GPForum::Test::OSTinyLinux->new(
         resource_probe => $resource,
     ),
     os_feature_settings => _default_feature_settings(),
@@ -197,8 +195,6 @@ sub _runtime_for_os {
 
     return GPForum::Runtime->new(
         web_processes       => 2,
-        worker_processes    => 1,
-        realtime_processes  => 1,
         os_profile          => $os,
         os_feature_settings => $features || _default_feature_settings(),
     );

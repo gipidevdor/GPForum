@@ -177,11 +177,11 @@ is( $undersized->{checks}[$PROFILE_CHECK_INDEX]{status},
 
 my $missing_l2 = GPForum::Service::Operations::Readiness->new(
     config => GPForum::Config->new(
-        environment    => 'production-small',
+        environment    => 'production',
         glifistore_url => q{},
         session_secret => 'rotated-production-secret',
     ),
-    environment    => 'production-small',
+    environment    => 'production',
     glifistore_url => q{},
     runtime        => GPForum::Test::ReadinessRuntime->new,
     schema         => GPForum::Test::ReadinessSchema->new,

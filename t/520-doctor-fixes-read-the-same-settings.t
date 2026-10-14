@@ -91,11 +91,7 @@ subtest 'a missing secret is written where the settings were read' => sub {
 subtest 'a setting the shell holds is fixed in the shell' => sub {
     my $file = path( $directory, 'shell.env' );
     $file->spew("GPFORUM_ENV=production\n");
-    my %environment = (
-        %PRODUCTION,
-        GPFORUM_ENV              => 'prod',
-        GPFORUM_WORKER_PROCESSES => '4',
-    );
+    my %environment = ( %PRODUCTION, GPFORUM_ENV => 'prod' );
 
     my $text = _doctor(
         \%environment,
@@ -106,29 +102,6 @@ subtest 'a setting the shell holds is fixed in the shell' => sub {
         $text,
 qr/Fix: [ ] set [ ] GPFORUM_ENV=production [ ] in [ ] your [ ] shell's/msx,
         'the process environment wins over the file, so it is changed there'
-    );
-
-    $environment{GPFORUM_ENV} = 'production';
-    $text = _doctor(
-        \%environment,
-        file     => "$file",
-        assigned => ['GPFORUM_ENV'],
-    )->check->{findings}->human_text;
-    like(
-        $text,
-        qr/Fix: [ ] unset [ ] GPFORUM_WORKER_PROCESSES$/msx,
-        'and a retired setting the shell holds is unset there'
-    );
-
-    $text = _doctor(
-        \%environment,
-        file     => "$file",
-        assigned => [ keys %environment ],
-    )->check->{findings}->human_text;
-    like(
-        $text,
-        qr/remove [ ] the [ ] GPFORUM_WORKER_PROCESSES [ ] line [ ] from/msx,
-        'while one the file set is removed from the file'
     );
 };
 

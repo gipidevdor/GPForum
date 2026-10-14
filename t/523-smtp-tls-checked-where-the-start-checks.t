@@ -111,52 +111,6 @@ subtest 'doctor refuses the settings the start refuses' => sub {
     is( $findings->document->[0]{status}, 'ok', 'and said so' );
 };
 
-subtest 'doctor warns of an old name, as the start does' => sub {
-    my %old = ( %production, GPFORUM_SMTP_SSL => 'off' );
-    my ( $findings, $config ) =
-      _doctor_settings( \%old, 1, assigned => ['GPFORUM_SMTP_SSL'] );
-    ok( $config, 'an old name does not stop anything' );
-    my ($renamed) =
-      grep { $_->{status} eq 'degraded' } @{ $findings->document };
-    is(
-        $renamed->{message},
-        'GPFORUM_SMTP_SSL is now called GPFORUM_SMTP_TLS; write'
-          . ' GPFORUM_SMTP_TLS=off in the environment file in its place.',
-        'the line to write instead'
-    );
-    is_deeply(
-        $renamed->{fixes},
-        [
-            'set GPFORUM_SMTP_TLS=off in /etc/gpforum/gpforum.env',
-            'remove the GPFORUM_SMTP_SSL line from /etc/gpforum/gpforum.env'
-        ],
-        'the new line to write, then the old one to remove: removed alone,'
-          . ' off would turn into starttls'
-    );
-
-    ( $findings, $config ) = _doctor_settings( \%old, 1, assigned => [] );
-    ($renamed) =
-      grep { $_->{status} eq 'degraded' } @{ $findings->document };
-    is_deeply(
-        $renamed->{fixes},
-        [
-            q{set GPFORUM_SMTP_TLS=off in your shell's environment},
-            'unset GPFORUM_SMTP_SSL'
-        ],
-        'or the shell, when it set the old name'
-    );
-
-    my %both = ( %old, GPFORUM_SMTP_TLS => 'implicit' );
-    ( $findings, $config ) = _doctor_settings( \%both, 1 );
-    ($renamed) =
-      grep { $_->{status} eq 'degraded' } @{ $findings->document };
-    is_deeply(
-        $renamed->{fixes},
-        ['remove the GPFORUM_SMTP_SSL line from /etc/gpforum/gpforum.env'],
-        'and only the old line to remove, when the new one is set too'
-    );
-};
-
 subtest 'mail-check stops as the start does, before the relay' => sub {
     no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- this Perl's answer, replaced for the test
     local *GPForum::Config::smtp_can_tls = sub { return 0 };

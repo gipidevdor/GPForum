@@ -286,96 +286,65 @@ is( fixture( {}, { dir => $link } )->run->{reason},
     'owned_workspace_refused', 'symlink workspace rejected' );
 ok( -l $link, 'rejected link preserved' );
 
-sub check_legacy_adapter ( $directory, $occupied, $link ) {
-    my $legacy_directory = File::Spec->catdir( $directory, 'legacy-owned' );
-    my $legacy           = cli_fixture(
+sub check_flags ( $directory, $occupied, $link ) {
+    my $ignored = cli_fixture(
         {
             GPFORUM_PITR_PORT => LEGACY_PORT,
-            GPFORUM_PITR_DIR  => $legacy_directory
+            GPFORUM_PITR_DIR  => $occupied
         },
-        [ '--json', '--keep' ]
+        ['--json']
     );
-    is( $legacy->{status}, 1,
-        'legacy settings reach safe missing-tool failure' );
-    my $legacy_evidence = JSON::PP->new->decode( $legacy->{out} );
-    is( $legacy_evidence->{configuration}->{port},
-        LEGACY_PORT, 'deprecated port becomes actual numeric configuration' );
-    is( $legacy_evidence->{reason},
-        'missing_required_tool',
-        'legacy directory accepted without bypassing mandatory tools' );
-    ok( -d $legacy_directory && $legacy_evidence->{cleanup}->{server_stopped},
-        'legacy keep directory retained without a server' );
-    like(
-        $legacy->{err},
-        qr/GPFORUM_PITR_PORT[ ]is[ ]deprecated;[ ]use[ ]--port/msx,
-        'deprecated port warns with replacement flag'
-    );
-    like(
-        $legacy->{err},
-        qr/GPFORUM_PITR_DIR[ ]is[ ]deprecated;[ ]use[ ]--dir/msx,
-        'deprecated directory warns with replacement flag'
-    );
-    ok(
-        GPForum::PostgreSQL::PITR::validate($legacy_evidence),
-        'legacy configuration produces valid failure evidence'
-    );
+    my $ignored_evidence = JSON::PP->new->decode( $ignored->{out} );
+    isnt( $ignored_evidence->{configuration}->{port},
+        LEGACY_PORT, 'the old GPFORUM_PITR_PORT is not read' );
+    is( $ignored_evidence->{reason},
+        'missing_required_tool', 'nor the old GPFORUM_PITR_DIR' );
+    unlike( $ignored->{err}, qr/GPFORUM_PITR/msx, 'and neither is named' );
 
     my $flag_directory = File::Spec->catdir( $directory, 'flag-owned' );
-    my $precedence     = cli_fixture(
-        { GPFORUM_PITR_PORT => 'many', GPFORUM_PITR_DIR => $occupied },
-        [ '--port', FLAG_PORT, '--dir', $flag_directory, '--json' ]
-    );
-    my $flag_evidence = JSON::PP->new->decode( $precedence->{out} );
-    is( $precedence->{status}, 1,
-        'explicit flags override invalid legacy defaults' );
+    my $flags          = cli_fixture( {},
+        [ '--port', FLAG_PORT, '--dir', $flag_directory, '--json', '--keep' ] );
+    my $flag_evidence = JSON::PP->new->decode( $flags->{out} );
+    is( $flags->{status}, 1, 'flags reach safe missing-tool failure' );
     is( $flag_evidence->{configuration}->{port},
-        FLAG_PORT, 'explicit port takes precedence' );
-    is( $flag_evidence->{reason}, 'missing_required_tool',
-        'explicit new directory takes precedence over occupied legacy directory'
-    );
-    is(
-        read_file( File::Spec->catfile( $occupied, 'preserve' ) ),
-        'application bytes',
-        'overridden legacy directory remains untouched'
+        FLAG_PORT, '--port becomes actual numeric configuration' );
+    is( $flag_evidence->{reason},
+        'missing_required_tool',
+        '--dir accepted without bypassing mandatory tools' );
+    ok( -d $flag_directory && $flag_evidence->{cleanup}->{server_stopped},
+        '--keep directory retained without a server' );
+    ok(
+        GPForum::PostgreSQL::PITR::validate($flag_evidence),
+        'flag configuration produces valid failure evidence'
     );
 
     for my $invalid (qw(many 12.5 0 65536)) {
-        my $result =
-          cli_fixture( { GPFORUM_PITR_PORT => $invalid }, ['--json'] );
-        is( $result->{status}, 2,
-            "invalid legacy port $invalid is usage error" );
+        my $result = cli_fixture( {}, [ '--port', $invalid, '--json' ] );
+        is( $result->{status}, 2, "invalid port $invalid is usage error" );
         is( $result->{out}, q{},
             'invalid port starts no drill and emits no evidence' );
     }
 
     for my $path ( $occupied, $link ) {
-        my $result = cli_fixture( { GPFORUM_PITR_DIR => $path }, ['--json'] );
+        my $result = cli_fixture( {}, [ '--dir', $path, '--json' ] );
         is( $result->{status}, 1,
-            'unsafe legacy workspace fails without running tools' );
+            'unsafe workspace fails without running tools' );
         is(
             JSON::PP->new->decode( $result->{out} )->{reason},
             'owned_workspace_refused',
-            'unsafe legacy workspace uses modern JSON failure'
+            'unsafe workspace uses modern JSON failure'
         );
     }
     is(
         read_file( File::Spec->catfile( $occupied, 'preserve' ) ),
         'application bytes',
-        'refused legacy directory preserves existing bytes'
+        'refused directory preserves existing bytes'
     );
-    ok( -l $link, 'refused legacy symlink remains unchanged' );
-    my $empty_legacy =
-      cli_fixture( { GPFORUM_PITR_PORT => q{}, GPFORUM_PITR_DIR => q{} },
-        ['--json'] );
-    unlike(
-        $empty_legacy->{err},
-        qr/is[ ]deprecated/msx,
-        'empty legacy environment does not emit deprecation warning'
-    );
+    ok( -l $link, 'refused symlink remains unchanged' );
     return undef;
 }
 
-check_legacy_adapter( $directory, $occupied, $link );
+check_flags( $directory, $occupied, $link );
 
 my $empty = File::Spec->catdir( $directory, 'empty' );
 mkdir $empty, PRIVATE_MODE or croak 'Cannot make empty fixture';

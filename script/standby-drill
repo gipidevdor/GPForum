@@ -24,22 +24,6 @@ usage() {
     exit 2
 }
 
-# GPFORUM_STANDBY_PRIMARY_PORT, GPFORUM_STANDBY_PORT and GPFORUM_STANDBY_DIR
-# were this drill's settings; they are flags now, as every other command's
-# (audit D4'), read until v0.3.0 with a note naming the flag.
-if [ -n "${GPFORUM_STANDBY_PRIMARY_PORT:-}" ]; then
-    echo "standby-drill: GPFORUM_STANDBY_PRIMARY_PORT is deprecated; use --primary-port $GPFORUM_STANDBY_PRIMARY_PORT" >&2
-    primary_port=$GPFORUM_STANDBY_PRIMARY_PORT
-fi
-if [ -n "${GPFORUM_STANDBY_PORT:-}" ]; then
-    echo "standby-drill: GPFORUM_STANDBY_PORT is deprecated; use --standby-port $GPFORUM_STANDBY_PORT" >&2
-    standby_port=$GPFORUM_STANDBY_PORT
-fi
-if [ -n "${GPFORUM_STANDBY_DIR:-}" ]; then
-    echo "standby-drill: GPFORUM_STANDBY_DIR is deprecated; use --dir $GPFORUM_STANDBY_DIR" >&2
-    workdir=$GPFORUM_STANDBY_DIR
-fi
-
 while [ $# -gt 0 ]; do
     case "$1" in
         --keep) keep=1 ;;

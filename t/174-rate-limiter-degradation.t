@@ -221,8 +221,6 @@ subtest 'degradation policy derives its mode from the environment' => sub {
         1, 'staging fails closed' );
     is( _policy_for_environment('production')->fail_closed,
         1, 'production fails closed' );
-    is( _policy_for_environment('production-small')->fail_closed,
-        1, 'production profiles fail closed' );
     is( _policy_for_environment(undef)->fail_closed,
         1, 'an unknown environment fails closed' );
 

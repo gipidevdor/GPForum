@@ -54,22 +54,13 @@ is_deeply(
 );
 is_deeply(
     [ sort keys %assigned, keys %advanced ],
-    [ sort map { $_->{env} } grep { !$_->{retired} } @{$settings} ],
-    'every other current setting is there once, commented out'
-);
-is_deeply(
-    [
-        grep { $assigned{ $_->{env} } || $advanced{ $_->{env} } }
-        grep { $_->{retired} } @{$settings}
-    ],
-    [],
-    'a retired setting is not offered'
+    [ sort map { $_->{env} } @{$settings} ],
+    'every other setting is there once, commented out'
 );
 is_deeply(
     [
         map  { $_->{env} }
-        grep { index( $shipped, "# $_->{summary}\n" ) < 0 }
-        grep { !$_->{retired} } @{$settings}
+        grep { index( $shipped, "# $_->{summary}\n" ) < 0 } @{$settings}
     ],
     [],
     'each with its one-line summary'

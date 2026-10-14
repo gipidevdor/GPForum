@@ -531,7 +531,6 @@ actual reactor is in [ops/reactor-backend.md](ops/reactor-backend.md).
 | Setting | Values | Meaning |
 | --- | --- | --- |
 | `GPFORUM_OS_REUSEPORT` | `auto`, `on`, `off` | `SO_REUSEPORT` on the listen URL where supported |
-| `GPFORUM_OS_AFFINITY` | retired | accepted and ignored, with a warning at start (it was a declaration, never applied) |
 | `GPFORUM_OS_MIN_RECOMMENDED_WORKERS` | integer | floor for the worker recommendation |
 | `GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS` | integer | the descriptor floor, 65,536 by default |
 

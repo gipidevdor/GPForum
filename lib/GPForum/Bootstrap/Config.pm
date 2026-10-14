@@ -9,7 +9,6 @@ use Mojo::Util qw(encode);
 use v5.40;
 
 use GPForum::Config;
-use GPForum::Config::Report;
 use GPForum::Service::I18N::CliCatalog;
 use GPForum::X::Config;
 
@@ -19,10 +18,6 @@ our $VERSION = '0.001';
 # script can tell apart from a crash (255, which Perl gives any uncaught
 # exception) and from a failed run (1).
 const my $EX_CONFIG => 78;
-
-# What a process that logged the old settings' warnings tells the one it
-# runs in its place (GPForum::CLI::start, before it runs Hypnotoad).
-const our $WARNED => 'GPFORUM_SETTINGS_WARNED';
 
 # The configuration the application starts with. When it is wrong, every
 # problem is reported at once, in the operator's language, and the start
@@ -81,37 +76,6 @@ sub _refuse ($problems) {
     );
 }
 
-# Once the log is set up: one warning for each retired setting the
-# environment still sets, so an old environment file starts and says what to
-# remove, and one for each old name, with the line that replaces it. Once a
-# start: gpforum start --service logs them, then runs Hypnotoad in its
-# place, which built the application again and logged each a second time,
-# 0.9 s later; it now says, in GPFORUM_SETTINGS_WARNED, that they were.
-sub register ( $class, %input ) {
-    return if $ENV{$WARNED};
-
-    my $catalog = GPForum::Service::I18N::CliCatalog->new;
-    my $log     = $input{application}->log;
-    for my $variable ( @{ $input{config}->retired_settings } ) {
-        $log->warn(
-            $catalog->text( 'config.retired', { variable => $variable } ) );
-    }
-    for my $renamed ( @{ $input{config}->renamed_settings } ) {
-        $log->warn( $class->renamed_warning( $renamed, $catalog ) );
-    }
-
-    return;
-}
-
-# The sentence for one old name or old value: the variable, what it is now
-# called and the line to write instead, such as GPFORUM_SMTP_TLS=starttls or
-# GPFORUM_ENV=production.
-sub renamed_warning ( $class, $renamed, $catalog = undef ) {
-    $catalog //= GPForum::Service::I18N::CliCatalog->new;
-
-    return $catalog->text( @{ GPForum::Config::Report->renamed($renamed) } );
-}
-
 1;
 
 __END__
@@ -127,20 +91,13 @@ Version 0.001.
 =head1 SYNOPSIS
 
     my $config = GPForum::Bootstrap::Config->load;
-    ...
-    GPForum::Bootstrap::Config->register(
-        application => $app,
-        config      => $config,
-    );
 
 =head1 DESCRIPTION
 
 Reads L<GPForum::Config> from the environment for the application's start.
 A configuration with problems stops the start with every problem listed in
 the operator's language (L<GPForum::Service::I18N::CliCatalog>) and exit
-status 78, EX_CONFIG. Once the log is configured, L</register> warns of each
-retired setting the environment still sets, and of each setting it still
-names by an old name.
+status 78, EX_CONFIG.
 
 =head1 SUBROUTINES/METHODS
 
@@ -166,23 +123,6 @@ C<smtp> with C<GPFORUM_SMTP_TLS> on and the module does not load, or undef:
 L<GPForum::Config/smtp_tls_problem>'s answer, which doctor, mail-check and
 the front door ask too.
 
-=head2 register
-
-Class method. Takes C<application> and C<config> and logs one warning for
-each variable in the configuration's C<retired_settings>, and one, from
-L</renamed_warning>, for each of its C<renamed_settings>; nothing when
-C<GPFORUM_SETTINGS_WARNED> says the process this one replaced logged them
-(C<$GPForum::Bootstrap::Config::WARNED>, which C<gpforum start --service>
-sets before it runs Hypnotoad).
-
-=head2 renamed_warning
-
-Class method. Takes one of the configuration's C<renamed_settings> (a hash
-reference with C<variable>, C<replacement> and C<value>, and C<old> for an
-old value) and an optional catalog, and returns the sentence that names the
-old variable or value, what it is now called and the line to write in its
-place, in the operator's language (L<GPForum::Config::Report/renamed>).
-
 =head1 DIAGNOSTICS
 
 The report L<GPForum::Config::Report> renders, in English or Italian.
@@ -194,7 +134,7 @@ C<LC_MESSAGES> and C<LANG> for the language.
 
 =head1 DEPENDENCIES
 
-L<Const::Fast>, L<Mojo::Util>, L<GPForum::Config>, L<GPForum::Config::Report>,
+L<Const::Fast>, L<Mojo::Util>, L<GPForum::Config>,
 L<GPForum::Service::I18N::CliCatalog>, L<GPForum::X::Config>.
 
 =head1 INCOMPATIBILITIES

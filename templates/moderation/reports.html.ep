@@ -4,7 +4,11 @@
 <section aria-labelledby="moderation-reports-heading">
   <%= include 'components/page_header',
     heading_id => 'moderation-reports-heading',
-    component_title => t('moderation.reports') %>
+    component_title => t('moderation.reports'),
+    actions_label => t('moderation.reports'),
+    actions => ui_actions(
+      { href => ui_path('moderation_review'), label => t('moderation.review_queue') },
+    ) %>
   <form method="get" action="<%= ui_path('moderation_reports') %>">
     <label for="report-status"><%= t('admin.status') %></label>
     <select id="report-status" name="status">

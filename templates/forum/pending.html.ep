@@ -1,0 +1,43 @@
+% layout 'default';
+% title t('forum.review_mine') . ' - ' . t('app.name');
+<section aria-labelledby="pending-heading">
+  <%= include 'components/page_header', heading_id => 'pending-heading', component_title => t('forum.review_mine') %>
+  <p><%= t('forum.review_mine_hint') %></p>
+  % if (@{$held_posts}) {
+    <ol class="ui-card-list" aria-label="<%= t('forum.review_mine') %>">
+      % for my $held (@{$held_posts}) {
+        <li class="ui-card-list__item">
+          <article aria-labelledby="<%= $held->{ui}{heading_id} %>">
+            <p class="ui-meta"><%= t($held->{kind} eq 'thread' ? 'forum.draft_thread_kind' : 'forum.draft_reply_kind') %></p>
+            <h2 id="<%= $held->{ui}{heading_id} %>" class="ui-row__title">
+              % if ($held->{kind} eq 'thread') {
+                <%= $held->{title} %>
+              % } elsif ($held->{thread_url}) {
+                <a href="<%= $held->{thread_url} %>"><%= $held->{thread_title} // t('common.none') %></a>
+              % } else {
+                <%= $held->{thread_title} // t('common.none') %>
+              % }
+            </h2>
+            <p><%= include 'components/status_badge', value => $held->{status} %>
+              <%= include 'components/timestamp', at => $held->{created_at} %></p>
+            % if ($held->{status} eq 'rejected' && length($held->{decision_reason} // q{})) {
+              <p><%= t('forum.review_rejected_reason') %>: <%= $held->{decision_reason} %></p>
+            % }
+            % if ($held->{published_url}) {
+              <p><a href="<%= $held->{published_url} %>"><%= t('forum.review_open_published') %></a></p>
+            % }
+            <div class="forum-post-body"><%== ui_trusted_html($held->{body_rendered_safe}, 'forum.post.body') %></div>
+            % if ($held->{withdraw_url}) {
+              <form method="post" action="<%= $held->{withdraw_url} %>">
+                <%= csrf_field %>
+                <button class="button--danger" type="submit" aria-describedby="<%= $held->{ui}{heading_id} %>"><%= t('forum.review_withdraw') %></button>
+              </form>
+            % }
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state', heading_id => 'pending-empty-heading', component_title => t('forum.review_mine_empty') %>
+  % }
+</section>

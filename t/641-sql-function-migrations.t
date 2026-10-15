@@ -63,14 +63,17 @@ const my %RETAINED_BOUNDARIES => (
     forum_write_command      => [2],
     forum_create_reply       => [2],
     identity_update_user     => [2],
-    portability_export_parts => [ 2, 4, 6, 8 ],
-    privacy_revoke_user      => [ 2, 4, 6 ],
+    portability_export_parts => [ 2, 4, 6, 8, 10 ],
+    privacy_revoke_user      => [ 2, 4, 6, 8 ],
     privacy_update           => [2],
 
     # Migration 112 (member relations) moved these on.
     notification_list_inbox   => [2],
     notification_unread_count => [2],
     community_list_mentions   => [2],
+
+    # Migration 116 (first-post review) moved this on.
+    moderation_automod_rules => [2],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;

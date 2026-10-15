@@ -24,12 +24,14 @@ const my %FLASH => (
     word_added   => 'admin.automod_word_added',
     word_removed => 'admin.automod_word_removed',
     links_set    => 'admin.automod_links_set',
+    review_set   => 'admin.automod_review_set',
     unchanged    => 'admin.automod_unchanged',
     duplicate    => 'admin.automod_duplicate',
     limit        => 'admin.automod_limit',
 );
 const my %INVALID => map { $_ => "admin.automod_invalid_$_" }
-  qw(phrase action replacement link_limit link_trust_below link_action);
+  qw(phrase action replacement link_limit link_trust_below link_action
+  first_posts);
 
 # The watched words and the link rule, with the forms that change them.
 sub show ($self) {
@@ -50,8 +52,11 @@ sub show ($self) {
     my %page    = (
         words               => [ map { _word_row($_) } @{$words} ],
         link_limit          => $rules->{link_limit},
-        link_trust_below    => $rules->{link_trust_below} // 1,
-        link_action         => $rules->{link_action}      // 'block',
+        link_trust_below    => $rules->{link_trust_below}   // 1,
+        link_action         => $rules->{link_action}        // 'block',
+        review_first_posts  => $rules->{review_first_posts} // 0,
+        review_flagged      => $rules->{review_flagged} ? 1 : 0,
+        maximum_first_posts => $self->gp_review_store->maximum_first_posts,
         actions             => $automod->actions,
         link_actions        => $automod->link_actions,
         maximum_words       => $automod->maximum_words,
@@ -133,6 +138,28 @@ sub set_links ($self) {
     );
 }
 
+# ADR 0134: how many first posts of a new member are held for review (0
+# is off), and whether flagged posts are held too.
+sub set_review ($self) {
+    my $user_id = $self->authorized_write_user_id;
+    return if !$user_id;
+
+    return $self->_answer(
+        'review_set',
+        $self->_stored(
+            sub {
+                return $self->gp_review_store->set_rule(
+                    {
+                        actor_user_id => $user_id,
+                        first_posts   => $self->param('review_first_posts'),
+                        flagged       => $self->param('review_flagged'),
+                    }
+                );
+            }
+        )
+    );
+}
+
 # The store's answer, or undef when it failed (logged).
 sub _stored ( $self, $call ) {
     my $result;
@@ -203,7 +230,7 @@ that adds one and a way to remove each, and the link rule with its form.
 Reading needs the admin console's view permission; every change needs its
 manage permission, a CSRF token and the admin write rate limit, and is
 audited by the store. Each form answers with a redirect and a notice, or
-JSON when asked.
+JSON when asked. The page also holds the review rule of ADR 0134.
 
 =head1 SUBROUTINES/METHODS
 
@@ -224,6 +251,12 @@ Removes the watched word named in the path.
 
 Sets the link rule: the most links (empty for none), the trust level below
 which it applies, and its action (block or flag).
+
+=head2 set_review
+
+Sets the review rule of ADR 0134: how many first posts of a new member
+are held for review (0 to 20; 0 is off), and whether posts the rules flag
+are held instead of published with a report.
 
 =head1 DIAGNOSTICS
 

@@ -3,10 +3,14 @@
 
 package GPForum::Controller::Forum::Write;
 
+use Const::Fast;
 use Mojo::Base 'GPForum::Controller::Forum::ComposerBase', -signatures;
 use v5.40;
 
 our $VERSION = '0.001';
+
+const my $HTTP_OK       => 200;
+const my $HTTP_ACCEPTED => 202;
 
 sub create_thread ($self) {
     my $user_id = $self->write_user_id('thread.create');
@@ -48,6 +52,7 @@ sub create_thread ($self) {
         return $self->thread_write_failure($result);
     }
 
+    return $self->_held_response($result) if $result->{held};
     return $self->created_thread_response( $result->{stored} );
 }
 
@@ -160,6 +165,10 @@ sub create_reply ($self) {
             draft_id       => $draft->{draft_id},
             draft_revision => $draft->{draft_revision},
             visibility     => $self->param('visibility'),
+
+            # ADR 0134: kept with a reply held for review, linked once
+            # it is published.
+            reply_to_post_id => $self->param('reply_to_post_id'),
         }
     );
 
@@ -180,8 +189,41 @@ sub create_reply ($self) {
         return $self->reply_write_failure($result);
     }
 
+    return $self->_held_response($result) if $result->{held};
     $self->_link_reply( $result->{stored} );
     return $self->created_post_response( $result->{stored} );
+}
+
+# ADR 0134: a post held for review is accepted, not created. The author is
+# taken to their posts awaiting review, where it is; a script asking for a
+# thread fragment is sent there as well.
+sub _held_response ( $self, $result ) {
+    my $held = $result->{held};
+    return $self->render(
+        json => {
+            ok            => 1,
+            status        => 'held',
+            review_id     => $held->{review_id},
+            review_status => $held->{review_status},
+            kind          => $held->{kind},
+        },
+        status => $HTTP_ACCEPTED,
+    ) if $self->_wants_json;
+
+    $self->flash(
+        success => $self->i18n(
+            $held->{kind} eq 'thread'
+            ? 'forum.review_thread_held'
+            : 'forum.review_reply_held'
+        )
+    );
+    my $pending = $self->url_for('pending_posts')->to_string;
+    if ( $self->wants_fragment ) {
+        $self->res->headers->header( 'HX-Redirect' => $pending );
+        return $self->rendered($HTTP_OK);
+    }
+
+    return $self->redirect_to($pending);
 }
 
 # A reply that answers a post is linked to it once made (ADR 0132); a link

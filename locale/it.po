@@ -3567,3 +3567,191 @@ msgstr "Contiene una parola sorvegliata"
 msgctxt "moderation.automod_link_limit"
 msgid "Too many links from a new member"
 msgstr "Troppi link da un nuovo membro"
+
+msgctxt "forum.review_thread_held"
+msgid "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
+msgstr "Grazie! I primi messaggi dei nuovi membri vengono letti dallo staff prima di comparire. La tua discussione è in attesa di revisione; riceverai una notifica quando sarà pubblicata."
+
+msgctxt "forum.review_reply_held"
+msgid "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
+msgstr "Grazie! I primi messaggi dei nuovi membri vengono letti dallo staff prima di comparire. La tua risposta è in attesa di revisione; riceverai una notifica quando sarà pubblicata."
+
+msgctxt "forum.review_withdrawn"
+msgid "Post withdrawn."
+msgstr "Messaggio ritirato."
+
+msgctxt "forum.review_mine"
+msgid "Awaiting review"
+msgstr "In attesa di revisione"
+
+msgctxt "forum.review_mine_hint"
+msgid "Only you and the staff can see these posts until they are published."
+msgstr "Solo tu e lo staff potete vedere questi messaggi finché non vengono pubblicati."
+
+msgctxt "forum.review_mine_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nulla è in attesa di revisione."
+
+msgctxt "forum.review_rejected_reason"
+msgid "Reason"
+msgstr "Motivo"
+
+msgctxt "forum.review_open_published"
+msgid "Open the published post"
+msgstr "Apri il messaggio pubblicato"
+
+msgctxt "forum.review_withdraw"
+msgid "Withdraw"
+msgstr "Ritira"
+
+msgctxt "moderation.review_queue"
+msgid "Review queue"
+msgstr "Coda di revisione"
+
+msgctxt "moderation.review_intro"
+msgid "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
+msgstr "I primi messaggi dei nuovi membri, e quelli segnalati quando le regole di moderazione automatica lo prevedono, attendono qui finché non li pubblichi o li rifiuti. Nessun altro li vede."
+
+#, python-brace-format
+msgctxt "moderation.review_pending_total"
+msgid "Waiting: {count}"
+msgstr "In attesa: {count}"
+
+msgctxt "moderation.review_new_thread"
+msgid "New thread"
+msgstr "Nuova discussione"
+
+msgctxt "moderation.review_reply_in"
+msgid "Reply in"
+msgstr "Risposta in"
+
+msgctxt "moderation.review_author"
+msgid "Author"
+msgstr "Autore"
+
+msgctxt "moderation.review_category"
+msgid "Category"
+msgstr "Categoria"
+
+msgctxt "moderation.review_reason_first_posts"
+msgid "One of the author's first posts"
+msgstr "Uno dei primi messaggi dell'autore"
+
+msgctxt "moderation.review_reason_flagged"
+msgid "Flagged by the automod rules"
+msgstr "Segnalato dalle regole di moderazione automatica"
+
+msgctxt "moderation.review_approve"
+msgid "Publish"
+msgstr "Pubblica"
+
+msgctxt "moderation.review_reject_reason"
+msgid "Reason for the author (optional)"
+msgstr "Motivo per l'autore (facoltativo)"
+
+msgctxt "moderation.review_reject"
+msgid "Reject"
+msgstr "Rifiuta"
+
+msgctxt "moderation.review_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nulla è in attesa di revisione."
+
+msgctxt "moderation.review_approved"
+msgid "Post published."
+msgstr "Messaggio pubblicato."
+
+msgctxt "moderation.review_rejected"
+msgid "Post rejected."
+msgstr "Messaggio rifiutato."
+
+msgctxt "moderation.review_unchanged"
+msgid "That post was already decided that way."
+msgstr "Quel messaggio era già stato deciso così."
+
+msgctxt "moderation.review_refused"
+msgid "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
+msgstr "Quel messaggio non può più essere pubblicato dove è stato scritto (la discussione potrebbe essere bloccata o eliminata, o l'autore sospeso). Rifiutalo."
+
+msgctxt "moderation.review_conflict"
+msgid "Another moderator already decided that post."
+msgstr "Un altro moderatore ha già deciso quel messaggio."
+
+msgctxt "admin.automod_review"
+msgid "First-post review"
+msgstr "Revisione dei primi messaggi"
+
+#, python-brace-format
+msgctxt "admin.automod_review_help"
+msgid "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
+msgstr "Trattieni i messaggi di un membro per la revisione dello staff finché non ne sono stati pubblicati questo numero (da 0 a {maximum}; 0 disattiva la revisione). Lo staff che modera non viene mai trattenuto."
+
+msgctxt "admin.automod_review_first_posts"
+msgid "Posts held per new member"
+msgstr "Messaggi trattenuti per nuovo membro"
+
+msgctxt "admin.automod_review_flagged"
+msgid "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
+msgstr "Trattieni anche i messaggi segnalati dalle parole sorvegliate o dalla regola sui link, invece di pubblicarli con una segnalazione"
+
+msgctxt "admin.automod_review_save"
+msgid "Save review rule"
+msgstr "Salva la regola di revisione"
+
+msgctxt "admin.automod_review_set"
+msgid "Review rule saved."
+msgstr "Regola di revisione salvata."
+
+msgctxt "admin.automod_invalid_first_posts"
+msgid "Choose a number of posts from 0 to 20."
+msgstr "Scegli un numero di messaggi da 0 a 20."
+
+msgctxt "notifications.type.review_approved"
+msgid "Published"
+msgstr "Pubblicato"
+
+msgctxt "notifications.title.review_approved"
+msgid "Your post was published"
+msgstr "Il tuo messaggio è stato pubblicato"
+
+msgctxt "notifications.body.review_approved"
+msgid "The staff reviewed your post and published it."
+msgstr "Lo staff ha revisionato il tuo messaggio e lo ha pubblicato."
+
+msgctxt "notifications.email_subject.review_approved"
+msgid "Your post was published"
+msgstr "Il tuo messaggio è stato pubblicato"
+
+msgctxt "notifications.email_body.review_approved"
+msgid "The staff reviewed your post and published it. Open GPForum to read it."
+msgstr "Lo staff ha revisionato il tuo messaggio e lo ha pubblicato. Apri GPForum per leggerlo."
+
+msgctxt "notifications.type.review_rejected"
+msgid "Not published"
+msgstr "Non pubblicato"
+
+msgctxt "notifications.title.review_rejected"
+msgid "Your reply was not published"
+msgstr "La tua risposta non è stata pubblicata"
+
+#, python-brace-format
+msgctxt "notifications.body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr "Lo staff ha revisionato la tua risposta e non l'ha pubblicata. {reason}"
+
+msgctxt "notifications.email_subject.review_rejected"
+msgid "Your reply was not published"
+msgstr "La tua risposta non è stata pubblicata"
+
+#, python-brace-format
+msgctxt "notifications.email_body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr "Lo staff ha revisionato la tua risposta e non l'ha pubblicata. {reason}"
+
+msgctxt "state.approved"
+msgid "Approved"
+msgstr "Approvato"
+
+msgctxt "state.withdrawn"
+msgid "Withdrawn"
+msgstr "Ritirato"

@@ -26,6 +26,9 @@ const my %TARGET => (
     'reply.create'  => [ post   => 'post_id' ],
     'post.edit'     => [ post   => 'post_id' ],
 );
+
+# ADR 0134: the commands whose post can be held for review instead.
+const my %HOLDABLE => ( 'thread.create' => 1, 'reply.create' => 1 );
 const my $BLOCKED  => 'automod.blocked';
 const my $FLAGGED  => 'automod.flagged';
 const my $REPLACED => 'automod.replaced';
@@ -43,9 +46,7 @@ sub screen ( $self, $type, $input ) {
     return { input => $input } if !$fields || _moderates( $input->{viewer} );
 
     my $rules = $self->store->rules_for( $input->{author_user_id} );
-    return { input => $input }
-      if !$rules
-      || ( !@{ $rules->{words} // [] } && !defined $rules->{link_limit} );
+    return { input => $input } if !$rules || _idle($rules);
 
     my %text =
       map { $_ => $input->{$_} } grep { defined $input->{$_} } @{$fields};
@@ -54,12 +55,35 @@ sub screen ( $self, $type, $input ) {
         return { refusal => $self->_refuse( $type, $input, $verdict ) };
     }
 
-    my $settle = $self->automod->flags($verdict) || @{ $verdict->{replaced} };
+    my $flags  = $self->automod->flags($verdict);
+    my $settle = $flags || @{ $verdict->{replaced} };
     return {
         input   => { %{$input}, %{ $verdict->{fields} } },
         verdict => $verdict,
         settle  => $settle ? 1 : 0,
+        hold    => _hold( $type, $rules, $flags ),
     };
+}
+
+# Rules that can change nothing: no word, no link rule, no review rule.
+sub _idle ($rules) {
+    return
+         !@{ $rules->{words} // [] }
+      && !defined $rules->{link_limit}
+      && !$rules->{review_first_posts} ? 1 : 0;
+}
+
+# ADR 0134: why a new thread or reply is held for review, or undef. A
+# member with fewer published posts than the rule's number is held; so is
+# a flagged post when the rule holds flagged posts.
+sub _hold ( $type, $rules, $flags ) {
+    return undef if !exists $HOLDABLE{$type};
+    my $first = $rules->{review_first_posts} // 0;
+    return 'first_posts'
+      if $first > 0 && ( $rules->{published_posts} // 0 ) < $first;
+    return 'flagged' if $flags && $rules->{review_flagged};
+
+    return undef;
 }
 
 # Runs the write and records its decisions in one transaction: a write
@@ -251,7 +275,8 @@ Version 0.001.
 
 The posting side of ADR 0133. Before a new thread, a reply, a post edit or
 a thread title edit runs, its text is screened against the watched words
-and the link rule. A block refuses the write as invalid (naming the field
+and the link rule. A new thread or reply the review rule of ADR 0134
+holds is answered with C<hold> (why) instead of being written. A block refuses the write as invalid (naming the field
 and what matched) and audits the decision; a replace rewrites the text
 before it is stored; a flag stores the write and puts it in the
 moderation queue as a system report, in the write's own transaction, with

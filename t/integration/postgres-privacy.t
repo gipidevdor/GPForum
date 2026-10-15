@@ -504,6 +504,7 @@ sub _export_bundle {
         {
             attachments      => 1,
             drafts           => 0,
+            held_posts       => 0,
             member_relations => 0,
             notifications    => 1,
             posts            => 2,
@@ -1660,7 +1661,7 @@ sub _export_many_posts {
     );
     is(
         scalar(
-            grep { /api[.]portability_export_parts_v10[(][?]::uuid[)]/msx }
+            grep { /api[.]portability_export_parts_v12[(][?]::uuid[)]/msx }
               @{$sent}
         ),
         1,

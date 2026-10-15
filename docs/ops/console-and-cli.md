@@ -139,7 +139,8 @@ bin/gpforum migrate --check --json | jq -e '.status == "ok"'
 Some work has no command, because it is an administrator's decision rather
 than an operator's procedure: roles, permissions and their bindings
 (`/admin/roles`, `/admin/users`), categories (`/admin/categories`),
-watched words and the link rule (`/admin/automod`), the audit viewer
+watched words, the link rule and the first-post review rule
+(`/admin/automod`), the review queue (`/moderation/review`), the audit viewer
 (`/admin/audit`), moderation, privacy review, the public page cache purge
 (`/admin/jobs`) and the effective configuration (`/admin/settings`).
 

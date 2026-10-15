@@ -1,0 +1,72 @@
+% layout 'default', shell => 'wide';
+% title t('moderation.review_queue') . ' - ' . t('app.name');
+
+<section aria-labelledby="moderation-review-heading">
+  <%= include 'components/page_header',
+    heading_id => 'moderation-review-heading',
+    component_title => t('moderation.review_queue'),
+    actions_label => t('moderation.review_queue'),
+    actions => ui_actions(
+      { href => ui_path('moderation_reports'), label => t('moderation.reports') },
+      { href => ui_path('admin_automod'), label => t('admin.automod') },
+    ) %>
+  <p><%= t('moderation.review_intro') %></p>
+  <p class="ui-meta"><%= t('moderation.review_pending_total', { count => $pending_total }) %></p>
+
+  % if (@{$held_posts}) {
+    <ol class="ui-card-list" aria-label="<%= t('moderation.review_queue') %>">
+      % for my $held (@{$held_posts}) {
+        <li class="ui-card-list__item">
+          <article aria-labelledby="<%= $held->{ui}{heading_id} %>">
+            <h2 id="<%= $held->{ui}{heading_id} %>">
+              % if ($held->{kind} eq 'thread') {
+                <%= t('moderation.review_new_thread') %>: <%= $held->{title} %>
+              % } else {
+                <%= t('moderation.review_reply_in') %>
+                % if ($held->{thread_url}) {
+                  <a href="<%= $held->{thread_url} %>"><%= $held->{thread_title} // t('common.none') %></a>
+                % } else {
+                  <%= $held->{thread_title} // t('common.none') %>
+                % }
+              % }
+            </h2>
+            <dl>
+              <dt><%= t('moderation.review_author') %></dt>
+              <dd><a href="<%= ui_path('profile', username => $held->{author_username}) %>"><%= $held->{author_username} %></a></dd>
+              <dt><%= t('moderation.review_category') %></dt>
+              <dd><%= $held->{category_title} // t('common.none') %></dd>
+              <dt><%= t('common.reason') %></dt>
+              <dd>
+                <%= $held->{reason} eq 'flagged' ? t('moderation.review_reason_flagged') : t('moderation.review_reason_first_posts') %>
+                % my @flagged = @{ $held->{details}{flagged} // [] };
+                % if (@flagged) {
+                  <br><%= t('moderation.automod_watched_word') %>: <%= join ', ', @flagged %>
+                % }
+                % if ($held->{details}{link_over}) {
+                  <br><%= t('moderation.automod_link_limit') %>: <%= $held->{details}{links} %>/<%= $held->{details}{link_limit} %>
+                % }
+              </dd>
+              <dt><%= t('common.created') %></dt>
+              <dd><%= include 'components/timestamp', at => $held->{created_at} %></dd>
+            </dl>
+            <div class="forum-post-body"><%== ui_trusted_html($held->{body_rendered_safe}, 'forum.post.body') %></div>
+            <form method="post" action="<%= $held->{approve_url} %>">
+              <%= csrf_field %>
+              <button type="submit" aria-describedby="<%= $held->{ui}{heading_id} %>"><%= t('moderation.review_approve') %></button>
+            </form>
+            <form method="post" action="<%= $held->{reject_url} %>">
+              <%= csrf_field %>
+              <label for="<%= $held->{ui}{reason_id} %>"><%= t('moderation.review_reject_reason') %></label>
+              <input id="<%= $held->{ui}{reason_id} %>" name="reason" maxlength="500">
+              <button class="button--danger" type="submit" aria-describedby="<%= $held->{ui}{heading_id} %>"><%= t('moderation.review_reject') %></button>
+            </form>
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state',
+      heading_id => 'moderation-review-empty-heading',
+      component_title => t('moderation.review_empty') %>
+  % }
+</section>

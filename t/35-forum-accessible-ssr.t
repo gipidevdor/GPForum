@@ -18,7 +18,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 314;
+const my $EXPECTED_TESTS   => 325;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -142,7 +142,7 @@ $test->element_exists('label[for="reply-body"]');
 $test->element_exists('textarea[id="reply-body"][name="body_source"]');
 $test->element_exists('input[name="csrf_token"]');
 $test->element_exists(
-'article[id="post-post-1"] a.post__quote[href="/t/thread-1?quote=post-1#reply-body"]'
+'article[id="post-post-1"] a.post__quote[href="/t/thread-1?quote=post-1&reply_to=post-1#reply-body"]'
 );
 $test->get_ok('/t/thread-1?quote=post-1');
 $test->text_like( 'textarea[id="reply-body"]' =>
@@ -363,6 +363,37 @@ $test->element_exists(
 $test->text_like(
     'form[action="/p/post-1/like/remove"] .post__like-count' => qr/2/msx );
 $test->element_exists_not('form[action="/p/post-deleted-1/like"]');
+
+# A reply may answer a post (ADR 0132): "Reply" under it opens the composer
+# naming it, with the id carried and a way to drop it; a post that answers
+# one says so under its byline.
+$test->element_exists(
+    'a.post__reply[href="/t/thread-1?reply_to=post-1#reply-body"]');
+$test->element_exists_not('input[name="reply_to_post_id"]');
+$test->get_ok('/t/thread-1?reply_to=post-1');
+$test->status_is($HTTP_OK);
+$test->element_exists('input[name="reply_to_post_id"][value="post-1"]');
+$test->text_like(
+    'p.composer__reply-to span' => qr/Replying [ ] to [ ] [#]1/msx );
+$test->element_exists('p.composer__reply-to a[href="/t/thread-1#reply-body"]');
+$test->app->helper(
+    gp_reply_links => sub {
+        return GPForum::Test::ForumWebServices->new(
+            reply_targets => {
+                'post-1' => {
+                    author_username => 'giacomo_forum',
+                    position        => 1,
+                    post_id         => 'post-1'
+                }
+            }
+        );
+    }
+);
+$test->get_ok('/t/thread-1');
+$test->status_is($HTTP_OK);
+$test->element_exists('#post-post-1 p.post__reply-to a[href="#post-post-1"]');
+$test->text_like(
+    '#post-post-1 p.post__reply-to a' => qr/In [ ] reply [ ] to [ ] [#]1/msx );
 $test->get_ok('/__test/session/user-1');
 $test->status_is($HTTP_OK);
 $test->get_ok('/t/thread-deleted-1');
@@ -621,7 +652,7 @@ sub _install_forum_fakes {
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store
         gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_like_store gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_subscription_store
         gp_notification_dispatcher gp_search_service gp_rate_limiter
         gp_suspension_store gp_attachment_store
         )

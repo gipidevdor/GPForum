@@ -556,6 +556,7 @@ sub thread_page_payload ( $self, $page, $user_id ) {
     $self->fresh_composer_draft( 'reply', $reply_command_id,
         thread_id => $self->param('thread_id') );
     $self->_quote_into_composer($posts);
+    $self->_reply_into_composer($posts);
 
     return $self->gp_forum_view_model->thread_page(
         attachment_delete_command_ids =>
@@ -576,6 +577,7 @@ sub thread_page_payload ( $self, $page, $user_id ) {
         reply_command_id       => $reply_command_id,
         edit_command_ids       => $self->_edit_command_ids( $page, $user_id ),
         likes                  => $self->_post_likes( $posts, $user_id ),
+        reply_targets          => $self->_reply_targets($posts),
         like_command_ids       => $self->_post_command_ids( $posts, $user_id ),
         delete_command_ids     => $self->_edit_command_ids( $page, $user_id ),
         report_command_ids     => $self->_edit_command_ids( $page, $user_id ),
@@ -616,6 +618,34 @@ sub _post_likes ( $self, $posts, $user_id ) {
     my @ids = $self->_post_ids($posts);
     return {} if !@ids;
     return $self->gp_like_store->summary_for_posts( \@ids, $user_id );
+}
+
+# Which post each post on the page answers (ADR 0132), for every reader.
+sub _reply_targets ( $self, $posts ) {
+    my @ids = $self->_post_ids($posts);
+    return {} if !@ids;
+    return $self->gp_reply_links->targets_for_posts( \@ids );
+}
+
+# "Reply" under a post asks for the page with ?reply_to=POST_ID ("Quote"
+# sends it too): the composer then names the post it answers and carries
+# its id with the reply. A post not on this page is not answered.
+sub _reply_into_composer ( $self, $posts ) {
+    my $draft  = $self->stash('composer_draft') or return;
+    my $wanted = $self->param('reply_to');
+    return if !defined $wanted || !length $wanted;
+    my ($post) = grep {
+        ( GPForum::Infrastructure::Row->column( $_, 'post_id' ) // q{} ) eq
+          $wanted
+    } @{$posts};
+    return if !$post;
+    $draft->{reply_to} = {
+        author_username =>
+          GPForum::Infrastructure::Row->column( $post, 'author_username' ),
+        position => GPForum::Infrastructure::Row->column( $post, 'position' ),
+        post_id  => $wanted,
+    };
+    return;
 }
 
 sub _post_command_ids ( $self, $posts, $user_id ) {

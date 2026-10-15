@@ -217,7 +217,22 @@ my %liked_input = (
     },
     viewer_user_id => 'user-2',
 );
-my $liked_page = $forum->thread_page(%liked_input);
+my $liked_page = $forum->thread_page(
+    %liked_input,
+    reply_targets => {
+        'post-2' =>
+          { author_username => 'giacomo', position => 1, post_id => 'post-1' }
+    },
+);
+is_deeply(
+    $liked_page->{posts}[1]{reply_to},
+    { author_username => 'giacomo', position => 1, post_id => 'post-1' },
+    'a post that answers one names it'
+);
+ok(
+    !exists $liked_page->{posts}[0]{reply_to},
+    'and a post that answers none names none'
+);
 is( $liked_page->{posts}[0]{like_count},
     $LIKE_COUNT, 'thread page counts a post\'s likes' );
 is( $liked_page->{posts}[0]{liked}, 1, 'and says the viewer gave one' );

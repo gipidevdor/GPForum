@@ -578,6 +578,12 @@ const my %FUNCTION => (
         parameters => [ row => 'jsonb' ],
         json       => ['result']
     },
+    forum_link_reply => {
+        version    => 2,
+        parameters => [ post_id => 'uuid', reply_to_post_id => 'uuid' ]
+    },
+    forum_reply_targets =>
+      { version => 2, parameters => [ post_ids => 'uuid[]' ] },
     community_post_likes => {
         version    => 2,
         parameters => [ post_ids => 'uuid[]', viewer_user_id => 'uuid' ]

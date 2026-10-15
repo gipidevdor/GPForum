@@ -209,7 +209,8 @@ sub _thread_page_parts ( $self, $input ) {
               $self->hash_or_empty( $input->{edit_command_ids} ),
             like_command_ids =>
               $self->hash_or_empty( $input->{like_command_ids} ),
-            likes               => $self->hash_or_empty( $input->{likes} ),
+            likes         => $self->hash_or_empty( $input->{likes} ),
+            reply_targets => $self->hash_or_empty( $input->{reply_targets} ),
             restore_command_ids =>
               $self->hash_or_empty( $input->{restore_command_ids} ),
             report_command_ids =>
@@ -250,6 +251,7 @@ sub _post_with_attachments ( $self, $row, $context ) {
     $self->_apply_restore_state( $post, $context );
     $self->_apply_report_state( $post, $context );
     $self->_apply_like_state( $post, $context );
+    $self->_apply_reply_state( $post, $context );
     $self->_apply_relation_state( $post, $context );
 
     return $post;
@@ -257,6 +259,18 @@ sub _post_with_attachments ( $self, $row, $context ) {
 
 # Every reader sees how many liked a post; a signed-in reader who is not
 # its author, and while it is not deleted, may like it or take theirs back.
+# The post this post answers, when it answers one (ADR 0132).
+sub _apply_reply_state ( $self, $post, $context ) {
+    my $target = $context->{reply_targets}{ $post->{post_id} };
+    return if ref $target ne 'HASH';
+    $post->{reply_to} = {
+        author_username => $target->{author_username},
+        position        => $target->{position},
+        post_id         => $target->{post_id},
+    };
+    return;
+}
+
 sub _apply_like_state ( $self, $post, $context ) {
     my $likes = $context->{likes}{ $post->{post_id} } || {};
     $post->{like_count} = $likes->{like_count} || 0;

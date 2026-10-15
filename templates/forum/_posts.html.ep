@@ -72,6 +72,9 @@
       <details class="post__ignored">
         <summary><%= t('community.relation_collapsed_post') %></summary>
       % }
+      % if ($post->{reply_to}) {
+        <p class="ui-meta post__reply-to"><a href="#post-<%= $post->{reply_to}{post_id} %>"><%= t('forum.in_reply_to', { position => '#' . $post->{reply_to}{position} }) %></a><% if ($post->{reply_to}{author_username}) { %> <span>@<%= $post->{reply_to}{author_username} %></span><% } %></p>
+      % }
       <div class="forum-post-body"><%== ui_trusted_html($post->{body}, 'forum.post.body') %></div>
       % if ($post->{deleted_at}) {
         <p role="status"><%= t('forum.post_deleted_notice') %></p>
@@ -149,7 +152,8 @@
             </form>
           % }
           % if ($signed_in && !$post->{deleted_at}) {
-            <a class="button--quiet post__quote" href="<%= ui_path('thread', thread_id => $post->{thread_id}) %>?quote=<%= $post->{post_id} %>#reply-body"><%= t('forum.quote_post') %></a>
+            <a class="button--quiet post__reply" href="<%= ui_path('thread', thread_id => $post->{thread_id}) %>?reply_to=<%= $post->{post_id} %>#reply-body"><%= t('forum.reply_to_post') %></a>
+            <a class="button--quiet post__quote" href="<%= ui_path('thread', thread_id => $post->{thread_id}) %>?quote=<%= $post->{post_id} %>&amp;reply_to=<%= $post->{post_id} %>#reply-body"><%= t('forum.quote_post') %></a>
           % }
           % if ($signed_in) {
             <button type="button" class="button--quiet" popovertarget="<%= $dom_id %>-report"><%= t('moderation.report_post') %></button>

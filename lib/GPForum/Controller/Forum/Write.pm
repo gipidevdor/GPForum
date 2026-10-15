@@ -176,7 +176,24 @@ sub create_reply ($self) {
         return $self->reply_write_failure($result);
     }
 
+    $self->_link_reply( $result->{stored} );
     return $self->created_post_response( $result->{stored} );
+}
+
+# A reply that answers a post is linked to it once made (ADR 0132); a link
+# that cannot be written leaves the reply as it is, and says so in the log.
+sub _link_reply ( $self, $stored ) {
+    my $target = $self->param('reply_to_post_id');
+    return if !defined $target || !length $target;
+    my $post_id = $self->_column( $stored->{post}, 'post_id' );
+    return if !$post_id;
+    try {
+        $self->gp_reply_links->link_reply( $post_id, $target );
+    }
+    catch ($error) {
+        $self->app->log->warn("reply link failed: $error");
+    };
+    return;
 }
 
 sub edit_post ($self) {

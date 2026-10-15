@@ -27,6 +27,8 @@ has bookmark_removes      => sub { return []; };
 has bookmark_saves        => sub { return []; };
 has like_calls            => sub { return []; };
 has announcements         => sub { return []; };
+has reply_links           => sub { return []; };
+has reply_targets         => sub { return {}; };
 has last_moderation_input => sub { return {}; };
 has mode                  => 'forum';
 has read_marker_writes    => sub { return []; };
@@ -1127,6 +1129,23 @@ sub record_for_source {
 
 # Likes: post-1 has two, one of them the viewer's when the viewer is
 # user-2; the writes answer as the function would.
+sub link_reply {
+    my ( $self, $post_id, $reply_to_post_id ) = @_;
+
+    push @{ $self->reply_links }, [ $post_id, $reply_to_post_id ];
+    return 1;
+}
+
+sub targets_for_posts {
+    my ( $self, $post_ids ) = @_;
+
+    my %wanted = map { $_ => 1 } @{$post_ids};
+    return {
+        map  { $_ => $self->reply_targets->{$_} }
+        grep { $wanted{$_} } keys %{ $self->reply_targets }
+    };
+}
+
 sub active_announcements {
     my ($self) = @_;
 

@@ -20,7 +20,7 @@ use GPForum::Test::SuspendedParticipation;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 272;
+const my $EXPECTED_TESTS       => 275;
 const my $HTTP_OK              => 200;
 const my $HTTP_CREATED         => 201;
 const my $HTTP_BAD_REQUEST     => 400;
@@ -34,8 +34,8 @@ const my $HTTP_SERVICE_UNAVAIL => 503;
 
 plan tests => $EXPECTED_TESTS;
 
-my $test = Test::Mojo->new('GPForum');
-_install_forum_fakes($test);
+my $test  = Test::Mojo->new('GPForum');
+my $fakes = _install_forum_fakes($test);
 _install_test_session_route($test);
 
 _get_json_ok( $test, '/categories' );
@@ -185,6 +185,23 @@ $test->post_ok(
 );
 $test->status_is($HTTP_CREATED);
 $test->json_is( '/post_id' => 'post-created' );
+
+# A reply that answers a post is linked to it once made (ADR 0132).
+$test->post_ok(
+    '/t/thread-1/replies' => { Accept => 'application/json' } => form => {
+        csrf_token       => $session_csrf,
+        body_source      => 'An answer',
+        command_id       => 'reply-command-2',
+        reply_to_post_id => 'post-1',
+        visibility       => 'public',
+    }
+);
+$test->status_is($HTTP_CREATED);
+is_deeply(
+    $fakes->reply_links->[-1],
+    [ 'post-created', 'post-1' ],
+    'the reply is linked to the post it answers'
+);
 
 $test->post_ok(
     '/p/post-1' => { Accept => 'application/json' } => form => {
@@ -681,7 +698,7 @@ sub _install_forum_fakes {
         gp_category_reader gp_thread_reader gp_thread_detail_reader
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_like_store gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_subscription_store
         gp_notification_dispatcher gp_report_store gp_search_service
         gp_rate_limiter gp_suspension_store gp_attachment_store
         )
@@ -700,7 +717,7 @@ sub _install_forum_fakes {
         }
     );
 
-    return;
+    return $services;
 }
 
 sub _get_json_ok {

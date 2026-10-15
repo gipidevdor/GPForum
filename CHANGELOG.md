@@ -546,6 +546,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **A reply may answer one post** (ADR 0132): "Reply" under a post opens
+  the composer naming it ("Replying to #12 by @name", with a way to drop
+  it), and "Quote" does the same and quotes the words; once the reply is
+  made it is linked to the post (`post_replies`, migration 114), and the
+  page shows "In reply to #12" under its byline, a link to the post. The
+  reply command is untouched; a link that cannot be written leaves the
+  reply as it is.
+
 - **Operators say something to every reader**: administrators publish a
   site announcement from `/admin/announcements` (plain text, up to 500
   characters, as a notice or a warning) and retire it when it has served;

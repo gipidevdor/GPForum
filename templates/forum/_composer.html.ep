@@ -14,6 +14,13 @@
   <form data-composer method="post" action="<%= ui_path('reply_create', thread_id => $thread_id) %>"<% if (!$standalone) { %> hx-post="<%= ui_path('reply_create', thread_id => $thread_id) %>" hx-target="#posts" hx-swap="beforeend"<% } %>>
     <%= csrf_field %>
     <input type="hidden" name="command_id" value="<%= $draft->{command_id} || $reply_command_id || q{} %>">
+    % if ($draft->{reply_to}) {
+      <input type="hidden" name="reply_to_post_id" value="<%= $draft->{reply_to}{post_id} %>">
+      <p class="composer__reply-to">
+        <span><%= t('forum.replying_to', { position => '#' . $draft->{reply_to}{position}, author => '@' . ($draft->{reply_to}{author_username} // t('forum.unknown_author')) }) %></span>
+        <a href="<%= ui_path('thread', thread_id => $thread_id) %>#reply-body"><%= t('forum.cancel_reply_to') %></a>
+      </p>
+    % }
     <label class="visually-hidden" for="reply-body"><%= t('forum.reply_body') %></label>
     <textarea id="reply-body" name="body_source" rows="8" required><%= $draft->{body_source} // q{} %></textarea>
     <%= include 'forum/_draft_tools', composer_kind => 'reply', composer_thread_id => $thread_id %>

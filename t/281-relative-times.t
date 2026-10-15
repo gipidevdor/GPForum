@@ -180,7 +180,7 @@ sub _install_forum_fakes {
         qw(
         gp_category_reader gp_thread_reader gp_thread_detail_reader
         gp_post_reader gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_like_store gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_subscription_store
         gp_notification_dispatcher gp_search_service gp_rate_limiter
         gp_suspension_store gp_attachment_store
         )

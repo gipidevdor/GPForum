@@ -1381,6 +1381,10 @@ msgctxt "forum.browse_categories"
 msgid "Browse categories"
 msgstr "Browse categories"
 
+msgctxt "forum.cancel_reply_to"
+msgid "Reply to the thread instead"
+msgstr "Reply to the thread instead"
+
 msgctxt "forum.categories_empty"
 msgid "No categories are visible yet."
 msgstr "No categories are visible yet."
@@ -1616,6 +1620,11 @@ msgctxt "forum.forum_categories"
 msgid "Forum categories"
 msgstr "Forum categories"
 
+#, python-brace-format
+msgctxt "forum.in_reply_to"
+msgid "In reply to {position}"
+msgstr "In reply to {position}"
+
 msgctxt "forum.index_tagline"
 msgid "Independent discussion index."
 msgstr "Independent discussion index."
@@ -1788,6 +1797,16 @@ msgstr[1] "{count} replies"
 msgctxt "forum.reply_posted"
 msgid "Reply posted"
 msgstr "Reply posted"
+
+msgctxt "forum.reply_to_post"
+msgid "Reply"
+msgstr "Reply"
+
+#, python-brace-format
+msgctxt "forum.replying_to"
+msgid "Replying to {position} by {author}"
+msgstr "Replying to {position} by {author}"
+
 
 msgctxt "forum.reported"
 msgid "Report submitted"
@@ -3258,3 +3277,4 @@ msgstr "Pagination"
 msgctxt "ui.status_banner"
 msgid "Status"
 msgstr "Status"
+

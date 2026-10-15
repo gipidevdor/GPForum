@@ -7,10 +7,14 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use Mojo::JSON qw(false true);
+
+use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::X::Conflict;
+use GPForum::X::Unavailable;
 
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
@@ -34,10 +38,26 @@ const my %CHANNEL_DEFAULTS => (
     },
 );
 
+# ADR 0078: the kinds of notification a member controls, each on these
+# channels, and the scopes an unsubscribe link may name (a kind, or all
+# notification email). Their defaults live in api.notification_*: in the
+# inbox every kind is on, by email mentions and moderation notices are.
+const my @EVENT_TYPES     => qw(reply mention moderation);
+const my @TYPE_CHANNELS   => qw(in_app email);
+const my %IS_EVENT_TYPE   => map { $_ => 1 } @EVENT_TYPES;
+const my %IS_TYPE_CHANNEL => map { $_ => 1 } @TYPE_CHANNELS;
+const my %IS_UNSUBSCRIBE_SCOPE => map { $_ => 1 } @EVENT_TYPES,
+  'all';
+const my $UNSUBSCRIBE_AUDIT_ACTION => 'notification.email_unsubscribed';
+
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
 has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
+};
+has recorder => sub ($self) {
+    return GPForum::Infrastructure::EventRecorder->new(
+        schema => $self->schema );
 };
 
 # A preference already holding these values is skipped; any other is
@@ -198,6 +218,195 @@ sub channel_enabled ( $self, $user_id, $channel ) {
     }
 
     return 1;
+}
+
+# Every kind on both channels, as the settings page shows them: one hash
+# per kind with its i18n keys and its channels in order. A schema without
+# the function layer (the in-memory doubles) reads the defaults.
+sub type_preferences_for_user ( $self, $user_id ) {
+    my $rows =
+      $self->functions
+      ? $self->functions->rows( 'notification_type_preferences',
+        { user_id => $user_id } )
+      : _default_type_rows();
+    my %enabled =
+      map { ( "$_->{event_type}:$_->{channel}" => $_->{enabled} ? 1 : 0 ) }
+      @{$rows};
+
+    return [ map { _kind( $_, \%enabled ) } @EVENT_TYPES ];
+}
+
+sub _kind ( $type, $enabled ) {
+    return {
+        event_type      => $type,
+        label_key       => "notifications.kind.$type",
+        description_key => "notifications.kind_description.$type",
+        channels        => [
+            map {
+                +{
+                    channel   => $_,
+                    enabled   => $enabled->{"$type:$_"} // 0,
+                    label_key => "notifications.channel.$_",
+                }
+            } @TYPE_CHANNELS
+        ],
+    };
+}
+
+# The defaults api.notification_type_preferences answers for a member with
+# no stored row: every kind in the inbox, email for all but replies.
+sub _default_type_rows {
+    my @rows;
+    for my $type (@EVENT_TYPES) {
+        for my $channel (@TYPE_CHANNELS) {
+            push @rows,
+              {
+                event_type => $type,
+                channel    => $channel,
+                enabled    => $channel eq 'in_app' || $type ne 'reply' ? 1 : 0,
+              };
+        }
+    }
+
+    return \@rows;
+}
+
+# The refusal for choices naming an unknown kind or channel, or undef.
+sub refused_type_preferences ( $self, $preferences ) {
+    return _invalid( 'preferences', 'type preferences must be a list' )
+      if ref $preferences ne 'ARRAY';
+    for my $preference ( @{$preferences} ) {
+        return _invalid( 'event_type',
+            'event_type must be one of ' . join q{, }, @EVENT_TYPES )
+          if ref $preference ne 'HASH'
+          || !exists $IS_EVENT_TYPE{ $preference->{event_type} // q{} };
+        return _invalid( 'channel', 'channel must be one of ' . join q{, },
+            @TYPE_CHANNELS )
+          if !exists $IS_TYPE_CHANNEL{ $preference->{channel} // q{} };
+    }
+
+    return undef;
+}
+
+# Stores the member's choice for each kind and channel given. Answers ok
+# with status ok or unchanged and how many changed, or the refusal.
+sub set_type_preferences ( $self, $input ) {
+    my $preferences = $input->{preferences};
+    my $refused     = $self->refused_type_preferences($preferences);
+    return $refused if $refused;
+
+    my $functions = $self->functions
+      // GPForum::X::Unavailable->throw( message =>
+          'notification type preferences need the PostgreSQL function layer' );
+    my $row = $functions->row(
+        'notification_set_type_preferences',
+        {
+            user_id     => $input->{user_id},
+            preferences => [
+                map {
+                    +{
+                        event_type => $_->{event_type},
+                        channel    => $_->{channel},
+                        enabled    => $_->{enabled} ? true : false,
+                    }
+                } @{$preferences}
+            ],
+            now => $self->clock->now_iso8601,
+        }
+    ) || { status => 'not_found' };
+    my $status = $row->{status} // 'not_found';
+    return _invalid( 'preferences', 'type preferences were refused' )
+      if $status eq 'invalid';
+    return { ok => 0, status => $status } if $status eq 'not_found';
+
+    return { ok => 1, status => $status, changed => 0 + $row->{changed} };
+}
+
+# Where a notification of this type goes for the member: in_app and email
+# (1 or 0), the kind it belongs to, and the address and locale a mail is
+# sent with. Without the function layer email is off and the inbox follows
+# the in-app channel; a member the database does not hold gets the inbox
+# only, as a member with no stored preference did.
+sub delivery_plan ( $self, $user_id, $notification_type ) {
+    if ( !$self->functions ) {
+        return {
+            in_app => $self->channel_enabled( $user_id, 'in_app' ),
+            email  => 0,
+        };
+    }
+    my $row = $self->functions->row(
+        'notification_delivery_plan',
+        {
+            user_id           => $user_id,
+            notification_type => $notification_type,
+        }
+    );
+    return { in_app => 1, email => 0 } if !$row;
+
+    return {
+        event_type    => $row->{event_type},
+        in_app        => $row->{in_app} ? 1 : 0,
+        email         => $row->{email}  ? 1 : 0,
+        email_address => $row->{email_address},
+        locale        => $row->{locale},
+    };
+}
+
+# The one-click unsubscribe: turns the scope's email off (a kind, or all
+# notification email) and audits it. Answers ok with status ok or
+# unchanged, or ok 0 with status invalid or not_found.
+sub unsubscribe ( $self, $input ) {
+    my $scope = $input->{scope} // q{};
+    return { ok => 0, status => 'invalid' }
+      if !exists $IS_UNSUBSCRIBE_SCOPE{$scope};
+
+    my $functions = $self->functions // GPForum::X::Unavailable->throw(
+        message => 'unsubscribing needs the PostgreSQL function layer' );
+    my $audit = $self->recorder->audit_call(
+        action      => $UNSUBSCRIBE_AUDIT_ACTION,
+        actor_id    => $input->{user_id},
+        target_type => 'user',
+        target_id   => $input->{user_id},
+        metadata    => {
+            scope => $scope,
+            via   => $input->{via} // 'link',
+        },
+    )->{audit};
+    my $row = $functions->row(
+        'notification_unsubscribe',
+        {
+            user_id => $input->{user_id},
+            scope   => $scope,
+            now     => $self->clock->now_iso8601,
+            audit   => $audit,
+        }
+    ) || { status => 'not_found' };
+    my $status = $row->{status} // 'not_found';
+    return { ok => 0, status => $status }
+      if $status ne 'ok' && $status ne 'unchanged';
+
+    return { ok => 1, status => $status, scope => $scope };
+}
+
+sub event_types {
+    return [@EVENT_TYPES];
+}
+
+sub type_channels {
+    return [@TYPE_CHANNELS];
+}
+
+sub unsubscribe_scopes {
+    return [ @EVENT_TYPES, 'all' ];
+}
+
+sub _invalid ( $field, $message ) {
+    return {
+        error  => $message,
+        errors => { $field => $message },
+        ok     => 0,
+        status => 'invalid',
+    };
 }
 
 sub channel_names {
@@ -363,7 +572,61 @@ Takes a user id and returns a list of the channel names that are on for the
 member, in the order of L</preferences_for_user> and with its defaults: a
 member with no stored rows gets C<in_app> and C<email>.
 
+=head2 type_preferences_for_user
+
+ADR 0078. Takes a user id and returns an array reference with one hash per
+kind of notification (C<reply>, C<mention>, C<moderation>): C<event_type>,
+C<label_key>, C<description_key> and C<channels>, an array reference of
+C<< { channel, enabled, label_key } >> for C<in_app> and C<email>, stored
+or by default. Without the function layer, the defaults.
+
+=head2 refused_type_preferences
+
+Takes an array reference of C<< { event_type, channel, enabled } >> and
+returns the C<invalid> refusal for one naming an unknown kind or channel
+(or for what is not a list), or undef.
+
+=head2 set_type_preferences
+
+Takes C<user_id> and C<preferences> as above and stores them through
+C<api.notification_set_type_preferences>: C<< { ok => 1, status => 'ok' |
+'unchanged', changed } >>, the refusal, or C<< { ok => 0, status =>
+'not_found' } >> for a member who is gone.
+
+=head2 delivery_plan
+
+Takes a user id and a notification type and returns C<in_app> and C<email>
+(1 or 0), the kind (C<event_type>, undef for a type no control covers),
+and the C<email_address> and C<locale> a mail goes out with. Email needs
+the email channel and the kind's email on and an active account with a
+verified address. Without the function layer, C<in_app> follows the
+channel and C<email> is 0; a member the database does not hold gets the
+inbox only.
+
+=head2 unsubscribe
+
+Takes C<user_id>, C<scope> (a kind, or C<all> for the email channel) and
+C<via> (C<link> or C<one_click>) and turns that email off, audited as
+C<notification.email_unsubscribed>. Returns C<< { ok => 1, status => 'ok'
+| 'unchanged', scope } >> or C<< { ok => 0, status => 'invalid' |
+'not_found' } >>.
+
+=head2 event_types
+
+The kinds, as an array reference. Needs no instance.
+
+=head2 type_channels
+
+The channels a kind is switched on, as an array reference.
+
+=head2 unsubscribe_scopes
+
+The scopes an unsubscribe may name: the kinds and C<all>.
+
 =head1 DIAGNOSTICS
+
+L</set_type_preferences> and L</unsubscribe> throw
+L<GPForum::X::Unavailable> without the function layer.
 
 An unknown channel is not raised: L</set_preference> and
 L</set_preferences> return C<< { ok => 0, status => 'invalid' } >> with
@@ -380,7 +643,8 @@ None.
 
 L<GPForum::Infrastructure::Row>,
 L<GPForum::Infrastructure::UniqueConflict>, L<GPForum::X::Conflict>,
-L<GPForum::Service::Clock>.
+L<GPForum::Service::Clock>, L<GPForum::Infrastructure::EventRecorder> (the
+unsubscribe's audit), L<GPForum::X::Unavailable>.
 
 Extends L<GPForum::Base>: built without C<schema> it throws
 L<GPForum::X::Argument>.

@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 12,
+        version    => 14,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -696,6 +696,28 @@ const my %FUNCTION => (
       { version => 2, parameters => [ user_id => 'uuid' ] },
     notification_set_preference =>
       { version => 2, parameters => [ row => 'jsonb' ], json => ['result'] },
+
+    # ADR 0078: notification preferences by kind, and the unsubscribe link.
+    notification_type_preferences =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
+    notification_set_type_preferences => {
+        version    => 2,
+        parameters =>
+          [ user_id => 'uuid', preferences => 'jsonb', now => 'timestamptz' ]
+    },
+    notification_delivery_plan => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', notification_type => 'text' ]
+    },
+    notification_unsubscribe => {
+        version    => 2,
+        parameters => [
+            user_id => 'uuid',
+            scope   => 'text',
+            now     => 'timestamptz',
+            audit   => 'jsonb'
+        ]
+    },
     community_project_feed => {
         version    => 2,
         parameters => [ row => 'jsonb', user_ids => 'uuid[]' ],

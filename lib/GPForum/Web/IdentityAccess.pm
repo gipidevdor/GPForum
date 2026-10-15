@@ -40,6 +40,7 @@ const my %ACTION_LIMIT_FOR => (
     'identity.password_reset'  => $PASSWORD_LIMIT,
     'identity.register'        => $REGISTER_LIMIT,
     'identity.settings'        => $SETTINGS_LIMIT,
+    'identity.unsubscribe'     => $SETTINGS_LIMIT,
 );
 
 sub write_rate_input ( $self, $input ) {

@@ -1,0 +1,15 @@
+% layout 'default';
+% title t('notifications.unsubscribe.invalid_title') . ' - ' . t('app.name');
+
+<section aria-labelledby="<%= $ui->{heading_id} %>">
+  <%= include 'components/page_header',
+    heading_id => $ui->{heading_id},
+    component_title => t('notifications.unsubscribe.invalid_title'),
+    actions_label => t('notifications.unsubscribe.next_steps'),
+    actions => ui_actions(
+      { href => ui_path('settings'), label => t('notifications.unsubscribe.open_settings') },
+    ) %>
+  <%= include 'components/alert',
+    tone => 'warning',
+    message => t('notifications.unsubscribe.invalid_status') %>
+</section>

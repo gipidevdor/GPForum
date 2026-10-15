@@ -77,6 +77,10 @@ const my %RETAINED => (
     portability_export_parts_v10 => 1,
     privacy_revoke_user_v7       => 0,
     privacy_revoke_user_v8       => 1,
+
+    # Migration 117 (notification types) moved this on.
+    portability_export_parts_v11 => 0,
+    portability_export_parts_v12 => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

@@ -48,6 +48,7 @@ use GPForum::Service::Notification::Dispatcher;
 use GPForum::Service::Notification::RecipientPolicy;
 use GPForum::Service::Notification::PreferenceStore;
 use GPForum::Service::Notification::Renderer;
+use GPForum::Service::Notification::UnsubscribeToken;
 use GPForum::Service::Notification::SubscriptionStore;
 use GPForum::Service::Notification::Workflow;
 use GPForum::Service::Search::PermissionEngine;
@@ -539,6 +540,16 @@ sub _register_notification_helpers {
                 preference_store    =>
                   $controller->gp_notification_preference_store,
             );
+        }
+    );
+
+    # ADR 0078: the signed links that stop a kind of notification email.
+    $application->helper(
+        gp_unsubscribe_tokens => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Notification::UnsubscribeToken->new(
+                secrets => $controller->app->secrets );
         }
     );
     $application->helper(

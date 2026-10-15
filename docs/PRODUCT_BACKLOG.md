@@ -95,10 +95,10 @@ claim. No competitor source code or assets were imported for this review.
 | ID | Feature | Verified status and scope | Package |
 | --- | --- | --- | --- |
 | D01 | Daily / weekly email digest | Foundation: channel/frequency preferences exist; digest generation, scheduling and delivery were not found. [notification-prefs], [notification-dispatch], [workers] | PB-08 |
-| D02 | Preferences by notification type | Partial: channel enablement and frequencies exist in settings; per-event controls were not found. [settings], [notification-prefs] | PB-08 |
+| D02 | Preferences by notification type | Done 2026-10-15: per-kind switches (replies in followed threads, mentions, moderation notices) for the inbox and email in settings, beside the channel switches; fanout reads them through one delivery plan (migration 117, ADR 0078 amended). [settings], [notification-prefs] | PB-08 |
 | D03 | Web push | Not found; no subscription or service-worker delivery workflow. [routes], [manifest] | PB-16 |
-| D04 | Email every reply / first reply | Not found as delivery behavior; notification fanout currently delivers in-app, while email handles identity lifecycle. [notification-dispatch], [workers] | PB-08 |
-| D05 | One-click email unsubscribe | Not found. Thread unsubscribe exists; reset/verification mail is transactional and does not demonstrate digest opt-out. [thread-tools], [identity-mail] | PB-08 |
+| D04 | Email every reply / first reply | Partial 2026-10-15: a notification of a kind the member takes by email (replies in followed threads when switched on) is queued in the outbox and mailed in their locale, one mail per notification; a first-reply-only mode was not built. [notification-dispatch], [workers] | PB-08 |
+| D05 | One-click email unsubscribe | Done 2026-10-15: every notification mail has a signed `/unsubscribe/TOKEN` link and RFC 8058 `List-Unsubscribe`/`List-Unsubscribe-Post` headers; GET shows the choice, the button or one-click POST turns that kind (or all notification email) off, audited; identity mail never carries them. [thread-tools], [identity-mail] | PB-08 |
 
 ## E. Identity and access
 

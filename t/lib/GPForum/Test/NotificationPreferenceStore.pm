@@ -7,11 +7,53 @@ use Carp qw(croak);
 use Mojo::Base -base;
 use v5.40;
 
+use GPForum::Service::Notification::PreferenceStore;
+
 our $VERSION = '0.001';
 
 has fail        => 0;
 has preferences => sub { return _default_preferences(); };
 has updates     => sub { return []; };
+
+# ADR 0078: the kinds, as the real store reads them without a database (its
+# defaults), and the choices stored here.
+has defaults => sub {
+    return GPForum::Service::Notification::PreferenceStore->new(
+        schema    => {},
+        functions => undef,
+    );
+};
+has type_updates => sub { return []; };
+
+sub type_preferences_for_user {
+    my ( $self, $user_id ) = @_;
+
+    croak 'notification preference load failed' if $self->fail;
+
+    return $self->defaults->type_preferences_for_user($user_id);
+}
+
+sub refused_type_preferences {
+    my ( $self, $preferences ) = @_;
+
+    return $self->defaults->refused_type_preferences($preferences);
+}
+
+sub set_type_preferences {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->type_updates }, { %{$input} };
+
+    return { ok => 1, status => 'ok', changed => 0 };
+}
+
+sub event_types {
+    return GPForum::Service::Notification::PreferenceStore->event_types;
+}
+
+sub type_channels {
+    return GPForum::Service::Notification::PreferenceStore->type_channels;
+}
 
 sub preferences_for_user {
     my ( $self, $user_id ) = @_;

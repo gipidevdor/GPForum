@@ -39,30 +39,11 @@ sub set_preferences ( $self, $input ) {
         );
     }
 
-    my $run = sub {
-        return $self->_run_store(
-            'notification preferences not found',
-            sub {
-                return $self->preference_store->set_preferences(
-                    {
-                        preferences => $input->{preferences},
-                        user_id     => $input->{user_id},
-                    }
-                );
-            },
-        );
-    };
+    my $run = sub { return $self->_store_preferences($input); };
     if ( !$self->command_idempotency ) {
         return $run->();
     }
 
-    my @preferences = map {
-        +{
-            channel          => $_->{channel},
-            digest_frequency => $_->{digest_frequency},
-            enabled          => $_->{enabled} ? 1 : 0,
-        }
-    } @{ $input->{preferences} || [] };
     my $result;
     try {
         $result = $self->command_idempotency->result_of(
@@ -70,11 +51,8 @@ sub set_preferences ( $self, $input ) {
                 actor_id     => $input->{user_id},
                 command_id   => $input->{command_id},
                 command_type => 'notification.preferences',
-                request      => {
-                    preferences => \@preferences,
-                    user_id     => $input->{user_id},
-                },
-                run => $run,
+                request      => _request($input),
+                run          => $run,
             }
         );
     }
@@ -87,6 +65,63 @@ sub set_preferences ( $self, $input ) {
     };
 
     return $result;
+}
+
+# ADR 0078: the choices by kind of notification, when the form sent them,
+# are checked before the channels are written and stored after.
+sub _store_preferences ( $self, $input ) {
+    my $types = $input->{type_preferences};
+    my $store = $self->preference_store;
+
+    return $self->_run_store(
+        'notification preferences not found',
+        sub {
+            my $refused =
+              defined $types && $store->refused_type_preferences($types);
+            return $refused if $refused;
+            my $channels = $store->set_preferences(
+                {
+                    preferences => $input->{preferences},
+                    user_id     => $input->{user_id},
+                }
+            );
+            return $channels
+              if !defined $types
+              || ( ref $channels eq 'HASH' && !$channels->{ok} );
+            my $stored = $store->set_type_preferences(
+                { preferences => $types, user_id => $input->{user_id} } );
+
+            return $stored->{ok} ? $channels : $stored;
+        },
+    );
+}
+
+# What the command log keys the write by: the choices as booleans.
+sub _request ($input) {
+    my @preferences = map {
+        +{
+            channel          => $_->{channel},
+            digest_frequency => $_->{digest_frequency},
+            enabled          => $_->{enabled} ? 1 : 0,
+        }
+    } @{ $input->{preferences} || [] };
+    my $request = {
+        preferences => \@preferences,
+        user_id     => $input->{user_id},
+    };
+    if ( defined $input->{type_preferences} ) {
+        $request->{type_preferences} = [
+            map {
+                +{
+                    channel    => $_->{channel},
+                    enabled    => $_->{enabled} ? 1 : 0,
+                    event_type => $_->{event_type},
+                }
+            } @{ $input->{type_preferences} }
+        ];
+    }
+
+    return $request;
 }
 
 sub _trim ($value) {
@@ -206,6 +241,10 @@ C<marked_count> 0.
 
 Replaces the member notification channel preferences. Requires
 C<command_id> and replays from C<command_log> when the helper is present.
+With C<type_preferences> (an array reference of C<event_type>, C<channel>
+and C<enabled>, ADR 0078) it also stores the member's choice for each kind
+of notification: those are checked first, so a refused kind writes
+nothing, and written after the channels.
 
 =head1 DIAGNOSTICS
 

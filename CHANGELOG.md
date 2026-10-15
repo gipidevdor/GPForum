@@ -546,6 +546,19 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Notification preferences by kind, notification email and one-click
+  unsubscribe** (PB-08, D02/D04/D05, ADR 0078 amended). In `/settings` a
+  member turns replies in followed threads, mentions and moderation notices
+  on or off for the inbox and for email; by default all reach the inbox
+  and mentions and moderation notices are emailed. Fanout follows these
+  choices, and a notification taken by email is sent through the outbox
+  in the member's language, after its preferences are read again. Every
+  notification mail has a signed unsubscribe link and the RFC 8058
+  `List-Unsubscribe` and `List-Unsubscribe-Post` headers; opening the link
+  changes nothing, its button or the mail client's one-click POST stops
+  that kind of email (or all of it), audited. Account mail (verification,
+  password reset, email change) is never affected.
+
 - **Threads carry tags.** An author names up to five tags with the title,
   on the new-thread form and in the edit-title sheet (ADR 0135, migration
   117): each a link under the title on the thread page, on its category's
@@ -556,6 +569,7 @@ CI, evidence and internal refactors with no change in behaviour.
   `api.forum_set_thread_tags_v1`, and read per page through
   `api.forum_thread_tags_v1`; the tag pages read
   `api.forum_list_tagged_threads_v1` and `api.forum_list_tags_v1`.
+
 - **First-post review queue** (PB-05, ADR 0134). Staff can hold a new
   member's first posts (a number from 1 to 20, set in `/admin/automod`;
   off by default) and, optionally, the posts the watched words or the link

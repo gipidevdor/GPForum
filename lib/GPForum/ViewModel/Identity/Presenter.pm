@@ -255,13 +255,15 @@ sub profile ( $self, $profile ) {
 
 sub settings_page ( $self, %input ) {
     return {
-        bio                      => $input{bio} // q{},
-        digest_frequency_options => $input{digest_frequency_options} || [],
-        locale_options           => $input{locale_options}           || [],
-        notification_preferences => $input{notification_preferences} || [],
-        theme_options            => $input{theme_options}            || [],
-        timezone_options         => $input{timezone_options}         || [],
-        ui                       => {
+        bio                           => $input{bio} // q{},
+        digest_frequency_options      => $input{digest_frequency_options} || [],
+        locale_options                => $input{locale_options}           || [],
+        notification_preferences      => $input{notification_preferences} || [],
+        notification_type_preferences => $input{notification_type_preferences}
+          || [],
+        theme_options    => $input{theme_options}    || [],
+        timezone_options => $input{timezone_options} || [],
+        ui               => {
             appearance_heading_id    => 'settings-appearance-heading',
             credentials_heading_id   => 'settings-credentials-heading',
             email_heading_id         => 'settings-email-heading',

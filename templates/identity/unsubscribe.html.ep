@@ -1,0 +1,28 @@
+% layout 'default';
+% title t('notifications.unsubscribe.title') . ' - ' . t('app.name');
+%# ADR 0078: what a notification mail's unsubscribe link stops. Opening it
+%# changes nothing; the button does.
+<section aria-labelledby="<%= $ui->{heading_id} %>">
+  <%= include 'components/page_header',
+    heading_id => $ui->{heading_id},
+    component_title => t('notifications.unsubscribe.title'),
+    description => t('notifications.unsubscribe.description') %>
+  <form method="post" action="<%= ui_path('unsubscribe_confirm', token => $token) %>">
+    <%= csrf_field %>
+    <fieldset>
+      <legend><%= t('notifications.unsubscribe.choose') %></legend>
+      % if ($scope ne 'all') {
+        <div class="checkbox-field">
+          <input id="unsubscribe-scope-kind" name="scope" type="radio" value="<%= $scope %>" checked>
+          <label for="unsubscribe-scope-kind"><%= t($scope_key) %></label>
+        </div>
+      % }
+      <div class="checkbox-field">
+        <input id="unsubscribe-scope-all" name="scope" type="radio" value="all"<%= $scope eq 'all' ? ' checked' : '' %>>
+        <label for="unsubscribe-scope-all"><%= t('notifications.unsubscribe.scope.all') %></label>
+      </div>
+    </fieldset>
+    <button type="submit"><%= t('notifications.unsubscribe.submit') %></button>
+  </form>
+  <p class="ui-hint"><%= t('notifications.unsubscribe.settings_hint') %> <a href="<%= ui_path('settings') %>"><%= t('notifications.unsubscribe.open_settings') %></a></p>
+</section>

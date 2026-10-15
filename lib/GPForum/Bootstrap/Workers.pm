@@ -21,6 +21,7 @@ use GPForum::Worker::Handler::FeedProjection;
 use GPForum::Worker::Handler::IdentityMail;
 use GPForum::Worker::Handler::MediaProcessing;
 use GPForum::Worker::Handler::NotificationDispatch;
+use GPForum::Worker::Handler::NotificationMail;
 use GPForum::Worker::Handler::ReputationUpdate;
 use GPForum::Worker::Handler::SearchIndexing;
 use GPForum::Worker::Handler::ThreadActivity;
@@ -121,6 +122,12 @@ sub _event_handlers ($controller) {
         ),
         GPForum::Worker::Handler::IdentityMail->new(
             mailer => $controller->gp_identity_mailer,
+        ),
+        GPForum::Worker::Handler::NotificationMail->new(
+            mailer           => $controller->gp_identity_mailer,
+            preference_store => $controller->gp_notification_preference_store,
+            renderer         => $controller->gp_notification_renderer,
+            tokens           => $controller->gp_unsubscribe_tokens,
         ),
         GPForum::Worker::Handler::ReputationUpdate->new(
             ledger => GPForum::Service::Community::ReputationLedger->new(

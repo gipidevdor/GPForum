@@ -109,6 +109,30 @@ sub send_test_message ( $self, $input ) {
     );
 }
 
+# ADR 0078: a notification mail, which a member may stop. It carries the
+# one-click unsubscribe of RFC 8058 (List-Unsubscribe with an https or http
+# URL, and List-Unsubscribe-Post), which identity mail never does: that is
+# transactional.
+#
+# Its words are the member's language, so the subject is MIME-encoded and
+# the body sent as UTF-8 octets.
+sub send_notification_mail ( $self, $input ) {
+    require Encode;
+    return $self->_send_identity_mail(
+        {
+            body    => Encode::encode( 'UTF-8', $input->{body} ),
+            kind    => 'notification',
+            subject => Encode::encode( 'MIME-Header', $input->{subject} ),
+            to      => $input->{to},
+            headers => [
+                'Content-Transfer-Encoding' => '8bit',
+                'List-Unsubscribe'          => "<$input->{unsubscribe_url}>",
+                'List-Unsubscribe-Post'     => 'List-Unsubscribe=One-Click',
+            ],
+        }
+    );
+}
+
 # A plain-text message through the transport; a delivery is logged when there
 # is a logger to log it.
 sub _send_identity_mail ( $self, $input ) {
@@ -120,6 +144,7 @@ sub _send_identity_mail ( $self, $input ) {
             From           => $self->from_address,
             Subject        => $input->{subject},
             To             => $input->{to},
+            @{ $input->{headers} || [] },
         ],
     );
     $self->transport->send(
@@ -265,6 +290,15 @@ Sends a registration verification link.
 =head2 send_test_message
 
 Sends the admin console's test message, which carries no link.
+
+=head2 send_notification_mail
+
+Takes C<to>, C<subject>, C<body> (text, encoded here) and
+C<unsubscribe_url>, and sends a notification mail with the RFC 8058
+C<List-Unsubscribe> and C<List-Unsubscribe-Post> headers. Logged as
+C<identity mail delivered: notification>. The headers are only one-click
+to a receiver that sees them under a DKIM signature, which the sending MTA
+adds.
 
 =head1 DIAGNOSTICS
 

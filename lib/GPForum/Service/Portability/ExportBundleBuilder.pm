@@ -336,6 +336,10 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
 
         # ADR 0134: the subject's posts held for review, as written.
         held_posts => $parts->{held_posts} || [],
+
+        # ADR 0078: the subject's choices by kind of notification.
+        notification_type_preferences => $parts->{notification_type_preferences}
+          || [],
     };
 }
 
@@ -353,6 +357,8 @@ sub safe_manifest ( $self, $bundle ) {
             preferences      => scalar @{ $bundle->{preferences} },
             member_relations => scalar @{ $bundle->{member_relations} // [] },
             held_posts       => scalar @{ $bundle->{held_posts}       // [] },
+            notification_type_preferences =>
+              scalar @{ $bundle->{notification_type_preferences} // [] },
         },
     };
 }

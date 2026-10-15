@@ -17,9 +17,10 @@ const my %PREFIX => (
     'GPForum::Worker::Handler::FeedProjection'       => 'worker.feed',
     'GPForum::Worker::Handler::MediaProcessing'      => 'worker.media',
     'GPForum::Worker::Handler::NotificationDispatch' => 'worker.notification',
-    'GPForum::Worker::Handler::ReputationUpdate'     => 'worker.reputation',
-    'GPForum::Worker::Handler::SearchIndexing'       => 'worker.search',
-    'GPForum::Worker::Handler::ThreadActivity' => 'worker.thread_activity',
+    'GPForum::Worker::Handler::NotificationMail' => 'worker.notification_mail',
+    'GPForum::Worker::Handler::ReputationUpdate' => 'worker.reputation',
+    'GPForum::Worker::Handler::SearchIndexing'   => 'worker.search',
+    'GPForum::Worker::Handler::ThreadActivity'   => 'worker.thread_activity',
 );
 
 sub prefix_for ( $, $handler ) {
@@ -104,10 +105,10 @@ a handler twice. This module names the keys: a fixed prefix per handler
 class, a colon, and the event id.
 
 The prefixes are C<worker.attachment>, C<worker.cache>, C<worker.feed>,
-C<worker.media>, C<worker.notification>, C<worker.reputation>,
-C<worker.search> and C<worker.thread_activity> for the matching
-C<GPForum::Worker::Handler::*> classes, and C<worker.realtime> for the
-realtime hint. A handler class not in that list has no key, and the
+C<worker.media>, C<worker.notification>, C<worker.notification_mail>,
+C<worker.reputation>, C<worker.search> and C<worker.thread_activity> for
+the matching C<GPForum::Worker::Handler::*> classes, and C<worker.realtime>
+for the realtime hint. A handler class not in that list has no key, and the
 transport then runs it without a claim.
 
 =head1 SUBROUTINES/METHODS

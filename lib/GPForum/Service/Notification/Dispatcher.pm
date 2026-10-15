@@ -8,6 +8,7 @@ use Digest::SHA qw(sha1_hex);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Keyset;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow::NotificationInbox;
@@ -37,6 +38,10 @@ const my @INBOX_COLUMNS =>
   qw(created_at notification_id rank_score read_at recipient_user_id);
 const my $ERROR_TEXT_LIMIT => 300;
 
+# ADR 0078: a notification the member takes by email is queued as this
+# event; Worker::Handler::NotificationMail sends it.
+const my $EMAIL_REQUESTED => 'notification.email.requested';
+
 # The hex digit groups of a uuid, and the version of one named by a SHA-1.
 const my $UUID_GROUPS       => 'A8 A4 A4 A4 A12';
 const my $UUID_NAME_VERSION => '5';
@@ -65,6 +70,12 @@ has badge_errors => sub { return \%PROCESS_BADGE_ERRORS; };
 has clock        => sub { return GPForum::Service::Clock->new; };
 has event_contract =>
   sub { return GPForum::Service::Realtime::EventEnvelope->new; };
+has event_recorder => sub ($self) {
+    return GPForum::Infrastructure::EventRecorder->new(
+        id_service => $self->id_service,
+        schema     => $self->schema,
+    );
+};
 has id_service  => sub { return GPForum::Infrastructure::Id->new; };
 has logger      => undef;    # optional: badge failures are dropped without one
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
@@ -94,17 +105,57 @@ has subscription_store => undef;    # optional: only fan-out reads it
 has relations => undef;                           # optional: nobody is silenced
 has stats     => sub { return \%PROCESS_STATS; };
 
+# ADR 0078: the member's preferences say where the notification goes, by
+# its type: the inbox, email, both or neither. One that goes by email only
+# is queued and answered as skipped from the inbox, with email_queued.
 sub create_notification ( $self, $input ) {
+    my $screened = $self->_screened($input);
+    return $screened->{refused} if $screened->{refused};
+    my $plan = $screened->{plan};
+
+    if ( !$plan->{in_app} ) {
+        $self->_queue_email($input);
+        return {
+            ok           => 0,
+            skipped      => 'channel_disabled',
+            channel      => 'in_app',
+            email_queued => 1,
+        };
+    }
+
+    return $self->_committed_with_badge(
+        $input->{recipient_user_id},
+        sub {
+            my $delivered = $self->_create_notification($input);
+            if (   $plan->{email}
+                && ref $delivered eq 'HASH'
+                && $delivered->{ok} )
+            {
+                $self->_queue_email($input);
+                $delivered->{email_queued} = 1;
+            }
+            return $delivered;
+        },
+        'delivery'
+    );
+}
+
+# The refusal a notification meets before anything is written, in order --
+# the permission (ADR 0102), the member's preferences, the recipient's
+# relation to the actor (ADR 0130) -- or the delivery plan it goes by.
+sub _screened ( $self, $input ) {
     my $engine = $self->permission_engine;
-    return { ok => 0, skipped => 'permission_denied' }
+    return { refused => { ok => 0, skipped => 'permission_denied' } }
       if $engine
       && !$engine->can_notify(
         $input->{recipient_user_id}, $input->{source_type},
         $input->{source_id},         $input->{payload} || {}
       );
-    return { ok => 0, skipped => 'channel_disabled', channel => 'in_app' }
-      if !$self->_channel_enabled( $input, 'in_app' );
-    return { ok => 0, skipped => 'member_relation' }
+    my $plan = $self->_delivery_plan($input);
+    return { refused =>
+          { ok => 0, skipped => 'channel_disabled', channel => 'in_app' } }
+      if !$plan->{in_app} && !$plan->{email};
+    return { refused => { ok => 0, skipped => 'member_relation' } }
       if $self->relations
       && $self->relations->silences(
         $input->{recipient_user_id},
@@ -112,8 +163,61 @@ sub create_notification ( $self, $input ) {
         ( $input->{payload} || {} )->{actor_id}
       );
 
-    return $self->_committed_with_badge( $input->{recipient_user_id},
-        sub { return $self->_create_notification($input); }, 'delivery' );
+    return { plan => $plan };
+}
+
+# The plan the preference store reads, or the in-app channel alone from a
+# store that has no plan. A store that fails reads as the inbox only, as a
+# failed channel read always did: a notification is not lost to it.
+sub _delivery_plan ( $self, $input ) {
+    my $store     = $self->preference_store;
+    my $recipient = $input->{recipient_user_id};
+    return { in_app => 1, email => 0 }
+      if !$store || !defined $recipient || !length $recipient;
+    return {
+        in_app => $self->_channel_enabled( $input, 'in_app' ),
+        email  => 0
+      }
+      if !$store->can('delivery_plan');
+
+    my $plan;
+    try {
+        $plan =
+          $store->delivery_plan( $recipient, $input->{notification_type} );
+    }
+    catch ($error) {
+        return { in_app => 1, email => 0 };
+    };
+
+    return $plan;
+}
+
+# The mail is an event in the outbox, named by the notification's own key:
+# a retried delivery records it once. It carries what the mail says and
+# links to, never the address, which the worker reads when it sends.
+sub _queue_email ( $self, $input ) {
+    my $key     = 'notification.email:' . _idempotency_key($input);
+    my $payload = $input->{payload} || {};
+    $self->event_recorder->record_event(
+        event_type        => $EMAIL_REQUESTED,
+        aggregate_type    => 'user',
+        aggregate_id      => $input->{recipient_user_id},
+        aggregate_version => 1,
+        actor_id        => $payload->{actor_id} // $input->{recipient_user_id},
+        event_id        => _notification_id_for($key),
+        idempotency_key => $key,
+        payload         => {
+            recipient_user_id => $input->{recipient_user_id},
+            notification_type => $input->{notification_type},
+            source_type       => $input->{source_type},
+            source_id         => $input->{source_id},
+            thread_id         => $payload->{thread_id},
+            post_id           => $payload->{post_id},
+            reason            => $payload->{reason},
+        },
+    );
+
+    return;
 }
 
 # The badge is counted once the rows are durable. pg_notify is transactional
@@ -905,9 +1009,15 @@ optional C<idempotency_key>, C<notification_id> and C<rank_score> (default
 0). Returns C<< { ok => 0, skipped => 'permission_denied' } >> when the
 C<permission_engine>'s C<can_notify> refuses, and
 C<< { ok => 0, skipped => 'channel_disabled', channel => 'in_app' } >> when
-the recipient turned the channel off, and
+the recipient takes this type neither in the inbox nor by email (the
+preference store's C<delivery_plan>, ADR 0078; a store without one is asked
+C<channel_enabled> for C<in_app>), and
 C<< { ok => 0, skipped => 'member_relation' } >> when the actor is on the
-recipient's ignore or block list. Otherwise writes the rows in a
+recipient's ignore or block list. A type the recipient takes by email is
+queued as a C<notification.email.requested> event, its id named by the
+notification's key so that a retry records it once, and the answer carries
+C<< email_queued => 1 >>; by email only, the inbox is skipped as above
+with C<email_queued>. Otherwise writes the rows in a
 transaction and returns C<< { ok => 1, duplicate, idempotency_key,
 notification, inbox, unread_count } >>: C<notification> and C<inbox> are
 hash references of the stored fields, the notification's C<payload>
@@ -1037,6 +1147,7 @@ counted.
 
 L<Const::Fast>, L<Digest::SHA>, L<GPForum::Base>,
 L<GPForum::Infrastructure::Id>, L<GPForum::Infrastructure::Keyset>,
+L<GPForum::Infrastructure::EventRecorder> (the queued mail),
 L<GPForum::Infrastructure::Row>, L<GPForum::Infrastructure::UniqueConflict>,
 L<GPForum::X::Conflict>, L<GPForum::X::Unavailable>,
 L<GPForum::Service::Admin::Settings> (its C<redact>), L<GPForum::Service::Clock>,

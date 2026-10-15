@@ -325,6 +325,14 @@ sub register ( $, %input ) {
     $routes->post('/settings/email')
       ->to('Identity::Email#request_email_change')
       ->name('settings_email_update');
+
+    # ADR 0078: a notification mail's unsubscribe link (RFC 8058).
+    $routes->get('/unsubscribe/#token')
+      ->to('Identity::Unsubscribe#form')
+      ->name('unsubscribe');
+    $routes->post('/unsubscribe/#token')
+      ->to('Identity::Unsubscribe#unsubscribe')
+      ->name('unsubscribe_confirm');
     $routes->get('/email/confirm/:token')
       ->to('Identity::Email#email_confirm_form')
       ->name('email_confirm_form');

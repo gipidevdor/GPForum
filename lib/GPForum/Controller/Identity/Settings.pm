@@ -78,9 +78,10 @@ sub settings ($self) {
     # The page shows the notification preferences: when they cannot be read
     # it answers 500.
     my $store = $self->gp_notification_preference_store;
-    my ( $preferences, $bio );
+    my ( $preferences, $type_preferences, $bio );
     try {
-        $preferences = $store->preferences_for_user($user_id);
+        $preferences      = $store->preferences_for_user($user_id);
+        $type_preferences = $store->type_preferences_for_user($user_id);
         $bio = $self->gp_identity_store->bio_for_user( { user_id => $user_id } )
           ->{bio};
     }
@@ -100,8 +101,9 @@ sub settings ($self) {
                 digest_frequency_options => $store->digest_frequency_options,
                 locale_options           => $self->ui_locale_options,
                 notification_preferences => $preferences,
-                theme_options            => $self->ui_theme_options,
-                timezone_options         => $self->_timezone_options,
+                notification_type_preferences => $type_preferences,
+                theme_options                 => $self->ui_theme_options,
+                timezone_options              => $self->_timezone_options,
             )
         },
         status => $HTTP_OK,
@@ -123,9 +125,10 @@ sub update_settings ($self) {
 
     my $result = $self->gp_notification_workflow->set_preferences(
         {
-            command_id  => $self->command_id_param,
-            preferences => $self->_notification_preference_input,
-            user_id     => $user_id,
+            command_id       => $self->command_id_param,
+            preferences      => $self->_notification_preference_input,
+            type_preferences => $self->_notification_type_input,
+            user_id          => $user_id,
         }
     );
     if ( !$result->{ok} ) {
@@ -213,6 +216,28 @@ sub _notification_preference_input ($self) {
     }
 
     return \@preferences;
+}
+
+# ADR 0078: a checkbox per kind and channel. The form says it sent them;
+# a request without that marker (a locale or theme change from elsewhere)
+# leaves the kinds as they are, as an unticked box would turn them off.
+sub _notification_type_input ($self) {
+    return undef if !$self->param('notification_types_present');
+    my $store = $self->gp_notification_preference_store;
+    my @choices;
+    for my $type ( @{ $store->event_types } ) {
+        for my $channel ( @{ $store->type_channels } ) {
+            my $field = "notification_type_${type}_$channel";
+            push @choices,
+              {
+                channel    => $channel,
+                enabled    => $self->param($field) ? 1 : 0,
+                event_type => $type,
+              };
+        }
+    }
+
+    return \@choices;
 }
 
 1;

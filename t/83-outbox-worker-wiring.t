@@ -229,6 +229,11 @@ sub _install_worker_helper_dependencies {
     $worker_application->helper( gp_media_processor    => sub { return {}; } );
     $worker_application->helper( gp_subscription_store => sub { return {}; } );
     $worker_application->helper( gp_identity_mailer    => sub { return {}; } );
+    $worker_application->helper(
+        gp_notification_preference_store => sub { return {}; } );
+    $worker_application->helper(
+        gp_notification_renderer => sub { return {}; } );
+    $worker_application->helper( gp_unsubscribe_tokens => sub { return {}; } );
 
     # Scanning off. A scalar undef, not an empty list: the helper's value is
     # an argument in a constructor's key/value list.

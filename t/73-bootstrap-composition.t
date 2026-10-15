@@ -195,6 +195,8 @@ sub _route_names {
       thread_subscription_mute
       thread_unsubscribe
       theme_update
+      unsubscribe
+      unsubscribe_confirm
     );
 }
 
@@ -308,6 +310,7 @@ sub _helper_names {
       gp_thread_read_workflow
       gp_thread_reader
       gp_thread_store
+      gp_unsubscribe_tokens
       gp_worker_registrar
       csrf_field
       csrf_token

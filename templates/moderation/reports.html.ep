@@ -25,8 +25,12 @@
               <%= ui_label('target', $report->{target_type}) %> <%= t('moderation.reports') %>
             </h2>
             <dl>
+              % if ($report->{automated}) {
+                <dt><%= t('moderation.reporter') %></dt>
+                <dd><%= t('moderation.automod_reporter') %></dd>
+              % }
               <dt><%= t('common.reason') %></dt>
-              <dd><%= $report->{reason} %></dd>
+              <dd><%= !$report->{automod_rule} ? $report->{reason} : $report->{automod_rule} eq 'link_limit' ? t('moderation.automod_link_limit') : t('moderation.automod_watched_word') %></dd>
               <dt><%= t('common.details') %></dt>
               <dd><%= $report->{details} || t('common.none') %></dd>
               <dt><%= t('admin.status') %></dt>

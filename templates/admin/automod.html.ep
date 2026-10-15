@@ -1,0 +1,101 @@
+% layout 'default', shell => 'wide';
+% title t('admin.automod') . ' - ' . t('app.name');
+% my %action_label = (
+%   block   => t('admin.automod_action_block'),
+%   flag    => t('admin.automod_action_flag'),
+%   replace => t('admin.automod_action_replace'),
+% );
+
+<section aria-labelledby="admin-automod-heading">
+  <%= include 'components/page_header',
+    heading_id => 'admin-automod-heading',
+    component_title => t('admin.automod'),
+    actions_label => t('admin.automod'),
+    actions => ui_actions(
+      { href => ui_path('admin_dashboard'), label => t('admin.admin') },
+      { href => ui_path('moderation_reports'), label => t('moderation.queue') },
+    ) %>
+  <p><%= t('admin.automod_intro') %></p>
+
+  <section aria-labelledby="automod-words-heading">
+    <%= include 'components/section_header',
+      heading_id => 'automod-words-heading',
+      component_title => t('admin.automod_words') %>
+    <p id="automod-phrase-help"><%= t('admin.automod_phrase_help', { maximum => $maximum_words }) %></p>
+    <form method="post" action="<%= ui_path('admin_automod_word_add') %>">
+      <%= csrf_field %>
+      <label for="automod-phrase"><%= t('admin.automod_phrase') %></label>
+      <input id="automod-phrase" name="phrase" maxlength="100" required aria-describedby="automod-phrase-help">
+      <label for="automod-action"><%= t('admin.automod_action') %></label>
+      <select id="automod-action" name="action">
+        % for my $action (@{$actions}) {
+          <option value="<%= $action %>"><%= $action_label{$action} %></option>
+        % }
+      </select>
+      <label for="automod-replacement"><%= t('admin.automod_replacement') %></label>
+      <input id="automod-replacement" name="replacement" maxlength="100" placeholder="<%= $default_replacement %>" aria-describedby="automod-replacement-help">
+      <p id="automod-replacement-help" class="ui-meta"><%= t('admin.automod_replacement_help', { default => $default_replacement }) %></p>
+      <button type="submit"><%= t('admin.automod_add') %></button>
+    </form>
+
+    % if (@{$words}) {
+      <div class="ui-table-wrap">
+        <table class="ui-admin-table" aria-labelledby="automod-words-heading">
+          <thead>
+            <tr>
+              <th scope="col"><%= t('admin.automod_phrase') %></th>
+              <th scope="col"><%= t('admin.automod_action') %></th>
+              <th scope="col"><%= t('admin.automod_replacement') %></th>
+              <th scope="col"><%= t('admin.automod_added') %></th>
+              <th scope="col"><span class="visually-hidden"><%= t('admin.automod_remove') %></span></th>
+            </tr>
+          </thead>
+          <tbody>
+            % for my $word (@{$words}) {
+              <tr>
+                <th scope="row" id="<%= $word->{ui}{id} %>"><code><%= $word->{phrase} %></code></th>
+                <td><%= $action_label{ $word->{action} } // $word->{action} %></td>
+                <td><%= $word->{action} eq 'replace' ? (length $word->{replacement} ? $word->{replacement} : $default_replacement) : t('common.none') %></td>
+                <td>
+                  <time datetime="<%= $word->{created_at} %>"><%= dt($word->{created_at}) %></time>
+                  % if (defined $word->{created_by_username}) {
+                    <%= $word->{created_by_username} %>
+                  % }
+                </td>
+                <td>
+                  <form method="post" action="<%= ui_path('admin_automod_word_remove', word_id => $word->{word_id}) %>">
+                    <%= csrf_field %>
+                    <button type="submit" aria-describedby="<%= $word->{ui}{id} %>"><%= t('admin.automod_remove') %></button>
+                  </form>
+                </td>
+              </tr>
+            % }
+          </tbody>
+        </table>
+      </div>
+    % } else {
+      <p><%= t('admin.automod_no_words') %></p>
+    % }
+  </section>
+
+  <section aria-labelledby="automod-links-heading">
+    <%= include 'components/section_header',
+      heading_id => 'automod-links-heading',
+      component_title => t('admin.automod_links') %>
+    <p id="automod-links-help"><%= t('admin.automod_links_help') %></p>
+    <form method="post" action="<%= ui_path('admin_automod_links') %>" aria-describedby="automod-links-help">
+      <%= csrf_field %>
+      <label for="automod-link-limit"><%= t('admin.automod_link_limit') %></label>
+      <input id="automod-link-limit" name="link_limit" type="number" min="0" max="100" value="<%= $link_limit // q{} %>">
+      <label for="automod-link-trust"><%= t('admin.automod_link_trust_below') %></label>
+      <input id="automod-link-trust" name="link_trust_below" type="number" min="0" max="100" value="<%= $link_trust_below %>" required>
+      <label for="automod-link-action"><%= t('admin.automod_action') %></label>
+      <select id="automod-link-action" name="link_action">
+        % for my $action (@{$link_actions}) {
+          <option value="<%= $action %>" <%= $action eq $link_action ? 'selected' : '' %>><%= $action_label{$action} %></option>
+        % }
+      </select>
+      <button type="submit"><%= t('admin.automod_links_save') %></button>
+    </form>
+  </section>
+</section>

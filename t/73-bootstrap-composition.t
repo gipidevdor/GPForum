@@ -82,6 +82,10 @@ sub _route_names {
     return qw(
       admin_antivirus_check
       admin_audit
+      admin_automod
+      admin_automod_links
+      admin_automod_word_add
+      admin_automod_word_remove
       admin_categories
       admin_category_create
       admin_category_update
@@ -198,6 +202,7 @@ sub _helper_names {
       gp_admin_view_model
       gp_admin_workflow
       gp_antivirus
+      gp_automod_store
       gp_attachment_view_model
       gp_attachment_delivery
       gp_attachment_storage

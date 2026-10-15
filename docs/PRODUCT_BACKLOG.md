@@ -124,8 +124,8 @@ claim. No competitor source code or assets were imported for this review.
 | F03 | Shadowban | Not found; requires an explicit product/privacy decision before adoption. [routes], [moderation-flow] | PB-18 / Defer |
 | F04 | Private notes on users | Not found as a dedicated feature; action reasons and report details/resolutions already exist. [reports], [moderation-schema] | PB-18 |
 | F05 | First-post review queue | Not found; report review exists, but new-post approval is a different workflow. [moderation-flow], [routes] | PB-05 |
-| F06 | Automod regex / links / flood | Partial: rate limiting exists; configurable content rules and decisions were not found. [rate-limiter], [routes] | PB-05 |
-| F07 | Watched words | Not found. [moderation-flow], [routes] | PB-05 |
+| F06 | Automod regex / links / flood | Done 2026-10-15: a link rule in `/admin/automod` limits the links in a post by a member below a trust level (blocked or flagged, off by default); patterns are bounded literal words with an optional end star, never staff-written regular expressions; flooding stays with the posting rate limiter; every decision is audited (ADR 0133). [rate-limiter], [routes] | PB-05 |
+| F07 | Watched words | Done 2026-10-15: up to 500 watched words or phrases in `/admin/automod`, each blocking, flagging (a system report in the moderation queue) or replacing what it matches in new threads, replies and edits; staff who moderate are not screened; every change and decision is audited (ADR 0133). [moderation-flow], [routes] | PB-05 |
 | F08 | IP / range ban administration | Not found as staff workflow; account suspension and per-address throttling exist. [routes], [rate-limiter] | PB-18 |
 | F09 | Attachment content moderation | Partial: scan/quarantine/lifecycle infrastructure exists; a richer staff review workflow needs specification and verification. [attachment-flow], [workers] | PB-18 |
 | F10 | Snooze / advanced report assignment | Partial: assign-to-self, release and resolve are implemented; snooze and arbitrary assignee UX were not found. [reports], [routes] | PB-18 |

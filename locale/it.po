@@ -3410,3 +3410,160 @@ msgstr "Paginazione"
 msgctxt "ui.status_banner"
 msgid "Status"
 msgstr "Stato"
+
+msgctxt "admin.automod"
+msgid "Watched words"
+msgstr "Parole sorvegliate"
+
+msgctxt "admin.automod_intro"
+msgid "Watched words and the link rule screen every new thread, reply and edit. Staff who moderate every thread are not screened. Each change and each decision is recorded in the audit log."
+msgstr "Le parole sorvegliate e la regola sui link controllano ogni nuova discussione, risposta e modifica. Lo staff che modera tutte le discussioni non viene controllato. Ogni modifica e ogni decisione viene registrata nel registro di audit."
+
+msgctxt "admin.automod_words"
+msgid "Watched words"
+msgstr "Parole sorvegliate"
+
+#, python-brace-format
+msgctxt "admin.automod_phrase_help"
+msgid "A word or phrase, matched whole and regardless of case. Put * at the start or end to match words that begin or end with it, as in spam*. At most {maximum} entries."
+msgstr "Una parola o una frase, cercata per intero e senza distinguere maiuscole e minuscole. Metti * all'inizio o alla fine per trovare le parole che iniziano o finiscono così, come spam*. Al massimo {maximum} voci."
+
+msgctxt "admin.automod_phrase"
+msgid "Word or phrase"
+msgstr "Parola o frase"
+
+msgctxt "admin.automod_action"
+msgid "Action"
+msgstr "Azione"
+
+msgctxt "admin.automod_action_block"
+msgid "Block the post"
+msgstr "Blocca il messaggio"
+
+msgctxt "admin.automod_action_flag"
+msgid "Publish and send to the moderation queue"
+msgstr "Pubblica e invia alla coda di moderazione"
+
+msgctxt "admin.automod_action_replace"
+msgid "Replace the text"
+msgstr "Sostituisci il testo"
+
+msgctxt "admin.automod_replacement"
+msgid "Replacement"
+msgstr "Sostituzione"
+
+#, python-brace-format
+msgctxt "admin.automod_replacement_help"
+msgid "Used only by Replace. Left empty, the text becomes {default}."
+msgstr "Usata solo da Sostituisci. Se vuota, il testo diventa {default}."
+
+msgctxt "admin.automod_add"
+msgid "Add watched word"
+msgstr "Aggiungi parola sorvegliata"
+
+msgctxt "admin.automod_added"
+msgid "Added"
+msgstr "Aggiunta"
+
+msgctxt "admin.automod_remove"
+msgid "Remove"
+msgstr "Rimuovi"
+
+msgctxt "admin.automod_no_words"
+msgid "No watched words yet."
+msgstr "Ancora nessuna parola sorvegliata."
+
+msgctxt "admin.automod_links"
+msgid "Links from new members"
+msgstr "Link dei nuovi membri"
+
+msgctxt "admin.automod_links_help"
+msgid "Limits the links in one post by a member below the given trust level. Leave the limit empty to turn the rule off."
+msgstr "Limita i link in un messaggio di un membro sotto il livello di fiducia indicato. Lascia vuoto il limite per disattivare la regola."
+
+msgctxt "admin.automod_link_limit"
+msgid "Most links in a post"
+msgstr "Numero massimo di link in un messaggio"
+
+msgctxt "admin.automod_link_trust_below"
+msgid "Applies below trust level"
+msgstr "Si applica sotto il livello di fiducia"
+
+msgctxt "admin.automod_links_save"
+msgid "Save link rule"
+msgstr "Salva la regola sui link"
+
+msgctxt "admin.automod_word_added"
+msgid "Watched word added."
+msgstr "Parola sorvegliata aggiunta."
+
+msgctxt "admin.automod_word_removed"
+msgid "Watched word removed."
+msgstr "Parola sorvegliata rimossa."
+
+msgctxt "admin.automod_links_set"
+msgid "Link rule saved."
+msgstr "Regola sui link salvata."
+
+msgctxt "admin.automod_unchanged"
+msgid "Nothing changed."
+msgstr "Nessuna modifica."
+
+msgctxt "admin.automod_duplicate"
+msgid "That word or phrase is already watched."
+msgstr "Quella parola o frase è già sorvegliata."
+
+#, python-brace-format
+msgctxt "admin.automod_limit"
+msgid "The list is full: it holds at most {maximum} entries. Remove one first."
+msgstr "L'elenco è pieno: contiene al massimo {maximum} voci. Rimuovine prima una."
+
+msgctxt "admin.automod_invalid_phrase"
+msgid "Enter a word or phrase of at most 100 characters, with * only at its start or end."
+msgstr "Inserisci una parola o una frase di al massimo 100 caratteri, con * solo all'inizio o alla fine."
+
+msgctxt "admin.automod_invalid_action"
+msgid "Choose an action."
+msgstr "Scegli un'azione."
+
+msgctxt "admin.automod_invalid_replacement"
+msgid "The replacement can be at most 100 characters."
+msgstr "La sostituzione può avere al massimo 100 caratteri."
+
+msgctxt "admin.automod_invalid_link_limit"
+msgid "The link limit is a number from 0 to 100, or empty."
+msgstr "Il limite di link è un numero da 0 a 100, oppure vuoto."
+
+msgctxt "admin.automod_invalid_link_trust_below"
+msgid "The trust level is a number from 0 to 100."
+msgstr "Il livello di fiducia è un numero da 0 a 100."
+
+msgctxt "admin.automod_invalid_link_action"
+msgid "Choose block or flag."
+msgstr "Scegli blocca o segnala."
+
+#, python-brace-format
+msgctxt "forum.automod_words"
+msgid "This contains words that are not allowed here: {words}. Change them and try again."
+msgstr "Il testo contiene parole non ammesse qui: {words}. Modificale e riprova."
+
+#, python-brace-format
+msgctxt "forum.automod_links"
+msgid "A post can contain at most {limit} links for now. Remove some and try again."
+msgstr "Per ora un messaggio può contenere al massimo {limit} link. Rimuovine qualcuno e riprova."
+
+msgctxt "moderation.reporter"
+msgid "Reported by"
+msgstr "Segnalato da"
+
+msgctxt "moderation.automod_reporter"
+msgid "Automod"
+msgstr "Moderazione automatica"
+
+msgctxt "moderation.automod_watched_word"
+msgid "Contains a watched word"
+msgstr "Contiene una parola sorvegliata"
+
+msgctxt "moderation.automod_link_limit"
+msgid "Too many links from a new member"
+msgstr "Troppi link da un nuovo membro"

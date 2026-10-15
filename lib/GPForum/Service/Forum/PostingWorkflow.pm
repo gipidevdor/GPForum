@@ -56,6 +56,10 @@ has codec => sub { return GPForum::Service::Forum::PostingCommand->new; };
 has command_idempotency => undef;    # optional: without it every call runs
 has logger              => undef;    # optional: without it nothing is logged
 
+# ADR 0133: screens new threads, replies and edits against the watched
+# words and the link rule (Forum::PostingAutomod).
+has automod => undef;    # optional: without it nothing is screened
+
 # ADR 0126: on PostgreSQL a reply's command log and store run in one call to
 # api.forum_create_reply_v1, on the post store's schema. Without a command
 # log (CommandIdempotency) or a post store (PostStore) on PostgreSQL -- the
@@ -72,22 +76,40 @@ has functions => sub ($self) {
 };
 
 sub create_thread ( $self, $input ) {
-    return $self->_run( 'thread.create', $input,
-        sub { return $self->_create_thread_once($input); } );
+    return $self->_screened(
+        'thread.create',
+        $input,
+        sub ($screened) {
+            return $self->_run( 'thread.create', $screened,
+                sub { return $self->_create_thread_once($screened); } );
+        }
+    );
 }
 
 sub create_reply ( $self, $input ) {
-    if ( my $functions = $self->functions ) {
-        return $self->_create_reply_by_function( $functions, $input );
-    }
+    return $self->_screened(
+        $REPLY, $input,
+        sub ($screened) {
+            if ( my $functions = $self->functions ) {
+                return $self->_create_reply_by_function( $functions,
+                    $screened );
+            }
 
-    return $self->_run( $REPLY, $input,
-        sub { return $self->_create_reply_once($input); } );
+            return $self->_run( $REPLY, $screened,
+                sub { return $self->_create_reply_once($screened); } );
+        }
+    );
 }
 
 sub edit_thread ( $self, $input ) {
-    return $self->_run( 'thread.edit', $input,
-        sub { return $self->_edit_thread_once($input); } );
+    return $self->_screened(
+        'thread.edit',
+        $input,
+        sub ($screened) {
+            return $self->_run( 'thread.edit', $screened,
+                sub { return $self->_edit_thread_once($screened); } );
+        }
+    );
 }
 
 sub move_thread ( $self, $input ) {
@@ -106,8 +128,29 @@ sub restore_thread ( $self, $input ) {
 }
 
 sub edit_post ( $self, $input ) {
-    return $self->_run( 'post.edit', $input,
-        sub { return $self->_edit_post_once($input); } );
+    return $self->_screened(
+        'post.edit',
+        $input,
+        sub ($screened) {
+            return $self->_run( 'post.edit', $screened,
+                sub { return $self->_edit_post_once($screened); } );
+        }
+    );
+}
+
+# ADR 0133: the write as the automod rules leave it -- refused, rewritten,
+# or run with its decisions recorded in its own transaction. The rules live
+# in PostgreSQL, so only the function path is screened; the in-memory
+# doubles are not.
+sub _screened ( $self, $type, $input, $write ) {
+    my $automod = $self->automod;
+    return $write->($input) if !$automod || !$self->functions;
+
+    my $screen = $automod->screen( $type, $input );
+    return $screen->{refusal}           if $screen->{refusal};
+    return $write->( $screen->{input} ) if !$screen->{settle};
+
+    return $automod->settle( $type, $screen, $write );
 }
 
 sub delete_post ( $self, $input ) {
@@ -1016,7 +1059,11 @@ of the post store's schema when there is a command log and a
 L<GPForum::Service::Forum::PostStore> on PostgreSQL, else undef; undef keeps
 the Perl path for replies. C<codec> defaults to L<GPForum::Service::Forum::PostingCommand>,
 which encodes the request, the response and the replay of each command type
-for the command log.
+for the command log. C<automod> (L<GPForum::Service::Forum::PostingAutomod>)
+is optional: with it a new thread, a reply, a post edit and a thread title
+edit are screened against the watched words and the link rule (ADR 0133),
+and a block answers C<invalid> with an C<automod> member naming the field
+and what matched.
 
 =head2 create_thread
 

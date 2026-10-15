@@ -12,7 +12,7 @@ __PACKAGE__->table('reports');
 
 __PACKAGE__->add_columns(
     report_id        => { data_type => 'uuid', is_nullable => 0 },
-    reporter_user_id => { data_type => 'uuid', is_nullable => 0 },
+    reporter_user_id => { data_type => 'uuid', is_nullable => 1 },
     target_type      => { data_type => 'text', is_nullable => 0 },
     target_id        => { data_type => 'uuid', is_nullable => 0 },
     reason           => { data_type => 'text', is_nullable => 0 },
@@ -27,9 +27,12 @@ __PACKAGE__->add_columns(
 );
 
 __PACKAGE__->set_primary_key('report_id');
+
+# ADR 0133: a report with no reporter is the system's (automod).
 __PACKAGE__->belongs_to(
     reporter => 'GPForum::Schema::Result::User',
-    'reporter_user_id'
+    'reporter_user_id',
+    { join_type => 'left' }
 );
 __PACKAGE__->belongs_to(
     assigned_moderator => 'GPForum::Schema::Result::User',

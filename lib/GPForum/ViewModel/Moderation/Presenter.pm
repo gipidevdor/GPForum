@@ -139,8 +139,20 @@ sub moderation_action ( $self, $result ) {
 
 sub report ( $self, $row ) {
     my $report_id = $self->column( $row, 'report_id' );
+    my $reason    = $self->column( $row, 'reason' );
+
+    # ADR 0133: a report with no reporter is the system's (automod); its
+    # reason is one of the rules, which the page names in the reader's
+    # language.
+    my $automated = defined $self->column( $row, 'reporter_user_id' ) ? 0 : 1;
+    my ($rule) =
+      $automated
+      ? ( $reason // q{} ) =~ /\A automod[.] (watched_word|link_limit) \z/msx
+      : ();
 
     return {
+        automated                  => $automated,
+        automod_rule               => $rule,
         assigned_moderator_user_id =>
           $self->column( $row, 'assigned_moderator_user_id' ),
         assign_command_id  => $self->column( $row, 'assign_command_id' ),
@@ -148,7 +160,7 @@ sub report ( $self, $row ) {
         lock_command_id    => $self->column( $row, 'lock_command_id' ),
         created_at         => $self->column( $row, 'created_at' ),
         details            => $self->column( $row, 'details' ),
-        reason             => $self->column( $row, 'reason' ),
+        reason             => $reason,
         report_id          => $report_id,
         release_command_id => $self->column( $row, 'release_command_id' ),
         reporter_user_id   => $self->column( $row, 'reporter_user_id' ),

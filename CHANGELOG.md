@@ -552,6 +552,19 @@ CI, evidence and internal refactors with no change in behaviour.
   discussion already open is found before a second one is started. Nothing
   changes without the page's script.
 
+- **Watched words and automod rules** (PB-05, ADR 0133). In the admin
+  console, `/admin/automod` keeps up to 500 watched words or phrases (whole
+  words, any case, a star at either end for a word that runs on), each
+  blocking, flagging or replacing what it matches in new threads, replies,
+  post edits and thread titles, and one link rule: at most N links in a post
+  by a member below a trust level, blocked or flagged. A blocked write comes
+  back saying which words, in the writer's language; a flagged one is posted
+  and lands in the moderation queue as a report by *Automod*; a replaced one
+  is stored replaced. Staff who moderate every thread are not screened.
+  Every rule change and every decision is audited. Migration 115 adds
+  `watched_words`, `automod_settings`, the `moderation_watched_word_*` and
+  `moderation_automod_*` functions, and lets a report have no reporter.
+
 - **A reply may answer one post** (ADR 0132): "Reply" under a post opens
   the composer naming it ("Replying to #12 by @name", with a way to drop
   it), and "Quote" does the same and quotes the words; once the reply is

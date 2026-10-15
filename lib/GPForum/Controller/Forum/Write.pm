@@ -31,6 +31,7 @@ sub create_thread ($self) {
     );
 
     if ( !$result->{ok} ) {
+        $self->_automod_refusal($result);
         if ( $draft->{draft_id} ) {
             $self->stash( composer_draft => $draft );
         }
@@ -67,6 +68,7 @@ sub edit_thread ($self) {
     );
 
     if ( !$result->{ok} ) {
+        $self->_automod_refusal($result);
         return $self->reply_write_failure($result);
     }
 
@@ -162,12 +164,14 @@ sub create_reply ($self) {
     );
 
     if ( !$result->{ok} ) {
+        my $refusal = $self->_automod_refusal($result);
         if ( $draft->{draft_id} && !$self->_wants_json ) {
             my $key =
               ( $result->{status} // q{} ) eq 'conflict'
               ? 'forum.draft_conflict'
               : 'forum.draft_save_failed';
-            $self->stash( composer_draft_error => $self->i18n($key) );
+            $self->stash( composer_draft_error => $refusal
+                  // $self->i18n($key) );
             if ( ( $result->{status} // q{} ) eq 'conflict' ) {
                 $self->stash( composer_draft_conflict => 1 );
             }
@@ -213,6 +217,7 @@ sub edit_post ($self) {
     );
 
     if ( !$result->{ok} ) {
+        $self->_automod_refusal($result);
         return $self->reply_write_failure($result);
     }
 
@@ -309,6 +314,22 @@ sub mark_thread_read ($self) {
     return $self->read_marker_response($marked);
 }
 
+# ADR 0133: a write the automod rules refused says why, in the reader's
+# language, on the field it names; the message, or undef for any other
+# failure.
+sub _automod_refusal ( $self, $result ) {
+    my $automod = $result->{automod};
+    return undef if ref $automod ne 'HASH';
+
+    my $message =
+      ( $automod->{reason} // q{} ) eq 'link_limit'
+      ? $self->i18n( 'forum.automod_links', { limit => $automod->{limit} } )
+      : $self->i18n( 'forum.automod_words',
+        { words => join q{, }, @{ $automod->{phrases} // [] } } );
+    $result->{prepared}{errors}{ $automod->{field} } = $message;
+
+    return $message;
+}
 1;
 
 __END__

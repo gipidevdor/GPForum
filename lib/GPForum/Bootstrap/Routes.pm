@@ -35,6 +35,18 @@ sub register ( $, %input ) {
     $routes->post('/admin/categories/:category_id')
       ->to('Admin::Categories#update_category')
       ->name('admin_category_update');
+    $routes->get('/admin/automod')
+      ->to('Admin::Automod#show')
+      ->name('admin_automod');
+    $routes->post('/admin/automod/words')
+      ->to('Admin::Automod#add_word')
+      ->name('admin_automod_word_add');
+    $routes->post('/admin/automod/words/:word_id/remove')
+      ->to('Admin::Automod#remove_word')
+      ->name('admin_automod_word_remove');
+    $routes->post('/admin/automod/links')
+      ->to('Admin::Automod#set_links')
+      ->name('admin_automod_links');
     $routes->post('/admin/roles')
       ->to('Admin::Catalog#create_role')
       ->name('admin_role_create');

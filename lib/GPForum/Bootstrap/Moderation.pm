@@ -6,6 +6,7 @@ package GPForum::Bootstrap::Moderation;
 use v5.40;
 
 use GPForum::Service::Moderation::ActionStore;
+use GPForum::Service::Moderation::AutomodStore;
 use GPForum::Service::Moderation::ReportStore;
 use GPForum::Service::Moderation::ReviewReader;
 use GPForum::Service::Moderation::SuspensionStore;
@@ -18,6 +19,15 @@ sub register {
 
     my $application = $input{application};
 
+    # ADR 0133: watched words, the link rule and automod decisions.
+    $application->helper(
+        gp_automod_store => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Moderation::AutomodStore->new(
+                schema => $controller->gp_schema );
+        }
+    );
     $application->helper(
         gp_report_store => sub {
             my ($controller) = @_;

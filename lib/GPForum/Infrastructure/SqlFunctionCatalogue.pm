@@ -760,6 +760,49 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ status => 'text', row_limit => 'integer' ]
     },
+
+    # ADR 0133: watched words and automod rules.
+    moderation_watched_word_add => {
+        version    => 2,
+        parameters => [
+            word_id       => 'uuid',
+            phrase        => 'text',
+            action        => 'text',
+            replacement   => 'text',
+            actor_user_id => 'uuid',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+        ],
+    },
+    moderation_watched_word_remove =>
+      { version => 2, parameters => [ word_id => 'uuid', audit => 'jsonb' ] },
+    moderation_watched_word_list    => { version => 2, parameters => [] },
+    moderation_automod_settings_set => {
+        version    => 2,
+        parameters => [
+            link_limit       => 'integer',
+            link_trust_below => 'integer',
+            link_action      => 'text',
+            actor_user_id    => 'uuid',
+            now              => 'timestamptz',
+            audit            => 'jsonb',
+        ],
+    },
+    moderation_automod_rules => {
+        version    => 2,
+        parameters => [ user_id => 'uuid' ],
+        json       => ['document']
+    },
+    moderation_automod_record => {
+        version    => 2,
+        parameters => [
+            report          => 'jsonb',
+            event           => 'jsonb',
+            event_outbox_id => 'text',
+            report_audit    => 'jsonb',
+            audits          => 'jsonb',
+        ],
+    },
     moderation_suspension_find =>
       { version => 2, parameters => [ suspension_id => 'uuid' ] },
     moderation_suspension_update => {

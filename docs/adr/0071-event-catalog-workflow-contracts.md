@@ -79,6 +79,10 @@ plus every asynchronous consumer.
   - producer: admin workflow
   - consumers: navigation projection, search projection, audit
   - payload: `category_id`, `space_id`
+- `announcement.published`, `announcement.retired`
+  - producer: admin workflow (ADR 0131)
+  - consumers: cache invalidation, audit
+  - payload: `announcement_id`, `tone`
 - `thread.created`
   - producer: thread creation workflow
   - consumers: feed projection, search indexing, notification fanout,

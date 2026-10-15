@@ -6,6 +6,7 @@ package GPForum::Bootstrap::Admin;
 use v5.40;
 
 use GPForum::Service::Admin::AuditReview;
+use GPForum::Service::Admin::AnnouncementStore;
 use GPForum::Service::Admin::CategoryStore;
 use GPForum::Service::Admin::ConsoleReader;
 use GPForum::Service::Admin::Diagnostics;
@@ -46,6 +47,13 @@ sub register {
             my ($controller) = @_;
 
             return GPForum::Service::Admin::RoleBindingStore->new(
+                schema => $controller->gp_schema );
+        }
+    );
+    $application->helper(
+        gp_announcement_store => sub {
+            my ($controller) = @_;
+            return GPForum::Service::Admin::AnnouncementStore->new(
                 schema => $controller->gp_schema );
         }
     );
@@ -130,6 +138,7 @@ sub register {
             my ($controller) = @_;
 
             return GPForum::Service::Admin::Workflow->new(
+                announcement_store  => $controller->gp_announcement_store,
                 binding_store       => $controller->gp_role_binding_store,
                 category_store      => $controller->gp_category_store,
                 command_idempotency => $controller->gp_command_idempotency,

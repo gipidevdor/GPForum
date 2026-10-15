@@ -40,13 +40,14 @@ $test->get_ok('/__test/session/admin-1')->status_is($HTTP_OK);
 
 subtest 'an admin page whose read dies answers 500 and logs it' => sub {
     my @cases = (
-        [ '/admin',            gp_admin_console_reader      => 'dashboard' ],
-        [ '/admin/roles',      gp_role_catalog              => 'roles' ],
-        [ '/admin/categories', gp_category_store            => 'categories' ],
-        [ '/admin/users',      gp_admin_console_reader      => 'users' ],
-        [ '/admin/jobs',       gp_admin_console_reader      => 'jobs' ],
-        [ '/admin/status',     gp_admin_console_reader      => 'status' ],
-        [ '/admin/settings',   gp_admin_settings            => 'settings' ],
+        [ '/admin',               gp_admin_console_reader => 'dashboard' ],
+        [ '/admin/roles',         gp_role_catalog         => 'roles' ],
+        [ '/admin/categories',    gp_category_store       => 'categories' ],
+        [ '/admin/announcements', gp_announcement_store   => 'announcements' ],
+        [ '/admin/users',         gp_admin_console_reader => 'users' ],
+        [ '/admin/jobs',          gp_admin_console_reader => 'jobs' ],
+        [ '/admin/status',        gp_admin_console_reader => 'status' ],
+        [ '/admin/settings',      gp_admin_settings       => 'settings' ],
         [ '/admin/users/user-1/roles', gp_permission_review => 'user roles' ],
     );
     for my $case (@cases) {
@@ -236,7 +237,7 @@ sub _install_fakes ($application) {
     my %fakes   = (
         (
             map { $_ => $admin }
-              qw(gp_role_catalog gp_category_store gp_role_binding_store
+              qw(gp_role_catalog gp_category_store gp_announcement_store gp_role_binding_store
               gp_permission_review gp_admin_audit_review
               gp_admin_console_reader gp_dead_letter_replay
               gp_admin_maintenance)

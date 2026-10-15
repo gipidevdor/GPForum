@@ -9,56 +9,60 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-const my $DEFAULT_LIMIT               => 50;
-const my $DASHBOARD_LIMIT             => 10;
-const my $WRITE_RATE_LIMIT            => 20;
-const my $WRITE_RATE_WINDOW           => 60;
-const my $WRITE_ACTION                => 'admin.write';
-const my $ADMIN_RESOURCE              => 'admin_console';
-const my $ACTION_MANAGE               => 'manage';
-const my $ACTION_VIEW                 => 'view';
-const my $DEFAULT_REDIRECT            => 'admin_roles';
-const my $STATUS_CONFLICT             => 'conflict';
-const my $STATUS_FAILED               => 'failed';
-const my $STATUS_NOT_FOUND            => 'not_found';
-const my $STATUS_INVALID              => 'invalid';
-const my $STATUS_ROLE_CREATED         => 'role_created';
-const my $STATUS_PERMISSION_CREATED   => 'permission_created';
-const my $STATUS_ROLE_PERM_ATTACHED   => 'role_permission_attached';
-const my $STATUS_ROLE_BOUND           => 'role_bound';
-const my $STATUS_ROLE_BINDING_REVOKED => 'role_binding_revoked';
-const my $STATUS_CATEGORY_CREATED     => 'category_created';
-const my $STATUS_CATEGORY_UPDATED     => 'category_updated';
-const my $CATEGORIES_REDIRECT         => 'admin_categories';
-const my $STATUS_DEAD_LETTER_REPLAYED => 'dead_letter_replayed';
-const my $STATUS_SEARCH_REBUILD       => 'search_rebuild_requested';
-const my $STATUS_CACHE_PURGED         => 'cache_purged';
-const my $STATUS_CACHE_PURGED_LOCALLY => 'cache_purged_locally';
-const my $JOBS_REDIRECT               => 'admin_jobs';
-const my $STATUS_MAIL_TEST_SENT       => 'mail_test_sent';
-const my $STATUS_MAIL_TEST_FAILED     => 'mail_test_failed';
-const my $STATUS_ANTIVIRUS_PASSED     => 'antivirus_check_passed';
-const my $STATUS_ANTIVIRUS_PROBLEM    => 'antivirus_check_problem';
-const my $STATUS_ANTIVIRUS_DISABLED   => 'antivirus_check_disabled';
-const my $SETTINGS_REDIRECT           => 'admin_settings';
+const my $DEFAULT_LIMIT                 => 50;
+const my $DASHBOARD_LIMIT               => 10;
+const my $WRITE_RATE_LIMIT              => 20;
+const my $WRITE_RATE_WINDOW             => 60;
+const my $WRITE_ACTION                  => 'admin.write';
+const my $ADMIN_RESOURCE                => 'admin_console';
+const my $ACTION_MANAGE                 => 'manage';
+const my $ACTION_VIEW                   => 'view';
+const my $DEFAULT_REDIRECT              => 'admin_roles';
+const my $STATUS_CONFLICT               => 'conflict';
+const my $STATUS_FAILED                 => 'failed';
+const my $STATUS_NOT_FOUND              => 'not_found';
+const my $STATUS_INVALID                => 'invalid';
+const my $STATUS_ROLE_CREATED           => 'role_created';
+const my $STATUS_PERMISSION_CREATED     => 'permission_created';
+const my $STATUS_ROLE_PERM_ATTACHED     => 'role_permission_attached';
+const my $STATUS_ROLE_BOUND             => 'role_bound';
+const my $STATUS_ROLE_BINDING_REVOKED   => 'role_binding_revoked';
+const my $STATUS_CATEGORY_CREATED       => 'category_created';
+const my $STATUS_CATEGORY_UPDATED       => 'category_updated';
+const my $STATUS_ANNOUNCEMENT_PUBLISHED => 'announcement_published';
+const my $STATUS_ANNOUNCEMENT_RETIRED   => 'announcement_retired';
+const my $CATEGORIES_REDIRECT           => 'admin_categories';
+const my $STATUS_DEAD_LETTER_REPLAYED   => 'dead_letter_replayed';
+const my $STATUS_SEARCH_REBUILD         => 'search_rebuild_requested';
+const my $STATUS_CACHE_PURGED           => 'cache_purged';
+const my $STATUS_CACHE_PURGED_LOCALLY   => 'cache_purged_locally';
+const my $JOBS_REDIRECT                 => 'admin_jobs';
+const my $STATUS_MAIL_TEST_SENT         => 'mail_test_sent';
+const my $STATUS_MAIL_TEST_FAILED       => 'mail_test_failed';
+const my $STATUS_ANTIVIRUS_PASSED       => 'antivirus_check_passed';
+const my $STATUS_ANTIVIRUS_PROBLEM      => 'antivirus_check_problem';
+const my $STATUS_ANTIVIRUS_DISABLED     => 'antivirus_check_disabled';
+const my $SETTINGS_REDIRECT             => 'admin_settings';
 
 const my %WRITE_FLASH => (
-    $STATUS_ANTIVIRUS_DISABLED   => 'admin.antivirus_check_disabled',
-    $STATUS_ANTIVIRUS_PASSED     => 'admin.antivirus_check_passed',
-    $STATUS_ANTIVIRUS_PROBLEM    => 'admin.antivirus_check_problem',
-    $STATUS_CACHE_PURGED         => 'admin.cache_purged',
-    $STATUS_CACHE_PURGED_LOCALLY => 'admin.cache_purged_locally',
-    $STATUS_CATEGORY_CREATED     => 'admin.category_created',
-    $STATUS_CATEGORY_UPDATED     => 'admin.category_updated',
-    $STATUS_DEAD_LETTER_REPLAYED => 'admin.dead_letter_replayed',
-    $STATUS_MAIL_TEST_FAILED     => 'admin.mail_test_failed',
-    $STATUS_MAIL_TEST_SENT       => 'admin.mail_test_sent',
-    $STATUS_PERMISSION_CREATED   => 'admin.permission_created',
-    $STATUS_ROLE_BOUND           => 'admin.role_bound',
-    $STATUS_ROLE_BINDING_REVOKED => 'admin.role_binding_revoked',
-    $STATUS_ROLE_CREATED         => 'admin.role_created',
-    $STATUS_ROLE_PERM_ATTACHED   => 'admin.role_permission_attached',
-    $STATUS_SEARCH_REBUILD       => 'admin.search_rebuild_requested',
+    $STATUS_ANNOUNCEMENT_PUBLISHED => 'admin.announcement_published',
+    $STATUS_ANNOUNCEMENT_RETIRED   => 'admin.announcement_retired',
+    $STATUS_ANTIVIRUS_DISABLED     => 'admin.antivirus_check_disabled',
+    $STATUS_ANTIVIRUS_PASSED       => 'admin.antivirus_check_passed',
+    $STATUS_ANTIVIRUS_PROBLEM      => 'admin.antivirus_check_problem',
+    $STATUS_CACHE_PURGED           => 'admin.cache_purged',
+    $STATUS_CACHE_PURGED_LOCALLY   => 'admin.cache_purged_locally',
+    $STATUS_CATEGORY_CREATED       => 'admin.category_created',
+    $STATUS_CATEGORY_UPDATED       => 'admin.category_updated',
+    $STATUS_DEAD_LETTER_REPLAYED   => 'admin.dead_letter_replayed',
+    $STATUS_MAIL_TEST_FAILED       => 'admin.mail_test_failed',
+    $STATUS_MAIL_TEST_SENT         => 'admin.mail_test_sent',
+    $STATUS_PERMISSION_CREATED     => 'admin.permission_created',
+    $STATUS_ROLE_BOUND             => 'admin.role_bound',
+    $STATUS_ROLE_BINDING_REVOKED   => 'admin.role_binding_revoked',
+    $STATUS_ROLE_CREATED           => 'admin.role_created',
+    $STATUS_ROLE_PERM_ATTACHED     => 'admin.role_permission_attached',
+    $STATUS_SEARCH_REBUILD         => 'admin.search_rebuild_requested',
 );
 
 # A diagnostic that ran but did not pass is not a success: its flash says so
@@ -129,6 +133,14 @@ sub category_updated_status {
     return $STATUS_CATEGORY_UPDATED;
 }
 
+sub announcement_published_status {
+    return $STATUS_ANNOUNCEMENT_PUBLISHED;
+}
+
+sub announcement_retired_status {
+    return $STATUS_ANNOUNCEMENT_RETIRED;
+}
+
 sub dead_letter_replayed_status {
     return $STATUS_DEAD_LETTER_REPLAYED;
 }
@@ -184,6 +196,10 @@ sub antivirus_check_status ( $, $report_status ) {
 
 sub categories_redirect {
     return $CATEGORIES_REDIRECT;
+}
+
+sub announcements_redirect {
+    return 'admin_announcements';
 }
 
 sub permission_target ( $, $action ) {
@@ -326,6 +342,14 @@ Returns C<category_created>.
 
 Returns C<category_updated>.
 
+=head2 announcement_published_status
+
+Returns C<announcement_published>.
+
+=head2 announcement_retired_status
+
+Returns C<announcement_retired>.
+
 =head2 search_rebuild_status
 
 Returns C<search_rebuild_requested>.
@@ -367,6 +391,10 @@ C<antivirus_check_problem> for an antivirus report's status.
 =head2 categories_redirect
 
 Returns the categories catalog route name.
+
+=head2 announcements_redirect
+
+Returns the announcements console route name.
 
 =head2 permission_target
 

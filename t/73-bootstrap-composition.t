@@ -211,6 +211,7 @@ sub _helper_names {
       gp_canonical_url
       gp_category_reader
       gp_category_store
+      gp_announcement_store
       gp_clock
       gp_command_idempotency
       gp_config
@@ -313,6 +314,7 @@ sub _helper_names {
       ui_datetime
       ui_default_timezone
       ui_direction
+      ui_announcements
       ui_flash_messages
       ui_label
       ui_locale

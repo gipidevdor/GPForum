@@ -673,6 +673,8 @@ sub _install_admin_write_fakes {
     $test_object->app->helper( gp_role_catalog   => sub { return $services; } );
     $test_object->app->helper( gp_category_store => sub { return $services; } );
     $test_object->app->helper(
+        gp_announcement_store => sub { return $services; } );
+    $test_object->app->helper(
         gp_role_binding_store => sub { return $services; } );
     $test_object->app->helper(
         gp_permission_review => sub { return $services; } );

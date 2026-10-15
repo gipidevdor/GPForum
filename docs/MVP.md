@@ -166,6 +166,9 @@ for quota, expiry, publication and privacy behavior.
 * `GET /admin/categories` renders the category catalog.
 * `POST /admin/categories` creates a category through `Admin::Workflow` and `CategoryStore`.
 * `POST /admin/categories/:category_id` updates a category through `Admin::Workflow` and `CategoryStore`.
+* `GET /admin/announcements`, `POST /admin/announcements` and
+  `POST /admin/announcements/:announcement_id/retire` publish and retire the
+  site announcements every page shows (ADR 0131).
 * `GET /admin/audit` renders bounded admin audit review.
 * `GET /admin/jobs` renders bounded asynchronous job state with an optional status filter.
 * `GET /admin/status` renders the operations status snapshot from `ConsoleReader`.

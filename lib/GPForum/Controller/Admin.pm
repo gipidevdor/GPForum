@@ -308,6 +308,42 @@ sub _roles_payload ($self) {
     );
 }
 
+sub announcements ($self) {
+    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+    if ( !$user_id ) {
+        return;
+    }
+
+    my $payload;
+    try {
+        $payload = $self->_announcements_payload;
+    }
+    catch ($error) {
+        $self->app->log->error("admin announcements failed: $error");
+        return $self->system_failure;
+    };
+
+    return $self->render_payload(
+        {
+            payload  => $payload,
+            status   => $HTTP_OK,
+            template => 'admin/announcements',
+        }
+    );
+}
+
+sub _announcements_payload ($self) {
+    my $announcements = $self->gp_announcement_store->list_announcements(
+        { limit => $self->limit_param } );
+    return $self->gp_admin_view_model->announcements_page(
+        announcements      => $announcements,
+        create_command_id  => $self->_new_command_id,
+        csrf_token         => $self->csrf_token,
+        retire_command_ids =>
+          $self->_ids_for( $announcements, 'announcement_id' ),
+    );
+}
+
 sub _categories_payload ($self) {
     my $categories = $self->gp_category_store->list_categories(
         { limit => $self->limit_param } );
@@ -432,6 +468,10 @@ Renders the role and permission catalog.
 =head2 categories
 
 Renders the category catalog.
+
+=head2 announcements
+
+Renders the site announcements console (ADR 0131).
 
 =head2 user_roles
 

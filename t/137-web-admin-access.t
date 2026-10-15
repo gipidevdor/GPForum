@@ -70,6 +70,19 @@ is( $access->category_created_status,
 is( $access->category_updated_status,
     'category_updated',
     'category_updated_status keeps the category update status' );
+is( $access->announcement_published_status,
+    'announcement_published',
+    'announcement_published_status keeps the publish write status' );
+is( $access->announcement_retired_status,
+    'announcement_retired',
+    'announcement_retired_status keeps the retire write status' );
+is( $access->announcements_redirect,
+    'admin_announcements', 'announcements_redirect names the console' );
+is(
+    $access->write_flash_key('announcement_published'),
+    'admin.announcement_published',
+    'a publication flashes its message'
+);
 is( $access->default_redirect,
     'admin_roles', 'default_redirect keeps the roles catalog' );
 is( $access->categories_redirect,

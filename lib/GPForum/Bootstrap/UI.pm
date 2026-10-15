@@ -551,6 +551,27 @@ sub _register_presentation_helpers {
             return _ui_breadcrumbs($controller);
         }
     );
+
+    # What the operators have to say on every page (ADR 0131); a read that
+    # fails shows none and says so in the log, as the viewer's does.
+    $application->helper(
+        ui_announcements => sub {
+            my ($controller) = @_;
+            my $cached = $controller->stash('gp.announcements');
+            return $cached if $cached;
+            my $announcements = [];
+            try {
+                $announcements =
+                  $controller->gp_announcement_store->active_announcements;
+            }
+            catch ($error) {
+                my ($reason) = split /\n/msx, "$error";
+                $controller->app->log->warn("announcements degraded: $reason");
+            };
+            $controller->stash( 'gp.announcements' => $announcements );
+            return $announcements;
+        }
+    );
     $application->helper(
         ui_flash_messages => sub {
             my ($controller) = @_;

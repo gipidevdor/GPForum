@@ -352,6 +352,10 @@ Every catalog event has `schema_version` 1.
 - `category.created`: aggregate_type `category`; aggregate_id
   `category_id`; actor_id `user_id`; idempotency_key command id; payload
   `category_id`, `space_id`, `slug`, `title`, `visibility`.
+- `announcement.published`, `announcement.retired`: aggregate_type
+  `announcement`; aggregate_id `announcement_id`; actor_id the
+  administrator; idempotency_key the action and the id; payload
+  `announcement_id`, `tone`.
 - `thread.created`: aggregate_type `thread`; aggregate_id `thread_id`;
   actor_id `user_id`; idempotency_key command id; payload `thread_id`,
   `category_id`, `author_user_id`, `title`, `visibility`.

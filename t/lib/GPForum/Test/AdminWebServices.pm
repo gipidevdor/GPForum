@@ -8,15 +8,17 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-has binding_revokes     => sub { return []; };
-has category_creates    => sub { return []; };
-has category_updates    => sub { return []; };
-has dead_letter_replays => sub { return []; };
-has maintenance_calls   => sub { return []; };
-has permission_attaches => sub { return []; };
-has permission_creates  => sub { return []; };
-has role_binds          => sub { return []; };
-has role_creates        => sub { return []; };
+has announcement_creates => sub { return []; };
+has announcement_retires => sub { return []; };
+has binding_revokes      => sub { return []; };
+has category_creates     => sub { return []; };
+has category_updates     => sub { return []; };
+has dead_letter_replays  => sub { return []; };
+has maintenance_calls    => sub { return []; };
+has permission_attaches  => sub { return []; };
+has permission_creates   => sub { return []; };
+has role_binds           => sub { return []; };
+has role_creates         => sub { return []; };
 
 # The tags the next purges leave in the shared cache, as GlifiStore paused or
 # failing would: none by default.
@@ -83,6 +85,54 @@ sub list_permissions {
             created_at    => '2026-05-23T12:00:00Z',
         },
     ];
+}
+
+sub list_announcements {
+    return [
+        _announcement_row( 'announcement-1', 'Back-ups tonight at 22:00.' ) ];
+}
+
+sub active_announcements {
+    return [
+        _announcement_row( 'announcement-1', 'Back-ups tonight at 22:00.' ) ];
+}
+
+sub create_announcement {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->announcement_creates }, $input;
+    return { errors => { message => 'message is required' }, ok => 0 }
+      if !length( $input->{message} // q{} );
+    return _announcement_row( 'announcement-created', $input->{message},
+        $input->{tone} );
+}
+
+sub retire_announcement {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->announcement_retires }, $input;
+    return undef if $input->{announcement_id} ne 'announcement-1';
+    return {
+        %{
+            _announcement_row( 'announcement-1', 'Back-ups tonight at 22:00.' )
+        },
+        retired_at => '2026-05-24T12:00:00Z',
+        retired_by => $input->{actor_user_id},
+    };
+}
+
+sub _announcement_row {
+    my ( $id, $message, $tone ) = @_;
+
+    return {
+        announcement_id => $id,
+        created_at      => '2026-05-23T12:00:00Z',
+        created_by      => 'user-1',
+        message         => $message,
+        retired_at      => undef,
+        retired_by      => undef,
+        tone            => $tone || 'notice',
+    };
 }
 
 sub list_categories {

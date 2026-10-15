@@ -71,6 +71,10 @@ $test->get_ok('/admin');
 $test->status_is($HTTP_OK);
 $test->element_exists(q{nav[aria-label="Admin"] a[href="/admin/users"]});
 $test->element_exists(q{nav[aria-label="Admin"] a[href="/admin/categories"]});
+$test->element_exists(
+    q{nav[aria-label="Admin"] a[href="/admin/announcements"]});
+$test->element_exists(
+    q{section[aria-label="Announcements"] .site-announcement});
 $test->element_exists(q{nav[aria-label="Admin"] a[href="/admin/jobs"]});
 $test->element_exists(q{nav[aria-label="Admin"] a[href="/admin/status"]});
 $test->element_exists(q{ol[aria-label="Admin user summary"]});
@@ -135,6 +139,73 @@ $test->element_exists(
 $test->element_exists(q{form[action="/admin/categories/category-1"]});
 $test->element_exists(
     'form[action="/admin/categories/category-1"] input[name="command_id"]');
+
+# The announcements console (ADR 0131): the list, the form, a refused and a
+# published announcement, and one retired.
+$test->get_ok('/admin/announcements');
+$test->status_is($HTTP_OK);
+$test->element_exists(q{ol[aria-label="Admin announcement list"]});
+$test->element_exists(
+    q{form[action="/admin/announcements"] textarea[name="message"]});
+$test->element_exists(
+q{form[action="/admin/announcements/announcement-1/retire"] input[name="command_id"]}
+);
+_get_json_ok( $test, '/admin/announcements' );
+$test->json_is( '/announcements/0/message' => 'Back-ups tonight at 22:00.' );
+$test->post_ok(
+    '/admin/announcements' => { Accept => 'application/json' } => form => {
+        command_id => 'announcement-invalid-1',
+        csrf_token => $csrf_token,
+        message    => q{},
+    }
+);
+$test->status_is($HTTP_BAD_REQUEST);
+$test->json_is( '/errors/message' => 'message is required' );
+$test->post_ok(
+    '/admin/announcements' => { Accept => 'application/json' } => form => {
+        command_id => 'announcement-create-1',
+        csrf_token => $csrf_token,
+        message    => 'Welcome to the new forum.',
+        tone       => 'warning',
+    }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/status'            => 'announcement_published' );
+$test->json_is( '/announcement/tone' => 'warning' );
+is( $admin_services->announcement_creates->[-1]{actor_user_id},
+    'admin-1', 'the announcement is published by the administrator' );
+$test->post_ok(
+    '/admin/announcements/announcement-1/retire' =>
+      { Accept => 'application/json' } => form => {
+        command_id => 'announcement-retire-1',
+        csrf_token => $csrf_token,
+      }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/status' => 'announcement_retired' );
+$test->post_ok(
+    '/admin/announcements/announcement-missing/retire' =>
+      { Accept => 'application/json' } => form => {
+        command_id => 'announcement-retire-2',
+        csrf_token => $csrf_token,
+      }
+);
+$test->status_is($HTTP_NOT_FOUND);
+$test->post_ok(
+    '/admin/announcements' => form => {
+        command_id => 'announcement-create-html',
+        csrf_token => $csrf_token,
+        message    => 'Welcome to the new forum.',
+    }
+);
+$test->status_is($HTTP_FOUND);
+$test->header_like( Location => qr{/admin/announcements\z}msx );
+is_deeply(
+    [ map { $_->[0] } @{ $admin_services->maintenance_calls } ],
+    [qw(purge purge purge)],
+    'each publication and retirement purged the public page cache'
+);
+$admin_services->maintenance_calls( [] );
 
 _get_json_ok( $test, '/admin/categories' );
 $test->status_is($HTTP_OK);
@@ -647,6 +718,8 @@ sub _install_admin_fakes {
     my $services = GPForum::Test::AdminWebServices->new;
     $test_object->app->helper( gp_role_catalog   => sub { return $services; } );
     $test_object->app->helper( gp_category_store => sub { return $services; } );
+    $test_object->app->helper(
+        gp_announcement_store => sub { return $services; } );
     $test_object->app->helper(
         gp_role_binding_store => sub { return $services; } );
     $test_object->app->helper(

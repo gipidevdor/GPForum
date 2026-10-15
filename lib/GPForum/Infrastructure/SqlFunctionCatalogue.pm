@@ -342,6 +342,18 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ row_limit => 'integer' ],
     },
+    admin_insert_announcement =>
+      { version => 2, parameters => [ values => 'jsonb' ] },
+    admin_retire_announcement => {
+        version    => 2,
+        parameters => [ announcement_id => 'uuid', values => 'jsonb' ]
+    },
+    admin_announcement_by_id =>
+      { version => 2, parameters => [ announcement_id => 'uuid' ] },
+    admin_list_announcements =>
+      { version => 2, parameters => [ row_limit => 'integer' ] },
+    forum_active_announcements =>
+      { version => 2, parameters => [ row_limit => 'integer' ] },
     admin_list_categories => {
         version    => 2,
         parameters => [ row_limit => 'integer' ],

@@ -472,7 +472,7 @@ sub _install_fakes {
     my $app   = $test_object->app;
     my $fakes = GPForum::Test::AdminWebServices->new;
     for my $helper (
-        qw(gp_role_catalog gp_category_store gp_role_binding_store
+        qw(gp_role_catalog gp_category_store gp_announcement_store gp_role_binding_store
         gp_permission_review gp_admin_audit_review gp_admin_console_reader
         gp_dead_letter_replay gp_admin_maintenance)
       )

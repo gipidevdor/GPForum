@@ -546,6 +546,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Operators say something to every reader**: administrators publish a
+  site announcement from `/admin/announcements` (plain text, up to 500
+  characters, as a notice or a warning) and retire it when it has served;
+  every page shows the active ones, newest first and at most three, under
+  the site header. Publishing and retiring are audited commands with their
+  events, and purge the public page cache at once (migration 113,
+  `site_announcements`, ADR 0131).
+
 - **Members ignore and block each other** (PB-06, ADR 0130). From a member's
   profile a signed-in reader ignores them (their posts collapse behind a
   "show" control in threads, and their replies and mentions leave the

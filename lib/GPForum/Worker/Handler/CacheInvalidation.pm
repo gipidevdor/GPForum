@@ -9,55 +9,59 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-const my $THREAD_CREATED   => 'thread.created';
-const my $THREAD_UPDATED   => 'thread.updated';
-const my $THREAD_DELETED   => 'thread.deleted';
-const my $THREAD_MOVED     => 'thread.moved';
-const my $THREAD_HIDDEN    => 'thread.hidden';
-const my $THREAD_RESTORED  => 'thread.restored';
-const my $THREAD_UNDELETED => 'thread.undeleted';
-const my $POST_CREATED     => 'post.created';
-const my $POST_UPDATED     => 'post.updated';
-const my $POST_DELETED     => 'post.deleted';
-const my $POST_UNDELETED   => 'post.undeleted';
-const my $CATEGORY_CREATED => 'category.created';
-const my $CATEGORY_UPDATED => 'category.updated';
-const my $POST_HIDDEN      => 'post.hidden';
-const my $POST_RESTORED    => 'post.restored';
-const my $POST_LIKED       => 'post.liked';
-const my $POST_UNLIKED     => 'post.unliked';
-const my $THREAD_LOCKED    => 'thread.locked';
-const my $THREAD_UNLOCKED  => 'thread.unlocked';
-const my $THREAD_PINNED    => 'thread.pinned';
-const my $THREAD_UNPINNED  => 'thread.unpinned';
-const my $ACTION_REVERSED  => 'moderation_action.reversed';
+const my $THREAD_CREATED         => 'thread.created';
+const my $THREAD_UPDATED         => 'thread.updated';
+const my $THREAD_DELETED         => 'thread.deleted';
+const my $THREAD_MOVED           => 'thread.moved';
+const my $THREAD_HIDDEN          => 'thread.hidden';
+const my $THREAD_RESTORED        => 'thread.restored';
+const my $THREAD_UNDELETED       => 'thread.undeleted';
+const my $POST_CREATED           => 'post.created';
+const my $POST_UPDATED           => 'post.updated';
+const my $POST_DELETED           => 'post.deleted';
+const my $POST_UNDELETED         => 'post.undeleted';
+const my $CATEGORY_CREATED       => 'category.created';
+const my $CATEGORY_UPDATED       => 'category.updated';
+const my $POST_HIDDEN            => 'post.hidden';
+const my $POST_RESTORED          => 'post.restored';
+const my $POST_LIKED             => 'post.liked';
+const my $POST_UNLIKED           => 'post.unliked';
+const my $THREAD_LOCKED          => 'thread.locked';
+const my $THREAD_UNLOCKED        => 'thread.unlocked';
+const my $THREAD_PINNED          => 'thread.pinned';
+const my $THREAD_UNPINNED        => 'thread.unpinned';
+const my $ACTION_REVERSED        => 'moderation_action.reversed';
+const my $ANNOUNCEMENT_PUBLISHED => 'announcement.published';
+const my $ANNOUNCEMENT_RETIRED   => 'announcement.retired';
 
 # Every page of the public HTML cache carries this tag (Web::ForumAccess).
 const my $PUBLIC_HTML => 'forum:public-html';
 
 const my %SUPPORTED => (
-    $ACTION_REVERSED  => 1,
-    $CATEGORY_CREATED => 1,
-    $CATEGORY_UPDATED => 1,
-    $POST_CREATED     => 1,
-    $POST_DELETED     => 1,
-    $POST_HIDDEN      => 1,
-    $POST_LIKED       => 1,
-    $POST_RESTORED    => 1,
-    $POST_UNDELETED   => 1,
-    $POST_UNLIKED     => 1,
-    $POST_UPDATED     => 1,
-    $THREAD_CREATED   => 1,
-    $THREAD_DELETED   => 1,
-    $THREAD_HIDDEN    => 1,
-    $THREAD_LOCKED    => 1,
-    $THREAD_MOVED     => 1,
-    $THREAD_PINNED    => 1,
-    $THREAD_RESTORED  => 1,
-    $THREAD_UNDELETED => 1,
-    $THREAD_UNLOCKED  => 1,
-    $THREAD_UNPINNED  => 1,
-    $THREAD_UPDATED   => 1,
+    $ACTION_REVERSED        => 1,
+    $ANNOUNCEMENT_PUBLISHED => 1,
+    $ANNOUNCEMENT_RETIRED   => 1,
+    $CATEGORY_CREATED       => 1,
+    $CATEGORY_UPDATED       => 1,
+    $POST_CREATED           => 1,
+    $POST_DELETED           => 1,
+    $POST_HIDDEN            => 1,
+    $POST_LIKED             => 1,
+    $POST_RESTORED          => 1,
+    $POST_UNDELETED         => 1,
+    $POST_UNLIKED           => 1,
+    $POST_UPDATED           => 1,
+    $THREAD_CREATED         => 1,
+    $THREAD_DELETED         => 1,
+    $THREAD_HIDDEN          => 1,
+    $THREAD_LOCKED          => 1,
+    $THREAD_MOVED           => 1,
+    $THREAD_PINNED          => 1,
+    $THREAD_RESTORED        => 1,
+    $THREAD_UNDELETED       => 1,
+    $THREAD_UNLOCKED        => 1,
+    $THREAD_UNPINNED        => 1,
+    $THREAD_UPDATED         => 1,
 );
 
 # Events that change what anonymous readers may see across pages the event
@@ -67,17 +71,19 @@ const my %SUPPORTED => (
 # they did, a hidden thread or a category turned private stayed on the
 # cached public pages until the entry expired.
 const my %PURGES_PUBLIC_HTML => (
-    $ACTION_REVERSED  => 1,
-    $CATEGORY_CREATED => 1,
-    $CATEGORY_UPDATED => 1,
-    $POST_HIDDEN      => 1,
-    $POST_RESTORED    => 1,
-    $THREAD_HIDDEN    => 1,
-    $THREAD_LOCKED    => 1,
-    $THREAD_PINNED    => 1,
-    $THREAD_RESTORED  => 1,
-    $THREAD_UNLOCKED  => 1,
-    $THREAD_UNPINNED  => 1,
+    $ACTION_REVERSED        => 1,
+    $ANNOUNCEMENT_PUBLISHED => 1,
+    $ANNOUNCEMENT_RETIRED   => 1,
+    $CATEGORY_CREATED       => 1,
+    $CATEGORY_UPDATED       => 1,
+    $POST_HIDDEN            => 1,
+    $POST_RESTORED          => 1,
+    $THREAD_HIDDEN          => 1,
+    $THREAD_LOCKED          => 1,
+    $THREAD_PINNED          => 1,
+    $THREAD_RESTORED        => 1,
+    $THREAD_UNLOCKED        => 1,
+    $THREAD_UNPINNED        => 1,
 );
 
 const my %THREAD_CONTENT => (

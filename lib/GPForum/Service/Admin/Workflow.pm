@@ -17,6 +17,7 @@ const my %ALLOWED_VISIBILITY => (
 
 # Each collaborator serves its own commands, and a caller wiring only some of
 # them -- the dead-letter console, the diagnostics page -- leaves the rest out.
+has announcement_store  => undef;    # optional: only announcements read it
 has binding_store       => undef;    # optional: only role bindings read it
 has category_store      => undef;    # optional: only categories read it
 has dead_letter_replay  => undef;    # optional: only replays read it
@@ -243,6 +244,89 @@ sub update_category ( $self, $input ) {
 # Replays a dead letter under the command's idempotency, so a lost response
 # retried with the same command id gets the first answer back instead of a
 # conflict from the replay the first attempt already made.
+# An announcement published or retired is on every page at once: the
+# public page cache is purged with the write, under the same actor.
+sub create_announcement ( $self, $input ) {
+    my $invalid = $self->_missing_command_id($input);
+    if ($invalid) {
+        return $invalid;
+    }
+    my $command = {
+        actor_user_id => $input->{actor_user_id},
+        message       => _trim( $input->{message} ),
+        tone          => _trim( $input->{tone} ) || 'notice',
+    };
+    $invalid = $self->_missing_fields( $command, ['message'] );
+    if ($invalid) {
+        return $invalid;
+    }
+
+    return $self->_purging(
+        $input,
+        $self->_commanded_store(
+            {
+                actor_id     => $input->{actor_user_id},
+                command_id   => $input->{command_id},
+                command_type => 'admin.announcement_publish',
+                not_found    => 'announcement not found',
+                request      => $command,
+                run          => sub {
+                    return $self->announcement_store->create_announcement(
+                        $command);
+                },
+            }
+        )
+    );
+}
+
+sub retire_announcement ( $self, $input ) {
+    my $invalid = $self->_missing_command_id($input);
+    if ($invalid) {
+        return $invalid;
+    }
+    my $command = {
+        actor_user_id   => $input->{actor_user_id},
+        announcement_id => _trim( $input->{announcement_id} ),
+    };
+    $invalid = $self->_missing_fields( $command, ['announcement_id'] );
+    if ($invalid) {
+        return $invalid;
+    }
+
+    return $self->_purging(
+        $input,
+        $self->_commanded_store(
+            {
+                actor_id     => $input->{actor_user_id},
+                command_id   => $input->{command_id},
+                command_type => 'admin.announcement_retire',
+                not_found    => 'announcement not found',
+                request      => $command,
+                run          => sub {
+                    return $self->announcement_store->retire_announcement(
+                        $command);
+                },
+            }
+        )
+    );
+}
+
+# A write that changed what every page shows takes the public cache's
+# copies down with it; a write that did not (a refusal, a replay) leaves
+# them. Without a maintenance service nothing is purged.
+sub _purging ( $self, $input, $result ) {
+    return $result if !$result->{ok} || $result->{replayed};
+    return $result if !$self->maintenance;
+    try {
+        $self->maintenance->purge_public_cache(
+            { actor_user_id => $input->{actor_user_id} } );
+    }
+    catch ($error) {
+        $self->_log_error("announcement cache purge failed: $error");
+    };
+    return $result;
+}
+
 sub replay_dead_letter ( $self, $input ) {
     my $invalid = $self->_missing_command_id($input);
     if ($invalid) {
@@ -590,6 +674,16 @@ Creates a category when a title is present.
 =head2 update_category
 
 Updates a category when a category id is present.
+
+=head2 create_announcement
+
+Publishes a site announcement (ADR 0131) from C<message> and C<tone>,
+under C<command_id>, and purges the public page cache.
+
+=head2 retire_announcement
+
+Retires the announcement C<announcement_id>, under C<command_id>, and
+purges the public page cache.
 
 =head2 request_search_rebuild
 

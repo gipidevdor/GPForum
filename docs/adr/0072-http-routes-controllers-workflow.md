@@ -131,6 +131,10 @@ Every mutating HTTP request MUST follow this order:
 - `GET /admin`: renders the admin dashboard; requires
   `admin.view_dashboard`.
 - `GET /admin/audit`: renders the audit log; requires `admin.view_audit_log`.
+- `GET /admin/announcements`, `POST /admin/announcements` and
+  `POST /admin/announcements/:id/retire`: the site announcements console
+  (ADR 0131); the writes emit `announcement.published` and
+  `announcement.retired` and purge the public page cache.
 - `GET /admin/roles`: renders role management; requires `admin.manage_roles`.
 - `POST /admin/roles/bindings`: creates a scoped role binding; emits
   `role_binding.created` if implemented.

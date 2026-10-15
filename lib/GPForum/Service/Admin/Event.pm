@@ -11,9 +11,10 @@ use GPForum::Infrastructure::Row;
 
 our $VERSION = '0.001';
 
-const my $SCHEMA_VERSION  => 1;
-const my $TARGET_BINDING  => 'role_binding';
-const my $TARGET_CATEGORY => 'category';
+const my $SCHEMA_VERSION      => 1;
+const my $TARGET_BINDING      => 'role_binding';
+const my $TARGET_CATEGORY     => 'category';
+const my $TARGET_ANNOUNCEMENT => 'announcement';
 
 sub binding_audit ( $, $input ) {
     my $binding = $input->{binding};
@@ -99,6 +100,46 @@ sub category_event ( $, $input ) {
     };
 }
 
+sub announcement_audit ( $self, $input ) {
+    my $announcement = $input->{announcement};
+    my $audit        = $self->catalog_audit(
+        {
+            action        => $input->{action},
+            actor_user_id => $input->{actor_user_id},
+            created_at    => $input->{created_at},
+            metadata      => {
+                message => _column( $announcement, 'message' ),
+                tone    => _column( $announcement, 'tone' ),
+            },
+            target_id   => _column( $announcement, 'announcement_id' ),
+            target_type => $TARGET_ANNOUNCEMENT,
+        }
+    );
+    $audit->{correlation_id} = $input->{correlation_id};
+    return $audit;
+}
+
+sub announcement_event ( $, $input ) {
+    my $announcement    = $input->{announcement};
+    my $announcement_id = _column( $announcement, 'announcement_id' );
+
+    return {
+        actor_id          => $input->{actor_user_id},
+        aggregate_id      => $announcement_id,
+        aggregate_type    => $TARGET_ANNOUNCEMENT,
+        aggregate_version => $SCHEMA_VERSION,
+        causation_id      => undef,
+        correlation_id    => $input->{correlation_id},
+        event_type        => $input->{action},
+        idempotency_key   => join( q{:}, $input->{action}, $announcement_id ),
+        payload           => {
+            announcement_id => $announcement_id,
+            tone            => _column( $announcement, 'tone' ),
+        },
+        schema_version => $SCHEMA_VERSION,
+    };
+}
+
 sub _column ( $row, $name ) {
     return GPForum::Infrastructure::Row->column( $row, $name );
 }
@@ -151,6 +192,15 @@ Returns AuditLog arguments for category create and update.
 
 Returns EventLog arguments for category create and update. The recorder also
 writes the matching outbox row.
+
+=head2 announcement_event
+
+Returns EventRecorder arguments for C<announcement.published> and
+C<announcement.retired>.
+
+=head2 announcement_audit
+
+Returns AuditLog arguments for the same writes.
 
 =head1 DIAGNOSTICS
 

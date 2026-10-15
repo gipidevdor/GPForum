@@ -26,6 +26,7 @@ const my %MODERATION_ID => (
 has bookmark_removes      => sub { return []; };
 has bookmark_saves        => sub { return []; };
 has like_calls            => sub { return []; };
+has announcements         => sub { return []; };
 has last_moderation_input => sub { return {}; };
 has mode                  => 'forum';
 has read_marker_writes    => sub { return []; };
@@ -1126,6 +1127,12 @@ sub record_for_source {
 
 # Likes: post-1 has two, one of them the viewer's when the viewer is
 # user-2; the writes answer as the function would.
+sub active_announcements {
+    my ($self) = @_;
+
+    return $self->announcements;
+}
+
 sub summary_for_posts {
     my ( $self, $post_ids, $viewer_user_id ) = @_;
 

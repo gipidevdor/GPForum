@@ -138,6 +138,15 @@ sub category_write_response ( $self, $result, $ok_status ) {
 }
 
 # The response a failed write answers with, or undef when it did not fail.
+sub announcement_write_response ( $self, $result, $ok_status ) {
+    my $failure = $self->write_failure($result);
+    if ($failure) {
+        return $failure;
+    }
+
+    return $self->announcement_response( $ok_status, $result->{stored} );
+}
+
 sub write_failure ( $self, $result ) {
     my $access = $self->admin_access;
     my $guard  = GPForum::Web::Guard->new;
@@ -232,6 +241,20 @@ sub category_response ( $self, $status, $category ) {
 
     return $self->_html_success( $status,
         $self->admin_access->categories_redirect );
+}
+
+sub announcement_response ( $self, $status, $announcement ) {
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json => $self->gp_admin_view_model->announcement_response(
+                $status, $announcement,
+            ),
+            status => $HTTP_OK,
+        );
+    }
+
+    return $self->_html_success( $status,
+        $self->admin_access->announcements_redirect );
 }
 
 sub dead_letter_replay_response ( $self, $status, $replayed ) {

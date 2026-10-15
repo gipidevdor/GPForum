@@ -38,6 +38,52 @@ sub categories_page ( $self, %input ) {
     };
 }
 
+sub announcements_page ( $self, %input ) {
+    my $ids = $input{retire_command_ids};
+    if ( ref $ids ne 'HASH' ) {
+        $ids = {};
+    }
+    return {
+        announcements => [
+            map { $self->_announcement_with_command( $_, $ids ) }
+              @{ $input{announcements} || [] }
+        ],
+        create_command_id => $self->string( $input{create_command_id} ),
+        csrf_token        => $input{csrf_token},
+    };
+}
+
+sub _announcement_with_command ( $self, $row, $ids ) {
+    my $announcement = $self->announcement($row);
+    $announcement->{retire_command_id} =
+      $self->string( $ids->{ $announcement->{announcement_id} // q{} } );
+    return $announcement;
+}
+
+sub announcement ( $self, $row ) {
+    my $announcement_id = $self->column( $row, 'announcement_id' );
+    return {
+        announcement_id => $announcement_id,
+        created_at      => $self->column( $row, 'created_at' ),
+        created_by      => $self->column( $row, 'created_by' ),
+        message         => $self->column( $row, 'message' ),
+        retired_at      => $self->column( $row, 'retired_at' ),
+        retired_by      => $self->column( $row, 'retired_by' ),
+        tone            => $self->column( $row, 'tone' ) // 'notice',
+        ui              => {
+            heading_id =>
+              $self->stable_id( 'announcement', $announcement_id, 'heading' ),
+        },
+    };
+}
+
+sub announcement_response ( $self, $status, $announcement ) {
+    return {
+        announcement => $self->announcement($announcement),
+        status       => $status,
+    };
+}
+
 sub user_roles_page ( $self, %input ) {
     return {
         bind_command_id => $self->string( $input{bind_command_id} ),

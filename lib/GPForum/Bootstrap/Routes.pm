@@ -53,6 +53,15 @@ sub register ( $, %input ) {
     $routes->post('/admin/role-bindings/:binding_id/revoke')
       ->to('Admin::Bindings#revoke_binding')
       ->name('admin_role_binding_revoke');
+    $routes->get('/admin/announcements')
+      ->to('Admin#announcements')
+      ->name('admin_announcements');
+    $routes->post('/admin/announcements')
+      ->to('Admin::Announcements#create_announcement')
+      ->name('admin_announcement_create');
+    $routes->post('/admin/announcements/:announcement_id/retire')
+      ->to('Admin::Announcements#retire_announcement')
+      ->name('admin_announcement_retire');
     $routes->get('/admin/audit')->to('Admin#audit')->name('admin_audit');
     $routes->get('/admin/jobs')->to('Admin#jobs')->name('admin_jobs');
     $routes->post('/admin/dead-letters/:dead_letter_id/replay')

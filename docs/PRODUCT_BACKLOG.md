@@ -136,7 +136,7 @@ claim. No competitor source code or assets were imported for this review.
 | --- | --- | --- | --- |
 | G01 | PostgreSQL full-text search | Present, including permissions, snippets and title autocomplete/trigram matching. [search] | Maintain |
 | G02 | Author/category/date filters | Present, basic: category/author scope and date controls work; typed operators and richer selectors remain. [search-form], [search] | PB-12 |
-| G03 | Explicit title-only / post-only search | Partial: thread/post search and title matching exist; explicit user-selectable scopes were not found. [search-form], [search] | PB-12 |
+| G03 | Explicit title-only / post-only search | Done 2026-10-15: the search form offers Everything / Thread titles / Posts (`scope`), bound as the document's entity type on both the function and the ORM path (migration 110, `search_ranked_v7/v8`). [search-form], [search] | PB-12 |
 | G04 | Similar threads while composing | Not found; reuse permission-aware search before proposing a new index. [new-thread], [search] | PB-12 |
 | G05 | Configurable hot/trending ranking | Not found. Specify transparent ranking, abuse resistance and query budget before adoption. [feed], [search] | PB-12 |
 | G06 | Explore beyond followed threads | Partial: home/latest content and followed feed exist; richer discovery remains. [routes], [feed] | PB-12 |

@@ -18,7 +18,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 300;
+const my $EXPECTED_TESTS   => 307;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -173,12 +173,21 @@ my @search_help =
 is( scalar @search_help, 1, 'the search page states its help once' );
 $test->element_exists('label[for="search-query"]');
 $test->element_exists('input[id="search-query"][name="q"]');
+$test->element_exists('fieldset.search-form__scope legend');
+$test->element_exists('input[name="scope"][value="all"][checked]');
+$test->element_exists('input[name="scope"][value="threads"]');
+$test->element_exists('input[name="scope"][value="posts"]');
 $test->element_exists('fieldset legend');
 $test->element_exists('p[role="status"]');
 $test->element_exists('ol[aria-label="Search results"]');
 $test->element_exists('mark');
 $test->element_exists('a[href="/u/giacomo_forum"]');
 $test->content_like(qr/Snippets [ ] only [ ] include [ ] content/msx);
+
+# The scope the reader chose stays chosen, and goes with the query.
+$test->get_ok('/search?q=welcome&scope=threads');
+$test->status_is($HTTP_OK);
+$test->element_exists('input[name="scope"][value="threads"][checked]');
 
 # A post the search finds is reached through its thread.
 $test->get_ok('/search?q=reply');

@@ -2100,3 +2100,29 @@ button[popovertarget] {
   font-size: var(--font-size-sm);
   padding-inline: var(--space-3);
 }
+
+/* Where to search: one short row of choices under the query, read as a
+   group by its legend. */
+.search-form__scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin-block-start: var(--space-2);
+  border: 0;
+  padding: 0;
+  max-inline-size: none;
+}
+
+.search-form__scope legend {
+  float: left;
+  padding: 0;
+  margin-inline-end: var(--space-2);
+  color: var(--color-subtle);
+}
+
+.search-form__scope label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}

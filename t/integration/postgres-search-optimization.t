@@ -26,6 +26,7 @@ use GPForum::Service::Operations::ApiRole;
 use GPForum::Service::Search::PermissionEngine;
 use GPForum::Service::Search::Searcher;
 use GPForum::Test::PgDatabase;
+use GPForum::Test::RetainedSearchFunctions;
 
 our $VERSION = '0.001';
 
@@ -33,6 +34,8 @@ const my $OPTIMIZED_VERSION       => 6;
 const my $IMPLEMENTATION_VERSION  => 5;
 const my $RETAINED_VERSION        => 4;
 const my $RETAINED_IMPLEMENTATION => 3;
+const my $SCOPED_VERSION          => 7;
+const my $SCOPE_ARGUMENTS         => 2;
 const my $THREADS                 => 1_100;
 const my $PLAN_THREADS            => 10_000;
 const my $CANDIDATES              => 1_000;
@@ -182,7 +185,19 @@ sub _functions ( $version, $for_schema = $schema ) {
         $entries{$name} = { %{ $entries{$name} }, version => $version };
     }
 
-    return GPForum::Infrastructure::SqlFunction->new(
+    # The scope (p_entity_type) came with v7, migration 110: the versions
+    # before take the arguments of their day.
+    if ( $version < $SCOPED_VERSION ) {
+        my @parameters = @{ $entries{search_ranked}{parameters} };
+        splice @parameters, -$SCOPE_ARGUMENTS;
+        $entries{search_ranked}{parameters} = \@parameters;
+    }
+
+    my $class =
+      $version < $SCOPED_VERSION
+      ? 'GPForum::Test::RetainedSearchFunctions'
+      : 'GPForum::Infrastructure::SqlFunction';
+    return $class->new(
         schema    => $for_schema,
         catalogue => GPForum::Infrastructure::SqlFunctionCatalogue->new(
             entries => \%entries,

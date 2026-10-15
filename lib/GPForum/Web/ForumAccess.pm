@@ -201,7 +201,7 @@ sub bounded_limit ( $self, $input ) {
 }
 
 sub search_filter_fields {
-    return qw(category_id author_user_id from to);
+    return qw(category_id author_user_id from to scope);
 }
 
 # The page size a list is read with, bounded as Forum::PageWindow bounds it,

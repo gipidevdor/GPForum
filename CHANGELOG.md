@@ -546,6 +546,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Search says where to look**: the search form offers Everything, Thread
+  titles or Posts (`scope`), kept with the query across filters and pages;
+  the ranked search takes it as one more parameter (migration 110,
+  `search_ranked_v7/v8`; the shipped versions stay, ADR 0126 section 2).
+
 - **A member likes a post, and takes the like back** (ADR 0129): `POST
   /p/:post_id/like` and `/p/:post_id/like/remove`, each a native form under
   the post with the count beside it, pressed when the reader gave one; a

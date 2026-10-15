@@ -378,8 +378,17 @@ sub ranked_call ( $self, $actor, $query, $options = undef ) {
             from_at => $from ? $from->{from}{'>='}                   : undef,
             to_at   => $to   ? ( $to->{to}{'<'} // $to->{to}{'<='} ) : undef,
             to_exclusive => $to && exists $to->{to}{'<'} ? 1         : 0,
+            entity_type  => _scope_entity_type( $options->{scope} ),
         }
     ];
+}
+
+# Where the reader asked to look: thread titles, posts, or both (the
+# default, and what any other word means).
+sub _scope_entity_type ($scope) {
+    return 'thread' if ( $scope // q{} ) eq 'threads';
+    return 'post'   if ( $scope // q{} ) eq 'posts';
+    return undef;
 }
 
 sub autocomplete_call ( $self, $actor, $prefix, $options = undef ) {
@@ -466,6 +475,9 @@ sub _search_query ( $permission, $query, $options ) {
     }
     if ( _is_uuid( $options->{author_user_id} ) ) {
         $where->{'me.author_user_id'} = $options->{author_user_id};
+    }
+    if ( my $entity_type = _scope_entity_type( $options->{scope} ) ) {
+        $where->{'me.entity_type'} = $entity_type;
     }
 
     my @date_filters;

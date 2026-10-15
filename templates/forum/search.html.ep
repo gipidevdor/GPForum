@@ -14,11 +14,20 @@
       <input id="search-query" name="q" type="search" value="<%= $query // q{} %>" autocomplete="off">
       <button type="submit"><%= t('search.submit') %></button>
     </div>
+    % my $scope = $active_filters->{scope} // 'all';
+    % $scope = 'all' if $scope ne 'threads' && $scope ne 'posts';
+    % my %scope_label = (all => t('search.scope_all'), threads => t('search.scope_threads'), posts => t('search.scope_posts'));
+    <fieldset class="search-form__scope">
+      <legend><%= t('search.scope') %></legend>
+      % for my $choice (qw(all threads posts)) {
+        <label><input type="radio" name="scope" value="<%= $choice %>"<%= $scope eq $choice ? ' checked' : q{} %>> <%= $scope_label{$choice} %></label>
+      % }
+    </fieldset>
     % for my $name (@scoped) {
       <input type="hidden" name="<%= $name %>" value="<%= $active_filters->{$name} %>">
     % }
     % if (@scoped) {
-      % my %unscoped = (q => $query, map { $_ => $active_filters->{$_} } grep { length($active_filters->{$_} // q{}) } qw(from to));
+      % my %unscoped = (q => $query, map { $_ => $active_filters->{$_} } grep { length($active_filters->{$_} // q{}) } qw(from to scope));
       <p class="ui-meta">
         % if (length($active_filters->{category_id} // q{})) {
           <span><%= t('search.within_category') %></span>

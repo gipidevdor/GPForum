@@ -16,7 +16,8 @@ otherwise.
 * `GET /robots.txt` renders crawler policy.
 * `GET /sitemap.xml` renders public category/thread sitemap XML.
 * `GET /feed.atom` renders a public Atom feed.
-* `GET /search?q=...` renders PostgreSQL-native search results.
+* `GET /search?q=...` renders PostgreSQL-native search results; `scope=threads`
+  or `scope=posts` narrows them to thread titles or to posts.
 * `GET /search/autocomplete?q=...` returns bounded PostgreSQL-native autocomplete suggestions.
 * `GET /legal/terms` renders the terms document.
 * `GET /legal/privacy` renders the privacy document.

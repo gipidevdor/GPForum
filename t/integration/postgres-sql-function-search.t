@@ -6,6 +6,7 @@ package main;
 use v5.40;
 use Const::Fast;
 use Test::More;
+use List::Util qw(all);
 
 use lib 'lib';
 use lib 't/lib';
@@ -152,6 +153,9 @@ my ($instant) = $dbh->selectrow_array(
     undef, $source->{thread_id}
 );
 my @filters = (
+    { scope          => 'threads' },
+    { scope          => 'posts' },
+    { scope          => 'everything' },
     { category_id    => $source->{category_id} },
     { author_user_id => $source->{author_user_id} },
     { from           => $day,     to => $day },
@@ -176,6 +180,16 @@ for my $prefix ( q{}, q{%}, q{_}, q{Performance} ) {
         $legacy_searcher->autocomplete( $actor, $prefix, {} ),
         "autocomplete prefix [$prefix] agrees"
     );
+}
+
+# A scope narrows both paths to one kind of document.
+for my $scope ( [ threads => 'thread' ], [ posts => 'post' ] ) {
+    my ( $asked, $entity_type ) = @{$scope};
+    my $results = $searcher->ranked_search( { viewer => $viewers{global} },
+        'performance', { limit => $ROW_LIMIT, scope => $asked } )->{results};
+    ok( scalar @{$results}, "a $asked scope finds $entity_type documents" );
+    ok( ( all { $_->{entity_type} eq $entity_type } @{$results} ),
+        'and only those' );
 }
 
 done_testing();

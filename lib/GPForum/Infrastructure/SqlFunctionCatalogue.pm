@@ -107,7 +107,7 @@ const my %FUNCTION => (
     },
 
     search_ranked => {
-        version    => 6,
+        version    => 8,
         parameters => [
             permission_mode   => 'text',
             visibility_values => 'text[]',
@@ -125,7 +125,8 @@ const my %FUNCTION => (
             from_at           => 'timestamp with time zone',
             to_at             => 'timestamp with time zone',
             to_exclusive      => 'boolean',
-            row_limit         => 'integer'
+            row_limit         => 'integer',
+            entity_type       => 'text'
         ]
     },
     search_autocomplete => {

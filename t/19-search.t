@@ -503,6 +503,27 @@ is_deeply(
     [qw(-and -or)],
     'malformed filters bind nothing: the query is the permission and the match'
 );
+
+# Where the reader asked to look is the document's entity_type; any other
+# word is both.
+$searcher->search( { user_id => 'user-1' }, 'forum', { scope => 'threads' } );
+is( $search_documents->last_query->{'me.entity_type'},
+    'thread', 'a thread scope binds the thread documents' );
+$searcher->search( { user_id => 'user-1' }, 'forum', { scope => 'posts' } );
+is( $search_documents->last_query->{'me.entity_type'},
+    'post', 'a post scope binds the post documents' );
+$searcher->search( { user_id => 'user-1' }, 'forum',
+    { scope => 'everything' } );
+ok( !exists $search_documents->last_query->{'me.entity_type'},
+    'and any other scope binds no entity type' );
+is(
+    $searcher->ranked_call( undef, 'forum', { scope => 'posts' } )
+      ->[1]{entity_type},
+    'post',
+    'the function call carries the scope as its entity type'
+);
+is( $searcher->ranked_call( undef, 'forum', {} )->[1]{entity_type},
+    undef, 'and none for the default' );
 is_deeply(
     _date_conditions(
         $searcher, $search_documents,

@@ -78,7 +78,7 @@ const my %RETAINED => (
     privacy_revoke_user_v7       => 0,
     privacy_revoke_user_v8       => 1,
 
-    # Migration 117 (notification types) moved this on.
+    # Migration 118 (notification types) moved this on.
     portability_export_parts_v11 => 0,
     portability_export_parts_v12 => 1,
 );

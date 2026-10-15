@@ -100,7 +100,7 @@ where policy requires; emit security events; rate-limit requests.
 ### Amendment 2026-10-15: preferences by kind and one-click unsubscribe
 
 Backlog D02 and D05, with the minimal email delivery (D04) they need to
-mean anything. Migration 117.
+mean anything. Migration 118.
 
 - **Kinds.** A member controls three kinds of notification, each for the
   inbox and for email, beside the existing channel switches: replies in
@@ -192,7 +192,7 @@ mean anything. Migration 117.
   `lib/GPForum/Controller/Identity/Unsubscribe.pm`.
 - Migrations: `migrations/005_notifications_subscriptions.sql`,
   `migrations/025_identity_lifecycle_tokens.sql`,
-  `migrations/117_notification_type_preferences.sql`.
+  `migrations/118_notification_type_preferences.sql`.
 - Tests: `t/06-identity-web.t`, `t/integration/postgres-identity-stores.t`,
   `t/17-notifications.t`, `t/107-notification-workflow.t`,
   `t/110-identity-account-store.t`, `t/685-notification-preferences.t`,

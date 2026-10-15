@@ -546,6 +546,19 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Staff pin and unpin a thread**, from the thread's own tools and from the
+  moderation actions page: `POST /moderation/threads/:thread_id/pin` and
+  `/unpin` record a moderation action, its event (`thread.pinned`,
+  `thread.unpinned`), the audit entry and the public cache purge, the way
+  locking does; a pinned thread leads its category and wears its badge on
+  its page as in every list. The thread's tools now also lock, unlock and
+  hide it for a reader who moderates threads, each form with the reason the
+  audit log keeps and a way back to the thread (`return_to`); before, every
+  moderation form lived in the report queue. The reader of a request
+  resolves, with their grants, whether they hold the global
+  `thread.moderate` binding (migration 108: viewer resolution, moderation
+  target and target update each at a new version, ADR 0126 section 2).
+
 - Private thread and reply drafts with native Save/Preview, a drafts list,
   resume/delete and progressive JavaScript autosave/live preview. PostgreSQL
   revision checks prevent silent concurrent overwrite; successful publication

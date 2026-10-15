@@ -20,12 +20,6 @@ const my $HTTP_FORBIDDEN    => 403;
 const my $HTTP_TOO_MANY     => 429;
 const my $HTTP_UNAUTHORIZED => 401;
 
-# Backslashes are normalised to forward slashes by browsers, so "/\evil.test"
-# would leave the site as a protocol-relative URL. Control characters cover
-# header splitting and the NUL, tab, and vertical-tab variants of the same
-# trick.
-const my $UNSAFE_RETURN_TO => qr/[[:cntrl:]\\]/msx;
-
 sub identity_access {
     return GPForum::Web::IdentityAccess->new;
 }
@@ -359,25 +353,9 @@ sub _has_text ( $, $value ) {
 }
 
 sub _safe_relative_path ( $self, $return_to ) {
-    if ( !$self->_has_text($return_to) ) {
-        return 0;
-    }
-    if ( $return_to =~ $UNSAFE_RETURN_TO ) {
-        return 0;
-    }
-
-    return _same_origin_prefix($return_to);
-}
-
-sub _same_origin_prefix ($return_to) {
-    if ( $return_to !~ m{\A/}msx ) {
-        return 0;
-    }
-    if ( $return_to =~ m{\A//}msx ) {
-        return 0;
-    }
-
-    return 1;
+    return defined GPForum::Web::Access->new->safe_return_to($return_to)
+      ? 1
+      : 0;
 }
 
 1;

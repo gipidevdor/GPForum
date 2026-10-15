@@ -26,7 +26,7 @@ const my $HTTP_NOT_FOUND => 404;
 const my $PASSWORD       => 'correct horse battery staple';
 const my $MODERATOR      => 'thread_moderator';
 const my $JSON           => { Accept => 'application/json' };
-const my $THREAD_COUNT   => 4;
+const my $THREAD_COUNT   => 5;
 const my $REVERSED       => 'moderation_action.reversed';
 
 # Threads and posts no moderator has touched, so an action's rows are the
@@ -45,6 +45,8 @@ const my $POST_SQL => join q{ },
   'AND NOT EXISTS (SELECT 1 FROM moderation_actions m',
   'WHERE m.target_id = p.post_id)',
   'ORDER BY p.post_id LIMIT 1';
+const my $PINNED_SQL =>
+  'SELECT pinned::integer, moderation_state FROM threads WHERE thread_id = ?';
 const my $THREAD_SQL =>
   'SELECT moderation_state, locked_at IS NOT NULL FROM threads'
   . ' WHERE thread_id = ?';
@@ -94,11 +96,12 @@ ok( $post_id, 'and an untouched post' );
 my $store =
   GPForum::Service::Moderation::ActionStore->new( schema => $database->schema );
 
-my ( $routed, $shown, $through_lock, $state_only ) = @threads;
+my ( $routed, $shown, $through_lock, $state_only, $pinned ) = @threads;
 _route_hides_and_shows($routed);
 _thread_hidden_and_shown($shown);
 _hidden_thread_through_lock($through_lock);
 _lock_is_locked_at($state_only);
+_thread_pinned_and_unpinned($pinned);
 _post_hidden_and_restored($post_id);
 
 done_testing();
@@ -170,6 +173,31 @@ sub _lock_is_locked_at {
         'locking a thread whose state alone says locked is a change' );
     is_deeply( _thread($thread_id), [ 'locked', 1 ], 'that sets locked_at' );
 
+    return;
+}
+
+# The pin is written and read through the moderation target functions, a
+# flag beside the state.
+sub _thread_pinned_and_unpinned {
+    my ($thread_id) = @_;
+    my $pinned_up = $store->pin_thread( _command( thread_id => $thread_id ) );
+    ok( $pinned_up->{ok}, 'a moderator pins a thread' );
+    is_deeply(
+        [ $dbh->selectrow_array( $PINNED_SQL, undef, $thread_id ) ],
+        [ 1, 'visible' ],
+        'it is pinned, its state as it was'
+    );
+    _records_one( 'thread.pinned', $thread_id );
+    ok( $store->pin_thread( _command( thread_id => $thread_id ) )->{skipped},
+        'pinning it again changes nothing' );
+    ok( $store->unpin_thread( _command( thread_id => $thread_id ) )->{ok},
+        'and it is unpinned' );
+    is_deeply(
+        [ $dbh->selectrow_array( $PINNED_SQL, undef, $thread_id ) ],
+        [ 0, 'visible' ],
+        'the flag is off again'
+    );
+    _records_one( 'thread.unpinned', $thread_id );
     return;
 }
 

@@ -788,6 +788,46 @@ sub unlock_thread {
     };
 }
 
+sub pin_thread {
+    my ( $self, $input ) = @_;
+
+    $self->last_moderation_input($input);
+    return if $input->{thread_id} ne $MODERATION_ID{thread};
+
+    return {
+        ok     => 1,
+        action => {
+            moderation_action_id => 'action-thread-pin',
+            action_type          => 'thread.pinned',
+            target_type          => 'thread',
+            target_id            => $input->{thread_id},
+            reason               => $input->{reason},
+            reversed_at          => undef,
+            reversed_by_user_id  => undef,
+        },
+    };
+}
+
+sub unpin_thread {
+    my ( $self, $input ) = @_;
+
+    $self->last_moderation_input($input);
+    return if $input->{thread_id} ne $MODERATION_ID{thread};
+
+    return {
+        ok     => 1,
+        action => {
+            moderation_action_id => 'action-thread-unpin',
+            action_type          => 'thread.unpinned',
+            target_type          => 'thread',
+            target_id            => $input->{thread_id},
+            reason               => $input->{reason},
+            reversed_at          => undef,
+            reversed_by_user_id  => undef,
+        },
+    };
+}
+
 sub hide_thread {
     my ( $self, $input ) = @_;
 

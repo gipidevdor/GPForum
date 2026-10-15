@@ -68,6 +68,10 @@ _assert_route( $app, 'moderation_post_hide',
     'Moderation::Actions', 'hide_post' );
 _assert_route( $app, 'moderation_thread_lock',
     'Moderation::Actions', 'lock_thread' );
+_assert_route( $app, 'moderation_thread_pin',
+    'Moderation::Actions', 'pin_thread' );
+_assert_route( $app, 'moderation_thread_unpin',
+    'Moderation::Actions', 'unpin_thread' );
 _assert_route( $app, 'moderation_thread_hide',
     'Moderation::Actions', 'hide_thread' );
 _assert_route( $app, 'moderation_thread_restore',

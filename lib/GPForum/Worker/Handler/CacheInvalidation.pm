@@ -26,6 +26,8 @@ const my $POST_HIDDEN      => 'post.hidden';
 const my $POST_RESTORED    => 'post.restored';
 const my $THREAD_LOCKED    => 'thread.locked';
 const my $THREAD_UNLOCKED  => 'thread.unlocked';
+const my $THREAD_PINNED    => 'thread.pinned';
+const my $THREAD_UNPINNED  => 'thread.unpinned';
 const my $ACTION_REVERSED  => 'moderation_action.reversed';
 
 # Every page of the public HTML cache carries this tag (Web::ForumAccess).
@@ -46,9 +48,11 @@ const my %SUPPORTED => (
     $THREAD_HIDDEN    => 1,
     $THREAD_LOCKED    => 1,
     $THREAD_MOVED     => 1,
+    $THREAD_PINNED    => 1,
     $THREAD_RESTORED  => 1,
     $THREAD_UNDELETED => 1,
     $THREAD_UNLOCKED  => 1,
+    $THREAD_UNPINNED  => 1,
     $THREAD_UPDATED   => 1,
 );
 
@@ -66,8 +70,10 @@ const my %PURGES_PUBLIC_HTML => (
     $POST_RESTORED    => 1,
     $THREAD_HIDDEN    => 1,
     $THREAD_LOCKED    => 1,
+    $THREAD_PINNED    => 1,
     $THREAD_RESTORED  => 1,
     $THREAD_UNLOCKED  => 1,
+    $THREAD_UNPINNED  => 1,
 );
 
 const my %THREAD_CONTENT => (
@@ -76,9 +82,11 @@ const my %THREAD_CONTENT => (
     $THREAD_HIDDEN    => 1,
     $THREAD_LOCKED    => 1,
     $THREAD_MOVED     => 1,
+    $THREAD_PINNED    => 1,
     $THREAD_RESTORED  => 1,
     $THREAD_UNDELETED => 1,
     $THREAD_UNLOCKED  => 1,
+    $THREAD_UNPINNED  => 1,
     $THREAD_UPDATED   => 1,
 );
 

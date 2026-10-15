@@ -43,6 +43,7 @@ const my @MALFORMED_PATHS => map { "/moderation/$_" } qw(
   reports/report-1/assign reports/report-1/release reports/report-1/resolve
   posts/post-1/hide posts/post-1/restore
   threads/thread-1/lock threads/thread-1/unlock
+  threads/thread-1/pin threads/thread-1/unpin
   threads/thread-1/hide threads/thread-1/restore
   actions/action-post-hide/reverse users/user-2/suspend
   suspensions/suspension-1/revoke
@@ -230,6 +231,56 @@ $test->json_is( '/action/action_type' => 'thread.unlocked' );
 is( $services->last_moderation_input->{command_id},
     'unlock-command-1',
     'unlock_thread passes command_id into the action store' );
+
+$test->post_ok(
+    "/moderation/threads/$ID{thread}/pin" =>
+      { Accept => 'application/json' } => form => {
+        command_id => 'pin-command-1',
+        csrf_token => $csrf_token,
+        reason     => 'worth reading first',
+      }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/action/action_type' => 'thread.pinned' );
+$test->json_is( '/status'             => 'thread_pinned' );
+is( $services->last_moderation_input->{command_id},
+    'pin-command-1', 'pin_thread passes command_id into the action store' );
+
+$test->post_ok(
+    "/moderation/threads/$ID{thread}/unpin" =>
+      { Accept => 'application/json' } => form => {
+        command_id => 'unpin-command-1',
+        csrf_token => $csrf_token,
+        reason     => 'old news',
+      }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/action/action_type' => 'thread.unpinned' );
+is( $services->last_moderation_input->{command_id},
+    'unpin-command-1', 'unpin_thread passes command_id into the action store' );
+
+# A form on the thread's page says where it came from and goes back there;
+# one that names another site, or nothing, goes to the queue as before.
+$test->post_ok(
+    "/moderation/threads/$ID{thread}/pin" => form => {
+        command_id => 'pin-command-2',
+        csrf_token => $csrf_token,
+        reason     => 'worth reading first',
+        return_to  => "/t/$ID{thread}",
+    }
+);
+$test->status_is($HTTP_FOUND);
+$test->header_like( Location => qr{/t/\Q$ID{thread}\E\z}msx );
+$test->post_ok(
+    "/moderation/threads/$ID{thread}/unpin" => form => {
+        command_id => 'unpin-command-2',
+        csrf_token => $csrf_token,
+        reason     => 'old news',
+        return_to  => '//evil.test/',
+    }
+);
+$test->status_is($HTTP_FOUND);
+$test->header_like( Location => qr{/moderation/reports\z}msx );
 
 $test->post_ok(
     "/moderation/threads/$ID{thread}/hide" =>

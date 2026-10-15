@@ -129,6 +129,10 @@ sub moderation_action ( $self, $result ) {
                 'action', $self->column( $action, 'moderation_action_id' ),
                 'unlock-reason'
             ),
+            unpin_reason_id => $self->stable_id(
+                'action', $self->column( $action, 'moderation_action_id' ),
+                'unpin-reason'
+            ),
         },
     };
 }

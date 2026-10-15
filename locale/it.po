@@ -1015,8 +1015,12 @@ msgstr "Nome utente"
 
 #, python-brace-format
 msgctxt "auth.username_hint"
-msgid "{minimum} to {maximum} characters: lowercase letters, digits and underscores, starting with a letter."
-msgstr "Da {minimum} a {maximum} caratteri: lettere minuscole, cifre e trattini bassi, iniziando con una lettera."
+msgid ""
+"{minimum} to {maximum} characters: lowercase letters, digits and "
+"underscores, starting with a letter."
+msgstr ""
+"Da {minimum} a {maximum} caratteri: lettere minuscole, cifre e trattini "
+"bassi, iniziando con una lettera."
 
 msgctxt "auth.username_or_email"
 msgid "Username or email"
@@ -2014,6 +2018,10 @@ msgctxt "moderation.action.thread_locked"
 msgid "Thread locked"
 msgstr "Discussione bloccata"
 
+msgctxt "moderation.action.thread_pinned"
+msgid "Thread pinned"
+msgstr "Discussione messa in evidenza"
+
 msgctxt "moderation.action.thread_restored"
 msgid "Thread restored"
 msgstr "Discussione ripristinata"
@@ -2021,6 +2029,10 @@ msgstr "Discussione ripristinata"
 msgctxt "moderation.action.thread_unlocked"
 msgid "Thread unlocked"
 msgstr "Discussione sbloccata"
+
+msgctxt "moderation.action.thread_unpinned"
+msgid "Thread unpinned"
+msgstr "Discussione tolta dall'evidenza"
 
 msgctxt "moderation.action_history"
 msgid "Moderation action history"
@@ -2042,6 +2054,10 @@ msgctxt "moderation.assigned"
 msgid "Report assigned"
 msgstr "Segnalazione assegnata"
 
+msgctxt "moderation.hide_hint"
+msgid "A hidden thread leaves every list and page until a moderator restores it."
+msgstr "Una discussione nascosta sparisce da ogni elenco e pagina finché un moderatore non la ripristina."
+
 msgctxt "moderation.hide_post"
 msgid "Hide post"
 msgstr "Nascondi post"
@@ -2049,6 +2065,10 @@ msgstr "Nascondi post"
 msgctxt "moderation.hide_thread"
 msgid "Hide thread"
 msgstr "Nascondi discussione"
+
+msgctxt "moderation.lock_hint"
+msgid "A locked thread stays readable; nobody can reply to it."
+msgstr "Una discussione bloccata resta leggibile; nessuno può più rispondere."
 
 msgctxt "moderation.lock_thread"
 msgid "Lock thread"
@@ -2073,6 +2093,14 @@ msgstr "Nessuna segnalazione corrisponde alla coda."
 msgctxt "moderation.no_suspensions_match"
 msgid "No suspensions match this view."
 msgstr "Nessuna sospensione corrisponde alla vista."
+
+msgctxt "moderation.pin_hint"
+msgid "A pinned thread stays at the top of its category."
+msgstr "Una discussione in evidenza resta in cima alla sua categoria."
+
+msgctxt "moderation.pin_thread"
+msgid "Pin thread"
+msgstr "Metti in evidenza"
 
 msgctxt "moderation.queue"
 msgid "Moderation queue"
@@ -2199,9 +2227,25 @@ msgctxt "moderation.suspensions"
 msgid "Suspensions"
 msgstr "Sospensioni"
 
+msgctxt "moderation.thread_actions"
+msgid "Moderation"
+msgstr "Moderazione"
+
+msgctxt "moderation.unlock_hint"
+msgid "An unlocked thread takes replies again."
+msgstr "Una discussione sbloccata accetta di nuovo risposte."
+
 msgctxt "moderation.unlock_thread"
 msgid "Unlock thread"
 msgstr "Sblocca discussione"
+
+msgctxt "moderation.unpin_hint"
+msgid "An unpinned thread takes its place by activity again."
+msgstr "Una discussione tolta dall'evidenza torna al suo posto per attività."
+
+msgctxt "moderation.unpin_thread"
+msgid "Unpin thread"
+msgstr "Togli dall'evidenza"
 
 msgctxt "moderation.user_id"
 msgid "User id"

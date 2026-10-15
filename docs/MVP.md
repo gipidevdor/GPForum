@@ -140,6 +140,9 @@ for quota, expiry, publication and privacy behavior.
 * `POST /moderation/threads/:thread_id/restore` restores a hidden thread through `ActionStore`.
 * `POST /moderation/threads/:thread_id/lock` locks a thread through `ActionStore`.
 * `POST /moderation/threads/:thread_id/unlock` unlocks a thread through `ActionStore`.
+* `POST /moderation/threads/:thread_id/pin` and `/unpin` pin a thread to the top
+  of its category, or release it, through `ActionStore`; the thread's own tools
+  offer them, with lock and hide, to a reader who moderates threads.
 * `POST /moderation/actions/:action_id/reverse` records reversal of a moderation action.
 * `POST /moderation/users/:user_id/suspend` suspends a user through `SuspensionStore`.
 * `POST /moderation/suspensions/:suspension_id/revoke` revokes a user suspension.
@@ -234,7 +237,8 @@ rows with user filtering. These pages are permission-gated, SSR/JSON capable,
 and never become authoritative outside PostgreSQL.
 
 Moderation actions are now wired as real HTTP write workflows. Authorized staff
-can hide/restore posts, lock/unlock threads, and reverse moderation actions
+can hide/restore posts, lock/unlock and pin/unpin threads, and reverse
+moderation actions
 through CSRF-protected routes. `Moderation::Workflow` is the application
 boundary: it validates required fields and delegates to `ActionStore`, which
 remains the persistence write boundary. The store updates canonical content

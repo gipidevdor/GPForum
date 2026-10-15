@@ -137,6 +137,20 @@ is( $access->thread_locked_status,
     'thread_locked', 'thread_locked_status keeps the lock write status' );
 is( $access->thread_unlocked_status,
     'thread_unlocked', 'thread_unlocked_status keeps the unlock write status' );
+is( $access->thread_pinned_status,
+    'thread_pinned', 'thread_pinned_status keeps the pin write status' );
+is( $access->thread_unpinned_status,
+    'thread_unpinned', 'thread_unpinned_status keeps the unpin write status' );
+is(
+    $access->write_flash_key('thread_pinned'),
+    'moderation.action.thread_pinned',
+    'a pin flashes its own message'
+);
+is(
+    $access->write_flash_key('thread_unpinned'),
+    'moderation.action.thread_unpinned',
+    'and so does an unpin'
+);
 is( $access->thread_hidden_status,
     'thread_hidden', 'thread_hidden_status keeps the hide write status' );
 is( $access->thread_restored_status,

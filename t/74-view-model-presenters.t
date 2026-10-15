@@ -180,6 +180,54 @@ is_deeply(
     'forum presenter owns restored-post response shape'
 );
 
+my %moderated_input = (
+    can_moderate_thread    => 1,
+    moderation_command_ids =>
+      { hide => 'hide-cmd-1', lock => 'lock-cmd-1', pin => 'pin-cmd-1' },
+    page => {
+        posts  => { items => [] },
+        thread => {
+            author_user_id => 'user-2',
+            category_id    => 'category-1',
+            thread_id      => 'thread-1',
+            title          => 'Welcome',
+        },
+    },
+    viewer_user_id => 'user-1',
+);
+my $moderated_page = $forum->thread_page(%moderated_input);
+is( $moderated_page->{thread}{can_moderate_thread},
+    1, 'thread page marks the thread as one the viewer moderates' );
+is_deeply(
+    $moderated_page->{thread}{moderation_command_ids},
+    { hide => 'hide-cmd-1', lock => 'lock-cmd-1', pin => 'pin-cmd-1' },
+    'with a command id for each staff action'
+);
+ok(
+    !$moderated_page->{thread}{can_edit_thread},
+    'and not as editable: the viewer is not its author'
+);
+my $unmoderated_page =
+  $forum->thread_page( %moderated_input, can_moderate_thread => 0 );
+ok(
+    !$unmoderated_page->{thread}{can_moderate_thread},
+    'a viewer who does not moderate gets no staff actions'
+);
+ok( !exists $unmoderated_page->{thread}{moderation_command_ids},
+    'nor their command ids' );
+my $deleted_page = $forum->thread_page(
+    %moderated_input,
+    page => {
+        %{ $moderated_input{page} },
+        thread => {
+            %{ $moderated_input{page}{thread} },
+            deleted_at => '2026-05-23T12:00:00Z',
+        },
+    },
+);
+ok( !$deleted_page->{thread}{can_moderate_thread},
+    'a deleted thread offers none' );
+
 my $editable_page = $forum->thread_page(
     delete_command_ids       => { 'post-1' => 'delete-cmd-1' },
     delete_thread_command_id => 'thread-delete-cmd-1',
@@ -593,6 +641,7 @@ is_deeply(
                 reverse_reason_id  => 'action-action-1-reverse-reason',
                 reversible         => 1,
                 unlock_reason_id   => 'action-action-1-unlock-reason',
+                unpin_reason_id    => 'action-action-1-unpin-reason',
             },
         },
         status => 'post_hidden',

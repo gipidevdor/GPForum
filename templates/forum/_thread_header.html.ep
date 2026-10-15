@@ -1,6 +1,7 @@
-%# The head of a thread page: its title, who started it, where the unread
-%# posts begin, and the toolbar. A write that changes the title, the category
-%# or the thread's state answers with this header for its place.
+%# The head of a thread page: its title, whether it is pinned, who started
+%# it, where the unread posts begin, and the toolbar. A write that changes
+%# the title, the category or the thread's state answers with this header
+%# for its place.
 %#
 %# Takes "can_reply"; reads the page's "thread" and "reading"; "swap_oob"
 %# marks a copy sent to replace the page's.
@@ -9,8 +10,11 @@
     heading_id => 'thread-heading',
     component_title => $thread->{title} %>
   % my $unread = $reading && $reading->{authenticated} && $reading->{first_unread_anchor};
-  % if ($thread->{author_username} || $unread) {
+  % if ($thread->{pinned} || $thread->{author_username} || $unread) {
     <p class="ui-meta">
+      % if ($thread->{pinned}) {
+        <span><%= include 'components/badge', label => t('forum.pinned') %></span>
+      % }
       % if ($thread->{author_username}) {
         <span>
           <%= t('forum.started_by') %>

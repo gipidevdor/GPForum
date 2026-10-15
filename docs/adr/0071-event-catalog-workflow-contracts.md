@@ -88,6 +88,10 @@ plus every asynchronous consumer.
   - producer: moderation workflow
   - consumers: auth/cache invalidation, realtime, audit
   - payload: `thread_id`, `actor_user_id`, `reason`
+- `thread.pinned`, `thread.unpinned`
+  - producer: moderation workflow
+  - consumers: cache invalidation, audit
+  - payload: `thread_id`, `actor_user_id`, `reason`
 - `thread.moved`
   - producer: moderation workflow
   - consumers: feed projection, search indexing, cache invalidation, audit

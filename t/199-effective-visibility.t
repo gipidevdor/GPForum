@@ -11,7 +11,9 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Service::Forum::Viewer;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::ViewerResolver;
+use GPForum::Test::SqlFunctionHandle;
 use GPForum::Service::Forum::Visibility;
 
 our $VERSION = '0.001';
@@ -237,6 +239,37 @@ is_deeply(
     ),
     { category_ids => [], global_read => 0, space_ids => [] },
     'and every other shape grants nothing'
+);
+
+# The resolver's one query also says whether the account holds the global
+# thread.moderate binding; the thread page offers the staff actions on it.
+for my $case ( [ 1, 'moderates' ], [ 0, 'does not moderate' ] ) {
+    my ( $moderates, $name ) = @{$case};
+    my $handle = GPForum::Test::SqlFunctionHandle->new(
+        rows => [
+            {
+                grants    => '[{"resource_type":"global"}]',
+                moderates => $moderates,
+                status    => 'active',
+                suspended => 0,
+            }
+        ]
+    );
+    my $viewer = GPForum::Service::Forum::ViewerResolver->new(
+        functions => GPForum::Infrastructure::SqlFunction->new(
+            schema => $handle
+        ),
+        schema => $handle,
+    )->resolve('018f1001-0001-7000-8000-000000000001');
+    is( $viewer->moderates,   $moderates, "a member who $name is resolved so" );
+    is( $viewer->global_read, 1,          'with their grants' );
+}
+is(
+    GPForum::Service::Forum::Viewer->new( moderates => 1 )
+      ->within( 'category-1', 'space-1' )
+      ->moderates,
+    1,
+    'and a viewer decided for one category still moderates'
 );
 
 done_testing();

@@ -575,8 +575,10 @@ sub thread_page_payload ( $self, $page, $user_id ) {
             { viewer => $self->gp_forum_viewer }
           )
         : [],
-        viewer_user_id => $user_id,
-        reading        => $self->gp_forum_view_model->reading_summary(
+        viewer_user_id         => $user_id,
+        can_moderate_thread    => $self->_can_moderate_thread,
+        moderation_command_ids => $self->_moderation_command_ids,
+        reading                => $self->gp_forum_view_model->reading_summary(
             posts           => $posts,
             read_command_id => $user_id ? $self->_new_command_id : q{},
             read_state      => $self->gp_thread_read_state,
@@ -584,6 +586,18 @@ sub thread_page_payload ( $self, $page, $user_id ) {
             user_id         => $user_id,
         ),
     );
+}
+
+# The reader who moderates threads (the viewer resolver establishes it with
+# the rest of who they are, in the same query) gets the staff actions on the
+# page, each with a command id of its own; nobody else pays for the ids.
+sub _can_moderate_thread ($self) {
+    return $self->gp_forum_viewer->moderates ? 1 : 0;
+}
+
+sub _moderation_command_ids ($self) {
+    return {} if !$self->_can_moderate_thread;
+    return { map { $_ => $self->_new_command_id } qw(hide lock pin) };
 }
 
 # "Quote" under a post asks for the page with ?quote=POST_ID: a signed-in

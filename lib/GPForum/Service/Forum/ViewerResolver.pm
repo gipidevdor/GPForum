@@ -37,7 +37,13 @@ const my $VIEWER_SQL => join q{ },
   'JOIN role_permissions rp ON rp.role_id = b.role_id',
   'JOIN permissions p ON p.permission_id = rp.permission_id',
   'WHERE b.user_id = u.id AND b.revoked_at IS NULL',
-  q{AND p.resource_type = 'category' AND p.action = 'read'), '[]') AS grants},
+  q{AND p.resource_type = 'category' AND p.action = 'read'), '[]') AS grants,},
+  'EXISTS (SELECT 1 FROM role_bindings b',
+  'JOIN role_permissions rp ON rp.role_id = b.role_id',
+  'JOIN permissions p ON p.permission_id = rp.permission_id',
+  'WHERE b.user_id = u.id AND b.revoked_at IS NULL',
+  'AND b.resource_id IS NULL AND b.space_id IS NULL',
+  q{AND p.resource_type = 'thread' AND p.action = 'moderate') AS moderates},
   'FROM users u WHERE u.id = ?';
 
 __PACKAGE__->requires('schema');
@@ -70,8 +76,9 @@ sub resolve ( $self, $user_id ) {
     return $viewer_class->new( user_id => $user_id ) if !$member;
 
     return $viewer_class->new(
-        member  => 1,
-        user_id => $user_id,
+        member    => 1,
+        moderates => $row->{moderates} ? 1 : 0,
+        user_id   => $user_id,
         %{ $self->grant_scopes( $row->{grants} ) },
     );
 }
@@ -145,9 +152,10 @@ Version 0.001.
 =head1 DESCRIPTION
 
 Turns a session user id into a L<GPForum::Service::Forum::Viewer> with one
-query: the account's status, an active suspension, and the scopes of its
-C<category.read> grants (ADR 0102). Pending accounts count as members;
-suspended and deleted ones do not.
+query: the account's status, an active suspension, the scopes of its
+C<category.read> grants (ADR 0102), and whether it holds the global
+C<thread.moderate> binding (the thread page's staff actions). Pending
+accounts count as members; suspended and deleted ones do not.
 
 =head1 SUBROUTINES/METHODS
 

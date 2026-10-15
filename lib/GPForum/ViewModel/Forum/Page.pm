@@ -217,6 +217,7 @@ sub _thread_page_parts ( $self, $input ) {
     );
     $self->_apply_thread_edit_state( $thread, $input );
     $self->_apply_thread_restore_state( $thread, $input );
+    $self->_apply_thread_moderation_state( $thread, $input );
 
     return {
         engagement       => $self->_summary_hash( $input->{engagement} ),
@@ -288,6 +289,20 @@ sub _apply_thread_edit_state ( $self, $thread, $input ) {
       $self->string_or_empty( $input->{move_thread_command_id} );
     $thread->{move_categories} = $self->_move_categories($input);
 
+    return;
+}
+
+# A reader who moderates threads gets the staff actions in the thread's
+# tools, each form with a command id of its own, so one sent twice is one
+# action and two different ones are two. A deleted thread offers none: its
+# author's restore is what is left to do with it.
+sub _apply_thread_moderation_state ( $self, $thread, $input ) {
+    return if !$input->{can_moderate_thread};
+    return if $self->has_text( $thread->{deleted_at} );
+    $thread->{can_moderate_thread} = 1;
+    my $ids = $self->hash_or_empty( $input->{moderation_command_ids} );
+    $thread->{moderation_command_ids} =
+      { map { $_ => $self->string_or_empty( $ids->{$_} ) } qw(hide lock pin) };
     return;
 }
 

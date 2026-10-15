@@ -1,7 +1,8 @@
 %# What a reader can do with a thread, on one quiet line under its title:
 %# reply, follow, bookmark. What is rarer or needs a field waits in the
 %# "Thread tools" sheet: marking as read, muting, reporting and, for the
-%# author, the title, the category and deletion. Going to what is unread is
+%# author, the title, the category and deletion; for staff, pinning,
+%# locking and hiding, each with the reason the audit log keeps. Going to what is unread is
 %# a place in the page, so it is a link in the line above, not an action.
 %#
 %# With the page's script each form posts in place (hx-post) and the bar
@@ -126,6 +127,44 @@
             <p class="sheet__consequence"><%= t('forum.delete_thread_consequence') %></p>
             <button type="submit" class="button--danger"><%= t('forum.delete_thread') %></button>
           </form>
+        </section>
+      % }
+      % if ($thread->{can_moderate_thread}) {
+        % my $ids = $thread->{moderation_command_ids} || {};
+        % my $return_to = ui_path('thread', thread_id => $thread_id);
+        % my $pinned = $thread->{pinned} ? 1 : 0;
+        % my $locked = $thread->{locked_at} ? 1 : 0;
+        <section class="sheet__part" aria-labelledby="thread-moderation-heading">
+          <h3 id="thread-moderation-heading"><%= t('moderation.thread_actions') %></h3>
+          <form method="post" action="<%= ui_path($pinned ? 'moderation_thread_unpin' : 'moderation_thread_pin', thread_id => $thread_id) %>">
+            <%= csrf_field %>
+            <input type="hidden" name="command_id" value="<%= $ids->{pin} || q{} %>">
+            <input type="hidden" name="return_to" value="<%= $return_to %>">
+            <p class="sheet__consequence"><%= t($pinned ? 'moderation.unpin_hint' : 'moderation.pin_hint') %></p>
+            <label for="thread-pin-reason"><%= t('moderation.staff_reason') %></label>
+            <input id="thread-pin-reason" name="reason" type="text" required>
+            <button type="submit" class="button--secondary"><%= t($pinned ? 'moderation.unpin_thread' : 'moderation.pin_thread') %></button>
+          </form>
+          <form method="post" action="<%= ui_path($locked ? 'moderation_thread_unlock' : 'moderation_thread_lock', thread_id => $thread_id) %>">
+            <%= csrf_field %>
+            <input type="hidden" name="command_id" value="<%= $ids->{lock} || q{} %>">
+            <input type="hidden" name="return_to" value="<%= $return_to %>">
+            <p class="sheet__consequence"><%= t($locked ? 'moderation.unlock_hint' : 'moderation.lock_hint') %></p>
+            <label for="thread-lock-reason"><%= t('moderation.staff_reason') %></label>
+            <input id="thread-lock-reason" name="reason" type="text" required>
+            <button type="submit" class="button--secondary"><%= t($locked ? 'moderation.unlock_thread' : 'moderation.lock_thread') %></button>
+          </form>
+          % if (($thread->{moderation_state} || q{}) ne 'hidden') {
+            <form method="post" action="<%= ui_path('moderation_thread_hide', thread_id => $thread_id) %>">
+              <%= csrf_field %>
+              <input type="hidden" name="command_id" value="<%= $ids->{hide} || q{} %>">
+              <input type="hidden" name="return_to" value="<%= $return_to %>">
+              <p class="sheet__consequence"><%= t('moderation.hide_hint') %></p>
+              <label for="thread-hide-reason"><%= t('moderation.staff_reason') %></label>
+              <input id="thread-hide-reason" name="reason" type="text" required>
+              <button type="submit" class="button--danger"><%= t('moderation.hide_thread') %></button>
+            </form>
+          % }
         </section>
       % }
     <% end %>

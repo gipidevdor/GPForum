@@ -658,11 +658,11 @@ const my %FUNCTION => (
     },
 
     moderation_target => {
-        version    => 2,
+        version    => 4,
         parameters => [ kind => 'text', target_id => 'uuid', hold => 'boolean' ]
     },
     moderation_target_update => {
-        version    => 2,
+        version    => 4,
         parameters =>
           [ kind => 'text', target_id => 'uuid', changes => 'jsonb' ]
     },
@@ -983,7 +983,7 @@ const my %FUNCTION => (
         ],
     },
     forum_resolve_viewer => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id => 'uuid',
         ],

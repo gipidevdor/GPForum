@@ -69,7 +69,7 @@ claim. No competitor source code or assets were imported for this review.
 | B02 | Multiple tags / combined filters | Not found; define limits, matching semantics and permission-aware filtering. [search], [forum-schema] | PB-02 |
 | B03 | Deep subcategory tree | Partial: fixed space → category → thread hierarchy; categories have no parent field. [forum-schema] | PB-11 |
 | B04 | Managed thread prefixes | Not found as structured metadata or staff workflow. [forum-schema], [routes] | PB-11 |
-| B05 | Sticky / pinned administration | Foundation: pinned field and read ordering exist; pin/unpin route, staff action and UI were not found. [forum-schema], [thread-reader], [routes] | PB-11 |
+| B05 | Sticky / pinned administration | Done 2026-10-15: pin/unpin routes, the staff action in the thread's tools and on the moderation actions page, the badge on the thread page and in every list; read ordering was already by pin. [forum-schema], [thread-reader], [routes] | PB-11 |
 | B06 | Global announcements / site banners | Not found as admin-managed content; presentation status banners are separate components. [routes], [admin-settings] | PB-11 |
 | B07 | Wiki / knowledge base | Not found as a product workflow. [routes] | PB-19 / Defer |
 | B08 | Long-form documents / articles | Not found as a distinct content type. [routes], [post-model] | PB-19 / Defer |

@@ -150,6 +150,42 @@ sub unlock_thread ( $self, $input ) {
     );
 }
 
+# The pin is a flag of its own beside the state: pinning or unpinning a
+# hidden or locked thread changes nothing else about it.
+sub pin_thread ( $self, $input ) {
+    return $self->_apply_action(
+        {
+            %{$input},
+            action_type => 'thread.pinned',
+            applied     => \&_is_pinned,
+            created_at  => $self->clock->now_iso8601,
+            lock_kind   => $TARGET_THREAD,
+            resultset   => 'Thread',
+            target_id   => $input->{thread_id},
+            target_type => $TARGET_THREAD,
+            updates     => { pinned => 1 },
+        }
+    );
+}
+
+sub unpin_thread ( $self, $input ) {
+    return $self->_apply_action(
+        {
+            %{$input},
+            action_type => 'thread.unpinned',
+            applied     => sub ($thread) {
+                return _is_pinned($thread) ? 0 : 1;
+            },
+            created_at  => $self->clock->now_iso8601,
+            lock_kind   => $TARGET_THREAD,
+            resultset   => 'Thread',
+            target_id   => $input->{thread_id},
+            target_type => $TARGET_THREAD,
+            updates     => { pinned => 0 },
+        }
+    );
+}
+
 # Threads have no hidden_at, unlike posts: writing one died on PostgreSQL
 # ("No such column"), so no thread could be hidden or shown again. When it
 # was hidden is the created_at of the action row recorded with it.
@@ -401,6 +437,10 @@ sub _is_locked ($thread) {
     return defined _column( $thread, 'locked_at' ) ? 1 : 0;
 }
 
+sub _is_pinned ($thread) {
+    return _column( $thread, 'pinned' ) ? 1 : 0;
+}
+
 sub _unless_hidden ( $thread, $state ) {
     return _is_hidden($thread) ? $STATE_HIDDEN : $state;
 }
@@ -544,7 +584,7 @@ __END__
 
 =head1 NAME
 
-GPForum::Service::Moderation::ActionStore - Hide, restore, lock and unlock content and record each moderation action once.
+GPForum::Service::Moderation::ActionStore - Hide, restore, lock, unlock, pin and unpin content and record each moderation action once.
 
 =head1 VERSION
 
@@ -665,6 +705,15 @@ C<thread.locked>.
 As L</hide_thread>, clearing C<locked_at>, setting the state to C<visible>
 unless the thread is hidden, which it stays, and recording
 C<thread.unlocked>.
+
+=head2 pin_thread
+
+As L</hide_thread>, setting C<pinned> and recording C<thread.pinned>; the
+state, hidden or locked, is left as it is. A pinned thread is a repeat.
+
+=head2 unpin_thread
+
+As L</pin_thread>, clearing C<pinned> and recording C<thread.unpinned>.
 
 =head2 reverse_action
 

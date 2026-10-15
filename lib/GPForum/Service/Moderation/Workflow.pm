@@ -66,6 +66,34 @@ sub unlock_thread ( $self, $input ) {
     );
 }
 
+sub pin_thread ( $self, $input ) {
+    return $self->_action_write(
+        {
+            command_type => 'moderation.pin_thread',
+            input        => $input,
+            not_found    => 'thread not found',
+            request      => _action_request($input),
+            run          => sub {
+                return $self->action_store->pin_thread($input);
+            },
+        }
+    );
+}
+
+sub unpin_thread ( $self, $input ) {
+    return $self->_action_write(
+        {
+            command_type => 'moderation.unpin_thread',
+            input        => $input,
+            not_found    => 'thread not found',
+            request      => _action_request($input),
+            run          => sub {
+                return $self->action_store->unpin_thread($input);
+            },
+        }
+    );
+}
+
 sub hide_thread ( $self, $input ) {
     return $self->_action_write(
         {
@@ -483,6 +511,14 @@ Locks a thread when a reason is present.
 =head2 unlock_thread
 
 Unlocks a thread when a reason is present.
+
+=head2 pin_thread
+
+Pins a thread to the top of its category when a reason is present.
+
+=head2 unpin_thread
+
+Unpins a thread when a reason is present.
 
 =head2 hide_thread
 

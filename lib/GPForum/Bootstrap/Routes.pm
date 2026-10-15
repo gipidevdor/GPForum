@@ -203,6 +203,12 @@ sub register ( $, %input ) {
     $routes->post('/moderation/threads/:thread_id/unlock')
       ->to('Moderation::Actions#unlock_thread')
       ->name('moderation_thread_unlock');
+    $routes->post('/moderation/threads/:thread_id/pin')
+      ->to('Moderation::Actions#pin_thread')
+      ->name('moderation_thread_pin');
+    $routes->post('/moderation/threads/:thread_id/unpin')
+      ->to('Moderation::Actions#unpin_thread')
+      ->name('moderation_thread_unpin');
     $routes->post('/moderation/threads/:thread_id/hide')
       ->to('Moderation::Actions#hide_thread')
       ->name('moderation_thread_hide');

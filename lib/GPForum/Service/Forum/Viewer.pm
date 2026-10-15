@@ -17,6 +17,11 @@ has global_read  => 0;
 has category_ids => sub { return []; };
 has space_ids    => sub { return []; };
 
+# Whether the reader holds the global thread.moderate binding: the thread
+# page offers the staff actions on it, which the moderation routes check
+# again on the write.
+has moderates => 0;
+
 sub anonymous ($class) {
     return $class->new;
 }
@@ -60,6 +65,7 @@ sub within ( $self, $category_id, $space_id ) {
     return ( ref $self )->new(
         global_read => $self->granted( $category_id, $space_id ),
         member      => $self->member,
+        moderates   => $self->moderates,
         user_id     => $self->user_id,
     );
 }
@@ -84,8 +90,10 @@ Version 0.001.
 =head1 DESCRIPTION
 
 The reader of a page as ADR 0102 sees them: anonymous, a member (an active or
-pending account, not suspended), and the scopes of their C<category.read>
-grants. Built by L<GPForum::Service::Forum::ViewerResolver>; judged by
+pending account, not suspended), the scopes of their C<category.read>
+grants, and whether they hold the global C<thread.moderate> binding
+(C<moderates>), for the thread page to offer the staff actions. Built by
+L<GPForum::Service::Forum::ViewerResolver>; judged by
 L<GPForum::Service::Forum::Visibility>.
 
 =head1 SUBROUTINES/METHODS

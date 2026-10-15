@@ -3,12 +3,19 @@
 
 package GPForum::Web::Access;
 
+use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Web::Responder;
 
 our $VERSION = '0.001';
+
+# Backslashes are normalised to forward slashes by browsers, so "/\evil.test"
+# would leave the site as a protocol-relative URL. Control characters cover
+# header splitting and the NUL, tab, and vertical-tab variants of the same
+# trick.
+const my $UNSAFE_RETURN_TO => qr/[[:cntrl:]\\]/msx;
 
 sub csrf_invalid ( $self, $controller ) {
     if ( $controller->validation->csrf_protect->has_error('csrf_token') ) {
@@ -34,6 +41,25 @@ sub has_text ( $, $value ) {
     return length $value ? 1 : 0;
 }
 
+# A submitted return_to the site may send the browser to: a path of its
+# own ("/t/thread"), so neither another origin ("//evil.test", "https://")
+# nor nothing. Anything else is undef, for the caller's own default.
+sub safe_return_to ( $self, $return_to ) {
+    if ( !$self->has_text($return_to) ) {
+        return undef;
+    }
+
+    if ( $return_to =~ $UNSAFE_RETURN_TO ) {
+        return undef;
+    }
+
+    if ( $return_to !~ m{\A/}msx || $return_to =~ m{\A//}msx ) {
+        return undef;
+    }
+
+    return $return_to;
+}
+
 1;
 
 __END__
@@ -56,9 +82,10 @@ Version 0.001.
 =head1 DESCRIPTION
 
 Owns the HTTP decision helpers that controllers previously duplicated:
-CSRF token validity, cookie-session user id, JSON negotiation, and
-non-empty text. It does not render errors; L<GPForum::Web::Guard> keeps that
-responsibility. It does not talk to stores or DBIx::Class.
+CSRF token validity, cookie-session user id, JSON negotiation, non-empty
+text, and whether a submitted return path stays on this site. It does
+not render errors; L<GPForum::Web::Guard> keeps that responsibility. It
+does not talk to stores or DBIx::Class.
 
 =head1 SUBROUTINES/METHODS
 
@@ -78,6 +105,12 @@ Returns true when the request prefers JSON.
 =head2 has_text
 
 Returns true when a defined non-empty string is present.
+
+=head2 safe_return_to
+
+Returns a submitted C<return_to> when it is a same-origin relative path:
+it starts with one slash, not two, and carries no control character or
+backslash. Anything else returns undef.
 
 =head1 DIAGNOSTICS
 

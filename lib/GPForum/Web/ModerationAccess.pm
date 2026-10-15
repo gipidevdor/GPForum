@@ -30,6 +30,8 @@ const my $STATUS_POST_HIDDEN        => 'post_hidden';
 const my $STATUS_POST_RESTORED      => 'post_restored';
 const my $STATUS_THREAD_LOCKED      => 'thread_locked';
 const my $STATUS_THREAD_UNLOCKED    => 'thread_unlocked';
+const my $STATUS_THREAD_PINNED      => 'thread_pinned';
+const my $STATUS_THREAD_UNPINNED    => 'thread_unpinned';
 const my $STATUS_THREAD_HIDDEN      => 'thread_hidden';
 const my $STATUS_THREAD_RESTORED    => 'thread_restored';
 const my $STATUS_ACTION_REVERSED    => 'action_reversed';
@@ -56,8 +58,10 @@ const my %WRITE_FLASH => (
     $STATUS_SUSPENSION_REVOKED => 'moderation.suspension_revoked',
     $STATUS_THREAD_HIDDEN      => 'moderation.action.thread_hidden',
     $STATUS_THREAD_LOCKED      => 'moderation.action.thread_locked',
+    $STATUS_THREAD_PINNED      => 'moderation.action.thread_pinned',
     $STATUS_THREAD_RESTORED    => 'moderation.action.thread_restored',
     $STATUS_THREAD_UNLOCKED    => 'moderation.action.thread_unlocked',
+    $STATUS_THREAD_UNPINNED    => 'moderation.action.thread_unpinned',
     $STATUS_USER_SUSPENDED     => 'moderation.user_suspended',
 );
 
@@ -157,6 +161,14 @@ sub thread_locked_status {
 
 sub thread_unlocked_status {
     return $STATUS_THREAD_UNLOCKED;
+}
+
+sub thread_pinned_status {
+    return $STATUS_THREAD_PINNED;
+}
+
+sub thread_unpinned_status {
+    return $STATUS_THREAD_UNPINNED;
 }
 
 sub thread_hidden_status {
@@ -358,6 +370,14 @@ Returns C<thread_locked>.
 =head2 thread_unlocked_status
 
 Returns C<thread_unlocked>.
+
+=head2 thread_pinned_status
+
+Returns C<thread_pinned>.
+
+=head2 thread_unpinned_status
+
+Returns C<thread_unpinned>.
 
 =head2 thread_hidden_status
 

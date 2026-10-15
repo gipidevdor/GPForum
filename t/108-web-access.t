@@ -36,6 +36,18 @@ ok( $access->has_text('it'),   'has_text accepts a non-empty string' );
 ok( !$access->has_text(undef), 'has_text rejects undef' );
 ok( !$access->has_text(q{}),   'has_text rejects an empty string' );
 
+is( $access->safe_return_to('/t/thread-1?page=2'),
+    '/t/thread-1?page=2', 'safe_return_to keeps a path of this site' );
+is( $access->safe_return_to('//evil.test/'),
+    undef, 'and refuses a protocol-relative one' );
+is( $access->safe_return_to('https://evil.test/'), undef, 'another origin' );
+is( $access->safe_return_to("/t/thread-1\r\nSet-Cookie: a=b"),
+    undef, 'a header-splitting one' );
+is( $access->safe_return_to('/\\evil.test'), undef, 'a backslash' );
+is( $access->safe_return_to('t/thread-1'),   undef, 'a relative one' );
+is( $access->safe_return_to(q{}),            undef, 'nothing' );
+is( $access->safe_return_to(undef),          undef, 'and undef' );
+
 done_testing();
 
 1;

@@ -185,6 +185,32 @@ subtest 'the lock is locked_at, whatever the state says' => sub {
     );
 };
 
+# The pin is a flag beside the state: a locked thread pinned stays locked,
+# and pinning a pinned thread is a repeat, like locking a locked one.
+subtest 'a thread is pinned and unpinned beside its state' => sub {
+    my $schema = _schema( locked_at => $NOW, moderation_state => 'locked' );
+    my $store  = _store($schema);
+    my $pinned = $store->pin_thread( _command('worth reading first') );
+    ok( $pinned->{ok}, 'pinning the thread succeeds' );
+    is( _thread( $schema, 'pinned' ), 1, 'it is pinned' );
+    is( _thread( $schema, 'moderation_state' ),
+        'locked', 'and as locked as it was' );
+    is( _thread( $schema, 'locked_at' ), $NOW, 'with its lock' );
+    is( $pinned->{action}{action_type},
+        'thread.pinned', 'the action is named' );
+    _records_one( $schema, 'thread.pinned' );
+    ok( $store->pin_thread( _command('still worth it') )->{skipped},
+        'pinning it again changes nothing' );
+    _records_one( $schema, 'thread.pinned' );
+    my $unpinned = $store->unpin_thread( _command('old news') );
+    ok( $unpinned->{ok}, 'unpinning it succeeds' );
+    is( _thread( $schema, 'pinned' ),           0, 'it is no longer pinned' );
+    is( _thread( $schema, 'moderation_state' ), 'locked', 'and still locked' );
+    _records_one( $schema, 'thread.unpinned' );
+    ok( $store->unpin_thread( _command('old news') )->{skipped},
+        'unpinning it again changes nothing' );
+};
+
 subtest 'a post is hidden and restored with its hidden_at' => sub {
     my $schema = _schema();
     my $store  = _store($schema);
@@ -216,6 +242,7 @@ sub _schema {
         {
             locked_at        => undef,
             moderation_state => 'visible',
+            pinned           => 0,
             thread_id        => $THREAD_ID,
             %thread,
         }

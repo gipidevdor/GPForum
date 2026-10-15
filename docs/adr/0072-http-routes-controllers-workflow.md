@@ -112,6 +112,9 @@ Every mutating HTTP request MUST follow this order:
   `report.resolved`.
 - `POST /moderation/threads/:id/lock`: locks the thread; emits
   `thread.locked`.
+- `POST /moderation/threads/:id/pin` and `/unpin`: pin the thread to the
+  top of its category, or release it; emit `thread.pinned` or
+  `thread.unpinned`.
 - `POST /moderation/threads/:id/move`: moves the thread; emits
   `thread.moved`.
 - `POST /moderation/posts/:id/hide`: hides the post; emits `post.hidden`.

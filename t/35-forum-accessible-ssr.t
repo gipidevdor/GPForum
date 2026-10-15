@@ -12,12 +12,13 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
+use GPForum::Service::Forum::Viewer;
 use GPForum::Test::CommandIdempotency;
 use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 274;
+const my $EXPECTED_TESTS   => 288;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -279,6 +280,42 @@ $test->element_exists('form[action="/t/thread-1/delete"]');
 $test->element_exists('form[action="/t/thread-1/move"]');
 $test->element_exists('select[id="thread-move-category"]');
 $test->element_exists_not('form[action="/t/thread-1/restore"]');
+$test->element_exists_not(
+    'section[aria-labelledby="thread-moderation-heading"]');
+
+# A reader who moderates threads (the viewer says so) gets the staff actions
+# in the thread's tools: pin, lock and hide, each with its reason and a way
+# back to the thread; a deleted thread offers none.
+$test->app->helper(
+    gp_forum_viewer => sub {
+        return GPForum::Service::Forum::Viewer->new(
+            member    => 1,
+            moderates => 1,
+            user_id   => 'user-1',
+        );
+    }
+);
+$test->get_ok('/t/thread-1');
+$test->status_is($HTTP_OK);
+$test->element_exists('section[aria-labelledby="thread-moderation-heading"]');
+$test->text_like( '#thread-moderation-heading' => qr/Moderation/msx );
+$test->element_exists(
+    'form[action="/moderation/threads/thread-1/pin"] input[name="command_id"]');
+$test->element_exists(
+'form[action="/moderation/threads/thread-1/pin"] input[name="return_to"][value="/t/thread-1"]'
+);
+$test->element_exists(
+'form[action="/moderation/threads/thread-1/pin"] input[id="thread-pin-reason"][required]'
+);
+$test->element_exists(
+    'form[action="/moderation/threads/thread-1/lock"] input[name="return_to"]');
+$test->element_exists(
+    'form[action="/moderation/threads/thread-1/hide"] input[name="return_to"]');
+$test->element_exists_not('form[action="/moderation/threads/thread-1/unpin"]');
+$test->get_ok('/t/thread-deleted-1');
+$test->status_is($HTTP_OK);
+$test->element_exists_not(
+    'section[aria-labelledby="thread-moderation-heading"]');
 $test->get_ok('/t/thread-deleted-1');
 $test->status_is($HTTP_OK);
 $test->element_exists('form[action="/t/thread-deleted-1/restore"]');

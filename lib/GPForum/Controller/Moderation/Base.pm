@@ -233,11 +233,15 @@ sub reason_param ($self) {
     return $self->_trim( $self->param('reason') );
 }
 
+# A form on a thread's page says where it came from (return_to); the rest
+# of moderation lives in the queue, which is where its forms go back to.
 sub _html_success ( $self, $status, $route ) {
     $self->set_success_flash(
         $self->moderation_access->write_flash_key($status) );
+    my $return_to =
+      GPForum::Web::Access->new->safe_return_to( $self->param('return_to') );
 
-    return $self->redirect_to($route);
+    return $self->redirect_to( $return_to // $route );
 }
 
 sub _wants_json ($self) {

@@ -92,6 +92,48 @@ sub unlock_thread ($self) {
     );
 }
 
+sub pin_thread ($self) {
+    my $access  = $self->moderation_access;
+    my $user_id = $self->authorized_write_user_id( $access->thread_resource,
+        $access->moderate_action );
+    if ( !$user_id ) {
+        return;
+    }
+
+    return $self->moderation_write_response(
+        $self->gp_moderation_workflow->pin_thread(
+            {
+                actor_user_id => $user_id,
+                command_id    => $self->command_id_param,
+                thread_id     => $self->param('thread_id'),
+                reason        => $self->reason_param,
+            }
+        ),
+        $access->thread_pinned_status,
+    );
+}
+
+sub unpin_thread ($self) {
+    my $access  = $self->moderation_access;
+    my $user_id = $self->authorized_write_user_id( $access->thread_resource,
+        $access->moderate_action );
+    if ( !$user_id ) {
+        return;
+    }
+
+    return $self->moderation_write_response(
+        $self->gp_moderation_workflow->unpin_thread(
+            {
+                actor_user_id => $user_id,
+                command_id    => $self->command_id_param,
+                thread_id     => $self->param('thread_id'),
+                reason        => $self->reason_param,
+            }
+        ),
+        $access->thread_unpinned_status,
+    );
+}
+
 sub hide_thread ($self) {
     my $access  = $self->moderation_access;
     my $user_id = $self->authorized_write_user_id( $access->thread_resource,
@@ -195,6 +237,14 @@ Locks a thread.
 =head2 unlock_thread
 
 Unlocks a thread.
+
+=head2 pin_thread
+
+Pins a thread to the top of its category.
+
+=head2 unpin_thread
+
+Unpins a thread.
 
 =head2 hide_thread
 

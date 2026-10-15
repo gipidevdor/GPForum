@@ -84,6 +84,7 @@ sub _route_names {
       admin_audit
       admin_automod
       admin_automod_links
+      admin_automod_review
       admin_automod_word_add
       admin_automod_word_remove
       admin_categories
@@ -134,6 +135,9 @@ sub _route_names {
       moderation_report_release
       moderation_report_resolve
       moderation_reports
+      moderation_review
+      moderation_review_approve
+      moderation_review_reject
       moderation_suspension_revoke
       moderation_suspensions
       moderation_thread_hide
@@ -145,6 +149,8 @@ sub _route_names {
       notification_read
       notifications
       notifications_read_all
+      pending_post_withdraw
+      pending_posts
       post_attachment_delete
       post_attachment_upload
       post_delete
@@ -278,6 +284,8 @@ sub _helper_names {
       gp_registration
       gp_relation_store
       gp_report_store
+      gp_review_store
+      gp_review_workflow
       gp_retention_hold_store
       gp_robots_policy
       gp_role_binding_store

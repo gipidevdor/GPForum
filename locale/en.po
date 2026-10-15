@@ -3443,3 +3443,191 @@ msgstr "Contains a watched word"
 msgctxt "moderation.automod_link_limit"
 msgid "Too many links from a new member"
 msgstr "Too many links from a new member"
+
+msgctxt "forum.review_thread_held"
+msgid "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
+msgstr "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
+
+msgctxt "forum.review_reply_held"
+msgid "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
+msgstr "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
+
+msgctxt "forum.review_withdrawn"
+msgid "Post withdrawn."
+msgstr "Post withdrawn."
+
+msgctxt "forum.review_mine"
+msgid "Awaiting review"
+msgstr "Awaiting review"
+
+msgctxt "forum.review_mine_hint"
+msgid "Only you and the staff can see these posts until they are published."
+msgstr "Only you and the staff can see these posts until they are published."
+
+msgctxt "forum.review_mine_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nothing is waiting for review."
+
+msgctxt "forum.review_rejected_reason"
+msgid "Reason"
+msgstr "Reason"
+
+msgctxt "forum.review_open_published"
+msgid "Open the published post"
+msgstr "Open the published post"
+
+msgctxt "forum.review_withdraw"
+msgid "Withdraw"
+msgstr "Withdraw"
+
+msgctxt "moderation.review_queue"
+msgid "Review queue"
+msgstr "Review queue"
+
+msgctxt "moderation.review_intro"
+msgid "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
+msgstr "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
+
+#, python-brace-format
+msgctxt "moderation.review_pending_total"
+msgid "Waiting: {count}"
+msgstr "Waiting: {count}"
+
+msgctxt "moderation.review_new_thread"
+msgid "New thread"
+msgstr "New thread"
+
+msgctxt "moderation.review_reply_in"
+msgid "Reply in"
+msgstr "Reply in"
+
+msgctxt "moderation.review_author"
+msgid "Author"
+msgstr "Author"
+
+msgctxt "moderation.review_category"
+msgid "Category"
+msgstr "Category"
+
+msgctxt "moderation.review_reason_first_posts"
+msgid "One of the author's first posts"
+msgstr "One of the author's first posts"
+
+msgctxt "moderation.review_reason_flagged"
+msgid "Flagged by the automod rules"
+msgstr "Flagged by the automod rules"
+
+msgctxt "moderation.review_approve"
+msgid "Publish"
+msgstr "Publish"
+
+msgctxt "moderation.review_reject_reason"
+msgid "Reason for the author (optional)"
+msgstr "Reason for the author (optional)"
+
+msgctxt "moderation.review_reject"
+msgid "Reject"
+msgstr "Reject"
+
+msgctxt "moderation.review_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nothing is waiting for review."
+
+msgctxt "moderation.review_approved"
+msgid "Post published."
+msgstr "Post published."
+
+msgctxt "moderation.review_rejected"
+msgid "Post rejected."
+msgstr "Post rejected."
+
+msgctxt "moderation.review_unchanged"
+msgid "That post was already decided that way."
+msgstr "That post was already decided that way."
+
+msgctxt "moderation.review_refused"
+msgid "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
+msgstr "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
+
+msgctxt "moderation.review_conflict"
+msgid "Another moderator already decided that post."
+msgstr "Another moderator already decided that post."
+
+msgctxt "admin.automod_review"
+msgid "First-post review"
+msgstr "First-post review"
+
+#, python-brace-format
+msgctxt "admin.automod_review_help"
+msgid "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
+msgstr "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
+
+msgctxt "admin.automod_review_first_posts"
+msgid "Posts held per new member"
+msgstr "Posts held per new member"
+
+msgctxt "admin.automod_review_flagged"
+msgid "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
+msgstr "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
+
+msgctxt "admin.automod_review_save"
+msgid "Save review rule"
+msgstr "Save review rule"
+
+msgctxt "admin.automod_review_set"
+msgid "Review rule saved."
+msgstr "Review rule saved."
+
+msgctxt "admin.automod_invalid_first_posts"
+msgid "Choose a number of posts from 0 to 20."
+msgstr "Choose a number of posts from 0 to 20."
+
+msgctxt "notifications.type.review_approved"
+msgid "Published"
+msgstr "Published"
+
+msgctxt "notifications.title.review_approved"
+msgid "Your post was published"
+msgstr "Your post was published"
+
+msgctxt "notifications.body.review_approved"
+msgid "The staff reviewed your post and published it."
+msgstr "The staff reviewed your post and published it."
+
+msgctxt "notifications.email_subject.review_approved"
+msgid "Your post was published"
+msgstr "Your post was published"
+
+msgctxt "notifications.email_body.review_approved"
+msgid "The staff reviewed your post and published it. Open GPForum to read it."
+msgstr "The staff reviewed your post and published it. Open GPForum to read it."
+
+msgctxt "notifications.type.review_rejected"
+msgid "Not published"
+msgstr "Not published"
+
+msgctxt "notifications.title.review_rejected"
+msgid "Your reply was not published"
+msgstr "Your reply was not published"
+
+#, python-brace-format
+msgctxt "notifications.body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr "The staff reviewed your reply and did not publish it. {reason}"
+
+msgctxt "notifications.email_subject.review_rejected"
+msgid "Your reply was not published"
+msgstr "Your reply was not published"
+
+#, python-brace-format
+msgctxt "notifications.email_body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr "The staff reviewed your reply and did not publish it. {reason}"
+
+msgctxt "state.approved"
+msgid "Approved"
+msgstr "Approved"
+
+msgctxt "state.withdrawn"
+msgid "Withdrawn"
+msgstr "Withdrawn"

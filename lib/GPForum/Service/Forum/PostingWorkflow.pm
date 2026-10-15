@@ -60,6 +60,10 @@ has logger              => undef;    # optional: without it nothing is logged
 # words and the link rule (Forum::PostingAutomod).
 has automod => undef;    # optional: without it nothing is screened
 
+# ADR 0134: holds a new member's first posts, and flagged ones when staff
+# ask, for review (Forum::PostingReview).
+has review => undef;    # optional: without it nothing is held
+
 # ADR 0126: on PostgreSQL a reply's command log and store run in one call to
 # api.forum_create_reply_v1, on the post store's schema. Without a command
 # log (CommandIdempotency) or a post store (PostStore) on PostgreSQL -- the
@@ -76,29 +80,37 @@ has functions => sub ($self) {
 };
 
 sub create_thread ( $self, $input ) {
-    return $self->_screened(
-        'thread.create',
-        $input,
-        sub ($screened) {
-            return $self->_run( 'thread.create', $screened,
-                sub { return $self->_create_thread_once($screened); } );
-        }
-    );
+    return $self->_screened( 'thread.create', $input,
+        sub ($screened) { return $self->_write_thread($screened); } );
 }
 
 sub create_reply ( $self, $input ) {
-    return $self->_screened(
-        $REPLY, $input,
-        sub ($screened) {
-            if ( my $functions = $self->functions ) {
-                return $self->_create_reply_by_function( $functions,
-                    $screened );
-            }
+    return $self->_screened( $REPLY, $input,
+        sub ($screened) { return $self->_write_reply($screened); } );
+}
 
-            return $self->_run( $REPLY, $screened,
-                sub { return $self->_create_reply_once($screened); } );
-        }
-    );
+# ADR 0134: publishes a post staff approved, as its author's command: the
+# text was screened when it was held, so it is neither screened nor held
+# again. The command id is the one the author submitted.
+sub publish_reviewed ( $self, $type, $input ) {
+    return $self->_write_thread($input) if $type eq 'thread.create';
+    return $self->_write_reply($input)  if $type eq $REPLY;
+
+    return _result( status => 'invalid', error => 'not a held command' );
+}
+
+sub _write_thread ( $self, $input ) {
+    return $self->_run( 'thread.create', $input,
+        sub { return $self->_create_thread_once($input); } );
+}
+
+sub _write_reply ( $self, $input ) {
+    if ( my $functions = $self->functions ) {
+        return $self->_create_reply_by_function( $functions, $input );
+    }
+
+    return $self->_run( $REPLY, $input,
+        sub { return $self->_create_reply_once($input); } );
 }
 
 sub edit_thread ( $self, $input ) {
@@ -147,10 +159,91 @@ sub _screened ( $self, $type, $input, $write ) {
     return $write->($input) if !$automod || !$self->functions;
 
     my $screen = $automod->screen( $type, $input );
-    return $screen->{refusal}           if $screen->{refusal};
+    return $screen->{refusal} if $screen->{refusal};
+    return $self->_held( $type, $screen )
+      if $screen->{hold} && $self->review;
     return $write->( $screen->{input} ) if !$screen->{settle};
 
     return $automod->settle( $type, $screen, $write );
+}
+
+# ADR 0134: a post held for review is checked as its write would be --
+# the thread or category as the author reads it, the composer's answer --
+# so the author hears at once what is wrong with it, and is then kept for
+# staff instead of written.
+sub _held ( $self, $type, $screen ) {
+    my $input = $screen->{input};
+    return _missing_command_id_result($input) if !length _command_id($input);
+
+    my $checked =
+        $type eq $REPLY
+      ? $self->_reply_checked_for_review($input)
+      : $self->_thread_checked_for_review($input);
+    return $checked if !$checked->{ok};
+
+    return $self->review->hold( $type, $screen, $checked->{command} );
+}
+
+sub _reply_checked_for_review ( $self, $input ) {
+    my $thread =
+      $self->thread_detail_reader->find_thread( $input->{thread_id},
+        _viewer($input) );
+    my $refused = _refused( GPForum::Domain::Thread->reply_refusal($thread) );
+    return $refused if $refused;
+
+    return $self->_composed_for_review(
+        $self->post_composer->prepare(
+            {
+                allocate_position => 1,
+                author_user_id    => $input->{author_user_id},
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                idempotency_key  => _command_id($input),
+                thread_id        => $input->{thread_id},
+                visibility       => $input->{visibility},
+                visibility_floor => _effective_visibility(
+                    $thread,
+                    qw(space_visibility category_visibility visibility)
+                ),
+            }
+        )
+    );
+}
+
+sub _thread_checked_for_review ( $self, $input ) {
+    my $category_id = _trim( $input->{category_id} );
+    my $category;
+    if ( length $category_id ) {
+        $category =
+          $self->category_reader->find_category( $category_id,
+            _viewer($input) );
+        return _result( status => 'not_found', error => 'category not found' )
+          if !$category;
+    }
+
+    return $self->_composed_for_review(
+        $self->thread_composer->prepare(
+            {
+                author_user_id => $input->{author_user_id},
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                category_id => $category_id,
+                idempotency_key  => _command_id($input),
+                title            => $input->{title},
+                visibility       => $input->{visibility},
+                visibility_floor => _effective_visibility(
+                    $category, qw(space_visibility visibility)
+                ),
+            }
+        )
+    );
+}
+
+sub _composed_for_review ( $self, $prepared ) {
+    return _result( status => 'invalid', prepared => $prepared )
+      if !$prepared->{ok};
+
+    return { ok => 1, command => $prepared->{command} };
 }
 
 sub delete_post ( $self, $input ) {
@@ -1077,6 +1170,11 @@ mentions in the opening post, and returns C<ok> with C<prepared> (holding
 the command) and C<stored>, the store's answer (C<thread>, C<post> and
 C<skipped>). Command type C<thread.create>; a replay's C<stored> is
 C<< { ok => 1, thread => { thread_id }, post => { post_id } } >>.
+
+=head2 publish_reviewed
+
+Publishes a post staff approved from the review queue (ADR 0134) as its
+author's command, neither screened nor held again.
 
 =head2 create_reply
 

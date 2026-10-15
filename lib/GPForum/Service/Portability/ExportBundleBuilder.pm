@@ -333,6 +333,9 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
 
         # ADR 0130: the members the subject ignores or blocks.
         member_relations => $parts->{member_relations} || [],
+
+        # ADR 0134: the subject's posts held for review, as written.
+        held_posts => $parts->{held_posts} || [],
     };
 }
 
@@ -349,6 +352,7 @@ sub safe_manifest ( $self, $bundle ) {
             subscriptions    => scalar @{ $bundle->{subscriptions} },
             preferences      => scalar @{ $bundle->{preferences} },
             member_relations => scalar @{ $bundle->{member_relations} // [] },
+            held_posts       => scalar @{ $bundle->{held_posts}       // [] },
         },
     };
 }

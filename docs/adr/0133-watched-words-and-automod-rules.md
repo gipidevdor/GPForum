@@ -39,7 +39,9 @@ Each entry has one action:
 
 - **block** refuses the write as `invalid`, naming the field and the
   matching words, in the writer's language; nothing is stored;
-- **flag** stores the write and puts it in the moderation queue;
+- **flag** stores the write and puts it in the moderation queue (or,
+  when staff ask, holds a new thread or reply for review instead: ADR
+  0134);
 - **replace** stores the write with each match replaced by the entry's
   replacement (at most 100 characters; `***` when empty).
 

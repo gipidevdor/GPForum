@@ -14,6 +14,7 @@
     actions => ui_actions(
       { href => ui_path('admin_dashboard'), label => t('admin.admin') },
       { href => ui_path('moderation_reports'), label => t('moderation.queue') },
+      { href => ui_path('moderation_review'), label => t('moderation.review_queue') },
     ) %>
   <p><%= t('admin.automod_intro') %></p>
 
@@ -96,6 +97,21 @@
         % }
       </select>
       <button type="submit"><%= t('admin.automod_links_save') %></button>
+    </form>
+  </section>
+
+  <section aria-labelledby="automod-review-heading">
+    <%= include 'components/section_header',
+      heading_id => 'automod-review-heading',
+      component_title => t('admin.automod_review') %>
+    <p id="automod-review-help"><%= t('admin.automod_review_help', { maximum => $maximum_first_posts }) %></p>
+    <form method="post" action="<%= ui_path('admin_automod_review') %>" aria-describedby="automod-review-help">
+      <%= csrf_field %>
+      <label for="automod-review-first"><%= t('admin.automod_review_first_posts') %></label>
+      <input id="automod-review-first" name="review_first_posts" type="number" min="0" max="<%= $maximum_first_posts %>" value="<%= $review_first_posts %>" required>
+      <input id="automod-review-flagged" name="review_flagged" type="checkbox" value="1" <%= $review_flagged ? 'checked' : '' %>>
+      <label for="automod-review-flagged"><%= t('admin.automod_review_flagged') %></label>
+      <button type="submit"><%= t('admin.automod_review_save') %></button>
     </form>
   </section>
 </section>

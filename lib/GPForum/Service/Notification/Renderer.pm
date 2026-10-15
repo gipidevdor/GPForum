@@ -12,7 +12,7 @@ use GPForum::Service::I18N;
 our $VERSION = '0.001';
 
 const my %KNOWN_NOTIFICATION_TYPE => map { $_ => 1 }
-  qw(follow mention notification reply);
+  qw(follow mention notification reply review_approved review_rejected);
 
 has i18n => sub { return GPForum::Service::I18N->new; };
 
@@ -89,6 +89,7 @@ sub _notification_variables ($notification) {
         actor_id           => _value( $payload->{actor_id} ),
         mentioned_username => _value( $payload->{mentioned_username} ),
         post_id            => _value( $payload->{post_id} ),
+        reason             => _value( $payload->{reason} ),
         source_id          => _value( $notification->{source_id} ),
         source_type        => _value( $notification->{source_type} ),
         thread_id          => _value( $payload->{thread_id} ),
@@ -163,7 +164,8 @@ text.
 The catalog key is built from the notification type: lower-cased, every
 run of characters other than C<a-z> and C<0-9> turned into one underscore,
 and the leading and trailing underscores dropped. A type that is not
-C<follow>, C<mention>, C<notification> or C<reply> is rendered with the
+C<follow>, C<mention>, C<notification>, C<reply>, C<review_approved> or
+C<review_rejected> (ADR 0134) is rendered with the
 generic C<notification> messages, so an unknown type never reaches the
 catalog as a key of its own.
 

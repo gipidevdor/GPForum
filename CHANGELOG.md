@@ -546,6 +546,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **First-post review queue** (PB-05, ADR 0134). Staff can hold a new
+  member's first posts (a number from 1 to 20, set in `/admin/automod`;
+  off by default) and, optionally, the posts the watched words or the link
+  rule flag. A held thread or reply is kept outside threads and posts, so
+  no page, count, feed, search, realtime message, notification or JSON
+  answer carries it; its author sees it as awaiting review on `/pending`
+  and may withdraw it. Staff publish or reject it from
+  `/moderation/review`; a publication is the author's own post, written
+  then with every check of a write, and the author is notified. Every hold,
+  decision and rule change is audited.
+
 - **Similar discussions while a thread is written**: as the title is typed
   on the new-thread form, the threads it resembles appear under it, from the
   same bounded and permission-aware autocomplete the search box uses, so a

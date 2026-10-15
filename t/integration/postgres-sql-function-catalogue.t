@@ -69,6 +69,14 @@ const my %RETAINED => (
     community_list_mentions_v2   => 1,
     forum_resolve_viewer_v3      => 0,
     forum_resolve_viewer_v4      => 1,
+
+    # Migration 116 (first-post review) moved these on.
+    moderation_automod_rules_v1  => 0,
+    moderation_automod_rules_v2  => 1,
+    portability_export_parts_v9  => 0,
+    portability_export_parts_v10 => 1,
+    privacy_revoke_user_v7       => 0,
+    privacy_revoke_user_v8       => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

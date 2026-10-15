@@ -47,6 +47,9 @@ sub register ( $, %input ) {
     $routes->post('/admin/automod/links')
       ->to('Admin::Automod#set_links')
       ->name('admin_automod_links');
+    $routes->post('/admin/automod/review')
+      ->to('Admin::Automod#set_review')
+      ->name('admin_automod_review');
     $routes->post('/admin/roles')
       ->to('Admin::Catalog#create_role')
       ->name('admin_role_create');
@@ -116,6 +119,10 @@ sub register ( $, %input ) {
     $routes->get('/new-thread')
       ->to('Forum#new_thread_form')
       ->name('new_thread');
+    $routes->get('/pending')->to('Forum::Pending#list')->name('pending_posts');
+    $routes->post('/pending/:review_id/withdraw')
+      ->to('Forum::Pending#withdraw')
+      ->name('pending_post_withdraw');
     $routes->get('/drafts')->to('Forum::Drafts#list')->name('drafts');
     $routes->post('/drafts')->to('Forum::Drafts#save')->name('draft_save');
     $routes->get('/drafts/:draft_id')
@@ -203,6 +210,15 @@ sub register ( $, %input ) {
     $routes->get('/moderation/reports')
       ->to('Moderation#reports')
       ->name('moderation_reports');
+    $routes->get('/moderation/review')
+      ->to('Moderation::Review#queue')
+      ->name('moderation_review');
+    $routes->post('/moderation/review/:review_id/approve')
+      ->to('Moderation::Review#approve')
+      ->name('moderation_review_approve');
+    $routes->post('/moderation/review/:review_id/reject')
+      ->to('Moderation::Review#reject')
+      ->name('moderation_review_reject');
     $routes->get('/moderation/actions')
       ->to('Moderation#actions')
       ->name('moderation_actions');

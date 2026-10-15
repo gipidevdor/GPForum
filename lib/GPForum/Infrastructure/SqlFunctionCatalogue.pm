@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 8,
+        version    => 10,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 10,
+        version    => 12,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -789,7 +789,7 @@ const my %FUNCTION => (
         ],
     },
     moderation_automod_rules => {
-        version    => 2,
+        version    => 4,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -801,6 +801,63 @@ const my %FUNCTION => (
             event_outbox_id => 'text',
             report_audit    => 'jsonb',
             audits          => 'jsonb',
+        ],
+    },
+
+    # ADR 0134: the first-post review queue.
+    moderation_review_hold => {
+        version    => 2,
+        parameters => [
+            review_id          => 'uuid',
+            author_user_id     => 'uuid',
+            command_id         => 'text',
+            kind               => 'text',
+            category_id        => 'uuid',
+            thread_id          => 'uuid',
+            title              => 'text',
+            body_source        => 'text',
+            body_rendered_safe => 'text',
+            visibility         => 'text',
+            reply_to_post_id   => 'uuid',
+            reason             => 'text',
+            details            => 'jsonb',
+            draft_id           => 'uuid',
+            draft_revision     => 'bigint',
+            now                => 'timestamptz',
+            audit              => 'jsonb',
+        ],
+    },
+    moderation_review_queue => {
+        version    => 2,
+        parameters => [ row_limit => 'integer' ],
+        json       => ['details']
+    },
+    moderation_review_mine => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', row_limit => 'integer' ]
+    },
+    moderation_review_take =>
+      { version => 2, parameters => [ review_id => 'uuid' ] },
+    moderation_review_decide => {
+        version    => 2,
+        parameters => [
+            review_id     => 'uuid',
+            status        => 'text',
+            actor_user_id => 'uuid',
+            reason        => 'text',
+            post_id       => 'uuid',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+        ],
+    },
+    moderation_review_settings_set => {
+        version    => 2,
+        parameters => [
+            first_posts   => 'integer',
+            flagged       => 'boolean',
+            actor_user_id => 'uuid',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
         ],
     },
     moderation_suspension_find =>

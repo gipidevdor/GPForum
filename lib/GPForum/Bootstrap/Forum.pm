@@ -29,6 +29,7 @@ use GPForum::Service::Forum::PostPosition;
 use GPForum::Service::Forum::PostReader;
 use GPForum::Service::Forum::PostStore;
 use GPForum::Service::Forum::PostingAutomod;
+use GPForum::Service::Forum::PostingReview;
 use GPForum::Service::Forum::PostingWorkflow;
 use GPForum::Service::Forum::ReadState;
 use GPForum::Service::Forum::ReadWorkflow;
@@ -40,6 +41,7 @@ use GPForum::Service::Forum::ThreadStore;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::ViewerResolver;
 use GPForum::Service::Moderation::AutomodStore;
+use GPForum::Service::Moderation::ReviewStore;
 use GPForum::Service::Notification::Dispatcher;
 use GPForum::Service::Notification::RecipientPolicy;
 use GPForum::Service::Notification::PreferenceStore;
@@ -229,6 +231,12 @@ sub _register_forum_helpers {
                 automod => GPForum::Service::Forum::PostingAutomod->new(
                     logger => $controller->app->log,
                     store  => GPForum::Service::Moderation::AutomodStore->new(
+                        schema => $controller->gp_schema
+                    ),
+                ),
+                review => GPForum::Service::Forum::PostingReview->new(
+                    logger => $controller->app->log,
+                    store  => GPForum::Service::Moderation::ReviewStore->new(
                         schema => $controller->gp_schema
                     ),
                 ),

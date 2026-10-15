@@ -4,7 +4,10 @@
 
 Accepted. Amended by ADR 0113: partition DDL runs from operator processes --
 `gpforum migrate` and a daily maintenance timer -- though still
-never from a web request or worker.
+never from a web request or worker. Amended by ADR 0125: the profiles are
+`development`, `staging` and `production`, the host sizes the node, and
+`production-small` and `production-medium` are refused like any other
+word that is not an environment.
 
 ## Context
 

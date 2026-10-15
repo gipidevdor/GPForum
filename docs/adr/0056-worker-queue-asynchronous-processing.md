@@ -269,7 +269,8 @@ propagation assistance.
   `DeadLetterRecorder.pm`), `lib/GPForum/Command/OutboxDispatch.pm`
 - `gpforum outbox`, `script/bench-outbox-dispatcher`
 - `migrations/004_platform_governance.sql` (`dead_letters`,
-  `projection_offsets`, `projection_generations`),
+  `projection_generations`; its `projection_offsets`, never written, is
+  dropped by migration 105),
   `migrations/021_outbox_delivery_reliability.sql`,
   `migrations/022_outbox_concurrent_claim.sql`,
   `migrations/024_privacy_erasure_job_idempotency.sql`

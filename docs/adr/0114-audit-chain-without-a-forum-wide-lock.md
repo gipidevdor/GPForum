@@ -146,7 +146,7 @@ The linker never writes an audit row, so it cannot feed itself.
   linker batch counts as "not drained", like a full dispatch batch.
 - A scheduled job `audit_chain` links any backlog and runs an incremental
   verification, hourly with the other jobs.
-- `bin/gpforum-audit-chain link --loop` is there for an install that wants
+- `gpforum audit-chain link --loop` is there for an install that wants
   its own process.
 
 ### 4. Data model and hashes
@@ -225,7 +225,7 @@ order. No audit row is rewritten.
 
 ### 7. What the verifier checks
 
-`Service::Operations::AuditChainVerifier`, run by `bin/gpforum-audit-chain
+`Service::Operations::AuditChainVerifier`, run by `gpforum audit-chain
 verify [--full | --from-seq N] [--anchor EPOCH:SEQ:HASH] [--json]`, by the
 scheduled job (incremental) and shown in the console. It walks `audit_chain`
 by `chain_seq` in keyset batches and checks:
@@ -276,7 +276,7 @@ verifying.
 - **Partition DDL holding `ACCESS EXCLUSIVE` on `audit_log`:** the linker hits
   `lock_timeout` and tries again next iteration.
 - **Restore from `pg_dump`** (transaction ids are not carried over): the
-  linker refuses (section 3, step 3). `gpforum-audit-chain rebase`, run with
+  linker refuses (section 3, step 3). `gpforum audit-chain rebase`, run with
   the application stopped, links the restored unlinked rows in their stored
   order, opens a new epoch with its cursor at the current xmax, and logs the
   new anchor. Physical replicas, PITR and `pg_upgrade` keep transaction ids,
@@ -303,7 +303,7 @@ Four steps, each releasable on its own, in this order.
 `Infrastructure::AuditChain` (projection SQL, digest, link hash, constants),
 `Service::Operations::AuditChainLinker`,
 `Service::Operations::AuditChainVerifier`,
-`Command::AuditChain` and `bin/gpforum-audit-chain` (`link [--once|--loop]`,
+`Command::AuditChain` and the `audit-chain` verb (`link [--once|--loop]`,
 `verify`, `status`, `rebase`, each with `--json`). `Command::OutboxDispatch`
 calls the linker; `Service::Operations::ScheduledJobs` adds `audit_chain` to
 `@JOB_NAMES` and `%JOB_METHOD`. The legacy rows are adopted on the first run.
@@ -333,7 +333,8 @@ oldest pending age, last verification and its result (`Bootstrap::Admin`,
   `lib/GPForum/Service/Operations/AuditChainVerifier.pm`;
   `lib/GPForum/Schema/Result/AuditChain.pm`;
   `lib/GPForum/Schema/Result/AuditChainState.pm`;
-  `lib/GPForum/Command/AuditChain.pm`; `bin/gpforum-audit-chain`;
+  `lib/GPForum/Command/AuditChain.pm` and its row in
+  `Command/Support/Verbs.pm`;
   `docs/ops/audit-chain.md` (lag, blocked watermark, rebase, anchors,
   re-verify after an upgrade).
 - Changed: `lib/GPForum/Infrastructure/EventRecorder.pm`,

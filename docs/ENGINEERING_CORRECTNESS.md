@@ -152,13 +152,6 @@ Idempotency is explicit at the domain edge, not inferred from transport retry:
   and version columns already match; a unique race on
   `(user_id, item_type, item_id)` reloads the winner and keeps that copy
   when those columns match;
-- projection offset progress skips the row write when `last_event_id`
-  already matches; a unique race on `projection_name` reuses the existing
-  row and does not restamp `updated_at` when the event matches;
-  already-failed offsets and already-ready, active, or
-  failed generations skip the status rewrite; a unique race on one active
-  generation per projection reloads, skips if this generation won, and
-  otherwise retries the cutover once;
 - query-budget schema sync skips the row write when max queries,
   transactions, and notes already match; a unique race on `endpoint_name`
   reuses the existing row and does not rewrite the catalog when those
@@ -202,17 +195,6 @@ Idempotency is explicit at the domain edge, not inferred from transport retry:
 - reputation events that do not change trust level do not restamp the user
   row; a unique race on trust snapshot `user_id` applies this event's
   delta to the winner and does not drop the score increment;
-- plugin enable and disable skip the row write when status already matches;
-- plugin install reuses the unique `(name, version)` row and does not insert
-  a second plugin or hook set; a unique race on leftover `plugin_id` with
-  this name and version reuses the plugin and registers missing hooks; a
-  unique race on `plugin_id` remints the id once and does not return another
-  plugin; a unique race on leftover `hook_id` with this plugin and hook name
-  reuses the hook and registers missing hooks; a unique race on `hook_id`
-  remints the id once and does not return another hook; a unique race on
-  `(plugin_id, hook_name)` reloads the winner and does not insert a second
-  hook; a unique race on `plugin_failure_id` remints the id once and does
-  not return another failure;
 - role, permission, and attach writes reuse unique catalog rows and do not
   insert a second audit on conflict; a unique race on leftover `role_id`
   with this name reuses the role and inserts the missing audit; a unique
@@ -249,25 +231,6 @@ Idempotency is explicit at the domain edge, not inferred from transport retry:
   race on leftover `moderation_action_id` with this command_id reuses the
   action and inserts the missing event; a unique race on `command_id`
   replays the original action;
-- legacy id mapping reuses the unique `(legacy_type, legacy_id)` row and
-  keeps the original native id; a unique race on leftover
-  `legacy_id_map_id` with this source reuses the mapping; a unique race on
-  `legacy_id_map_id` remints the id once and does not return another
-  mapping;
-- import failure recording reuses the unique `(import_job_id,
-  source_record_type, source_record_id)` row and does not insert a second
-  review row on conflict; a unique race on leftover `import_failure_id`
-  with this source reuses the failure; a unique race on
-  `import_failure_id` remints the id once and does not return another
-  failure;
-- projection generation start reuses the unique `(projection_name,
-  built_from_event_id)` row and does not insert a second rebuild on
-  conflict; a unique race on leftover `generation_id` with this source
-  reuses the generation; a unique race on `generation_id` remints the id
-  once and does not return another generation;
-- import job create remints `import_job_id` once when the unique primary
-  key conflicts and does not return another job; import job progress skips
-  the row write when the stored counters already match;
 - already-revoked suspension retries restore a still-suspended user and skip
   the user restamp when status is already active; a unique race on
   `suspension_id` remints the id once and does not return another suspension;

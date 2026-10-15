@@ -2598,6 +2598,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **No document describes the deleted subsystems as running.**
+  `docs/ENGINEERING_CORRECTNESS.md` loses its plugin, import, legacy-id and
+  projection offset and generation guarantees, `docs/OBSERVABILITY.md` its
+  "Replay And Projection Guarantees" and its projection-lag lines, and
+  `docs/PRODUCT_FLOWS.md` its import sentences: the code they described is
+  gone. ADRs 0056, 0057 and 0069 say `projection_offsets` and
+  `resource_acl` are dropped; ADRs 0012 and 0059 no longer give
+  `production-small` and `production-medium` as profiles; ADRs 0114 and
+  0126 type `gpforum audit-chain` and `gpforum migrate` for the
+  `bin/gpforum-*` names.
 - **The plugin system, legacy import and projection offsets are gone.**
   They were built and never wired: no route, command or worker reached
   `GPForum::Service::Plugin::*`, the import half of

@@ -305,10 +305,10 @@ platform architecture.
     explicit and reviewable but not individually documented, so "fail on
     critic violations" and "exceptions MUST remain documented" are only
     partly met.
-  - `lib/GPForum/Config.pm` and `etc/` define development, staging,
-    production, production-small and production-medium profiles but no
-    testing profile; tests configure themselves through environment
-    variables.
+  - `lib/GPForum/Config.pm` defines development, staging and production
+    (ADR 0125; the `etc/` profile files and the production-small and
+    production-medium sizes are gone) but no testing profile; tests
+    configure themselves through environment variables.
 
 ## Related Decisions and Implementation
 

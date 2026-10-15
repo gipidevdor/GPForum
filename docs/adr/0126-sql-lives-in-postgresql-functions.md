@@ -131,7 +131,7 @@ double modules of DBIx::Class schemas, resultsets, rows and storages in
   section 8). A release moves to `_v<N+1>` by changing that line.
 - **An old version is dropped by a contract migration in a later release**,
   once no process runs a release that calls it. Never in the release that
-  stops calling it: `bin/gpforum-migrate --apply` runs every pending
+  stops calling it: `gpforum migrate --apply` runs every pending
   migration before the restart, so the previous release would lose its
   function while it still serves (the rule of ADR 0119, section 3).
 - **The tables follow expand and contract.** A migration that changes a

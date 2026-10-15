@@ -249,9 +249,11 @@ If federation is implemented in the future:
   audited, revocable bindings like any other role.
 - Staff tooling is held to the same accessibility bar as public pages.
 - Repository note: the recommended `resource_policies` entity does not exist;
-  resource-level policy is stored in `resource_acl`
-  (`migrations/001_core_identity.sql`), with grants, revocations and
-  effective permissions in `migrations/004_platform_governance.sql`.
+  policy is role bindings plus the visibility columns (ADR 0110), with
+  grants, revocations and effective permissions in
+  `migrations/004_platform_governance.sql`. The `resource_acl` table
+  `migrations/001_core_identity.sql` made was never written or read, and
+  migration 105 drops it.
 
 ## Related Decisions and Implementation
 

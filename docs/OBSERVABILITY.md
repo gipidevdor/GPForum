@@ -340,27 +340,11 @@ should still observe:
 * process RSS;
 * file descriptor usage;
 * queue depth;
-* projection lag;
 * outbox pending/dead messages;
 * readiness degradation state.
 
 The benchmark JSON includes process pid, worker count mode and RSS where the OS
 can expose it.
-
-## Replay And Projection Guarantees
-
-Projection tests now validate that replay/idempotent observation of projection
-offsets does not mutate canonical state. A second `record_progress` of the same
-`last_event_id` keeps the original `updated_at`. A second `mark_failed` of an
-already-failed offset keeps the original timestamp. Ready, active, and failed
-generation status writes skip when the stored status already matches. Rebuild
-and generation switches remain projection-only operations:
-
-* event/audit/canonical tables remain authoritative;
-* projection offsets are operational state;
-* projection generations are switchable derived read models;
-* replay failure must not corrupt canonical forum rows;
-* projection lag must remain observable.
 
 ## Degradation Guarantees
 
@@ -389,4 +373,3 @@ Validated degradation behavior:
 | long benchmark runs | medium/hot-thread evidence is local/manual, not yet nightly |
 | pg_stat_statements | documented, optional, not required by startup |
 | production memory growth | RSS is sampled in benchmark output; long-running worker drift still needs soak tests |
-| projection rebuild scale | idempotency is covered; full large replay duration still needs bigger datasets |

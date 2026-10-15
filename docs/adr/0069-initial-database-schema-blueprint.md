@@ -181,8 +181,8 @@ Every schema change MUST be:
   - `permissions` has `resource_type` and `action` instead of
     `description`; `role_bindings` scopes with `resource_type`,
     `resource_id`, and `space_id` instead of `scope_type` and `scope_id`;
-  - `resource_policies` does not exist; `resource_acl` is the closest
-    equivalent;
+  - `resource_policies` does not exist; `resource_acl` was the closest
+    equivalent, never used, and migration 105 drops it;
   - `suspensions` uses `valid_from` and `valid_to` instead of `starts_at`
     and `ends_at` and has no `created_at`;
   - `post_revisions` references `body_id` with `editor_user_id` and

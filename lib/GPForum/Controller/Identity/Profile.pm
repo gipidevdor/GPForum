@@ -37,10 +37,18 @@ sub profile ($self) {
     }
 
     # A signed-in reader gets the id of the form that reports the member.
-    my $page = $result->{profile} || {};
-    $page->{report_command_id} =
-      $self->session('user_id') ? $self->gp_id->uuid : q{};
+    my $page   = $result->{profile} || {};
+    my $reader = $self->session('user_id');
+    $page->{report_command_id} = $reader ? $self->gp_id->uuid : q{};
     my $profile = $self->gp_identity_view_model->profile($page);
+
+    # ADR 0130: the reader's own relation to the member, for the actions;
+    # never in the JSON, which says nothing of the reader.
+    my $relation =
+      $reader
+      ? $self->gp_relation_store->relation_between( $reader,
+        ( $page->{user} || {} )->{user_id} )
+      : undef;
 
     if ( $self->_wants_json ) {
         return $self->render(
@@ -52,6 +60,7 @@ sub profile ($self) {
     return $self->render(
         template => 'identity/profile',
         profile  => $profile,
+        relation => $relation // q{},
         status   => $HTTP_OK,
     );
 }

@@ -330,6 +330,9 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
         notifications   => $parts->{notifications} || [],
         subscriptions   => $parts->{subscriptions} || [],
         preferences     => $parts->{preferences}   || [],
+
+        # ADR 0130: the members the subject ignores or blocks.
+        member_relations => $parts->{member_relations} || [],
     };
 }
 
@@ -339,12 +342,13 @@ sub safe_manifest ( $self, $bundle ) {
         generated_at    => $bundle->{generated_at},
         format          => $bundle->{format},
         counts          => {
-            posts         => scalar @{ $bundle->{posts} },
-            drafts        => scalar @{ $bundle->{drafts} // [] },
-            attachments   => scalar @{ $bundle->{attachments} },
-            notifications => scalar @{ $bundle->{notifications} },
-            subscriptions => scalar @{ $bundle->{subscriptions} },
-            preferences   => scalar @{ $bundle->{preferences} },
+            posts            => scalar @{ $bundle->{posts} },
+            drafts           => scalar @{ $bundle->{drafts} // [] },
+            attachments      => scalar @{ $bundle->{attachments} },
+            notifications    => scalar @{ $bundle->{notifications} },
+            subscriptions    => scalar @{ $bundle->{subscriptions} },
+            preferences      => scalar @{ $bundle->{preferences} },
+            member_relations => scalar @{ $bundle->{member_relations} // [] },
         },
     };
 }

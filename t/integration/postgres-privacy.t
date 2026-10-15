@@ -502,12 +502,13 @@ sub _export_bundle {
     is_deeply(
         $manifest->{counts},
         {
-            attachments   => 1,
-            drafts        => 0,
-            notifications => 1,
-            posts         => 2,
-            preferences   => 1,
-            subscriptions => 1,
+            attachments      => 1,
+            drafts           => 0,
+            member_relations => 0,
+            notifications    => 1,
+            posts            => 2,
+            preferences      => 1,
+            subscriptions    => 1,
         },
         'the manifest counts each part of the bundle'
     );
@@ -1659,7 +1660,7 @@ sub _export_many_posts {
     );
     is(
         scalar(
-            grep { /api[.]portability_export_parts_v8[(][?]::uuid[)]/msx }
+            grep { /api[.]portability_export_parts_v10[(][?]::uuid[)]/msx }
               @{$sent}
         ),
         1,

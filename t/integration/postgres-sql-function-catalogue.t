@@ -55,6 +55,20 @@ const my %RETAINED => (
     search_autocomplete_v2      => 1,
     search_autocomplete_v3      => 0,
     search_autocomplete_v4      => 1,
+
+    # Migration 112 (member relations) moved these on.
+    portability_export_parts_v7  => 0,
+    portability_export_parts_v8  => 1,
+    privacy_revoke_user_v5       => 0,
+    privacy_revoke_user_v6       => 1,
+    notification_list_inbox_v1   => 0,
+    notification_list_inbox_v2   => 1,
+    notification_unread_count_v1 => 0,
+    notification_unread_count_v2 => 1,
+    community_list_mentions_v1   => 0,
+    community_list_mentions_v2   => 1,
+    forum_resolve_viewer_v3      => 0,
+    forum_resolve_viewer_v4      => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

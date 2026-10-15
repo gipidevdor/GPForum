@@ -546,6 +546,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Members ignore and block each other** (PB-06, ADR 0130). From a member's
+  profile a signed-in reader ignores them (their posts collapse behind a
+  "show" control in threads, and their replies and mentions leave the
+  reader's inbox, unread count and mentions page) or blocks them (as ignore,
+  and they can no longer mention the reader). `GET /settings/ignored` lists
+  the members, at most 500, with a way to remove each. Staff and moderation
+  notices are never silenced; nobody is told. Erasure empties both sides of
+  the lists and the export carries the member's own. Migration 112 adds
+  `member_relations`, the `community_relation_*` functions and new versions
+  of the inbox, unread count, mentions, erasure and export functions.
+
 - **A member says a few words about themselves**: Settings opens with a
   Profile section whose bio (plain text, up to 500 characters) shows on the
   public profile as paragraphs; an empty bio takes it down. Erasing the

@@ -596,6 +596,7 @@ sub thread_page_payload ( $self, $page, $user_id ) {
           )
         : [],
         viewer_user_id         => $user_id,
+        listed_members         => $self->_listed_members($user_id),
         can_moderate_thread    => $self->_can_moderate_thread,
         moderation_command_ids => $self->_moderation_command_ids,
         reading                => $self->gp_forum_view_model->reading_summary(
@@ -625,6 +626,15 @@ sub _post_command_ids ( $self, $posts, $user_id ) {
 sub _post_ids ( $self, $posts ) {
     return grep { defined && length }
       map { $self->_column( $_, 'post_id' ) } @{ $posts || [] };
+}
+
+# ADR 0130: the members the reader ignores or blocks, whose posts the page
+# collapses; the viewer resolver reads them with the rest of who the reader
+# is, in the same query.
+sub _listed_members ( $self, $user_id ) {
+    return {} if !$user_id;
+
+    return { map { $_ => 1 } @{ $self->gp_forum_viewer->listed } };
 }
 
 # The reader who moderates threads (the viewer resolver establishes it with

@@ -214,6 +214,7 @@ sub _thread_page_parts ( $self, $input ) {
               $self->hash_or_empty( $input->{restore_command_ids} ),
             report_command_ids =>
               $self->hash_or_empty( $input->{report_command_ids} ),
+            listed_members => $self->hash_or_empty( $input->{listed_members} ),
             thread         => $thread,
             viewer_user_id => $input->{viewer_user_id},
         },
@@ -249,6 +250,7 @@ sub _post_with_attachments ( $self, $row, $context ) {
     $self->_apply_restore_state( $post, $context );
     $self->_apply_report_state( $post, $context );
     $self->_apply_like_state( $post, $context );
+    $self->_apply_relation_state( $post, $context );
 
     return $post;
 }
@@ -267,6 +269,20 @@ sub _apply_like_state ( $self, $post, $context ) {
     $post->{like_command_id} =
       $self->string_or_empty(
         $context->{like_command_ids}{ $post->{post_id} } );
+
+    return;
+}
+
+# ADR 0130: a post by a member the reader ignores or blocks is collapsed
+# behind a control that shows it.
+sub _apply_relation_state ( $self, $post, $context ) {
+    my $author = $post->{author_user_id} // q{};
+    return if !length $author;
+    return if $author eq ( $context->{viewer_user_id} // q{} );
+    if ( $context->{listed_members}{$author} ) {
+        $post->{ignored} = 1;
+    }
+
     return;
 }
 

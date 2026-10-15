@@ -35,7 +35,11 @@ has notification_dispatcher => undef;    # optional: no notifications
 # recorded, so it neither notifies them nor lists the thread on their
 # mentions page.
 has readability => undef;    # optional: every source counts as readable
-has recorder    => sub {
+
+# ADR 0130: a member who blocks the author is not mentioned at all -- no
+# mention row, no notification. Service::Community::RelationStore.
+has relations => undef;    # optional: nobody blocks anyone
+has recorder  => sub {
     my ($self) = @_;
 
     return GPForum::Infrastructure::EventRecorder->new(
@@ -131,6 +135,12 @@ sub _insert_mentions ( $self, $input, $mentions, $resolved ) {
           )
         {
             push @skipped, _skip( $mention, 'source_not_readable' );
+            next;
+        }
+        if (   $self->relations
+            && $self->relations->blocks( $user_id, $input->{actor_id} ) )
+        {
+            push @skipped, _skip( $mention, 'blocked' );
             next;
         }
 
@@ -406,8 +416,9 @@ Returns a hash reference with C<< ok => 1 >>, C<created> (the hashes of the
 mention rows inserted), C<notifications> (the dispatcher's results for the
 notifications it accepted and did not report as duplicates) and C<skipped>
 (C<< { username, reason } >> entries with reason C<unknown_user>,
-C<self_mention>, C<source_not_readable> or C<fanout_limited>). A body
-without mentions returns empty lists and touches nothing.
+C<self_mention>, C<source_not_readable>, C<blocked> (the member blocks the
+author, ADR 0130) or C<fanout_limited>). A body without mentions returns empty lists
+and touches nothing.
 
 =head1 DIAGNOSTICS
 

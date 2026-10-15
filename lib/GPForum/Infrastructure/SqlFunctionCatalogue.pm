@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 6,
+        version    => 8,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 8,
+        version    => 10,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -522,7 +522,7 @@ const my %FUNCTION => (
         ]
     },
     community_list_mentions => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id          => 'uuid',
             filter_sources   => 'boolean',
@@ -574,6 +574,25 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
         json       => ['response']
+    },
+    community_relation_set => {
+        version    => 2,
+        parameters => [
+            owner_user_id => 'uuid',
+            username      => 'text',
+            kind          => 'text',
+            now           => 'timestamptz',
+        ],
+    },
+    community_relation_remove => {
+        version    => 2,
+        parameters => [ owner_user_id => 'uuid', username => 'text' ],
+    },
+    community_relation_list =>
+      { version => 2, parameters => [ owner_user_id => 'uuid' ] },
+    community_relation_between => {
+        version    => 2,
+        parameters => [ owner_user_id => 'uuid', other_user_id => 'uuid' ],
     },
     community_find_bookmark => {
         version    => 2,
@@ -1008,7 +1027,7 @@ const my %FUNCTION => (
         ],
     },
     forum_resolve_viewer => {
-        version    => 4,
+        version    => 6,
         parameters => [
             user_id => 'uuid',
         ],
@@ -1058,7 +1077,7 @@ const my %FUNCTION => (
         ],
     },
     notification_list_inbox => {
-        version    => 2,
+        version    => 4,
         parameters => [
             recipient_user_id     => 'uuid',
             filter_sources        => 'boolean',
@@ -1073,7 +1092,7 @@ const my %FUNCTION => (
         ],
     },
     notification_unread_count => {
-        version    => 2,
+        version    => 4,
         parameters => [
             recipient_user_id => 'uuid',
             filter_sources    => 'boolean',

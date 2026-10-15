@@ -101,6 +101,12 @@
     <p><a href="<%= ui_path('privacy_dashboard') %>"><%= t('settings.your_data_open') %></a></p>
   </section>
 
+  <section class="settings-group" aria-labelledby="settings-relations-heading">
+    <h2 id="settings-relations-heading"><%= t('community.relation_page_title') %></h2>
+    <p><%= t('community.relation_settings_description') %></p>
+    <p><a href="<%= ui_path('member_relations') %>"><%= t('community.relation_settings_open') %></a></p>
+  </section>
+
   <section class="settings-group" aria-labelledby="<%= $ui->{email_heading_id} %>">
     <h2 id="<%= $ui->{email_heading_id} %>"><%= t('settings.email') %></h2>
     <form method="post" action="<%= ui_path('settings_email_update') %>">

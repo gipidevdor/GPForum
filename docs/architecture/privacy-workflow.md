@@ -62,6 +62,15 @@ remains an operator policy separate from application deletion. The complete
 contract is in [composer-drafts.md](composer-drafts.md) and
 [ADR 0128](../adr/0128-private-composer-drafts-and-canonical-preview.md).
 
+## Ignore and block lists
+
+The members a member ignores or blocks are private to them. Member exports
+include the requester's own list under `member_relations` (username, kind and
+times), with a manifest count, and never who listed the requester. Erasure
+deletes the erased member's list and removes them from every other member's
+list through `privacy_revoke_user` with source `MemberRelation`. The contract
+is in [ADR 0130](../adr/0130-members-ignore-and-block-each-other.md).
+
 HTTP errors go through `GPForum::Web::Guard`, which renders existing
 `ErrorPayload` contracts via `Responder`. Page limits, the `privacy_http`
 write rate-limit hash, permission-target hashes, catalog `view` action,

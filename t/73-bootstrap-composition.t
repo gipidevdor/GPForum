@@ -119,6 +119,7 @@ sub _route_names {
       locale_update
       login
       login_submit
+      member_relations
       mentions
       metrics
       moderation_action_reverse
@@ -155,6 +156,9 @@ sub _route_names {
       privacy_export_request
       privacy_review
       profile
+      profile_block
+      profile_ignore
+      profile_relation_remove
       profile_report
       public_feed
       realtime
@@ -265,6 +269,7 @@ sub _helper_names {
       gp_realtime_pg_notifier
       gp_realtime_hub
       gp_registration
+      gp_relation_store
       gp_report_store
       gp_retention_hold_store
       gp_robots_policy

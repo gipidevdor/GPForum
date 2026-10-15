@@ -22,6 +22,10 @@ has space_ids    => sub { return []; };
 # again on the write.
 has moderates => 0;
 
+# ADR 0130: the ids of the members the reader ignores or blocks, whose posts
+# the thread page collapses.
+has listed => sub { return []; };
+
 sub anonymous ($class) {
     return $class->new;
 }
@@ -92,7 +96,9 @@ Version 0.001.
 The reader of a page as ADR 0102 sees them: anonymous, a member (an active or
 pending account, not suspended), the scopes of their C<category.read>
 grants, and whether they hold the global C<thread.moderate> binding
-(C<moderates>), for the thread page to offer the staff actions. Built by
+(C<moderates>), for the thread page to offer the staff actions, and the
+ids of the members the reader ignores or blocks (C<listed>, ADR 0130),
+whose posts it collapses. Built by
 L<GPForum::Service::Forum::ViewerResolver>; judged by
 L<GPForum::Service::Forum::Visibility>.
 

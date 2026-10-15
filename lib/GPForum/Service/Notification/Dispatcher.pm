@@ -87,7 +87,12 @@ has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
 };
 has subscription_store => undef;    # optional: only fan-out reads it
-has stats              => sub { return \%PROCESS_STATS; };
+
+# ADR 0130: a reply or mention by a member the recipient ignores or blocks
+# is not delivered. Service::Community::RelationStore; without it nothing is
+# silenced.
+has relations => undef;                           # optional: nobody is silenced
+has stats     => sub { return \%PROCESS_STATS; };
 
 sub create_notification ( $self, $input ) {
     my $engine = $self->permission_engine;
@@ -99,6 +104,13 @@ sub create_notification ( $self, $input ) {
       );
     return { ok => 0, skipped => 'channel_disabled', channel => 'in_app' }
       if !$self->_channel_enabled( $input, 'in_app' );
+    return { ok => 0, skipped => 'member_relation' }
+      if $self->relations
+      && $self->relations->silences(
+        $input->{recipient_user_id},
+        $input->{notification_type},
+        ( $input->{payload} || {} )->{actor_id}
+      );
 
     return $self->_committed_with_badge( $input->{recipient_user_id},
         sub { return $self->_create_notification($input); }, 'delivery' );
@@ -852,7 +864,9 @@ A recipient is notified only if the C<permission_engine> agrees (ADR 0102:
 only about a source they can read) and their C<in_app> channel is enabled
 in the C<preference_store>. The inbox and the unread count keep only
 notifications whose source the reader can still read, judged by
-C<readability> in the query.
+C<readability> in the query. A reply or mention by a member the recipient
+ignores or blocks is skipped as C<member_relation> when C<relations> is set
+(ADR 0130); other notification types are never silenced.
 
 After a delivery or a read commits, the recipient's new unread count is
 sent as a C<notification.badge> event through C<realtime_notifier>, a
@@ -891,7 +905,9 @@ optional C<idempotency_key>, C<notification_id> and C<rank_score> (default
 0). Returns C<< { ok => 0, skipped => 'permission_denied' } >> when the
 C<permission_engine>'s C<can_notify> refuses, and
 C<< { ok => 0, skipped => 'channel_disabled', channel => 'in_app' } >> when
-the recipient turned the channel off. Otherwise writes the rows in a
+the recipient turned the channel off, and
+C<< { ok => 0, skipped => 'member_relation' } >> when the actor is on the
+recipient's ignore or block list. Otherwise writes the rows in a
 transaction and returns C<< { ok => 1, duplicate, idempotency_key,
 notification, inbox, unread_count } >>: C<notification> and C<inbox> are
 hash references of the stored fields, the notification's C<payload>

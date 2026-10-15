@@ -307,6 +307,18 @@ sub register ( $, %input ) {
     $routes->get('/u/:username')
       ->to('Identity::Profile#profile')
       ->name('profile');
+    $routes->post('/u/:username/ignore')
+      ->to('Identity::Relations#ignore')
+      ->name('profile_ignore');
+    $routes->post('/u/:username/block')
+      ->to('Identity::Relations#block')
+      ->name('profile_block');
+    $routes->post('/u/:username/relation/remove')
+      ->to('Identity::Relations#remove')
+      ->name('profile_relation_remove');
+    $routes->get('/settings/ignored')
+      ->to('Identity::Relations#list')
+      ->name('member_relations');
     $routes->get('/privacy')
       ->to('Privacy#dashboard')
       ->name('privacy_dashboard');

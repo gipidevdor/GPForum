@@ -35,6 +35,7 @@ const my %ACTION_LIMIT_FOR => (
     'identity.email_change'    => $PASSWORD_LIMIT,
     'identity.email_verify'    => $PASSWORD_LIMIT,
     'identity.logout'          => $LOGOUT_LIMIT,
+    'identity.member_relation' => $SETTINGS_LIMIT,
     'identity.password_change' => $PASSWORD_LIMIT,
     'identity.password_reset'  => $PASSWORD_LIMIT,
     'identity.register'        => $REGISTER_LIMIT,
@@ -193,7 +194,8 @@ Returns the C<identity_http> rate-limit arguments for an action.
 
 =head2 write_limit_for
 
-Returns 20 for logout, 60 for settings, 5 for register/password/email
+Returns 20 for logout, 60 for settings and for ignoring or blocking members
+(in a five-minute window), 5 for register/password/email
 including verification, 20 for the logins one account receives from every
 address together, and 10 for other identity writes including login.
 

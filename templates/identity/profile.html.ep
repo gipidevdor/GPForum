@@ -48,6 +48,12 @@
     </div>
   </dl>
   % if (session('user_id') && !$is_own) {
+    %# ADR 0130: the reader's own ignore or block, which only they see.
+    % my $held = stash('relation') // q{};
+    % my $remove_to = ui_path('profile_relation_remove', username => $user->{username});
+    % if (length $held) {
+      <p class="ui-meta" role="status"><%= t($held eq 'block' ? 'community.relation_blocking_notice' : 'community.relation_ignoring_notice') %></p>
+    % }
     <div class="toolbar">
       <button type="button" class="button--quiet" popovertarget="profile-report"><%= t('moderation.report_profile') %></button>
       <%= include 'components/sheet', sheet_id => 'profile-report', component_title => t('moderation.report_profile'), sheet_body => begin %>
@@ -56,6 +62,32 @@
           command_id => $profile->{report_command_id},
           field_id => 'profile-report' %>
       <% end %>
+      % if (!length $held) {
+        <form method="post" action="<%= ui_path('profile_ignore', username => $user->{username}) %>">
+          <%= csrf_field %>
+          <button type="submit" class="button--quiet"><%= t('community.relation_ignore') %></button>
+        </form>
+      % } elsif ($held eq 'ignore') {
+        <form method="post" action="<%= $remove_to %>">
+          <%= csrf_field %>
+          <button type="submit" class="button--quiet"><%= t('community.relation_unignore') %></button>
+        </form>
+      % }
+      % if ($held eq 'block') {
+        <form method="post" action="<%= $remove_to %>">
+          <%= csrf_field %>
+          <button type="submit" class="button--quiet"><%= t('community.relation_unblock') %></button>
+        </form>
+      % } else {
+        <button type="button" class="button--quiet" popovertarget="profile-block"><%= t('community.relation_block') %></button>
+        <%= include 'components/sheet', sheet_id => 'profile-block', component_title => t('community.relation_block'), sheet_body => begin %>
+          <form method="post" action="<%= ui_path('profile_block', username => $user->{username}) %>">
+            <%= csrf_field %>
+            <p class="sheet__consequence"><%= t('community.relation_block_consequence') %></p>
+            <button type="submit" class="button--danger"><%= t('community.relation_block') %></button>
+          </form>
+        <% end %>
+      % }
     </div>
   % }
 </section>

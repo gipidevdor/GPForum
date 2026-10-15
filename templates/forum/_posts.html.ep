@@ -66,6 +66,12 @@
         </p>
         <a class="post__permalink" href="#<%= $dom_id %>" aria-label="<%= t('forum.permalink') %> <%= $ordinal %>"><%= $ordinal %></a>
       </header>
+      %# ADR 0130: the post of a member the reader ignores or blocks waits
+      %# behind a control that shows it, with or without the page's script.
+      % if ($post->{ignored}) {
+      <details class="post__ignored">
+        <summary><%= t('community.relation_collapsed_post') %></summary>
+      % }
       <div class="forum-post-body"><%== ui_trusted_html($post->{body}, 'forum.post.body') %></div>
       % if ($post->{deleted_at}) {
         <p role="status"><%= t('forum.post_deleted_notice') %></p>
@@ -86,6 +92,9 @@
             </li>
           % }
         </ul>
+      % }
+      % if ($post->{ignored}) {
+      </details>
       % }
       % my $like_count = $post->{like_count} || 0;
       % if ($post->{can_edit} || $post->{can_delete} || $post->{can_restore} || $signed_in || $like_count) {

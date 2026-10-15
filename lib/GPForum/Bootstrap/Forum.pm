@@ -18,6 +18,7 @@ use GPForum::Service::Community::LikeStore;
 use GPForum::Service::Community::FeedReader;
 use GPForum::Service::Community::MentionReader;
 use GPForum::Service::Community::MentionStore;
+use GPForum::Service::Community::RelationStore;
 use GPForum::Service::Community::Workflow;
 use GPForum::Service::Forum::CategoryReader;
 use GPForum::Service::Forum::DraftStore;
@@ -387,6 +388,16 @@ sub _register_community_helpers {
             );
         }
     );
+
+    # ADR 0130: the members a member ignores or blocks.
+    $application->helper(
+        gp_relation_store => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Community::RelationStore->new(
+                schema => $controller->gp_schema );
+        }
+    );
     $application->helper(
         gp_mention_store => sub {
             my ($controller) = @_;
@@ -397,7 +408,8 @@ sub _register_community_helpers {
                 readability => GPForum::Service::Forum::Readability->new(
                     schema => $controller->gp_schema
                 ),
-                schema => $controller->gp_schema,
+                relations => $controller->gp_relation_store,
+                schema    => $controller->gp_schema,
             );
         }
     );
@@ -454,6 +466,7 @@ sub _register_notification_helpers {
                   $controller->gp_notification_preference_store,
                 readability        => $policy,
                 realtime_notifier  => $controller->gp_realtime_pg_notifier,
+                relations          => $controller->gp_relation_store,
                 schema             => $controller->gp_schema,
                 subscription_store => $controller->gp_subscription_store,
             );

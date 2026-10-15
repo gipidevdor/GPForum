@@ -86,7 +86,7 @@ claim. No competitor source code or assets were imported for this review.
 | C04 | Avatar upload / crop | Not found; profiles/posts render initials and generated colors. [profile], [posts] | PB-13 |
 | C05 | Badges / achievements / medals | Partial: trust-derived contributor badge exists; separate achievement/award system was not found. [profile], [profile-reader] | PB-13 |
 | C06 | Visible trust levels | Present, basic: profile shows reputation score, badge and numeric level. Further explanations and privilege UX are optional increments. [profile], [reputation] | Maintain / PB-13 |
-| C07 | Ignore / block a user | Not found as a user relationship/control; existing mute applies to threads. [thread-tools], [routes] | PB-06 |
+| C07 | Ignore / block a user | Done 2026-10-15: ignore and block from the member's profile, the list (at most 500) on `/settings/ignored`; ignored members' posts collapse in threads, their replies and mentions leave the inbox, badge and mentions page; a blocked member cannot mention; staff notices are never silenced; erasure and export cover the list (ADR 0130). Direct messages will refuse a blocked sender when they exist. [routes] | PB-06 |
 | C08 | Friends / follow users | Not found; thread subscriptions and a followed-thread feed exist. [routes], [feed] | PB-13 |
 | C09 | Group / here / everyone mentions | Partial: username mentions exist with permission checks and bounded fanout; group/broadcast semantics were not found. [mentions] | PB-13 |
 

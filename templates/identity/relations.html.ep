@@ -1,0 +1,34 @@
+% layout 'default';
+% title t('community.relation_page_title') . ' - ' . t('app.name');
+%# ADR 0130: the members the reader ignores or blocks, each with the way to
+%# take them off. Only the reader sees this list.
+<section aria-labelledby="relations-heading">
+  <%= include 'components/page_header', heading_id => 'relations-heading', component_title => t('community.relation_page_title') %>
+  <p><%= t('community.relation_page_intro') %></p>
+  <p class="ui-meta"><%= t('community.relation_page_bound', { limit => $maximum_relations }) %></p>
+  % if (@{$relations}) {
+    <ol class="ui-card-list" aria-label="<%= t('community.relation_page_title') %>">
+      % for my $listed (@{$relations}) {
+        <li class="ui-card-list__item ui-row">
+          <article aria-labelledby="relation-<%= $listed->{other_user_id} %>-heading">
+            <h2 class="ui-row__title" id="relation-<%= $listed->{other_user_id} %>-heading"><a href="<%= ui_path('profile', username => $listed->{username}) %>"><%= $listed->{display_name} || $listed->{username} %></a></h2>
+            <p class="ui-meta">
+              <span class="ui-badge"><%= t($listed->{kind} eq 'block' ? 'community.relation_kind_block' : 'community.relation_kind_ignore') %></span>
+              <span>@<%= $listed->{username} %></span>
+              % if ($listed->{updated_at}) {
+                <span><%= t('community.relation_since') %> <%= include 'components/timestamp', at => $listed->{updated_at} %></span>
+              % }
+            </p>
+            <form method="post" action="<%= ui_path('profile_relation_remove', username => $listed->{username}) %>">
+              <%= csrf_field %>
+              <input type="hidden" name="return_to" value="<%= ui_path('member_relations') %>">
+              <button class="button--secondary" type="submit"><%= t('community.relation_remove') %><span class="visually-hidden"> <%= $listed->{username} %></span></button>
+            </form>
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state', heading_id => 'relations-empty-heading', component_title => t('community.relation_empty') %>
+  % }
+</section>

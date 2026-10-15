@@ -103,7 +103,9 @@ jobs:
         run: prove -I script/lib -I t/lib -lr t/performance
 
       - name: Check the browser clients (composer, similar threads)
-        run: node --test t/js/
+        # The files are named: Node before 22 reads a directory argument as a
+        # module path and fails with "Cannot find module".
+        run: node --test t/js/*.test.cjs
 
       - name: Check Perl syntax
         run: script/gpforum-carton exec script/perl-syntax-check

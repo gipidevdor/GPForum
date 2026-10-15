@@ -208,11 +208,6 @@ sub _run_unique_row {
     $self->_assert_active_hold_unique($row);
     $self->_assert_erasure_id_unique($row);
     $self->_assert_erasure_job_unique($row);
-    $self->_assert_plugin_id_unique($row);
-    $self->_assert_plugin_unique($row);
-    $self->_assert_plugin_hook_id_unique($row);
-    $self->_assert_plugin_hook_unique($row);
-    $self->_assert_plugin_failure_id_unique($row);
     $self->_assert_role_id_unique($row);
     $self->_assert_role_unique($row);
     $self->_assert_permission_id_unique($row);
@@ -220,11 +215,6 @@ sub _run_unique_row {
     $self->_assert_role_permission_unique($row);
     $self->_assert_category_id_unique($row);
     $self->_assert_category_unique($row);
-    $self->_assert_legacy_map_id_unique($row);
-    $self->_assert_legacy_map_unique($row);
-    $self->_assert_import_job_id_unique($row);
-    $self->_assert_import_failure_id_unique($row);
-    $self->_assert_import_failure_unique($row);
     $self->_assert_space_id_unique($row);
     $self->_assert_space_unique($row);
     $self->_assert_binding_id_unique($row);
@@ -785,202 +775,6 @@ sub _same_erasure_request {
         $row->{deletion_request_id} );
 }
 
-sub _assert_plugin_id_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_plugin_identity_row($row) ) {
-        return;
-    }
-    if ( _plugin_id_taken( $self, $row ) ) {
-        GPForum::Infrastructure::UniqueConflict->throw('plugins_pkey');
-    }
-
-    return;
-}
-
-sub _assert_plugin_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_plugin_identity_row($row) ) {
-        return;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_plugin_identity( $existing, $row ) ) {
-            GPForum::Infrastructure::UniqueConflict->throw(
-                'plugins_name_version_key');
-        }
-    }
-
-    return;
-}
-
-sub _plugin_id_taken {
-    my ( $self, $row ) = @_;
-
-    if ( !_has_text( $row->{plugin_id} ) ) {
-        return 0;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_text( $existing->{plugin_id}, $row->{plugin_id} ) ) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-sub _plugin_identity_row {
-    my ($row) = @_;
-
-    if ( !_has_text( $row->{plugin_id} ) ) {
-        return 0;
-    }
-    if ( !_has_text( $row->{name} ) ) {
-        return 0;
-    }
-
-    return _has_text( $row->{version} );
-}
-
-sub _same_plugin_identity {
-    my ( $existing, $row ) = @_;
-
-    if ( !_plugin_identity_row($existing) ) {
-        return 0;
-    }
-    if ( !_same_text( $existing->{name}, $row->{name} ) ) {
-        return 0;
-    }
-
-    return _same_text( $existing->{version}, $row->{version} );
-}
-
-sub _assert_plugin_hook_id_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_plugin_hook_row($row) ) {
-        return;
-    }
-    if ( _hook_id_taken( $self, $row ) ) {
-        GPForum::Infrastructure::UniqueConflict->throw('plugin_hooks_pkey');
-    }
-
-    return;
-}
-
-sub _hook_id_taken {
-    my ( $self, $row ) = @_;
-
-    if ( !_has_text( $row->{hook_id} ) ) {
-        return 0;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_text( $existing->{hook_id}, $row->{hook_id} ) ) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-sub _assert_plugin_hook_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_plugin_hook_row($row) ) {
-        return;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_plugin_hook( $existing, $row ) ) {
-            GPForum::Infrastructure::UniqueConflict->throw(
-                'idx_plugin_hooks_plugin_name_unique');
-        }
-    }
-
-    return;
-}
-
-sub _plugin_hook_row {
-    my ($row) = @_;
-
-    if ( !_has_text( $row->{hook_id} ) ) {
-        return 0;
-    }
-    if ( !_has_text( $row->{plugin_id} ) ) {
-        return 0;
-    }
-    if ( _has_text( $row->{plugin_failure_id} ) ) {
-        return 0;
-    }
-
-    return _has_text( $row->{hook_name} );
-}
-
-sub _same_plugin_hook {
-    my ( $existing, $row ) = @_;
-
-    if ( !_plugin_hook_row($existing) ) {
-        return 0;
-    }
-    if ( !_same_text( $existing->{plugin_id}, $row->{plugin_id} ) ) {
-        return 0;
-    }
-
-    return _same_text( $existing->{hook_name}, $row->{hook_name} );
-}
-
-sub _assert_plugin_failure_id_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_plugin_failure_identity_row($row) ) {
-        return;
-    }
-    if ( _plugin_failure_id_taken( $self, $row ) ) {
-        GPForum::Infrastructure::UniqueConflict->throw('plugin_failures_pkey');
-    }
-
-    return;
-}
-
-sub _plugin_failure_id_taken {
-    my ( $self, $row ) = @_;
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_plugin_failure_id( $existing, $row ) ) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-sub _same_plugin_failure_id {
-    my ( $existing, $row ) = @_;
-
-    if ( !_plugin_failure_identity_row($existing) ) {
-        return 0;
-    }
-
-    return _same_text( $existing->{plugin_failure_id},
-        $row->{plugin_failure_id} );
-}
-
-sub _plugin_failure_identity_row {
-    my ($row) = @_;
-
-    if ( !_has_text( $row->{plugin_failure_id} ) ) {
-        return 0;
-    }
-    if ( _has_text( $row->{hook_id} ) ) {
-        return 0;
-    }
-
-    return _has_text( $row->{error_class} );
-}
-
 sub _assert_role_id_unique {
     my ( $self, $row ) = @_;
 
@@ -1265,220 +1059,6 @@ sub _same_category_slug {
     }
 
     return _same_text( $existing->{slug}, $row->{slug} );
-}
-
-sub _assert_legacy_map_id_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_legacy_map_row($row) ) {
-        return;
-    }
-    if ( _legacy_map_id_taken( $self, $row ) ) {
-        GPForum::Infrastructure::UniqueConflict->throw('legacy_id_map_pkey');
-    }
-
-    return;
-}
-
-sub _legacy_map_id_taken {
-    my ( $self, $row ) = @_;
-
-    if ( !_has_text( $row->{legacy_id_map_id} ) ) {
-        return 0;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if (
-            _same_text(
-                $existing->{legacy_id_map_id},
-                $row->{legacy_id_map_id}
-            )
-          )
-        {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-sub _assert_legacy_map_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_legacy_map_row($row) ) {
-        return;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_legacy_source( $existing, $row ) ) {
-            GPForum::Infrastructure::UniqueConflict->throw(
-                'legacy_id_map_source_key');
-        }
-    }
-
-    return;
-}
-
-sub _legacy_map_row {
-    my ($row) = @_;
-
-    if ( !_has_text( $row->{legacy_id_map_id} ) ) {
-        return 0;
-    }
-    if ( !_has_text( $row->{legacy_type} ) ) {
-        return 0;
-    }
-
-    return _has_text( $row->{legacy_id} );
-}
-
-sub _assert_import_job_id_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_import_job_identity_row($row) ) {
-        return;
-    }
-    if ( _import_job_id_taken( $self, $row ) ) {
-        GPForum::Infrastructure::UniqueConflict->throw('import_jobs_pkey');
-    }
-
-    return;
-}
-
-sub _import_job_identity_row {
-    my ($row) = @_;
-
-    if ( !_has_text( $row->{import_job_id} ) ) {
-        return 0;
-    }
-    if ( _has_text( $row->{import_failure_id} ) ) {
-        return 0;
-    }
-
-    return !_has_text( $row->{legacy_id_map_id} );
-}
-
-sub _import_job_id_taken {
-    my ( $self, $row ) = @_;
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_import_job_id( $existing, $row ) ) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-sub _same_import_job_id {
-    my ( $existing, $row ) = @_;
-
-    if ( !_import_job_identity_row($existing) ) {
-        return 0;
-    }
-
-    return _same_text( $existing->{import_job_id}, $row->{import_job_id} );
-}
-
-sub _assert_import_failure_id_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_import_failure_row($row) ) {
-        return;
-    }
-    if ( _import_failure_id_taken( $self, $row ) ) {
-        GPForum::Infrastructure::UniqueConflict->throw('import_failures_pkey');
-    }
-
-    return;
-}
-
-sub _import_failure_id_taken {
-    my ( $self, $row ) = @_;
-
-    if ( !_has_text( $row->{import_failure_id} ) ) {
-        return 0;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if (
-            _same_text(
-                $existing->{import_failure_id},
-                $row->{import_failure_id}
-            )
-          )
-        {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-sub _assert_import_failure_unique {
-    my ( $self, $row ) = @_;
-
-    if ( !_import_failure_row($row) ) {
-        return;
-    }
-
-    for my $existing ( $self->_live_created_rows ) {
-        if ( _same_import_source( $existing, $row ) ) {
-            GPForum::Infrastructure::UniqueConflict->throw(
-                'idx_import_failures_source_unique');
-        }
-    }
-
-    return;
-}
-
-sub _import_failure_row {
-    my ($row) = @_;
-
-    if ( !_has_text( $row->{import_failure_id} ) ) {
-        return 0;
-    }
-    if ( !_has_text( $row->{import_job_id} ) ) {
-        return 0;
-    }
-    if ( !_has_text( $row->{source_record_type} ) ) {
-        return 0;
-    }
-
-    return _has_text( $row->{source_record_id} );
-}
-
-sub _same_import_source {
-    my ( $existing, $row ) = @_;
-
-    if ( !_same_text( $existing->{import_job_id}, $row->{import_job_id} ) ) {
-        return 0;
-    }
-    if (
-        !_same_text(
-            $existing->{source_record_type},
-            $row->{source_record_type}
-        )
-      )
-    {
-        return 0;
-    }
-
-    return _same_text( $existing->{source_record_id},
-        $row->{source_record_id} );
-}
-
-sub _same_legacy_source {
-    my ( $existing, $row ) = @_;
-
-    if ( !_legacy_map_row($existing) ) {
-        return 0;
-    }
-    if ( !_same_text( $existing->{legacy_type}, $row->{legacy_type} ) ) {
-        return 0;
-    }
-
-    return _same_text( $existing->{legacy_id}, $row->{legacy_id} );
 }
 
 sub _assert_space_id_unique {
@@ -1859,16 +1439,9 @@ sub _row_keys {
               role_id
               permission_id
               binding_id
-              acl_id
               post_id
               thread_id
-              import_job_id
-              import_failure_id
-              legacy_id_map_id
               export_request_id
-              plugin_id
-              hook_id
-              plugin_failure_id
               deletion_request_id
               deletion_action_id
               erasure_job_id
@@ -1878,7 +1451,6 @@ sub _row_keys {
             )
         },
         _composite_key($row),
-        _legacy_key($row),
     );
 }
 
@@ -1891,8 +1463,6 @@ sub _composite_key {
 
 sub _find_key {
     my ($row) = @_;
-
-    return _legacy_key($row) if exists $row->{legacy_type};
 
     return _composite_key($row);
 }
@@ -1928,12 +1498,6 @@ sub _matches_query {
     return 1 if !$query || !%{$query};
 
     return GPForum::Test::Query::matches( $row, $query, \&_read_column );
-}
-
-sub _legacy_key {
-    my ($row) = @_;
-
-    return join q{:}, grep { defined } @{$row}{qw(legacy_type legacy_id)};
 }
 
 sub _read_column {

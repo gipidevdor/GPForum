@@ -21,7 +21,7 @@ use GPForum::Test::MigrationSchema;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 483;
+const my $EXPECTED_TESTS => 446;
 
 # Derived from the directory instead of hardcoded: a literal turns every new
 # migration into a spurious failure, which trains people to bump the number
@@ -104,16 +104,8 @@ my $role_source                    = $schema->source('Role');
 my $permission_source              = $schema->source('Permission');
 my $role_permission_source         = $schema->source('RolePermission');
 my $role_binding_source            = $schema->source('RoleBinding');
-my $resource_acl_source            = $schema->source('ResourceAcl');
-my $projection_offset_source       = $schema->source('ProjectionOffset');
 my $projection_generation_source   = $schema->source('ProjectionGeneration');
-my $import_job_source              = $schema->source('ImportJob');
-my $import_failure_source          = $schema->source('ImportFailure');
-my $legacy_id_map_source           = $schema->source('LegacyIdMap');
 my $export_request_source          = $schema->source('ExportRequest');
-my $plugin_source                  = $schema->source('Plugin');
-my $plugin_hook_source             = $schema->source('PluginHook');
-my $plugin_failure_source          = $schema->source('PluginFailure');
 my $rate_limit_bucket_source       = $schema->source('RateLimitBucket');
 
 is( $source->from, 'schema_versions', 'schema version source maps table' );
@@ -543,27 +535,6 @@ ok(
     'role binding scope uniqueness among active rows is left to the database'
 );
 
-is( $resource_acl_source->from,
-    'resource_acl', 'resource acl source maps table' );
-is_deeply( [ $resource_acl_source->primary_columns ],
-    ['acl_id'], 'resource acl primary key is explicit' );
-ok( $resource_acl_source->has_column('permission_id'),
-    'resource acl stores permission' );
-ok( $resource_acl_source->has_relationship('permission'),
-    'resource acl belongs to permission' );
-
-is( $projection_offset_source->from,
-    'projection_offsets',
-    'projection offset source maps projection offsets table' );
-is_deeply( [ $projection_offset_source->primary_columns ],
-    ['projection_name'], 'projection offset primary key is explicit' );
-ok( $projection_offset_source->has_column('last_event_id'),
-    'projection offset stores last event id' );
-ok( $projection_offset_source->has_column('lag_seconds'),
-    'projection offset stores lag seconds' );
-ok( $projection_offset_source->has_column('status'),
-    'projection offset stores status' );
-
 is( $projection_generation_source->from,
     'projection_generations',
     'projection generation source maps projection generations table' );
@@ -582,46 +553,6 @@ is_deeply(
     'projection generation is unique per projection and source event'
 );
 
-is( $import_job_source->from, 'import_jobs', 'import job source maps table' );
-is_deeply( [ $import_job_source->primary_columns ],
-    ['import_job_id'], 'import job primary key is explicit' );
-ok(
-    $import_job_source->has_column('manifest'),
-    'import job stores source manifest'
-);
-ok(
-    $import_job_source->has_column('progress'),
-    'import job stores progress snapshot'
-);
-ok( $import_job_source->has_relationship('failures'),
-    'import job has failure rows' );
-
-is( $import_failure_source->from,
-    'import_failures', 'import failure source maps table' );
-is_deeply( [ $import_failure_source->primary_columns ],
-    ['import_failure_id'], 'import failure primary key is explicit' );
-ok( $import_failure_source->has_column('error_code'),
-    'import failure stores error code' );
-ok( $import_failure_source->has_relationship('import_job'),
-    'import failure belongs to import job' );
-is_deeply(
-    [
-        $import_failure_source->unique_constraint_columns(
-            'idx_import_failures_source_unique')
-    ],
-    [qw(import_job_id source_record_type source_record_id)],
-    'import failure is unique per job and source record'
-);
-
-is( $legacy_id_map_source->from,
-    'legacy_id_map', 'legacy id map source maps table' );
-is_deeply( [ $legacy_id_map_source->primary_columns ],
-    ['legacy_id_map_id'], 'legacy id map primary key is explicit' );
-ok( $legacy_id_map_source->has_column('canonical_url'),
-    'legacy id map stores canonical urls' );
-ok( $legacy_id_map_source->has_relationship('import_job'),
-    'legacy id map belongs to import job' );
-
 is( $export_request_source->from,
     'export_requests', 'export request source maps table' );
 is_deeply( [ $export_request_source->primary_columns ],
@@ -632,40 +563,6 @@ ok( $export_request_source->has_relationship('requester'),
     'export request belongs to requester' );
 ok( $export_request_source->has_relationship('subject'),
     'export request belongs to subject' );
-
-is( $plugin_source->from, 'plugins', 'plugin source maps table' );
-is_deeply( [ $plugin_source->primary_columns ],
-    ['plugin_id'], 'plugin primary key is explicit' );
-ok( $plugin_source->has_column('compatible_gpforum_range'),
-    'plugin stores compatibility range' );
-ok( $plugin_source->has_relationship('hooks'),    'plugin has hooks' );
-ok( $plugin_source->has_relationship('failures'), 'plugin has failures' );
-
-is( $plugin_hook_source->from,
-    'plugin_hooks', 'plugin hook source maps table' );
-is_deeply( [ $plugin_hook_source->primary_columns ],
-    ['hook_id'], 'plugin hook primary key is explicit' );
-ok( $plugin_hook_source->has_column('side_effect_policy'),
-    'plugin hook stores side-effect policy' );
-ok( $plugin_hook_source->has_relationship('plugin'),
-    'plugin hook belongs to plugin' );
-is_deeply(
-    [
-        $plugin_hook_source->unique_constraint_columns(
-            'idx_plugin_hooks_plugin_name_unique')
-    ],
-    [qw(plugin_id hook_name)],
-    'plugin hook is unique per plugin and hook name'
-);
-
-is( $plugin_failure_source->from,
-    'plugin_failures', 'plugin failure source maps table' );
-is_deeply( [ $plugin_failure_source->primary_columns ],
-    ['plugin_failure_id'], 'plugin failure primary key is explicit' );
-ok( $plugin_failure_source->has_column('error_class'),
-    'plugin failure stores error class' );
-ok( $plugin_failure_source->has_relationship('plugin'),
-    'plugin failure belongs to plugin' );
 
 my $user_source           = $schema->source('User');
 my $credential_source     = $schema->source('Credential');

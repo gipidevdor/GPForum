@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted.
+Withdrawn (2026-10-15). The plugin system was built and never wired: no
+route, command or worker loaded a plugin or dispatched a hook. Its modules
+and tests were deleted, and migration 105 drops `plugins`, `plugin_hooks`
+and `plugin_failures`. A plugin system needs a new ADR; the rules below are
+kept as the record of what this one decided.
 
 ## Date
 
@@ -115,7 +119,8 @@ promoted to core.
 - ADRs: 0093, 0094 and 0096 (amendments), 0053 (security), 0079 (admin
   console visibility), 0081 (import/export adapters), 0085 (webhook
   contracts).
-- Code: `lib/GPForum/Service/Plugin/` (`FailureRecorder`, `HookDispatcher`,
-  `ManifestValidator`, `Registry`).
-- Migrations: `migrations/011_plugins.sql`.
-- Tests: `t/28-plugins.t`.
+- Code: none since 2026-10-15 (the plugin modules were deleted).
+- Migrations: `migrations/011_plugins.sql` and
+  `migrations/032_plugin_hook_uniqueness.sql` made the tables;
+  `migrations/105_drop_unwired_subsystems.sql` drops them.
+- Tests: none.

@@ -185,9 +185,8 @@ The first rule is the one that works on a test-sized database: it is a fact
 about the schema, true on ten rows and on ten million. It is a floor, not a
 proof of the best plan -- it catches a query no index can answer, not one
 answered by the wrong index. A scan of a table small by construction
-(`categories`, `schema_versions`, `projection_offsets`,
-`projection_generations`) always passes, and so does `health_ready`'s
-one-row probe. Recorded without failing:
+(`categories`, `schema_versions`, `projection_generations`) always
+passes, and so does `health_ready`'s one-row probe. Recorded without failing:
 
 - `seq_scan_small_table:TABLE` -- a sequential scan of a table under 10,000
   rows, often the planner's right answer (the medium seed's 120 threads used

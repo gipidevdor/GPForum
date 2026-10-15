@@ -175,10 +175,10 @@ claim. No competitor source code or assets were imported for this review.
 | J01 | JSON read responses | Present on selected routes. [api], [routes] | Maintain |
 | J02 | Public versioned write API | Partial: browser writes can respond in JSON using session/CSRF; public `/api/v1`, integration tokens and a stable documented contract are pending. [api], [mvp] | PB-15 |
 | J03 | Outgoing webhooks | Not found as a wired delivery workflow. [workers], [routes] | PB-15 |
-| J04 | Public plugin / extension API | Foundation: registry, manifest and hook modules exist; public SDK/installation and application workflow wiring were not found. [plugin-registry], [plugin-hooks] | PB-15 / Later |
-| J05 | phpBB import | Foundation: generic job/manifest/legacy-ID services exist; source adapter and runnable import workflow were not found. [import-jobs], [import-validator] | PB-09 |
-| J06 | Discourse import | Foundation: same generic infrastructure; source adapter was not found. [import-jobs] | PB-09 / Later |
-| J07 | Flarum / NodeBB / vBulletin import | Foundation: generic infrastructure only; source adapters were not found. [import-jobs] | PB-09 / Later |
+| J04 | Public plugin / extension API | Not found. The unwired registry, manifest and hook modules were deleted on 2026-10-15. [adr-0083] | PB-15 / Later |
+| J05 | phpBB import | Not found. The unwired job, manifest and legacy-ID services were deleted on 2026-10-15. [adr-0081] | PB-09 |
+| J06 | Discourse import | Not found. [adr-0081] | PB-09 / Later |
+| J07 | Flarum / NodeBB / vBulletin import | Not found. [adr-0081] | PB-09 / Later |
 | J08 | Whole-community migration export | Partial: operational backup and account export exist; a portable forum-wide pack/reimport workflow was not found. [export-builder], [backup] | PB-09 |
 | J09 | Native iOS / Android app | Not found. [api], [manifest] | PB-22 / Defer |
 | J10 | Advanced PWA install/offline | Foundation: standalone webmanifest exists; service-worker/offline workflow was not found. [manifest] | PB-16 |
@@ -204,7 +204,7 @@ claim. No competitor source code or assets were imported for this review.
 | L01 | Setup / doctor / backup | Present; keep operational improvements in the existing quality/readiness program. [doctor], [backup], [quality] | Maintain |
 | L02 | Multi-tenancy | Not found as an isolated multi-forum product/operation model. [architecture] | PB-22 / Defer |
 | L03 | Built-in staging slot / blue-green | Not found as a managed deployment workflow; staging/upgrade/rollback procedures exist. [deployment], [upgrade] | PB-22 / Later |
-| L04 | Extension marketplace | Not found; internal plugin primitives do not constitute an ecosystem. [plugin-registry] | PB-22 / Defer |
+| L04 | Extension marketplace | Not found. [adr-0083] | PB-22 / Defer |
 | L05 | One-click update | Not found; operator upgrade/doctor procedure exists. [upgrade] | PB-22 / Later |
 
 ## Proposed priority roadmap
@@ -355,10 +355,8 @@ historical ADR wording that predates the identity mailer.
 [api]: ../API.md
 [mvp]: MVP.md
 [manifest]: ../site.webmanifest
-[plugin-registry]: ../lib/GPForum/Service/Plugin/Registry.pm
-[plugin-hooks]: ../lib/GPForum/Service/Plugin/HookDispatcher.pm
-[import-jobs]: ../lib/GPForum/Service/Portability/ImportJobStore.pm
-[import-validator]: ../lib/GPForum/Service/Portability/ImportManifestValidator.pm
+[adr-0083]: adr/0083-plugin-extension-hook-system.md
+[adr-0081]: adr/0081-import-export-legacy-migration.md
 [export-builder]: ../lib/GPForum/Service/Portability/ExportBundleBuilder.pm
 [backup]: ops/backup-and-restore.md
 [admin-console]: ../lib/GPForum/Service/Admin/ConsoleReader.pm

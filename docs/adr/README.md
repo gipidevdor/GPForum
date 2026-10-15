@@ -106,7 +106,7 @@ changes; ordinary fixes do not need an ADR of their own.
 | [0080](0080-content-policy-enforcement.md) | Content Policy, Community Guidelines and Enforcement | Accepted |
 | [0081](0081-import-export-legacy-migration.md) | Import, Export and Legacy Migration | Accepted |
 | [0082](0082-seo-public-discovery-syndication.md) | SEO, Public Discovery and Syndication | Accepted |
-| [0083](0083-plugin-extension-hook-system.md) | Plugin, Extension and Hook System | Accepted |
+| [0083](0083-plugin-extension-hook-system.md) | Plugin, Extension and Hook System | Withdrawn |
 | [0084](0084-test-strategy-quality-verification.md) | Test Strategy and Quality Verification | Accepted |
 | [0085](0085-api-contracts-openapi-websocket-schema.md) | API Contracts, OpenAPI and Websocket Schema | Accepted |
 | [0086](0086-packaging-deployment-runtime-processes.md) | Packaging, Deployment and Runtime Processes | Accepted |

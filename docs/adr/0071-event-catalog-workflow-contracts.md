@@ -230,8 +230,8 @@ plus every asynchronous consumer.
   a `moderation.action.created` event.
 - Open conflict: there is no per-consumer processing record with
   `consumer_name` and `processed_at`; idempotency is currently carried by
-  `event_idempotency_keys`, `outbox_messages.idempotency_key`,
-  `projection_offsets`, and `dead_letters`.
+  `event_idempotency_keys`, `outbox_messages.idempotency_key`, and
+  `dead_letters`.
 
 ## Related Decisions and Implementation
 

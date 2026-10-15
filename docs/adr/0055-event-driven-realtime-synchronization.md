@@ -269,11 +269,10 @@ Per ADR 0094, realtime behavior MUST remain accessibility-safe:
   `event_idempotency_keys`), `migrations/023_realtime_outbox_polling.sql`
 - `lib/GPForum/Infrastructure/EventRecorder.pm`,
   `lib/GPForum/Domain/EventEnvelope.pm`, `lib/GPForum/Service/Outbox/`,
-  `lib/GPForum/Service/Projection/`, `lib/GPForum/Service/Realtime/`,
+  `lib/GPForum/Service/Realtime/`,
   `lib/GPForum/Controller/Realtime.pm`, `lib/GPForum/Web/RealtimeAccess.pm`
 - `EVENTS.md`, `docs/realtime.md`, `docs/OUTBOX_LIFECYCLE.md`
-- `t/13-outbox-dispatcher.t`, `t/14-projection-offset.t`,
-  `t/15-projection-generation.t`, `t/20-realtime.t`,
+- `t/13-outbox-dispatcher.t`, `t/20-realtime.t`,
   `t/81-realtime-operational.t`, `t/82-realtime-supervisor.t`,
   `t/84-outbox-concurrent-dispatcher.t`,
   `t/85-realtime-outbox-multiprocess.t`, `t/113-web-realtime-access.t`,

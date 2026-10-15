@@ -163,7 +163,7 @@ my $allowed_seq = GPForum::Command::QueryPlanEvidence->new(
         plan => {
             Plan => {
                 'Node Type'     => 'Seq Scan',
-                'Relation Name' => 'projection_offsets',
+                'Relation Name' => 'projection_generations',
                 'Plan Rows'     => 5_000,
                 'Actual Rows'   => 5_000,
             },

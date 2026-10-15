@@ -297,8 +297,10 @@ If these answers do not exist, the implementation is incomplete.
   state as first-class diagnostics.
 - Open conflicts:
   - Section 6 lists `generation_id` among the projection offset fields, but
-    `projection_offsets` (`migrations/004_platform_governance.sql`) has no
+    `projection_offsets` (`migrations/004_platform_governance.sql`) had no
     `generation_id` column; generations live in `projection_generations`.
+    Nothing ever wrote `projection_offsets`, and migration 105 drops it
+    (2026-10-15): search reads its lag from the outbox (ADR 0110).
   - Section 12 keeps caches as optional acceleration, while ADR 0048 makes
     the GlifiStore shared L2 a required deployment dependency in staging and
     production profiles (still disposable and fail-open at runtime).
@@ -312,13 +314,12 @@ If these answers do not exist, the implementation is incomplete.
 - `docs/adr/0012-operational-profiles.md`
 - `docs/adr/0025-outbox-failure-retry-claim.md`
 - `docs/adr/0048-mandatory-glifistore-l2.md`
-- `lib/GPForum/Service/Projection/OffsetTracker.pm`,
-  `lib/GPForum/Service/Projection/GenerationManager.pm`
 - `lib/GPForum/Service/Outbox/Dispatcher.pm`,
   `lib/GPForum/Service/Outbox/DeadLetterRecorder.pm`,
   `lib/GPForum/Service/Outbox/Retry.pm`
-- `migrations/004_platform_governance.sql` (`projection_offsets`,
-  `projection_generations`; its `thread_counter_shards` is folded into
+- `migrations/004_platform_governance.sql` (`projection_generations`;
+  its `projection_offsets` is dropped by
+  `migrations/105_drop_unwired_subsystems.sql`; its `thread_counter_shards` is folded into
   `thread_counters` by `migrations/051_fold_thread_counter_shards.sql`,
   ADR 0119),
   `migrations/014_hot_path_indexes.sql`
@@ -327,8 +328,7 @@ If these answers do not exist, the implementation is incomplete.
 - `docs/PERFORMANCE.md#query-budgets`, `docs/PERFORMANCE.md#database`,
   `docs/OUTBOX_LIFECYCLE.md`, `docs/OBSERVABILITY.md`,
   `docs/architecture/partition-lifecycle.md`
-- `t/13-outbox-dispatcher.t`, `t/14-projection-offset.t`,
-  `t/15-projection-generation.t`, `t/21-forum-pagination.t`,
+- `t/13-outbox-dispatcher.t`, `t/21-forum-pagination.t`,
   `t/38-query-budget-command.t`, `t/47-query-plan-check.t`,
   `t/84-outbox-concurrent-dispatcher.t`, `t/99-partition-lifecycle.t`
 - `t/09-architecture-documentation.t`

@@ -7,7 +7,11 @@ and ADR 0110, which maps each to the module that implements it. Its
 reply-count rules (a `thread_counter_shards` delta, no direct counter
 update) are amended by ADR 0119. Its `RunbookValidator` and
 `RuntimeSizing` boundaries are withdrawn (2026-10-14): nothing called
-either, so both modules were deleted.
+either, so both modules were deleted. Its import and legacy-id rules,
+its Plugin Extension Contract and its `OffsetTracker` and
+`GenerationManager` boundaries are withdrawn (2026-10-15): no route,
+command or worker reached them, so their modules were deleted and
+migration 105 drops their tables and `resource_acl`.
 
 ## Date
 
@@ -22,7 +26,7 @@ module, migration, workflow, event, permission rule, and milestone MUST be
 judged against it.
 
 It governs the bounded contexts Identity, Forum, Authorization, Moderation,
-Events, Search, Notifications, Admin, and Audit, and the portability, plugin,
+Events, Search, Notifications, Admin, and Audit, and the export,
 privacy-rights, and public-discovery workflows.
 
 The contract is extended and specialized by later ADRs:
@@ -260,9 +264,9 @@ Admin authorization management:
 - `RoleBindingStore` MUST create and revoke scoped `role_bindings` while
   writing `audit_log` records.
 - `PermissionReview` MUST expose read-only role and permission review paths.
-- `roles`, `permissions`, `role_permissions`, `role_bindings`,
-  `resource_acl`, and `admin_role_audit_projection` MUST remain explicit
-  tables/projections.
+- `roles`, `permissions`, `role_permissions`, `role_bindings`, and
+  `admin_role_audit_projection` MUST remain explicit tables/projections.
+  (`resource_acl`, never written or read, was dropped on 2026-10-15.)
 
 ### Canonical Minimum Schema
 
@@ -455,55 +459,29 @@ Catalog rules:
   impact, security impact, rollback strategy, test impact, owner, and date.
 - No deviation may ship without an accepted ADR.
 
-### Import, Export, And Portability Contract
+### Export And Portability Contract
 
-- Import/export workflows MUST remain narrow service boundaries and MUST NOT
+- Export workflows MUST remain narrow service boundaries and MUST NOT
   become application god classes.
-- Required portability modules:
-  - `ImportManifestValidator` for source-system, adapter, dry-run, and
-    record-count validation;
-  - `ImportJobStore` for `import_jobs` lifecycle, progress snapshots, and
-    `import_failures` recording;
-  - `LegacyIdMapper` for `legacy_id_map` source-to-native identifier
-    resolution;
-  - `ExportBundleBuilder` for `export_requests`, user-data bundles, and safe
-    export manifests.
-- Required persistence tables: `import_jobs`, `import_failures`,
-  `legacy_id_map`, `export_requests`.
-- Imports MUST support dry-run execution, hostile input quarantine,
-  deterministic failure reporting, legacy id mapping, and asynchronous
-  worker execution.
+- `ExportBundleBuilder` MUST own `export_requests`, user-data bundles, and
+  safe export manifests; `export_requests` is its table.
 - Exports MUST be privacy-aware, authorization-aware, and explicit about
   their manifest. User data exports MUST NOT include privileged audit log
   rows, moderation internals, credential secrets, or unrelated user data.
-- Legacy identifiers MUST never collide with native identifiers. All source
-  id resolution MUST pass through `legacy_id_map` or an equivalent reviewed
-  mapping projection.
+- Withdrawn on 2026-10-15: the import rules (`ImportManifestValidator`,
+  `ImportJobStore`, `LegacyIdMapper`, and the `import_jobs`,
+  `import_failures` and `legacy_id_map` tables, with dry-run imports,
+  quarantine and legacy id mapping). They were built and never wired: no
+  route, command or worker started an import. An importer needs a new ADR.
 
 ### Plugin Extension Contract
 
-- Plugins are optional extension points and MUST NOT become required for
-  core correctness unless promoted into core through ADR and tests.
-- Plugin extension workflows MUST use narrow modules:
-  - `PluginManifestValidator` for plugin metadata, compatibility,
-    capability, permission, and hook contract validation;
-  - `PluginRegistry` for `plugins` lifecycle, install/enable/disable state,
-    and hook registration;
-  - `HookDispatcher` for named `plugin_hooks` execution with explicit
-    ordering and failure handling;
-  - `PluginFailureRecorder` for `plugin_failures` observability.
-- Required persistence tables: `plugins`, `plugin_hooks`,
-  `plugin_failures`.
-- Plugin hooks MUST define `hook_name`, `callback_name`, `execution_order`,
-  `timeout_ms`, `side_effect_policy`, and enabled state.
-- Hooks MUST NOT receive secrets unless an explicit permission and ADR allow
-  it.
-- Plugin failures MUST be visible through logs, metrics, admin review, or
-  the `plugin_failures` table. Plugins MUST NOT hide operational errors.
-- Plugin-provided HTML, templates, migrations, import adapters, notification
-  channels, moderation classifiers, analytics sinks, and admin panels MUST
-  obey the same authorization, sanitization, migration, and ADR alignment
-  gates as core code.
+Withdrawn on 2026-10-15. The contract named `PluginManifestValidator`,
+`PluginRegistry`, `HookDispatcher` and `PluginFailureRecorder` over the
+`plugins`, `plugin_hooks` and `plugin_failures` tables. They were built and
+never wired: nothing loaded a plugin or dispatched a hook. The modules were
+deleted and migration 105 drops the tables. A plugin system needs a new ADR
+(ADR 0083 is withdrawn with it).
 
 ### Privacy Rights Operations Contract
 
@@ -536,8 +514,7 @@ Catalog rules:
   SEO MUST never override privacy, security, moderation state, deletion
   state, or authorization.
 - Discovery workflows MUST use narrow `public_discovery` modules:
-  - `CanonicalUrl` for `canonical_url` generation and safe legacy
-    redirects;
+  - `CanonicalUrl` for `canonical_url` generation;
   - `MetadataBuilder` for title, description, canonical link, `noindex`,
     and safe snippets;
   - `RobotsPolicy` for `robots_txt` output and explicit disallow rules;
@@ -596,15 +573,12 @@ when behavior, contracts, tests, documentation, and operations are aligned.
 - Dead-letter handling MUST preserve failed payload, error class, retry
   count, and first/last failure timestamps.
 - Projection failure:
-  - `projection_offsets` MUST expose lag and status for search,
-    notifications, feed, and counters;
-  - projection offset writes MUST use a narrow `OffsetTracker` boundary
-    that records last event id, event timestamp, lag seconds, status, and
-    update timestamp;
+  - projection lag MUST be observable: search reports its lag from the
+    outbox (`Search::Indexer::observe_lag`);
   - `projection_generations` MUST allow blue/green read-model rebuilds;
-  - projection generation writes MUST use a narrow `GenerationManager`
-    boundary that starts, marks ready/failed, activates, and retires
-    generations while keeping only one active generation per projection;
+  - withdrawn on 2026-10-15: the `projection_offsets` table and the
+    `OffsetTracker` and `GenerationManager` write boundaries, which nothing
+    called;
   - feed projections MUST be degradable to slower canonical queries and
     MUST never become authoritative truth.
 - Audit integrity failure: `audit_log` SHOULD use a hash chain;
@@ -771,8 +745,6 @@ invariants. This contract is mandatory.
     `Handler/SearchIndexing`, `Handler/NotificationDispatch`,
     `Handler/CacheInvalidation`, `Handler/AttachmentScanning`,
     `Handler/MediaProcessing`);
-  - `lib/GPForum/Service/Projection/` (`OffsetTracker`,
-    `GenerationManager`);
   - `lib/GPForum/Service/Search/` (`DocumentBuilder`, `Indexer`,
     `Searcher`, `PermissionEngine`);
   - `lib/GPForum/Service/Notification/` and
@@ -781,8 +753,7 @@ invariants. This contract is mandatory.
   - `lib/GPForum/Service/Attachment/`, `lib/GPForum/Service/Operations/`,
     `lib/GPForum/Service/Community/`, `lib/GPForum/Service/Moderation/`,
     `lib/GPForum/Service/Admin/`, `lib/GPForum/Service/Portability/`,
-    `lib/GPForum/Service/Plugin/`, `lib/GPForum/Service/Privacy/`,
-    `lib/GPForum/Service/Discovery/`;
+    `lib/GPForum/Service/Privacy/`, `lib/GPForum/Service/Discovery/`;
   - `lib/GPForum/Service/Identity/SessionStore.pm`,
     `lib/GPForum/Infrastructure/EventRecorder.pm`,
     `lib/GPForum/Domain/EventEnvelope.pm`,

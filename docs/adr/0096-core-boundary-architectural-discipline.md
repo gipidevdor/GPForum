@@ -167,12 +167,11 @@ operational scaling.
   0010 (moderation workflow), 0016 (shared HTTP access), 0048 (GlifiStore
   L2).
 - Code: `lib/GPForum/Controller/`,
-  `lib/GPForum/Service/Plugin/`,
   `lib/GPForum/Service/Operations/LocalCache.pm`,
   `lib/GPForum/Service/Operations/TieredCache.pm`,
   `lib/GPForum/Service/Operations/CacheFactory.pm`.
 - Tests: `t/34-architecture-discipline.t`, `t/75-architecture-foundation.t`,
-  `t/86-engineering-correctness.t`, `t/28-plugins.t`, `t/40-local-cache.t`,
+  `t/86-engineering-correctness.t`, `t/40-local-cache.t`,
   `t/89-tiered-cache.t`, `t/142-cache-factory.t`,
   `t/09-architecture-documentation.t`.
 - Scripts and docs: `script/architecture-check`, `GOVERNANCE.md`,

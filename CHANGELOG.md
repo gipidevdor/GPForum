@@ -2585,6 +2585,19 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **The plugin system, legacy import and projection offsets are gone.**
+  They were built and never wired: no route, command or worker reached
+  `GPForum::Service::Plugin::*`, the import half of
+  `GPForum::Service::Portability` (`ImportJobStore`,
+  `ImportManifestValidator`, `LegacyIdMapper`),
+  `GPForum::Service::Projection::*` or `CanonicalUrl::legacy_redirect`. They
+  go with their tests (`t/14`, `t/15`, `t/28`, the import half of `t/27`,
+  now `t/27-export-bundle.t`), their test doubles and Result classes, and
+  their 12 catalogue entries. Migration 105 drops their 24 api functions and
+  the eight tables they and `ResourceAcl` used, which nothing ever wrote;
+  `projection_generations` stays for readiness. ADR 0083 is withdrawn, and
+  ADRs 0081 and 0091 withdraw their import, plugin and projection-offset
+  rules.
 - **No text names a deleted file or command any more.** `docs/PERFORMANCE.md`
   linked the deleted `BASELINE.md` for the reverse-proxy benchmark and now
   links `DEPLOYMENT_EVIDENCE.md`; `docs/DEPLOYMENT.md` no longer says

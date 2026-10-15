@@ -50,7 +50,7 @@ const my $DEEP_PAGE_MIN_ROWS => 2 * page_rows();
 # Tables small by construction, where a sequential scan is the right plan
 # whatever the forum's size: categories are created by an administrator.
 const my %ALLOWED_SEQ_SCAN_RELATION => map { $_ => 1 }
-  qw(schema_versions projection_offsets projection_generations categories);
+  qw(schema_versions projection_generations categories);
 
 # The thresholds a report states it judged its plans by.
 sub failure_rule {

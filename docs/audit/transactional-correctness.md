@@ -466,7 +466,7 @@ Patch applied: `Privacy::Workflow` wraps `request_export` with
 `CommandIdempotency`. `migrations/027_privacy_resource_uniqueness.sql` adds
 `idx_export_requests_pending_unique`. Tests in
 `t/integration/postgres-privacy.t`, `t/101-privacy-workflow.t`,
-`t/62-privacy-web.t`, and `t/27-import-export.t`.
+`t/62-privacy-web.t`, and `t/27-export-bundle.t`.
 
 ### PRIV-007: erasure left the member's export bundles behind
 

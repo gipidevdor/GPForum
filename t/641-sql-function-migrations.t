@@ -90,6 +90,12 @@ for my $name ( @{ $catalogue->names } ) {
 }
 my @tables = _tables();
 
+# A boundary the catalogue called when it shipped and a later migration
+# drops (migration 105 drops the unwired subsystems'): the catalogue no
+# longer names it, so it is held to forwarding its own typed parameters to
+# its previous version instead.
+my %dropped_in = _dropped();
+
 subtest 'the rules see what they are written for' => sub {
     my $bad = join "\n",
       'BEGIN;',
@@ -152,6 +158,21 @@ subtest 'only registered typed boundaries gain owner rights' => sub {
         ),
         'helpers cannot gain owner rights'
     );
+    my $retired_head = "p_a text, p_b jsonb\n) RETURNS int LANGUAGE sql";
+    ok(
+        _retired_boundary(
+            'plugin_find_v2', $retired_head,
+            'SELECT * FROM api.plugin_find_v1(p_a, p_b);'
+        ),
+        'a dropped boundary that forwarded its own parameters is accepted'
+    );
+    ok(
+        !_retired_boundary(
+            'plugin_find_v2', $retired_head,
+            'SELECT * FROM api.plugin_find_v1(p_a);'
+        ),
+        'and one that dropped a parameter is refused'
+    );
 };
 
 my ( @problems, %created );
@@ -159,7 +180,7 @@ for my $file ( sort glob 'migrations/[0-9]*_*.sql' ) {
     my ($version) = path($file)->basename =~ /\A (\d+) _/msx;
     next if $version lt $FIRST_API_MIGRATION;
 
-    my ( $found, $created ) = _problems( $file, path($file)->slurp );
+    my ( $found, $created ) = _problems( $file, path($file)->slurp, $version );
     push @problems, @{$found};
     @created{ @{$created} } = ($file) x @{$created};
 }
@@ -175,7 +196,7 @@ for my $function ( sort keys %catalogued ) {
 done_testing();
 
 # A migration's problems, and the functions it creates.
-sub _problems ( $file, $sql ) {
+sub _problems ( $file, $sql, $version = undef ) {
     my $code = join "\n", grep { !/\A \s* --/msx } split /\n/msx, $sql;
     my ( @found, @created );
     if ( $code =~ $CREATE ) {
@@ -189,7 +210,8 @@ sub _problems ( $file, $sql ) {
     while ( $code =~ /$FUNCTION/gmsx ) {
         my %function = %LAST_PAREN_MATCH;
         push @found,
-          _function_problems( "$file: api.$function{name}", \%function, $code );
+          _function_problems( "$file: api.$function{name}",
+            \%function, $code, $version );
         push @created, "api.$function{name}";
     }
     while ( $code =~ /$DROP/gmsx ) {
@@ -202,14 +224,20 @@ sub _problems ( $file, $sql ) {
     return ( \@found, \@created );
 }
 
-sub _function_problems ( $label, $function, $code ) {
+sub _function_problems ( $label, $function, $code, $version = undef ) {
     my ( $name, $head, $body ) = @{$function}{qw(name head body)};
+    my $dropped_later = defined $version
+      && ( $dropped_in{"api.$name"} // q{} ) gt $version;
+    my $boundary =
+      $dropped_later
+      ? _retired_boundary( $name, $head, $body )
+      : _boundary( $name, $head, $body );
     my $revoked = qr/$REVOKE \Q$name\E $FROM_PUBLIC/imsx;
     my %rule    = (
         'CREATE OR REPLACE'                   => defined $function->{replace},
         'EXECUTE revoked from PUBLIC nowhere' => $code !~ $revoked,
         'SECURITY DEFINER' => ( $head =~ /SECURITY \s+ DEFINER/imsx )
-          && !_boundary( $name, $head, $body ) ? 1 : 0,
+          && !$boundary ? 1 : 0,
         'dynamic SQL' => ( $body =~ /\b EXECUTE \b/imsx ) ? 1 : 0,
         'no version suffix or area'  => $name !~ $NAME,
         'plan_cache_mode not pinned' => $head !~ $PLAN_MODE,
@@ -241,6 +269,37 @@ sub _boundary ( $name, $head, $body ) {
     return $body =~ /$opening$arguments\s*$closing/imsx
       ? 1
       : 0;
+}
+
+# A dropped boundary: LANGUAGE sql, forwarding exactly its own parameters,
+# in order, to the previous version of itself.
+sub _retired_boundary ( $name, $head, $body ) {
+    my ( $base, $version ) = $name =~ /\A (\w+) _v ([[:digit:]]+) \z/msx;
+    return 0 if !$base || $base =~ /\A core_/msx || $version < 2;
+    return 0 if $head           !~ /LANGUAGE\s+sql\b/imsx;
+    my ($parameters) = $head =~ /\A ([^)]*) [)]/msx;
+    my $arguments    = join q{\s*,\s*},
+      ( $parameters // q{} ) =~ /\b (p_\w+) \b/gmsx;
+    my $implementation = $base . '_v' . ( $version - 1 );
+    my $opening =
+      qr/\A\s*SELECT\s+[*]\s+FROM\s+api[.]\Q$implementation\E\s*[(]\s*/imsx;
+
+    return $body =~ /$opening$arguments\s*[)]\s*;?\s*\z/imsx ? 1 : 0;
+}
+
+# The functions a migration drops, by the version of the migration.
+sub _dropped {
+    my %dropped;
+    for my $file ( glob 'migrations/[0-9]*_*.sql' ) {
+        my ($version) = path($file)->basename =~ /\A (\d+) _/msx;
+        my $code      = join "\n", grep { !/\A \s* --/msx } split /\n/msx,
+          path($file)->slurp;
+        while ( $code =~ /$DROP/gmsx ) {
+            $dropped{ $LAST_PAREN_MATCH{dropped} } = $version;
+        }
+    }
+
+    return %dropped;
 }
 
 # The tables the migrations create, which a function names as public.NAME.

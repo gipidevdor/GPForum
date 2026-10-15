@@ -21,7 +21,7 @@ use GPForum::ViewModel::Discovery::Presenter;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 50;
+const my $EXPECTED_TESTS       => 49;
 const my $VISIBLE_THREAD_COUNT => 1;
 const my $LEGAL_PAGE_COUNT     => 3;
 const my $ROBOT_RULE_COUNT     => 6;
@@ -69,20 +69,6 @@ is(
 );
 ok( !$canonical->legal_url('unknown'),
     'canonical legal url rejects an unknown page' );
-is_deeply(
-    $canonical->legacy_redirect(
-        {
-            canonical_url => '/old/topic/42',
-            native_path   => '/t/thread-42/welcome',
-        }
-    ),
-    {
-        from   => '/old/topic/42',
-        to     => 'https://forum.gp/t/thread-42/welcome',
-        status => 301,
-    },
-    'legacy redirect preserves safe canonical path'
-);
 
 my $metadata =
   GPForum::Service::Discovery::MetadataBuilder->new(

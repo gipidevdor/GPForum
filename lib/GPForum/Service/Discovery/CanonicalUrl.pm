@@ -39,14 +39,6 @@ sub legal_url ( $self, $page ) {
     return $self->_absolute($path);
 }
 
-sub legacy_redirect ( $self, $legacy_mapping ) {
-    return {
-        from   => $legacy_mapping->{canonical_url},
-        to     => $self->_absolute( $legacy_mapping->{native_path} ),
-        status => 301,
-    };
-}
-
 sub _legal_path ($page) {
     if ( !defined $page ) {
         return undef;
@@ -115,12 +107,6 @@ absolute URL.
 
 Takes C<cookies>, C<privacy> or C<terms>. Returns that page's absolute URL,
 or undef for any other name or undef.
-
-=head2 legacy_redirect
-
-Takes a legacy mapping with C<canonical_url> (the old URL) and
-C<native_path>. Returns C<< { from, to, status => 301 } >>, C<from> being
-the old URL and C<to> the absolute URL of the native path.
 
 =head1 DIAGNOSTICS
 

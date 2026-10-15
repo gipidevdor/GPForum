@@ -96,8 +96,7 @@ const my @DOCUMENT_COPY => qw(
 
 has builder => sub { return GPForum::Service::Search::DocumentBuilder->new; };
 has clock   => sub { return GPForum::Service::Clock->new; };
-has id_service     => sub { return GPForum::Infrastructure::Id->new; };
-has offset_tracker => undef;    # optional: without one lag is not observed
+has id_service => sub { return GPForum::Infrastructure::Id->new; };
 
 # Ids a rebuild step indexes, and posts a batch of one thread indexes or
 # removes: enough to be worth an outbox message, few enough that a step never
@@ -109,13 +108,9 @@ has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
 };
 
-# How far search can be behind the forum. An offset tracker answers when one
-# is wired; otherwise the outbox does, which every search update passes
-# through.
+# How far search can be behind the forum: the outbox says, which every search
+# update passes through.
 sub observe_lag ($self) {
-    return $self->offset_tracker->observe_lag('search_documents')
-      if $self->offset_tracker;
-
     my $row =
         $self->functions
       ? $self->functions->row( 'search_observe_lag', {} )
@@ -788,10 +783,8 @@ locks are skipped and the prune step finds nothing.
 
 =head2 observe_lag
 
-Takes no arguments. Returns how far search may be behind the forum. When
-the indexer was built with a projection tracker
-(L<GPForum::Service::Projection::OffsetTracker>), that tracker's
-C<observe_lag('search_documents')>. Otherwise from the outbox, which every search update passes through:
+Takes no arguments. Returns how far search may be behind the forum, from the
+outbox, which every search update passes through:
 C<< { projection_name => 'search_documents', pending, oldest_pending_at,
 lag_seconds, status } >>, C<pending> the outbox messages still pending,
 running or failed, C<lag_seconds> the age of the oldest, and C<status>
@@ -894,8 +887,8 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-C<observe_lag> without a projection tracker counts every outbox message not
-yet delivered, not only those for search, so it is an upper bound.
+C<observe_lag> counts every outbox message not yet delivered, not only
+those for search, so it is an upper bound.
 
 =head1 AUTHOR
 

@@ -27,18 +27,11 @@ use GPForum::Service::Operations::MetricsSnapshot;
 use GPForum::Service::Operations::Readiness;
 use GPForum::Service::Operations::RetentionStore;
 use GPForum::Service::Portability::ExportBundleBuilder;
-use GPForum::Service::Portability::ImportJobStore;
-use GPForum::Service::Portability::LegacyIdMapper;
 use GPForum::Service::Privacy::Workflow;
 use GPForum::Service::Privacy::DataRightsReview;
 use GPForum::Service::Privacy::DeletionWorkflow;
 use GPForum::Service::Privacy::RetentionHoldStore;
-use GPForum::Service::Plugin::Registry;
-use GPForum::Service::Plugin::HookDispatcher;
-use GPForum::Service::Plugin::FailureRecorder;
 use GPForum::Service::Outbox::Dispatcher;
-use GPForum::Service::Projection::OffsetTracker;
-use GPForum::Service::Projection::GenerationManager;
 use GPForum::Worker::EventIdempotencyStore;
 use GPForum::Service::Attachment::IntentBuilder;
 use GPForum::Service::Attachment::Store;
@@ -163,79 +156,6 @@ ok( $bucket, 'a write executes with the boundary owner rights' );
 
 # Exercise the service graph using only the separate runtime login. A direct
 # table fallback anywhere in these workflows fails with PostgreSQL permission.
-my $imports =
-  GPForum::Service::Portability::ImportJobStore->new( schema => $role_schema );
-my $imported = $imports->create_job(
-    {
-        actor_user_id => $user,
-        manifest      => {
-            source_system  => 'role-fixture',
-            source_version => '1',
-            adapter_name   => 'fixture',
-            dry_run        => 1,
-            records => { users => 1, categories => 1, threads => 1, posts => 1 }
-        }
-    }
-);
-ok( $imported->{ok},
-    'import validation and persistence work through runtime login' );
-my $job = $imported->{job}{import_job_id};
-ok( $imports->update_progress( $job, { posts => 1 } ),
-    'import progress uses the API' );
-my $failed = $imports->record_failure(
-    {
-        import_job_id      => $job,
-        source_record_type => 'post',
-        source_record_id   => 'old-1',
-        error_code         => 'invalid',
-        error_message      => 'missing body'
-    }
-);
-ok( $failed->{import_failure_id}, 'import failure persistence uses the API' );
-my $mapper =
-  GPForum::Service::Portability::LegacyIdMapper->new( schema => $role_schema );
-my $mapped = $mapper->map_identifier(
-    {
-        import_job_id => $job,
-        legacy_type   => 'thread',
-        legacy_id     => 'old-thread',
-        native_type   => 'thread',
-        native_id     => $thread,
-        visibility    => 'public',
-        canonical_url => '/t/fixture'
-    }
-);
-ok( $mapped->{legacy_id_map_id}, 'legacy mapping writes through the API' );
-is( $mapper->find_native( 'thread', 'old-thread' )->get_column('native_id'),
-    $thread, 'legacy mapping reads through the API' );
-
-my $registry =
-  GPForum::Service::Plugin::Registry->new( schema => $role_schema );
-my $installed = $registry->install(
-    {
-        name                     => 'runtime-test',
-        version                  => '1',
-        author                   => 'Fixture',
-        compatible_gpforum_range => '>=0.1',
-        capabilities             => [],
-        required_permissions     => [],
-        hooks => [ { hook_name => 'post.created', callback_name => 'observe' } ]
-    }
-);
-ok( $installed->{ok},
-    'plugin and hook install atomically through runtime login' );
-my $plugin = $installed->{plugin}{plugin_id};
-is( $registry->enable($plugin)->{status},
-    'enabled', 'plugin status writes through the API' );
-my $hooks = GPForum::Service::Plugin::HookDispatcher->new(
-    schema           => $role_schema,
-    failure_recorder =>
-      GPForum::Service::Plugin::FailureRecorder->new( schema => $role_schema )
-);
-my $hook_result = $hooks->dispatch( 'post.created', {} );
-is( $hook_result->{results}[0]{failure}{error_class},
-    'missing_handler', 'plugin hook reads and failure recording use the API' );
-
 my $reports =
   GPForum::Service::Moderation::ReportStore->new( schema => $role_schema );
 my $reported = $reports->create_report(
@@ -341,9 +261,8 @@ my $dispatched = GPForum::Service::Outbox::Dispatcher->new(
 )->dispatch_pending(1);
 is( $dispatched->{acknowledged},
     1, 'outbox claim, renewal and acknowledgement use the API' );
-my ( $event_id, $event_created ) = $admin->selectrow_array(
-'SELECT event_id,created_at FROM event_log ORDER BY created_at,event_id LIMIT 1'
-);
+my ($event_id) = $admin->selectrow_array(
+    'SELECT event_id FROM event_log ORDER BY created_at,event_id LIMIT 1');
 my $worker_claims =
   GPForum::Worker::EventIdempotencyStore->new( schema => $role_schema );
 my $worker_key = 'runtime-handler:' . $event_id;
@@ -358,40 +277,6 @@ ok(
     $worker_claims->is_done($worker_key),
     'worker completion reads through the API'
 );
-my $offsets =
-  GPForum::Service::Projection::OffsetTracker->new( schema => $role_schema );
-my $source_event =
-  { event_id => $event_id, event_created_at => $event_created };
-is(
-    $offsets->record_progress( 'runtime-projection', $source_event )
-      ->{last_event_id},
-    $event_id,
-    'projection offset writes through the API'
-);
-ok(
-    $offsets->record_progress( 'runtime-projection', $source_event )->{skipped},
-    'repeated projection progress does not write again'
-);
-$offsets->mark_failed('runtime-projection');
-is( $offsets->observe_lag('runtime-projection')->{status},
-    'failed', 'projection failure and lag reads use the API' );
-my $generations = GPForum::Service::Projection::GenerationManager->new(
-    schema => $role_schema );
-my $generation =
-  $generations->start_generation( 'runtime-projection', $source_event );
-is( $generations->mark_ready( $generation->{generation_id} )->{status},
-    'ready', 'projection generation readiness uses the API' );
-is(
-    $generations->activate_generation( $generation->{generation_id} )->{status},
-    'active',
-    'projection activation uses the API'
-);
-ok(
-    $generations->activate_generation( $generation->{generation_id} )
-      ->{skipped},
-    'projection activation replay does not write again'
-);
-
 my $retention =
   GPForum::Service::Operations::RetentionStore->new( schema => $role_schema );
 ok( defined $retention->purge_sessions( { limit => 1 } )->{deleted},

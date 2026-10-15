@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted.
+Accepted for export only. Its import and legacy-migration rules are
+withdrawn (2026-10-15): `ImportManifestValidator`, `ImportJobStore` and
+`LegacyIdMapper` were built and never wired (no route, command or worker
+started an import or read the id map), so they were deleted, and
+migration 105 drops `import_jobs`, `import_failures` and `legacy_id_map`.
+An importer needs a new ADR. The export rules stand: `ExportBundleBuilder`
+serves the privacy export (ADR 0074).
 
 ## Date
 
@@ -89,6 +95,7 @@ imports in request workflows.
 
 - ADRs: 0074 (data export rights), 0082 (canonical URLs and redirects), 0083
   (import/export adapter plugins); 0027 (attachment lifecycle).
-- Code: `lib/GPForum/Service/Portability/`.
-- Migrations: `migrations/010_import_export.sql`.
-- Tests: `t/27-import-export.t`.
+- Code: `lib/GPForum/Service/Portability/ExportBundleBuilder.pm`.
+- Migrations: `migrations/010_import_export.sql`; the import tables are
+  dropped by `migrations/105_drop_unwired_subsystems.sql`.
+- Tests: `t/27-export-bundle.t`.

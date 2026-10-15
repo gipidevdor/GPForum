@@ -193,16 +193,6 @@ const my %FUNCTION => (
         parameters => [ source => 'text', row => 'jsonb' ],
         json       => ['document']
     },
-    portability_insert => {
-        version    => 2,
-        parameters => [ source => 'text', row => 'jsonb' ],
-        json       => ['document']
-    },
-    plugin_insert => {
-        version    => 2,
-        parameters => [ source => 'text', row => 'jsonb' ],
-        json       => ['document']
-    },
     privacy_find => {
         version    => 2,
         parameters => [ source => 'text', id => 'uuid', lock_row => 'boolean' ],
@@ -238,27 +228,6 @@ const my %FUNCTION => (
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
-    portability_find => {
-        version    => 2,
-        parameters => [ source => 'text', query => 'jsonb' ],
-        json       => ['document']
-    },
-    portability_progress => {
-        version    => 2,
-        parameters => [ job_id => 'uuid', progress => 'jsonb' ],
-        json       => ['document']
-    },
-    plugin_find => {
-        version    => 2,
-        parameters => [ source => 'text', query => 'jsonb' ],
-        json       => ['document']
-    },
-    plugin_status => {
-        version    => 2,
-        parameters => [ plugin_id => 'uuid', status => 'text', at => 'text' ],
-        json       => ['document']
-    },
-    plugin_hooks => { version => 2, parameters => [ hook_name => 'text' ] },
     portability_export_parts => {
         version    => 4,
         parameters => [ user_id => 'uuid' ],
@@ -824,25 +793,6 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ input => 'jsonb', ids => 'jsonb', now => 'text' ],
         json       => ['result']
-    },
-    projection_offset_get => {
-        version    => 2,
-        parameters => [ projection_name => 'text' ],
-        json       => ['document']
-    },
-    projection_offset_write =>
-      { version => 2, parameters => [ row => 'jsonb' ], json => ['document'] },
-    projection_generation_start =>
-      { version => 2, parameters => [ row => 'jsonb' ], json => ['document'] },
-    projection_generation_update => {
-        version    => 2,
-        parameters => [ generation_id => 'uuid', status => 'text' ],
-        json       => ['document']
-    },
-    projection_generation_activate => {
-        version    => 2,
-        parameters => [ generation_id => 'uuid', now => 'text' ],
-        json       => ['document']
     },
     ops_worker_aggregate => {
         version    => 2,

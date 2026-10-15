@@ -514,8 +514,7 @@ ADR approval SHOULD be required for:
   `docs/PERFORMANCE.md#profiling`, `docs/CPAN_LICENSE_REVIEW.md`,
   `docs/release/readiness-review.md`, `README.md`.
 - Tests: `t/34-architecture-discipline.t`, `t/75-architecture-foundation.t`,
-  `t/86-engineering-correctness.t`, `t/14-projection-offset.t`,
-  `t/15-projection-generation.t`, `t/10-migrate-command.t`,
+  `t/86-engineering-correctness.t`, `t/10-migrate-command.t`,
   `t/47-query-plan-check.t`, `t/integration/postgres.t`,
   `t/09-architecture-documentation.t`.
 - Scripts: `script/architecture-check`, `script/perlcritic`, `script/test`,

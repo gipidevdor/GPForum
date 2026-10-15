@@ -20,7 +20,7 @@ use GPForum::Test::SuspendedParticipation;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 275;
+const my $EXPECTED_TESTS       => 278;
 const my $HTTP_OK              => 200;
 const my $HTTP_CREATED         => 201;
 const my $HTTP_BAD_REQUEST     => 400;
@@ -137,6 +137,7 @@ $test->json_is( '/thread/can_delete_thread' => 1 );
 $test->json_is( '/thread/can_move_thread'   => 1 );
 $test->json_is( '/posts/0/like_count'       => 2 );
 $test->json_is( '/posts/0/can_like'         => 0 );
+$test->json_is( '/thread/tags/0/slug'       => 'perl' );
 _get_json_ok( $test, '/new-thread' );
 my $session_csrf = _json_value( $test, 'csrf_token' );
 
@@ -167,6 +168,7 @@ $test->post_ok(
         csrf_token  => $session_csrf,
         category_id => 'category-1',
         command_id  => 'thread-command-1',
+        tags        => 'Perl, PostgreSQL',
         title       => 'A real thread',
         body_source => 'Opening post',
         visibility  => 'public',
@@ -174,6 +176,11 @@ $test->post_ok(
 );
 $test->status_is($HTTP_CREATED);
 $test->json_is( '/thread_id' => 'thread-created' );
+is_deeply(
+    $fakes->thread_tag_sets->[-1],
+    [ 'thread-created', 'Perl, PostgreSQL' ],
+    'the tags named with a new thread are set once it is made (ADR 0135)'
+);
 
 $test->post_ok(
     '/t/thread-1/replies' => { Accept => 'application/json' } => form => {
@@ -274,6 +281,7 @@ $test->post_ok(
     '/t/thread-1/edit' => { Accept => 'application/json' } => form => {
         csrf_token => $session_csrf,
         command_id => 'thread-edit-command-1',
+        tags       => 'perl, web',
         title      => 'Edited Welcome',
     }
 );
@@ -281,6 +289,11 @@ $test->status_is($HTTP_OK);
 $test->json_is( '/thread_id' => 'thread-1' );
 $test->json_is( '/status'    => 'updated' );
 $test->json_is( '/title'     => 'Edited Welcome' );
+is_deeply(
+    $fakes->thread_tag_sets->[-1],
+    [ 'thread-1', 'perl, web' ],
+    'the tags sent with the title are set once it is saved'
+);
 
 $test->post_ok(
     '/t/thread-1/move' => { Accept => 'application/json' } => form => {
@@ -698,7 +711,7 @@ sub _install_forum_fakes {
         gp_category_reader gp_thread_reader gp_thread_detail_reader
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
         gp_notification_dispatcher gp_report_store gp_search_service
         gp_rate_limiter gp_suspension_store gp_attachment_store
         )

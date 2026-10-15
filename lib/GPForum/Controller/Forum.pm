@@ -86,6 +86,7 @@ sub category ($self) {
         threads_page               => $threads,
         restore_thread_command_ids =>
           $self->_restore_thread_command_ids( $threads, $user_id ),
+        thread_tags    => $self->gp_tags_for_threads( $threads->{items} ),
         viewer_user_id => $user_id,
     );
 

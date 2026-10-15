@@ -51,13 +51,13 @@ sub _form_state ( $self, $input ) {
 
 sub _form_payload ( $self, $input, $state, $fields ) {
     return {
-        categories           => $self->_categories($input),
-        command_id           => $state->{form_values}{command_id},
-        csrf_token           => $input->{csrf_token},
-        error_fields         => $self->form_error_fields($fields),
-        errors               => $state->{errors},
-        fields               => [qw(category_id title body_source visibility)],
-        form_fields          => $fields,
+        categories   => $self->_categories($input),
+        command_id   => $state->{form_values}{command_id},
+        csrf_token   => $input->{csrf_token},
+        error_fields => $self->form_error_fields($fields),
+        errors       => $state->{errors},
+        fields       => [qw(category_id title tags body_source visibility)],
+        form_fields  => $fields,
         selected_category_id => $state->{selected_category_id},
         ui                   => $self->_form_ui( $state->{errors} ),
         values               => $state->{values},
@@ -124,6 +124,12 @@ sub _field_specs {
             label_key => 'forum.thread_title',
             name      => 'title',
             required  => 1,
+            type      => 'text',
+        },
+        {
+            id        => 'thread-tags',
+            label_key => 'forum.tags',
+            name      => 'tags',
             type      => 'text',
         },
         {

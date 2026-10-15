@@ -25,6 +25,27 @@ sub category_page ( $self, %input ) {
     };
 }
 
+# The tag index and a tag's page (ADR 0135).
+sub tags_page ( $self, %input ) {
+    return {
+        tags => [
+            map { $self->_tag($_) } @{ $self->array_or_empty( $input{tags} ) }
+        ],
+    };
+}
+
+sub tag_page ( $self, %input ) {
+    my $items = $self->array_or_empty( $input{threads} );
+
+    return {
+        category => $input{category}
+        ? $self->category( $input{category} )
+        : undef,
+        tag     => $self->_tag( $input{tag} ),
+        threads => [ map { $self->_tagged_thread( $_, \%input ) } @{$items} ],
+    };
+}
+
 sub thread_page ( $self, %input ) {
     my $parts = $self->_thread_page_parts( \%input );
 
@@ -223,6 +244,7 @@ sub _thread_page_parts ( $self, $input ) {
     $self->_apply_thread_edit_state( $thread, $input );
     $self->_apply_thread_restore_state( $thread, $input );
     $self->_apply_thread_moderation_state( $thread, $input );
+    $self->_apply_thread_tags( $thread, $input );
 
     return {
         engagement       => $self->_summary_hash( $input->{engagement} ),
@@ -303,8 +325,42 @@ sub _apply_relation_state ( $self, $post, $context ) {
 sub _category_thread ( $self, $row, $input ) {
     my $thread = $self->thread($row);
     $self->_apply_thread_restore_state( $thread, $input );
+    $self->_apply_thread_tags( $thread, $input );
 
     return $thread;
+}
+
+sub _tagged_thread ( $self, $row, $input ) {
+    my $thread = $self->thread($row);
+    $self->_apply_thread_tags( $thread, $input );
+
+    return $thread;
+}
+
+# The thread's tags (ADR 0135), from the page's read of them by thread id;
+# none is an empty list, so every row has the key.
+sub _apply_thread_tags ( $self, $thread, $input ) {
+    my $tags = $self->hash_or_empty( $input->{thread_tags} );
+    $thread->{tags} =
+      [ map { $self->_tag($_) }
+          @{ $self->array_or_empty( $tags->{ $thread->{thread_id} // q{} } ) }
+      ];
+
+    return;
+}
+
+sub _tag ( $self, $tag ) {
+    my $hash = $self->hash_or_empty($tag);
+
+    return {
+        name => $self->string_or_empty( $hash->{name} ),
+        slug => $self->string_or_empty( $hash->{slug} ),
+        (
+            exists $hash->{thread_count}
+            ? ( thread_count => $hash->{thread_count} )
+            : ()
+        ),
+    };
 }
 
 sub _apply_thread_restore_state ( $self, $thread, $input ) {

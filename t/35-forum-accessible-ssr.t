@@ -18,11 +18,12 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 327;
+const my $EXPECTED_TESTS   => 352;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
 const my $HTTP_OK          => 200;
+const my $HTTP_NOT_FOUND   => 404;
 
 plan tests => $EXPECTED_TESTS;
 
@@ -314,6 +315,7 @@ $test->element_exists(
     'form[action="/p/post-1/attachments"] input[name="command_id"]');
 $test->element_exists('form[action="/t/thread-1/edit"]');
 $test->element_exists('input[id="thread-edit-title"]');
+$test->element_exists('input[id="thread-edit-tags"][value="Perl"]');
 $test->element_exists('form[action="/t/thread-1/delete"]');
 $test->element_exists('form[action="/t/thread-1/move"]');
 $test->element_exists('select[id="thread-move-category"]');
@@ -646,6 +648,36 @@ $test->post_ok(
 $test->status_is($HTTP_FOUND);
 $test->header_like( Location => qr{/c/category-1\z}msx );
 
+# Tags (ADR 0135): chips on the thread, the category and the home rows, the
+# field on the composer, the index and the tag page, and what is not a tag.
+$test->get_ok('/t/thread-1');
+$test->status_is($HTTP_OK);
+$test->element_exists(
+    'header.thread__header ul.tag-list a.tag[href="/tags/perl"]');
+$test->text_is( 'header.thread__header ul.tag-list a.tag' => 'Perl' );
+$test->get_ok('/c/category-1');
+$test->status_is($HTTP_OK);
+$test->element_exists('ol.ui-card-list ul.tag-list a.tag[href="/tags/perl"]');
+$test->get_ok('/new-thread');
+$test->status_is($HTTP_OK);
+$test->element_exists(
+    'input[id="thread-tags"][name="tags"][aria-describedby="thread-tags-hint"]'
+);
+$test->element_exists('nav.site-nav a[href="/tags"]');
+$test->get_ok('/tags');
+$test->status_is($HTTP_OK);
+$test->element_exists('ul.tag-cloud a.tag[href="/tags/perl"]');
+$test->text_like( 'ul.tag-cloud li span.ui-count' => qr/1 [ ] discussion/msx );
+$test->get_ok('/tags/perl');
+$test->status_is($HTTP_OK);
+$test->text_is( 'h1#tag-heading' => 'Perl' );
+$test->element_exists('ol.ui-card-list a[href="/t/thread-1"]');
+$test->element_exists('ol.ui-card-list ul.tag-list a.tag[href="/tags/perl"]');
+$test->get_ok('/tags/nothing');
+$test->status_is($HTTP_NOT_FOUND);
+$test->get_ok('/tags/Not-A-Slug');
+$test->status_is($HTTP_NOT_FOUND);
+
 sub _install_forum_fakes {
     my ($test_object) = @_;
 
@@ -656,7 +688,7 @@ sub _install_forum_fakes {
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store
         gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
         gp_notification_dispatcher gp_search_service gp_rate_limiter
         gp_suspension_store gp_attachment_store
         )

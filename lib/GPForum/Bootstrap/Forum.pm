@@ -15,7 +15,9 @@ use GPForum::Service::Attachment::UploadPipeline;
 use GPForum::Service::Attachment::Workflow;
 use GPForum::Service::Community::BookmarkStore;
 use GPForum::Service::Community::LikeStore;
+use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::ReplyLinks;
+use GPForum::Service::Forum::ThreadTags;
 use GPForum::Service::Community::FeedReader;
 use GPForum::Service::Community::MentionReader;
 use GPForum::Service::Community::MentionStore;
@@ -377,6 +379,35 @@ sub _register_community_helpers {
 
             return GPForum::Service::Forum::ReplyLinks->new(
                 schema => $controller->gp_schema );
+        }
+    );
+    $application->helper(
+        gp_thread_tags => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Forum::ThreadTags->new(
+                schema => $controller->gp_schema );
+        }
+    );
+
+    # The tags of the threads a page lists, by thread id (ADR 0135): a hint
+    # on each row, so a read that fails shows none and says so in the log.
+    $application->helper(
+        gp_tags_for_threads => sub {
+            my ( $controller, $threads ) = @_;
+
+            my @ids =
+              map { GPForum::Infrastructure::Row->column( $_, 'thread_id' ) }
+              @{ $threads || [] };
+            my $tags = {};
+            try {
+                $tags = $controller->gp_thread_tags->tags_for_threads( \@ids );
+            }
+            catch ($error) {
+                my ($reason) = split /\n/msx, "$error";
+                $controller->app->log->warn("thread tags degraded: $reason");
+            };
+            return $tags;
         }
     );
     $application->helper(

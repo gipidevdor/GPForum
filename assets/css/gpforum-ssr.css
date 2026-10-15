@@ -2159,6 +2159,50 @@ button[popovertarget] {
   background: var(--color-surface-warning);
 }
 
+/* The tags a thread carries (ADR 0135): small pills under its title, each
+   a link to its tag page; the tag index shows them with their counts. */
+.tag-list,
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block: var(--space-1) var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.tag-cloud {
+  gap: var(--space-2) var(--space-4);
+  margin-block: var(--space-3) 0;
+}
+
+.tag-cloud li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 1.5rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
+  color: var(--color-subtle);
+  padding-inline: 0.6rem;
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tag:hover,
+.tag:focus-visible {
+  color: var(--color-foreground);
+  border-color: var(--color-foreground);
+}
+
 /* Which post a reply answers: a short line under the byline, and in the
    composer the post being answered with a way to drop it. */
 .post__reply-to {

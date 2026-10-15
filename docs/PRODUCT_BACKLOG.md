@@ -65,8 +65,8 @@ claim. No competitor source code or assets were imported for this review.
 
 | ID | Feature | Verified status and scope | Package |
 | --- | --- | --- | --- |
-| B01 | Thread tags | Not found; categories are the existing classification. [forum-schema], [routes] | PB-02 |
-| B02 | Multiple tags / combined filters | Not found; define limits, matching semantics and permission-aware filtering. [search], [forum-schema] | PB-02 |
+| B01 | Thread tags | Done 2026-10-15 (ADR 0135): up to five tags named with the title (`tags` + `thread_tags`, migration 117), chips on the thread, category and home rows, `/tags` index and `/tags/:slug` pages. No rename or merge yet. [forum-schema], [routes] | PB-02 |
+| B02 | Multiple tags / combined filters | Partly done 2026-10-15 (ADR 0135): a thread carries up to five; the tag page filters by one tag and optionally one category, permission-aware (ADR 0102). All/any filters across tags and search by tag are not done. [search], [forum-schema] | PB-02 |
 | B03 | Deep subcategory tree | Partial: fixed space → category → thread hierarchy; categories have no parent field. [forum-schema] | PB-11 |
 | B04 | Managed thread prefixes | Not found as structured metadata or staff workflow. [forum-schema], [routes] | PB-11 |
 | B05 | Sticky / pinned administration | Done 2026-10-15: pin/unpin routes, the staff action in the thread's tools and on the moderation actions page, the badge on the thread page and in every list; read ordering was already by pin. [forum-schema], [thread-reader], [routes] | PB-11 |

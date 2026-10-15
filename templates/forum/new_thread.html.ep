@@ -3,6 +3,7 @@
 % my %field = map { $_->{name} => $_ } @{$form_fields};
 % my $category_field = $field{category_id};
 % my $title_field = $field{title};
+% my $tags_field = $field{tags};
 % my $body_field = $field{body_source};
 % my $visibility_field = $field{visibility};
 % my $form_described_by = $ui->{described_by} || q{};
@@ -33,6 +34,10 @@
       <p class="ui-hint"><%= t('forum.similar_threads_hint') %></p>
       <ul data-similar-list></ul>
     </section>
+    <label for="<%= $tags_field->{id} %>"><%= t($tags_field->{label_key}) %></label>
+    <input id="<%= $tags_field->{id} %>" name="<%= $tags_field->{name} %>" value="<%= $tags_field->{value} %>" autocomplete="off" aria-describedby="thread-tags-hint"<%== $tags_field->{error_attrs} %>>
+    <p class="ui-hint" id="thread-tags-hint"><%= t('forum.tags_hint') %></p>
+    <%= include 'components/field_error', field_id => $tags_field->{error_id}, message => $tags_field->{error} %>
     <label for="<%= $body_field->{id} %>"><%= t($body_field->{label_key}) %></label>
     <textarea id="<%= $body_field->{id} %>" name="<%= $body_field->{name} %>" rows="<%= $body_field->{rows} %>" required<%== $body_field->{error_attrs} %>><%= $body_field->{value} %></textarea>
     <%= include 'components/field_error', field_id => $body_field->{error_id}, message => $body_field->{error} %>

@@ -123,6 +123,8 @@ sub register ( $, %input ) {
     $routes->post('/pending/:review_id/withdraw')
       ->to('Forum::Pending#withdraw')
       ->name('pending_post_withdraw');
+    $routes->get('/tags')->to('Forum::Tags#list')->name('tags');
+    $routes->get('/tags/:slug')->to('Forum::Tags#show')->name('tag');
     $routes->get('/drafts')->to('Forum::Drafts#list')->name('drafts');
     $routes->post('/drafts')->to('Forum::Drafts#save')->name('draft_save');
     $routes->get('/drafts/:draft_id')

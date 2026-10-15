@@ -216,6 +216,198 @@ msgctxt "admin.audit_until"
 msgid "Until (UTC day)"
 msgstr "Al (giorno UTC)"
 
+msgctxt "admin.automod"
+msgid "Watched words"
+msgstr "Parole sorvegliate"
+
+msgctxt "admin.automod_action"
+msgid "Action"
+msgstr "Azione"
+
+msgctxt "admin.automod_action_block"
+msgid "Block the post"
+msgstr "Blocca il messaggio"
+
+msgctxt "admin.automod_action_flag"
+msgid "Publish and send to the moderation queue"
+msgstr "Pubblica e invia alla coda di moderazione"
+
+msgctxt "admin.automod_action_replace"
+msgid "Replace the text"
+msgstr "Sostituisci il testo"
+
+msgctxt "admin.automod_add"
+msgid "Add watched word"
+msgstr "Aggiungi parola sorvegliata"
+
+msgctxt "admin.automod_added"
+msgid "Added"
+msgstr "Aggiunta"
+
+msgctxt "admin.automod_duplicate"
+msgid "That word or phrase is already watched."
+msgstr "Quella parola o frase è già sorvegliata."
+
+msgctxt "admin.automod_intro"
+msgid ""
+"Watched words and the link rule screen every new thread, reply and edit. "
+"Staff who moderate every thread are not screened. Each change and each "
+"decision is recorded in the audit log."
+msgstr ""
+"Le parole sorvegliate e la regola sui link controllano ogni nuova "
+"discussione, risposta e modifica. Lo staff che modera tutte le discussioni "
+"non viene controllato. Ogni modifica e ogni decisione viene registrata nel "
+"registro di audit."
+
+msgctxt "admin.automod_invalid_action"
+msgid "Choose an action."
+msgstr "Scegli un'azione."
+
+msgctxt "admin.automod_invalid_first_posts"
+msgid "Choose a number of posts from 0 to 20."
+msgstr "Scegli un numero di messaggi da 0 a 20."
+
+msgctxt "admin.automod_invalid_link_action"
+msgid "Choose block or flag."
+msgstr "Scegli blocca o segnala."
+
+msgctxt "admin.automod_invalid_link_limit"
+msgid "The link limit is a number from 0 to 100, or empty."
+msgstr "Il limite di link è un numero da 0 a 100, oppure vuoto."
+
+msgctxt "admin.automod_invalid_link_trust_below"
+msgid "The trust level is a number from 0 to 100."
+msgstr "Il livello di fiducia è un numero da 0 a 100."
+
+msgctxt "admin.automod_invalid_phrase"
+msgid ""
+"Enter a word or phrase of at most 100 characters, with * only at its start "
+"or end."
+msgstr ""
+"Inserisci una parola o una frase di al massimo 100 caratteri, con * solo "
+"all'inizio o alla fine."
+
+msgctxt "admin.automod_invalid_replacement"
+msgid "The replacement can be at most 100 characters."
+msgstr "La sostituzione può avere al massimo 100 caratteri."
+
+#, python-brace-format
+msgctxt "admin.automod_limit"
+msgid "The list is full: it holds at most {maximum} entries. Remove one first."
+msgstr ""
+"L'elenco è pieno: contiene al massimo {maximum} voci. Rimuovine prima una."
+
+msgctxt "admin.automod_link_limit"
+msgid "Most links in a post"
+msgstr "Numero massimo di link in un messaggio"
+
+msgctxt "admin.automod_link_trust_below"
+msgid "Applies below trust level"
+msgstr "Si applica sotto il livello di fiducia"
+
+msgctxt "admin.automod_links"
+msgid "Links from new members"
+msgstr "Link dei nuovi membri"
+
+msgctxt "admin.automod_links_help"
+msgid ""
+"Limits the links in one post by a member below the given trust level. Leave "
+"the limit empty to turn the rule off."
+msgstr ""
+"Limita i link in un messaggio di un membro sotto il livello di fiducia "
+"indicato. Lascia vuoto il limite per disattivare la regola."
+
+msgctxt "admin.automod_links_save"
+msgid "Save link rule"
+msgstr "Salva la regola sui link"
+
+msgctxt "admin.automod_links_set"
+msgid "Link rule saved."
+msgstr "Regola sui link salvata."
+
+msgctxt "admin.automod_no_words"
+msgid "No watched words yet."
+msgstr "Ancora nessuna parola sorvegliata."
+
+msgctxt "admin.automod_phrase"
+msgid "Word or phrase"
+msgstr "Parola o frase"
+
+#, python-brace-format
+msgctxt "admin.automod_phrase_help"
+msgid ""
+"A word or phrase, matched whole and regardless of case. Put * at the start "
+"or end to match words that begin or end with it, as in spam*. At most "
+"{maximum} entries."
+msgstr ""
+"Una parola o una frase, cercata per intero e senza distinguere maiuscole e "
+"minuscole. Metti * all'inizio o alla fine per trovare le parole che iniziano "
+"o finiscono così, come spam*. Al massimo {maximum} voci."
+
+msgctxt "admin.automod_remove"
+msgid "Remove"
+msgstr "Rimuovi"
+
+msgctxt "admin.automod_replacement"
+msgid "Replacement"
+msgstr "Sostituzione"
+
+#, python-brace-format
+msgctxt "admin.automod_replacement_help"
+msgid "Used only by Replace. Left empty, the text becomes {default}."
+msgstr "Usata solo da Sostituisci. Se vuota, il testo diventa {default}."
+
+msgctxt "admin.automod_review"
+msgid "First-post review"
+msgstr "Revisione dei primi messaggi"
+
+msgctxt "admin.automod_review_first_posts"
+msgid "Posts held per new member"
+msgstr "Messaggi trattenuti per nuovo membro"
+
+msgctxt "admin.automod_review_flagged"
+msgid ""
+"Also hold posts the watched words or the link rule flag, instead of "
+"publishing them with a report"
+msgstr ""
+"Trattieni anche i messaggi segnalati dalle parole sorvegliate o dalla regola "
+"sui link, invece di pubblicarli con una segnalazione"
+
+#, python-brace-format
+msgctxt "admin.automod_review_help"
+msgid ""
+"Hold a member's posts for staff review until this many of theirs are "
+"published (0 to {maximum}; 0 turns review off). Staff who moderate are never "
+"held."
+msgstr ""
+"Trattieni i messaggi di un membro per la revisione dello staff finché non ne "
+"sono stati pubblicati questo numero (da 0 a {maximum}; 0 disattiva la "
+"revisione). Lo staff che modera non viene mai trattenuto."
+
+msgctxt "admin.automod_review_save"
+msgid "Save review rule"
+msgstr "Salva la regola di revisione"
+
+msgctxt "admin.automod_review_set"
+msgid "Review rule saved."
+msgstr "Regola di revisione salvata."
+
+msgctxt "admin.automod_unchanged"
+msgid "Nothing changed."
+msgstr "Nessuna modifica."
+
+msgctxt "admin.automod_word_added"
+msgid "Watched word added."
+msgstr "Parola sorvegliata aggiunta."
+
+msgctxt "admin.automod_word_removed"
+msgid "Watched word removed."
+msgstr "Parola sorvegliata rimossa."
+
+msgctxt "admin.automod_words"
+msgid "Watched words"
+msgstr "Parole sorvegliate"
+
 msgctxt "admin.benchmark_evidence"
 msgid "Benchmark evidence"
 msgstr "Evidenza benchmark"
@@ -1426,6 +1618,22 @@ msgctxt "forum.attachment_uploaded"
 msgid "Attachment uploaded"
 msgstr "Allegato caricato"
 
+#, python-brace-format
+msgctxt "forum.automod_links"
+msgid ""
+"A post can contain at most {limit} links for now. Remove some and try again."
+msgstr ""
+"Per ora un messaggio può contenere al massimo {limit} link. Rimuovine "
+"qualcuno e riprova."
+
+#, python-brace-format
+msgctxt "forum.automod_words"
+msgid ""
+"This contains words that are not allowed here: {words}. Change them and try "
+"again."
+msgstr ""
+"Il testo contiene parole non ammesse qui: {words}. Modificale e riprova."
+
 msgctxt "forum.back_to_categories"
 msgid "Back to categories"
 msgstr "Torna alle categorie"
@@ -1779,6 +1987,14 @@ msgctxt "forum.no_public_discussions"
 msgid "No public discussions are visible yet."
 msgstr "Nessuna discussione pubblica visibile."
 
+msgctxt "forum.no_tagged_threads"
+msgid "No discussion you can read carries this tag."
+msgstr "Nessuna discussione che puoi leggere ha questo tag."
+
+msgctxt "forum.no_tags"
+msgid "No tags yet."
+msgstr "Ancora nessun tag."
+
 msgctxt "forum.no_visible_posts"
 msgid "No visible posts are available."
 msgstr "Nessun post visibile è disponibile."
@@ -1907,6 +2123,54 @@ msgctxt "forum.restore_thread"
 msgid "Restore thread"
 msgstr "Ripristina discussione"
 
+msgctxt "forum.review_mine"
+msgid "Awaiting review"
+msgstr "In attesa di revisione"
+
+msgctxt "forum.review_mine_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nulla è in attesa di revisione."
+
+msgctxt "forum.review_mine_hint"
+msgid "Only you and the staff can see these posts until they are published."
+msgstr ""
+"Solo tu e lo staff potete vedere questi messaggi finché non vengono "
+"pubblicati."
+
+msgctxt "forum.review_open_published"
+msgid "Open the published post"
+msgstr "Apri il messaggio pubblicato"
+
+msgctxt "forum.review_rejected_reason"
+msgid "Reason"
+msgstr "Motivo"
+
+msgctxt "forum.review_reply_held"
+msgid ""
+"Thanks! New members' first posts are read by the staff before they appear. "
+"Your reply is waiting for review; you will be notified when it is published."
+msgstr ""
+"Grazie! I primi messaggi dei nuovi membri vengono letti dallo staff prima di "
+"comparire. La tua risposta è in attesa di revisione; riceverai una notifica "
+"quando sarà pubblicata."
+
+msgctxt "forum.review_thread_held"
+msgid ""
+"Thanks! New members' first posts are read by the staff before they appear. "
+"Your thread is waiting for review; you will be notified when it is published."
+msgstr ""
+"Grazie! I primi messaggi dei nuovi membri vengono letti dallo staff prima di "
+"comparire. La tua discussione è in attesa di revisione; riceverai una "
+"notifica quando sarà pubblicata."
+
+msgctxt "forum.review_withdraw"
+msgid "Withdraw"
+msgstr "Ritira"
+
+msgctxt "forum.review_withdrawn"
+msgid "Post withdrawn."
+msgstr "Messaggio ritirato."
+
 msgctxt "forum.save_edit"
 msgid "Save edit"
 msgstr "Salva modifica"
@@ -1938,6 +2202,49 @@ msgstr "Iscrizione alla discussione attivata"
 msgctxt "forum.subscription_muted"
 msgid "Subscription muted"
 msgstr "Iscrizione silenziata"
+
+# Same as English.
+msgctxt "forum.tag"
+msgid "Tag"
+msgstr "Tag"
+
+msgctxt "forum.tag_actions"
+msgid "Tag actions"
+msgstr "Azioni sul tag"
+
+msgctxt "forum.tag_in_all_categories"
+msgid "In every category"
+msgstr "In tutte le categorie"
+
+# Same as English.
+#, python-brace-format
+msgctxt "forum.tag_in_category"
+msgid "In {category}"
+msgstr "In {category}"
+
+#, python-brace-format
+msgctxt "forum.tagged_thread_count"
+msgid "{count} discussion"
+msgid_plural "{count} discussions"
+msgstr[0] "{count} discussione"
+msgstr[1] "{count} discussioni"
+
+#, python-brace-format
+msgctxt "forum.tagged_threads"
+msgid "Discussions tagged {name}"
+msgstr "Discussioni con il tag {name}"
+
+msgctxt "forum.tags"
+msgid "Tags"
+msgstr "Tag"
+
+msgctxt "forum.tags_description"
+msgid "What the discussions are about, across every category."
+msgstr "Di cosa parlano le discussioni, in tutte le categorie."
+
+msgctxt "forum.tags_hint"
+msgid "Up to five, separated by commas."
+msgstr "Fino a cinque, separati da virgole."
 
 msgctxt "forum.thread"
 msgid "Thread"
@@ -2291,6 +2598,18 @@ msgctxt "moderation.assigned"
 msgid "Report assigned"
 msgstr "Segnalazione assegnata"
 
+msgctxt "moderation.automod_link_limit"
+msgid "Too many links from a new member"
+msgstr "Troppi link da un nuovo membro"
+
+msgctxt "moderation.automod_reporter"
+msgid "Automod"
+msgstr "Moderazione automatica"
+
+msgctxt "moderation.automod_watched_word"
+msgid "Contains a watched word"
+msgstr "Contiene una parola sorvegliata"
+
 msgctxt "moderation.hide_hint"
 msgid ""
 "A hidden thread leaves every list and page until a moderator restores it."
@@ -2388,6 +2707,10 @@ msgctxt "moderation.report_thread"
 msgid "Report thread"
 msgstr "Segnala discussione"
 
+msgctxt "moderation.reporter"
+msgid "Reported by"
+msgstr "Segnalato da"
+
 msgctxt "moderation.reports"
 msgid "Moderation reports"
 msgstr "Segnalazioni moderazione"
@@ -2435,6 +2758,89 @@ msgstr "Annulla azione"
 msgctxt "moderation.reversed"
 msgid "Reversed"
 msgstr "Annullata"
+
+msgctxt "moderation.review_approve"
+msgid "Publish"
+msgstr "Pubblica"
+
+msgctxt "moderation.review_approved"
+msgid "Post published."
+msgstr "Messaggio pubblicato."
+
+msgctxt "moderation.review_author"
+msgid "Author"
+msgstr "Autore"
+
+msgctxt "moderation.review_category"
+msgid "Category"
+msgstr "Categoria"
+
+msgctxt "moderation.review_conflict"
+msgid "Another moderator already decided that post."
+msgstr "Un altro moderatore ha già deciso quel messaggio."
+
+msgctxt "moderation.review_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nulla è in attesa di revisione."
+
+msgctxt "moderation.review_intro"
+msgid ""
+"New members' first posts, and flagged posts when the automod rules say so, "
+"wait here until you publish or reject them. Nobody else sees them."
+msgstr ""
+"I primi messaggi dei nuovi membri, e quelli segnalati quando le regole di "
+"moderazione automatica lo prevedono, attendono qui finché non li pubblichi o "
+"li rifiuti. Nessun altro li vede."
+
+msgctxt "moderation.review_new_thread"
+msgid "New thread"
+msgstr "Nuova discussione"
+
+#, python-brace-format
+msgctxt "moderation.review_pending_total"
+msgid "Waiting: {count}"
+msgstr "In attesa: {count}"
+
+msgctxt "moderation.review_queue"
+msgid "Review queue"
+msgstr "Coda di revisione"
+
+msgctxt "moderation.review_reason_first_posts"
+msgid "One of the author's first posts"
+msgstr "Uno dei primi messaggi dell'autore"
+
+msgctxt "moderation.review_reason_flagged"
+msgid "Flagged by the automod rules"
+msgstr "Segnalato dalle regole di moderazione automatica"
+
+msgctxt "moderation.review_refused"
+msgid ""
+"That post can no longer be published where it was written (the thread may be "
+"locked or gone, or its author suspended). Reject it instead."
+msgstr ""
+"Quel messaggio non può più essere pubblicato dove è stato scritto (la "
+"discussione potrebbe essere bloccata o eliminata, o l'autore sospeso). "
+"Rifiutalo."
+
+msgctxt "moderation.review_reject"
+msgid "Reject"
+msgstr "Rifiuta"
+
+msgctxt "moderation.review_reject_reason"
+msgid "Reason for the author (optional)"
+msgstr "Motivo per l'autore (facoltativo)"
+
+msgctxt "moderation.review_rejected"
+msgid "Post rejected."
+msgstr "Messaggio rifiutato."
+
+msgctxt "moderation.review_reply_in"
+msgid "Reply in"
+msgstr "Risposta in"
+
+msgctxt "moderation.review_unchanged"
+msgid "That post was already decided that way."
+msgstr "Quel messaggio era già stato deciso così."
 
 msgctxt "moderation.revoke_suspension"
 msgid "Revoke suspension"
@@ -2579,6 +2985,10 @@ msgctxt "nav.start_thread"
 msgid "Start a thread"
 msgstr "Avvia una discussione"
 
+msgctxt "nav.tags"
+msgid "Tags"
+msgstr "Tag"
+
 msgctxt "nav.your_data"
 msgid "Your data"
 msgstr "I tuoi dati"
@@ -2598,6 +3008,16 @@ msgstr "Hai una nuova notifica."
 msgctxt "notifications.body.reply"
 msgid "A followed thread has a new reply."
 msgstr "Una discussione seguita ha una nuova risposta."
+
+msgctxt "notifications.body.review_approved"
+msgid "The staff reviewed your post and published it."
+msgstr "Lo staff ha revisionato il tuo messaggio e lo ha pubblicato."
+
+#, python-brace-format
+msgctxt "notifications.body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr ""
+"Lo staff ha revisionato la tua risposta e non l'ha pubblicata. {reason}"
 
 msgctxt "notifications.channel.digest"
 msgid "Digest"
@@ -2650,6 +3070,18 @@ msgctxt "notifications.email_body.reply"
 msgid "Open GPForum to read the new reply in a thread you follow."
 msgstr "Apri GPForum per leggere la nuova risposta in una discussione seguita."
 
+msgctxt "notifications.email_body.review_approved"
+msgid "The staff reviewed your post and published it. Open GPForum to read it."
+msgstr ""
+"Lo staff ha revisionato il tuo messaggio e lo ha pubblicato. Apri GPForum "
+"per leggerlo."
+
+#, python-brace-format
+msgctxt "notifications.email_body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr ""
+"Lo staff ha revisionato la tua risposta e non l'ha pubblicata. {reason}"
+
 msgctxt "notifications.email_subject.follow"
 msgid "New activity in a followed thread"
 msgstr "Nuova attività in una discussione seguita"
@@ -2665,6 +3097,14 @@ msgstr "Nuova notifica su GPForum"
 msgctxt "notifications.email_subject.reply"
 msgid "New reply in a followed thread"
 msgstr "Nuova risposta in una discussione seguita"
+
+msgctxt "notifications.email_subject.review_approved"
+msgid "Your post was published"
+msgstr "Il tuo messaggio è stato pubblicato"
+
+msgctxt "notifications.email_subject.review_rejected"
+msgid "Your reply was not published"
+msgstr "La tua risposta non è stata pubblicata"
 
 msgctxt "notifications.empty"
 msgid "No notifications yet."
@@ -2742,6 +3182,14 @@ msgctxt "notifications.title.reply"
 msgid "New reply in a followed thread"
 msgstr "Nuova risposta in una discussione seguita"
 
+msgctxt "notifications.title.review_approved"
+msgid "Your post was published"
+msgstr "Il tuo messaggio è stato pubblicato"
+
+msgctxt "notifications.title.review_rejected"
+msgid "Your reply was not published"
+msgstr "La tua risposta non è stata pubblicata"
+
 msgctxt "notifications.type.follow"
 msgid "Follow"
 msgstr "Seguito"
@@ -2757,6 +3205,14 @@ msgstr "Notifica"
 msgctxt "notifications.type.reply"
 msgid "Reply"
 msgstr "Risposta"
+
+msgctxt "notifications.type.review_approved"
+msgid "Published"
+msgstr "Pubblicato"
+
+msgctxt "notifications.type.review_rejected"
+msgid "Not published"
+msgstr "Non pubblicato"
 
 #, python-brace-format
 msgctxt "notifications.unread_count"
@@ -3249,6 +3705,10 @@ msgctxt "state.all"
 msgid "All"
 msgstr "Tutti"
 
+msgctxt "state.approved"
+msgid "Approved"
+msgstr "Approvato"
+
 msgctxt "state.behind"
 msgid "Behind"
 msgstr "In ritardo"
@@ -3334,6 +3794,10 @@ msgctxt "state.unknown"
 msgid "Unknown"
 msgstr "Sconosciuto"
 
+msgctxt "state.withdrawn"
+msgid "Withdrawn"
+msgstr "Ritirato"
+
 # Same as English.
 msgctxt "target.post"
 msgid "Post"
@@ -3410,348 +3874,3 @@ msgstr "Paginazione"
 msgctxt "ui.status_banner"
 msgid "Status"
 msgstr "Stato"
-
-msgctxt "admin.automod"
-msgid "Watched words"
-msgstr "Parole sorvegliate"
-
-msgctxt "admin.automod_intro"
-msgid "Watched words and the link rule screen every new thread, reply and edit. Staff who moderate every thread are not screened. Each change and each decision is recorded in the audit log."
-msgstr "Le parole sorvegliate e la regola sui link controllano ogni nuova discussione, risposta e modifica. Lo staff che modera tutte le discussioni non viene controllato. Ogni modifica e ogni decisione viene registrata nel registro di audit."
-
-msgctxt "admin.automod_words"
-msgid "Watched words"
-msgstr "Parole sorvegliate"
-
-#, python-brace-format
-msgctxt "admin.automod_phrase_help"
-msgid "A word or phrase, matched whole and regardless of case. Put * at the start or end to match words that begin or end with it, as in spam*. At most {maximum} entries."
-msgstr "Una parola o una frase, cercata per intero e senza distinguere maiuscole e minuscole. Metti * all'inizio o alla fine per trovare le parole che iniziano o finiscono così, come spam*. Al massimo {maximum} voci."
-
-msgctxt "admin.automod_phrase"
-msgid "Word or phrase"
-msgstr "Parola o frase"
-
-msgctxt "admin.automod_action"
-msgid "Action"
-msgstr "Azione"
-
-msgctxt "admin.automod_action_block"
-msgid "Block the post"
-msgstr "Blocca il messaggio"
-
-msgctxt "admin.automod_action_flag"
-msgid "Publish and send to the moderation queue"
-msgstr "Pubblica e invia alla coda di moderazione"
-
-msgctxt "admin.automod_action_replace"
-msgid "Replace the text"
-msgstr "Sostituisci il testo"
-
-msgctxt "admin.automod_replacement"
-msgid "Replacement"
-msgstr "Sostituzione"
-
-#, python-brace-format
-msgctxt "admin.automod_replacement_help"
-msgid "Used only by Replace. Left empty, the text becomes {default}."
-msgstr "Usata solo da Sostituisci. Se vuota, il testo diventa {default}."
-
-msgctxt "admin.automod_add"
-msgid "Add watched word"
-msgstr "Aggiungi parola sorvegliata"
-
-msgctxt "admin.automod_added"
-msgid "Added"
-msgstr "Aggiunta"
-
-msgctxt "admin.automod_remove"
-msgid "Remove"
-msgstr "Rimuovi"
-
-msgctxt "admin.automod_no_words"
-msgid "No watched words yet."
-msgstr "Ancora nessuna parola sorvegliata."
-
-msgctxt "admin.automod_links"
-msgid "Links from new members"
-msgstr "Link dei nuovi membri"
-
-msgctxt "admin.automod_links_help"
-msgid "Limits the links in one post by a member below the given trust level. Leave the limit empty to turn the rule off."
-msgstr "Limita i link in un messaggio di un membro sotto il livello di fiducia indicato. Lascia vuoto il limite per disattivare la regola."
-
-msgctxt "admin.automod_link_limit"
-msgid "Most links in a post"
-msgstr "Numero massimo di link in un messaggio"
-
-msgctxt "admin.automod_link_trust_below"
-msgid "Applies below trust level"
-msgstr "Si applica sotto il livello di fiducia"
-
-msgctxt "admin.automod_links_save"
-msgid "Save link rule"
-msgstr "Salva la regola sui link"
-
-msgctxt "admin.automod_word_added"
-msgid "Watched word added."
-msgstr "Parola sorvegliata aggiunta."
-
-msgctxt "admin.automod_word_removed"
-msgid "Watched word removed."
-msgstr "Parola sorvegliata rimossa."
-
-msgctxt "admin.automod_links_set"
-msgid "Link rule saved."
-msgstr "Regola sui link salvata."
-
-msgctxt "admin.automod_unchanged"
-msgid "Nothing changed."
-msgstr "Nessuna modifica."
-
-msgctxt "admin.automod_duplicate"
-msgid "That word or phrase is already watched."
-msgstr "Quella parola o frase è già sorvegliata."
-
-#, python-brace-format
-msgctxt "admin.automod_limit"
-msgid "The list is full: it holds at most {maximum} entries. Remove one first."
-msgstr "L'elenco è pieno: contiene al massimo {maximum} voci. Rimuovine prima una."
-
-msgctxt "admin.automod_invalid_phrase"
-msgid "Enter a word or phrase of at most 100 characters, with * only at its start or end."
-msgstr "Inserisci una parola o una frase di al massimo 100 caratteri, con * solo all'inizio o alla fine."
-
-msgctxt "admin.automod_invalid_action"
-msgid "Choose an action."
-msgstr "Scegli un'azione."
-
-msgctxt "admin.automod_invalid_replacement"
-msgid "The replacement can be at most 100 characters."
-msgstr "La sostituzione può avere al massimo 100 caratteri."
-
-msgctxt "admin.automod_invalid_link_limit"
-msgid "The link limit is a number from 0 to 100, or empty."
-msgstr "Il limite di link è un numero da 0 a 100, oppure vuoto."
-
-msgctxt "admin.automod_invalid_link_trust_below"
-msgid "The trust level is a number from 0 to 100."
-msgstr "Il livello di fiducia è un numero da 0 a 100."
-
-msgctxt "admin.automod_invalid_link_action"
-msgid "Choose block or flag."
-msgstr "Scegli blocca o segnala."
-
-#, python-brace-format
-msgctxt "forum.automod_words"
-msgid "This contains words that are not allowed here: {words}. Change them and try again."
-msgstr "Il testo contiene parole non ammesse qui: {words}. Modificale e riprova."
-
-#, python-brace-format
-msgctxt "forum.automod_links"
-msgid "A post can contain at most {limit} links for now. Remove some and try again."
-msgstr "Per ora un messaggio può contenere al massimo {limit} link. Rimuovine qualcuno e riprova."
-
-msgctxt "moderation.reporter"
-msgid "Reported by"
-msgstr "Segnalato da"
-
-msgctxt "moderation.automod_reporter"
-msgid "Automod"
-msgstr "Moderazione automatica"
-
-msgctxt "moderation.automod_watched_word"
-msgid "Contains a watched word"
-msgstr "Contiene una parola sorvegliata"
-
-msgctxt "moderation.automod_link_limit"
-msgid "Too many links from a new member"
-msgstr "Troppi link da un nuovo membro"
-
-msgctxt "forum.review_thread_held"
-msgid "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
-msgstr "Grazie! I primi messaggi dei nuovi membri vengono letti dallo staff prima di comparire. La tua discussione è in attesa di revisione; riceverai una notifica quando sarà pubblicata."
-
-msgctxt "forum.review_reply_held"
-msgid "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
-msgstr "Grazie! I primi messaggi dei nuovi membri vengono letti dallo staff prima di comparire. La tua risposta è in attesa di revisione; riceverai una notifica quando sarà pubblicata."
-
-msgctxt "forum.review_withdrawn"
-msgid "Post withdrawn."
-msgstr "Messaggio ritirato."
-
-msgctxt "forum.review_mine"
-msgid "Awaiting review"
-msgstr "In attesa di revisione"
-
-msgctxt "forum.review_mine_hint"
-msgid "Only you and the staff can see these posts until they are published."
-msgstr "Solo tu e lo staff potete vedere questi messaggi finché non vengono pubblicati."
-
-msgctxt "forum.review_mine_empty"
-msgid "Nothing is waiting for review."
-msgstr "Nulla è in attesa di revisione."
-
-msgctxt "forum.review_rejected_reason"
-msgid "Reason"
-msgstr "Motivo"
-
-msgctxt "forum.review_open_published"
-msgid "Open the published post"
-msgstr "Apri il messaggio pubblicato"
-
-msgctxt "forum.review_withdraw"
-msgid "Withdraw"
-msgstr "Ritira"
-
-msgctxt "moderation.review_queue"
-msgid "Review queue"
-msgstr "Coda di revisione"
-
-msgctxt "moderation.review_intro"
-msgid "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
-msgstr "I primi messaggi dei nuovi membri, e quelli segnalati quando le regole di moderazione automatica lo prevedono, attendono qui finché non li pubblichi o li rifiuti. Nessun altro li vede."
-
-#, python-brace-format
-msgctxt "moderation.review_pending_total"
-msgid "Waiting: {count}"
-msgstr "In attesa: {count}"
-
-msgctxt "moderation.review_new_thread"
-msgid "New thread"
-msgstr "Nuova discussione"
-
-msgctxt "moderation.review_reply_in"
-msgid "Reply in"
-msgstr "Risposta in"
-
-msgctxt "moderation.review_author"
-msgid "Author"
-msgstr "Autore"
-
-msgctxt "moderation.review_category"
-msgid "Category"
-msgstr "Categoria"
-
-msgctxt "moderation.review_reason_first_posts"
-msgid "One of the author's first posts"
-msgstr "Uno dei primi messaggi dell'autore"
-
-msgctxt "moderation.review_reason_flagged"
-msgid "Flagged by the automod rules"
-msgstr "Segnalato dalle regole di moderazione automatica"
-
-msgctxt "moderation.review_approve"
-msgid "Publish"
-msgstr "Pubblica"
-
-msgctxt "moderation.review_reject_reason"
-msgid "Reason for the author (optional)"
-msgstr "Motivo per l'autore (facoltativo)"
-
-msgctxt "moderation.review_reject"
-msgid "Reject"
-msgstr "Rifiuta"
-
-msgctxt "moderation.review_empty"
-msgid "Nothing is waiting for review."
-msgstr "Nulla è in attesa di revisione."
-
-msgctxt "moderation.review_approved"
-msgid "Post published."
-msgstr "Messaggio pubblicato."
-
-msgctxt "moderation.review_rejected"
-msgid "Post rejected."
-msgstr "Messaggio rifiutato."
-
-msgctxt "moderation.review_unchanged"
-msgid "That post was already decided that way."
-msgstr "Quel messaggio era già stato deciso così."
-
-msgctxt "moderation.review_refused"
-msgid "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
-msgstr "Quel messaggio non può più essere pubblicato dove è stato scritto (la discussione potrebbe essere bloccata o eliminata, o l'autore sospeso). Rifiutalo."
-
-msgctxt "moderation.review_conflict"
-msgid "Another moderator already decided that post."
-msgstr "Un altro moderatore ha già deciso quel messaggio."
-
-msgctxt "admin.automod_review"
-msgid "First-post review"
-msgstr "Revisione dei primi messaggi"
-
-#, python-brace-format
-msgctxt "admin.automod_review_help"
-msgid "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
-msgstr "Trattieni i messaggi di un membro per la revisione dello staff finché non ne sono stati pubblicati questo numero (da 0 a {maximum}; 0 disattiva la revisione). Lo staff che modera non viene mai trattenuto."
-
-msgctxt "admin.automod_review_first_posts"
-msgid "Posts held per new member"
-msgstr "Messaggi trattenuti per nuovo membro"
-
-msgctxt "admin.automod_review_flagged"
-msgid "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
-msgstr "Trattieni anche i messaggi segnalati dalle parole sorvegliate o dalla regola sui link, invece di pubblicarli con una segnalazione"
-
-msgctxt "admin.automod_review_save"
-msgid "Save review rule"
-msgstr "Salva la regola di revisione"
-
-msgctxt "admin.automod_review_set"
-msgid "Review rule saved."
-msgstr "Regola di revisione salvata."
-
-msgctxt "admin.automod_invalid_first_posts"
-msgid "Choose a number of posts from 0 to 20."
-msgstr "Scegli un numero di messaggi da 0 a 20."
-
-msgctxt "notifications.type.review_approved"
-msgid "Published"
-msgstr "Pubblicato"
-
-msgctxt "notifications.title.review_approved"
-msgid "Your post was published"
-msgstr "Il tuo messaggio è stato pubblicato"
-
-msgctxt "notifications.body.review_approved"
-msgid "The staff reviewed your post and published it."
-msgstr "Lo staff ha revisionato il tuo messaggio e lo ha pubblicato."
-
-msgctxt "notifications.email_subject.review_approved"
-msgid "Your post was published"
-msgstr "Il tuo messaggio è stato pubblicato"
-
-msgctxt "notifications.email_body.review_approved"
-msgid "The staff reviewed your post and published it. Open GPForum to read it."
-msgstr "Lo staff ha revisionato il tuo messaggio e lo ha pubblicato. Apri GPForum per leggerlo."
-
-msgctxt "notifications.type.review_rejected"
-msgid "Not published"
-msgstr "Non pubblicato"
-
-msgctxt "notifications.title.review_rejected"
-msgid "Your reply was not published"
-msgstr "La tua risposta non è stata pubblicata"
-
-#, python-brace-format
-msgctxt "notifications.body.review_rejected"
-msgid "The staff reviewed your reply and did not publish it. {reason}"
-msgstr "Lo staff ha revisionato la tua risposta e non l'ha pubblicata. {reason}"
-
-msgctxt "notifications.email_subject.review_rejected"
-msgid "Your reply was not published"
-msgstr "La tua risposta non è stata pubblicata"
-
-#, python-brace-format
-msgctxt "notifications.email_body.review_rejected"
-msgid "The staff reviewed your reply and did not publish it. {reason}"
-msgstr "Lo staff ha revisionato la tua risposta e non l'ha pubblicata. {reason}"
-
-msgctxt "state.approved"
-msgid "Approved"
-msgstr "Approvato"
-
-msgctxt "state.withdrawn"
-msgid "Withdrawn"
-msgstr "Ritirato"

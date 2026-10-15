@@ -546,6 +546,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Threads carry tags.** An author names up to five tags with the title,
+  on the new-thread form and in the edit-title sheet (ADR 0135, migration
+  117): each a link under the title on the thread page, on its category's
+  rows and on the home page's latest list. `/tags` lists every tag with how
+  many discussions the reader may read under it, and `/tags/:slug` those
+  discussions, in every category or in one (`?category=ID`). The thread
+  command is untouched: the tags are set after it, through
+  `api.forum_set_thread_tags_v1`, and read per page through
+  `api.forum_thread_tags_v1`; the tag pages read
+  `api.forum_list_tagged_threads_v1` and `api.forum_list_tags_v1`.
 - **First-post review queue** (PB-05, ADR 0134). Staff can hold a new
   member's first posts (a number from 1 to 20, set in `/admin/automod`;
   off by default) and, optionally, the posts the watched words or the link

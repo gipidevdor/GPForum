@@ -53,6 +53,7 @@ sub create_thread ($self) {
     }
 
     return $self->_held_response($result) if $result->{held};
+    $self->_set_thread_tags( $result->{stored}{thread} );
     return $self->created_thread_response( $result->{stored} );
 }
 
@@ -77,6 +78,7 @@ sub edit_thread ($self) {
         return $self->reply_write_failure($result);
     }
 
+    $self->_set_thread_tags( $result->{stored}{thread} );
     return $self->updated_thread_response( $result->{stored} );
 }
 
@@ -166,7 +168,7 @@ sub create_reply ($self) {
             draft_revision => $draft->{draft_revision},
             visibility     => $self->param('visibility'),
 
-            # ADR 0134: kept with a reply held for review, linked once
+            # ADR 0135: kept with a reply held for review, linked once
             # it is published.
             reply_to_post_id => $self->param('reply_to_post_id'),
         }
@@ -194,7 +196,7 @@ sub create_reply ($self) {
     return $self->created_post_response( $result->{stored} );
 }
 
-# ADR 0134: a post held for review is accepted, not created. The author is
+# ADR 0135: a post held for review is accepted, not created. The author is
 # taken to their posts awaiting review, where it is; a script asking for a
 # thread fragment is sent there as well.
 sub _held_response ( $self, $result ) {
@@ -228,6 +230,24 @@ sub _held_response ( $self, $result ) {
 
 # A reply that answers a post is linked to it once made (ADR 0132); a link
 # that cannot be written leaves the reply as it is, and says so in the log.
+# The tags a thread is given with its title (ADR 0135): set once the
+# thread is made or its title saved, a field left out leaves them, a
+# field sent empty clears them. A write that fails leaves the thread as
+# it is: the thread is the content, the tags a hint.
+sub _set_thread_tags ( $self, $thread ) {
+    my $text = $self->param('tags');
+    return if !defined $text;
+    my $thread_id = $self->_column( $thread, 'thread_id' );
+    return if !$thread_id;
+    try {
+        $self->gp_thread_tags->set_thread_tags( $thread_id, $text );
+    }
+    catch ($error) {
+        $self->app->log->warn("thread tags failed: $error");
+    };
+    return;
+}
+
 sub _link_reply ( $self, $stored ) {
     my $target = $self->param('reply_to_post_id');
     return if !defined $target || !length $target;

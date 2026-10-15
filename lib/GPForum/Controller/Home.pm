@@ -19,6 +19,8 @@ sub show ($self) {
                 viewer => $self->gp_forum_viewer,
             }
         );
+        _attach_tags( $home->{latest_threads}{items},
+            $self->gp_tags_for_threads( $home->{latest_threads}{items} ) );
     }
     catch ($error) {
         $self->app->log->error("home page read failed: $error");
@@ -27,6 +29,15 @@ sub show ($self) {
 
     return $access->render_page( $self,
         $access->page_payload( $home, $self->gp_runtime->as_hash ) );
+}
+
+# The tags of each listed thread on its row (ADR 0135).
+sub _attach_tags ( $threads, $tags ) {
+    for my $thread ( @{ $threads || [] } ) {
+        $thread->{tags} = $tags->{ $thread->{thread_id} // q{} } // [];
+    }
+
+    return;
 }
 
 1;

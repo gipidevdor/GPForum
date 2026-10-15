@@ -137,7 +137,7 @@ sub _forum {
         qw(
         gp_category_reader gp_home_page_reader gp_thread_reader
         gp_thread_detail_reader gp_post_reader gp_thread_read_state
-        gp_bookmark_store gp_like_store gp_reply_links gp_subscription_store gp_search_service
+        gp_bookmark_store gp_like_store gp_reply_links gp_thread_tags gp_subscription_store gp_search_service
         gp_rate_limiter gp_suspension_store gp_attachment_store
         )
       )

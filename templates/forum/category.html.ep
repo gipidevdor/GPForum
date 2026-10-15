@@ -33,6 +33,7 @@
               <%= include 'components/badge', label => t('forum.pinned') %>
             % }
           </h2>
+          <%= include 'forum/_tag_list', tags => $thread->{tags} %>
           <p class="ui-meta">
             % if ($thread->{author_username}) {
               <span>

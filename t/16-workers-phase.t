@@ -354,7 +354,11 @@ is( $thread_dispatch->{handlers},
     'thread event dispatches to search, cache, feed, and reputation' );
 is_deeply(
     $thread_dispatch->{results}[1]{tags},
-    [ 'threads', 'forum-index', 'thread:thread-1', 'forum:thread:thread-1' ],
+    [
+        'threads',         'forum-index',
+        'thread:thread-1', 'forum:thread:thread-1',
+        'forum:tags',
+    ],
     'thread cache invalidation records thread tags'
 );
 is( $thread_dispatch->{results}[2]{action},
@@ -543,6 +547,7 @@ is_deeply(
         'thread:thread-1',           'category:category-2',
         'category:category-1',       'forum:thread:thread-1',
         'forum:category:category-2', 'forum:category:category-1',
+        'forum:tags',
     ],
     'thread move invalidates origin and destination category tags'
 );

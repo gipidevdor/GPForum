@@ -584,6 +584,37 @@ const my %FUNCTION => (
     },
     forum_reply_targets =>
       { version => 2, parameters => [ post_ids => 'uuid[]' ] },
+    forum_set_thread_tags => {
+        version    => 2,
+        parameters =>
+          [ thread_id => 'uuid', slugs => 'text[]', names => 'text[]' ]
+    },
+    forum_thread_tags =>
+      { version => 2, parameters => [ thread_ids => 'uuid[]' ] },
+    forum_list_tagged_threads => {
+        version    => 2,
+        parameters => [
+            tag_slug      => 'text',
+            category_id   => 'uuid',
+            member        => 'boolean',
+            global_read   => 'boolean',
+            scope_user_id => 'uuid',
+            category_ids  => 'uuid[]',
+            space_ids     => 'uuid[]',
+            row_limit     => 'integer'
+        ]
+    },
+    forum_list_tags => {
+        version    => 2,
+        parameters => [
+            member        => 'boolean',
+            global_read   => 'boolean',
+            scope_user_id => 'uuid',
+            category_ids  => 'uuid[]',
+            space_ids     => 'uuid[]',
+            row_limit     => 'integer'
+        ]
+    },
     community_post_likes => {
         version    => 2,
         parameters => [ post_ids => 'uuid[]', viewer_user_id => 'uuid' ]

@@ -55,6 +55,7 @@
                 <%= include 'components/badge', label => t('forum.pinned') %>
               % }
             </h3>
+            <%= include 'forum/_tag_list', tags => $thread->{tags} %>
             % if ($thread->{safe_excerpt}) {
               <p><%= $thread->{safe_excerpt} %></p>
             % }

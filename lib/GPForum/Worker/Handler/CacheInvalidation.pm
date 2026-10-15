@@ -172,9 +172,9 @@ sub _thread_tags ($event) {
       map { _event_value( $event, $_ ) } qw(category_id previous_category_id);
 
     return [
-        qw(threads forum-index), "thread:$thread_id",
-        @categories,             "forum:thread:$thread_id",
-        map { "forum:$_" } @categories,
+        qw(threads forum-index),            "thread:$thread_id",
+        @categories,                        "forum:thread:$thread_id",
+        ( map { "forum:$_" } @categories ), 'forum:tags',
     ];
 }
 

@@ -204,6 +204,166 @@ msgctxt "admin.audit_until"
 msgid "Until (UTC day)"
 msgstr "Until (UTC day)"
 
+msgctxt "admin.automod"
+msgid "Watched words"
+msgstr "Watched words"
+
+msgctxt "admin.automod_action"
+msgid "Action"
+msgstr "Action"
+
+msgctxt "admin.automod_action_block"
+msgid "Block the post"
+msgstr "Block the post"
+
+msgctxt "admin.automod_action_flag"
+msgid "Publish and send to the moderation queue"
+msgstr "Publish and send to the moderation queue"
+
+msgctxt "admin.automod_action_replace"
+msgid "Replace the text"
+msgstr "Replace the text"
+
+msgctxt "admin.automod_add"
+msgid "Add watched word"
+msgstr "Add watched word"
+
+msgctxt "admin.automod_added"
+msgid "Added"
+msgstr "Added"
+
+msgctxt "admin.automod_duplicate"
+msgid "That word or phrase is already watched."
+msgstr "That word or phrase is already watched."
+
+msgctxt "admin.automod_intro"
+msgid "Watched words and the link rule screen every new thread, reply and edit. Staff who moderate every thread are not screened. Each change and each decision is recorded in the audit log."
+msgstr "Watched words and the link rule screen every new thread, reply and edit. Staff who moderate every thread are not screened. Each change and each decision is recorded in the audit log."
+
+msgctxt "admin.automod_invalid_action"
+msgid "Choose an action."
+msgstr "Choose an action."
+
+msgctxt "admin.automod_invalid_first_posts"
+msgid "Choose a number of posts from 0 to 20."
+msgstr "Choose a number of posts from 0 to 20."
+
+msgctxt "admin.automod_invalid_link_action"
+msgid "Choose block or flag."
+msgstr "Choose block or flag."
+
+msgctxt "admin.automod_invalid_link_limit"
+msgid "The link limit is a number from 0 to 100, or empty."
+msgstr "The link limit is a number from 0 to 100, or empty."
+
+msgctxt "admin.automod_invalid_link_trust_below"
+msgid "The trust level is a number from 0 to 100."
+msgstr "The trust level is a number from 0 to 100."
+
+msgctxt "admin.automod_invalid_phrase"
+msgid "Enter a word or phrase of at most 100 characters, with * only at its start or end."
+msgstr "Enter a word or phrase of at most 100 characters, with * only at its start or end."
+
+msgctxt "admin.automod_invalid_replacement"
+msgid "The replacement can be at most 100 characters."
+msgstr "The replacement can be at most 100 characters."
+
+#, python-brace-format
+msgctxt "admin.automod_limit"
+msgid "The list is full: it holds at most {maximum} entries. Remove one first."
+msgstr "The list is full: it holds at most {maximum} entries. Remove one first."
+
+msgctxt "admin.automod_link_limit"
+msgid "Most links in a post"
+msgstr "Most links in a post"
+
+msgctxt "admin.automod_link_trust_below"
+msgid "Applies below trust level"
+msgstr "Applies below trust level"
+
+msgctxt "admin.automod_links"
+msgid "Links from new members"
+msgstr "Links from new members"
+
+msgctxt "admin.automod_links_help"
+msgid "Limits the links in one post by a member below the given trust level. Leave the limit empty to turn the rule off."
+msgstr "Limits the links in one post by a member below the given trust level. Leave the limit empty to turn the rule off."
+
+msgctxt "admin.automod_links_save"
+msgid "Save link rule"
+msgstr "Save link rule"
+
+msgctxt "admin.automod_links_set"
+msgid "Link rule saved."
+msgstr "Link rule saved."
+
+msgctxt "admin.automod_no_words"
+msgid "No watched words yet."
+msgstr "No watched words yet."
+
+msgctxt "admin.automod_phrase"
+msgid "Word or phrase"
+msgstr "Word or phrase"
+
+#, python-brace-format
+msgctxt "admin.automod_phrase_help"
+msgid "A word or phrase, matched whole and regardless of case. Put * at the start or end to match words that begin or end with it, as in spam*. At most {maximum} entries."
+msgstr "A word or phrase, matched whole and regardless of case. Put * at the start or end to match words that begin or end with it, as in spam*. At most {maximum} entries."
+
+msgctxt "admin.automod_remove"
+msgid "Remove"
+msgstr "Remove"
+
+msgctxt "admin.automod_replacement"
+msgid "Replacement"
+msgstr "Replacement"
+
+#, python-brace-format
+msgctxt "admin.automod_replacement_help"
+msgid "Used only by Replace. Left empty, the text becomes {default}."
+msgstr "Used only by Replace. Left empty, the text becomes {default}."
+
+msgctxt "admin.automod_review"
+msgid "First-post review"
+msgstr "First-post review"
+
+msgctxt "admin.automod_review_first_posts"
+msgid "Posts held per new member"
+msgstr "Posts held per new member"
+
+msgctxt "admin.automod_review_flagged"
+msgid "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
+msgstr "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
+
+#, python-brace-format
+msgctxt "admin.automod_review_help"
+msgid "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
+msgstr "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
+
+msgctxt "admin.automod_review_save"
+msgid "Save review rule"
+msgstr "Save review rule"
+
+msgctxt "admin.automod_review_set"
+msgid "Review rule saved."
+msgstr "Review rule saved."
+
+msgctxt "admin.automod_unchanged"
+msgid "Nothing changed."
+msgstr "Nothing changed."
+
+msgctxt "admin.automod_word_added"
+msgid "Watched word added."
+msgstr "Watched word added."
+
+msgctxt "admin.automod_word_removed"
+msgid "Watched word removed."
+msgstr "Watched word removed."
+
+msgctxt "admin.automod_words"
+msgid "Watched words"
+msgstr "Watched words"
+
 msgctxt "admin.benchmark_evidence"
 msgid "Benchmark evidence"
 msgstr "Benchmark evidence"
@@ -1361,6 +1521,16 @@ msgctxt "forum.attachment_uploaded"
 msgid "Attachment uploaded"
 msgstr "Attachment uploaded"
 
+#, python-brace-format
+msgctxt "forum.automod_links"
+msgid "A post can contain at most {limit} links for now. Remove some and try again."
+msgstr "A post can contain at most {limit} links for now. Remove some and try again."
+
+#, python-brace-format
+msgctxt "forum.automod_words"
+msgid "This contains words that are not allowed here: {words}. Change them and try again."
+msgstr "This contains words that are not allowed here: {words}. Change them and try again."
+
 msgctxt "forum.back_to_categories"
 msgid "Back to categories"
 msgstr "Back to categories"
@@ -1692,6 +1862,14 @@ msgctxt "forum.no_public_discussions"
 msgid "No public discussions are visible yet."
 msgstr "No public discussions are visible yet."
 
+msgctxt "forum.no_tagged_threads"
+msgid "No discussion you can read carries this tag."
+msgstr "No discussion you can read carries this tag."
+
+msgctxt "forum.no_tags"
+msgid "No tags yet."
+msgstr "No tags yet."
+
 msgctxt "forum.no_visible_posts"
 msgid "No visible posts are available."
 msgstr "No visible posts are available."
@@ -1820,6 +1998,42 @@ msgctxt "forum.restore_thread"
 msgid "Restore thread"
 msgstr "Restore thread"
 
+msgctxt "forum.review_mine"
+msgid "Awaiting review"
+msgstr "Awaiting review"
+
+msgctxt "forum.review_mine_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nothing is waiting for review."
+
+msgctxt "forum.review_mine_hint"
+msgid "Only you and the staff can see these posts until they are published."
+msgstr "Only you and the staff can see these posts until they are published."
+
+msgctxt "forum.review_open_published"
+msgid "Open the published post"
+msgstr "Open the published post"
+
+msgctxt "forum.review_rejected_reason"
+msgid "Reason"
+msgstr "Reason"
+
+msgctxt "forum.review_reply_held"
+msgid "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
+msgstr "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
+
+msgctxt "forum.review_thread_held"
+msgid "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
+msgstr "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
+
+msgctxt "forum.review_withdraw"
+msgid "Withdraw"
+msgstr "Withdraw"
+
+msgctxt "forum.review_withdrawn"
+msgid "Post withdrawn."
+msgstr "Post withdrawn."
+
 msgctxt "forum.save_edit"
 msgid "Save edit"
 msgstr "Save edit"
@@ -1852,6 +2066,47 @@ msgstr "Thread subscribed"
 msgctxt "forum.subscription_muted"
 msgid "Subscription muted"
 msgstr "Subscription muted"
+
+msgctxt "forum.tag"
+msgid "Tag"
+msgstr "Tag"
+
+msgctxt "forum.tag_actions"
+msgid "Tag actions"
+msgstr "Tag actions"
+
+msgctxt "forum.tag_in_all_categories"
+msgid "In every category"
+msgstr "In every category"
+
+#, python-brace-format
+msgctxt "forum.tag_in_category"
+msgid "In {category}"
+msgstr "In {category}"
+
+#, python-brace-format
+msgctxt "forum.tagged_thread_count"
+msgid "{count} discussion"
+msgid_plural "{count} discussions"
+msgstr[0] "{count} discussion"
+msgstr[1] "{count} discussions"
+
+#, python-brace-format
+msgctxt "forum.tagged_threads"
+msgid "Discussions tagged {name}"
+msgstr "Discussions tagged {name}"
+
+msgctxt "forum.tags"
+msgid "Tags"
+msgstr "Tags"
+
+msgctxt "forum.tags_description"
+msgid "What the discussions are about, across every category."
+msgstr "What the discussions are about, across every category."
+
+msgctxt "forum.tags_hint"
+msgid "Up to five, separated by commas."
+msgstr "Up to five, separated by commas."
 
 msgctxt "forum.thread"
 msgid "Thread"
@@ -2198,6 +2453,18 @@ msgctxt "moderation.assigned"
 msgid "Report assigned"
 msgstr "Report assigned"
 
+msgctxt "moderation.automod_link_limit"
+msgid "Too many links from a new member"
+msgstr "Too many links from a new member"
+
+msgctxt "moderation.automod_reporter"
+msgid "Automod"
+msgstr "Automod"
+
+msgctxt "moderation.automod_watched_word"
+msgid "Contains a watched word"
+msgstr "Contains a watched word"
+
 msgctxt "moderation.hide_hint"
 msgid "A hidden thread leaves every list and page until a moderator restores it."
 msgstr "A hidden thread leaves every list and page until a moderator restores it."
@@ -2290,6 +2557,10 @@ msgctxt "moderation.report_thread"
 msgid "Report thread"
 msgstr "Report thread"
 
+msgctxt "moderation.reporter"
+msgid "Reported by"
+msgstr "Reported by"
+
 msgctxt "moderation.reports"
 msgid "Moderation reports"
 msgstr "Moderation reports"
@@ -2337,6 +2608,79 @@ msgstr "Reverse action"
 msgctxt "moderation.reversed"
 msgid "Reversed"
 msgstr "Reversed"
+
+msgctxt "moderation.review_approve"
+msgid "Publish"
+msgstr "Publish"
+
+msgctxt "moderation.review_approved"
+msgid "Post published."
+msgstr "Post published."
+
+msgctxt "moderation.review_author"
+msgid "Author"
+msgstr "Author"
+
+msgctxt "moderation.review_category"
+msgid "Category"
+msgstr "Category"
+
+msgctxt "moderation.review_conflict"
+msgid "Another moderator already decided that post."
+msgstr "Another moderator already decided that post."
+
+msgctxt "moderation.review_empty"
+msgid "Nothing is waiting for review."
+msgstr "Nothing is waiting for review."
+
+msgctxt "moderation.review_intro"
+msgid "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
+msgstr "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
+
+msgctxt "moderation.review_new_thread"
+msgid "New thread"
+msgstr "New thread"
+
+#, python-brace-format
+msgctxt "moderation.review_pending_total"
+msgid "Waiting: {count}"
+msgstr "Waiting: {count}"
+
+msgctxt "moderation.review_queue"
+msgid "Review queue"
+msgstr "Review queue"
+
+msgctxt "moderation.review_reason_first_posts"
+msgid "One of the author's first posts"
+msgstr "One of the author's first posts"
+
+msgctxt "moderation.review_reason_flagged"
+msgid "Flagged by the automod rules"
+msgstr "Flagged by the automod rules"
+
+msgctxt "moderation.review_refused"
+msgid "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
+msgstr "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
+
+msgctxt "moderation.review_reject"
+msgid "Reject"
+msgstr "Reject"
+
+msgctxt "moderation.review_reject_reason"
+msgid "Reason for the author (optional)"
+msgstr "Reason for the author (optional)"
+
+msgctxt "moderation.review_rejected"
+msgid "Post rejected."
+msgstr "Post rejected."
+
+msgctxt "moderation.review_reply_in"
+msgid "Reply in"
+msgstr "Reply in"
+
+msgctxt "moderation.review_unchanged"
+msgid "That post was already decided that way."
+msgstr "That post was already decided that way."
 
 msgctxt "moderation.revoke_suspension"
 msgid "Revoke suspension"
@@ -2477,6 +2821,11 @@ msgctxt "nav.start_thread"
 msgid "Start a thread"
 msgstr "Start a thread"
 
+msgctxt "nav.tags"
+msgid "Tags"
+msgstr "Tags"
+
+
 msgctxt "nav.your_data"
 msgid "Your data"
 msgstr "Your data"
@@ -2496,6 +2845,15 @@ msgstr "You have a new notification."
 msgctxt "notifications.body.reply"
 msgid "A followed thread has a new reply."
 msgstr "A followed thread has a new reply."
+
+msgctxt "notifications.body.review_approved"
+msgid "The staff reviewed your post and published it."
+msgstr "The staff reviewed your post and published it."
+
+#, python-brace-format
+msgctxt "notifications.body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr "The staff reviewed your reply and did not publish it. {reason}"
 
 msgctxt "notifications.channel.digest"
 msgid "Digest"
@@ -2545,6 +2903,15 @@ msgctxt "notifications.email_body.reply"
 msgid "Open GPForum to read the new reply in a thread you follow."
 msgstr "Open GPForum to read the new reply in a thread you follow."
 
+msgctxt "notifications.email_body.review_approved"
+msgid "The staff reviewed your post and published it. Open GPForum to read it."
+msgstr "The staff reviewed your post and published it. Open GPForum to read it."
+
+#, python-brace-format
+msgctxt "notifications.email_body.review_rejected"
+msgid "The staff reviewed your reply and did not publish it. {reason}"
+msgstr "The staff reviewed your reply and did not publish it. {reason}"
+
 msgctxt "notifications.email_subject.follow"
 msgid "New activity in a followed thread"
 msgstr "New activity in a followed thread"
@@ -2560,6 +2927,14 @@ msgstr "New notification on GPForum"
 msgctxt "notifications.email_subject.reply"
 msgid "New reply in a followed thread"
 msgstr "New reply in a followed thread"
+
+msgctxt "notifications.email_subject.review_approved"
+msgid "Your post was published"
+msgstr "Your post was published"
+
+msgctxt "notifications.email_subject.review_rejected"
+msgid "Your reply was not published"
+msgstr "Your reply was not published"
 
 msgctxt "notifications.empty"
 msgid "No notifications yet."
@@ -2637,6 +3012,14 @@ msgctxt "notifications.title.reply"
 msgid "New reply in a followed thread"
 msgstr "New reply in a followed thread"
 
+msgctxt "notifications.title.review_approved"
+msgid "Your post was published"
+msgstr "Your post was published"
+
+msgctxt "notifications.title.review_rejected"
+msgid "Your reply was not published"
+msgstr "Your reply was not published"
+
 msgctxt "notifications.type.follow"
 msgid "Follow"
 msgstr "Follow"
@@ -2652,6 +3035,14 @@ msgstr "Notification"
 msgctxt "notifications.type.reply"
 msgid "Reply"
 msgstr "Reply"
+
+msgctxt "notifications.type.review_approved"
+msgid "Published"
+msgstr "Published"
+
+msgctxt "notifications.type.review_rejected"
+msgid "Not published"
+msgstr "Not published"
 
 #, python-brace-format
 msgctxt "notifications.unread_count"
@@ -3127,6 +3518,10 @@ msgctxt "state.all"
 msgid "All"
 msgstr "All"
 
+msgctxt "state.approved"
+msgid "Approved"
+msgstr "Approved"
+
 msgctxt "state.behind"
 msgid "Behind"
 msgstr "Behind"
@@ -3211,6 +3606,11 @@ msgctxt "state.unknown"
 msgid "Unknown"
 msgstr "Unknown"
 
+msgctxt "state.withdrawn"
+msgid "Withdrawn"
+msgstr "Withdrawn"
+
+
 msgctxt "target.post"
 msgid "Post"
 msgstr "Post"
@@ -3286,348 +3686,3 @@ msgstr "Pagination"
 msgctxt "ui.status_banner"
 msgid "Status"
 msgstr "Status"
-
-msgctxt "admin.automod"
-msgid "Watched words"
-msgstr "Watched words"
-
-msgctxt "admin.automod_intro"
-msgid "Watched words and the link rule screen every new thread, reply and edit. Staff who moderate every thread are not screened. Each change and each decision is recorded in the audit log."
-msgstr "Watched words and the link rule screen every new thread, reply and edit. Staff who moderate every thread are not screened. Each change and each decision is recorded in the audit log."
-
-msgctxt "admin.automod_words"
-msgid "Watched words"
-msgstr "Watched words"
-
-#, python-brace-format
-msgctxt "admin.automod_phrase_help"
-msgid "A word or phrase, matched whole and regardless of case. Put * at the start or end to match words that begin or end with it, as in spam*. At most {maximum} entries."
-msgstr "A word or phrase, matched whole and regardless of case. Put * at the start or end to match words that begin or end with it, as in spam*. At most {maximum} entries."
-
-msgctxt "admin.automod_phrase"
-msgid "Word or phrase"
-msgstr "Word or phrase"
-
-msgctxt "admin.automod_action"
-msgid "Action"
-msgstr "Action"
-
-msgctxt "admin.automod_action_block"
-msgid "Block the post"
-msgstr "Block the post"
-
-msgctxt "admin.automod_action_flag"
-msgid "Publish and send to the moderation queue"
-msgstr "Publish and send to the moderation queue"
-
-msgctxt "admin.automod_action_replace"
-msgid "Replace the text"
-msgstr "Replace the text"
-
-msgctxt "admin.automod_replacement"
-msgid "Replacement"
-msgstr "Replacement"
-
-#, python-brace-format
-msgctxt "admin.automod_replacement_help"
-msgid "Used only by Replace. Left empty, the text becomes {default}."
-msgstr "Used only by Replace. Left empty, the text becomes {default}."
-
-msgctxt "admin.automod_add"
-msgid "Add watched word"
-msgstr "Add watched word"
-
-msgctxt "admin.automod_added"
-msgid "Added"
-msgstr "Added"
-
-msgctxt "admin.automod_remove"
-msgid "Remove"
-msgstr "Remove"
-
-msgctxt "admin.automod_no_words"
-msgid "No watched words yet."
-msgstr "No watched words yet."
-
-msgctxt "admin.automod_links"
-msgid "Links from new members"
-msgstr "Links from new members"
-
-msgctxt "admin.automod_links_help"
-msgid "Limits the links in one post by a member below the given trust level. Leave the limit empty to turn the rule off."
-msgstr "Limits the links in one post by a member below the given trust level. Leave the limit empty to turn the rule off."
-
-msgctxt "admin.automod_link_limit"
-msgid "Most links in a post"
-msgstr "Most links in a post"
-
-msgctxt "admin.automod_link_trust_below"
-msgid "Applies below trust level"
-msgstr "Applies below trust level"
-
-msgctxt "admin.automod_links_save"
-msgid "Save link rule"
-msgstr "Save link rule"
-
-msgctxt "admin.automod_word_added"
-msgid "Watched word added."
-msgstr "Watched word added."
-
-msgctxt "admin.automod_word_removed"
-msgid "Watched word removed."
-msgstr "Watched word removed."
-
-msgctxt "admin.automod_links_set"
-msgid "Link rule saved."
-msgstr "Link rule saved."
-
-msgctxt "admin.automod_unchanged"
-msgid "Nothing changed."
-msgstr "Nothing changed."
-
-msgctxt "admin.automod_duplicate"
-msgid "That word or phrase is already watched."
-msgstr "That word or phrase is already watched."
-
-#, python-brace-format
-msgctxt "admin.automod_limit"
-msgid "The list is full: it holds at most {maximum} entries. Remove one first."
-msgstr "The list is full: it holds at most {maximum} entries. Remove one first."
-
-msgctxt "admin.automod_invalid_phrase"
-msgid "Enter a word or phrase of at most 100 characters, with * only at its start or end."
-msgstr "Enter a word or phrase of at most 100 characters, with * only at its start or end."
-
-msgctxt "admin.automod_invalid_action"
-msgid "Choose an action."
-msgstr "Choose an action."
-
-msgctxt "admin.automod_invalid_replacement"
-msgid "The replacement can be at most 100 characters."
-msgstr "The replacement can be at most 100 characters."
-
-msgctxt "admin.automod_invalid_link_limit"
-msgid "The link limit is a number from 0 to 100, or empty."
-msgstr "The link limit is a number from 0 to 100, or empty."
-
-msgctxt "admin.automod_invalid_link_trust_below"
-msgid "The trust level is a number from 0 to 100."
-msgstr "The trust level is a number from 0 to 100."
-
-msgctxt "admin.automod_invalid_link_action"
-msgid "Choose block or flag."
-msgstr "Choose block or flag."
-
-#, python-brace-format
-msgctxt "forum.automod_words"
-msgid "This contains words that are not allowed here: {words}. Change them and try again."
-msgstr "This contains words that are not allowed here: {words}. Change them and try again."
-
-#, python-brace-format
-msgctxt "forum.automod_links"
-msgid "A post can contain at most {limit} links for now. Remove some and try again."
-msgstr "A post can contain at most {limit} links for now. Remove some and try again."
-
-msgctxt "moderation.reporter"
-msgid "Reported by"
-msgstr "Reported by"
-
-msgctxt "moderation.automod_reporter"
-msgid "Automod"
-msgstr "Automod"
-
-msgctxt "moderation.automod_watched_word"
-msgid "Contains a watched word"
-msgstr "Contains a watched word"
-
-msgctxt "moderation.automod_link_limit"
-msgid "Too many links from a new member"
-msgstr "Too many links from a new member"
-
-msgctxt "forum.review_thread_held"
-msgid "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
-msgstr "Thanks! New members' first posts are read by the staff before they appear. Your thread is waiting for review; you will be notified when it is published."
-
-msgctxt "forum.review_reply_held"
-msgid "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
-msgstr "Thanks! New members' first posts are read by the staff before they appear. Your reply is waiting for review; you will be notified when it is published."
-
-msgctxt "forum.review_withdrawn"
-msgid "Post withdrawn."
-msgstr "Post withdrawn."
-
-msgctxt "forum.review_mine"
-msgid "Awaiting review"
-msgstr "Awaiting review"
-
-msgctxt "forum.review_mine_hint"
-msgid "Only you and the staff can see these posts until they are published."
-msgstr "Only you and the staff can see these posts until they are published."
-
-msgctxt "forum.review_mine_empty"
-msgid "Nothing is waiting for review."
-msgstr "Nothing is waiting for review."
-
-msgctxt "forum.review_rejected_reason"
-msgid "Reason"
-msgstr "Reason"
-
-msgctxt "forum.review_open_published"
-msgid "Open the published post"
-msgstr "Open the published post"
-
-msgctxt "forum.review_withdraw"
-msgid "Withdraw"
-msgstr "Withdraw"
-
-msgctxt "moderation.review_queue"
-msgid "Review queue"
-msgstr "Review queue"
-
-msgctxt "moderation.review_intro"
-msgid "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
-msgstr "New members' first posts, and flagged posts when the automod rules say so, wait here until you publish or reject them. Nobody else sees them."
-
-#, python-brace-format
-msgctxt "moderation.review_pending_total"
-msgid "Waiting: {count}"
-msgstr "Waiting: {count}"
-
-msgctxt "moderation.review_new_thread"
-msgid "New thread"
-msgstr "New thread"
-
-msgctxt "moderation.review_reply_in"
-msgid "Reply in"
-msgstr "Reply in"
-
-msgctxt "moderation.review_author"
-msgid "Author"
-msgstr "Author"
-
-msgctxt "moderation.review_category"
-msgid "Category"
-msgstr "Category"
-
-msgctxt "moderation.review_reason_first_posts"
-msgid "One of the author's first posts"
-msgstr "One of the author's first posts"
-
-msgctxt "moderation.review_reason_flagged"
-msgid "Flagged by the automod rules"
-msgstr "Flagged by the automod rules"
-
-msgctxt "moderation.review_approve"
-msgid "Publish"
-msgstr "Publish"
-
-msgctxt "moderation.review_reject_reason"
-msgid "Reason for the author (optional)"
-msgstr "Reason for the author (optional)"
-
-msgctxt "moderation.review_reject"
-msgid "Reject"
-msgstr "Reject"
-
-msgctxt "moderation.review_empty"
-msgid "Nothing is waiting for review."
-msgstr "Nothing is waiting for review."
-
-msgctxt "moderation.review_approved"
-msgid "Post published."
-msgstr "Post published."
-
-msgctxt "moderation.review_rejected"
-msgid "Post rejected."
-msgstr "Post rejected."
-
-msgctxt "moderation.review_unchanged"
-msgid "That post was already decided that way."
-msgstr "That post was already decided that way."
-
-msgctxt "moderation.review_refused"
-msgid "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
-msgstr "That post can no longer be published where it was written (the thread may be locked or gone, or its author suspended). Reject it instead."
-
-msgctxt "moderation.review_conflict"
-msgid "Another moderator already decided that post."
-msgstr "Another moderator already decided that post."
-
-msgctxt "admin.automod_review"
-msgid "First-post review"
-msgstr "First-post review"
-
-#, python-brace-format
-msgctxt "admin.automod_review_help"
-msgid "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
-msgstr "Hold a member's posts for staff review until this many of theirs are published (0 to {maximum}; 0 turns review off). Staff who moderate are never held."
-
-msgctxt "admin.automod_review_first_posts"
-msgid "Posts held per new member"
-msgstr "Posts held per new member"
-
-msgctxt "admin.automod_review_flagged"
-msgid "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
-msgstr "Also hold posts the watched words or the link rule flag, instead of publishing them with a report"
-
-msgctxt "admin.automod_review_save"
-msgid "Save review rule"
-msgstr "Save review rule"
-
-msgctxt "admin.automod_review_set"
-msgid "Review rule saved."
-msgstr "Review rule saved."
-
-msgctxt "admin.automod_invalid_first_posts"
-msgid "Choose a number of posts from 0 to 20."
-msgstr "Choose a number of posts from 0 to 20."
-
-msgctxt "notifications.type.review_approved"
-msgid "Published"
-msgstr "Published"
-
-msgctxt "notifications.title.review_approved"
-msgid "Your post was published"
-msgstr "Your post was published"
-
-msgctxt "notifications.body.review_approved"
-msgid "The staff reviewed your post and published it."
-msgstr "The staff reviewed your post and published it."
-
-msgctxt "notifications.email_subject.review_approved"
-msgid "Your post was published"
-msgstr "Your post was published"
-
-msgctxt "notifications.email_body.review_approved"
-msgid "The staff reviewed your post and published it. Open GPForum to read it."
-msgstr "The staff reviewed your post and published it. Open GPForum to read it."
-
-msgctxt "notifications.type.review_rejected"
-msgid "Not published"
-msgstr "Not published"
-
-msgctxt "notifications.title.review_rejected"
-msgid "Your reply was not published"
-msgstr "Your reply was not published"
-
-#, python-brace-format
-msgctxt "notifications.body.review_rejected"
-msgid "The staff reviewed your reply and did not publish it. {reason}"
-msgstr "The staff reviewed your reply and did not publish it. {reason}"
-
-msgctxt "notifications.email_subject.review_rejected"
-msgid "Your reply was not published"
-msgstr "Your reply was not published"
-
-#, python-brace-format
-msgctxt "notifications.email_body.review_rejected"
-msgid "The staff reviewed your reply and did not publish it. {reason}"
-msgstr "The staff reviewed your reply and did not publish it. {reason}"
-
-msgctxt "state.approved"
-msgid "Approved"
-msgstr "Approved"
-
-msgctxt "state.withdrawn"
-msgid "Withdrawn"
-msgstr "Withdrawn"

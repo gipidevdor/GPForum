@@ -25,27 +25,29 @@ const my $MANY_ROWS => 50;
 # Statements each page may execute, as measured on 2026-09-26. Raising one
 # is a decision to write down in the commit, not a number to bump. The
 # thread page took two more on 2026-10-15, one each for the likes
-# (migration 109) and the reply targets (114): one statement per page,
-# however many posts, as the fifty-row comparison below proves.
+# (migration 109) and the reply targets (114), and the category, home and
+# thread pages one more each for the tags of their threads (117, ADR
+# 0135): one statement per page, however many rows, as the fifty-row
+# comparison below proves.
 const my %BUDGET => (
     anonymous => {
         categories => 1,
-        category   => 2,
-        home       => 2,
+        category   => 3,
+        home       => 3,
         profile    => 6,
         search     => 3,
-        thread     => 5,
+        thread     => 6,
     },
     'signed in' => {
         bookmarks     => 3,
         categories    => 3,
-        category      => 4,
+        category      => 5,
         feed          => 3,
-        home          => 4,
+        home          => 5,
         notifications => 4,
         profile       => 7,
         search        => 5,
-        thread        => 10,
+        thread        => 11,
     },
 );
 

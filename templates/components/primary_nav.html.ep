@@ -6,6 +6,7 @@
 % my $current = sub { return $here eq shift ? ' aria-current="page"' : q{} };
 <nav class="site-nav" aria-label="<%= t('nav.primary') %>">
   <a href="<%= ui_path('categories') %>"<%== $current->('categories') %>><%= t('nav.categories') %></a>
+  <a href="<%= ui_path('tags') %>"<%== $current->('tags') %>><%= t('nav.tags') %></a>
   <a href="<%= ui_path('forum_search') %>"<%== $current->('forum_search') %>><%= t('nav.search') %></a>
   % if (session('user_id')) {
     <a href="<%= ui_path('bookmarks') %>"<%== $current->('bookmarks') %>><%= t('nav.bookmarks') %></a>

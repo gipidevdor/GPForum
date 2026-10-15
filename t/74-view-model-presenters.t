@@ -30,7 +30,8 @@ use GPForum::ViewModel::Privacy::Presenter;
 
 our $VERSION = '0.001';
 
-const my $CATEGORY_FIELD => 3;
+const my $CATEGORY_FIELD => 4;
+const my $BODY_FIELD     => 3;
 const my $LIKE_COUNT     => 3;
 
 my $forum = GPForum::ViewModel::Forum::Presenter->new;
@@ -509,7 +510,7 @@ is(
     ' aria-invalid="true" aria-describedby="thread-title-error"',
     'forum new-thread presenter prepares title error attributes'
 );
-is( $new_thread_form->{form_fields}[2]{error_id},
+is( $new_thread_form->{form_fields}[$BODY_FIELD]{error_id},
     'thread-body-error', 'forum new-thread presenter prepares body error id' );
 is( $new_thread_form->{form_fields}[$CATEGORY_FIELD]{value},
     q{}, 'forum new-thread presenter defaults to inheriting the category' );
@@ -518,6 +519,7 @@ is_deeply(
     [
         { id => 'thread-category',   name => 'category_id' },
         { id => 'thread-title',      name => 'title' },
+        { id => 'thread-tags',       name => 'tags' },
         { id => 'thread-body',       name => 'body_source' },
         { id => 'thread-visibility', name => 'visibility' },
     ],

@@ -8,6 +8,8 @@ use v5.40;
 
 use Const::Fast;
 
+use GPForum::Service::Forum::ThreadTags;
+
 our $VERSION = '0.001';
 
 # The rows the moderation routes act on. Their ids are uuids: a route answers
@@ -23,11 +25,15 @@ const my %MODERATION_ID => (
     user       => '018f1006-0005-7000-8000-000000000002',
 );
 
-has bookmark_removes      => sub { return []; };
-has bookmark_saves        => sub { return []; };
-has like_calls            => sub { return []; };
-has announcements         => sub { return []; };
-has reply_links           => sub { return []; };
+has bookmark_removes => sub { return []; };
+has bookmark_saves   => sub { return []; };
+has like_calls       => sub { return []; };
+has announcements    => sub { return []; };
+has reply_links      => sub { return []; };
+has thread_tag_sets  => sub { return []; };
+has thread_tags      => sub {
+    return { 'thread-1' => [ { name => 'Perl', slug => 'perl' } ] };
+};
 has reply_targets         => sub { return {}; };
 has last_moderation_input => sub { return {}; };
 has mode                  => 'forum';
@@ -1144,6 +1150,64 @@ sub targets_for_posts {
         map  { $_ => $self->reply_targets->{$_} }
         grep { $wanted{$_} } keys %{ $self->reply_targets }
     };
+}
+
+# Tags (ADR 0135): thread-1 carries one; a set is recorded and answers the
+# names given; the tag page lists the threads carrying the slug.
+sub set_thread_tags {
+    my ( $self, $thread_id, $text ) = @_;
+
+    push @{ $self->thread_tag_sets }, [ $thread_id, $text ];
+    return [
+        map { +{ name => $_, slug => lc } }
+          grep { length } map { s/\A\s+|\s+\z//gmsxr } split /,/msx,
+        $text // q{}
+    ];
+}
+
+sub tags_for_threads {
+    my ( $self, $thread_ids ) = @_;
+
+    my %wanted = map { $_ => 1 } @{$thread_ids};
+    return {
+        map  { $_ => $self->thread_tags->{$_} }
+        grep { $wanted{$_} } keys %{ $self->thread_tags }
+    };
+}
+
+sub list_tagged_threads {
+    my ( $self, $request ) = @_;
+
+    return [
+        map { $self->_visible_thread($_) }
+        grep {
+            grep { $_->{slug} eq $request->{slug} }
+              @{ $self->thread_tags->{$_} }
+          }
+          sort keys %{ $self->thread_tags }
+    ];
+}
+
+sub list_tags {
+    my ( $self, $request ) = @_;
+
+    my %count;
+    for my $tags ( values %{ $self->thread_tags } ) {
+        for my $tag ( @{$tags} ) {
+            $count{ $tag->{slug} } = {
+                %{$tag},
+                thread_count => ( $count{ $tag->{slug} }{thread_count} // 0 ) +
+                  1
+            };
+        }
+    }
+    return [ map { $count{$_} } sort keys %count ];
+}
+
+sub is_slug {
+    my ( $self, $slug ) = @_;
+
+    return GPForum::Service::Forum::ThreadTags->is_slug($slug);
 }
 
 sub active_announcements {

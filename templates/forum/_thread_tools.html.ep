@@ -91,6 +91,9 @@
             <input type="hidden" name="command_id" value="<%= $thread->{edit_thread_command_id} || q{} %>">
             <label for="thread-edit-title"><%= t('forum.thread_title') %></label>
             <input id="thread-edit-title" name="title" type="text" required value="<%= $thread->{title} %>">
+            <label for="thread-edit-tags"><%= t('forum.tags') %></label>
+            <input id="thread-edit-tags" name="tags" type="text" autocomplete="off" aria-describedby="thread-edit-tags-hint" value="<%= join q{, }, map { $_->{name} } @{ $thread->{tags} || [] } %>">
+            <p class="ui-hint" id="thread-edit-tags-hint"><%= t('forum.tags_hint') %></p>
             <button type="submit" class="button--secondary"><%= t('forum.save_title') %></button>
           </form>
         </section>

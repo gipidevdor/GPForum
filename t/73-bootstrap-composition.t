@@ -218,6 +218,8 @@ sub _helper_names {
       gp_bookmark_store
       gp_like_store
       gp_reply_links
+      gp_thread_tags
+      gp_tags_for_threads
       gp_community_view_model
       gp_community_workflow
       gp_canonical_url

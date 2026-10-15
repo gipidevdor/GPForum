@@ -30,6 +30,9 @@ otherwise.
 * `GET /c/:category_id` renders one category and a keyset-paginated thread list.
 * `GET /t/:thread_id` renders one visible thread and keyset-paginated posts.
 * `GET /t/:thread_id/:slug` renders the same visible thread through its canonical public URL.
+* `GET /tags` lists every tag with how many discussions the reader may read
+  under it; `GET /tags/:slug` lists those discussions, in every category or
+  in the one `?category=ID` names (ADR 0135).
 * `GET /new-thread` renders the thread form with a CSRF token.
 
 ### Forum writing
@@ -146,6 +149,9 @@ for quota, expiry, publication and privacy behavior.
 * `POST /t/:thread_id/replies` takes an optional `reply_to_post_id`: the reply
   is linked to the post it answers once made, and the page shows "In reply
   to #N" under it (ADR 0132).
+* `POST /threads` and `POST /t/:thread_id/edit` take an optional `tags`
+  field: up to five comma-separated tags, set once the thread is made or its
+  title saved, shown as chips under the title (ADR 0135).
 * `POST /p/:post_id/like` and `/p/:post_id/like/remove` give and take back a
   member's like on a post through `LikeStore` (ADR 0129): one row per member
   and post, counted when the page is read, never on one's own post.

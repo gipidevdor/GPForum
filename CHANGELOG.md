@@ -546,6 +546,12 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Similar discussions while a thread is written**: as the title is typed
+  on the new-thread form, the threads it resembles appear under it, from the
+  same bounded and permission-aware autocomplete the search box uses, so a
+  discussion already open is found before a second one is started. Nothing
+  changes without the page's script.
+
 - **A reply may answer one post** (ADR 0132): "Reply" under a post opens
   the composer naming it ("Replying to #12 by @name", with a way to drop
   it), and "Quote" does the same and quotes the words; once the reply is

@@ -18,7 +18,8 @@ otherwise.
 * `GET /feed.atom` renders a public Atom feed.
 * `GET /search?q=...` renders PostgreSQL-native search results; `scope=threads`
   or `scope=posts` narrows them to thread titles or to posts.
-* `GET /search/autocomplete?q=...` returns bounded PostgreSQL-native autocomplete suggestions.
+* `GET /search/autocomplete?q=...` returns bounded PostgreSQL-native autocomplete suggestions;
+  the new-thread form reads it as a title is typed to list similar discussions.
 * `GET /legal/terms` renders the terms document.
 * `GET /legal/privacy` renders the privacy document.
 * `GET /legal/cookies` renders the cookie document.

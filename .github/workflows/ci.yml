@@ -102,8 +102,8 @@ jobs:
       - name: Check continuous performance evidence contracts
         run: prove -I script/lib -I t/lib -lr t/performance
 
-      - name: Check composer asynchronous behavior
-        run: node --test t/js/composer.test.cjs
+      - name: Check the browser clients (composer, similar threads)
+        run: node --test t/js/
 
       - name: Check Perl syntax
         run: script/gpforum-carton exec script/perl-syntax-check

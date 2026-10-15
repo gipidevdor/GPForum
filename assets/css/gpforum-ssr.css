@@ -2173,3 +2173,23 @@ button[popovertarget] {
   margin-block-end: var(--space-2);
   color: var(--color-subtle);
 }
+
+/* Threads the title being written resembles: a short list under the
+   field, there only while there is something to show. */
+.composer__similar {
+  margin-block: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.composer__similar h2 {
+  font-size: var(--font-size-md);
+  margin-block: 0 var(--space-1);
+}
+
+.composer__similar ul {
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-4);
+}

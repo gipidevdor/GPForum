@@ -18,7 +18,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 325;
+const my $EXPECTED_TESTS   => 327;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -155,7 +155,11 @@ $test->text_is( 'h1' => 'Welcome' );
 $test->get_ok('/new-thread');
 $test->status_is($HTTP_OK);
 $test->element_exists('section[aria-labelledby="new-thread-heading"]');
-$test->text_is( 'h1' => 'Start a thread' );
+$test->element_exists(
+'section[data-similar-threads][data-url="/search/autocomplete"][hidden] ul[data-similar-list]'
+);
+$test->text_is( '#similar-threads-heading' => 'Similar discussions' );
+$test->text_is( 'h1'                       => 'Start a thread' );
 $test->element_exists('label[for="thread-category"]');
 $test->element_exists('select[id="thread-category"][name="category_id"]');
 $test->element_exists('label[for="thread-title"]');

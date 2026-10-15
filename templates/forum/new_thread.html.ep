@@ -28,6 +28,11 @@
     <label for="<%= $title_field->{id} %>"><%= t($title_field->{label_key}) %></label>
     <input id="<%= $title_field->{id} %>" name="<%= $title_field->{name} %>" value="<%= $title_field->{value} %>" required<%== $title_field->{error_attrs} %>>
     <%= include 'components/field_error', field_id => $title_field->{error_id}, message => $title_field->{error} %>
+    <section class="composer__similar" data-similar-threads data-field="<%= $title_field->{name} %>" data-url="<%= ui_path('search_autocomplete') %>" data-thread-base="<%= ui_path('thread', thread_id => 'THREAD_ID') %>" aria-labelledby="similar-threads-heading" aria-live="polite" hidden>
+      <h2 id="similar-threads-heading"><%= t('forum.similar_threads') %></h2>
+      <p class="ui-hint"><%= t('forum.similar_threads_hint') %></p>
+      <ul data-similar-list></ul>
+    </section>
     <label for="<%= $body_field->{id} %>"><%= t($body_field->{label_key}) %></label>
     <textarea id="<%= $body_field->{id} %>" name="<%= $body_field->{name} %>" rows="<%= $body_field->{rows} %>" required<%== $body_field->{error_attrs} %>><%= $body_field->{value} %></textarea>
     <%= include 'components/field_error', field_id => $body_field->{error_id}, message => $body_field->{error} %>

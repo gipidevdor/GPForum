@@ -1,36 +1,36 @@
 {
    "kind" : "latest",
    "run" : {
-      "commit" : "b7b72daa5b7a06af6c82ab36945f966e8b98e6ff",
-      "comparison_signature" : "ae31ad1f35da62787391dc00b07cf2911c76cb27c882e4de56cac94248932d1f",
+      "commit" : "c59806206812c2cc9a0e9bc13284de5e1640415b",
+      "comparison_signature" : "968429cdfe734ba73966f708b44936d6c9260e3d7bf0528a31059dc4cdd9841a",
       "date" : "2026-10-15",
       "metrics" : [
          {
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 18.567,
-                  "cpu_percent" : 0.627,
-                  "duration_seconds" : 0.002,
-                  "p50_ms" : -16.667,
-                  "p95_ms" : -19.264,
-                  "p99_ms" : -12.533,
-                  "requests_per_second" : 18.594,
-                  "rss_bytes" : 0.453
+                  "completed" : 24.383,
+                  "cpu_percent" : 4.892,
+                  "duration_seconds" : 0.255,
+                  "p50_ms" : -16.348,
+                  "p95_ms" : -20.769,
+                  "p99_ms" : -48.178,
+                  "requests_per_second" : 22.312,
+                  "rss_bytes" : 0.501
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 364,
-               "cpu_percent" : 95.003,
-               "duration_seconds" : 2.001119,
+               "completed" : 857,
+               "cpu_percent" : 99.124,
+               "duration_seconds" : 2.005551,
                "http_errors" : 0,
-               "p50_ms" : 5.43,
-               "p95_ms" : 5.767,
-               "p99_ms" : 6.567,
-               "requests_per_second" : 181.960969,
-               "rss_bytes" : 391741440,
+               "p50_ms" : 2.359,
+               "p95_ms" : 2.472,
+               "p99_ms" : 2.688,
+               "requests_per_second" : 421.328857,
+               "rss_bytes" : 391770112,
                "transport_errors" : 0
             },
             "scenario" : "cache_miss",
@@ -40,28 +40,28 @@
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 17.73,
-                  "cpu_percent" : 0.815,
-                  "duration_seconds" : 0.032,
-                  "p50_ms" : -10.281,
-                  "p95_ms" : -25.385,
-                  "p99_ms" : -13.474,
-                  "requests_per_second" : 17.693,
-                  "rss_bytes" : 0.456
+                  "completed" : 20.257,
+                  "cpu_percent" : 6.225,
+                  "duration_seconds" : -0.068,
+                  "p50_ms" : -12.122,
+                  "p95_ms" : -19.046,
+                  "p99_ms" : -12.158,
+                  "requests_per_second" : 20.156,
+                  "rss_bytes" : 0.495
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 664,
-               "cpu_percent" : 191.312,
-               "duration_seconds" : 2.002434,
+               "completed" : 1591,
+               "cpu_percent" : 199.803,
+               "duration_seconds" : 2.001347,
                "http_errors" : 0,
-               "p50_ms" : 29.602,
-               "p95_ms" : 34.669,
-               "p99_ms" : 45.215,
-               "requests_per_second" : 331.596447,
-               "rss_bytes" : 391827456,
+               "p50_ms" : 13.528,
+               "p95_ms" : 16.679,
+               "p99_ms" : 21.638,
+               "requests_per_second" : 793.757702,
+               "rss_bytes" : 391860224,
                "transport_errors" : 0
             },
             "scenario" : "cache_miss",
@@ -71,28 +71,28 @@
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 29.4,
-                  "cpu_percent" : 0.904,
-                  "duration_seconds" : 0.061,
-                  "p50_ms" : -22.811,
-                  "p95_ms" : -23.497,
-                  "p99_ms" : -20.661,
-                  "requests_per_second" : 29.229,
-                  "rss_bytes" : 0.451
+                  "completed" : 20.651,
+                  "cpu_percent" : 7.117,
+                  "duration_seconds" : -0.054,
+                  "p50_ms" : -16.732,
+                  "p95_ms" : -25.505,
+                  "p99_ms" : -15.244,
+                  "requests_per_second" : 20.75,
+                  "rss_bytes" : 0.489
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 647,
-               "cpu_percent" : 191.405,
-               "duration_seconds" : 2.004337,
+               "completed" : 1519,
+               "cpu_percent" : 201.935,
+               "duration_seconds" : 2.002458,
                "http_errors" : 0,
-               "p50_ms" : 144.814,
-               "p95_ms" : 213.427,
-               "p99_ms" : 276.642,
-               "requests_per_second" : 322.800008,
-               "rss_bytes" : 393703424,
+               "p50_ms" : 62.77,
+               "p95_ms" : 75.15,
+               "p99_ms" : 117.222,
+               "requests_per_second" : 758.779539,
+               "rss_bytes" : 393740288,
                "transport_errors" : 0
             },
             "scenario" : "cache_miss",
@@ -100,30 +100,30 @@
          },
          {
             "comparison" : {
-               "classification" : "stable",
+               "classification" : "possible-regression",
                "deltas_pct" : {
-                  "completed" : 1.396,
-                  "cpu_percent" : 0.619,
-                  "duration_seconds" : 0.016,
-                  "p50_ms" : -0.231,
-                  "p95_ms" : -4.246,
-                  "p99_ms" : -6.811,
-                  "requests_per_second" : 2.453,
-                  "rss_bytes" : 0.538
+                  "completed" : -3.672,
+                  "cpu_percent" : 0.855,
+                  "duration_seconds" : -4.72,
+                  "p50_ms" : 1.471,
+                  "p95_ms" : 0,
+                  "p99_ms" : 62.595,
+                  "requests_per_second" : -1.816,
+                  "rss_bytes" : 0.612
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 2325,
-               "cpu_percent" : 99.966,
-               "duration_seconds" : 2.000892,
+               "completed" : 4670,
+               "cpu_percent" : 99.929,
+               "duration_seconds" : 2.000572,
                "http_errors" : 0,
-               "p50_ms" : 0.865,
-               "p95_ms" : 0.902,
-               "p99_ms" : 0.944,
-               "requests_per_second" : 1161.100007,
-               "rss_bytes" : 391819264,
+               "p50_ms" : 0.414,
+               "p95_ms" : 0.462,
+               "p99_ms" : 0.852,
+               "requests_per_second" : 2334.794538,
+               "rss_bytes" : 391790592,
                "transport_errors" : 0
             },
             "scenario" : "health_live",
@@ -133,59 +133,28 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 9.725,
-                  "cpu_percent" : 0.26,
-                  "duration_seconds" : 4.909,
-                  "p50_ms" : -4.763,
-                  "p95_ms" : -2.522,
-                  "p99_ms" : 3.757,
-                  "requests_per_second" : 4.654,
-                  "rss_bytes" : 0.538
+                  "completed" : -5.224,
+                  "cpu_percent" : 0.183,
+                  "duration_seconds" : -4.705,
+                  "p50_ms" : -1.386,
+                  "p95_ms" : 17.474,
+                  "p99_ms" : 24.288,
+                  "requests_per_second" : -0.505,
+                  "rss_bytes" : 0.612
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 4829,
-               "cpu_percent" : 199.265,
-               "duration_seconds" : 2.099813,
+               "completed" : 9252,
+               "cpu_percent" : 199.434,
+               "duration_seconds" : 2.001087,
                "http_errors" : 0,
-               "p50_ms" : 4.299,
-               "p95_ms" : 4.599,
-               "p99_ms" : 5.496,
-               "requests_per_second" : 2299.728595,
-               "rss_bytes" : 391819264,
-               "transport_errors" : 0
-            },
-            "scenario" : "health_live",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 9.172,
-                  "cpu_percent" : -0.109,
-                  "duration_seconds" : 0.015,
-                  "p50_ms" : -7.539,
-                  "p95_ms" : -8.897,
-                  "p99_ms" : -17.796,
-                  "requests_per_second" : 9.115,
-                  "rss_bytes" : 0.552
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 4749,
-               "cpu_percent" : 200.415,
-               "duration_seconds" : 2.003107,
-               "http_errors" : 0,
-               "p50_ms" : 20.836,
-               "p95_ms" : 21.515,
-               "p99_ms" : 24.593,
-               "requests_per_second" : 2370.816936,
-               "rss_bytes" : 392470528,
+               "p50_ms" : 2.064,
+               "p95_ms" : 2.716,
+               "p99_ms" : 3.93,
+               "requests_per_second" : 4623.836045,
+               "rss_bytes" : 391790592,
                "transport_errors" : 0
             },
             "scenario" : "health_live",
@@ -195,28 +164,59 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 6.139,
-                  "cpu_percent" : -0.583,
-                  "duration_seconds" : 0.109,
-                  "p50_ms" : -6.611,
-                  "p95_ms" : 2.133,
-                  "p99_ms" : -6.169,
-                  "requests_per_second" : 6.16,
-                  "rss_bytes" : 0.562
+                  "completed" : 1.9,
+                  "cpu_percent" : -0.037,
+                  "duration_seconds" : 0.028,
+                  "p50_ms" : -1.595,
+                  "p95_ms" : 3.992,
+                  "p99_ms" : 5.151,
+                  "requests_per_second" : 1.811,
+                  "rss_bytes" : 0.607
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 4616,
-               "cpu_percent" : 199.91,
-               "duration_seconds" : 2.005231,
+               "completed" : 9923,
+               "cpu_percent" : 199.968,
+               "duration_seconds" : 2.001791,
                "http_errors" : 0,
-               "p50_ms" : 42.067,
-               "p95_ms" : 50.941,
-               "p99_ms" : 63.773,
-               "requests_per_second" : 2303.079471,
-               "rss_bytes" : 393842688,
+               "p50_ms" : 10.055,
+               "p95_ms" : 11.281,
+               "p99_ms" : 12.227,
+               "requests_per_second" : 4954.105997,
+               "rss_bytes" : 392433664,
+               "transport_errors" : 0
+            },
+            "scenario" : "health_live",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -0.157,
+                  "cpu_percent" : 0.106,
+                  "duration_seconds" : -0.269,
+                  "p50_ms" : -3.388,
+                  "p95_ms" : 24.267,
+                  "p99_ms" : 7.181,
+                  "requests_per_second" : 1.98,
+                  "rss_bytes" : 0.614
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 9549,
+               "cpu_percent" : 200.088,
+               "duration_seconds" : 2.00252,
+               "http_errors" : 0,
+               "p50_ms" : 20.472,
+               "p95_ms" : 28.257,
+               "p99_ms" : 32.672,
+               "requests_per_second" : 4771.279386,
+               "rss_bytes" : 393781248,
                "transport_errors" : 0
             },
             "scenario" : "health_live",
@@ -226,617 +226,555 @@
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 17.197,
-                  "cpu_percent" : -0.49,
-                  "duration_seconds" : -0.046,
-                  "p50_ms" : -17.195,
-                  "p95_ms" : -17.73,
-                  "p99_ms" : -20.049,
-                  "requests_per_second" : 17.252,
-                  "rss_bytes" : 0.55
+                  "completed" : 10.685,
+                  "cpu_percent" : 3.116,
+                  "duration_seconds" : -0.049,
+                  "p50_ms" : -8.019,
+                  "p95_ms" : -10.913,
+                  "p99_ms" : -11.196,
+                  "requests_per_second" : 10.662,
+                  "rss_bytes" : 0.534
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 184,
-               "cpu_percent" : 86.59,
-               "duration_seconds" : 2.001064,
-               "http_errors" : 0,
-               "p50_ms" : 10.662,
-               "p95_ms" : 11.781,
-               "p99_ms" : 12.486,
-               "requests_per_second" : 91.951082,
-               "rss_bytes" : 394358784,
-               "transport_errors" : 0
-            },
-            "scenario" : "home",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 27.451,
-                  "cpu_percent" : -0.599,
-                  "duration_seconds" : 0.212,
-                  "p50_ms" : -20.486,
-                  "p95_ms" : -6.785,
-                  "p99_ms" : -24.677,
-                  "requests_per_second" : 27.497,
-                  "rss_bytes" : 0.56
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 325,
-               "cpu_percent" : 172.352,
-               "duration_seconds" : 2.007204,
-               "http_errors" : 0,
-               "p50_ms" : 62.627,
-               "p95_ms" : 82.574,
-               "p99_ms" : 102.769,
-               "requests_per_second" : 162.330446,
-               "rss_bytes" : 395018240,
-               "transport_errors" : 0
-            },
-            "scenario" : "home",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 29.6,
-                  "cpu_percent" : 0.785,
-                  "duration_seconds" : 0.039,
-                  "p50_ms" : -23.032,
-                  "p95_ms" : -26.089,
-                  "p99_ms" : -22.662,
-                  "requests_per_second" : 29.554,
-                  "rss_bytes" : 0.596
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 324,
-               "cpu_percent" : 174.51,
-               "duration_seconds" : 2.004771,
-               "http_errors" : 0,
-               "p50_ms" : 292.297,
-               "p95_ms" : 471.955,
-               "p99_ms" : 546.873,
-               "requests_per_second" : 161.620193,
-               "rss_bytes" : 397606912,
-               "transport_errors" : 0
-            },
-            "scenario" : "home",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 1.684,
-                  "cpu_percent" : 0.478,
-                  "duration_seconds" : -4.691,
-                  "p50_ms" : -3.605,
-                  "p95_ms" : -8.025,
-                  "p99_ms" : -14,
-                  "requests_per_second" : 3.038,
-                  "rss_bytes" : 0.596
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 1751,
-               "cpu_percent" : 99.915,
-               "duration_seconds" : 2.001126,
-               "http_errors" : 0,
-               "p50_ms" : 1.123,
-               "p95_ms" : 1.192,
-               "p99_ms" : 1.29,
-               "requests_per_second" : 875.376572,
-               "rss_bytes" : 397606912,
-               "transport_errors" : 0
-            },
-            "scenario" : "categories",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 4.593,
-                  "cpu_percent" : 0.282,
-                  "duration_seconds" : -0.064,
-                  "p50_ms" : -3.499,
-                  "p95_ms" : -13.526,
-                  "p99_ms" : -26.12,
-                  "requests_per_second" : 3.977,
-                  "rss_bytes" : 0.596
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3507,
-               "cpu_percent" : 199.296,
-               "duration_seconds" : 2.002499,
-               "http_errors" : 0,
-               "p50_ms" : 5.681,
-               "p95_ms" : 6.029,
-               "p99_ms" : 6.743,
-               "requests_per_second" : 1731.993011,
-               "rss_bytes" : 397606912,
-               "transport_errors" : 0
-            },
-            "scenario" : "categories",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 5.97,
-                  "cpu_percent" : -0.197,
-                  "duration_seconds" : 0.081,
-                  "p50_ms" : -5.753,
-                  "p95_ms" : -7.555,
-                  "p99_ms" : -9.68,
-                  "requests_per_second" : 5.867,
-                  "rss_bytes" : 0.596
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3550,
-               "cpu_percent" : 200.78,
-               "duration_seconds" : 2.004321,
-               "http_errors" : 0,
-               "p50_ms" : 27.931,
-               "p95_ms" : 28.914,
-               "p99_ms" : 35.074,
-               "requests_per_second" : 1770.84648,
-               "rss_bytes" : 397606912,
-               "transport_errors" : 0
-            },
-            "scenario" : "categories",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 6.12,
-                  "cpu_percent" : -0.36,
-                  "duration_seconds" : 0.013,
-                  "p50_ms" : -4.455,
-                  "p95_ms" : -4.916,
-                  "p99_ms" : -16.574,
-                  "requests_per_second" : 3.931,
-                  "rss_bytes" : 0.562
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 1734,
-               "cpu_percent" : 99.483,
-               "duration_seconds" : 2.000717,
-               "http_errors" : 0,
-               "p50_ms" : 1.158,
-               "p95_ms" : 1.238,
-               "p99_ms" : 1.495,
-               "requests_per_second" : 848.92594,
-               "rss_bytes" : 397639680,
-               "transport_errors" : 0
-            },
-            "scenario" : "category",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 5.785,
-                  "cpu_percent" : 0.328,
-                  "duration_seconds" : 0.005,
-                  "p50_ms" : 5.776,
-                  "p95_ms" : 6.33,
-                  "p99_ms" : 9.119,
-                  "requests_per_second" : 5.779,
-                  "rss_bytes" : 0.562
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3383,
-               "cpu_percent" : 199.795,
-               "duration_seconds" : 2.002683,
-               "http_errors" : 0,
-               "p50_ms" : 6.556,
-               "p95_ms" : 7.038,
-               "p99_ms" : 7.85,
-               "requests_per_second" : 1689.233893,
-               "rss_bytes" : 397639680,
-               "transport_errors" : 0
-            },
-            "scenario" : "category",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 6.868,
-                  "cpu_percent" : 0.525,
-                  "duration_seconds" : -0.01,
-                  "p50_ms" : -5.436,
-                  "p95_ms" : -6.959,
-                  "p99_ms" : -0.965,
-                  "requests_per_second" : 6.857,
-                  "rss_bytes" : 0.562
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3439,
-               "cpu_percent" : 201.228,
-               "duration_seconds" : 2.003849,
-               "http_errors" : 0,
-               "p50_ms" : 28.805,
-               "p95_ms" : 32.206,
-               "p99_ms" : 42.675,
-               "requests_per_second" : 1715.996793,
-               "rss_bytes" : 397639680,
-               "transport_errors" : 0
-            },
-            "scenario" : "category",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 4.523,
-                  "cpu_percent" : -0.422,
-                  "duration_seconds" : 0.027,
-                  "p50_ms" : -4.077,
-                  "p95_ms" : -6.284,
-                  "p99_ms" : -24.737,
-                  "requests_per_second" : 4.495,
-                  "rss_bytes" : 0.562
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 1710,
-               "cpu_percent" : 99.45,
-               "duration_seconds" : 2.001465,
-               "http_errors" : 0,
-               "p50_ms" : 1.153,
-               "p95_ms" : 1.223,
-               "p99_ms" : 1.287,
-               "requests_per_second" : 854.374171,
-               "rss_bytes" : 397770752,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 1.864,
-                  "cpu_percent" : 0.067,
-                  "duration_seconds" : 0.079,
-                  "p50_ms" : -2.618,
-                  "p95_ms" : -4.965,
-                  "p99_ms" : -3.123,
-                  "requests_per_second" : 1.777,
-                  "rss_bytes" : 0.562
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3334,
-               "cpu_percent" : 199.346,
-               "duration_seconds" : 2.002884,
-               "http_errors" : 0,
-               "p50_ms" : 5.914,
-               "p95_ms" : 6.144,
-               "p99_ms" : 7.599,
-               "requests_per_second" : 1664.599647,
-               "rss_bytes" : 397770752,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 6.331,
-                  "cpu_percent" : -0.672,
-                  "duration_seconds" : 0.073,
-                  "p50_ms" : -5.67,
-                  "p95_ms" : -13.093,
-                  "p99_ms" : -8.761,
-                  "requests_per_second" : 6.135,
-                  "rss_bytes" : 0.573
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3376,
-               "cpu_percent" : 199.766,
-               "duration_seconds" : 2.004476,
-               "http_errors" : 0,
-               "p50_ms" : 29.245,
-               "p95_ms" : 30.26,
-               "p99_ms" : 37.462,
-               "requests_per_second" : 1683.171822,
-               "rss_bytes" : 397811712,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 8.134,
-                  "cpu_percent" : -0.141,
-                  "duration_seconds" : 0.078,
-                  "p50_ms" : -7.178,
-                  "p95_ms" : -10.973,
-                  "p99_ms" : -5.328,
-                  "requests_per_second" : 8.107,
-                  "rss_bytes" : 0.528
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3350,
-               "cpu_percent" : 200.845,
-               "duration_seconds" : 2.005009,
-               "http_errors" : 0,
-               "p50_ms" : 58.409,
-               "p95_ms" : 60.485,
-               "p99_ms" : 95.854,
-               "requests_per_second" : 1670.580479,
-               "rss_bytes" : 400547840,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 23.478,
-                  "cpu_percent" : -5.002,
-                  "duration_seconds" : -0.028,
-                  "p50_ms" : -18.838,
-                  "p95_ms" : -26.776,
-                  "p99_ms" : -21.171,
-                  "requests_per_second" : 23.513,
-                  "rss_bytes" : 0.476
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 142,
-               "cpu_percent" : 65.174,
+               "completed" : 404,
+               "cpu_percent" : 85.568,
                "duration_seconds" : 2.001405,
                "http_errors" : 0,
-               "p50_ms" : 13.787,
-               "p95_ms" : 14.997,
-               "p99_ms" : 18.2,
-               "requests_per_second" : 70.950158,
-               "rss_bytes" : 401154048,
+               "p50_ms" : 4.806,
+               "p95_ms" : 6.384,
+               "p99_ms" : 9.312,
+               "requests_per_second" : 201.858195,
+               "rss_bytes" : 394092544,
                "transport_errors" : 0
             },
-            "scenario" : "search",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 16.019,
-                  "cpu_percent" : -3.745,
-                  "duration_seconds" : 0.074,
-                  "p50_ms" : -11.734,
-                  "p95_ms" : -25.625,
-                  "p99_ms" : -2.111,
-                  "requests_per_second" : 15.987,
-                  "rss_bytes" : 0.476
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 239,
-               "cpu_percent" : 130.958,
-               "duration_seconds" : 2.002884,
-               "http_errors" : 0,
-               "p50_ms" : 77.486,
-               "p95_ms" : 96.441,
-               "p99_ms" : 159.567,
-               "requests_per_second" : 119.38217,
-               "rss_bytes" : 401154048,
-               "transport_errors" : 0
-            },
-            "scenario" : "search",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 28.161,
-                  "cpu_percent" : -3.578,
-                  "duration_seconds" : -0.04,
-                  "p50_ms" : -13.57,
-                  "p95_ms" : -21.105,
-                  "p99_ms" : -22.455,
-                  "requests_per_second" : 28.213,
-                  "rss_bytes" : 0.476
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 223,
-               "cpu_percent" : 130.462,
-               "duration_seconds" : 2.003073,
-               "http_errors" : 0,
-               "p50_ms" : 406.837,
-               "p95_ms" : 705.646,
-               "p99_ms" : 758.189,
-               "requests_per_second" : 111.328943,
-               "rss_bytes" : 401154048,
-               "transport_errors" : 0
-            },
-            "scenario" : "search",
+            "scenario" : "home",
             "status" : "ok"
          },
          {
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 0,
-                  "cpu_percent" : -3.541,
-                  "duration_seconds" : 0.072,
-                  "p50_ms" : -13.391,
-                  "p95_ms" : -14.177,
-                  "p99_ms" : -14.697,
-                  "requests_per_second" : -0.072,
-                  "rss_bytes" : 0.476
+                  "completed" : 19.184,
+                  "cpu_percent" : 2.218,
+                  "duration_seconds" : 4.872,
+                  "p50_ms" : -12.41,
+                  "p95_ms" : 17.806,
+                  "p99_ms" : 12.145,
+                  "requests_per_second" : 13.647,
+                  "rss_bytes" : 0.628
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 200,
-               "cpu_percent" : 130.954,
-               "duration_seconds" : 2.004816,
+               "completed" : 789,
+               "cpu_percent" : 170.851,
+               "duration_seconds" : 2.099718,
                "http_errors" : 0,
-               "p50_ms" : 772.213,
-               "p95_ms" : 1430.494,
-               "p99_ms" : 1490.52,
-               "requests_per_second" : 99.759778,
-               "rss_bytes" : 401154048,
+               "p50_ms" : 28.564,
+               "p95_ms" : 48.781,
+               "p99_ms" : 55.558,
+               "requests_per_second" : 375.764209,
+               "rss_bytes" : 394919936,
                "transport_errors" : 0
             },
-            "scenario" : "search",
+            "scenario" : "home",
             "status" : "ok"
          },
          {
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 3.527,
-                  "cpu_percent" : 0.055,
-                  "duration_seconds" : 0,
-                  "p50_ms" : -3.902,
-                  "p95_ms" : -2.526,
-                  "p99_ms" : 1.583,
-                  "requests_per_second" : 2.331,
-                  "rss_bytes" : 0.476
+                  "completed" : 7.442,
+                  "cpu_percent" : 2.884,
+                  "duration_seconds" : 0.09,
+                  "p50_ms" : -11.165,
+                  "p95_ms" : 1.638,
+                  "p99_ms" : 0.94,
+                  "requests_per_second" : 7.345,
+                  "rss_bytes" : 0.702
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 1732,
-               "cpu_percent" : 99.462,
-               "duration_seconds" : 2.001834,
+               "completed" : 693,
+               "cpu_percent" : 172.357,
+               "duration_seconds" : 2.00419,
                "http_errors" : 0,
-               "p50_ms" : 1.133,
-               "p95_ms" : 1.235,
-               "p99_ms" : 1.668,
-               "requests_per_second" : 855.215767,
-               "rss_bytes" : 401154048,
+               "p50_ms" : 136.032,
+               "p95_ms" : 207.886,
+               "p99_ms" : 300.411,
+               "requests_per_second" : 345.7756,
+               "rss_bytes" : 397578240,
                "transport_errors" : 0
             },
-            "scenario" : "cache_hit",
+            "scenario" : "home",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 6.083,
+                  "cpu_percent" : -0.099,
+                  "duration_seconds" : -0.024,
+                  "p50_ms" : -5.789,
+                  "p95_ms" : -4.839,
+                  "p99_ms" : 0.9,
+                  "requests_per_second" : 6.07,
+                  "rss_bytes" : 0.702
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 3854,
+               "cpu_percent" : 99.518,
+               "duration_seconds" : 2.099628,
+               "http_errors" : 0,
+               "p50_ms" : 0.537,
+               "p95_ms" : 0.59,
+               "p99_ms" : 0.673,
+               "requests_per_second" : 1835.563252,
+               "rss_bytes" : 397578240,
+               "transport_errors" : 0
+            },
+            "scenario" : "categories",
             "status" : "ok"
          },
          {
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 6.667,
-                  "cpu_percent" : -0.137,
-                  "duration_seconds" : 0.018,
-                  "p50_ms" : -5.984,
-                  "p95_ms" : -9.494,
-                  "p99_ms" : -17.402,
-                  "requests_per_second" : 6.524,
-                  "rss_bytes" : 0.476
+                  "completed" : 0.834,
+                  "cpu_percent" : 0.098,
+                  "duration_seconds" : -4.675,
+                  "p50_ms" : -12.416,
+                  "p95_ms" : -12.466,
+                  "p99_ms" : -26.181,
+                  "requests_per_second" : 5.752,
+                  "rss_bytes" : 0.702
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 3520,
-               "cpu_percent" : 198.929,
-               "duration_seconds" : 2.002243,
+               "completed" : 7130,
+               "cpu_percent" : 199.138,
+               "duration_seconds" : 2.001191,
                "http_errors" : 0,
-               "p50_ms" : 5.703,
-               "p95_ms" : 5.882,
-               "p99_ms" : 6.455,
-               "requests_per_second" : 1733.746602,
-               "rss_bytes" : 401154048,
+               "p50_ms" : 2.864,
+               "p95_ms" : 3.497,
+               "p99_ms" : 3.767,
+               "requests_per_second" : 3560.764471,
+               "rss_bytes" : 397578240,
                "transport_errors" : 0
             },
-            "scenario" : "cache_hit",
+            "scenario" : "categories",
             "status" : "ok"
          },
          {
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 7.2,
-                  "cpu_percent" : -0.66,
+                  "completed" : -0.517,
+                  "cpu_percent" : -0.081,
+                  "duration_seconds" : -0.028,
+                  "p50_ms" : -1.465,
+                  "p95_ms" : -0.676,
+                  "p99_ms" : -12.103,
+                  "requests_per_second" : -0.454,
+                  "rss_bytes" : 0.702
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7125,
+               "cpu_percent" : 199.874,
+               "duration_seconds" : 2.002879,
+               "http_errors" : 0,
+               "p50_ms" : 13.857,
+               "p95_ms" : 14.83,
+               "p99_ms" : 16.812,
+               "requests_per_second" : 3557.260156,
+               "rss_bytes" : 397578240,
+               "transport_errors" : 0
+            },
+            "scenario" : "categories",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "possible-regression",
+               "deltas_pct" : {
+                  "completed" : 0.345,
+                  "cpu_percent" : 0.019,
+                  "duration_seconds" : -0.018,
+                  "p50_ms" : -2.473,
+                  "p95_ms" : 10.178,
+                  "p99_ms" : 102.322,
+                  "requests_per_second" : -2.308,
+                  "rss_bytes" : 0.674
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 3494,
+               "cpu_percent" : 99.523,
+               "duration_seconds" : 2.000171,
+               "http_errors" : 0,
+               "p50_ms" : 0.552,
+               "p95_ms" : 0.682,
+               "p99_ms" : 1.394,
+               "requests_per_second" : 1700.372472,
+               "rss_bytes" : 397631488,
+               "transport_errors" : 0
+            },
+            "scenario" : "category",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "possible-regression",
+               "deltas_pct" : {
+                  "completed" : 0.23,
+                  "cpu_percent" : -0.062,
+                  "duration_seconds" : -4.64,
+                  "p50_ms" : 3.024,
+                  "p95_ms" : 12.33,
+                  "p99_ms" : -13.79,
+                  "requests_per_second" : 2.672,
+                  "rss_bytes" : 0.674
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 6981,
+               "cpu_percent" : 198.989,
+               "duration_seconds" : 2.002185,
+               "http_errors" : 0,
+               "p50_ms" : 3.032,
+               "p95_ms" : 3.644,
+               "p99_ms" : 4.82,
+               "requests_per_second" : 3406.278641,
+               "rss_bytes" : 397631488,
+               "transport_errors" : 0
+            },
+            "scenario" : "category",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 2.355,
+                  "cpu_percent" : -0.242,
+                  "duration_seconds" : -0.131,
+                  "p50_ms" : -0.757,
+                  "p95_ms" : -4.954,
+                  "p99_ms" : -1.092,
+                  "requests_per_second" : 2.474,
+                  "rss_bytes" : 0.674
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 6998,
+               "cpu_percent" : 199.406,
+               "duration_seconds" : 2.001619,
+               "http_errors" : 0,
+               "p50_ms" : 14.028,
+               "p95_ms" : 15.579,
+               "p99_ms" : 23.912,
+               "requests_per_second" : 3495.654658,
+               "rss_bytes" : 397631488,
+               "transport_errors" : 0
+            },
+            "scenario" : "category",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 5.45,
+                  "cpu_percent" : -0.06,
+                  "duration_seconds" : -0.018,
+                  "p50_ms" : -2.921,
+                  "p95_ms" : -3.768,
+                  "p99_ms" : -17.843,
+                  "requests_per_second" : 3.409,
+                  "rss_bytes" : 0.689
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 3657,
+               "cpu_percent" : 99.532,
+               "duration_seconds" : 2.099469,
+               "http_errors" : 0,
+               "p50_ms" : 0.565,
+               "p95_ms" : 0.613,
+               "p99_ms" : 0.64,
+               "requests_per_second" : 1741.599414,
+               "rss_bytes" : 397824000,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 1.933,
+                  "cpu_percent" : -0.075,
+                  "duration_seconds" : -4.667,
+                  "p50_ms" : 16.981,
+                  "p95_ms" : -2.969,
+                  "p99_ms" : 9.221,
+                  "requests_per_second" : 4.128,
+                  "rss_bytes" : 0.689
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7015,
+               "cpu_percent" : 198.935,
+               "duration_seconds" : 2.002045,
+               "http_errors" : 0,
+               "p50_ms" : 3.41,
+               "p95_ms" : 4.281,
+               "p99_ms" : 5.508,
+               "requests_per_second" : 3412.011219,
+               "rss_bytes" : 397824000,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 6.634,
+                  "cpu_percent" : 0.099,
+                  "duration_seconds" : -0.01,
+                  "p50_ms" : -7.489,
+                  "p95_ms" : -25.719,
+                  "p99_ms" : -18.023,
+                  "requests_per_second" : 6.652,
+                  "rss_bytes" : 0.676
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7056,
+               "cpu_percent" : 200.095,
+               "duration_seconds" : 2.002348,
+               "http_errors" : 0,
+               "p50_ms" : 14.057,
+               "p95_ms" : 15.576,
+               "p99_ms" : 21.51,
+               "requests_per_second" : 3521.815692,
+               "rss_bytes" : 397893632,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 2.236,
+                  "cpu_percent" : -0.074,
                   "duration_seconds" : -0.009,
-                  "p50_ms" : -6.804,
-                  "p95_ms" : -8.959,
-                  "p99_ms" : -2.771,
-                  "requests_per_second" : 7.259,
-                  "rss_bytes" : 0.476
+                  "p50_ms" : -2.05,
+                  "p95_ms" : 0.084,
+                  "p99_ms" : -11.32,
+                  "requests_per_second" : 2.349,
+                  "rss_bytes" : 0.404
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 3484,
-               "cpu_percent" : 200.267,
-               "duration_seconds" : 2.00259,
+               "completed" : 6949,
+               "cpu_percent" : 200.339,
+               "duration_seconds" : 2.002833,
                "http_errors" : 0,
-               "p50_ms" : 28.41,
-               "p95_ms" : 30.21,
-               "p99_ms" : 38.487,
-               "requests_per_second" : 1739.747028,
-               "rss_bytes" : 401154048,
+               "p50_ms" : 28.281,
+               "p95_ms" : 31.148,
+               "p99_ms" : 36.56,
+               "requests_per_second" : 3472.04006,
+               "rss_bytes" : 400543744,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 5.512,
+                  "cpu_percent" : 0.838,
+                  "duration_seconds" : -0.002,
+                  "p50_ms" : -8.199,
+                  "p95_ms" : -19.176,
+                  "p99_ms" : 0.915,
+                  "requests_per_second" : 9.403,
+                  "rss_bytes" : 0.423
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 268,
+               "cpu_percent" : 62.24,
+               "duration_seconds" : 2.00176,
+               "http_errors" : 0,
+               "p50_ms" : 7.132,
+               "p95_ms" : 9.378,
+               "p99_ms" : 13.01,
+               "requests_per_second" : 133.887936,
+               "rss_bytes" : 401297408,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 4.328,
+                  "cpu_percent" : 2.681,
+                  "duration_seconds" : -4.67,
+                  "p50_ms" : 0.284,
+                  "p95_ms" : -8.401,
+                  "p99_ms" : -18.606,
+                  "requests_per_second" : 4.346,
+                  "rss_bytes" : 0.423
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 458,
+               "cpu_percent" : 128.731,
+               "duration_seconds" : 2.001873,
+               "http_errors" : 0,
+               "p50_ms" : 45.185,
+               "p95_ms" : 61.046,
+               "p99_ms" : 69.552,
+               "requests_per_second" : 228.74335,
+               "rss_bytes" : 401297408,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 5.896,
+                  "cpu_percent" : -0.375,
+                  "duration_seconds" : 0.025,
+                  "p50_ms" : -1.816,
+                  "p95_ms" : -17.757,
+                  "p99_ms" : -10.593,
+                  "requests_per_second" : 5.87,
+                  "rss_bytes" : 0.423
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 449,
+               "cpu_percent" : 123.696,
+               "duration_seconds" : 2.004621,
+               "http_errors" : 0,
+               "p50_ms" : 203.514,
+               "p95_ms" : 291.612,
+               "p99_ms" : 383.545,
+               "requests_per_second" : 223.982488,
+               "rss_bytes" : 401297408,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -4.5,
+                  "cpu_percent" : 4.737,
+                  "duration_seconds" : 0.078,
+                  "p50_ms" : -4.445,
+                  "p95_ms" : -1.071,
+                  "p99_ms" : 8.489,
+                  "requests_per_second" : -4.574,
+                  "rss_bytes" : 0.436
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 382,
+               "cpu_percent" : 130.468,
+               "duration_seconds" : 2.004633,
+               "http_errors" : 0,
+               "p50_ms" : 433.213,
+               "p95_ms" : 835.351,
+               "p99_ms" : 997.787,
+               "requests_per_second" : 190.558571,
+               "rss_bytes" : 401346560,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 3.349,
+                  "cpu_percent" : -0.373,
+                  "duration_seconds" : -4.73,
+                  "p50_ms" : -4.255,
+                  "p95_ms" : -13.493,
+                  "p99_ms" : -49.919,
+                  "requests_per_second" : 8.483,
+                  "rss_bytes" : 0.436
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 3672,
+               "cpu_percent" : 99.632,
+               "duration_seconds" : 2.000226,
+               "http_errors" : 0,
+               "p50_ms" : 0.54,
+               "p95_ms" : 0.577,
+               "p99_ms" : 0.62,
+               "requests_per_second" : 1835.829268,
+               "rss_bytes" : 401346560,
                "transport_errors" : 0
             },
             "scenario" : "cache_hit",
@@ -846,28 +784,90 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 7.947,
-                  "cpu_percent" : -0.717,
-                  "duration_seconds" : 0.087,
-                  "p50_ms" : -7.543,
-                  "p95_ms" : -6.956,
-                  "p99_ms" : -6.934,
-                  "requests_per_second" : 7.823,
-                  "rss_bytes" : 0.476
+                  "completed" : 3.159,
+                  "cpu_percent" : 0.179,
+                  "duration_seconds" : -0.001,
+                  "p50_ms" : -13.389,
+                  "p95_ms" : -4.681,
+                  "p99_ms" : -8.176,
+                  "requests_per_second" : 5.035,
+                  "rss_bytes" : 0.436
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 3450,
-               "cpu_percent" : 199.752,
-               "duration_seconds" : 2.005009,
+               "completed" : 7217,
+               "cpu_percent" : 199.452,
+               "duration_seconds" : 2.0996,
                "http_errors" : 0,
-               "p50_ms" : 57.074,
-               "p95_ms" : 60.018,
-               "p99_ms" : 90.621,
-               "requests_per_second" : 1720.252104,
-               "rss_bytes" : 401154048,
+               "p50_ms" : 2.788,
+               "p95_ms" : 3.543,
+               "p99_ms" : 4.515,
+               "requests_per_second" : 3540.731904,
+               "rss_bytes" : 401346560,
+               "transport_errors" : 0
+            },
+            "scenario" : "cache_hit",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "possible-regression",
+               "deltas_pct" : {
+                  "completed" : 0.516,
+                  "cpu_percent" : 0.155,
+                  "duration_seconds" : -0.008,
+                  "p50_ms" : -2.953,
+                  "p95_ms" : -8.32,
+                  "p99_ms" : 13.828,
+                  "requests_per_second" : 0.544,
+                  "rss_bytes" : 0.436
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7017,
+               "cpu_percent" : 200.358,
+               "duration_seconds" : 2.002755,
+               "http_errors" : 0,
+               "p50_ms" : 13.936,
+               "p95_ms" : 16.474,
+               "p99_ms" : 26.301,
+               "requests_per_second" : 3503.673689,
+               "rss_bytes" : 401346560,
+               "transport_errors" : 0
+            },
+            "scenario" : "cache_hit",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 2.248,
+                  "cpu_percent" : -1.511,
+                  "duration_seconds" : 0.005,
+                  "p50_ms" : -1.441,
+                  "p95_ms" : -7.575,
+                  "p99_ms" : -9.665,
+                  "requests_per_second" : 2.33,
+                  "rss_bytes" : 0.436
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7096,
+               "cpu_percent" : 197.992,
+               "duration_seconds" : 2.003499,
+               "http_errors" : 0,
+               "p50_ms" : 27.9,
+               "p95_ms" : 29.635,
+               "p99_ms" : 36.413,
+               "requests_per_second" : 3543.02913,
+               "rss_bytes" : 401346560,
                "transport_errors" : 0
             },
             "scenario" : "cache_hit",
@@ -879,13 +879,13 @@
                "deltas_pct" : {
                   "completed" : 0,
                   "concurrency_effective" : 0,
-                  "cpu_percent" : -12.406,
-                  "duration_seconds" : 4.054,
-                  "p50_ms" : 2.477,
-                  "p95_ms" : 17.99,
-                  "p99_ms" : 11.448,
-                  "requests_per_second" : -3.033,
-                  "rss_bytes" : 0.476
+                  "cpu_percent" : -16.755,
+                  "duration_seconds" : -2.632,
+                  "p50_ms" : -9.602,
+                  "p95_ms" : 2.647,
+                  "p99_ms" : 3.681,
+                  "requests_per_second" : 1.943,
+                  "rss_bytes" : 0.436
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -893,14 +893,357 @@
             "metrics" : {
                "completed" : 100,
                "concurrency_effective" : 10,
-               "cpu_percent" : 24.797,
-               "duration_seconds" : 0.077,
+               "cpu_percent" : 20.633,
+               "duration_seconds" : 0.037,
                "http_errors" : 0,
-               "p50_ms" : 6.869,
-               "p95_ms" : 11.694,
-               "p99_ms" : 14.067,
-               "requests_per_second" : 1305.722,
-               "rss_bytes" : 401154048,
+               "p50_ms" : 3.069,
+               "p95_ms" : 5.351,
+               "p99_ms" : 6.112,
+               "requests_per_second" : 2706.352,
+               "rss_bytes" : 401346560,
+               "transport_errors" : 0
+            },
+            "scenario" : "health_live",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 0,
+                  "concurrency_effective" : 0,
+                  "cpu_percent" : -9.962,
+                  "duration_seconds" : -6.667,
+                  "p50_ms" : -5.761,
+                  "p95_ms" : -14.857,
+                  "p99_ms" : -13.181,
+                  "requests_per_second" : 6.811,
+                  "rss_bytes" : 0.433
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 100,
+               "concurrency_effective" : 10,
+               "cpu_percent" : 34.316,
+               "duration_seconds" : 0.056,
+               "http_errors" : 0,
+               "p50_ms" : 5.055,
+               "p95_ms" : 8.029,
+               "p99_ms" : 9.057,
+               "requests_per_second" : 1793.495,
+               "rss_bytes" : 401641472,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 13.811,
+                  "cpu_percent" : 27.43,
+                  "duration_seconds" : -4.639,
+                  "p50_ms" : -17.825,
+                  "p95_ms" : -0.568,
+                  "p99_ms" : 4.171,
+                  "requests_per_second" : 19.312,
+                  "rss_bytes" : 0.511
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 9856,
+               "cpu_percent" : 380.893,
+               "duration_seconds" : 2.002731,
+               "http_errors" : 0,
+               "p50_ms" : 11.355,
+               "p95_ms" : 20.666,
+               "p99_ms" : 27.147,
+               "requests_per_second" : 4919.830621,
+               "rss_bytes" : 652386304,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 12.073,
+                  "cpu_percent" : 28.582,
+                  "duration_seconds" : 0.14,
+                  "p50_ms" : -40.328,
+                  "p95_ms" : -5.142,
+                  "p99_ms" : -14.167,
+                  "requests_per_second" : 11.802,
+                  "rss_bytes" : 0.441
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 9283,
+               "cpu_percent" : 384.44,
+               "duration_seconds" : 2.005252,
+               "http_errors" : 0,
+               "p50_ms" : 21.076,
+               "p95_ms" : 38.409,
+               "p99_ms" : 43.41,
+               "requests_per_second" : 4624.604009,
+               "rss_bytes" : 657391616,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 6.25,
+                  "cpu_percent" : 15.22,
+                  "duration_seconds" : 0.547,
+                  "p50_ms" : -31.195,
+                  "p95_ms" : -4.679,
+                  "p99_ms" : 7.63,
+                  "requests_per_second" : 5.654,
+                  "rss_bytes" : 0.506
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 561,
+               "cpu_percent" : 216.44,
+               "duration_seconds" : 2.014746,
+               "http_errors" : 0,
+               "p50_ms" : 150.548,
+               "p95_ms" : 423.537,
+               "p99_ms" : 600.926,
+               "requests_per_second" : 278.400858,
+               "rss_bytes" : 660017152,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "possible-regression",
+               "deltas_pct" : {
+                  "completed" : -1.818,
+                  "cpu_percent" : 8.341,
+                  "duration_seconds" : -0.175,
+                  "p50_ms" : -6.54,
+                  "p95_ms" : -6.193,
+                  "p99_ms" : 13.52,
+                  "requests_per_second" : -1.511,
+                  "rss_bytes" : 0.601
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 486,
+               "cpu_percent" : 238.704,
+               "duration_seconds" : 2.009011,
+               "http_errors" : 0,
+               "p50_ms" : 221.046,
+               "p95_ms" : 852.48,
+               "p99_ms" : 1104.046,
+               "requests_per_second" : 242.242025,
+               "rss_bytes" : 662110208,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "possible-regression",
+               "deltas_pct" : {
+                  "completed" : -15.089,
+                  "cpu_percent" : -29.427,
+                  "duration_seconds" : -0.056,
+                  "p50_ms" : 68.328,
+                  "p95_ms" : 14.309,
+                  "p99_ms" : 15.797,
+                  "requests_per_second" : -14.795,
+                  "rss_bytes" : 0.601
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7237,
+               "cpu_percent" : 210.992,
+               "duration_seconds" : 2.003484,
+               "http_errors" : 0,
+               "p50_ms" : 14.993,
+               "p95_ms" : 22.016,
+               "p99_ms" : 23.736,
+               "requests_per_second" : 3615.600289,
+               "rss_bytes" : 662110208,
+               "transport_errors" : 0
+            },
+            "scenario" : "cache_hit",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 0.445,
+                  "cpu_percent" : -0.559,
+                  "duration_seconds" : -0.163,
+                  "p50_ms" : -2.03,
+                  "p95_ms" : -12.032,
+                  "p99_ms" : -9.608,
+                  "requests_per_second" : 1.08,
+                  "rss_bytes" : 0.537
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 10147,
+               "cpu_percent" : 387.031,
+               "duration_seconds" : 2.003297,
+               "http_errors" : 0,
+               "p50_ms" : 20.751,
+               "p95_ms" : 34.947,
+               "p99_ms" : 48.12,
+               "requests_per_second" : 5065.1501,
+               "rss_bytes" : 662110208,
+               "transport_errors" : 0
+            },
+            "scenario" : "cache_hit",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 17.188,
+                  "cpu_percent" : 5.51,
+                  "duration_seconds" : -0.084,
+                  "p50_ms" : -14.555,
+                  "p95_ms" : -15.761,
+                  "p99_ms" : 2.578,
+                  "requests_per_second" : 17.286,
+                  "rss_bytes" : 0.64
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 825,
+               "cpu_percent" : 99.606,
+               "duration_seconds" : 2.000796,
+               "http_errors" : 0,
+               "p50_ms" : 2.401,
+               "p95_ms" : 2.667,
+               "p99_ms" : 4.058,
+               "requests_per_second" : 412.33589,
+               "rss_bytes" : 393187328,
+               "transport_errors" : 0
+            },
+            "scenario" : "cache_miss",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 24.581,
+                  "cpu_percent" : 6.867,
+                  "duration_seconds" : -0.032,
+                  "p50_ms" : -18.3,
+                  "p95_ms" : -28.878,
+                  "p99_ms" : -23.481,
+                  "requests_per_second" : 24.528,
+                  "rss_bytes" : 0.634
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 1637,
+               "cpu_percent" : 199.86,
+               "duration_seconds" : 2.001227,
+               "http_errors" : 0,
+               "p50_ms" : 12.112,
+               "p95_ms" : 15.89,
+               "p99_ms" : 20.823,
+               "requests_per_second" : 817.385903,
+               "rss_bytes" : 393265152,
+               "transport_errors" : 0
+            },
+            "scenario" : "cache_miss",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 27.535,
+                  "cpu_percent" : 6.112,
+                  "duration_seconds" : 0.111,
+                  "p50_ms" : -20.868,
+                  "p95_ms" : -23.358,
+                  "p99_ms" : -18.402,
+                  "requests_per_second" : 27.255,
+                  "rss_bytes" : 0.621
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 1635,
+               "cpu_percent" : 201.178,
+               "duration_seconds" : 2.004186,
+               "http_errors" : 0,
+               "p50_ms" : 59.406,
+               "p95_ms" : 73.777,
+               "p99_ms" : 116.143,
+               "requests_per_second" : 815.293591,
+               "rss_bytes" : 395259904,
+               "transport_errors" : 0
+            },
+            "scenario" : "cache_miss",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -2.862,
+                  "cpu_percent" : 0.391,
+                  "duration_seconds" : -4.745,
+                  "p50_ms" : -2.439,
+                  "p95_ms" : -2.655,
+                  "p99_ms" : -6.151,
+                  "requests_per_second" : 1.982,
+                  "rss_bytes" : 0.627
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 4887,
+               "cpu_percent" : 99.949,
+               "duration_seconds" : 2.000334,
+               "http_errors" : 0,
+               "p50_ms" : 0.4,
+               "p95_ms" : 0.44,
+               "p99_ms" : 0.473,
+               "requests_per_second" : 2443.092004,
+               "rss_bytes" : 393031680,
                "transport_errors" : 0
             },
             "scenario" : "health_live",
@@ -910,61 +1253,400 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 0,
-                  "concurrency_effective" : 0,
-                  "cpu_percent" : 4.71,
-                  "duration_seconds" : -7.407,
-                  "p50_ms" : -7.673,
-                  "p95_ms" : -4.465,
-                  "p99_ms" : -0.63,
-                  "requests_per_second" : 7.762,
-                  "rss_bytes" : 0.476
+                  "completed" : 0.616,
+                  "cpu_percent" : -0.13,
+                  "duration_seconds" : -4.67,
+                  "p50_ms" : -0.143,
+                  "p95_ms" : 2.48,
+                  "p99_ms" : 8.303,
+                  "requests_per_second" : 2.87,
+                  "rss_bytes" : 0.627
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 100,
-               "concurrency_effective" : 10,
-               "cpu_percent" : 40.57,
-               "duration_seconds" : 0.1,
+               "completed" : 9634,
+               "cpu_percent" : 199.142,
+               "duration_seconds" : 2.001675,
                "http_errors" : 0,
-               "p50_ms" : 8.976,
-               "p95_ms" : 14.123,
-               "p99_ms" : 17.351,
-               "requests_per_second" : 1001.922,
-               "rss_bytes" : 401448960,
+               "p50_ms" : 2.102,
+               "p95_ms" : 2.645,
+               "p99_ms" : 3.9,
+               "requests_per_second" : 4813.15429,
+               "rss_bytes" : 393031680,
                "transport_errors" : 0
             },
-            "scenario" : "thread",
+            "scenario" : "health_live",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -0.384,
+                  "cpu_percent" : -0.007,
+                  "duration_seconds" : -4.633,
+                  "p50_ms" : -2.778,
+                  "p95_ms" : -1.246,
+                  "p99_ms" : -12.32,
+                  "requests_per_second" : 1.824,
+                  "rss_bytes" : 0.637
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 9857,
+               "cpu_percent" : 199.605,
+               "duration_seconds" : 2.00275,
+               "http_errors" : 0,
+               "p50_ms" : 10.116,
+               "p95_ms" : 11.096,
+               "p99_ms" : 13.671,
+               "requests_per_second" : 4921.732618,
+               "rss_bytes" : 393834496,
+               "transport_errors" : 0
+            },
+            "scenario" : "health_live",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 2.659,
+                  "cpu_percent" : 0.169,
+                  "duration_seconds" : -0.044,
+                  "p50_ms" : -1.249,
+                  "p95_ms" : -3.222,
+                  "p99_ms" : 9.33,
+                  "requests_per_second" : 2.646,
+                  "rss_bytes" : 0.648
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 9690,
+               "cpu_percent" : 198.875,
+               "duration_seconds" : 2.002919,
+               "http_errors" : 0,
+               "p50_ms" : 20.711,
+               "p95_ms" : 22.198,
+               "p99_ms" : 33.69,
+               "requests_per_second" : 4836.021925,
+               "rss_bytes" : 395313152,
+               "transport_errors" : 0
+            },
+            "scenario" : "health_live",
             "status" : "ok"
          },
          {
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 11.301,
-                  "cpu_percent" : 1.774,
-                  "duration_seconds" : 0.049,
-                  "p50_ms" : 4.378,
-                  "p95_ms" : -17.578,
-                  "p99_ms" : -28.452,
-                  "requests_per_second" : 11.123,
-                  "rss_bytes" : 0.468
+                  "completed" : 11.911,
+                  "cpu_percent" : 3.038,
+                  "duration_seconds" : -0.038,
+                  "p50_ms" : -9.146,
+                  "p95_ms" : -26.716,
+                  "p99_ms" : -33.325,
+                  "requests_per_second" : 11.768,
+                  "rss_bytes" : 0.59
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 4954,
-               "cpu_percent" : 387.892,
-               "duration_seconds" : 2.006267,
+               "completed" : 404,
+               "cpu_percent" : 86.171,
+               "duration_seconds" : 2.000773,
                "http_errors" : 0,
-               "p50_ms" : 20.861,
-               "p95_ms" : 33.428,
-               "p99_ms" : 47.81,
-               "requests_per_second" : 2469.262566,
-               "rss_bytes" : 652255232,
+               "p50_ms" : 4.907,
+               "p95_ms" : 5.5,
+               "p99_ms" : 7.553,
+               "requests_per_second" : 201.679833,
+               "rss_bytes" : 395636736,
+               "transport_errors" : 0
+            },
+            "scenario" : "home",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 17.929,
+                  "cpu_percent" : 1.768,
+                  "duration_seconds" : 0.125,
+                  "p50_ms" : -9.976,
+                  "p95_ms" : -12.649,
+                  "p99_ms" : -11.854,
+                  "requests_per_second" : 13.898,
+                  "rss_bytes" : 0.67
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 763,
+               "cpu_percent" : 170.078,
+               "duration_seconds" : 2.004686,
+               "http_errors" : 0,
+               "p50_ms" : 26.18,
+               "p95_ms" : 39.357,
+               "p99_ms" : 45.956,
+               "requests_per_second" : 368.057206,
+               "rss_bytes" : 396435456,
+               "transport_errors" : 0
+            },
+            "scenario" : "home",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 15.449,
+                  "cpu_percent" : 2.741,
+                  "duration_seconds" : -0.111,
+                  "p50_ms" : -6.195,
+                  "p95_ms" : -11.454,
+                  "p99_ms" : -15.344,
+                  "requests_per_second" : 15.469,
+                  "rss_bytes" : 0.718
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 695,
+               "cpu_percent" : 172.07,
+               "duration_seconds" : 2.000732,
+               "http_errors" : 0,
+               "p50_ms" : 134.464,
+               "p95_ms" : 212.334,
+               "p99_ms" : 265.869,
+               "requests_per_second" : 347.372862,
+               "rss_bytes" : 398995456,
+               "transport_errors" : 0
+            },
+            "scenario" : "home",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 1.207,
+                  "cpu_percent" : -0.11,
+                  "duration_seconds" : 0.016,
+                  "p50_ms" : -1.308,
+                  "p95_ms" : 3.565,
+                  "p99_ms" : 4.987,
+                  "requests_per_second" : 1.197,
+                  "rss_bytes" : 0.718
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 3856,
+               "cpu_percent" : 99.498,
+               "duration_seconds" : 2.099535,
+               "http_errors" : 0,
+               "p50_ms" : 0.528,
+               "p95_ms" : 0.61,
+               "p99_ms" : 0.821,
+               "requests_per_second" : 1836.69513,
+               "rss_bytes" : 398995456,
+               "transport_errors" : 0
+            },
+            "scenario" : "categories",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 5.307,
+                  "cpu_percent" : -0.006,
+                  "duration_seconds" : 0.008,
+                  "p50_ms" : -2.519,
+                  "p95_ms" : -5.689,
+                  "p99_ms" : 2.087,
+                  "requests_per_second" : 4.136,
+                  "rss_bytes" : 0.718
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7421,
+               "cpu_percent" : 198.939,
+               "duration_seconds" : 2.099717,
+               "http_errors" : 0,
+               "p50_ms" : 2.786,
+               "p95_ms" : 3.531,
+               "p99_ms" : 5.136,
+               "requests_per_second" : 3534.285811,
+               "rss_bytes" : 398995456,
+               "transport_errors" : 0
+            },
+            "scenario" : "categories",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -1.157,
+                  "cpu_percent" : 0.187,
+                  "duration_seconds" : 0.033,
+                  "p50_ms" : 1.806,
+                  "p95_ms" : -2.239,
+                  "p99_ms" : -9.912,
+                  "requests_per_second" : -1.145,
+                  "rss_bytes" : 0.718
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7006,
+               "cpu_percent" : 199.888,
+               "duration_seconds" : 2.003156,
+               "http_errors" : 0,
+               "p50_ms" : 14.037,
+               "p95_ms" : 15.325,
+               "p99_ms" : 22.876,
+               "requests_per_second" : 3499.040835,
+               "rss_bytes" : 398995456,
+               "transport_errors" : 0
+            },
+            "scenario" : "categories",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "improvement",
+               "deltas_pct" : {
+                  "completed" : 4.195,
+                  "cpu_percent" : 0.04,
+                  "duration_seconds" : 0.007,
+                  "p50_ms" : -3.163,
+                  "p95_ms" : -4.094,
+                  "p99_ms" : -46.324,
+                  "requests_per_second" : 4.217,
+                  "rss_bytes" : 0.713
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 3726,
+               "cpu_percent" : 99.608,
+               "duration_seconds" : 2.100107,
+               "http_errors" : 0,
+               "p50_ms" : 0.551,
+               "p95_ms" : 0.609,
+               "p99_ms" : 0.657,
+               "requests_per_second" : 1774.488513,
+               "rss_bytes" : 399142912,
+               "transport_errors" : 0
+            },
+            "scenario" : "category",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -0.512,
+                  "cpu_percent" : 0.035,
+                  "duration_seconds" : 0.003,
+                  "p50_ms" : -3.459,
+                  "p95_ms" : 1.585,
+                  "p99_ms" : -5.425,
+                  "requests_per_second" : -0.538,
+                  "rss_bytes" : 0.713
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 6796,
+               "cpu_percent" : 199.467,
+               "duration_seconds" : 2.001536,
+               "http_errors" : 0,
+               "p50_ms" : 2.847,
+               "p95_ms" : 3.973,
+               "p99_ms" : 4.829,
+               "requests_per_second" : 3394.644394,
+               "rss_bytes" : 399142912,
+               "transport_errors" : 0
+            },
+            "scenario" : "category",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 2.867,
+                  "cpu_percent" : 0.23,
+                  "duration_seconds" : 0,
+                  "p50_ms" : 2.71,
+                  "p95_ms" : 15.819,
+                  "p99_ms" : -3.005,
+                  "requests_per_second" : 3,
+                  "rss_bytes" : 0.713
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 7103,
+               "cpu_percent" : 200.33,
+               "duration_seconds" : 2.003887,
+               "http_errors" : 0,
+               "p50_ms" : 14.593,
+               "p95_ms" : 18.077,
+               "p99_ms" : 25.306,
+               "requests_per_second" : 3547.271652,
+               "rss_bytes" : 399142912,
+               "transport_errors" : 0
+            },
+            "scenario" : "category",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "possible-regression",
+               "deltas_pct" : {
+                  "completed" : -1.911,
+                  "cpu_percent" : 0.085,
+                  "duration_seconds" : 0.003,
+                  "p50_ms" : 0.353,
+                  "p95_ms" : -0.482,
+                  "p99_ms" : 75.231,
+                  "requests_per_second" : -0.338,
+                  "rss_bytes" : 0.7
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 3541,
+               "cpu_percent" : 99.516,
+               "duration_seconds" : 2.099785,
+               "http_errors" : 0,
+               "p50_ms" : 0.568,
+               "p95_ms" : 0.619,
+               "p99_ms" : 1.139,
+               "requests_per_second" : 1726.367223,
+               "rss_bytes" : 399224832,
                "transport_errors" : 0
             },
             "scenario" : "thread",
@@ -974,28 +1656,59 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 7.984,
-                  "cpu_percent" : -0.332,
-                  "duration_seconds" : -0.027,
-                  "p50_ms" : -8.848,
-                  "p95_ms" : -1.041,
-                  "p99_ms" : -1.955,
-                  "requests_per_second" : 8.065,
-                  "rss_bytes" : 0.47
+                  "completed" : 3.742,
+                  "cpu_percent" : -0.033,
+                  "duration_seconds" : 0.073,
+                  "p50_ms" : 1.317,
+                  "p95_ms" : -1.966,
+                  "p99_ms" : -8.43,
+                  "requests_per_second" : 2.375,
+                  "rss_bytes" : 0.713
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 4896,
-               "cpu_percent" : 386.635,
-               "duration_seconds" : 2.00628,
+               "completed" : 6820,
+               "cpu_percent" : 199.078,
+               "duration_seconds" : 2.003807,
                "http_errors" : 0,
-               "p50_ms" : 39.498,
-               "p95_ms" : 54.853,
-               "p99_ms" : 69.903,
-               "requests_per_second" : 2441.500725,
-               "rss_bytes" : 656302080,
+               "p50_ms" : 3.078,
+               "p95_ms" : 4.438,
+               "p99_ms" : 6.05,
+               "requests_per_second" : 3361.102142,
+               "rss_bytes" : 399273984,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 3.992,
+                  "cpu_percent" : 0.078,
+                  "duration_seconds" : -0.064,
+                  "p50_ms" : -3.748,
+                  "p95_ms" : -6.064,
+                  "p99_ms" : -4.649,
+                  "requests_per_second" : 5.358,
+                  "rss_bytes" : 0.657
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 6982,
+               "cpu_percent" : 200.012,
+               "duration_seconds" : 2.00264,
+               "http_errors" : 0,
+               "p50_ms" : 14.099,
+               "p95_ms" : 15.366,
+               "p99_ms" : 25.41,
+               "requests_per_second" : 3486.23725,
+               "rss_bytes" : 399273984,
                "transport_errors" : 0
             },
             "scenario" : "thread",
@@ -1005,28 +1718,152 @@
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 8.779,
-                  "cpu_percent" : -1.129,
-                  "duration_seconds" : 0.045,
-                  "p50_ms" : -27.188,
-                  "p95_ms" : 4.534,
-                  "p99_ms" : -19.178,
-                  "requests_per_second" : 8.711,
-                  "rss_bytes" : 0.471
+                  "completed" : 1.071,
+                  "cpu_percent" : -0.312,
+                  "duration_seconds" : -0.051,
+                  "p50_ms" : 3.167,
+                  "p95_ms" : -23.41,
+                  "p99_ms" : -8.711,
+                  "requests_per_second" : 1.084,
+                  "rss_bytes" : 0.509
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 285,
-               "cpu_percent" : 235.489,
-               "duration_seconds" : 2.011333,
+               "completed" : 6609,
+               "cpu_percent" : 200.304,
+               "duration_seconds" : 2.002651,
                "http_errors" : 0,
-               "p50_ms" : 200.775,
-               "p95_ms" : 797.588,
-               "p99_ms" : 872.742,
-               "requests_per_second" : 141.524472,
-               "rss_bytes" : 658198528,
+               "p50_ms" : 29.97,
+               "p95_ms" : 31.951,
+               "p99_ms" : 47.975,
+               "requests_per_second" : 3300.125683,
+               "rss_bytes" : 402046976,
+               "transport_errors" : 0
+            },
+            "scenario" : "thread",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -0.418,
+                  "cpu_percent" : 2.456,
+                  "duration_seconds" : -0.075,
+                  "p50_ms" : -2.124,
+                  "p95_ms" : 9.937,
+                  "p99_ms" : 33.75,
+                  "requests_per_second" : -0.428,
+                  "rss_bytes" : 0.511
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 238,
+               "cpu_percent" : 63.24,
+               "duration_seconds" : 2.000649,
+               "http_errors" : 0,
+               "p50_ms" : 7.603,
+               "p95_ms" : 11.097,
+               "p99_ms" : 14.992,
+               "requests_per_second" : 118.974956,
+               "rss_bytes" : 402771968,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -6.961,
+                  "cpu_percent" : 8.828,
+                  "duration_seconds" : 0.012,
+                  "p50_ms" : 0.631,
+                  "p95_ms" : 7.531,
+                  "p99_ms" : 8.874,
+                  "requests_per_second" : -6.971,
+                  "rss_bytes" : 0.511
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 401,
+               "cpu_percent" : 133.783,
+               "duration_seconds" : 2.002401,
+               "http_errors" : 0,
+               "p50_ms" : 47.517,
+               "p95_ms" : 68.22,
+               "p99_ms" : 98.198,
+               "requests_per_second" : 200.259588,
+               "rss_bytes" : 402771968,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : 6.566,
+                  "cpu_percent" : 3.708,
+                  "duration_seconds" : 0.015,
+                  "p50_ms" : 7.553,
+                  "p95_ms" : -8.671,
+                  "p99_ms" : -3.305,
+                  "requests_per_second" : 6.547,
+                  "rss_bytes" : 0.511
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 422,
+               "cpu_percent" : 130.486,
+               "duration_seconds" : 2.004728,
+               "http_errors" : 0,
+               "p50_ms" : 238.5,
+               "p95_ms" : 362.756,
+               "p99_ms" : 443.746,
+               "requests_per_second" : 210.68145,
+               "rss_bytes" : 402771968,
+               "transport_errors" : 0
+            },
+            "scenario" : "search",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "completed" : -0.251,
+                  "cpu_percent" : 2.317,
+                  "duration_seconds" : 0.009,
+                  "p50_ms" : -5.753,
+                  "p95_ms" : 2.692,
+                  "p99_ms" : 4.155,
+                  "requests_per_second" : -0.241,
+                  "rss_bytes" : 0.428
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "http",
+            "metrics" : {
+               "completed" : 398,
+               "cpu_percent" : 128.52,
+               "duration_seconds" : 2.004553,
+               "http_errors" : 0,
+               "p50_ms" : 393.386,
+               "p95_ms" : 760.92,
+               "p99_ms" : 839.796,
+               "requests_per_second" : 198.533347,
+               "rss_bytes" : 402771968,
                "transport_errors" : 0
             },
             "scenario" : "search",
@@ -1036,59 +1873,28 @@
             "comparison" : {
                "classification" : "confirmed-regression",
                "deltas_pct" : {
-                  "completed" : 8.051,
-                  "cpu_percent" : -1.685,
-                  "duration_seconds" : 0.184,
-                  "p50_ms" : 26.008,
-                  "p95_ms" : -21.496,
-                  "p99_ms" : -20.353,
-                  "requests_per_second" : 7.852,
-                  "rss_bytes" : 0.409
+                  "completed" : -4.373,
+                  "cpu_percent" : 2.508,
+                  "duration_seconds" : -4.734,
+                  "p50_ms" : 3.825,
+                  "p95_ms" : 1.159,
+                  "p99_ms" : 80.31,
+                  "requests_per_second" : -3.417,
+                  "rss_bytes" : 0.428
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 255,
-               "cpu_percent" : 238.03,
-               "duration_seconds" : 2.012951,
+               "completed" : 3455,
+               "cpu_percent" : 102.55,
+               "duration_seconds" : 2.000242,
                "http_errors" : 0,
-               "p50_ms" : 612.391,
-               "p95_ms" : 1086.976,
-               "p99_ms" : 1297.727,
-               "requests_per_second" : 126.679686,
-               "rss_bytes" : 658915328,
-               "transport_errors" : 0
-            },
-            "scenario" : "search",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 8.203,
-                  "cpu_percent" : -0.043,
-                  "duration_seconds" : -0.013,
-                  "p50_ms" : 3.344,
-                  "p95_ms" : -0.792,
-                  "p99_ms" : -5.742,
-                  "requests_per_second" : 8.177,
-                  "rss_bytes" : 0.414
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 4234,
-               "cpu_percent" : 303.585,
-               "duration_seconds" : 2.002606,
-               "http_errors" : 0,
-               "p50_ms" : 19.499,
-               "p95_ms" : 41.598,
-               "p99_ms" : 49.1,
-               "requests_per_second" : 2114.245139,
-               "rss_bytes" : 658944000,
+               "p50_ms" : 0.57,
+               "p95_ms" : 0.611,
+               "p99_ms" : 1.163,
+               "requests_per_second" : 1727.297043,
+               "rss_bytes" : 402771968,
                "transport_errors" : 0
             },
             "scenario" : "cache_hit",
@@ -1096,30 +1902,30 @@
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 29.642,
-                  "cpu_percent" : 15.669,
-                  "duration_seconds" : -0.107,
-                  "p50_ms" : -13.539,
-                  "p95_ms" : -49.394,
-                  "p99_ms" : -48.722,
-                  "requests_per_second" : 30.03,
-                  "rss_bytes" : 0.422
+                  "completed" : 2.834,
+                  "cpu_percent" : -0.076,
+                  "duration_seconds" : 4.879,
+                  "p50_ms" : -1.096,
+                  "p95_ms" : -2.667,
+                  "p99_ms" : -14.567,
+                  "requests_per_second" : 3.183,
+                  "rss_bytes" : 0.428
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 4929,
-               "cpu_percent" : 386.21,
-               "duration_seconds" : 2.005606,
+               "completed" : 7185,
+               "cpu_percent" : 199.465,
+               "duration_seconds" : 2.100217,
                "http_errors" : 0,
-               "p50_ms" : 39.792,
-               "p95_ms" : 53.356,
-               "p99_ms" : 73.1,
-               "requests_per_second" : 2460.480805,
-               "rss_bytes" : 658997248,
+               "p50_ms" : 2.888,
+               "p95_ms" : 3.868,
+               "p99_ms" : 4.68,
+               "requests_per_second" : 3500.114512,
+               "rss_bytes" : 402771968,
                "transport_errors" : 0
             },
             "scenario" : "cache_hit",
@@ -1127,526 +1933,92 @@
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "possible-regression",
                "deltas_pct" : {
-                  "completed" : 8.824,
-                  "cpu_percent" : 0.582,
-                  "duration_seconds" : 0.033,
-                  "p50_ms" : -7.516,
-                  "p95_ms" : -18.339,
-                  "p99_ms" : -10.818,
-                  "requests_per_second" : 8.811,
-                  "rss_bytes" : 0.547
+                  "completed" : -2.699,
+                  "cpu_percent" : -0.32,
+                  "duration_seconds" : 0.03,
+                  "p50_ms" : 2.245,
+                  "p95_ms" : 4.992,
+                  "p99_ms" : 12.313,
+                  "requests_per_second" : -2.729,
+                  "rss_bytes" : 0.428
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 370,
-               "cpu_percent" : 95.022,
-               "duration_seconds" : 2.001391,
+               "completed" : 6885,
+               "cpu_percent" : 199.876,
+               "duration_seconds" : 2.002748,
                "http_errors" : 0,
-               "p50_ms" : 5.328,
-               "p95_ms" : 5.575,
-               "p99_ms" : 6.669,
-               "requests_per_second" : 184.932685,
-               "rss_bytes" : 393097216,
+               "p50_ms" : 14.258,
+               "p95_ms" : 15.92,
+               "p99_ms" : 26.635,
+               "requests_per_second" : 3437.776495,
+               "rss_bytes" : 402771968,
                "transport_errors" : 0
             },
-            "scenario" : "cache_miss",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 8.675,
-                  "cpu_percent" : 0.577,
-                  "duration_seconds" : 0.11,
-                  "p50_ms" : -10.56,
-                  "p95_ms" : -21.756,
-                  "p99_ms" : -4.941,
-                  "requests_per_second" : 7.311,
-                  "rss_bytes" : 0.556
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 689,
-               "cpu_percent" : 190.404,
-               "duration_seconds" : 2.003581,
-               "http_errors" : 0,
-               "p50_ms" : 28.434,
-               "p95_ms" : 34.789,
-               "p99_ms" : 52.217,
-               "requests_per_second" : 339.974421,
-               "rss_bytes" : 393199616,
-               "transport_errors" : 0
-            },
-            "scenario" : "cache_miss",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 16.899,
-                  "cpu_percent" : 0.813,
-                  "duration_seconds" : 0.042,
-                  "p50_ms" : -15.185,
-                  "p95_ms" : -17.918,
-                  "p99_ms" : -12.931,
-                  "requests_per_second" : 16.804,
-                  "rss_bytes" : 0.541
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 671,
-               "cpu_percent" : 192.417,
-               "duration_seconds" : 2.002836,
-               "http_errors" : 0,
-               "p50_ms" : 142.504,
-               "p95_ms" : 194.216,
-               "p99_ms" : 268.543,
-               "requests_per_second" : 334.674191,
-               "rss_bytes" : 395157504,
-               "transport_errors" : 0
-            },
-            "scenario" : "cache_miss",
+            "scenario" : "cache_hit",
             "status" : "ok"
          },
          {
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 2.157,
-                  "cpu_percent" : -0.802,
-                  "duration_seconds" : 0.022,
-                  "p50_ms" : -0.597,
-                  "p95_ms" : -1.107,
-                  "p99_ms" : 10.8,
-                  "requests_per_second" : 0.135,
-                  "rss_bytes" : 0.452
+                  "completed" : -5.435,
+                  "cpu_percent" : 0.429,
+                  "duration_seconds" : -0.13,
+                  "p50_ms" : 0.575,
+                  "p95_ms" : 12.204,
+                  "p99_ms" : -16.092,
+                  "requests_per_second" : -5.368,
+                  "rss_bytes" : 0.428
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 2463,
-               "cpu_percent" : 99.02,
-               "duration_seconds" : 2.100156,
+               "completed" : 6629,
+               "cpu_percent" : 200.852,
+               "duration_seconds" : 2.002053,
                "http_errors" : 0,
-               "p50_ms" : 0.832,
-               "p95_ms" : 0.893,
-               "p99_ms" : 1.067,
-               "requests_per_second" : 1177.947714,
-               "rss_bytes" : 392830976,
+               "p50_ms" : 27.627,
+               "p95_ms" : 35.911,
+               "p99_ms" : 42.356,
+               "requests_per_second" : 3312.262567,
+               "rss_bytes" : 402771968,
                "transport_errors" : 0
             },
-            "scenario" : "health_live",
+            "scenario" : "cache_hit",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "stable",
+               "classification" : "possible-regression",
                "deltas_pct" : {
-                  "completed" : -2.241,
-                  "cpu_percent" : 0.601,
-                  "duration_seconds" : -4.709,
-                  "p50_ms" : -2.816,
-                  "p95_ms" : -3.824,
-                  "p99_ms" : -1.372,
-                  "requests_per_second" : 2.526,
-                  "rss_bytes" : 0.452
+                  "completed" : -1.022,
+                  "cpu_percent" : -0.4,
+                  "duration_seconds" : 0.063,
+                  "p50_ms" : 12.046,
+                  "p95_ms" : 6.659,
+                  "p99_ms" : 7.431,
+                  "requests_per_second" : -1.004,
+                  "rss_bytes" : 0.631
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 4623,
-               "cpu_percent" : 199.894,
-               "duration_seconds" : 2.001003,
+               "completed" : 9392,
+               "cpu_percent" : 384.033,
+               "duration_seconds" : 2.002835,
                "http_errors" : 0,
-               "p50_ms" : 4.279,
-               "p95_ms" : 4.452,
-               "p99_ms" : 5.103,
-               "requests_per_second" : 2308.91171,
-               "rss_bytes" : 392830976,
-               "transport_errors" : 0
-            },
-            "scenario" : "health_live",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 4.961,
-                  "cpu_percent" : 0.029,
-                  "duration_seconds" : 0.037,
-                  "p50_ms" : -3.446,
-                  "p95_ms" : 2.072,
-                  "p99_ms" : 4.636,
-                  "requests_per_second" : 4.925,
-                  "rss_bytes" : 0.451
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 4676,
-               "cpu_percent" : 199.798,
-               "duration_seconds" : 2.003339,
-               "http_errors" : 0,
-               "p50_ms" : 21.38,
-               "p95_ms" : 25.571,
-               "p99_ms" : 30.268,
-               "requests_per_second" : 2334.169628,
-               "rss_bytes" : 393621504,
-               "transport_errors" : 0
-            },
-            "scenario" : "health_live",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 7.657,
-                  "cpu_percent" : -1.124,
-                  "duration_seconds" : 0.009,
-                  "p50_ms" : -5.41,
-                  "p95_ms" : -9.928,
-                  "p99_ms" : -7.147,
-                  "requests_per_second" : 7.619,
-                  "rss_bytes" : 0.443
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 4626,
-               "cpu_percent" : 199.372,
-               "duration_seconds" : 2.004531,
-               "http_errors" : 0,
-               "p50_ms" : 43.64,
-               "p95_ms" : 44.965,
-               "p99_ms" : 64.3,
-               "requests_per_second" : 2307.16633,
-               "rss_bytes" : 395059200,
-               "transport_errors" : 0
-            },
-            "scenario" : "health_live",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 24.183,
-                  "cpu_percent" : -0.511,
-                  "duration_seconds" : -0.027,
-                  "p50_ms" : -20.421,
-                  "p95_ms" : -22.39,
-                  "p99_ms" : -9.702,
-                  "requests_per_second" : 24.233,
-                  "rss_bytes" : 0.456
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 190,
-               "cpu_percent" : 86.555,
-               "duration_seconds" : 2.00135,
-               "http_errors" : 0,
-               "p50_ms" : 10.393,
-               "p95_ms" : 10.995,
-               "p99_ms" : 13.225,
-               "requests_per_second" : 94.982808,
-               "rss_bytes" : 395698176,
-               "transport_errors" : 0
-            },
-            "scenario" : "home",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 26.056,
-                  "cpu_percent" : 0.349,
-                  "duration_seconds" : 0.064,
-                  "p50_ms" : -19.329,
-                  "p95_ms" : -18.51,
-                  "p99_ms" : -21.878,
-                  "requests_per_second" : 24.862,
-                  "rss_bytes" : 0.461
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 358,
-               "cpu_percent" : 174.003,
-               "duration_seconds" : 2.003089,
-               "http_errors" : 0,
-               "p50_ms" : 54.423,
-               "p95_ms" : 64.773,
-               "p99_ms" : 98.241,
-               "requests_per_second" : 177.144797,
-               "rss_bytes" : 396328960,
-               "transport_errors" : 0
-            },
-            "scenario" : "home",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 29.2,
-                  "cpu_percent" : 0.113,
-                  "duration_seconds" : -0.012,
-                  "p50_ms" : -17.625,
-                  "p95_ms" : -18.81,
-                  "p99_ms" : -16.374,
-                  "requests_per_second" : 27.522,
-                  "rss_bytes" : 0.424
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 323,
-               "cpu_percent" : 174.273,
-               "duration_seconds" : 2.004965,
-               "http_errors" : 0,
-               "p50_ms" : 280.007,
-               "p95_ms" : 500.067,
-               "p99_ms" : 571.832,
-               "requests_per_second" : 158.974945,
-               "rss_bytes" : 398807040,
-               "transport_errors" : 0
-            },
-            "scenario" : "home",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 3.791,
-                  "cpu_percent" : 0.042,
-                  "duration_seconds" : -0.03,
-                  "p50_ms" : -2.142,
-                  "p95_ms" : -7.547,
-                  "p99_ms" : -19.003,
-                  "requests_per_second" : 3.797,
-                  "rss_bytes" : 0.424
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 1752,
-               "cpu_percent" : 99.439,
-               "duration_seconds" : 2.001343,
-               "http_errors" : 0,
-               "p50_ms" : 1.142,
-               "p95_ms" : 1.176,
-               "p99_ms" : 1.219,
-               "requests_per_second" : 875.575346,
-               "rss_bytes" : 398807040,
-               "transport_errors" : 0
-            },
-            "scenario" : "categories",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 3.445,
-                  "cpu_percent" : 0.054,
-                  "duration_seconds" : 0.125,
-                  "p50_ms" : -4.252,
-                  "p95_ms" : -8.434,
-                  "p99_ms" : -14.828,
-                  "requests_per_second" : 4.9,
-                  "rss_bytes" : 0.424
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3453,
-               "cpu_percent" : 199.333,
-               "duration_seconds" : 2.00467,
-               "http_errors" : 0,
-               "p50_ms" : 5.72,
-               "p95_ms" : 6.069,
-               "p99_ms" : 8.731,
-               "requests_per_second" : 1722.478014,
-               "rss_bytes" : 398807040,
-               "transport_errors" : 0
-            },
-            "scenario" : "categories",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 5.936,
-                  "cpu_percent" : -0.611,
-                  "duration_seconds" : -0.064,
-                  "p50_ms" : -7.053,
-                  "p95_ms" : -13.309,
-                  "p99_ms" : -6.5,
-                  "requests_per_second" : 7.824,
-                  "rss_bytes" : 0.424
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3480,
-               "cpu_percent" : 199.86,
-               "duration_seconds" : 2.002628,
-               "http_errors" : 0,
-               "p50_ms" : 28.135,
-               "p95_ms" : 29.696,
-               "p99_ms" : 40.868,
-               "requests_per_second" : 1737.125925,
-               "rss_bytes" : 398807040,
-               "transport_errors" : 0
-            },
-            "scenario" : "categories",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 2.221,
-                  "cpu_percent" : -0.33,
-                  "duration_seconds" : 0.008,
-                  "p50_ms" : -2.342,
-                  "p95_ms" : -1.711,
-                  "p99_ms" : 12.403,
-                  "requests_per_second" : 1.14,
-                  "rss_bytes" : 0.456
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 1749,
-               "cpu_percent" : 99.471,
-               "duration_seconds" : 2.001156,
-               "http_errors" : 0,
-               "p50_ms" : 1.126,
-               "p95_ms" : 1.206,
-               "p99_ms" : 1.586,
-               "requests_per_second" : 864.934697,
-               "rss_bytes" : 398966784,
-               "transport_errors" : 0
-            },
-            "scenario" : "category",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 8.451,
-                  "cpu_percent" : -0.126,
-                  "duration_seconds" : -0.021,
-                  "p50_ms" : -3.513,
-                  "p95_ms" : -20.842,
-                  "p99_ms" : -21.95,
-                  "requests_per_second" : 7.845,
-                  "rss_bytes" : 0.456
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3452,
-               "cpu_percent" : 198.896,
-               "duration_seconds" : 2.002852,
-               "http_errors" : 0,
-               "p50_ms" : 5.877,
-               "p95_ms" : 6.373,
-               "p99_ms" : 8.324,
-               "requests_per_second" : 1713.556468,
-               "rss_bytes" : 398966784,
-               "transport_errors" : 0
-            },
-            "scenario" : "category",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 6.87,
-                  "cpu_percent" : 0.372,
-                  "duration_seconds" : 0.255,
-                  "p50_ms" : -5.355,
-                  "p95_ms" : -7.813,
-                  "p99_ms" : 5.276,
-                  "requests_per_second" : 6.896,
-                  "rss_bytes" : 0.456
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3438,
-               "cpu_percent" : 200.343,
-               "duration_seconds" : 2.00763,
-               "http_errors" : 0,
-               "p50_ms" : 28.792,
-               "p95_ms" : 30.688,
-               "p99_ms" : 43.922,
-               "requests_per_second" : 1716.632763,
-               "rss_bytes" : 398966784,
-               "transport_errors" : 0
-            },
-            "scenario" : "category",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 2.345,
-                  "cpu_percent" : 0.078,
-                  "duration_seconds" : 0.006,
-                  "p50_ms" : -0.346,
-                  "p95_ms" : -1.38,
-                  "p99_ms" : -1.417,
-                  "requests_per_second" : 0.583,
-                  "rss_bytes" : 0.471
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 1746,
-               "cpu_percent" : 99.454,
-               "duration_seconds" : 2.002655,
-               "http_errors" : 0,
-               "p50_ms" : 1.153,
-               "p95_ms" : 1.215,
-               "p99_ms" : 1.252,
-               "requests_per_second" : 856.862515,
-               "rss_bytes" : 399097856,
+               "p50_ms" : 12.055,
+               "p95_ms" : 20.95,
+               "p99_ms" : 26.195,
+               "requests_per_second" : 4693.838487,
+               "rss_bytes" : 654798848,
                "transport_errors" : 0
             },
             "scenario" : "thread",
@@ -1656,28 +2028,28 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 3.86,
-                  "cpu_percent" : -0.437,
-                  "duration_seconds" : -0.025,
-                  "p50_ms" : 1.415,
-                  "p95_ms" : -0.741,
-                  "p99_ms" : -4.704,
-                  "requests_per_second" : 3.822,
-                  "rss_bytes" : 0.456
+                  "completed" : 1.987,
+                  "cpu_percent" : -1.391,
+                  "duration_seconds" : -0.031,
+                  "p50_ms" : 0.736,
+                  "p95_ms" : 3.409,
+                  "p99_ms" : 3.955,
+                  "requests_per_second" : -2.428,
+                  "rss_bytes" : 0.367
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 3390,
-               "cpu_percent" : 198.352,
-               "duration_seconds" : 2.001273,
+               "completed" : 9545,
+               "cpu_percent" : 380.109,
+               "duration_seconds" : 2.003796,
                "http_errors" : 0,
-               "p50_ms" : 6.163,
-               "p95_ms" : 7.23,
-               "p99_ms" : 10.272,
-               "requests_per_second" : 1692.888122,
-               "rss_bytes" : 399097856,
+               "p50_ms" : 19.716,
+               "p95_ms" : 40.709,
+               "p99_ms" : 47.702,
+               "requests_per_second" : 4555.816243,
+               "rss_bytes" : 658923520,
                "transport_errors" : 0
             },
             "scenario" : "thread",
@@ -1687,183 +2059,28 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 3.932,
-                  "cpu_percent" : 0.12,
-                  "duration_seconds" : 0.044,
-                  "p50_ms" : -1.348,
-                  "p95_ms" : -10.988,
-                  "p99_ms" : 0.434,
-                  "requests_per_second" : 3.887,
-                  "rss_bytes" : 0.456
+                  "completed" : -4.752,
+                  "cpu_percent" : -8.729,
+                  "duration_seconds" : -0.073,
+                  "p50_ms" : 28.653,
+                  "p95_ms" : 12.028,
+                  "p99_ms" : 3.048,
+                  "requests_per_second" : -4.645,
+                  "rss_bytes" : 0.569
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 3383,
-               "cpu_percent" : 200.33,
-               "duration_seconds" : 2.002573,
+               "completed" : 481,
+               "cpu_percent" : 193.325,
+               "duration_seconds" : 2.006542,
                "http_errors" : 0,
-               "p50_ms" : 30.653,
-               "p95_ms" : 32.201,
-               "p99_ms" : 47.956,
-               "requests_per_second" : 1689.326681,
-               "rss_bytes" : 399097856,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 8.155,
-                  "cpu_percent" : 0.328,
-                  "duration_seconds" : 0.029,
-                  "p50_ms" : -5.813,
-                  "p95_ms" : -17.647,
-                  "p99_ms" : -4.934,
-                  "requests_per_second" : 8.254,
-                  "rss_bytes" : 0.46
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3342,
-               "cpu_percent" : 200.305,
-               "duration_seconds" : 2.005302,
-               "http_errors" : 0,
-               "p50_ms" : 58.805,
-               "p95_ms" : 61.182,
-               "p99_ms" : 98.966,
-               "requests_per_second" : 1668.877188,
-               "rss_bytes" : 401821696,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 23.214,
-                  "cpu_percent" : -4.963,
-                  "duration_seconds" : -0.081,
-                  "p50_ms" : -19.276,
-                  "p95_ms" : -21.864,
-                  "p99_ms" : -27.294,
-                  "requests_per_second" : 23.315,
-                  "rss_bytes" : 0.512
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 138,
-               "cpu_percent" : 65.678,
-               "duration_seconds" : 2.001124,
-               "http_errors" : 0,
-               "p50_ms" : 14.268,
-               "p95_ms" : 15.335,
-               "p99_ms" : 15.831,
-               "requests_per_second" : 68.961244,
-               "rss_bytes" : 402669568,
-               "transport_errors" : 0
-            },
-            "scenario" : "search",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 24.873,
-                  "cpu_percent" : -1.427,
-                  "duration_seconds" : 0.016,
-                  "p50_ms" : -16.755,
-                  "p95_ms" : -11.934,
-                  "p99_ms" : -15.241,
-                  "requests_per_second" : 24.818,
-                  "rss_bytes" : 0.512
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 246,
-               "cpu_percent" : 133.2,
-               "duration_seconds" : 2.001944,
-               "http_errors" : 0,
-               "p50_ms" : 79.258,
-               "p95_ms" : 98.022,
-               "p99_ms" : 149.85,
-               "requests_per_second" : 122.885409,
-               "rss_bytes" : 402669568,
-               "transport_errors" : 0
-            },
-            "scenario" : "search",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 12.563,
-                  "cpu_percent" : -3.549,
-                  "duration_seconds" : 0.067,
-                  "p50_ms" : -19.221,
-                  "p95_ms" : -18.272,
-                  "p99_ms" : -15.647,
-                  "requests_per_second" : 12.671,
-                  "rss_bytes" : 0.512
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 224,
-               "cpu_percent" : 131.415,
-               "duration_seconds" : 2.005385,
-               "http_errors" : 0,
-               "p50_ms" : 388.937,
-               "p95_ms" : 713.828,
-               "p99_ms" : 796.128,
-               "requests_per_second" : 111.876544,
-               "rss_bytes" : 402669568,
-               "transport_errors" : 0
-            },
-            "scenario" : "search",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 30.921,
-                  "cpu_percent" : -2.956,
-                  "duration_seconds" : 0.073,
-                  "p50_ms" : 10.212,
-                  "p95_ms" : -14.985,
-                  "p99_ms" : -16.58,
-                  "requests_per_second" : 31.016,
-                  "rss_bytes" : 0.493
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 199,
-               "cpu_percent" : 131.702,
-               "duration_seconds" : 2.005734,
-               "http_errors" : 0,
-               "p50_ms" : 799.628,
-               "p95_ms" : 1504.466,
-               "p99_ms" : 1561.405,
-               "requests_per_second" : 99.306303,
-               "rss_bytes" : 402669568,
+               "p50_ms" : 200.955,
+               "p95_ms" : 461.448,
+               "p99_ms" : 546.482,
+               "requests_per_second" : 239.479578,
+               "rss_bytes" : 661684224,
                "transport_errors" : 0
             },
             "scenario" : "search",
@@ -1873,245 +2090,28 @@
             "comparison" : {
                "classification" : "stable",
                "deltas_pct" : {
-                  "completed" : 2.278,
-                  "cpu_percent" : -18.945,
-                  "duration_seconds" : -0.007,
-                  "p50_ms" : -3.188,
-                  "p95_ms" : -7.973,
-                  "p99_ms" : -9.085,
-                  "requests_per_second" : 2.33,
-                  "rss_bytes" : 0.493
+                  "completed" : -9.903,
+                  "cpu_percent" : 2.946,
+                  "duration_seconds" : 0.093,
+                  "p50_ms" : 33.303,
+                  "p95_ms" : -18.825,
+                  "p99_ms" : -17.542,
+                  "requests_per_second" : -9.96,
+                  "rss_bytes" : 0.682
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 1706,
-               "cpu_percent" : 99.017,
-               "duration_seconds" : 2.000962,
+               "completed" : 464,
+               "cpu_percent" : 224.381,
+               "duration_seconds" : 2.009102,
                "http_errors" : 0,
-               "p50_ms" : 1.154,
-               "p95_ms" : 1.212,
-               "p99_ms" : 1.421,
-               "requests_per_second" : 852.589904,
-               "rss_bytes" : 402669568,
-               "transport_errors" : 0
-            },
-            "scenario" : "cache_hit",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 3.371,
-                  "cpu_percent" : -0.058,
-                  "duration_seconds" : 0.028,
-                  "p50_ms" : -8.937,
-                  "p95_ms" : -17.528,
-                  "p99_ms" : -25.885,
-                  "requests_per_second" : 3.387,
-                  "rss_bytes" : 0.493
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3434,
-               "cpu_percent" : 199.091,
-               "duration_seconds" : 2.001927,
-               "http_errors" : 0,
-               "p50_ms" : 5.798,
-               "p95_ms" : 5.999,
-               "p99_ms" : 7.688,
-               "requests_per_second" : 1716.039018,
-               "rss_bytes" : 402669568,
-               "transport_errors" : 0
-            },
-            "scenario" : "cache_hit",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 6.7,
-                  "cpu_percent" : -0.176,
-                  "duration_seconds" : 0.015,
-                  "p50_ms" : -4.692,
-                  "p95_ms" : -10.738,
-                  "p99_ms" : -16.356,
-                  "requests_per_second" : 6.716,
-                  "rss_bytes" : 0.493
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3456,
-               "cpu_percent" : 200.283,
-               "duration_seconds" : 2.003136,
-               "http_errors" : 0,
-               "p50_ms" : 28.522,
-               "p95_ms" : 30.051,
-               "p99_ms" : 39.439,
-               "requests_per_second" : 1726.035771,
-               "rss_bytes" : 402669568,
-               "transport_errors" : 0
-            },
-            "scenario" : "cache_hit",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 9.495,
-                  "cpu_percent" : 0.304,
-                  "duration_seconds" : -0.013,
-                  "p50_ms" : -8.957,
-                  "p95_ms" : -14.256,
-                  "p99_ms" : -4.604,
-                  "requests_per_second" : 9.473,
-                  "rss_bytes" : 0.493
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 3448,
-               "cpu_percent" : 201.249,
-               "duration_seconds" : 2.003939,
-               "http_errors" : 0,
-               "p50_ms" : 56.817,
-               "p95_ms" : 61.551,
-               "p99_ms" : 93.581,
-               "requests_per_second" : 1719.460624,
-               "rss_bytes" : 402669568,
-               "transport_errors" : 0
-            },
-            "scenario" : "cache_hit",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 13.389,
-                  "cpu_percent" : 0.609,
-                  "duration_seconds" : -0.113,
-                  "p50_ms" : -27.087,
-                  "p95_ms" : -18.236,
-                  "p99_ms" : -22.794,
-                  "requests_per_second" : 13.136,
-                  "rss_bytes" : 0.501
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 4929,
-               "cpu_percent" : 386.389,
-               "duration_seconds" : 2.002895,
-               "http_errors" : 0,
-               "p50_ms" : 17.868,
-               "p95_ms" : 33.283,
-               "p99_ms" : 40.042,
-               "requests_per_second" : 2456.584884,
-               "rss_bytes" : 654233600,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 8.904,
-                  "cpu_percent" : -1.253,
-                  "duration_seconds" : 0.051,
-                  "p50_ms" : -12.148,
-                  "p95_ms" : -19.472,
-                  "p99_ms" : -15.691,
-                  "requests_per_second" : 9.323,
-                  "rss_bytes" : 0.407
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 4831,
-               "cpu_percent" : 384.299,
-               "duration_seconds" : 2.007475,
-               "http_errors" : 0,
-               "p50_ms" : 39.195,
-               "p95_ms" : 57.022,
-               "p99_ms" : 73.458,
-               "requests_per_second" : 2410.715934,
-               "rss_bytes" : 658378752,
-               "transport_errors" : 0
-            },
-            "scenario" : "thread",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "completed" : 17.045,
-                  "cpu_percent" : -4.983,
-                  "duration_seconds" : -0.17,
-                  "p50_ms" : 2.282,
-                  "p95_ms" : -3.074,
-                  "p99_ms" : -17.73,
-                  "requests_per_second" : 17.585,
-                  "rss_bytes" : 0.406
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 309,
-               "cpu_percent" : 227.259,
-               "duration_seconds" : 2.005998,
-               "http_errors" : 0,
-               "p50_ms" : 283.892,
-               "p95_ms" : 748.674,
-               "p99_ms" : 870.265,
-               "requests_per_second" : 154.134393,
-               "rss_bytes" : 659935232,
-               "transport_errors" : 0
-            },
-            "scenario" : "search",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "completed" : 10.656,
-                  "cpu_percent" : -2.753,
-                  "duration_seconds" : 0.128,
-                  "p50_ms" : -15.47,
-                  "p95_ms" : -8.92,
-                  "p99_ms" : -5.287,
-                  "requests_per_second" : 10.958,
-                  "rss_bytes" : 0.365
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "http",
-            "metrics" : {
-               "completed" : 270,
-               "cpu_percent" : 234.19,
-               "duration_seconds" : 2.01272,
-               "http_errors" : 0,
-               "p50_ms" : 551.599,
-               "p95_ms" : 1168.408,
-               "p99_ms" : 1347.019,
-               "requests_per_second" : 134.146826,
-               "rss_bytes" : 660570112,
+               "p50_ms" : 328.8,
+               "p95_ms" : 807.192,
+               "p99_ms" : 987.715,
+               "requests_per_second" : 231.016332,
+               "rss_bytes" : 663785472,
                "transport_errors" : 0
             },
             "scenario" : "search",
@@ -2121,28 +2121,28 @@
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 11.804,
-                  "cpu_percent" : -2.316,
-                  "duration_seconds" : 0.149,
-                  "p50_ms" : -37.947,
-                  "p95_ms" : -14.266,
-                  "p99_ms" : -7.948,
-                  "requests_per_second" : 11.861,
-                  "rss_bytes" : 0.382
+                  "completed" : 1.842,
+                  "cpu_percent" : 4.784,
+                  "duration_seconds" : 0.043,
+                  "p50_ms" : -8.524,
+                  "p95_ms" : 0.96,
+                  "p99_ms" : -16.551,
+                  "requests_per_second" : 1.728,
+                  "rss_bytes" : 0.516
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 3495,
-               "cpu_percent" : 208.846,
-               "duration_seconds" : 2.00684,
+               "completed" : 6967,
+               "cpu_percent" : 220.439,
+               "duration_seconds" : 2.003057,
                "http_errors" : 0,
-               "p50_ms" : 19.739,
-               "p95_ms" : 34.346,
-               "p99_ms" : 54.432,
-               "requests_per_second" : 1744.124248,
-               "rss_bytes" : 660697088,
+               "p50_ms" : 15.077,
+               "p95_ms" : 23.766,
+               "p99_ms" : 26.132,
+               "requests_per_second" : 3475.76642,
+               "rss_bytes" : 663785472,
                "transport_errors" : 0
             },
             "scenario" : "cache_hit",
@@ -2152,28 +2152,28 @@
             "comparison" : {
                "classification" : "improvement",
                "deltas_pct" : {
-                  "completed" : 11.361,
-                  "cpu_percent" : -0.369,
-                  "duration_seconds" : 0.068,
-                  "p50_ms" : -10.967,
-                  "p95_ms" : -16.379,
-                  "p99_ms" : -12.806,
-                  "requests_per_second" : 11.515,
-                  "rss_bytes" : 0.398
+                  "completed" : 13.76,
+                  "cpu_percent" : 29.563,
+                  "duration_seconds" : 0.094,
+                  "p50_ms" : -22.893,
+                  "p95_ms" : 8.014,
+                  "p99_ms" : 15.096,
+                  "requests_per_second" : 13.637,
+                  "rss_bytes" : 0.536
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "http",
             "metrics" : {
-               "completed" : 5009,
-               "cpu_percent" : 383.218,
-               "duration_seconds" : 2.006197,
+               "completed" : 9681,
+               "cpu_percent" : 388.828,
+               "duration_seconds" : 2.004295,
                "http_errors" : 0,
-               "p50_ms" : 36.808,
-               "p95_ms" : 60.526,
-               "p99_ms" : 76.948,
-               "requests_per_second" : 2497.010218,
-               "rss_bytes" : 660799488,
+               "p50_ms" : 20.121,
+               "p95_ms" : 37.172,
+               "p99_ms" : 44.678,
+               "requests_per_second" : 4829.462264,
+               "rss_bytes" : 664190976,
                "transport_errors" : 0
             },
             "scenario" : "cache_hit",
@@ -2192,17 +2192,17 @@
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -12.41
+                  "sql_execution_ms" : -0.643
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 26,
-               "sql_execution_ms" : 0.487
+               "sql_execution_ms" : 0.309
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2212,48 +2212,48 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -12.749
+                  "sql_execution_ms" : 6.746
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 8,
-               "sql_execution_ms" : 0.438
+               "sql_execution_ms" : 0.269
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -17.902
+                  "sql_execution_ms" : 1.079
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 26,
-               "sql_execution_ms" : 0.454
+               "sql_execution_ms" : 0.281
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -33.931
+                  "sql_execution_ms" : 9
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 26,
-               "sql_execution_ms" : 0.516
+               "sql_execution_ms" : 0.327
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2263,14 +2263,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -8.654
+                  "sql_execution_ms" : 1.449
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 20,
-               "sql_execution_ms" : 0.095
+               "sql_execution_ms" : 0.07
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2280,14 +2280,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -3.242
+                  "sql_execution_ms" : -0.5
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 20,
-               "sql_execution_ms" : 3.522
+               "sql_execution_ms" : 2.189
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2297,31 +2297,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -6.965
+                  "sql_execution_ms" : -1.274
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 10,
-               "sql_execution_ms" : 1.977
-            },
-            "scenario" : "sql-plan-readers",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "improvement",
-               "deltas_pct" : {
-                  "actual_rows" : 0,
-                  "sql_execution_ms" : -12.397
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "database",
-            "metrics" : {
-               "actual_rows" : 10,
-               "sql_execution_ms" : 0.106
+               "sql_execution_ms" : 1.24
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2331,30 +2314,47 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -25
+                  "sql_execution_ms" : 5.263
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "database",
+            "metrics" : {
+               "actual_rows" : 10,
+               "sql_execution_ms" : 0.08
+            },
+            "scenario" : "sql-plan-readers",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "actual_rows" : 0,
+                  "sql_execution_ms" : -4.478
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 3,
-               "sql_execution_ms" : 0.081
+               "sql_execution_ms" : 0.064
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
-                  "sql_execution_ms" : -14.286
+                  "sql_execution_ms" : 0
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 0,
-               "sql_execution_ms" : 0.006
+               "sql_execution_ms" : 0.005
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2364,47 +2364,47 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -7.143
+                  "sql_execution_ms" : -5.263
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 26,
-               "sql_execution_ms" : 0.026
+               "sql_execution_ms" : 0.018
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
-                  "sql_execution_ms" : -12.5
+                  "sql_execution_ms" : 0
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 0,
-               "sql_execution_ms" : 0.007
+               "sql_execution_ms" : 0.005
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -50
+                  "sql_execution_ms" : 0
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 1,
-               "sql_execution_ms" : 0.003
+               "sql_execution_ms" : 0.004
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2414,31 +2414,31 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -22.446
+                  "sql_execution_ms" : 7.807
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 26,
-               "sql_execution_ms" : 0.501
+               "sql_execution_ms" : 0.29
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -11.093
+                  "sql_execution_ms" : 5.096
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 26,
-               "sql_execution_ms" : 0.537
+               "sql_execution_ms" : 0.33
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2448,14 +2448,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -8.725
+                  "sql_execution_ms" : 1.316
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 15,
-               "sql_execution_ms" : 0.272
+               "sql_execution_ms" : 0.154
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2465,14 +2465,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -5.585
+                  "sql_execution_ms" : 2.358
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 15,
-               "sql_execution_ms" : 0.355
+               "sql_execution_ms" : 0.217
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2482,14 +2482,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -5.785
+                  "sql_execution_ms" : 11.429
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 20,
-               "sql_execution_ms" : 0.114
+               "sql_execution_ms" : 0.078
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2499,14 +2499,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -12.5
+                  "sql_execution_ms" : 0
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 10,
-               "sql_execution_ms" : 0.056
+               "sql_execution_ms" : 0.037
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2516,14 +2516,14 @@
                "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
-                  "sql_execution_ms" : -16.667
+                  "sql_execution_ms" : 0
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 10,
-               "sql_execution_ms" : 0.05
+               "sql_execution_ms" : 0.032
             },
             "scenario" : "sql-plan-readers",
             "status" : "ok"
@@ -2534,7 +2534,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -16.748
+                  "sql_execution_ms" : 1
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2542,7 +2542,7 @@
             "metrics" : {
                "actual_rows" : 8,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.343
+               "sql_execution_ms" : 0.202
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2553,7 +2553,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -0.835
+                  "sql_execution_ms" : -23.003
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2561,7 +2561,64 @@
             "metrics" : {
                "actual_rows" : 26,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.475
+               "sql_execution_ms" : 0.241
+            },
+            "scenario" : "sql-plan-functions",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "actual_rows" : 0,
+                  "nested_statements" : 0,
+                  "sql_execution_ms" : -0.766
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "database",
+            "metrics" : {
+               "actual_rows" : 26,
+               "nested_statements" : 2,
+               "sql_execution_ms" : 0.259
+            },
+            "scenario" : "sql-plan-functions",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "actual_rows" : 0,
+                  "nested_statements" : 0,
+                  "sql_execution_ms" : -9.509
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "database",
+            "metrics" : {
+               "actual_rows" : 26,
+               "nested_statements" : 2,
+               "sql_execution_ms" : 0.295
+            },
+            "scenario" : "sql-plan-functions",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "actual_rows" : 0,
+                  "nested_statements" : 0,
+                  "sql_execution_ms" : -9.854
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "database",
+            "metrics" : {
+               "actual_rows" : 26,
+               "nested_statements" : 2,
+               "sql_execution_ms" : 0.247
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2572,89 +2629,13 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -13.358
+                  "sql_execution_ms" : -31.034
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
             "kind" : "database",
             "metrics" : {
                "actual_rows" : 26,
-               "nested_statements" : 2,
-               "sql_execution_ms" : 0.467
-            },
-            "scenario" : "sql-plan-functions",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "actual_rows" : 0,
-                  "nested_statements" : 0,
-                  "sql_execution_ms" : -5.612
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "database",
-            "metrics" : {
-               "actual_rows" : 26,
-               "nested_statements" : 2,
-               "sql_execution_ms" : 0.555
-            },
-            "scenario" : "sql-plan-functions",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "actual_rows" : 0,
-                  "nested_statements" : 0,
-                  "sql_execution_ms" : 1.663
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "database",
-            "metrics" : {
-               "actual_rows" : 26,
-               "nested_statements" : 2,
-               "sql_execution_ms" : 0.428
-            },
-            "scenario" : "sql-plan-functions",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "actual_rows" : 0,
-                  "nested_statements" : 0,
-                  "sql_execution_ms" : 2.541
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "database",
-            "metrics" : {
-               "actual_rows" : 26,
-               "nested_statements" : 2,
-               "sql_execution_ms" : 0.565
-            },
-            "scenario" : "sql-plan-functions",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "stable",
-               "deltas_pct" : {
-                  "actual_rows" : 0,
-                  "nested_statements" : 0,
-                  "sql_execution_ms" : 4.575
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "database",
-            "metrics" : {
-               "actual_rows" : 15,
                "nested_statements" : 2,
                "sql_execution_ms" : 0.32
             },
@@ -2663,11 +2644,11 @@
          },
          {
             "comparison" : {
-               "classification" : "possible-regression",
+               "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : 58.424
+                  "sql_execution_ms" : -7.831
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2675,7 +2656,7 @@
             "metrics" : {
                "actual_rows" : 15,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.583
+               "sql_execution_ms" : 0.153
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2686,7 +2667,26 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : 1.012
+                  "sql_execution_ms" : -2.83
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "database",
+            "metrics" : {
+               "actual_rows" : 15,
+               "nested_statements" : 2,
+               "sql_execution_ms" : 0.206
+            },
+            "scenario" : "sql-plan-functions",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "actual_rows" : 0,
+                  "nested_statements" : 0,
+                  "sql_execution_ms" : -3.712
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2694,26 +2694,7 @@
             "metrics" : {
                "actual_rows" : 20,
                "nested_statements" : 2,
-               "sql_execution_ms" : 2.995
-            },
-            "scenario" : "sql-plan-functions",
-            "status" : "ok"
-         },
-         {
-            "comparison" : {
-               "classification" : "possible-regression",
-               "deltas_pct" : {
-                  "actual_rows" : 0,
-                  "nested_statements" : 0,
-                  "sql_execution_ms" : 22.947
-               },
-               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
-            },
-            "kind" : "database",
-            "metrics" : {
-               "actual_rows" : 10,
-               "nested_statements" : 2,
-               "sql_execution_ms" : 1.677
+               "sql_execution_ms" : 1.686
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2724,7 +2705,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : 6.03
+                  "sql_execution_ms" : -7.118
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2732,7 +2713,7 @@
             "metrics" : {
                "actual_rows" : 10,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.211
+               "sql_execution_ms" : 0.796
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2743,7 +2724,26 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -7.558
+                  "sql_execution_ms" : 0.847
+               },
+               "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+            },
+            "kind" : "database",
+            "metrics" : {
+               "actual_rows" : 10,
+               "nested_statements" : 2,
+               "sql_execution_ms" : 0.119
+            },
+            "scenario" : "sql-plan-functions",
+            "status" : "ok"
+         },
+         {
+            "comparison" : {
+               "classification" : "stable",
+               "deltas_pct" : {
+                  "actual_rows" : 0,
+                  "nested_statements" : 0,
+                  "sql_execution_ms" : -3
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2751,7 +2751,7 @@
             "metrics" : {
                "actual_rows" : 1,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.159
+               "sql_execution_ms" : 0.097
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2769,7 +2769,7 @@
             "metrics" : {
                "actual_rows" : 0,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.008
+               "sql_execution_ms" : 0.006
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2780,7 +2780,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -6.897
+                  "sql_execution_ms" : -1.709
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2788,7 +2788,7 @@
             "metrics" : {
                "actual_rows" : 3,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.189
+               "sql_execution_ms" : 0.115
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2799,7 +2799,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -8.621
+                  "sql_execution_ms" : -2.564
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2807,7 +2807,7 @@
             "metrics" : {
                "actual_rows" : 1,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.053
+               "sql_execution_ms" : 0.038
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2818,7 +2818,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -5.556
+                  "sql_execution_ms" : 0
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2826,7 +2826,7 @@
             "metrics" : {
                "actual_rows" : 1,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.017
+               "sql_execution_ms" : 0.013
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2837,7 +2837,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : 37.363
+                  "sql_execution_ms" : 33.333
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2845,18 +2845,18 @@
             "metrics" : {
                "actual_rows" : 20,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.125
+               "sql_execution_ms" : 0.064
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "confirmed-regression",
+               "classification" : "stable",
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : 19.101
+                  "sql_execution_ms" : -9.524
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2864,7 +2864,7 @@
             "metrics" : {
                "actual_rows" : 20,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.106
+               "sql_execution_ms" : 0.057
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2875,7 +2875,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : -12.644
+                  "sql_execution_ms" : -26.087
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2883,7 +2883,7 @@
             "metrics" : {
                "actual_rows" : 10,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.076
+               "sql_execution_ms" : 0.034
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
@@ -2894,7 +2894,7 @@
                "deltas_pct" : {
                   "actual_rows" : 0,
                   "nested_statements" : 0,
-                  "sql_execution_ms" : 1.02
+                  "sql_execution_ms" : 22.222
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2902,22 +2902,22 @@
             "metrics" : {
                "actual_rows" : 10,
                "nested_statements" : 2,
-               "sql_execution_ms" : 0.099
+               "sql_execution_ms" : 0.055
             },
             "scenario" : "sql-plan-functions",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "stable",
+               "classification" : "possible-regression",
                "deltas_pct" : {
                   "acknowledged" : 0,
                   "completed" : 0,
-                  "duration_seconds" : -8.792,
-                  "messages_per_second" : 9.64,
-                  "p50_ms" : -8.22,
-                  "p95_ms" : -8.113,
-                  "p99_ms" : -7.496
+                  "duration_seconds" : 2.644,
+                  "messages_per_second" : -2.575,
+                  "p50_ms" : 0.039,
+                  "p95_ms" : 20.983,
+                  "p99_ms" : 42.88
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2926,27 +2926,27 @@
                "acknowledged" : 3000,
                "completed" : 3000,
                "duplicates" : 0,
-               "duration_seconds" : 4.4027271270752,
+               "duration_seconds" : 3.02240705490112,
                "lost" : 0,
-               "messages_per_second" : 681.395851573693,
-               "p50_ms" : 145.554065704346,
-               "p95_ms" : 158.549070358276,
-               "p99_ms" : 164.530992507935
+               "messages_per_second" : 992.586354354623,
+               "p50_ms" : 100.494861602783,
+               "p95_ms" : 131.154775619507,
+               "p99_ms" : 158.411026000977
             },
             "scenario" : "postgres-dispatch-noop",
             "status" : "ok"
          },
          {
             "comparison" : {
-               "classification" : "improvement",
+               "classification" : "stable",
                "deltas_pct" : {
                   "acknowledged" : 0,
                   "completed" : 0,
-                  "duration_seconds" : -9.918,
-                  "messages_per_second" : 11.01,
-                  "p50_ms" : -9.902,
-                  "p95_ms" : -4.766,
-                  "p99_ms" : -7.125
+                  "duration_seconds" : -4.52,
+                  "messages_per_second" : 4.734,
+                  "p50_ms" : -4.192,
+                  "p95_ms" : -4.825,
+                  "p99_ms" : -4.883
                },
                "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
             },
@@ -2955,23 +2955,23 @@
                "acknowledged" : 3000,
                "completed" : 3000,
                "duplicates" : 0,
-               "duration_seconds" : 2.60645580291748,
+               "duration_seconds" : 1.7470600605011,
                "lost" : 0,
-               "messages_per_second" : 1150.98824873302,
-               "p50_ms" : 171.020984649658,
-               "p95_ms" : 199.588060379028,
-               "p99_ms" : 199.71489906311
+               "messages_per_second" : 1717.17050136189,
+               "p50_ms" : 115.360021591187,
+               "p95_ms" : 127.542018890381,
+               "p99_ms" : 127.585887908936
             },
             "scenario" : "postgres-dispatch-noop",
             "status" : "ok"
          }
       ],
       "mode" : "main",
-      "path" : "benchmarks/results/2026-10-15/b7b72daa5b7a06af6c82ab36945f966e8b98e6ff/38770090588-1",
+      "path" : "benchmarks/results/2026-10-15/c59806206812c2cc9a0e9bc13284de5e1640415b/38770901552-1",
       "run_attempt" : "1",
-      "run_id" : "38770090588",
+      "run_id" : "38770901552",
       "status" : "ok",
-      "timestamp" : "2026-10-15T16:34:35.634432+00:00"
+      "timestamp" : "2026-10-15T16:40:35.531430+00:00"
    },
    "schema_version" : 1
 }

@@ -942,6 +942,20 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **`gpforum performance-seed` no longer seeds a production database it
+  read from the settings file.** As a `bin/gpforum` verb it reads the host's
+  settings file for every name the shell left unset, so on a production host
+  a bare `gpforum performance-seed` connected to the forum's own database and
+  inserted the synthetic benchmark dataset. A production configuration
+  (`GPFORUM_ENV=production`) is now seeded only where `GPFORUM_DATABASE_DSN`
+  was given for the seed -- in the shell, or by a caller such as the staging
+  drill, which names each throwaway database -- and is refused otherwise,
+  with the fix in one sentence: point `GPFORUM_DATABASE_DSN` at a scratch
+  database. `hypnotoad-benchmark --seed` and `hypnotoad-scaling --seed` seed
+  through the same check. A refusal, a setting the seed cannot use or an
+  unmigrated schema is now reported as itself, without the advice about
+  DBD::Pg meant for a failed connection (`t/681`).
+
 - **A registration is one call.** It ran as seven functions while Perl kept
   the command log, a transaction and four savepoints around them, 24 round
   trips. Migration 106 adds `api.identity_register_command_v1` -- the

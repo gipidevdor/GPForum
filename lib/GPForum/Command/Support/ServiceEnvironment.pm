@@ -57,10 +57,12 @@ const my %ESCAPED => map { $_ => $_ } ( q{"}, q{\\}, q{$}, q{`} );
 
 # What this process read, for a reader that names it: the configuration
 # report's last line, a command that writes the file back. And the names it
-# set from the file: any other the environment holds came from the process
-# environment, where a fix sets it, not in the file.
+# set from the file, with the values it gave them: any other the environment
+# holds came from the process environment, where a fix sets it, not in the
+# file.
 my $LOADED;
 my @ASSIGNED;
+my %ASSIGNED_VALUE;
 
 # What a file name needs to be typed bare in a shell; one with anything else
 # is single-quoted.
@@ -87,6 +89,18 @@ sub loaded ($class) {
 
 sub assigned ($class) {
     return [@ASSIGNED];
+}
+
+# Whether the environment holds, under a name, the value this process set
+# from the file: not one it held before the file was read, nor one a caller
+# set since -- the staging drill points GPFORUM_DATABASE_DSN at each
+# throwaway database with local $ENV{...}.
+sub from_file ( $class, $name, $environment = \%ENV ) {
+    return 0
+      if !exists $ASSIGNED_VALUE{$name} || !exists $environment->{$name};
+
+    my $value = $environment->{$name};
+    return defined $value && $value eq $ASSIGNED_VALUE{$name} ? 1 : 0;
 }
 
 # A text whose gpforum commands read the file this process read: one read
@@ -191,8 +205,9 @@ sub load ($self) {
         $self->environment->{$name} = $value{$name};
         push @assigned, $name;
     }
-    $LOADED   = $file;
-    @ASSIGNED = @assigned;
+    $LOADED         = $file;
+    @ASSIGNED       = @assigned;
+    %ASSIGNED_VALUE = map { $_ => $value{$_} } @assigned;
 
     return { file => $file, kept => \@kept, set => \@assigned };
 }
@@ -341,6 +356,13 @@ Class method. The file this process read, or undef when it read none.
 
 Class method. The names this process set from the file it read; any other
 name its environment holds came from the process environment.
+
+=head2 from_file
+
+Class method. Takes a name, and an environment (C<%ENV> by default), and
+returns 1 when the environment holds under that name the value this process
+set from the file it read, else 0: 0 for a name the process environment held
+before the file was read, and for one a caller has set since.
 
 =head2 as_read
 

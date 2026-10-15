@@ -10,6 +10,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Benchmark::SeedDataset qw(dataset_counts insert_dataset seed_id);
+use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::Schema;
@@ -37,6 +38,10 @@ const my %SWITCH_OPTION => (
     '--help'    => { help    => 1 },
 );
 const my $HTTP_EXIT_USAGE => 2;
+const my $DSN_VARIABLE    => 'GPFORUM_DATABASE_DSN';
+const my $PRODUCTION_REFUSAL =>
+  q{GPFORUM_ENV is production, so the seed would write into the forum's own}
+  . " database; point $DSN_VARIABLE at a scratch database instead.";
 const my @REPORTED_COUNTS => qw(
   users categories threads posts sessions read_states notifications bookmarks
   subscriptions reports moderation_actions
@@ -105,10 +110,31 @@ sub _dbh ($self) {
     my $schema = $self->schema;
     if ( !$schema ) {
         my $config = GPForum::Config->from_environment;
+        _refuse_production($config);
         $schema = GPForum::Schema->connect_from_config($config);
     }
 
     return $schema->storage->dbh;
+}
+
+# bin/gpforum reads the host's settings file for every name the shell left
+# unset, so on a production host a bare `gpforum performance-seed` connected
+# to the forum's own database and wrote the synthetic dataset into it. A
+# production configuration is seeded only where GPFORUM_DATABASE_DSN was given
+# for the seed: in the shell, or by a caller -- the staging drill points it at
+# each throwaway database it makes. The file's DSN, or the default when
+# nothing set one, is the forum's.
+sub _refuse_production ($config) {
+    return if !$config->is_production;
+
+    my $dsn = $ENV{$DSN_VARIABLE};
+    return
+         if defined $dsn
+      && length $dsn
+      && !GPForum::Command::Support::ServiceEnvironment->from_file(
+        $DSN_VARIABLE);
+
+    GPForum::X::Config->throw( message => $PRODUCTION_REFUSAL );
 }
 
 sub _with_transaction ( $dbh, $code ) {
@@ -265,7 +291,15 @@ sub _usage {
       . ' [--dry-run] [--json] [--profile small|medium|hot-thread] [--users N] [--categories N] [--threads N] [--posts-per-thread N]';
 }
 
+# Settings the seed will not use, or a schema not migrated yet, say their own
+# fix; anything else failed on the way to PostgreSQL or in it.
 sub _seed_error ($error) {
+    if ( GPForum::X::Config->caught($error) ) {
+        return
+          'gpforum performance-seed: '
+          . GPForum::Command::Usage->trimmed($error) . "\n";
+    }
+
     return
         'gpforum performance-seed: PostgreSQL seed failed. '
       . 'Ensure DBD::Pg is installed with script/bootstrap-deps --postgres, '

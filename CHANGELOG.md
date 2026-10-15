@@ -2598,6 +2598,10 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **The projection generation search double is gone.**
+  `GPForum::Test::ProjectionGenerationSearch` stood in for the generation
+  writes deleted with `GPForum::Service::Projection`, and only `t/451`'s
+  list of doubles still named it.
 - **No document describes the deleted subsystems as running.**
   `docs/ENGINEERING_CORRECTNESS.md` loses its plugin, import, legacy-id and
   projection offset and generation guarantees, `docs/OBSERVABILITY.md` its

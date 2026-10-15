@@ -19,7 +19,6 @@ use GPForum::Test::ForumReadSearch;
 use GPForum::Test::ModerationSearch;
 use GPForum::Test::NotificationSearch;
 use GPForum::Test::OutboxSearch;
-use GPForum::Test::ProjectionGenerationSearch;
 use GPForum::Test::PurgeResultSet;
 use GPForum::Test::Row;
 use GPForum::Test::SearchResult;
@@ -39,7 +38,6 @@ const my @SEARCH_DOUBLES => qw(
   GPForum::Test::ModerationSearch
   GPForum::Test::NotificationSearch
   GPForum::Test::OutboxSearch
-  GPForum::Test::ProjectionGenerationSearch
   GPForum::Test::PurgeResultSet
   GPForum::Test::SearchSearch
 );

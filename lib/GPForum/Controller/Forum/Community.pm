@@ -186,6 +186,67 @@ sub unsubscribe_thread ($self) {
 
 # A refusal the workflow names answers with its error page; any other status
 # (none, or ok) is the bookmark or subscription response.
+sub like_post ($self) {
+    return $self->_like_write( 'post.like', 'like_post',
+        $self->forum_access->post_liked_status );
+}
+
+sub unlike_post ($self) {
+    return $self->_like_write( 'post.unlike', 'unlike_post',
+        $self->forum_access->post_unliked_status );
+}
+
+# A like goes to a post the member may read, and not to their own; the
+# function refuses both again under its lock (ADR 0129).
+sub _like_write ( $self, $action, $method, $status ) {
+    my $user_id = $self->write_user_id($action);
+    if ( !$user_id ) {
+        return;
+    }
+    my $post = $self->_visible_post;
+    if ( !$post ) {
+        return;
+    }
+    if ( $method eq 'like_post'
+        && ( $self->_column( $post, 'author_user_id' ) // q{} ) eq $user_id )
+    {
+        return $self->_bad_request(
+            { post_id => 'a post is not liked by its author' } );
+    }
+
+    return $self->_community_write_response(
+        'like', $status,
+        $self->gp_community_workflow->$method(
+            {
+                command_id => $self->command_id_param,
+                post_id    => $self->param('post_id'),
+                user_id    => $user_id,
+            }
+        ),
+    );
+}
+
+# The post of the request when the viewer may read it and its thread, else
+# a 404 answered and nothing.
+sub _visible_post ($self) {
+    my $post =
+      $self->gp_post_reader->find_visible_post( $self->param('post_id'),
+        $self->gp_forum_viewer );
+    if (
+        !$post
+        || !$self->gp_thread_detail_reader->find_thread(
+            $self->_column( $post, 'thread_id' ),
+            $self->gp_forum_viewer
+        )
+      )
+    {
+        $self->_not_found('post not found');
+        return undef;
+    }
+
+    return $post;
+}
+
 sub _community_write_response ( $self, $kind, $status, $result ) {
     my $mapped = $result->{status} // 'ok';
     if ( $mapped eq 'failed' ) {
@@ -202,6 +263,9 @@ sub _community_write_response ( $self, $kind, $status, $result ) {
     }
     if ( $kind eq 'bookmark' ) {
         return $self->bookmark_action_response( $status, $result->{stored} );
+    }
+    if ( $kind eq 'like' ) {
+        return $self->like_action_response( $status, $result->{stored} );
     }
 
     return $self->subscription_action_response( $status, $result->{stored} );
@@ -350,6 +414,14 @@ Mutes an existing thread subscription.
 =head2 unsubscribe_thread
 
 Revokes an existing thread subscription.
+
+=head2 like_post
+
+Likes the post for the signed-in member (C<POST /p/:post_id/like>).
+
+=head2 unlike_post
+
+Takes the member's like back (C<POST /p/:post_id/like/remove>).
 
 =head2 report_thread
 

@@ -45,14 +45,24 @@ const my $STATUS_POST_CREATED       => 'post_created';
 const my $STATUS_POST_UPDATED       => 'post_updated';
 const my $STATUS_POST_DELETED       => 'post_deleted';
 const my $STATUS_POST_RESTORED      => 'post_restored';
-const my $STATUS_READ_MARKED        => 'read_marked';
-const my $STATUS_REPORTED           => 'reported';
+const my $STATUS_POST_LIKED         => 'post_liked';
+const my $STATUS_POST_UNLIKED       => 'post_unliked';
+
+# What a member may do and undo at will, and so may churn: capped at 10 a
+# minute (ADR 0129 adds the like).
+const my $THREAD_CHURN =>
+  qr/\A thread[.](?:bookmark|subscribe|subscription|unsubscribe)/msx;
+const my $POST_CHURN         => qr/\A post[.](?:like|unlike)/msx;
+const my $STATUS_READ_MARKED => 'read_marked';
+const my $STATUS_REPORTED    => 'reported';
 const my %WRITE_FLASH => (
     $STATUS_BOOKMARKED         => 'forum.bookmarked',
     $STATUS_BOOKMARK_REMOVED   => 'forum.bookmark_removed',
     $STATUS_POST_CREATED       => 'forum.reply_posted',
     $STATUS_POST_DELETED       => 'forum.post_deleted',
+    $STATUS_POST_LIKED         => 'forum.post_liked',
     $STATUS_POST_RESTORED      => 'forum.post_restored',
+    $STATUS_POST_UNLIKED       => 'forum.post_unliked',
     $STATUS_POST_UPDATED       => 'forum.post_updated',
     $STATUS_READ_MARKED        => 'forum.posts_marked_read',
     $STATUS_REPORTED           => 'forum.reported',
@@ -240,6 +250,14 @@ sub bookmark_removed_status {
     return $STATUS_BOOKMARK_REMOVED;
 }
 
+sub post_liked_status {
+    return $STATUS_POST_LIKED;
+}
+
+sub post_unliked_status {
+    return $STATUS_POST_UNLIKED;
+}
+
 sub subscribed_status {
     return $STATUS_SUBSCRIBED;
 }
@@ -367,10 +385,7 @@ sub _window_limit ( $self, $requested, $default ) {
 }
 
 sub _churn_action ($action) {
-    return $action =~
-      /\A thread[.](?:bookmark|subscribe|subscription|unsubscribe)/msx
-      ? 1
-      : 0;
+    return $action =~ $THREAD_CHURN || $action =~ $POST_CHURN ? 1 : 0;
 }
 
 sub _invalid_limit ( $self, $value ) {
@@ -504,6 +519,14 @@ Returns C<bookmarked>.
 =head2 bookmark_removed_status
 
 Returns C<bookmark_removed>.
+
+=head2 post_liked_status
+
+Returns C<post_liked>.
+
+=head2 post_unliked_status
+
+Returns C<post_unliked>.
 
 =head2 subscribed_status
 

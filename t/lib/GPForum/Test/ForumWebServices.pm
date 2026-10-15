@@ -25,6 +25,7 @@ const my %MODERATION_ID => (
 
 has bookmark_removes      => sub { return []; };
 has bookmark_saves        => sub { return []; };
+has like_calls            => sub { return []; };
 has last_moderation_input => sub { return {}; };
 has mode                  => 'forum';
 has read_marker_writes    => sub { return []; };
@@ -1120,6 +1121,59 @@ sub record_for_source {
             },
         ],
         skipped => [],
+    };
+}
+
+# Likes: post-1 has two, one of them the viewer's when the viewer is
+# user-2; the writes answer as the function would.
+sub summary_for_posts {
+    my ( $self, $post_ids, $viewer_user_id ) = @_;
+
+    return {
+        map {
+            $_ => {
+                like_count => 2,
+                liked      => ( $viewer_user_id // q{} ) eq 'user-2' ? 1 : 0,
+            }
+        } grep { $_ eq 'post-1' } @{$post_ids}
+    };
+}
+
+sub new_like_row {
+    my ( $self, $input ) = @_;
+
+    return { %{$input}, created_at => '2026-05-23T12:00:00Z' };
+}
+
+sub like {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->like_calls }, [ like => $input ];
+    return if $input->{post_id} ne 'post-1';
+
+    return {
+        like_count => 3,
+        liked      => 1,
+        ok         => 1,
+        post_id    => $input->{post_id},
+        thread_id  => 'thread-1',
+        user_id    => $input->{user_id},
+    };
+}
+
+sub unlike {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->like_calls }, [ unlike => $input ];
+    return if $input->{post_id} ne 'post-1';
+
+    return {
+        like_count => 2,
+        liked      => 0,
+        ok         => 1,
+        post_id    => $input->{post_id},
+        thread_id  => 'thread-1',
+        user_id    => $input->{user_id},
     };
 }
 

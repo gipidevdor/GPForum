@@ -37,7 +37,7 @@ my %REQUIRED = (
     'GPForum::Service::Community::MentionStore'     => [qw(schema)],
     'GPForum::Service::Community::ReputationLedger' => [qw(schema)],
     'GPForum::Service::Community::Workflow'         =>
-      [qw(bookmark_store report_store subscription_store)],
+      [qw(bookmark_store like_store report_store subscription_store)],
     'GPForum::Service::Identity::AccountStore' =>
       [qw(audit credential_store password schema session_store token_store)],
     'GPForum::Service::Identity::AuthStore' =>

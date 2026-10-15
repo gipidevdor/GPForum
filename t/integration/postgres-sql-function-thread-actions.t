@@ -14,6 +14,7 @@ use lib 't/lib';
 
 use GPForum::Benchmark::SeedDataset qw(seed_id);
 use GPForum::Service::Community::BookmarkStore;
+use GPForum::Service::Community::LikeStore;
 use GPForum::Service::Moderation::ReportStore;
 use GPForum::Service::Community::Workflow;
 use GPForum::Service::Forum::ReadState;
@@ -167,8 +168,10 @@ sub community_workflow ($path) {
         bookmark_store =>
           GPForum::Service::Community::BookmarkStore->new( %store, %{$old} ),
         command_idempotency => command_log( $schema, $old, $ids, $clock ),
-        logger              => GPForum::Test::LogLines->new,
-        report_store        =>
+        like_store          =>
+          GPForum::Service::Community::LikeStore->new( %store, %{$old} ),
+        logger       => GPForum::Test::LogLines->new,
+        report_store =>
           GPForum::Service::Moderation::ReportStore->new( %store, %{$old} ),
         subscription_store =>
           GPForum::Service::Notification::SubscriptionStore->new(

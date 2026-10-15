@@ -103,6 +103,10 @@ is( $access->write_limit_for('thread.bookmark'),
     $CHURN_RATE_LIMIT, 'write_limit_for caps bookmark churn' );
 is( $access->write_limit_for('thread.bookmark.remove'),
     $CHURN_RATE_LIMIT, 'write_limit_for caps bookmark removal' );
+is( $access->write_limit_for('post.like'),
+    $CHURN_RATE_LIMIT, 'write_limit_for caps like churn' );
+is( $access->write_limit_for('post.unlike'),
+    $CHURN_RATE_LIMIT, 'and unlike churn' );
 is( $access->write_limit_for('thread.subscribe'),
     $CHURN_RATE_LIMIT, 'write_limit_for caps subscribe churn' );
 is( $access->write_limit_for('thread.subscription.mute'),
@@ -299,6 +303,14 @@ is( $access->bookmarked_status,
 is( $access->bookmark_removed_status,
     'bookmark_removed',
     'bookmark_removed_status keeps the remove write status' );
+is( $access->post_liked_status,
+    'post_liked', 'post_liked_status keeps the like write status' );
+is( $access->post_unliked_status,
+    'post_unliked', 'post_unliked_status keeps the unlike write status' );
+is( $access->write_flash_key('post_liked'),
+    'forum.post_liked', 'a like flashes its own message' );
+is( $access->write_flash_key('post_unliked'),
+    'forum.post_unliked', 'and so does taking it back' );
 is( $access->subscribed_status,
     'subscribed', 'subscribed_status keeps the subscribe write status' );
 is( $access->subscription_muted_status,

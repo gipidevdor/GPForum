@@ -31,6 +31,7 @@ use GPForum::ViewModel::Privacy::Presenter;
 our $VERSION = '0.001';
 
 const my $CATEGORY_FIELD => 3;
+const my $LIKE_COUNT     => 3;
 
 my $forum = GPForum::ViewModel::Forum::Presenter->new;
 
@@ -179,6 +180,66 @@ is_deeply(
     { post_id => 'post-1', status => 'restored', thread_id => 'thread-1' },
     'forum presenter owns restored-post response shape'
 );
+
+my %liked_input = (
+    like_command_ids => { 'post-1' => 'like-cmd-1', 'post-2' => 'like-cmd-2' },
+    likes => { 'post-1' => { like_count => $LIKE_COUNT, liked => 1 } },
+    page  => {
+        posts => {
+            items => [
+                {
+                    author_user_id => 'user-1',
+                    position       => 1,
+                    post_id        => 'post-1',
+                    thread_id      => 'thread-1',
+                },
+                {
+                    author_user_id => 'user-2',
+                    position       => 2,
+                    post_id        => 'post-2',
+                    thread_id      => 'thread-1',
+                },
+                {
+                    author_user_id => 'user-1',
+                    deleted_at     => '2026-05-23T12:00:00Z',
+                    position       => 3,
+                    post_id        => 'post-3',
+                    thread_id      => 'thread-1',
+                },
+            ],
+        },
+        thread => {
+            author_user_id => 'user-1',
+            category_id    => 'category-1',
+            thread_id      => 'thread-1',
+            title          => 'Welcome',
+        },
+    },
+    viewer_user_id => 'user-2',
+);
+my $liked_page = $forum->thread_page(%liked_input);
+is( $liked_page->{posts}[0]{like_count},
+    $LIKE_COUNT, 'thread page counts a post\'s likes' );
+is( $liked_page->{posts}[0]{liked}, 1, 'and says the viewer gave one' );
+is( $liked_page->{posts}[0]{can_like},
+    1, 'another member\'s post may be liked' );
+is( $liked_page->{posts}[0]{like_command_id},
+    'like-cmd-1', 'with its command id' );
+is( $liked_page->{posts}[1]{like_count}, 0, 'a post nobody liked counts none' );
+ok(
+    !$liked_page->{posts}[1]{can_like},
+    'and the viewer\'s own is not likeable'
+);
+ok( !$liked_page->{posts}[2]{can_like}, 'nor a deleted one' );
+my $read_only_page = $forum->thread_page(
+    %liked_input,
+    like_command_ids => {},
+    viewer_user_id   => undef
+);
+is( $read_only_page->{posts}[0]{like_count},
+    $LIKE_COUNT, 'a reader not signed in sees the count' );
+ok( !$read_only_page->{posts}[0]{can_like}, 'and cannot like' );
+is( $read_only_page->{posts}[0]{like_command_id}, q{}, 'with no command id' );
 
 my %moderated_input = (
     can_moderate_thread    => 1,

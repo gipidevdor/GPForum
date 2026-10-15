@@ -282,6 +282,7 @@ subtest 'a bookmark and a subscription are one call each' => sub {
             bookmark_store =>
               GPForum::Service::Community::BookmarkStore->new(%store),
             command_idempotency => $log,
+            like_store          => $handle,
             logger              => GPForum::Test::LogLines->new,
             report_store        => $handle,
             subscription_store  =>

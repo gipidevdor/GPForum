@@ -546,6 +546,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **A member likes a post, and takes the like back** (ADR 0129): `POST
+  /p/:post_id/like` and `/p/:post_id/like/remove`, each a native form under
+  the post with the count beside it, pressed when the reader gave one; a
+  reader not signed in sees the count. A like is one row per member and
+  post (migration 109, `post_likes`), counted when the page is read, never
+  on one's own post and never on a post that is not there to be read; each
+  like and unlike records its event (`post.liked`, `post.unliked`), the
+  thread's public page is refreshed, erasing an account deletes its likes
+  and a member's export lists them.
+
 - **Staff pin and unpin a thread**, from the thread's own tools and from the
   moderation actions page: `POST /moderation/threads/:thread_id/pin` and
   `/unpin` record a moderation action, its event (`thread.pinned`,

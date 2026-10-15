@@ -161,6 +161,12 @@ sub register ( $, %input ) {
     $routes->post('/p/:post_id/report')
       ->to('Forum::Community#report_post')
       ->name('post_report');
+    $routes->post('/p/:post_id/like')
+      ->to('Forum::Community#like_post')
+      ->name('post_like');
+    $routes->post('/p/:post_id/like/remove')
+      ->to('Forum::Community#unlike_post')
+      ->name('post_unlike');
     $routes->post('/p/:post_id/attachments')
       ->to('Attachments::Upload#upload_post')
       ->name('post_attachment_upload');

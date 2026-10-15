@@ -92,6 +92,9 @@ Every mutating HTTP request MUST follow this order:
   revision pointer; emits `post.edited`.
 - `POST /posts/:post_id/delete`: soft-deletes the post where policy allows;
   emits `post.hidden` or `post.deleted_soft`.
+- `POST /p/:post_id/like` and `/p/:post_id/like/remove`: a member's like on
+  the post, given and taken back, never on their own; emit `post.liked` or
+  `post.unliked` (ADR 0129).
 
 ### Subscription routes
 

@@ -207,6 +207,9 @@ sub _thread_page_parts ( $self, $input ) {
               $self->hash_or_empty( $input->{delete_command_ids} ),
             edit_command_ids =>
               $self->hash_or_empty( $input->{edit_command_ids} ),
+            like_command_ids =>
+              $self->hash_or_empty( $input->{like_command_ids} ),
+            likes               => $self->hash_or_empty( $input->{likes} ),
             restore_command_ids =>
               $self->hash_or_empty( $input->{restore_command_ids} ),
             report_command_ids =>
@@ -245,8 +248,26 @@ sub _post_with_attachments ( $self, $row, $context ) {
     $self->_apply_edit_state( $post, $row, $context );
     $self->_apply_restore_state( $post, $context );
     $self->_apply_report_state( $post, $context );
+    $self->_apply_like_state( $post, $context );
 
     return $post;
+}
+
+# Every reader sees how many liked a post; a signed-in reader who is not
+# its author, and while it is not deleted, may like it or take theirs back.
+sub _apply_like_state ( $self, $post, $context ) {
+    my $likes = $context->{likes}{ $post->{post_id} } || {};
+    $post->{like_count} = $likes->{like_count} || 0;
+    $post->{liked}      = $likes->{liked} ? 1 : 0;
+    my $viewer = $context->{viewer_user_id};
+    $post->{can_like} =
+         $self->has_text($viewer)
+      && !$self->has_text( $post->{deleted_at} )
+      && ( $post->{author_user_id} // q{} ) ne $viewer ? 1 : 0;
+    $post->{like_command_id} =
+      $self->string_or_empty(
+        $context->{like_command_ids}{ $post->{post_id} } );
+    return;
 }
 
 sub _category_thread ( $self, $row, $input ) {

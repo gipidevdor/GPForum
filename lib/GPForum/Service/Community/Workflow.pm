@@ -19,6 +19,7 @@ const my %PUBLIC_FIELDS => (
     bookmark => [
         qw(bookmark_id created_at deleted_at note ok target_id target_type user_id)
     ],
+    like   => [qw(like_count liked ok post_id thread_id user_id)],
     report => [
         qw(created_at details reason report_id reporter_user_id status target_id
           target_type)
@@ -29,7 +30,8 @@ const my %PUBLIC_FIELDS => (
     ],
 );
 
-__PACKAGE__->requires(qw(bookmark_store report_store subscription_store));
+__PACKAGE__->requires(
+    qw(bookmark_store like_store report_store subscription_store));
 has command_idempotency => undef;    # optional: writes run unlogged without one
 has logger              => undef;    # optional: errors are dropped without one
 
@@ -80,6 +82,45 @@ sub remove_bookmark ( $self, $input ) {
             },
         }
     );
+}
+
+# A like is one command around api.community_like_post_v1; taking it back,
+# one around api.community_unlike_post_v1 (ADR 0129).
+sub like_post ( $self, $input ) {
+    return $self->_commanded_op(
+        {
+            command_type => 'community.like',
+            function     => 'community_like_command',
+            input        => $input,
+            kind         => 'like',
+            not_found    => 'post not found',
+            request      => _like_request($input),
+            row => sub { return $self->like_store->new_like_row($input); },
+            run => sub { return $self->like_store->like($input); },
+        }
+    );
+}
+
+sub unlike_post ( $self, $input ) {
+    return $self->_commanded_op(
+        {
+            command_type => 'community.unlike',
+            function     => 'community_unlike_command',
+            input        => $input,
+            kind         => 'like',
+            not_found    => 'post not found',
+            request      => _like_request($input),
+            row => sub { return $self->like_store->new_like_row($input); },
+            run => sub { return $self->like_store->unlike($input); },
+        }
+    );
+}
+
+sub _like_request ($input) {
+    return {
+        post_id => $input->{post_id},
+        user_id => $input->{user_id},
+    };
 }
 
 sub save_subscription ( $self, $input ) {
@@ -454,6 +495,17 @@ Saves or restores a thread bookmark for the member.
 =head2 remove_bookmark
 
 Soft-deletes the member bookmark for a target.
+
+=head2 like_post
+
+Likes a post for a member: C<post_id>, C<user_id>, C<command_id>. Answers
+with C<stored> (C<like_count>, C<liked>, C<post_id>, C<thread_id>,
+C<user_id>), or C<not_found> for a post that cannot be liked and C<invalid>
+for the member's own post.
+
+=head2 unlike_post
+
+Takes a like back; the same answer, with C<liked> 0.
 
 =head2 save_subscription
 

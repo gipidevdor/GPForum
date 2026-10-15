@@ -14,6 +14,7 @@ use GPForum::Service::Attachment::Store;
 use GPForum::Service::Attachment::UploadPipeline;
 use GPForum::Service::Attachment::Workflow;
 use GPForum::Service::Community::BookmarkStore;
+use GPForum::Service::Community::LikeStore;
 use GPForum::Service::Community::FeedReader;
 use GPForum::Service::Community::MentionReader;
 use GPForum::Service::Community::MentionStore;
@@ -353,12 +354,21 @@ sub _register_community_helpers {
         }
     );
     $application->helper(
+        gp_like_store => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Community::LikeStore->new(
+                schema => $controller->gp_schema );
+        }
+    );
+    $application->helper(
         gp_community_workflow => sub {
             my ($controller) = @_;
 
             return GPForum::Service::Community::Workflow->new(
                 bookmark_store      => $controller->gp_bookmark_store,
                 command_idempotency => $controller->gp_command_idempotency,
+                like_store          => $controller->gp_like_store,
                 logger              => $controller->app->log,
                 report_store        => $controller->gp_report_store,
                 subscription_store  => $controller->gp_subscription_store,

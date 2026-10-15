@@ -42,7 +42,8 @@ my @CASES = (
         },
         logged   => 'community command log failed',
         method   => 'save_bookmark',
-        services => [qw(bookmark_store report_store subscription_store)],
+        services =>
+          [qw(bookmark_store like_store report_store subscription_store)],
     },
     {
         class    => 'GPForum::Service::Identity::Workflow',

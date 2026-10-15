@@ -18,7 +18,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 288;
+const my $EXPECTED_TESTS   => 300;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -312,6 +312,25 @@ $test->element_exists(
 $test->element_exists(
     'form[action="/moderation/threads/thread-1/hide"] input[name="return_to"]');
 $test->element_exists_not('form[action="/moderation/threads/thread-1/unpin"]');
+
+# Likes: the author of a post sees how many liked it; another member sees
+# theirs as pressed, with the count, and may take it back; a deleted post
+# takes none.
+$test->element_exists('#post-post-1 .post__likes');
+$test->element_exists_not('form[action="/p/post-1/like"]');
+$test->get_ok('/__test/session/user-2');
+$test->status_is($HTTP_OK);
+$test->get_ok('/t/thread-1');
+$test->status_is($HTTP_OK);
+$test->element_exists(
+    'form[action="/p/post-1/like/remove"] input[name="command_id"]');
+$test->element_exists(
+    'form[action="/p/post-1/like/remove"] button[aria-pressed="true"]');
+$test->text_like(
+    'form[action="/p/post-1/like/remove"] .post__like-count' => qr/2/msx );
+$test->element_exists_not('form[action="/p/post-deleted-1/like"]');
+$test->get_ok('/__test/session/user-1');
+$test->status_is($HTTP_OK);
 $test->get_ok('/t/thread-deleted-1');
 $test->status_is($HTTP_OK);
 $test->element_exists_not(
@@ -568,7 +587,7 @@ sub _install_forum_fakes {
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store
         gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_like_store gp_subscription_store
         gp_notification_dispatcher gp_search_service gp_rate_limiter
         gp_suspension_store gp_attachment_store
         )

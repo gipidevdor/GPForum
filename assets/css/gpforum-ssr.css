@@ -2080,3 +2080,23 @@ button[popovertarget] {
 .post__quote {
   text-decoration: none;
 }
+
+/* A like under a post: the count rides with the word, and the one the
+   reader gave reads as pressed. Readers who cannot like see the count as
+   a line of meta. */
+.post__like[aria-pressed="true"] {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.post__like-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.post__likes {
+  align-self: center;
+  color: var(--color-subtle);
+  font-size: var(--font-size-sm);
+  padding-inline: var(--space-3);
+}

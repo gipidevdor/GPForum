@@ -87,8 +87,19 @@
           % }
         </ul>
       % }
-      % if ($post->{can_edit} || $post->{can_delete} || $post->{can_restore} || $signed_in) {
+      % my $like_count = $post->{like_count} || 0;
+      % if ($post->{can_edit} || $post->{can_delete} || $post->{can_restore} || $signed_in || $like_count) {
         <footer class="post__actions">
+          % if ($post->{can_like}) {
+          %   my $like_route = $post->{liked} ? 'post_unlike' : 'post_like';
+            <form method="post" action="<%= ui_path($like_route, post_id => $post->{post_id}) %>" hx-post="<%= ui_path($like_route, post_id => $post->{post_id}) %>">
+              <%= csrf_field %>
+              <input type="hidden" name="command_id" value="<%= $post->{like_command_id} || q{} %>">
+              <button type="submit" class="button--quiet post__like" aria-pressed="<%= $post->{liked} ? 'true' : 'false' %>"><%= $post->{liked} ? t('forum.liked') : t('forum.like') %><% if ($like_count) { %> <span class="post__like-count" aria-label="<%= tc('forum.like_count', $like_count) %>"><%= $like_count %></span><% } %></button>
+            </form>
+          % } elsif ($like_count) {
+            <span class="post__likes"><%= tc('forum.like_count', $like_count) %></span>
+          % }
           % if ($post->{can_edit}) {
           %   my $edit_body = begin
               <form method="post" action="<%= ui_path('post_edit', post_id => $post->{post_id}) %>" hx-post="<%= ui_path('post_edit', post_id => $post->{post_id}) %>">

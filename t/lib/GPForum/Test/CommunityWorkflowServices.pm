@@ -10,11 +10,51 @@ use v5.40;
 our $VERSION = '0.001';
 
 has bookmark_saves       => sub { return []; };
+has like_calls           => sub { return []; };
 has bookmark_removes     => sub { return []; };
 has report_creates       => sub { return []; };
 has subscription_saves   => sub { return []; };
 has subscription_mutes   => sub { return []; };
 has subscription_revokes => sub { return []; };
+
+sub new_like_row {
+    my ( $self, $input ) = @_;
+
+    return { %{$input}, created_at => '2026-05-23T12:00:00Z' };
+}
+
+sub like {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->like_calls }, [ like => $input ];
+    $self->_maybe_boom($input);
+    return if $input->{post_id} eq 'post-missing';
+
+    return {
+        like_count => 3,
+        liked      => 1,
+        ok         => 1,
+        post_id    => $input->{post_id},
+        thread_id  => 'thread-1',
+        user_id    => $input->{user_id},
+    };
+}
+
+sub unlike {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->like_calls }, [ unlike => $input ];
+    $self->_maybe_boom($input);
+
+    return {
+        like_count => 2,
+        liked      => 0,
+        ok         => 1,
+        post_id    => $input->{post_id},
+        thread_id  => 'thread-1',
+        user_id    => $input->{user_id},
+    };
+}
 
 sub save_bookmark {
     my ( $self, $input ) = @_;

@@ -18,8 +18,48 @@ our $VERSION = '0.001';
 my $services = GPForum::Test::CommunityWorkflowServices->new;
 my $workflow = GPForum::Service::Community::Workflow->new(
     bookmark_store     => $services,
+    like_store         => $services,
     report_store       => $services,
     subscription_store => $services,
+);
+
+my $liked = $workflow->like_post(
+    { command_id => 'like-1', post_id => 'post-1', user_id => 'user-1' } );
+ok( $liked->{ok}, 'like_post succeeds for a post that is there' );
+is_deeply(
+    $liked->{stored},
+    {
+        like_count => 3,
+        liked      => 1,
+        ok         => 1,
+        post_id    => 'post-1',
+        thread_id  => 'thread-1',
+        user_id    => 'user-1',
+    },
+    'like_post answers with the like\'s public fields'
+);
+is( $services->like_calls->[0][1]{user_id},
+    'user-1', 'like_post scopes the write to the member' );
+is(
+    $workflow->like_post(
+        {
+            command_id => 'like-2',
+            post_id    => 'post-missing',
+            user_id    => 'user-1'
+        }
+    )->{status},
+    'not_found',
+    'like_post reports a post that is not there'
+);
+my $unliked = $workflow->unlike_post(
+    { command_id => 'unlike-1', post_id => 'post-1', user_id => 'user-1' } );
+is( $unliked->{stored}{liked}, 0, 'unlike_post answers with the like gone' );
+is( $services->like_calls->[-1][0], 'unlike', 'through the store\'s unlike' );
+is(
+    $workflow->like_post( { post_id => 'post-1', user_id => 'user-1' } )
+      ->{status},
+    'invalid',
+    'like_post rejects a missing command_id'
 );
 
 my $missing = $workflow->save_bookmark(
@@ -193,6 +233,7 @@ is( $failed_report->{status},
 my $idempotency = GPForum::Test::CommandIdempotency->new;
 my $commanded   = GPForum::Service::Community::Workflow->new(
     bookmark_store      => $services,
+    like_store          => $services,
     command_idempotency => $idempotency,
     report_store        => $services,
     subscription_store  => $services,
@@ -290,6 +331,7 @@ sub _replay_community {
     my $write_count    = _store_writes( $job->{services}, $job->{counter} );
     my $write_replayed = GPForum::Service::Community::Workflow->new(
         bookmark_store      => $job->{services},
+        like_store          => $job->{services},
         command_idempotency => GPForum::Test::CommandIdempotency->new(
             replay_response => $write_issued,
         ),
@@ -302,6 +344,7 @@ sub _replay_community {
         $write_count, "$method replay does not persist twice" );
     my $write_conflict = GPForum::Service::Community::Workflow->new(
         bookmark_store      => $job->{services},
+        like_store          => $job->{services},
         command_idempotency => GPForum::Test::CommandIdempotency->new(
             conflict => 1,
         ),

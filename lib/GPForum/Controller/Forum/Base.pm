@@ -359,6 +359,24 @@ sub bookmark_action_response ( $self, $status, $bookmark ) {
     );
 }
 
+# A like answers with the post as the list now lists it (the fragment),
+# or with the thread page at the post.
+sub like_action_response ( $self, $status, $like ) {
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json =>
+              $self->gp_community_view_model->like_response( $status, $like, ),
+            status => $HTTP_OK,
+        );
+    }
+
+    return $self->_html_success(
+        $status,
+        $self->url_for( 'thread', thread_id => $like->{thread_id} )
+          ->fragment( 'post-' . $self->param('post_id') ),
+    );
+}
+
 sub subscription_action_response ( $self, $status, $subscription ) {
     if ( $self->_wants_json ) {
         return $self->render(
@@ -557,6 +575,8 @@ sub thread_page_payload ( $self, $page, $user_id ) {
         page                   => $page,
         reply_command_id       => $reply_command_id,
         edit_command_ids       => $self->_edit_command_ids( $page, $user_id ),
+        likes                  => $self->_post_likes( $posts, $user_id ),
+        like_command_ids       => $self->_post_command_ids( $posts, $user_id ),
         delete_command_ids     => $self->_edit_command_ids( $page, $user_id ),
         report_command_ids     => $self->_edit_command_ids( $page, $user_id ),
         restore_command_ids    => $self->_edit_command_ids( $page, $user_id ),
@@ -586,6 +606,25 @@ sub thread_page_payload ( $self, $page, $user_id ) {
             user_id         => $user_id,
         ),
     );
+}
+
+# The likes on the page's posts, counted for every reader, with whether the
+# viewer gave one; and, for a signed-in reader, a command id per post for
+# the like they may give or take back.
+sub _post_likes ( $self, $posts, $user_id ) {
+    my @ids = $self->_post_ids($posts);
+    return {} if !@ids;
+    return $self->gp_like_store->summary_for_posts( \@ids, $user_id );
+}
+
+sub _post_command_ids ( $self, $posts, $user_id ) {
+    return {} if !$user_id;
+    return { map { $_ => $self->_new_command_id } $self->_post_ids($posts) };
+}
+
+sub _post_ids ( $self, $posts ) {
+    return grep { defined && length }
+      map { $self->_column( $_, 'post_id' ) } @{ $posts || [] };
 }
 
 # The reader who moderates threads (the viewer resolver establishes it with

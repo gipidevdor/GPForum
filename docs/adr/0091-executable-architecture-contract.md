@@ -368,6 +368,9 @@ Every catalog event has `schema_version` 1.
   actor_id `moderator_user_id`; idempotency_key moderation action id;
   payload `thread_id`, `reason`.
 - `thread.pinned`, `thread.unpinned`: as `thread.locked`.
+- `post.liked`, `post.unliked`: aggregate_type `post`; aggregate_id
+  `post_id`; actor_id `user_id`; idempotency_key the event's own id under
+  the post; payload `post_id`, `thread_id`, `user_id`, `author_user_id`.
 - `role.assigned`: aggregate_type `role_binding`; aggregate_id
   `role_binding_id`; actor_id `admin_user_id`; idempotency_key role
   assignment command id; payload `user_id`, `role_id`, `scope_type`,

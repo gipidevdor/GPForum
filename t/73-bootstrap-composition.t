@@ -201,6 +201,7 @@ sub _helper_names {
       gp_attachment_upload_pipeline
       gp_attachment_workflow
       gp_bookmark_store
+      gp_like_store
       gp_community_view_model
       gp_community_workflow
       gp_canonical_url

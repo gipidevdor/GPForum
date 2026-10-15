@@ -92,6 +92,10 @@ plus every asynchronous consumer.
   - producer: moderation workflow
   - consumers: cache invalidation, audit
   - payload: `thread_id`, `actor_user_id`, `reason`
+- `post.liked`, `post.unliked`
+  - producer: community workflow (ADR 0129)
+  - consumers: cache invalidation
+  - payload: `post_id`, `thread_id`, `user_id`, `author_user_id`
 - `thread.moved`
   - producer: moderation workflow
   - consumers: feed projection, search indexing, cache invalidation, audit

@@ -20,7 +20,7 @@ use GPForum::Test::SuspendedParticipation;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 249;
+const my $EXPECTED_TESTS       => 272;
 const my $HTTP_OK              => 200;
 const my $HTTP_CREATED         => 201;
 const my $HTTP_BAD_REQUEST     => 400;
@@ -135,6 +135,8 @@ $test->json_is( '/posts/0/can_delete'       => 1 );
 $test->json_is( '/thread/can_edit_thread'   => 1 );
 $test->json_is( '/thread/can_delete_thread' => 1 );
 $test->json_is( '/thread/can_move_thread'   => 1 );
+$test->json_is( '/posts/0/like_count'       => 2 );
+$test->json_is( '/posts/0/can_like'         => 0 );
 _get_json_ok( $test, '/new-thread' );
 my $session_csrf = _json_value( $test, 'csrf_token' );
 
@@ -502,6 +504,50 @@ $test->post_ok(
 $test->status_is($HTTP_OK);
 $test->json_is( '/status' => 'bookmark_removed' );
 
+# A like: not on one's own post (user-1 wrote post-1); as another member,
+# given and taken back, with the post's count; only on a post that is there.
+$test->post_ok(
+    '/p/post-1/like' => { Accept => 'application/json' } => form => {
+        command_id => 'like-own-1',
+        csrf_token => $session_csrf,
+    }
+);
+$test->status_is($HTTP_BAD_REQUEST);
+$test->json_is( '/errors/post_id' => 'a post is not liked by its author' );
+$test->get_ok('/__test/session/user-2');
+$test->status_is($HTTP_OK);
+_get_json_ok( $test, '/t/thread-1' );
+$test->json_is( '/posts/0/can_like' => 1 );
+$test->json_is( '/posts/0/liked'    => 1 );
+$test->post_ok(
+    '/p/post-1/like' => { Accept => 'application/json' } => form => {
+        command_id => 'like-1',
+        csrf_token => $session_csrf,
+    }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/status'          => 'post_liked' );
+$test->json_is( '/like/like_count' => 3 );
+$test->json_is( '/like/post_id'    => 'post-1' );
+$test->post_ok(
+    '/p/post-1/like/remove' => { Accept => 'application/json' } => form => {
+        command_id => 'unlike-1',
+        csrf_token => $session_csrf,
+    }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/status'     => 'post_unliked' );
+$test->json_is( '/like/liked' => 0 );
+$test->post_ok(
+    '/p/post-missing/like' => { Accept => 'application/json' } => form => {
+        command_id => 'like-missing-1',
+        csrf_token => $session_csrf,
+    }
+);
+$test->status_is($HTTP_NOT_FOUND);
+$test->get_ok('/__test/session/user-1');
+$test->status_is($HTTP_OK);
+
 $test->post_ok(
     '/t/thread-1/subscribe' => { Accept => 'application/json' } => form => {
         command_id => 'subscribe-1',
@@ -635,7 +681,7 @@ sub _install_forum_fakes {
         gp_category_reader gp_thread_reader gp_thread_detail_reader
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_like_store gp_subscription_store
         gp_notification_dispatcher gp_report_store gp_search_service
         gp_rate_limiter gp_suspension_store gp_attachment_store
         )

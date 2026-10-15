@@ -219,7 +219,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 4,
+        version    => 6,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -229,7 +229,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 4,
+        version    => 6,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -544,6 +544,30 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
         json       => ['response']
+    },
+    community_like_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
+    },
+    community_unlike_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
+    },
+    community_like_post => {
+        version    => 2,
+        parameters => [ row => 'jsonb' ],
+        json       => ['result']
+    },
+    community_unlike_post => {
+        version    => 2,
+        parameters => [ row => 'jsonb' ],
+        json       => ['result']
+    },
+    community_post_likes => {
+        version    => 2,
+        parameters => [ post_ids => 'uuid[]', viewer_user_id => 'uuid' ]
     },
     community_subscribe_command => {
         version    => 2,

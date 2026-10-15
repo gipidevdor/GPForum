@@ -39,6 +39,13 @@ sub bookmark_response ( $self, $status, $bookmark ) {
     };
 }
 
+sub like_response ( $self, $status, $like ) {
+    return {
+        like   => $like,
+        status => $status,
+    };
+}
+
 sub subscription_response ( $self, $status, $subscription ) {
     return {
         status       => $status,

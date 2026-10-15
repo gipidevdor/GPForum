@@ -52,7 +52,7 @@ claim. No competitor source code or assets were imported for this review.
 | ID | Feature | Verified status and scope | Package |
 | --- | --- | --- | --- |
 | A01 | Emoji reactions | Not found in posting schema/routes/UI. [routes], [post-model] | PB-01 |
-| A02 | Likes / upvotes / downvotes | Not found. Start with a reversible like; additional vote semantics need a product decision. [routes] | PB-01 |
+| A02 | Likes / upvotes / downvotes | Done 2026-10-15 for the reversible like (ADR 0129): one per member and post, not on one's own, counted from rows, erased and exported with the account; votes remain a product decision. [routes] | PB-01 |
 | A03 | Polls | Not found in schema, posting workflows or composer. [routes], [composer] | PB-03 |
 | A04 | Reply to a particular post | Foundation: quote rendering exists; the post model has no reply target and UI has no reply relationship. [post-model], [markup] | PB-10 |
 | A05 | Draft autosave | Present in the current change; locally validated. Private thread/reply drafts, revision conflicts, serialized progressive autosave and native Save. [draft-flow], [draft-client], [draft-schema] | PB-10 / Maintain |

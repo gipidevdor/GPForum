@@ -1539,6 +1539,21 @@ msgctxt "forum.latest_public_discussions"
 msgid "Latest public discussions"
 msgstr "Discussioni pubbliche recenti"
 
+msgctxt "forum.like"
+msgid "Like"
+msgstr "Mi piace"
+
+#, python-brace-format
+msgctxt "forum.like_count"
+msgid "{count} like"
+msgid_plural "{count} likes"
+msgstr[0] "{count} mi piace"
+msgstr[1] "{count} mi piace"
+
+msgctxt "forum.liked"
+msgid "Liked"
+msgstr "Ti piace"
+
 msgctxt "forum.login_to_continue"
 msgid "Login to continue"
 msgstr "Accedi per continuare"
@@ -1604,6 +1619,10 @@ msgctxt "forum.post_deleted_notice"
 msgid "This post is hidden. Only you can see it until you restore it."
 msgstr "Questo post è nascosto. Solo tu puoi vederlo finché non lo ripristini."
 
+msgctxt "forum.post_liked"
+msgid "Post liked"
+msgstr "Hai messo mi piace"
+
 # Same as English.
 #, python-brace-format
 msgctxt "forum.post_number"
@@ -1621,6 +1640,10 @@ msgstr "Pubblica risposta"
 msgctxt "forum.post_restored"
 msgid "Post restored"
 msgstr "Post ripristinato"
+
+msgctxt "forum.post_unliked"
+msgid "Like taken back"
+msgstr "Mi piace tolto"
 
 msgctxt "forum.post_updated"
 msgid "Post updated"
@@ -2055,8 +2078,11 @@ msgid "Report assigned"
 msgstr "Segnalazione assegnata"
 
 msgctxt "moderation.hide_hint"
-msgid "A hidden thread leaves every list and page until a moderator restores it."
-msgstr "Una discussione nascosta sparisce da ogni elenco e pagina finché un moderatore non la ripristina."
+msgid ""
+"A hidden thread leaves every list and page until a moderator restores it."
+msgstr ""
+"Una discussione nascosta sparisce da ogni elenco e pagina finché un "
+"moderatore non la ripristina."
 
 msgctxt "moderation.hide_post"
 msgid "Hide post"

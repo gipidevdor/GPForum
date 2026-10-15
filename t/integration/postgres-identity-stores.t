@@ -33,16 +33,17 @@ use GPForum::Test::UnauditedEventRecorder;
 
 our $VERSION = '0.001';
 
-const my $NOW         => '2026-05-23T12:00:00Z';
-const my $HALF_PAST   => '2026-05-23T12:30:00Z';
-const my $LATER       => '2026-05-23T13:00:00Z';
-const my $LATEST      => '2026-05-23T14:00:00Z';
-const my $SEEN        => '2026-05-23T11:00:00Z';
-const my $REVOKED     => '2026-05-23T10:00:00Z';
-const my $EARLY       => '2026-05-23T09:00:00Z';
-const my $TOMORROW    => '2026-05-24T12:00:00Z';
-const my $SESSION_END => '2026-06-22T12:00:00Z';
-const my $HOUR        => 3_600;
+const my $NOW          => '2026-05-23T12:00:00Z';
+const my $BIO_TOO_LONG => 501;
+const my $HALF_PAST    => '2026-05-23T12:30:00Z';
+const my $LATER        => '2026-05-23T13:00:00Z';
+const my $LATEST       => '2026-05-23T14:00:00Z';
+const my $SEEN         => '2026-05-23T11:00:00Z';
+const my $REVOKED      => '2026-05-23T10:00:00Z';
+const my $EARLY        => '2026-05-23T09:00:00Z';
+const my $TOMORROW     => '2026-05-24T12:00:00Z';
+const my $SESSION_END  => '2026-06-22T12:00:00Z';
+const my $HOUR         => 3_600;
 
 const my $PASSWORD       => 'correct horse battery staple';
 const my $NEW_PASSWORD   => 'new correct horse battery';
@@ -192,6 +193,7 @@ _session_validation($identity);
 _locale_preference($identity);
 _theme_preference($identity);
 _timezone_preference($identity);
+_bio_preference($identity);
 _password_reset($identity);
 _password_reset_unknown($identity);
 _password_reset_rotation($identity);
@@ -823,6 +825,37 @@ sub _theme_preference {
 
     is( $update->(q{})->{error},
         'theme_required', 'update_preferred_theme rejects an empty theme' );
+
+    return;
+}
+
+# A bio is plain text up to 500 characters, kept as written with its line
+# ends made one way; empty takes it down.
+sub _bio_preference {
+    my ($ctx) = @_;
+
+    my $user           = _member( $ctx, 'writer' );
+    my $identity_store = _identity($ctx);
+    my $update         = sub {
+        my ($bio) = @_;
+        return $identity_store->update_bio( { bio => $bio, user_id => $user } );
+    };
+    my $stored = sub { return _row( $ctx, $USER_ROW_SQL, $user )->{bio}; };
+
+    is( $stored->(), q{}, 'a member starts with no bio' );
+    ok( $update->("Writes about Perl.\r\n\r\nAnd forums.")->{ok},
+        'update_bio stores the words' );
+    is(
+        $stored->(),
+        "Writes about Perl.\n\nAnd forums.",
+        'with their line ends made one way'
+    );
+    ok( $update->("Writes about Perl.\n\nAnd forums.")->{skipped},
+        'and skips an unchanged bio' );
+    is( $update->( 'x' x $BIO_TOO_LONG )->{error},
+        'bio_too_long', 'refuses more than 500 characters' );
+    ok( $update->(q{})->{ok}, 'an empty bio takes it down' );
+    is( $stored->(), q{}, 'leaving nothing stored' );
 
     return;
 }

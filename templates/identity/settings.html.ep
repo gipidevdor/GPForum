@@ -7,6 +7,17 @@
     component_title => t('settings.title'),
     description => t('settings.description') %>
 
+  <section class="settings-group" aria-labelledby="<%= $ui->{profile_heading_id} %>">
+    <h2 id="<%= $ui->{profile_heading_id} %>"><%= t('settings.profile') %></h2>
+    <form method="post" action="<%= ui_path('settings_profile_update') %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $profile_command_id || q{} %>">
+      <label for="settings-bio"><%= t('settings.bio') %></label>
+      <textarea id="settings-bio" name="bio" rows="4" maxlength="500" aria-describedby="settings-bio-help"><%= $bio %></textarea>
+      <p id="settings-bio-help" class="ui-hint"><%= t('settings.bio_hint') %></p>
+      <button type="submit"><%= t('settings.save_profile') %></button>
+    </form>
+  </section>
   <form class="settings-form" method="post" action="<%= ui_path('settings_update') %>">
     <%= csrf_field %>
     <input type="hidden" name="command_id" value="<%= $settings_command_id || q{} %>">

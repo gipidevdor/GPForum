@@ -2126,3 +2126,14 @@ button[popovertarget] {
   align-items: center;
   gap: var(--space-1);
 }
+
+/* The few words a member says about themselves: prose under the name,
+   no wider than a line reads well. */
+.profile__bio {
+  max-inline-size: 60ch;
+  margin-block: var(--space-3);
+}
+
+.profile__bio p + p {
+  margin-block-start: var(--space-2);
+}

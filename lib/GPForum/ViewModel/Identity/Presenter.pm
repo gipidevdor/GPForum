@@ -255,6 +255,7 @@ sub profile ( $self, $profile ) {
 
 sub settings_page ( $self, %input ) {
     return {
+        bio                      => $input{bio} // q{},
         digest_frequency_options => $input{digest_frequency_options} || [],
         locale_options           => $input{locale_options}           || [],
         notification_preferences => $input{notification_preferences} || [],
@@ -266,6 +267,7 @@ sub settings_page ( $self, %input ) {
             email_heading_id         => 'settings-email-heading',
             heading_id               => 'settings-heading',
             notifications_heading_id => 'settings-notifications-heading',
+            profile_heading_id       => 'settings-profile-heading',
         },
     };
 }

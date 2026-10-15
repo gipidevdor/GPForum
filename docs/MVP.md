@@ -74,7 +74,8 @@ for quota, expiry, publication and privacy behavior.
 * `POST /t/:thread_id/subscribe` follows a thread for notifications.
 * `POST /t/:thread_id/subscribe/mute` mutes a followed thread.
 * `POST /t/:thread_id/subscribe/remove` unfollows a thread.
-* `GET /u/:username` renders a public-safe contributor profile.
+* `GET /u/:username` renders a public-safe contributor profile, with the bio
+  the member wrote in Settings when they wrote one.
 
 ### Reports
 

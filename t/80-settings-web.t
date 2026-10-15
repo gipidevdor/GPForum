@@ -19,10 +19,12 @@ use GPForum::Test::NotificationPreferenceStore;
 
 our $VERSION = '0.001';
 
-const my $HTTP_ACCEPTED  => 202;
-const my $HTTP_FORBIDDEN => 403;
-const my $HTTP_FOUND     => 302;
-const my $HTTP_OK        => 200;
+const my $HTTP_ACCEPTED    => 202;
+const my $HTTP_FORBIDDEN   => 403;
+const my $HTTP_FOUND       => 302;
+const my $HTTP_BAD_REQUEST => 400;
+const my $BIO_TOO_LONG     => 501;
+const my $HTTP_OK          => 200;
 
 subtest 'settings require an authenticated user' => sub {
     my $test = Test::Mojo->new('GPForum');
@@ -138,6 +140,41 @@ subtest 'the forum default zone is named in the settings form' => sub {
     $test->get_ok( '/settings' => { 'Accept-Language' => 'en' } );
     $test->text_is(
         'select[name="timezone"] option[value=""]' => 'Forum default (UTC)' );
+};
+
+# A member's bio: shown in the Profile section, saved by its own command,
+# refused past 500 characters.
+subtest 'the profile section saves the bio' => sub {
+    my ( $test, $identity_store ) = _authenticated_settings_app();
+    $test->get_ok('/settings');
+    $test->status_is($HTTP_OK);
+    $test->element_exists(
+        'section[aria-labelledby="settings-profile-heading"]');
+    $test->element_exists('textarea[name="bio"][maxlength="500"]');
+    my $command_id = _command_id_in_form( $test, '/settings/profile' );
+    $test->post_ok(
+        '/settings/profile' => form => {
+            bio        => "Writes about Perl.\r\n\r\nAnd forums.",
+            command_id => $command_id,
+            csrf_token => _csrf_token($test),
+        }
+    );
+    $test->status_is($HTTP_FOUND);
+    $test->header_like( Location => qr{/settings\z}msx );
+    is( $identity_store->bio_updates->[0]{user_id},
+        'user-1', 'the bio is saved for the member' );
+    $test->get_ok('/settings');
+    $test->text_like(
+        'textarea[name="bio"]' => qr/Writes [ ] about [ ] Perl/msx );
+    $test->content_like(qr/Profile [ ] saved[.]/msx);
+    $test->post_ok(
+        '/settings/profile' => form => {
+            bio        => 'x' x $BIO_TOO_LONG,
+            command_id => _command_id_in_form( $test, '/settings/profile' ),
+            csrf_token => _csrf_token($test),
+        }
+    );
+    $test->status_is($HTTP_BAD_REQUEST);
 };
 
 done_testing();

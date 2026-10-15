@@ -215,7 +215,7 @@ const my %FUNCTION => (
         json => ['document']
     },
     privacy_update => {
-        version    => 2,
+        version    => 4,
         parameters => [ source => 'text', id => 'uuid', changes => 'jsonb' ],
         json       => ['document']
     },
@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 6,
+        version    => 8,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -843,7 +843,7 @@ const my %FUNCTION => (
         parameters => [ values => 'jsonb' ],
     },
     identity_update_user => {
-        version    => 2,
+        version    => 4,
         parameters => [ user_id => 'uuid', changes => 'jsonb' ],
     },
     identity_insert_credential => {

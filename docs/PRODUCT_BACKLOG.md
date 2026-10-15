@@ -82,7 +82,7 @@ claim. No competitor source code or assets were imported for this review.
 | --- | --- | --- | --- |
 | C01 | Direct messages | Not found: no messaging domain, conversation schema or product routes. Restricted forum threads do not establish DM support. [routes] | PB-07 |
 | C02 | Private group conversations | Not found; a separate increment after participant authorization and abuse controls. [routes] | PB-07 |
-| C03 | Rich profiles | Partial: join date, public activity and contribution counts exist; bio/custom fields/social links were not found. [profile] | PB-13 |
+| C03 | Rich profiles | Partial: join date, public activity, contribution counts and, since 2026-10-15, a bio (plain text, 500 characters, set in Settings, erased and exported with the account; migration 111). Custom fields and social links were not found. [profile] | PB-13 |
 | C04 | Avatar upload / crop | Not found; profiles/posts render initials and generated colors. [profile], [posts] | PB-13 |
 | C05 | Badges / achievements / medals | Partial: trust-derived contributor badge exists; separate achievement/award system was not found. [profile], [profile-reader] | PB-13 |
 | C06 | Visible trust levels | Present, basic: profile shows reputation score, badge and numeric level. Further explanations and privilege UX are optional increments. [profile], [reputation] | Maintain / PB-13 |

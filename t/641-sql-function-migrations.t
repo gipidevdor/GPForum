@@ -62,8 +62,10 @@ const my %RETAINED_BOUNDARIES => (
     moderation_target_update => [2],
     forum_write_command      => [2],
     forum_create_reply       => [2],
-    portability_export_parts => [ 2, 4 ],
+    identity_update_user     => [2],
+    portability_export_parts => [ 2, 4, 6 ],
     privacy_revoke_user      => [ 2, 4 ],
+    privacy_update           => [2],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;

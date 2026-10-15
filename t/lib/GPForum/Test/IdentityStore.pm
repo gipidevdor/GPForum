@@ -9,6 +9,8 @@ use v5.40;
 
 our $VERSION = '0.001';
 
+const my $BIO_MAX => 500;
+
 const my $AT_CODE => 64;
 const my $AT_SIGN => chr $AT_CODE;
 
@@ -24,6 +26,8 @@ has revoked            => sub { return []; };
 has locale_updates     => sub { return []; };
 has theme_updates      => sub { return []; };
 has preferred_timezone => undef;
+has bio                => q{};
+has bio_updates        => sub { return []; };
 has timezone_updates   => sub { return []; };
 
 sub create_registration {
@@ -103,6 +107,23 @@ sub update_preferred_locale {
         ok               => 1,
         preferred_locale => $self->preferred_locale,
     };
+}
+
+sub bio_for_user {
+    my ( $self, $input ) = @_;
+
+    return { bio => $self->bio, ok => 1 };
+}
+
+sub update_bio {
+    my ( $self, $input ) = @_;
+
+    my $bio = $input->{bio} // q{};
+    return { error => 'bio_too_long', ok => 0 } if length $bio > $BIO_MAX;
+    $self->bio($bio);
+    push @{ $self->bio_updates }, { %{$input} };
+
+    return { bio => $bio, ok => 1 };
 }
 
 sub preferred_locale_for_user {
@@ -280,6 +301,7 @@ sub public_profile {
                 user_id       => 'user-1',
                 username      => 'giacomo_forum',
                 display_name  => 'Giacomo Picchiarelli',
+                bio           => "Writes about Perl.\n\nAnd forums.",
                 status        => 'active',
                 trust_level   => 2,
                 created_at    => '2026-05-23T12:00:00Z',

@@ -277,6 +277,9 @@ sub register ( $, %input ) {
     $routes->post('/settings')
       ->to('Identity::Settings#update_settings')
       ->name('settings_update');
+    $routes->post('/settings/profile')
+      ->to('Identity::Settings#update_profile')
+      ->name('settings_profile_update');
     $routes->post('/settings/password')
       ->to('Identity::Password#change_password')
       ->name('settings_password_update');

@@ -18,6 +18,13 @@
       <span><%= t('profile.joined') %> <%= include 'components/timestamp', at => $user->{created_at} %></span>
     % }
   </p>
+  % if (length($user->{bio} // q{})) {
+    <div class="profile__bio" aria-label="<%= t('profile.about') %>">
+      % for my $paragraph (grep { length } split /\n{2,}/, $user->{bio}) {
+        <p><%= $paragraph %></p>
+      % }
+    </div>
+  % }
   <dl class="ui-stats" aria-label="<%= t('profile.contributor_summary') %>">
     <div>
       <dt><%= t('profile.public_contributions') %></dt>

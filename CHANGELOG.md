@@ -546,6 +546,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **A member says a few words about themselves**: Settings opens with a
+  Profile section whose bio (plain text, up to 500 characters) shows on the
+  public profile as paragraphs; an empty bio takes it down. Erasing the
+  account clears it and a member's export carries it under `profile`
+  (migration 111: the `users.bio` column, the identity update, the erasure
+  update and the export each at a new version, ADR 0126 section 2).
+
 - **Search says where to look**: the search form offers Everything, Thread
   titles or Posts (`scope`), kept with the query across filters and pages;
   the ranked search takes it as one more parameter (migration 110,

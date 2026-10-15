@@ -280,6 +280,18 @@ sub update_preferred_theme ( $self, $input ) {
 
 # An empty zone is a choice (the forum's default), so only the command and
 # the member are required.
+sub update_bio ( $self, $input ) {
+    return $self->_preference_write(
+        {
+            command_type => 'identity.bio_change',
+            field        => 'bio',
+            input        => $input,
+            required     => [qw(command_id user_id)],
+            run          => sub { return $self->store->update_bio($input); },
+        }
+    );
+}
+
 sub update_preferred_timezone ( $self, $input ) {
     return $self->_preference_write(
         {
@@ -883,6 +895,11 @@ Persists an authenticated member locale preference. Requires C<command_id>.
 
 Persists a member's time zone, or the forum's default for an empty one.
 Requires C<command_id>.
+
+=head2 update_bio
+
+Persists the few words a member shows on their profile (C<bio>, plain
+text up to 500 characters; empty takes it down). Requires C<command_id>.
 
 =head2 update_preferred_theme
 

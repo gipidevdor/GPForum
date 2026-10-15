@@ -280,6 +280,7 @@ sub _user_hash ($user) {
         user_id       => _column( $user, 'id' ),
         username      => _column( $user, 'username' ),
         display_name  => _column( $user, 'display_name' ),
+        bio           => _column( $user, 'bio' ) // q{},
         status        => _column( $user, 'status' ),
         trust_level   => _column( $user, 'trust_level' ) || 0,
         created_at    => _column( $user, 'created_at' ),

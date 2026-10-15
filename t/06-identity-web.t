@@ -20,7 +20,7 @@ use GPForum::Test::IdentitySecurityAudit;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS    => 109;
+const my $EXPECTED_TESTS    => 111;
 const my $HTTP_OK           => 200;
 const my $HTTP_ACCEPTED     => 202;
 const my $HTTP_BAD_REQUEST  => 400;
@@ -424,6 +424,8 @@ $test->status_is($HTTP_OK);
 $test->text_is( 'h1' => 'Giacomo Picchiarelli' );
 $test->content_like(qr/[@]giacomo_forum/msx);
 $test->element_exists('dl[aria-label="Contributor summary"]');
+$test->element_exists('.profile__bio[aria-label="About"] p');
+$test->text_like( '.profile__bio p' => qr/Writes [ ] about [ ] Perl/msx );
 $test->content_like(qr/Public [ ] contributions/msx);
 $test->content_like(qr/Trusted [ ] contributor/msx);
 $test->content_like(qr/Reputation [ ] score/msx);

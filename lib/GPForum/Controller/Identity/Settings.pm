@@ -78,9 +78,11 @@ sub settings ($self) {
     # The page shows the notification preferences: when they cannot be read
     # it answers 500.
     my $store = $self->gp_notification_preference_store;
-    my $preferences;
+    my ( $preferences, $bio );
     try {
         $preferences = $store->preferences_for_user($user_id);
+        $bio = $self->gp_identity_store->bio_for_user( { user_id => $user_id } )
+          ->{bio};
     }
     catch ($error) {
         return $self->settings_system_failure;
@@ -90,9 +92,11 @@ sub settings ($self) {
         template            => 'identity/settings',
         email_command_id    => $self->gp_id->uuid,
         password_command_id => $self->gp_id->uuid,
+        profile_command_id  => $self->gp_id->uuid,
         settings_command_id => $self->gp_id->uuid,
         %{
             $self->gp_identity_view_model->settings_page(
+                bio                      => $bio,
                 digest_frequency_options => $store->digest_frequency_options,
                 locale_options           => $self->ui_locale_options,
                 notification_preferences => $preferences,
@@ -143,6 +147,33 @@ sub update_settings ($self) {
     $self->persist_timezone_preference( $self->requested_timezone );
 
     $self->flash( success => $self->t('settings.saved') );
+    return $self->redirect_to('settings');
+}
+
+# The words a member shows on their profile: their own command, so a
+# saved bio and saved preferences never share an id.
+sub update_profile ($self) {
+    if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
+        return $self->_csrf_failure;
+    }
+    my $user_id = $self->current_user_id;
+    if ( !$user_id ) {
+        return $self->settings_unauthorized;
+    }
+    if ( !$self->_identity_allowed('identity.settings') ) {
+        return $self->_rate_limited;
+    }
+    my $result = $self->gp_identity_workflow->update_bio(
+        {
+            bio        => $self->param('bio'),
+            command_id => $self->command_id_param,
+            user_id    => $user_id,
+        }
+    );
+    if ( !$result->{ok} ) {
+        return $self->identity_write_failure($result);
+    }
+    $self->flash( success => $self->t('settings.profile_saved') );
     return $self->redirect_to('settings');
 }
 
@@ -224,6 +255,11 @@ Renders the signed-in settings page.
 Persists notification, locale, and theme preferences. Notification
 writes require C<command_id>. Locale and theme on this POST mint their
 own keys.
+
+=head2 update_profile
+
+Saves the member's bio from the Profile section (C<POST /settings/profile>)
+under its own command id, then returns to the settings page.
 
 =head1 DIAGNOSTICS
 

@@ -318,6 +318,12 @@ sub _member {
     my $id = $ctx->{ids}->uuid;
     $ctx->{dbh}
       ->do( $USER_SQL, undef, $id, $name, "$name\@example.test", $NOW );
+
+    # The subject of an export or an erasure has a bio to carry or to clear.
+    if ( $name eq 'subject' ) {
+        $ctx->{dbh}->do( 'UPDATE users SET bio = ? WHERE id = ?',
+            undef, 'Writes about Perl.', $id );
+    }
     $ctx->{users}{$name} = $id;
 
     return $id;
@@ -511,6 +517,11 @@ sub _export_bundle {
         'subject', 'the export includes the public profile' );
     is( $manifest->{profile}{preferred_locale},
         'it', 'the export includes the member preferences' );
+    is(
+        $manifest->{profile}{bio},
+        'Writes about Perl.',
+        'the export includes the bio'
+    );
     ok(
         !exists $manifest->{profile}{password_hash},
         'the export omits the password hash'
@@ -834,6 +845,7 @@ sub _erased_identity {
         'Deleted member',
         'erasure anonymizes public display name'
     );
+    is( $user->{bio}, q{}, 'erasure takes the bio down' );
     is(
         $user->{email_normalized},
         "deleted+$token\@example.invalid",
@@ -1647,7 +1659,7 @@ sub _export_many_posts {
     );
     is(
         scalar(
-            grep { /api[.]portability_export_parts_v6[(][?]::uuid[)]/msx }
+            grep { /api[.]portability_export_parts_v8[(][?]::uuid[)]/msx }
               @{$sent}
         ),
         1,

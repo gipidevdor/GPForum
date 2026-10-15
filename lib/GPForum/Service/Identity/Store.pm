@@ -247,6 +247,14 @@ sub update_preferred_timezone ( $self, $input ) {
     return $self->preference_store->update_preferred_timezone($input);
 }
 
+sub bio_for_user ( $self, $input ) {
+    return $self->preference_store->bio_for_user($input);
+}
+
+sub update_bio ( $self, $input ) {
+    return $self->preference_store->update_bio($input);
+}
+
 sub _session_touch_arguments ($self) {
     if ( !defined $self->session_touch_interval_seconds ) {
         return;
@@ -346,6 +354,14 @@ Delegates locale writes to the preference store.
 =head2 update_preferred_timezone
 
 Delegates to L<GPForum::Service::Identity::PreferenceStore>.
+
+=head2 bio_for_user
+
+The preference store's L<GPForum::Service::Identity::PreferenceStore/bio_for_user>.
+
+=head2 update_bio
+
+The preference store's L<GPForum::Service::Identity::PreferenceStore/update_bio>.
 
 =head2 preferred_theme_for_user
 

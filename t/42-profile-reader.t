@@ -19,7 +19,7 @@ use GPForum::Test::ForumReadSchema;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 29;
+const my $EXPECTED_TESTS => 30;
 const my $PROFILE_LIMIT  => 1;
 const my $FETCH_ROWS     => $PROFILE_LIMIT + 1;
 const my $TRUST_SCORE    => 55;
@@ -36,6 +36,7 @@ my $users = GPForum::Test::ForumReadResultSet->new(
                 id           => 'user-1',
                 username     => 'giacomo',
                 display_name => 'Giacomo Picchiarelli',
+                bio          => 'Writes about Perl.',
                 status       => 'active',
                 trust_level  => 1,
                 created_at   => '2026-05-23T12:00:00Z',
@@ -189,6 +190,11 @@ is(
     $profile->{profile}{user}{display_name},
     'Giacomo Picchiarelli',
     'profile exposes display name'
+);
+is(
+    $profile->{profile}{user}{bio},
+    'Writes about Perl.',
+    'profile exposes the bio'
 );
 is(
     $profile->{profile}{user}{profile_label},

@@ -3,6 +3,7 @@
 
 package GPForum::Service::Identity::PreferenceStore;
 
+use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
@@ -17,6 +18,8 @@ use GPForum::Service::Identity::Support;
 
 our $VERSION = '0.001';
 
+const my $BIO_MAX => 500;
+
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
 has support => sub { return GPForum::Service::Identity::Support->new; };
@@ -24,6 +27,34 @@ has support => sub { return GPForum::Service::Identity::Support->new; };
 has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
 };
+
+sub bio_for_user ( $self, $input ) {
+    return $self->_read_preference( $input, 'bio' );
+}
+
+# A few words about the member, plain text, up to $BIO_MAX characters;
+# an empty bio is a bio taken down. Line ends are kept as the page shows
+# them, one way.
+sub update_bio ( $self, $input ) {
+    my $user = $self->_find_user_by_id( $input->{user_id} );
+    return { error => 'not_found', ok => 0 } if !$user;
+    my $bio = $self->support->trimmed( $input->{bio} );
+    $bio =~ s/\r\n?/\n/gmsx;
+    if ( length $bio > $BIO_MAX ) {
+        return { error => 'bio_too_long', ok => 0 };
+    }
+    my $held   = $self->support->column( $user, 'bio' ) // q{};
+    my %answer = ( bio => $bio, ok => 1, user => $user );
+    return { %answer, skipped => 1 } if $held eq $bio;
+    $self->support->update_row(
+        $user,
+        {
+            bio        => $bio,
+            updated_at => $self->clock->now_iso8601,
+        }
+    );
+    return \%answer;
+}
 
 sub preferred_locale_for_user ( $self, $input ) {
     return $self->_read_preference( $input, 'preferred_locale' );
@@ -199,6 +230,18 @@ Returns the stored locale for a user id.
 
 Persists an IANA time zone, or NULL -- the forum's default -- for an empty
 one. C<timezone_invalid> for a name the time zone database does not know.
+
+=head2 bio_for_user
+
+Takes C<user_id>. Returns C<< { ok => 1, bio, user } >>, or
+C<< { ok => 0, error => 'not_found' } >>.
+
+=head2 update_bio
+
+Takes C<user_id> and C<bio>: plain text, trimmed, line ends made one way,
+up to 500 characters (C<bio_too_long> past that); empty takes the bio down.
+Returns C<< { ok => 1, bio, user } >>, with C<skipped> when nothing
+changed, or C<< { ok => 0, error } >>.
 
 =head2 preferred_theme_for_user
 

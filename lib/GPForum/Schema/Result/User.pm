@@ -55,6 +55,10 @@ __PACKAGE__->add_columns(
         data_type   => 'text',
         is_nullable => 1,
     },
+    bio => {
+        data_type     => 'text',
+        default_value => q{},
+    },
     version => {
         data_type     => 'bigint',
         default_value => 1,

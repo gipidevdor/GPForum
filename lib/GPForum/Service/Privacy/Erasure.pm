@@ -57,6 +57,7 @@ sub safe_identifier ( $, $value ) {
 
 sub user_values ( $self, $user_id, $timestamp ) {
     return {
+        bio               => q{},
         deleted_at        => $timestamp,
         display_name      => $DISPLAY_DELETED,
         email_normalized  => $self->anonymous_email($user_id),

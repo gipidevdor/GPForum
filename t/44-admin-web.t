@@ -436,8 +436,8 @@ $test->json_is( '/status'        => 'cache_purged_locally' );
 $test->json_is( '/result/status' => 'purged_locally' );
 $test->json_is(
     '/result/unreached_tags' => [qw(forum:public-html categories)] );
-$test->json_is(
-    '/result/tags' => [qw(forum:public-html categories forum-index)] );
+$test->json_is( '/result/tags' =>
+      [qw(forum:public-html categories forum-index announcements)] );
 
 $test->post_ok( '/admin/cache/purge' => form =>
       { command_id => 'purge-4', csrf_token => $csrf_token } );

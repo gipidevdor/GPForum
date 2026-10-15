@@ -15,6 +15,7 @@ use lib 't/lib';
 
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Admin::AnnouncementStore;
+use GPForum::Service::Operations::LocalCache;
 use GPForum::Test::FixedClock;
 use GPForum::Test::RecordingRecorder;
 use GPForum::Test::SequenceId;
@@ -32,6 +33,7 @@ const my $NOW      => '2026-10-15T12:00:00Z';
 const my $PREFIX   => '018f0009-0000-7000-8000';
 const my $TOO_LONG => 501;
 const my $EXISTING => '018f1007-0001-7000-8000-000000000001';
+const my $PAGES    => 3;
 
 my $json = JSON::MaybeXS->new( canonical => 1 );
 
@@ -162,6 +164,32 @@ subtest 'the page and the console read through their functions' => sub {
         qr/api[.]admin_list_announcements_v2/msx,
         'and the console through its own'
     );
+};
+
+subtest 'with a cache every page reads the list once per lifetime' => sub {
+    my ( $handle, $store ) = fixture(
+        [
+            {
+                announcement_id => $EXISTING,
+                message         => 'Hello.',
+                tone            => 'notice'
+            }
+        ]
+    );
+    my $cache = GPForum::Service::Operations::LocalCache->new;
+    $store->cache($cache);
+    for my $page ( 1 .. $PAGES ) {
+        $store->active_announcements;
+    }
+    is( scalar @{ $handle->executed }, 1, 'three pages cost one statement' );
+    $cache->invalidate_tag('forum:public-html');
+    $store->active_announcements;
+    is( scalar @{ $handle->executed },
+        1, 'a purge of the public html leaves the list cached' );
+    $cache->invalidate_tag('announcements');
+    is( $store->active_announcements->[0]{message},
+        'Hello.', 'after a purge of the announcements it is read again' );
+    is( scalar @{ $handle->executed }, 2, 'with one more statement' );
 };
 
 subtest 'announcements exist only as functions' => sub {

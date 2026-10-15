@@ -1,18 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
 # SPDX-License-Identifier: BSD-3-Clause
 
-package GPForum::Test::RetainedSearchFunctions;
+package GPForum::Infrastructure::SqlFunction::Retained;
 
 use Mojo::Base 'GPForum::Infrastructure::SqlFunction', -signatures;
 use v5.40;
 
 our $VERSION = '0.001';
 
-# The call layer for a retained search version: the Searcher sends the
-# values of today's call, and a version shipped before one of them took
-# the arguments of its day. The value no parameter of the entry names is
+# The call layer for a retained version: a reader sends the values of
+# today's call, and a version shipped before one of them took the
+# arguments of its day. The value no parameter of the entry names is
 # dropped before the call; an entry's own parameters are still all
-# required, as the real layer requires them.
+# required, as the real layer requires them. The search optimisation test
+# and the paired benchmark call the retained search versions through it.
 sub rows ( $self, $name, $values ) {
     return $self->SUPER::rows( $name, $self->_theirs( $name, $values ) );
 }
@@ -35,7 +36,7 @@ __END__
 
 =head1 NAME
 
-GPForum::Test::RetainedSearchFunctions - Call a retained search version with the arguments of its day.
+GPForum::Infrastructure::SqlFunction::Retained - Call a retained function version with the arguments of its day.
 
 =head1 VERSION
 
@@ -43,7 +44,7 @@ Version 0.001.
 
 =head1 SYNOPSIS
 
-    my $functions = GPForum::Test::RetainedSearchFunctions->new(
+    my $functions = GPForum::Infrastructure::SqlFunction::Retained->new(
         catalogue => $catalogue_at_that_version,
         schema    => $schema,
     );

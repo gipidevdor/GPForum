@@ -24,13 +24,14 @@ use GPForum::Test::SharedCacheClient;
 
 our $VERSION = '0.001';
 
-const my $HTTP_OK     => 200;
-const my $HTTP_FOUND  => 302;
-const my $PASSWORD    => 'correct horse battery staple';
-const my $ADMIN       => 'purge_admin';
-const my $JSON        => { Accept => 'application/json' };
-const my $PAUSE       => 3_600;
-const my @PURGED_TAGS => qw(forum:public-html categories forum-index);
+const my $HTTP_OK    => 200;
+const my $HTTP_FOUND => 302;
+const my $PASSWORD   => 'correct horse battery staple';
+const my $ADMIN      => 'purge_admin';
+const my $JSON       => { Accept => 'application/json' };
+const my $PAUSE      => 3_600;
+const my @PURGED_TAGS =>
+  qw(forum:public-html categories forum-index announcements);
 const my $PURGES_SQL =>
   q{SELECT metadata->>'status' FROM audit_log WHERE actor_id = ?}
   . q{ AND action = 'admin.cache_purged' ORDER BY 1};

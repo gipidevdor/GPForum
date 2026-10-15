@@ -18,7 +18,10 @@ use GPForum::Test::PgDatabase;
 
 our $VERSION = '0.001';
 
-const my $OPTIMIZED_SEARCH_VERSION       => 6;
+# The versions the catalogue calls today: search_ranked took the scope in
+# v7 (migration 110), autocomplete stayed at v6.
+const my %CURRENT_SEARCH_VERSION =>
+  ( search_ranked => 8, search_autocomplete => 6 );
 const my $ISOLATED_BEFORE_SEARCH_VERSION => 4;
 const my $BEFORE_POST_CALLS              => 3;
 const my $COMBINED_POST_CALLS            => 2;
@@ -116,7 +119,7 @@ ok( !$invalid_ok, 'invalid pair counts fail before a database is created' );
     local $ENV{GPFORUM_DATABASE_DSN} = undef;
     my ( $unsupported_ok, $unsupported_output ) =
       _run( '--paired-functions', '--before-search-version',
-        $OPTIMIZED_SEARCH_VERSION );
+        $CURRENT_SEARCH_VERSION{search_ranked} );
     ok( !$unsupported_ok, 'a baseline other than retained versions2/4 fails' );
     like( $unsupported_output, qr/^Usage:/xms,
         'baseline validation runs before any database connection is required' );
@@ -256,8 +259,11 @@ sub _paired_assertions ( $paired, $before_version, $reference ) {
         is( $paired->{comparison}{before}{$operation},
             $before_version,
             "$operation baseline uses retained version$before_version" );
-        is( $paired->{comparison}{after}{$operation},
-            $OPTIMIZED_SEARCH_VERSION, "$operation after uses version6" );
+        is(
+            $paired->{comparison}{after}{$operation},
+            $CURRENT_SEARCH_VERSION{$operation},
+            "$operation after uses version$CURRENT_SEARCH_VERSION{$operation}"
+        );
     }
     my @revisions;
     for my $operation (qw(post_edit search_ranked search_autocomplete)) {

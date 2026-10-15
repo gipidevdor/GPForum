@@ -441,8 +441,8 @@ my $maintenance = GPForum::Service::Admin::Maintenance->new(
 is_deeply(
     $maintenance->purge_public_cache( { actor_user_id => 'admin-1' } ),
     {
-        status         => 'purged',
-        tags           => [qw(forum:public-html categories forum-index)],
+        status => 'purged',
+        tags   => [qw(forum:public-html categories forum-index announcements)],
         unreached_tags => [],
     },
     'a purge that reached GlifiStore is purged'
@@ -455,7 +455,7 @@ is( $local_purge->{status},
     'a purge while GlifiStore is paused is purged locally only' );
 is_deeply(
     $local_purge->{unreached_tags},
-    [qw(forum:public-html categories forum-index)],
+    [qw(forum:public-html categories forum-index announcements)],
     'naming the tags it could not purge there'
 );
 is_deeply(
@@ -465,7 +465,7 @@ is_deeply(
 );
 is_deeply(
     $audit->rows->[-1]{metadata}{unreached_tags},
-    [qw(forum:public-html categories forum-index)],
+    [qw(forum:public-html categories forum-index announcements)],
     'and which tags stay in GlifiStore'
 );
 

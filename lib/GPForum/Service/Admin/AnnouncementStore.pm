@@ -21,6 +21,13 @@ const my $ACTIVE_LIMIT  => 3;
 const my $MESSAGE_MAX   => 500;
 const my %TONES         => ( notice => 1, warning => 1 );
 
+# Every page shows the active announcements, so they are read once per
+# cache lifetime, not once per request, under their own tag: the admin
+# workflow purges it with the public cache after a write, and the
+# announcement events purge it in the shared cache.
+const my $DEFAULT_CACHE_TTL_SECONDS => 30;
+const my $CACHE_TAG                 => 'announcements';
+
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 has recorder   => sub ($self) {
@@ -30,6 +37,9 @@ has recorder   => sub ($self) {
     );
 };
 has events => sub { return GPForum::Service::Admin::Event->new; };
+
+has cache             => undef; # optional: without it every page reads the list
+has cache_ttl_seconds => sub { return $DEFAULT_CACHE_TTL_SECONDS; };
 
 __PACKAGE__->requires(qw(schema));
 
@@ -104,8 +114,20 @@ sub list_announcements ( $self, $options = undef ) {
 }
 
 sub active_announcements ( $self, $options = undef ) {
+    my $limit = $options->{limit} || $ACTIVE_LIMIT;
+    my $cache = $self->cache;
+    return $self->_active_rows($limit) if !$cache;
+
+    return $cache->get_or_set(
+        "announcements:active:$limit",
+        sub { return $self->_active_rows($limit); },
+        { tags => [$CACHE_TAG], ttl_seconds => $self->cache_ttl_seconds },
+    );
+}
+
+sub _active_rows ( $self, $limit ) {
     return $self->_functions->rows( 'forum_active_announcements',
-        { row_limit => $options->{limit} || $ACTIVE_LIMIT } );
+        { row_limit => $limit } );
 }
 
 sub _record_write ( $self, $action, $actor_user_id, $announcement, $at ) {
@@ -190,7 +212,9 @@ Every announcement, newest first, up to C<limit> (50 by default).
 =head2 active_announcements
 
 The announcements not retired, newest first, up to C<limit> (3 by default):
-what every page shows.
+what every page shows. With a C<cache>, the list is read once per
+C<cache_ttl_seconds> and dropped by a purge of the C<announcements> tag,
+which every announcement write causes.
 
 =head1 DIAGNOSTICS
 
@@ -198,7 +222,8 @@ Throws L<GPForum::X::Argument> when the schema has no SQL function layer.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-None.
+C<cache> (optional) is the application cache the active list is kept in,
+for C<cache_ttl_seconds> (30 by default).
 
 =head1 DEPENDENCIES
 

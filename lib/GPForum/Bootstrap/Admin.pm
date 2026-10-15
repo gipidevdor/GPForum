@@ -54,7 +54,9 @@ sub register {
         gp_announcement_store => sub {
             my ($controller) = @_;
             return GPForum::Service::Admin::AnnouncementStore->new(
-                schema => $controller->gp_schema );
+                cache  => $controller->gp_local_cache,
+                schema => $controller->gp_schema,
+            );
         }
     );
     $application->helper(

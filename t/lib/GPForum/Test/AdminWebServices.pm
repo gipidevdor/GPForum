@@ -362,8 +362,8 @@ sub purge_public_cache {
     push @{ $self->maintenance_calls }, [ 'purge', { %{$input} } ];
     my @unreached = @{ $self->unreached_purge_tags };
     return {
-        status         => @unreached ? 'purged_locally' : 'purged',
-        tags           => [qw(forum:public-html categories forum-index)],
+        status => @unreached ? 'purged_locally' : 'purged',
+        tags   => [qw(forum:public-html categories forum-index announcements)],
         unreached_tags => [@unreached],
     };
 }

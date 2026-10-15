@@ -225,7 +225,7 @@ is_deeply(
 ok( _steps( $asked->{run_id} ), 'the console rebuild is queued' );
 is_deeply(
     $cache->invalidated,
-    [qw(forum:public-html categories forum-index)],
+    [qw(forum:public-html categories forum-index announcements)],
     'and the purge drops every public page and its reader caches'
 );
 
@@ -263,7 +263,7 @@ is_deeply(
         [ 'purged', '[]' ],
         [
             'purged_locally',
-            '["forum:public-html", "categories", "forum-index"]'
+'["forum:public-html", "categories", "forum-index", "announcements"]'
         ],
     ],
     'each audit row records how far its purge went, and the tags it left'

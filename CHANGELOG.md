@@ -1745,6 +1745,22 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **The announcements no longer cost every page a statement.** Since
+  migration 113 each page read the active announcements from PostgreSQL;
+  they are now kept in the application cache for 30 seconds under their own
+  `announcements` tag, which an announcement published or retired drops at
+  once (the admin workflow purges it with the public cache, and the
+  announcement events purge it in the shared cache). The query budget of
+  every page is back to its measured value; the thread page's budget
+  records the two statements the likes (migration 109) and the reply
+  targets (114) take, one each however many posts.
+- **The paired stored-function benchmark runs again.** It calls the
+  retained search versions 2 and 4, which predate the scope argument of
+  migration 110, through `GPForum::Infrastructure::SqlFunction::Retained`
+  (the call layer that drops the values a retained version never took,
+  moved from the test library), so `script/bench-sql-functions
+  --paired-functions` and its integration test no longer fail on the
+  argument count.
 - **Doctor recognizes current OpenSSL handshake errors.** Plain HTTP on a
   TLS port may report packet length or record layer errors during connection;
   those are classified as handshake failures, while certificate errors and

@@ -33,9 +33,12 @@ const my $THREAD_UNPINNED        => 'thread.unpinned';
 const my $ACTION_REVERSED        => 'moderation_action.reversed';
 const my $ANNOUNCEMENT_PUBLISHED => 'announcement.published';
 const my $ANNOUNCEMENT_RETIRED   => 'announcement.retired';
+const my %ANNOUNCEMENT =>
+  ( $ANNOUNCEMENT_PUBLISHED => 1, $ANNOUNCEMENT_RETIRED => 1 );
 
 # Every page of the public HTML cache carries this tag (Web::ForumAccess).
-const my $PUBLIC_HTML => 'forum:public-html';
+const my $PUBLIC_HTML   => 'forum:public-html';
+const my $ANNOUNCEMENTS => 'announcements';
 
 const my %SUPPORTED => (
     $ACTION_REVERSED        => 1,
@@ -151,6 +154,7 @@ sub _tags_for ($event) {
 }
 
 sub _content_tags ( $event, $event_type ) {
+    return [$ANNOUNCEMENTS]     if exists $ANNOUNCEMENT{$event_type};
     return _thread_tags($event) if exists $THREAD_CONTENT{$event_type};
     return _post_tags($event)   if exists $POST_CONTENT{$event_type};
     return [qw(threads posts forum-index)] if $event_type eq $ACTION_REVERSED;

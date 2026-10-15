@@ -30,6 +30,7 @@ use GPForum::Config;
 use GPForum::Domain::Post;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::SqlFunction::Retained;
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::Schema;
 use GPForum::Service::Admin::PermissionGate;
@@ -95,6 +96,11 @@ const my @MODES             => qw(direct proxy);
 const my @PAIRED_PATHS      => qw(before after);
 const my @PAIRED_OPERATIONS => qw(search_ranked search_autocomplete post_edit);
 const my $ORIGINAL_SEARCH_VERSION => 2;
+
+# The scope (p_entity_type) came with search_ranked v7, migration 110: the
+# retained versions take the arguments of their day.
+const my $SCOPED_SEARCH_VERSION => 7;
+const my $SCOPE_ARGUMENTS       => 2;
 const my %BASELINE_COMMIT => (
     2 => '2cb9945',
     4 => '200f902',
@@ -419,8 +425,8 @@ sub _measure_paired ( $dsn, $proxy, $option ) {
     for my $name (qw(search_ranked search_autocomplete)) {
         $entries{$name}{version} = $option->{'before-search-version'};
     }
-    my $before = GPForum::Infrastructure::SqlFunctionCatalogue->new(
-        entries => \%entries );
+    my ( $before, $before_class ) =
+      _before_catalogue( \%entries, $option->{'before-search-version'} );
     my %report = (
         delay_ms      => $option->{'delay-ms'},
         round_trip_ms => {
@@ -459,7 +465,11 @@ sub _measure_paired ( $dsn, $proxy, $option ) {
         my $edit_number = 0;
         my %operations;
         for my $path (@PAIRED_PATHS) {
-            my $functions = GPForum::Infrastructure::SqlFunction->new(
+            my $functions = (
+                  $path eq 'before'
+                ? $before_class
+                : 'GPForum::Infrastructure::SqlFunction'
+            )->new(
                 schema    => $schema,
                 catalogue => $path eq 'before' ? $before : $catalogue
             );
@@ -1093,4 +1103,23 @@ sub _paired_text ($report) {
         }
     }
     return $text;
+}
+
+# The catalogue of the before side, and the call layer for it: a version
+# before the scope takes the arguments of its day.
+sub _before_catalogue ( $entries, $version ) {
+    my $retained = $version < $SCOPED_SEARCH_VERSION;
+    if ($retained) {
+        my @parameters = @{ $entries->{search_ranked}{parameters} };
+        splice @parameters, -$SCOPE_ARGUMENTS;
+        $entries->{search_ranked}{parameters} = \@parameters;
+    }
+    my $before =
+      GPForum::Infrastructure::SqlFunctionCatalogue->new( entries => $entries );
+    my $class =
+      $retained
+      ? 'GPForum::Infrastructure::SqlFunction::Retained'
+      : 'GPForum::Infrastructure::SqlFunction';
+
+    return ( $before, $class );
 }

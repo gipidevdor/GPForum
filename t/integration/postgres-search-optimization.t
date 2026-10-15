@@ -26,7 +26,7 @@ use GPForum::Service::Operations::ApiRole;
 use GPForum::Service::Search::PermissionEngine;
 use GPForum::Service::Search::Searcher;
 use GPForum::Test::PgDatabase;
-use GPForum::Test::RetainedSearchFunctions;
+use GPForum::Infrastructure::SqlFunction::Retained;
 
 our $VERSION = '0.001';
 
@@ -195,7 +195,7 @@ sub _functions ( $version, $for_schema = $schema ) {
 
     my $class =
       $version < $SCOPED_VERSION
-      ? 'GPForum::Test::RetainedSearchFunctions'
+      ? 'GPForum::Infrastructure::SqlFunction::Retained'
       : 'GPForum::Infrastructure::SqlFunction';
     return $class->new(
         schema    => $for_schema,

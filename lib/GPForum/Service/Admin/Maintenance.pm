@@ -19,7 +19,8 @@ const my $SCHEMA_VERSION => 1;
 
 # Every public page, and the reader caches the public pages are built from
 # (the anonymous category list).
-const my @PURGED_TAGS => qw(forum:public-html categories forum-index);
+const my @PURGED_TAGS =>
+  qw(forum:public-html categories forum-index announcements);
 
 __PACKAGE__->requires(qw(cache));
 has clock      => sub { return GPForum::Service::Clock->new; };
@@ -174,8 +175,9 @@ Starts a rebuild; returns its run id.
 =head2 purge_public_cache
 
 Takes a hash reference with C<actor_user_id>. Invalidates every cached
-public page (the tags C<forum:public-html>, C<categories> and
-C<forum-index>) in this process, in the others through the cache's bus, and
+public page (the tags C<forum:public-html>, C<categories>,
+C<forum-index> and C<announcements>, the last being the active list every
+page shows) in this process, in the others through the cache's bus, and
 in the shared cache, and records an C<admin.cache_purged> audit row.
 Returns C<< { status, tags, unreached_tags } >>: C<status> is C<purged>, or
 C<purged_locally> when the shared cache was not reached for one of the tags

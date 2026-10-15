@@ -1133,7 +1133,7 @@ const my %FUNCTION => (
         parameters => [ category_id => 'uuid' ],
     },
     forum_list_categories => {
-        version    => 2,
+        version    => 4,
         parameters => [
             member       => 'boolean',
             global_read  => 'boolean',

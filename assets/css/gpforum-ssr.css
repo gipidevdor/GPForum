@@ -2053,3 +2053,30 @@ button[popovertarget] {
     break-inside: avoid;
   }
 }
+
+/* A quiet line of help under a field or a form: what a value must be, where
+   the other door is. */
+.ui-hint {
+  margin-block-start: calc(-1 * var(--space-2));
+  color: var(--color-subtle);
+  font-size: var(--font-size-sm);
+}
+
+/* A badge in a row's title stands beside the title, not on the line below. */
+.ui-row__title .ui-badge {
+  margin-inline-start: var(--space-2);
+  vertical-align: middle;
+}
+
+/* Where a reply would be written, for a reader who is not signed in: the
+   two doors in, where the composer stands for a member. */
+.reply-prompt {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-block-start: 1px solid var(--color-hairline);
+}
+
+.post__quote {
+  text-decoration: none;
+}

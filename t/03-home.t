@@ -16,7 +16,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 18;
+const my $EXPECTED_TESTS => 20;
 const my $HTTP_OK        => 200;
 const my $ROOT_PATH      => q{/};
 
@@ -32,7 +32,13 @@ $test->app->helper(
 $test->get_ok($ROOT_PATH);
 $test->status_is($HTTP_OK);
 $test->text_is( 'h1' => 'GPForum' );
-$test->element_exists(q{nav[aria-label="Forum actions"] a[href="/categories"]});
+
+# The header's one action starts a discussion; the categories and the search
+# are in the primary navigation above it, not repeated as actions.
+$test->element_exists(q{nav[aria-label="Forum actions"] a[href="/new-thread"]});
+$test->element_exists_not(
+    q{nav[aria-label="Forum actions"] a[href="/categories"]});
+$test->element_exists(q{header.site-header a[href="/categories"]});
 $test->element_exists(q{section[aria-labelledby="home-categories-heading"]});
 $test->element_exists(q{a[href="/c/category-1"]});
 $test->element_exists(q{a[href="/t/thread-1"]});

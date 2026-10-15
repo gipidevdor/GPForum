@@ -537,6 +537,7 @@ sub thread_page_payload ( $self, $page, $user_id ) {
     my $reply_command_id = $user_id ? $self->_new_command_id : q{};
     $self->fresh_composer_draft( 'reply', $reply_command_id,
         thread_id => $self->param('thread_id') );
+    $self->_quote_into_composer($posts);
 
     return $self->gp_forum_view_model->thread_page(
         attachment_delete_command_ids =>
@@ -583,6 +584,34 @@ sub thread_page_payload ( $self, $page, $user_id ) {
             user_id         => $user_id,
         ),
     );
+}
+
+# "Quote" under a post asks for the page with ?quote=POST_ID: a signed-in
+# reader's reply then opens with that post's source quoted line by line,
+# under a line naming who wrote it. A post not on this page is not quoted.
+sub _quote_into_composer ( $self, $posts ) {
+    my $draft  = $self->stash('composer_draft') or return;
+    my $wanted = $self->param('quote');
+    return if !defined $wanted || !length $wanted;
+    my ($post) = grep {
+        ( GPForum::Infrastructure::Row->column( $_, 'post_id' ) // q{} ) eq
+          $wanted
+    } @{$posts};
+    return if !$post;
+    my $source = GPForum::Infrastructure::Row->column( $post, 'body_source' );
+    my $author =
+      GPForum::Infrastructure::Row->column( $post, 'author_username' );
+    my $wrote = $self->t(
+        'forum.quoted_from',
+        {
+            author => defined $author
+            ? "\@$author"
+            : $self->t('forum.unknown_author')
+        }
+    );
+    $draft->{body_source} = join q{}, "> $wrote\n",
+      ( map { "> $_\n" } split /\n/msx, $source // q{} ), "\n";
+    return;
 }
 
 sub fresh_composer_draft ( $self, $kind, $command_id, %context ) {

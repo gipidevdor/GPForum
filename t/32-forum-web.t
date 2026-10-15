@@ -88,7 +88,7 @@ _get_json_ok( $test, '/t/thread-1' );
 $test->status_is($HTTP_OK);
 $test->json_is( '/thread/thread_id'        => 'thread-1' );
 $test->json_is( '/thread/author_username'  => 'giacomo_forum' );
-$test->json_is( '/posts/0/body'            => 'First post' );
+$test->json_is( '/posts/0/body'            => '<p>First post</p>' );
 $test->json_is( '/posts/0/author_username' => 'giacomo_forum' );
 $test->json_is( '/next_cursor'             => 'post-cursor' );
 

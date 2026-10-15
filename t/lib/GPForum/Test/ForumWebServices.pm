@@ -218,6 +218,7 @@ sub _visible_thread_post {
         visibility           => 'public',
         moderation_state     => 'visible',
         body                 => 'First post',
+        body_source          => 'First post',
         created_at           => '2026-05-23T12:00:00Z',
     };
 }
@@ -235,6 +236,7 @@ sub _author_deleted_post {
         moderation_state     => 'visible',
         deleted_at           => '2026-05-23T12:00:00Z',
         body                 => 'Deleted post',
+        body_source          => 'Deleted post',
     };
 }
 
@@ -1206,6 +1208,7 @@ sub search {
             author_profile_label => '@giacomo_forum',
             title                => 'Welcome',
             body                 => 'First post',
+            body_source          => 'First post',
             snippet_html         => '<mark>Welcome</mark> First post',
             visibility           => 'public',
             source_created_at    => '2026-05-23T12:00:00Z',
@@ -1279,6 +1282,7 @@ sub autocomplete {
             author_profile_label => '@giacomo_forum',
             title                => 'Welcome',
             body                 => 'First post must not be exposed here',
+            body_source          => 'First post must not be exposed here',
             visibility           => 'public',
             indexed_at           => '2026-05-23T12:00:00Z',
         },

@@ -7,6 +7,8 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use Scalar::Util qw(blessed);
+
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::CategoryReader;
 use GPForum::Service::Forum::ThreadReader;
@@ -71,30 +73,34 @@ sub _thread_reader ($self) {
 
 sub _category ($row) {
     return {
-        category_id => _column( $row, 'category_id' ),
-        description => _column( $row, 'description' ),
-        position    => _column( $row, 'position' ),
-        slug        => _column( $row, 'slug' ),
-        title       => _column( $row, 'title' ),
-        visibility  => _column( $row, 'visibility' ),
+        category_id      => _column( $row, 'category_id' ),
+        description      => _column( $row, 'description' ),
+        last_activity_at => scalar _optional_column( $row, 'last_activity_at' ),
+        thread_count     => scalar _optional_column( $row, 'thread_count' ),
+        position         => _column( $row, 'position' ),
+        slug             => _column( $row, 'slug' ),
+        title            => _column( $row, 'title' ),
+        visibility       => _column( $row, 'visibility' ),
     };
 }
 
 sub _thread ($row) {
     return {
-        author_user_id   => _column( $row, 'author_user_id' ),
-        category_id      => _column( $row, 'category_id' ),
-        created_at       => _column( $row, 'created_at' ),
-        deleted_at       => _column( $row, 'deleted_at' ),
-        last_activity_at => _column( $row, 'last_activity_at' ),
-        moderation_state => _column( $row, 'moderation_state' ),
-        pinned           => _column( $row, 'pinned' ),
-        reply_count      => _column( $row, 'reply_count' ),
-        safe_excerpt     => scalar _optional_column( $row, 'safe_excerpt' ),
-        slug             => _column( $row, 'slug' ),
-        thread_id        => _column( $row, 'thread_id' ),
-        title            => _column( $row, 'title' ),
-        visibility       => _column( $row, 'visibility' ),
+        author_display_name => _column( $row, 'author_display_name' ),
+        author_username     => _column( $row, 'author_username' ),
+        author_user_id      => _column( $row, 'author_user_id' ),
+        category_id         => _column( $row, 'category_id' ),
+        created_at          => _column( $row, 'created_at' ),
+        deleted_at          => _column( $row, 'deleted_at' ),
+        last_activity_at    => _column( $row, 'last_activity_at' ),
+        moderation_state    => _column( $row, 'moderation_state' ),
+        pinned              => _column( $row, 'pinned' ),
+        reply_count         => _column( $row, 'reply_count' ),
+        safe_excerpt        => scalar _optional_column( $row, 'safe_excerpt' ),
+        slug                => _column( $row, 'slug' ),
+        thread_id           => _column( $row, 'thread_id' ),
+        title               => _column( $row, 'title' ),
+        visibility          => _column( $row, 'visibility' ),
     };
 }
 
@@ -102,15 +108,21 @@ sub _column ( $row, $name ) {
     return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
+# A column the row may or may not carry: a row object answers it when it
+# was selected (a +as column, thread_count, is not the source's but is
+# loaded), a hash when it has the key.
 sub _optional_column ( $row, $name ) {
-    if ( ref $row && $row->can('result_source') ) {
+    if ( blessed $row && $row->can('has_column_loaded') ) {
+        return if !$row->has_column_loaded($name);
+        return $row->get_column($name);
+    }
+    if ( blessed $row && $row->can('result_source') ) {
         my $source = $row->result_source;
         return
              if $source
           && $source->can('has_column')
           && !$source->has_column($name);
     }
-
     return _column( $row, $name );
 }
 

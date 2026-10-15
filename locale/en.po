@@ -865,6 +865,10 @@ msgctxt "auth.forgot_password"
 msgid "Forgot password?"
 msgstr "Forgot password?"
 
+msgctxt "auth.have_account"
+msgid "Already have an account?"
+msgstr "Already have an account?"
+
 msgctxt "auth.login"
 msgid "Login"
 msgstr "Login"
@@ -909,9 +913,18 @@ msgctxt "auth.new_password"
 msgid "New password"
 msgstr "New password"
 
+msgctxt "auth.no_account"
+msgid "No account yet? Create one"
+msgstr "No account yet? Create one"
+
 msgctxt "auth.password"
 msgid "Password"
 msgstr "Password"
+
+#, python-brace-format
+msgctxt "auth.password_hint"
+msgid "At least {minimum} characters."
+msgstr "At least {minimum} characters."
 
 msgctxt "auth.password_reset_complete"
 msgid "Reset password"
@@ -972,6 +985,11 @@ msgstr "Signed in as {user_id}"
 msgctxt "auth.username"
 msgid "Username"
 msgstr "Username"
+
+#, python-brace-format
+msgctxt "auth.username_hint"
+msgid "{minimum} to {maximum} characters: lowercase letters, digits and underscores, starting with a letter."
+msgstr "{minimum} to {maximum} characters: lowercase letters, digits and underscores, starting with a letter."
 
 msgctxt "auth.username_or_email"
 msgid "Username or email"
@@ -1246,6 +1264,13 @@ msgctxt "forum.delete_thread_consequence"
 msgid "The thread will be hidden from everyone else. You can restore it later."
 msgstr "The thread will be hidden from everyone else. You can restore it later."
 
+#, python-brace-format
+msgctxt "forum.discussion_count"
+msgid "{count} discussion"
+msgid_plural "{count} discussions"
+msgstr[0] "{count} discussion"
+msgstr[1] "{count} discussions"
+
 msgctxt "forum.draft_back_to_thread"
 msgid "Back to the thread"
 msgstr "Back to the thread"
@@ -1506,6 +1531,10 @@ msgctxt "forum.permalink"
 msgid "Permalink"
 msgstr "Permalink"
 
+msgctxt "forum.pinned"
+msgid "Pinned"
+msgstr "Pinned"
+
 msgctxt "forum.post_attachments"
 msgid "Post attachments"
 msgstr "Post attachments"
@@ -1546,6 +1575,15 @@ msgstr "Posts"
 msgctxt "forum.posts_marked_read"
 msgid "Visible posts marked as read"
 msgstr "Visible posts marked as read"
+
+msgctxt "forum.quote_post"
+msgid "Quote"
+msgstr "Quote"
+
+#, python-brace-format
+msgctxt "forum.quoted_from"
+msgid "{author} wrote:"
+msgstr "{author} wrote:"
 
 msgctxt "forum.reading_caught_up"
 msgid "You are caught up on this page."
@@ -1593,6 +1631,10 @@ msgstr "Save edit"
 msgctxt "forum.save_title"
 msgid "Save title"
 msgstr "Save title"
+
+msgctxt "forum.sign_in_to_reply"
+msgid "Replies need an account: sign in, or create one in a minute."
+msgstr "Replies need an account: sign in, or create one in a minute."
 
 msgctxt "forum.started_by"
 msgid "Started by"
@@ -1653,6 +1695,11 @@ msgstr "Thread tools"
 msgctxt "forum.thread_updated"
 msgid "Thread title saved"
 msgstr "Thread title saved"
+
+msgctxt "forum.unknown_author"
+msgid "a former member"
+msgstr "a former member"
+
 
 msgctxt "forum.unsubscribed"
 msgid "Thread unsubscribed"
@@ -2946,3 +2993,4 @@ msgstr "Pagination"
 msgctxt "ui.status_banner"
 msgid "Status"
 msgstr "Status"
+

@@ -23,12 +23,14 @@ sub category ( $self, $row ) {
     my $category_id = $self->column( $row, 'category_id' );
 
     return {
-        category_id => $category_id,
-        description => $self->column( $row, 'description' ),
-        position    => $self->column( $row, 'position' ),
-        slug        => $self->column( $row, 'slug' ),
-        title       => $self->column( $row, 'title' ),
-        ui          => {
+        category_id      => $category_id,
+        description      => $self->column( $row, 'description' ),
+        last_activity_at => $self->loaded_column( $row, 'last_activity_at' ),
+        thread_count     => $self->loaded_column( $row, 'thread_count' ),
+        position         => $self->column( $row, 'position' ),
+        slug             => $self->column( $row, 'slug' ),
+        title            => $self->column( $row, 'title' ),
+        ui               => {
                 heading_id => 'category-'
               . $self->string($category_id)
               . '-heading',

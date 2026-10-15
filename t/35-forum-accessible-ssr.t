@@ -17,7 +17,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 265;
+const my $EXPECTED_TESTS   => 274;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -122,10 +122,30 @@ $test->element_exists('section[aria-labelledby="posts-heading"]');
 $test->element_exists('article[id="post-post-1"]');
 $test->element_exists('article[id="post-post-1"] a[href="/u/giacomo_forum"]');
 $test->element_exists('a[href="#post-post-1"]');
+
+# A reader who is not signed in is not handed a composer that cannot post:
+# where the reply would be written stand the two doors in, back to this
+# thread.
+$test->element_exists('section.reply-prompt[aria-labelledby="reply-heading"]');
+$test->element_exists(
+    'section.reply-prompt a[href="/login?return_to=%2Ft%2Fthread-1"]');
+$test->element_exists('section.reply-prompt a[href="/register"]');
+$test->element_exists_not('textarea[id="reply-body"]');
+
+# Signed in, the reply is written on the page, and each post offers to be
+# quoted into it.
+$test->get_ok('/__test/session/user-1');
+$test->get_ok('/t/thread-1');
 $test->element_exists('form[action="/t/thread-1/replies"]');
 $test->element_exists('label[for="reply-body"]');
 $test->element_exists('textarea[id="reply-body"][name="body_source"]');
 $test->element_exists('input[name="csrf_token"]');
+$test->element_exists(
+'article[id="post-post-1"] a.post__quote[href="/t/thread-1?quote=post-1#reply-body"]'
+);
+$test->get_ok('/t/thread-1?quote=post-1');
+$test->text_like( 'textarea[id="reply-body"]' =>
+      qr/\A > [ ] \@giacomo_forum [ ] wrote: \n > [ ] First [ ] post/msx );
 
 $test->get_ok('/t/thread-1/welcome');
 $test->status_is($HTTP_OK);

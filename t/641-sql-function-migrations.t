@@ -55,6 +55,7 @@ const my $CURRENT_SEARCH_VERSION   => 6;
 const my %RETAINED_BOUNDARIES => (
     search_ranked            => [@RETAINED_SEARCH_VERSIONS],
     search_autocomplete      => [@RETAINED_SEARCH_VERSIONS],
+    forum_list_categories    => [2],
     forum_write_command      => [2],
     forum_create_reply       => [2],
     portability_export_parts => [2],

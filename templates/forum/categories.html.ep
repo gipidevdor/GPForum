@@ -21,6 +21,7 @@
             % if ($category->{description}) {
               <p><%= $category->{description} %></p>
             % }
+            <%= include 'forum/_category_activity', category => $category %>
           </article>
         </li>
       % }

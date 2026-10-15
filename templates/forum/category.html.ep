@@ -29,6 +29,9 @@
         <li class="ui-card-list__item ui-row">
           <h2 class="ui-row__title">
             <a href="<%= ui_path('thread', thread_id => $thread->{thread_id}) %>"><%= $thread->{title} %></a>
+            % if ($thread->{pinned}) {
+              <%= include 'components/badge', label => t('forum.pinned') %>
+            % }
           </h2>
           <p class="ui-meta">
             % if ($thread->{author_username}) {

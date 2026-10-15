@@ -30,7 +30,9 @@ _install_forum_fakes($test);
 _install_session_route($test);
 
 # The page carries what the script needs: the list to append to, the bar to
-# replace, the composer that posts in place, and a place for the message.
+# replace, the composer that posts in place (a signed-in reader's; another
+# is offered the way in), and a place for the message.
+$test->get_ok('/__test/session/user-1')->status_is($HTTP_OK);
 $test->get_ok('/t/thread-1')->status_is($HTTP_OK);
 $test->element_exists('ol#posts');
 $test->element_exists('#posts-pagination a[hx-get][hx-target="#posts"]');

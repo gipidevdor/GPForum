@@ -49,13 +49,15 @@ my $category = $forum->category(
 is_deeply(
     $category,
     {
-        category_id => 'category-1',
-        description => 'General discussion',
-        position    => 1,
-        slug        => 'general',
-        title       => 'General',
-        ui          => { heading_id => 'category-category-1-heading', },
-        visibility  => 'public',
+        category_id      => 'category-1',
+        description      => 'General discussion',
+        last_activity_at => undef,
+        position         => 1,
+        thread_count     => undef,
+        slug             => 'general',
+        title            => 'General',
+        ui               => { heading_id => 'category-category-1-heading', },
+        visibility       => 'public',
     },
 'forum category presenter keeps existing fields and adds semantic UI metadata'
 );

@@ -8,11 +8,10 @@
     description => t('forum.index_tagline'),
     actions_label => t('forum.forum_actions'),
     actions => ui_actions(
-      { href => ui_path('categories'), label => t('nav.categories') },
-      { href => ui_path('forum_search'), label => t('nav.search') },
       { class => 'button', href => ui_path('new_thread'), label => t('nav.start_thread') },
     ) %>
 </section>
+% my %category_title = map { $_->{category_id} => $_->{title} } @{ $home->{categories} };
 
 <section aria-labelledby="home-categories-heading">
   <%= include 'components/section_header',
@@ -29,6 +28,7 @@
             % if ($category->{description}) {
               <p><%= $category->{description} %></p>
             % }
+            <%= include 'forum/_category_activity', category => $category %>
           </article>
         </li>
       % }
@@ -51,11 +51,23 @@
           <article aria-labelledby="home-thread-<%= $thread->{thread_id} %>-heading">
             <h3 class="ui-row__title" id="home-thread-<%= $thread->{thread_id} %>-heading">
               <a href="<%= ui_path('thread', thread_id => $thread->{thread_id}) %>"><%= $thread->{title} %></a>
+              % if ($thread->{pinned}) {
+                <%= include 'components/badge', label => t('forum.pinned') %>
+              % }
             </h3>
             % if ($thread->{safe_excerpt}) {
               <p><%= $thread->{safe_excerpt} %></p>
             % }
             <p class="ui-meta">
+              % if ($category_title{ $thread->{category_id} // q{} }) {
+                <span><a href="<%= ui_path('category', category_id => $thread->{category_id}) %>"><%= $category_title{ $thread->{category_id} } %></a></span>
+              % }
+              % if ($thread->{author_username}) {
+                <span>
+                  <%= t('forum.started_by') %>
+                  <a href="<%= ui_path('profile', username => $thread->{author_username}) %>"><%= $thread->{author_display_name} || '@' . $thread->{author_username} %></a>
+                </span>
+              % }
               % if (defined $thread->{reply_count}) {
                 <span class="ui-count"><%= tc('forum.reply_count', $thread->{reply_count}) %></span>
               % }

@@ -19,6 +19,24 @@ const my $DEFAULT_LIMIT             => 100;
 const my $MAX_LIMIT                 => 200;
 const my $DEFAULT_CACHE_TTL_SECONDS => 30;
 
+# What goes on in a category, for the index: how many discussions the
+# viewer may read in it, and when the last of them moved. One lookup each
+# over the category's live threads, as api.forum_list_categories answers
+# them; the viewer's standing decides which visibilities count, and is
+# written as one of three constant conditions, never from input.
+const my $CATEGORY_THREADS => <<'SQL';
+FROM threads thread
+WHERE thread.category_id = me.category_id
+  AND thread.deleted_at IS NULL
+  AND thread.moderation_state IN ('visible', 'locked')
+  AND %s
+SQL
+const my %THREAD_VISIBILITY => (
+    anonymous => q{thread.visibility = 'public'},
+    global    => q{TRUE},
+    member    => q{thread.visibility IN ('public', 'members')},
+);
+
 __PACKAGE__->requires('schema');
 
 has cache    => undef;    # optional: without it nothing is cached
@@ -162,10 +180,23 @@ sub categories_resultset ( $self, $limit, $viewer = undef ) {
         }
     );
 
+    my $scope   = $viewer || GPForum::Service::Forum::Viewer->anonymous;
+    my $threads = sprintf $CATEGORY_THREADS,
+      $THREAD_VISIBILITY{
+          $scope->global_read ? 'global'
+        : $scope->member      ? 'member'
+        :                       'anonymous'
+      };
+
     return $self->schema->resultset('Category')->search_rs(
         { 'me.deleted_at' => undef, %{$readable} },
         {
-            join     => 'space',
+            join      => 'space',
+            '+select' => [
+                \"(SELECT count(*) $threads)",
+                \"(SELECT max(thread.last_activity_at) $threads)",
+            ],
+            '+as'    => [ 'thread_count', 'last_activity_at' ],
             order_by => [
                 { -asc => 'me.position' },
                 { -asc => 'me.title' },

@@ -128,6 +128,9 @@
               <button type="submit" class="button--quiet"><%= t('forum.restore_post') %></button>
             </form>
           % }
+          % if ($signed_in && !$post->{deleted_at}) {
+            <a class="button--quiet post__quote" href="<%= ui_path('thread', thread_id => $post->{thread_id}) %>?quote=<%= $post->{post_id} %>#reply-body"><%= t('forum.quote_post') %></a>
+          % }
           % if ($signed_in) {
             <button type="button" class="button--quiet" popovertarget="<%= $dom_id %>-report"><%= t('moderation.report_post') %></button>
             <%= $sheet->("$dom_id-report", t('moderation.report_post') . " $ordinal", sub { $report_form->(ui_path('post_report', post_id => $post->{post_id}), $post->{report_command_id}, "$dom_id-report") }) %>

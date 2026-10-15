@@ -28,7 +28,8 @@
     % }
     <button type="submit"><%= t('auth.login') %></button>
   </form>
-  <p>
+  <p class="ui-row-links">
     <a href="<%= ui_path('password_reset_request') %>"><%= t('auth.forgot_password') %></a>
+    <a href="<%= ui_path('register') %>"><%= t('auth.no_account') %></a>
   </p>
 </section>

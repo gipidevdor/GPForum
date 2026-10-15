@@ -942,6 +942,23 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **The index says what goes on in a category, and a reader who cannot
+  reply is told the way in.** Each category in the index and on the home
+  page carries how many discussions the reader may read in it and when the
+  last of them moved (migration 107, `api.forum_list_categories_v3`, one
+  aggregate per category over the index the category page reads; the
+  DBIx::Class list carries the same two columns). The home page's latest
+  discussions name their category and who started them, a pinned thread
+  wears a badge in every list, and the home page's header keeps one action,
+  starting a discussion, where it repeated the navigation's categories and
+  search. A thread page no longer hands a reader who is not signed in a
+  composer that cannot post: where the reply would be written stand the two
+  doors in, back to the thread. Under each post a signed-in reader can
+  quote it: `?quote=POST_ID` opens the reply with the post's source quoted
+  line by line under a line naming its author. The registration form says
+  what a username and a password must be and where to sign in; the login
+  form says where to create an account (`t/03`, `t/35`, `t/480`, `t/74`).
+
 - **`gpforum performance-seed` no longer seeds a production database it
   read from the settings file.** As a `bin/gpforum` verb it reads the host's
   settings file for every name the shell left unset, so on a production host

@@ -1023,6 +1023,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **The drills and evidence tools that read no setting no longer read the
+  settings file.** `staging-drill-attachments`, `evidence-meta`,
+  `evidence-validate`, `dead-letter-check` and `mail-lifecycle-check` use
+  none of the service's settings, yet the front door read the host's file
+  before each of them: where it is `root:gpforum 0640` -- a CI runner, an
+  account that is not the service's -- they were refused with 78 before
+  starting. The verb table marks them `nothing` and the front door skips the
+  file for them, the one named with `--env-file` included, so the deploy
+  units workflow runs them without `--env-file /dev/null` (ADR 0120,
+  amended; `t/484`).
+
 - **The index says what goes on in a category, and a reader who cannot
   reply is told the way in.** Each category in the index and on the home
   page carries how many discussions the reader may read in it and when the

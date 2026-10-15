@@ -12,7 +12,8 @@ the file again, so `gpforum secret rotate metrics` names no restart. Amended
 (2026-10-14) by the owner's decision O1 of the essentiality audit: nothing
 was ever released, so the old entrypoints are gone. `bin/` holds the front
 door alone, a command answers to its verb only, and no text is rewritten
-from a `bin/gpforum-X` name to its verb: the texts name the verbs.
+from a `bin/gpforum-X` name to its verb: the texts name the verbs. Amended
+(2026-10-15): a verb that reads no setting reads no file (section 2).
 
 ## Context
 
@@ -89,6 +90,13 @@ second reader, so its precedence must be written down.
   --env-file FILE`, for every verb but `staging-host-verify`, whose own
   `--env-file` is the file it checks). A host without one reads none, and
   the help says so.
+- **A verb that reads no setting reads no file.** The drills and evidence
+  tools that use none of the service's settings -- `staging-drill-attachments`,
+  `evidence-meta`, `evidence-validate`, `dead-letter-check` and
+  `mail-lifecycle-check`, marked `nothing` in the verb table -- run without
+  the file being read, the one named with `--env-file` included. The host's
+  file is `root:gpforum 0640`: a CI runner, or an account that is not the
+  service's, was refused with 78 before a drill that never looks at it.
 - **Precedence, strongest first:** the process environment (what systemd
   set from the same file, or what the operator typed), then the file, then
   GPForum's defaults. A name the process already holds is never replaced, so

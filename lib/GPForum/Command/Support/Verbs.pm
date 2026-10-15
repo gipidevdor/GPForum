@@ -14,9 +14,12 @@ our $VERSION = '0.001';
 # forum up, running it, checking it, maintaining it, and the rest -- the
 # benchmarks, seeds, drills and evidence a release needs and an operator
 # rarely does. Each verb names the command that does the work (a
-# GPForum::CLI adapter) and what it needs beyond the settings:
-# "application" for one that runs the web application. The front door's
-# help is drawn from this table.
+# GPForum::CLI adapter) and what it needs besides the settings:
+# "application" for one that runs the web application, "nothing" for one
+# that reads no setting either -- the front door does not read the settings
+# file for it, so it runs where that file cannot be read: a CI runner, an
+# account that is not the service's. The front door's help is drawn from
+# this table.
 const my @VERBS => (
     [qw(setup setup setup)],
     [qw(migrate setup migrate)],
@@ -47,12 +50,12 @@ const my @VERBS => (
     [qw(stress-load more stress_load)],
     [qw(query-plan-evidence more query_plan_evidence)],
     [qw(staging-drill more staging_drill)],
-    [qw(staging-drill-attachments more staging_drill_attachments)],
+    [qw(staging-drill-attachments more staging_drill_attachments nothing)],
     [qw(staging-host-verify more staging_host_verify)],
-    [qw(evidence-meta more evidence_meta)],
-    [qw(evidence-validate more evidence_validate)],
-    [qw(dead-letter-check more dead_letter_check)],
-    [qw(mail-lifecycle-check more mail_lifecycle_check)],
+    [qw(evidence-meta more evidence_meta nothing)],
+    [qw(evidence-validate more evidence_validate nothing)],
+    [qw(dead-letter-check more dead_letter_check nothing)],
+    [qw(mail-lifecycle-check more mail_lifecycle_check nothing)],
 );
 
 # The groups, in the order the help shows them. "more" is shown by
@@ -65,8 +68,8 @@ sub groups ($class) {
 
 # Every verb, in the help's order, as { verb, group, command, needs }: the
 # verb typed, its group, the GPForum::CLI command that does the work, and
-# what it needs beyond the settings -- "application" for one that runs the
-# web application.
+# what it needs besides the settings -- "application" for one that runs the
+# web application, "nothing" for one that reads no setting.
 sub verbs ($class) {
     return [ map { _verb($_) } @VERBS ];
 }
@@ -108,7 +111,9 @@ Version 0.001.
 
 The front door's verbs, grouped as its help shows them -- set up, run,
 check, maintain, and more -- each with the C<GPForum::CLI> command that does
-the work.
+the work and what it needs besides the settings: C<application> for a verb
+that runs the web application, C<nothing> for one that reads no setting, for
+which the front door reads no settings file.
 
 =head1 SUBROUTINES/METHODS
 

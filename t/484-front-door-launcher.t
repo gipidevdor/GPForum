@@ -232,6 +232,48 @@ subtest 'the front door reads the service environment file' => sub {
         'saying so' );
 };
 
+# The drills and evidence tools that read no setting ran only where the
+# host's file could be read: CI stages it root:gpforum 0640 and the runner
+# was refused with 78 before the drill started.
+subtest 'a verb that reads no setting reads no settings file' => sub {
+    my $launcher = GPForum::CLI::FrontDoor::Launcher->new;
+    my @free =
+      map  { $_->{verb} }
+      grep { ( $_->{needs} // q{} ) eq 'nothing' }
+      @{ GPForum::Command::Support::Verbs->verbs };
+    is_deeply(
+        [ sort @free ],
+        [
+            qw(dead-letter-check evidence-meta evidence-validate
+              mail-lifecycle-check staging-drill-attachments)
+        ],
+        'the drills and evidence tools that read none are marked'
+    );
+    for my $verb (@free) {
+        ok(
+            !$launcher->resolve($verb)->{reads_settings},
+            "gpforum $verb does not read the file"
+        );
+    }
+    for my $verb (qw(migrate performance-seed staging-drill start)) {
+        ok( $launcher->resolve($verb)->{reads_settings},
+            "gpforum $verb reads it" );
+    }
+
+    my $absent  = tempdir( CLEANUP => 1 ) . '/none.env';
+    my $refused = _started( {}, '--env-file', $absent, 'routes' );
+    is( $refused->{status}, $EX_CONFIG,
+        'a verb that reads settings is refused a file that is not there' );
+    my $run =
+      _started( {}, '--env-file', $absent, 'evidence-validate', '--help' );
+    is( $run->{status}, 0, 'one that reads none runs without it' );
+    like(
+        $run->{output},
+        qr/\A Usage: [ ] gpforum [ ] evidence-validate [ ]/msx,
+        'and does its work'
+    );
+};
+
 subtest 'start says an address it cannot listen on, with what to do' =>
   \&_assert_listen_failures;
 

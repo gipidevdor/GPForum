@@ -91,9 +91,14 @@ sub run ( $self, @arguments ) {
         return $self->help( $options, $typed );
     }
 
+    # A verb that reads no setting reads no settings file either, the one
+    # named with --env-file included: it runs where the host's file is
+    # root:gpforum 0640 and the account typing it is not the service's.
     local $PROGRAM_NAME = "$FRONT_DOOR $typed";
-    my $status = $self->_load_environment($options);
-    return $status if defined $status;
+    if ( $verb->{reads_settings} ) {
+        my $status = $self->_load_environment($options);
+        return $status if defined $status;
+    }
 
     return $self->_run_verb( $verb, @arguments );
 }
@@ -150,8 +155,9 @@ sub help ( $self, $options, @arguments ) {
     return $self->_print($usage);
 }
 
-# What a typed verb runs: { class, group, name, needs_application }, or
-# undef: a verb of the table, or one of Mojolicious's own commands.
+# What a typed verb runs: { class, group, name, needs_application,
+# reads_settings }, or undef: a verb of the table, or one of Mojolicious's
+# own commands.
 sub resolve ( $self, $typed ) {
     return undef if $typed !~ /\A [[:lower:]] [[:lower:][:digit:]_-]* \z/msx;
 
@@ -159,13 +165,13 @@ sub resolve ( $self, $typed ) {
     if ($verb) {
         my $class = "GPForum::CLI::$verb->{command}";
         return undef if !_is_command($class);
+        my $needs = $verb->{needs} // q{};
         return {
             class             => $class,
             group             => $verb->{group},
             name              => $verb->{command},
-            needs_application => ( $verb->{needs} // q{} ) eq 'application'
-            ? 1
-            : 0,
+            needs_application => $needs eq 'application' ? 1 : 0,
+            reads_settings    => $needs eq 'nothing'     ? 0 : 1,
         };
     }
     if ( any { $_ eq $typed } @{ GPForum::CLI::FrontDoor::Help->framework } ) {
@@ -176,6 +182,7 @@ sub resolve ( $self, $typed ) {
             group             => undef,
             name              => $typed,
             needs_application => 1,
+            reads_settings    => 1,
         };
     }
 
@@ -418,8 +425,9 @@ a verb, whose own usage it prints. Returns the exit status.
 
 =head2 resolve
 
-Takes a typed verb and returns what runs it -- C<class>, C<name>, C<group>
-and C<needs_application> -- or undef.
+Takes a typed verb and returns what runs it -- C<class>, C<name>, C<group>,
+C<needs_application> and C<reads_settings> -- or undef. A verb that does not
+read settings runs without the settings file being read.
 
 =head1 DIAGNOSTICS
 
@@ -429,7 +437,8 @@ What it says follows the operator's language
 =head1 CONFIGURATION AND ENVIRONMENT
 
 Reads the host's environment file, or the one given with C<--env-file>,
-into C<%ENV>, under the names C<%ENV> already holds.
+into C<%ENV>, under the names C<%ENV> already holds -- for every verb but
+those that read no setting (L<GPForum::Command::Support::Verbs>).
 
 =head1 DEPENDENCIES
 

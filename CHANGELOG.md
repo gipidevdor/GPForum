@@ -1034,6 +1034,13 @@ CI, evidence and internal refactors with no change in behaviour.
   units workflow runs them without `--env-file /dev/null` (ADR 0120,
   amended; `t/484`).
 
+- **`benchmark`, `hypnotoad-benchmark` and `hypnotoad-scaling` say a failed
+  run as one.** Every exception became misuse: the reason, the usage line
+  under it, status 2, so a database that did not answer or a refused seed
+  read as a mistyped command line. Misuse keeps the usage and 2; a failure
+  is said as itself and exits 1, or 78 for settings the command cannot use,
+  as the staging drill and ADR 0120's one command style have it (`t/681`).
+
 - **The index says what goes on in a category, and a reader who cannot
   reply is told the way in.** Each category in the index and on the home
   page carries how many discussions the reader may read in it and when the

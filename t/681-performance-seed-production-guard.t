@@ -17,6 +17,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
+use GPForum::Command::HypnotoadScaling;
 use GPForum::Command::PerformanceSeed;
 use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
@@ -34,6 +35,7 @@ our $VERSION = '0.001';
 
 const my $STATUS_SHIFT => 8;
 const my $SEED_FAILED  => 2;
+const my $RUN_FAILED   => 1;
 const my $DSN          => 'GPFORUM_DATABASE_DSN';
 const my $FORUM_DSN    => 'dbi:Pg:dbname=gpforum;host=127.0.0.1;port=1';
 const my $SCRATCH_DSN  => 'dbi:Pg:dbname=gpforum_bench;host=127.0.0.1;port=1';
@@ -114,6 +116,27 @@ subtest 'the front door says the refusal as itself' => sub {
     );
     like( $given->{errors}, qr/dbname=gpforum_bench/msx,
         'at the database the shell named' );
+};
+
+# hypnotoad-scaling seeds before it starts a server; a refused seed is a
+# failed run, said as itself, not misuse under the usage text.
+subtest 'a benchmark that seeds is refused the same way' => sub {
+    local %ENV = _without_settings();
+    $SERVICE->new(
+        file => _file( 'scaling.env', _settings( 'production', $FORUM_DSN ) ) )
+      ->load;
+
+    my $errors = q{};
+    my $status;
+    {
+        open my $capture, '>', \$errors or croak 'capture stderr';
+        local *STDERR = $capture;
+        $status = GPForum::Command::HypnotoadScaling->new->run( '--seed',
+            '--profile', 'small' );
+        close $capture or croak 'close stderr';
+    }
+    is( $status, $RUN_FAILED,  'the run fails' );
+    is( $errors, "$REFUSAL\n", 'with the refusal alone, and no usage' );
 };
 
 done_testing;

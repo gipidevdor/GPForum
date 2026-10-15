@@ -65,7 +65,10 @@ has app_class => 'GPForum';
 
 # --help is answered before anything is parsed, and a parse failure becomes a
 # usage error rather than an uncaught croak: this used to exit 255 with
-# " at FILE line N." glued to the help text.
+# " at FILE line N." glued to the help text. A run that fails -- a database
+# it cannot reach, a seed refused -- says why and exits 1 (78 for settings it
+# cannot use), as the staging drill does: under the usage, and with status 2,
+# it read as a mistyped command line.
 sub run ( $self, @arguments ) {
     return GPForum::Command::Usage->help( \*STDOUT, _usage() )
       if GPForum::Command::Usage->wants_help(@arguments);
@@ -75,6 +78,9 @@ sub run ( $self, @arguments ) {
         $status = $self->_run(@arguments);
     }
     catch ($error) {
+        return GPForum::Command::Usage->failure($error)
+          if !GPForum::Command::Usage->is_usage($error);
+
         return GPForum::Command::Usage->error(
             GPForum::Command::Usage->trimmed($error), _usage() );
     };

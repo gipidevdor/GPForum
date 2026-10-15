@@ -123,14 +123,21 @@ jobs:
       - name: Check the FreeBSD rc(8) unit
         run: sh -n deploy/freebsd/gpforum
 
+      # The drill and the validator need none of the service's settings, and
+      # the file staged above is root:gpforum 0640, which the runner cannot
+      # read: --env-file /dev/null says so, where the host's file would be
+      # refused.
       - name: Run the deploy checklist drill
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          bin/gpforum staging-drill-attachments --json | tee artifacts/staging-drill-attachments.json
+          bin/gpforum --env-file /dev/null staging-drill-attachments --json \
+            | tee artifacts/staging-drill-attachments.json
 
       - name: Validate drill evidence
-        run: bin/gpforum evidence-validate --strict --human artifacts/staging-drill-attachments.json
+        run: >-
+          bin/gpforum --env-file /dev/null evidence-validate --strict --human
+          artifacts/staging-drill-attachments.json
 
       - name: Upload deploy evidence
         if: always()

@@ -113,6 +113,12 @@ owner. Open <http://127.0.0.1:3000> to sign in. `gpforum` alone lists its
 commands; `gpforum doctor` checks the whole setup, one line each, and says
 how to fix what is wrong ([docs/ops/doctor.md](docs/ops/doctor.md)).
 
+Local PostgreSQL connections use Unix sockets by default. Deployed
+Hypnotoad also uses a Unix socket, `var/run/gpforum.sock` under the code
+directory; nginx and Caddy configurations printed by `gpforum service print`
+use that same path. Give the proxy's worker account access to the `gpforum`
+group as described in [Unix socket deployment](docs/DEPLOYMENT.md#unix-socket-mode).
+
 A member who registers gets a verification mail. In development GPForum
 sends none: the outbox worker writes each message, its link included, to the
 terminal. Run it once and open the link it prints:

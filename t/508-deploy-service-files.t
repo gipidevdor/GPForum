@@ -39,30 +39,34 @@ subtest 'every % in a systemd unit is one systemd reads' => sub {
             [], "$unit has no % systemd would refuse" );
     }
 
-    my ($listen) = path('deploy/systemd/gpforum-unix-socket.service')->slurp =~
-      /^Environment=GPFORUM_RUNTIME_LISTEN=(\S+)$/msx;
-    my $as_systemd_passes_it = $listen =~ s/%%/%/grmsx;
-    is(
-        $as_systemd_passes_it,
-        'http+unix://%2Frun%2Fgpforum%2Fgpforum.sock',
-        'the unix-socket unit passes the percent-encoded socket path'
+    unlike(
+        path('deploy/systemd/gpforum.service')->slurp,
+        qr/^Environment=GPFORUM_RUNTIME_LISTEN=/msx,
+'the canonical unit inherits the listen setting without specifier escaping'
     );
     is_deeply(
-        GPForum::Config->from_environment(
-            { GPFORUM_RUNTIME_LISTEN => $as_systemd_passes_it }
-        )->runtime_listen_locations,
-        ['http+unix://%2Frun%2Fgpforum%2Fgpforum.sock'],
-        'a location GPForum listens on'
+        GPForum::Config->from_environment( {} )->runtime_listen_locations,
+        ['http+unix://var%2Frun%2Fgpforum.sock'],
+        'the default socket lives under the deployed code directory'
     );
     like(
         path('deploy/nginx/gpforum-unix-socket.conf')->slurp,
-        qr{unix:/run/gpforum/gpforum[.]sock}msx,
+        qr{unix:/opt/gpforum/var/run/gpforum[.]sock}msx,
         'the socket the unix-socket nginx site forwards to'
     );
-    my $in_file = "GPFORUM_RUNTIME_LISTEN=$as_systemd_passes_it";
+    my $in_file =
+      'GPFORUM_RUNTIME_LISTEN=http+unix://%2Frun%2Fgpforum%2Fgpforum.sock';
     like( path('docs/DEPLOYMENT.md')->slurp,
         qr/^\Q$in_file\E$/msx,
         'and the environment file form, with one %, as the guide gives it' );
+    is(
+        readlink('deploy/systemd/gpforum-unix-socket.service'),
+        'gpforum.service',
+        'the old unit name is an alias of the single canonical template'
+    );
+    is( readlink('deploy/nginx/gpforum-unix-socket.conf'),
+        'gpforum.conf',
+        'the old site name is an alias of the single canonical template' );
 };
 
 subtest 'every launchd job runs as the service account' => sub {

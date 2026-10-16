@@ -51,7 +51,6 @@ const my $DEPLOYED     => qr/\A (?: staging | production )/msx;
 # What "create" means: the forum's database and role, named as the template
 # names them, on this host.
 const my $DATABASE_NAME => 'gpforum';
-const my $LOCAL_SERVER  => 'host=127.0.0.1;port=5432';
 
 const my $SMTP_PORT => 587;
 const my $SENDER    => 'forum';
@@ -617,9 +616,8 @@ sub _text ($bytes) {
 }
 
 sub _dsn ($answer) {
-    return
-      lc $answer eq 'create'
-      ? "dbi:Pg:dbname=$DATABASE_NAME;$LOCAL_SERVER"
+    return lc $answer eq 'create'
+      ? "dbi:Pg:dbname=$DATABASE_NAME"
       : $answer;
 }
 

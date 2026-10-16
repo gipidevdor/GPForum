@@ -12,7 +12,7 @@ use JSON::PP;
 use Test::More;
 use GPForum::Performance::Budget;
 use GPForum::Performance::Extreme;
-use GPForum::Performance::ExtremeContainer qw(cleanup);
+use GPForum::Performance::ExtremeContainer qw(cleanup start_database);
 use GPForum::Performance::ExtremePlan      qw(profiles mixed_weights);
 use GPForum::Performance::ExtremeState
   qw(initialize load_state save_state finalize validate_state checkpoint);
@@ -264,6 +264,37 @@ for my $mutation (
     _fails( sub { validate_state($value); },
         'false completion or missing/corrupt metric refused' );
 }
+
+subtest
+  'owned PostgreSQL uses a Unix socket and removes its owned directory' => sub {
+    my $directory = _output();
+    my $run       = initialize( $directory, 'reduced', 'e' x COMMIT_LENGTH );
+    my @commands;
+    local *GPForum::Performance::ExtremeContainer::run_bounded =
+      sub ( $command, @ ) {
+        push @commands, $command;
+        return 'sha256:fixture' if join( q{ }, @{$command} ) =~ /Image/msx;
+        return '101' if join( q{ }, @{$command} ) =~ /State[.]Pid/msx;
+        return q{};
+      };
+    my $environment =
+      start_database( $directory, $run, monotonic() + REMAINING_JOB );
+    like(
+        $environment->{GPFORUM_DATABASE_DSN},
+        qr{host=/tmp/gpforum-extreme-pg-[[:xdigit:]]+/socket;port=5432}msx,
+        'the application connects to the host-mounted socket'
+    );
+    my $command = join q{ }, @{ $commands[0] };
+    unlike( $command, qr/--publish/msx, 'no PostgreSQL TCP port is published' );
+    like( $command, qr/listen_addresses=/msx, 'the owned server disables TCP' );
+    like( $command, qr{PGHOST=/gpforum-socket}msx,
+        'container readiness and initialization use that same socket' );
+    my $owned = $run->{owned_socket_directory};
+    ok( -d $owned, 'the temporary socket directory belongs to this attempt' );
+    ok( cleanup($directory), 'cleanup succeeds' );
+    ok( !-e $owned,
+        'the owned socket directory is removed after the container' );
+  };
 
 done_testing;
 1;

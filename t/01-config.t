@@ -41,7 +41,7 @@ const my %PRODUCTION_ENV => (
 
 const my $EXPECTED_TESTS             => 303;
 const my $DEFAULT_LOG_LEVEL          => 'info';
-const my $DEFAULT_RUNTIME_LISTEN     => 'http://127.0.0.1:8080';
+const my $DEFAULT_RUNTIME_LISTEN     => 'http+unix://var%2Frun%2Fgpforum.sock';
 const my $DEFAULT_RUNTIME_BACKLOG    => 256;
 const my $DEFAULT_RUNTIME_CLIENTS    => 250;
 const my $DEFAULT_RUNTIME_REQUESTS   => 1_000;
@@ -835,7 +835,7 @@ my @every_setting   = (
     ],
     [
         database_dsn => 'GPFORUM_DATABASE_DSN',
-        'dbi:Pg:dbname=gpforum;host=127.0.0.1;port=5432', 'dbi:Pg:dbname=other'
+        'dbi:Pg:dbname=gpforum', 'dbi:Pg:dbname=other'
     ],
     [ database_user     => 'GPFORUM_DATABASE_USER',     'gpforum', 'reader' ],
     [ database_password => 'GPFORUM_DATABASE_PASSWORD', q{},       'hunter' ],
@@ -864,7 +864,7 @@ my @every_setting   = (
     [ web_processes => 'GPFORUM_WEB_PROCESSES', $automatic_web, '3' ],
     [
         runtime_listen => 'GPFORUM_RUNTIME_LISTEN',
-        'http://127.0.0.1:8080', 'http://0.0.0.0:9000'
+        'http+unix://var%2Frun%2Fgpforum.sock', 'http://0.0.0.0:9000'
     ],
     [
         runtime_pid_file => 'GPFORUM_RUNTIME_PID_FILE',

@@ -10,6 +10,7 @@ use Const::Fast;
 use English    qw(-no_match_vars);
 use File::Temp qw(tempdir);
 use Mojo::File qw(path);
+use Mojo::Util qw(url_escape);
 use Test::More;
 
 use lib 'lib';
@@ -39,11 +40,14 @@ our $VERSION = '0.001';
 # its script/os-preflight and bin/gpforum-* commands are gone, so it is
 # printed again rather than kept.
 
-const my $ROOT          => path(q{.})->to_abs->to_string;
-const my $LABEL         => 'ExecStart through bin/gpforum';
-const my $OTHER         => '/srv/forum.env';
-const my @IN_FOREGROUND => qw(start --service --foreground);
-const my $RC_PATH       => qr{/usr/bin/env [ ] PATH=[\$][{]gpforum_path[}]}msx;
+const my $ROOT                  => path(q{.})->to_abs->to_string;
+const my $LABEL                 => 'ExecStart through bin/gpforum';
+const my $OTHER                 => '/srv/forum.env';
+const my $SOCKET_DIRECTORY_MODE => oct '750';
+const my $SOCKET_UMASK          => oct '007';
+const my $MODE_BITS             => oct '777';
+const my @IN_FOREGROUND         => qw(start --service --foreground);
+const my $RC_PATH => qr{/usr/bin/env [ ] PATH=[\$][{]gpforum_path[}]}msx;
 const my $RC_FRONT_DOOR =>
   qr{[\$][{]gpforum_home[}]/bin/gpforum [ ] --env-file [ ] \S+}msx;
 const my %LAYOUT => (
@@ -194,6 +198,59 @@ subtest 'gpforum start --service runs Hypnotoad from local/ in its place' =>
         'and says why'
     );
   };
+
+sub _unix_sockets {
+    my $root = tempdir( CLEANUP => 1 );
+    path( $root, 'local', 'bin' )->make_path;
+    path( $root, 'local', 'bin', 'hypnotoad' )->spew("#!perl\n");
+    my $socket = "$root/run/gpforum.sock";
+    my $inherited_umask;
+    my $original_umask = umask;
+    my $start          = GPForum::CLI::start->new(
+        root    => $root,
+        replace => sub (@) { $inherited_umask = umask; },
+    );
+    $start->app->config(
+        hypnotoad => {
+            listen => [ 'http+unix://' . url_escape($socket) ],
+        }
+    );
+    is( $start->run('--service'), 0, 'the Unix-socket service is started' );
+    ok( -d "$root/run", 'the socket parent is created before exec' );
+    is( ( stat "$root/run" )[2] & $MODE_BITS,
+        $SOCKET_DIRECTORY_MODE,
+        'the socket parent is closed to other accounts' );
+    is( $inherited_umask, $SOCKET_UMASK,
+        'Hypnotoad inherits a group-accessible, private socket mode' );
+    is( umask, $original_umask, 'a mocked exec does not leak the umask' );
+
+    $start->app->config( hypnotoad => { listen => ['http://127.0.0.1:8080'] } );
+    my $error;
+    try { $start->run('--service'); }
+    catch ($caught) { $error = $caught; };
+    like(
+        "$error",
+qr/Internal [ ] Hypnotoad [ ] listeners [ ] require [ ] Unix [ ] sockets/msx,
+        'a service cannot reopen an internal TCP listener'
+    );
+
+    my $files = _files( 'linux', '/srv/forum' );
+    for my $target (qw(nginx caddy)) {
+        my ($rendered) = @{ $files->render($target) };
+        like(
+            $rendered->{text},
+            qr{unix[:/] /srv/forum/var/run/gpforum[.]sock}msx,
+"$target reaches the default socket under the deployed code directory"
+        );
+        unlike( $rendered->{text}, qr/127[.]0[.]0[.]1:8080/msx,
+            "$target does not retain the old TCP upstream" );
+    }
+    return;
+}
+
+subtest
+  'Unix sockets are prepared for the service and resolved for the proxy' =>
+  \&_unix_sockets;
 
 subtest 'a unit copied before the front door breaks the contract' => sub {
     my $host      = _host('linux');

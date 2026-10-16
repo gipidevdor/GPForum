@@ -40,20 +40,25 @@ jobs:
     timeout-minutes: 60
     container:
       image: debian:trixie
+      volumes:
+        - /var/run/postgresql:/var/run/postgresql
     services:
       postgres:
         image: postgres:18
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: gpforum_test
+        volumes:
+          - /var/run/postgresql:/var/run/postgresql
         options: >-
           --health-cmd "pg_isready -U postgres -d gpforum_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      # Service containers are reachable by service name from a container job.
-      GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=postgres;port=5432
+      # Both containers share only the PostgreSQL socket directory.
+      PGHOST: /var/run/postgresql
+      GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=/var/run/postgresql;port=5432
       GPFORUM_DATABASE_USER: postgres
       GPFORUM_DATABASE_PASSWORD: postgres
       DEBIAN_FRONTEND: noninteractive

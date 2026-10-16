@@ -60,7 +60,7 @@ subtest 'the report, read with the token, one line per check' => sub {
     my $run   = _run( _command( $probe, 'production' ) );
     is(
         $probe->requests->[0]{url},
-        'http://127.0.0.1:8080/health/ready',
+        'http+unix://var%2Frun%2Fgpforum.sock/health/ready',
         'it asks where Hypnotoad listens, not the proxy'
     );
     is( $probe->requests->[0]{headers}{'X-GPForum-Metrics-Token'},
@@ -69,7 +69,7 @@ subtest 'the report, read with the token, one line per check' => sub {
     is(
         $run->{output},
         join( "\n",
-'http://127.0.0.1:8080: ready, with warnings (production, 4 checks)',
+'http+unix://var%2Frun%2Fgpforum.sock: ready, with warnings (production, 4 checks)',
             q{},
             "\N{CHECK MARK} database",
             "\N{CHECK MARK} shared cache: one per process, no GlifiStore",
@@ -160,7 +160,8 @@ subtest '--json is the report whole, with the lines' => sub {
 subtest 'in Italian' => sub {
     my $probe = _probe( { code => 200, body => encode_json( \%REPORT ) } );
     my $run   = _run( _command( $probe, 'production', 'it' ) );
-    like( $run->{output}, qr/\A http:\S+ [ ] pronto, [ ] con [ ] avvisi/msx,
+    like( $run->{output},
+        qr/\A http[+]unix:\S+ [ ] pronto, [ ] con [ ] avvisi/msx,
         'the heading' );
     like( $run->{output}, qr/budget [ ] delle [ ] query: [ ] forum_index/msx,
         'a check' );

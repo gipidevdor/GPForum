@@ -68,7 +68,7 @@ subtest 'a healthy development checkout is check marks only' => sub {
               . ' start --foreground), 4096 cache entries a process',
             "\N{CHECK MARK} host: Linux with epoll, 2 CPUs",
             "\N{CHECK MARK} open files: up to 65536",
-"\N{CHECK MARK} database: PostgreSQL 18.6, gpforum at 127.0.0.1:5432",
+            "\N{CHECK MARK} database: PostgreSQL 18.6, gpforum at unix:5432",
             "\N{CHECK MARK} schema: current (051)",
             "\N{CHECK MARK} query budgets: as the code sets them",
             "\N{CHECK MARK} readiness: 2 more checks of /health/ready pass",

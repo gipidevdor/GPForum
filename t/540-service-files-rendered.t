@@ -114,8 +114,8 @@ subtest 'the web unit follows a UNIX socket' => sub {
     my ($web) = @{ $files->render( 'systemd', ['gpforum.service'] ) };
     is(
         $web->{template},
-        'deploy/systemd/gpforum-unix-socket.service',
-        'the socket variant'
+        'deploy/systemd/gpforum.service',
+        'the canonical web unit reads the configured socket'
     );
     is(
         $web->{path},
@@ -260,11 +260,8 @@ subtest 'nginx: the forum, the listen address and the attachment store' => sub {
             }
         )->render('nginx')
     };
-    is(
-        $socket->{template},
-        'deploy/nginx/gpforum-unix-socket.conf',
-        'a socket is the socket site'
-    );
+    is( $socket->{template}, 'deploy/nginx/gpforum.conf',
+        'the canonical site handles the configured socket' );
     _line(
         $socket->{text},
         '    server unix:/srv/gpforum.sock;',

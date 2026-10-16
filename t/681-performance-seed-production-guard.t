@@ -39,7 +39,7 @@ const my $RUN_FAILED   => 1;
 const my $DSN          => 'GPFORUM_DATABASE_DSN';
 const my $FORUM_DSN    => 'dbi:Pg:dbname=gpforum;host=127.0.0.1;port=1';
 const my $SCRATCH_DSN  => 'dbi:Pg:dbname=gpforum_bench;host=127.0.0.1;port=1';
-const my $DEFAULT_DSN  => 'dbi:Pg:dbname=gpforum;host=127.0.0.1;port=5432';
+const my $DEFAULT_DSN  => 'dbi:Pg:dbname=gpforum';
 const my $REFUSAL =>
   q{GPFORUM_ENV is production, so the seed would write into the forum's own}
   . ' database; point GPFORUM_DATABASE_DSN at a scratch database instead.';

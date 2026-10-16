@@ -16,7 +16,8 @@ use English    qw(-no_match_vars);
 use List::Util qw(any);
 use POSIX      ();
 use Mojo::URL;
-use Mojo::Util qw(encode);
+use Mojo::File qw(path);
+use Mojo::Util qw(encode url_unescape);
 
 use GPForum::CLI::FrontDoor::Carton;
 use GPForum::Command::Support::ServiceEnvironment;
@@ -25,7 +26,9 @@ use GPForum::Command::Usage;
 
 our $VERSION = '0.001';
 
-const my $LISTEN => 'http://127.0.0.1:3000';
+const my $LISTEN                => 'http://127.0.0.1:3000';
+const my $SOCKET_DIRECTORY_MODE => oct '750';
+const my $SOCKET_UMASK          => oct '007';
 
 # The schemes Mojolicious's daemon listens on.
 const my $SCHEME => qr/\A (?: https? | http[+]unix ) \z/msx;
@@ -146,6 +149,23 @@ sub _hypnotoad ( $self, $words, $foreground ) {
         return $GPForum::Command::Usage::EXIT_FAILURE;
     }
 
+    # A relative socket lives under the service's code directory. Only its
+    # parent is made; Mojo owns the socket and handles inherited listeners.
+    # The proxy's account joins gpforum's group, so the socket is available
+    # to that group and closed to other local accounts.
+    my $unix_socket = 0;
+    for my $listen ( @{ $self->app->config->{hypnotoad}{listen} // [] } ) {
+        my $url = Mojo::URL->new($listen);
+        croak
+          'Internal Hypnotoad listeners require Unix sockets (http+unix://);'
+          . ' set GPFORUM_RUNTIME_LISTEN to a Unix socket URL'
+          if ( $url->scheme // q{} ) ne 'http+unix';
+        path( url_unescape( $url->host ) )
+          ->dirname->make_path( { mode => $SOCKET_DIRECTORY_MODE } );
+        $unix_socket = 1;
+    }
+    my $previous_umask = $unix_socket ? umask $SOCKET_UMASK : undef;
+
     # The file the front door read, which Hypnotoad's bin/gpforum reads in
     # place of the host's: a unit printed for another file names it with
     # --env-file, and the service, and what watches it, read that one.
@@ -163,6 +183,9 @@ sub _hypnotoad ( $self, $words, $foreground ) {
         $EXECUTABLE_NAME, $hypnotoad, ( $foreground ? '-f' : () ),
         "$root/bin/gpforum"
     );
+    if ( defined $previous_umask ) {
+        umask $previous_umask;
+    }
 
     return 0;
 }

@@ -93,7 +93,7 @@ const my @NGINX_CHECKS => (
         name       => 'gpforum.conf',
         must_match => [
             qr/upstream\s+gpforum_backend\s*[{]/msx,
-            qr/server\s+127[.]0[.]0[.]1:8080;/msx,
+            qr{server\s+unix:/opt/gpforum/var/run/gpforum[.]sock;}msx,
             qr{location\s+/internal-attachments/}msx,
             qr/listen\s+443\s+ssl;/msx,
             qr/ssl_certificate\s+\S+;/msx,
@@ -101,7 +101,7 @@ const my @NGINX_CHECKS => (
         ],
         labels => [
             'upstream gpforum_backend',
-            'upstream 127.0.0.1:8080',
+            'unix socket upstream',
             'internal-attachments',
             'TLS listener',
             'certificate configured',
@@ -112,15 +112,15 @@ const my @NGINX_CHECKS => (
         path       => 'deploy/nginx/gpforum-unix-socket.conf',
         name       => 'gpforum-unix-socket.conf',
         must_match => [
-            qr/upstream\s+gpforum_unix_backend\s*[{]/msx,
-            qr{server\s+unix:/run/gpforum/gpforum[.]sock;}msx,
+            qr/upstream\s+gpforum_backend\s*[{]/msx,
+            qr{server\s+unix:/opt/gpforum/var/run/gpforum[.]sock;}msx,
             qr{location\s+/internal-attachments/}msx,
             qr/listen\s+443\s+ssl;/msx,
             qr/ssl_certificate\s+\S+;/msx,
             qr{return\s+301\s+https://}msx,
         ],
         labels => [
-            'upstream gpforum_unix_backend',
+            'upstream gpforum_backend',
             'unix socket upstream',
             'internal-attachments',
             'TLS listener',

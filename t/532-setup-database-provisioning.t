@@ -44,7 +44,7 @@ subtest 'a data source is read as libpq reads it' => sub {
         $class->server_name(
             $class->data_source('dbi:Pg:dbname=x;port=55433')
         ),
-        'localhost:55433',
+        'unix:55433',
         'its server, as an operator reads it'
     );
     ok( $class->is_local( $class->data_source('dbi:Pg:dbname=x;host=::1') ),

@@ -419,9 +419,7 @@ Reproduce an install:
 
 The units in `deploy/systemd/` are what the [install](#install-on-debian-or-ubuntu)
 copies, as `gpforum service print systemd` writes them for the host:
-`gpforum.service` (or `gpforum-unix-socket.service`, see
-[UNIX Socket Mode](#unix-socket-mode), which `service print` picks when
-`GPFORUM_RUNTIME_LISTEN` names a socket), `gpforum-outbox.service`, the
+`gpforum.service`, `gpforum-outbox.service`, the
 outbox worker without which no mail leaves, and the two timers below. They
 run as `gpforum` from the code directory (`/opt/gpforum` in the templates),
 read the environment file (`/etc/gpforum/gpforum.env`), and stop
@@ -431,8 +429,8 @@ file; `systemctl reload` is refused on purpose
 
 The systemd units create `/run/gpforum` with `RuntimeDirectory=gpforum`, and
 Hypnotoad keeps its pid file there (`PIDFile=/run/gpforum/hypnotoad.pid`). The
-units set only `GPFORUM_ENV=production` and the log path (the unix-socket
-unit also its listen address); every other setting takes its default unless
+units set only `GPFORUM_ENV=production` and the log path; every other
+setting takes its default unless
 `/etc/gpforum/gpforum.env` sets it, so an override belongs in that file, not
 in a copy of the unit.
 
@@ -647,8 +645,9 @@ the token from the environment file and writes it one line per check; a
 scraper sends the header itself:
 
 ```sh
-curl -sS -H "X-GPForum-Metrics-Token: $GPFORUM_METRICS_TOKEN" \
-  http://127.0.0.1:8080/health/ready | jq '.checks[] | select(.status != "ok")'
+curl --unix-socket /opt/gpforum/var/run/gpforum.sock \
+  -sS -H "X-GPForum-Metrics-Token: $GPFORUM_METRICS_TOKEN" \
+  http://localhost/health/ready | jq '.checks[] | select(.status != "ok")'
 ```
 
 A wrong or stale token gets the status alone, not a 401 as on `/metrics`:
@@ -667,23 +666,44 @@ the status.
 
 ## UNIX Socket Mode
 
-UNIX socket mode is optional. `deploy/systemd/gpforum-unix-socket.service`
-sets it; in the environment file, for another supervisor, the line is:
+Unix sockets are the default for both local PostgreSQL and proxy-to-Hypnotoad
+connections. `GPFORUM_DATABASE_DSN=dbi:Pg:dbname=gpforum` uses libpq's packaged
+socket directory; set `host=/path/to/directory` in that DSN when PostgreSQL
+keeps its socket elsewhere. A remote database still takes an explicit TCP
+host. Local peer authentication requires the service account and PostgreSQL
+role to agree, or a matching `pg_hba.conf` rule.
+
+Hypnotoad's default is `http+unix://var%2Frun%2Fgpforum.sock`. The service
+starts in the code directory and creates `var/run` with mode `0750` before
+binding the socket. The socket is accessible to the `gpforum` group and
+closed to other users. nginx and Caddy configurations printed with
+`gpforum service print` resolve the same path under the deployed code
+directory. The old `gpforum-unix-socket` template names are compatibility
+links to the canonical templates, not separate configurations.
+
+The browser-facing development command `gpforum start --foreground` retains
+its explicit HTTP listener on port 3000. Internal local connections use Unix
+sockets; the public browser-to-proxy listener remains HTTP/HTTPS.
+
+For an absolute socket path, the environment file can set:
 
 ```text
 GPFORUM_RUNTIME_LISTEN=http+unix://%2Frun%2Fgpforum%2Fgpforum.sock
 ```
 
-In a unit file each `%` is written `%%`, as the shipped unit does: systemd
+In a unit file each `%` must be written `%%`: systemd
 reads `%2` as a specifier it does not know and drops the whole line, and the
-service listens on the default TCP address instead.
+service keeps its default listen address instead. Prefer the environment file,
+which takes single `%` characters and does not duplicate the unit.
 
-When using UNIX sockets, `reuseport` is not applied. The systemd socket unit
-creates `/run/gpforum` with `RuntimeDirectory=gpforum` (mode `0750`, owned by
-the service user), so nginx reaches the socket only as a member of the
-`gpforum` group: `sudo usermod -aG gpforum www-data`, then `sudo systemctl
-restart nginx`. Other supervisors must create that directory with safe
-ownership before start.
+When using Unix sockets, `reuseport` is not applied. Add the proxy's worker
+account to the `gpforum` group before starting it: on Debian, use
+`sudo usermod -aG gpforum www-data` for nginx or
+`sudo usermod -aG gpforum caddy` for Caddy, then restart the proxy. On FreeBSD,
+use `sudo pw groupmod gpforum -m www` for nginx (or its configured worker
+account). The code directory and every socket parent must allow that group
+to traverse them. For a custom socket outside the code directory, provision
+its parent with ownership `gpforum:gpforum` and mode `0750` before startup.
 
 ## Realtime
 
@@ -751,8 +771,8 @@ no installable GlifiStore binary or CPAN distribution in this project.
 
 To use one:
 
-1. Run a GlifiStore server that listens on `GPFORUM_GLIFISTORE_URL`
-   (sample configs use `tcp://127.0.0.1:7379`; `unix://path` is also valid).
+1. Run a GlifiStore server on a Unix socket and set `GPFORUM_GLIFISTORE_URL`
+   to `unix://var/run/glifistore.sock` (or an absolute socket path).
 2. Install `GlifiStore::Client` onto the same Perl that owns `local/` (private
    distribution or extra `PERL5LIB`).
 3. Set `GPFORUM_GLIFISTORE_URL` in `/etc/gpforum/gpforum.env`.

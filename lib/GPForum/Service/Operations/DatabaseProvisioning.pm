@@ -129,7 +129,7 @@ sub reason_of ( $class, $error ) {
 # The server as an operator reads it: host:port, or the socket directory and
 # port.
 sub server_name ( $class, $source ) {
-    my $host = length $source->{host} ? $source->{host} : 'localhost';
+    my $host = length $source->{host} ? $source->{host} : 'unix';
 
     return "$host:$source->{port}";
 }

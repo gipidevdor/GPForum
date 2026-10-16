@@ -21,8 +21,7 @@ our $VERSION = '0.001';
 # a host: the templates stay the only copy (DeployContract and t/18 read
 # them), and what an operator installs is a template with this host's
 # values in place of the ones it was written with (ADR 0123). Each file names
-# its template, the variant installed under the same name when the forum
-# listens on a UNIX socket, the service it runs, as systemd names it, and,
+# its template, the service it runs, as systemd names it, and,
 # for the crontab, a directory of its own.
 const my %TARGET => (
     systemd => {
@@ -32,7 +31,6 @@ const my %TARGET => (
             {
                 name       => 'gpforum.service',
                 template   => 'deploy/systemd/gpforum.service',
-                socket     => 'deploy/systemd/gpforum-unix-socket.service',
                 starts     => 'gpforum',
                 restarts   => 1,
                 front_door => 1,
@@ -121,7 +119,6 @@ const my %TARGET => (
             {
                 name     => 'gpforum.conf',
                 template => 'deploy/nginx/gpforum.conf',
-                socket   => 'deploy/nginx/gpforum-unix-socket.conf',
             },
         ],
     },
@@ -251,14 +248,13 @@ const my %WRITTEN => (
         root        => '/opt/gpforum',
         attachments => '/opt/gpforum/var/attachments/',
         host        => 'forum.example.com',
-        upstream    => '127.0.0.1:8080',
-        socket      => '/run/gpforum/gpforum.sock',
+        upstream    => 'unix:/opt/gpforum/var/run/gpforum.sock',
         letsencrypt => '/etc/letsencrypt',
     },
     caddy => {
         root     => '/opt/gpforum',
         host     => 'forum.example.com',
-        upstream => '127.0.0.1:8080',
+        upstream => 'unix//opt/gpforum/var/run/gpforum.sock',
     },
 );
 
@@ -391,12 +387,9 @@ sub render ( $self, $target, $names = [], $directory = undef ) {
     return \@rendered;
 }
 
-# The template a file is rendered from: the UNIX-socket variant when the
-# forum listens on one.
+# The canonical template for both Unix sockets and explicit TCP listeners.
 sub template_of ( $self, $target, $file ) {
-    return $file->{socket} && defined $self->_socket
-      ? $file->{socket}
-      : $file->{template};
+    return $file->{template};
 }
 
 # One template's text with this host's values in place of the ones it was
@@ -632,9 +625,10 @@ sub _values ( $self, $target ) {
         $value{attachments} = $self->_attachments;
         $value{letsencrypt} = $self->_letsencrypt;
         my $socket = $self->_socket;
-        $value{socket}   = $socket;
-        $value{upstream} = defined $socket
-          && $target eq 'caddy' ? "unix/$socket" : $self->_upstream;
+        $value{upstream} =
+          defined $socket
+          ? ( $target eq 'caddy' ? "unix/$socket" : "unix:$socket" )
+          : $self->_upstream;
     }
 
     return %value;
@@ -713,7 +707,7 @@ sub _upstream ($self) {
     my $url  = Mojo::URL->new( $first // q{} );
     my $host = $url->host;
     my $port = $url->port;
-    return $WRITTEN{nginx}{upstream} if !defined $host || !defined $port;
+    return '127.0.0.1:8080' if !defined $host || !defined $port;
 
     return ( exists $ANY_ADDRESS{$host} ? $ANY_ADDRESS{$host} : $host )
       . ":$port";
@@ -723,7 +717,12 @@ sub _upstream ($self) {
 sub _socket ($self) {
     my ($encoded) = $self->_setting('GPFORUM_RUNTIME_LISTEN') =~
       m{\A \s* http[+]unix:// ([^,?\s]+)}msx;
-    return defined $encoded ? url_unescape($encoded) : undef;
+    return undef if !defined $encoded;
+
+    my $socket = url_unescape($encoded);
+    return $socket =~ m{\A /}msx
+      ? $socket
+      : path( $self->home, $socket )->to_string;
 }
 
 # The attachment store's directory, with the trailing slash an nginx alias

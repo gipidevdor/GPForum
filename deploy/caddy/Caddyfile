@@ -64,7 +64,7 @@ forum.example.com {
     }
     respond @metrics_remote 403
 
-    reverse_proxy 127.0.0.1:8080 {
+    reverse_proxy unix//opt/gpforum/var/run/gpforum.sock {
         header_up X-Forwarded-Proto {scheme}
     }
 }

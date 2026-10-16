@@ -1096,7 +1096,7 @@ sub _dsn_parts ($dsn) {
       map { /\A \s* ([^=\s]+) \s* = \s* (.*?) \s* \z/msx ? ( lc $1, $2 ) : () }
       split /;/msx, $rest // q{};
     $parts{dbname} //= $parts{database} // $parts{db};
-    my $host = $parts{host} // 'localhost';
+    my $host = $parts{host} // 'unix';
     $parts{server} =
       $host =~ m{\A /}msx ? $host : "$host:" . ( $parts{port} // '5432' );
 

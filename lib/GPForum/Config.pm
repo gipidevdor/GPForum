@@ -300,12 +300,13 @@ const my @SETTINGS => map {
           . ' while a new one rolls out.',
     },
     {
-        name     => 'database_dsn',
-        env      => 'GPFORUM_DATABASE_DSN',
-        default  => 'dbi:Pg:dbname=gpforum;host=127.0.0.1;port=5432',
-        check    => 'required',
-        section  => 'database',
-        summary  => 'The PostgreSQL database, as a DBI data source.',
+        name    => 'database_dsn',
+        env     => 'GPFORUM_DATABASE_DSN',
+        default => 'dbi:Pg:dbname=gpforum',
+        check   => 'required',
+        section => 'database',
+        summary => 'The PostgreSQL database, as a DBI data source; without'
+          . ' host it uses the local Unix socket.',
         operator => 1,
     },
     {
@@ -427,11 +428,11 @@ const my @SETTINGS => map {
     {
         name    => 'runtime_listen',
         env     => 'GPFORUM_RUNTIME_LISTEN',
-        default => 'http://127.0.0.1:8080',
+        default => 'http+unix://var%2Frun%2Fgpforum.sock',
         check   => 'listen',
         section => 'processes',
-        summary => 'Where the web server listens, comma separated; the proxy'
-          . ' forwards here.',
+        summary => 'Where Hypnotoad listens, comma separated; the default'
+          . ' Unix socket is var/run/gpforum.sock under the code directory.',
     },
     {
         name    => 'runtime_pid_file',
@@ -732,7 +733,7 @@ const my @SETTINGS => map {
         section => 'cache',
         summary => 'A GlifiStore shared cache; empty keeps each process to its'
           . ' own cache, which suits one host.',
-        example => 'tcp://127.0.0.1:7379',
+        example => 'unix://var/run/glifistore.sock',
     },
     {
         name    => 'session_touch_interval_seconds',

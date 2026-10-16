@@ -78,8 +78,7 @@ subtest 'a fresh host, answered with options' => sub {
             GPFORUM_MAIL_TRANSPORT  => 'sendmail',
             GPFORUM_ANTIVIRUS       => 'clamd',
             GPFORUM_DATABASE_USER   => 'gpforum',
-            GPFORUM_DATABASE_DSN    =>
-              'dbi:Pg:dbname=gpforum;host=127.0.0.1;port=5432',
+            GPFORUM_DATABASE_DSN    => 'dbi:Pg:dbname=gpforum',
         },
         'the answers, a sender at the address, and production scanning'
     );
@@ -105,7 +104,7 @@ subtest 'a fresh host, answered with options' => sub {
             _not_root($file),
             "$OK$file: written, $shape, with a new session secret and"
               . ' metrics token',
-            "${OK}database gpforum at 127.0.0.1:5432: made, with its role"
+            "${OK}database gpforum at unix:5432: made, with its role"
               . ' gpforum',
             "${OK}Applied 51 migrations, 001 to 051",
             q{},
@@ -134,7 +133,7 @@ subtest 'run again, it changes nothing and says so' => sub {
         [
             _not_root($file),
             "$OK$file: as it was, $shape",
-            "${OK}database gpforum at 127.0.0.1:5432, as role gpforum",
+            "${OK}database gpforum at unix:5432, as role gpforum",
             "${OK}Schema is current (051)",
             q{},
             'Nothing changed: this host was set up already.',
@@ -321,7 +320,7 @@ subtest '--dry-run says what it would do and does nothing' => sub {
         [
             "$OK$file: would be written, with a new session secret and"
               . ' metrics token',
-            "${OK}database gpforum at 127.0.0.1:5432: would be made, with"
+            "${OK}database gpforum at unix:5432: would be made, with"
               . ' its role gpforum',
             "${OK}schema: the migrations, partitions and query budgets would"
               . ' be brought up to date',
@@ -354,7 +353,7 @@ subtest 'without a superuser, the two psql commands' => sub {
             "$OK$file: written, "
               . _shape($file)
               . ', with a new session secret and metrics token',
-            "${FAILED}database gpforum at 127.0.0.1:5432: no PostgreSQL"
+            "${FAILED}database gpforum at unix:5432: no PostgreSQL"
               . ' superuser answers here (you: role "you" does not exist),'
               . ' so role gpforum and its database are not made',
             '    Fix: name the superuser with PGUSER, its password in'
@@ -390,7 +389,7 @@ subtest 'a migration that fails stops before the next steps' => sub {
             "$OK$file: written, "
               . _shape($file)
               . ', with a new session secret and metrics token',
-            "${OK}database gpforum at 127.0.0.1:5432: made, with its role"
+            "${OK}database gpforum at unix:5432: made, with its role"
               . ' gpforum',
             "${FAILED}schema: the migrations did not finish, as said above",
             "    Fix: gpforum --env-file $file migrate",
@@ -741,7 +740,7 @@ sub _database_alone {
     is_deeply(
         [ _failure_lines( $run->{lines} ) ],
         [
-            "${FAILED}database gpforum at 127.0.0.1:5432: no PostgreSQL"
+            "${FAILED}database gpforum at unix:5432: no PostgreSQL"
               . ' superuser answers here (postgres, from'
               . ' GPFORUM_DATABASE_USER: fe_sendauth: no password supplied),'
               . ' so the database of role gpforum is not made',
@@ -779,7 +778,7 @@ sub _way_in {
     ok(
         (
             grep {
-                $_ eq "${OK}database gpforum at 127.0.0.1:5432: made, with its"
+                    $_ eq "${OK}database gpforum at unix:5432: made, with its"
                   . q{ role gpforum, as PostgreSQL's superuser postgres, from}
                   . ' GPFORUM_DATABASE_USER'
             } @{ $run->{lines} }

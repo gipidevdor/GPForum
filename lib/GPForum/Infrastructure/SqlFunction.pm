@@ -35,8 +35,8 @@ has catalogue => sub { return $CATALOGUE; };
 # DBIx::Class schema's own handle, so a call and a statement not yet moved
 # share one connection and one transaction: a call made inside txn_do joins
 # it, and one made outside is a statement in autocommit. A schema that is not
-# a DBIx::Class schema on PostgreSQL -- every in-memory test double -- has no
-# layer, and its readers and stores keep the path they had.
+# a DBIx::Class schema -- an in-memory test double -- has no layer. A real
+# schema must use PostgreSQL; another driver must not enable ORM routing.
 sub for_schema ( $class, $schema ) {
     return undef if !blessed $schema || !$schema->isa('DBIx::Class::Schema');
 
@@ -45,7 +45,10 @@ sub for_schema ( $class, $schema ) {
         GPForum::X::Argument->throw(
             message => 'SQL function routing needs a configured database DSN' );
     }
-    return undef if $info->[0] !~ $POSTGRESQL_DSN;
+    if ( $info->[0] !~ $POSTGRESQL_DSN ) {
+        GPForum::X::Argument->throw(
+            message => 'SQL function routing requires PostgreSQL' );
+    }
 
     return $class->new( schema => $schema );
 }
@@ -261,9 +264,9 @@ process's one L<GPForum::Infrastructure::SqlFunctionCatalogue>.
 
 =head2 for_schema
 
-The layer for a DBIx::Class schema connected to PostgreSQL, or undef for any
-other schema, such as an in-memory test double: the caller then keeps the
-path it had.
+The layer for a DBIx::Class schema configured for PostgreSQL. An unconfigured
+real schema or another database driver raises C<GPForum::X::Argument>.
+Returns undef for non-DBIx test doubles, whose callers retain their test path.
 
 =head2 rows
 

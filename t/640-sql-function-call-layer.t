@@ -209,13 +209,17 @@ subtest 'only a DBIx::Class schema on PostgreSQL has a layer' => sub {
         ),
         'a PostgreSQL schema has one, before it connects'
     );
-    is(
+    throws_ok {
         GPForum::Infrastructure::SqlFunction->for_schema(
-            GPForum::Schema->connect('dbi:SQLite:dbname=:memory:')
-        ),
-        undef,
-        'another driver has none'
-    );
+            GPForum::Schema->connect('dbi:SQLite:dbname=:memory:') );
+    }
+    'GPForum::X::Argument', 'another real driver cannot enable ORM routing';
+    throws_ok {
+        GPForum::Infrastructure::SqlFunction->for_schema(
+            GPForum::Schema->connect );
+    }
+    'GPForum::X::Argument',
+      'an unconfigured real schema cannot enable ORM routing';
     is(
         GPForum::Infrastructure::SqlFunction->for_schema(
             GPForum::Test::SqlFunctionHandle->new

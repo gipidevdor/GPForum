@@ -587,12 +587,18 @@ sub _register_presentation_helpers {
             return $controller->ui_render_policy->attribute(%input);
         }
     );
+
+    # The selector's options are the same for every response in a locale:
+    # built once a locale, and handed out as copies.
+    my %locale_options;
     $application->helper(
         ui_locale_options => sub {
             my ($controller) = @_;
 
-            return [ map { _locale_option( $controller, $_ ) }
+            my $options = $locale_options{ $controller->ui_locale } //=
+              [ map { _locale_option( $controller, $_ ) }
                   @{ $controller->i18n_service->supported_locales } ];
+            return [ map { +{ %{$_} } } @{$options} ];
         }
     );
 
@@ -694,17 +700,19 @@ sub _register_theme_helpers {
                 $controller->ui_theme );
         }
     );
+
+    # The same for every response in a locale and theme (at most one for
+    # each pair): built once, and handed out as copies.
+    my %theme_options;
     $application->helper(
         ui_theme_options => sub {
             my ($controller) = @_;
 
-            my $options = $controller->ui_theme_registry->theme_options(
-                $controller->ui_theme );
-            for my $option ( @{$options} ) {
-                $option->{label} = $controller->t( $option->{label_key} );
-            }
-
-            return $options;
+            my $theme = $controller->ui_theme;
+            my $options =
+              $theme_options{ $controller->ui_locale . "\0$theme" } //=
+              _theme_options( $controller, $theme );
+            return [ map { +{ %{$_} } } @{$options} ];
         }
     );
 
@@ -748,6 +756,15 @@ sub _register_asset_helpers ($application) {
     );
 
     return;
+}
+
+sub _theme_options ( $controller, $theme ) {
+    my $options = $controller->ui_theme_registry->theme_options($theme);
+    for my $option ( @{$options} ) {
+        $option->{label} = $controller->t( $option->{label_key} );
+    }
+
+    return $options;
 }
 
 sub _ui_breadcrumbs ($controller) {

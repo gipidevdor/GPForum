@@ -3,10 +3,11 @@
 %# open in a sheet, so the page stays the conversation.
 %#
 %# A page shows up to 25 posts, so whatever is done for one is done 25 times.
-%# The sheet and the report form are blocks of this template rather than the
-%# components/sheet and forum/_report_form partials, and the time is the
-%# ui_timestamp helper rather than the components/timestamp partial: a partial
-%# costs a render of its own, and 75 of them were a third of the page.
+%# What is static -- the author, the labels, each sheet's opening (its
+%# button, dialog and heading) -- comes from the fragment cache
+%# (GPForum::Web::PostFragments); a sheet's forms and its closing tag are
+%# written here, and the time is the ui_timestamp helper rather than the
+%# components/timestamp partial.
 %#
 %# With the page's script each post's forms post in place (hx-post), and the
 %# post comes back as the list now lists it, in its own place (hx-target on
@@ -17,20 +18,6 @@
 %# the loop.
 % my $signed_in = $engagement && $engagement->{authenticated};
 % my $fragments = ui_presenter->post_fragments;
-% my $sheet = begin
-%   my ($opening, $body) = @_;
-    <%= $opening %>
-    <%= $body->() %>
-  </div>
-% end
-% my $report_form = begin
-%   my ($post_to, $command_id, $fields) = @_;
-  <form method="post" action="<%= $post_to %>" hx-post="<%= $post_to %>">
-    <%= csrf_field %>
-    <input type="hidden" name="command_id" value="<%= $command_id || q{} %>">
-    <%= $fields %>
-  </form>
-% end
 
 % for my $post (@{$posts}) {
 %   my $dom_id = 'post-' . $post->{post_id};
@@ -88,7 +75,7 @@
             <span class="post__likes"><%= tc('forum.like_count', $like_count) %></span>
           % }
           % if ($post->{can_edit}) {
-          %   my $edit_body = begin
+            <%= $static->{edit_sheet} %>
               <form method="post" action="<%= $paths->{post_edit} %>" hx-post="<%= $paths->{post_edit} %>">
                 <%= csrf_field %>
                 <input type="hidden" name="command_id" value="<%= $post->{edit_command_id} || q{} %>">
@@ -101,18 +88,16 @@
                 <input type="hidden" name="command_id" value="<%= $post->{upload_command_id} || q{} %>">
                 <%= $static->{upload} %>
               </form>
-          %   end
-            <%= $sheet->($static->{edit_sheet}, $edit_body) %>
+            </div>
           % }
           % if ($post->{can_delete}) {
-          %   my $delete_body = begin
+            <%= $static->{delete_sheet} %>
               <form method="post" action="<%= $paths->{post_delete} %>" hx-post="<%= $paths->{post_delete} %>">
                 <%= csrf_field %>
                 <input type="hidden" name="command_id" value="<%= $post->{delete_command_id} || q{} %>">
                 <%= $static->{remove} %>
               </form>
-          %   end
-            <%= $sheet->($static->{delete_sheet}, $delete_body) %>
+            </div>
           % }
           % if ($post->{can_restore}) {
             <form method="post" action="<%= $paths->{post_restore} %>" hx-post="<%= $paths->{post_restore} %>">
@@ -125,7 +110,13 @@
             <%= $static->{reply_links} %>
           % }
           % if ($signed_in) {
-            <%= $sheet->($static->{report_sheet}, sub { $report_form->($paths->{post_report}, $post->{report_command_id}, $static->{report}) }) %>
+            <%= $static->{report_sheet} %>
+              <form method="post" action="<%= $paths->{post_report} %>" hx-post="<%= $paths->{post_report} %>">
+                <%= csrf_field %>
+                <input type="hidden" name="command_id" value="<%= $post->{report_command_id} || q{} %>">
+                <%= $static->{report} %>
+              </form>
+            </div>
           % }
         </footer>
       % }

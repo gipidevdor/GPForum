@@ -38,9 +38,8 @@ has generations => sub { return [ {}, {} ]; };
 # targets, deletion and counters select another entry immediately, with no
 # digest that two contents could share.
 sub render ( $self, $controller, $post ) {
-    my $url     = $controller->req->url;
     my $context = $controller->stash->{'gp.post_fragment_context'} //=
-      [ $controller->ui_locale, $url->base->path->to_string ];
+      _context($controller);
     my $key   = _key( $context, $post );
     my $found = $self->_cached($key);
     return $found if $found;
@@ -110,6 +109,13 @@ sub _make_room ($self) {
     }
 
     return;
+}
+
+# What every post of a response shares: its locale and mounted base path.
+sub _context ($controller) {
+    my $url = $controller->req->url;
+
+    return [ $controller->ui_locale, $url->base->path->to_string ];
 }
 
 # Each value as its length, a colon and itself (a dash for none): no two

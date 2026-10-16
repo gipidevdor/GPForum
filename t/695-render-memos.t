@@ -153,6 +153,31 @@ subtest 'a time element is written once for what decides it' => sub {
     );
 };
 
+subtest 'the selectors\' options are built once a locale and theme' => sub {
+    my $test    = Test::Mojo->new('GPForum');
+    my $english = $test->app->build_controller;
+    my $italian = $test->app->build_controller;
+    $english->stash( ui_locale => 'en', ui_theme => 'dark' );
+    $italian->stash( ui_locale => 'it', ui_theme => 'default' );
+
+    my $themes = $english->ui_theme_options;
+    my ($dark) = grep { $_->{current} } @{$themes};
+    is( $dark->{name}, 'dark', 'the current theme is marked' );
+    $dark->{label} = 'changed';
+    isnt( ( grep { $_->{current} } @{ $english->ui_theme_options } )[0]{label},
+        'changed', 'a caller changing its copy changes nothing kept' );
+    my ($default) = grep { $_->{current} } @{ $italian->ui_theme_options };
+    is( $default->{name}, 'default', 'another theme has its own options' );
+    isnt( $default->{label}, $dark->{label}, 'in its own language' );
+
+    my ($english_locale) =
+      grep { $_->{current} } @{ $english->ui_locale_options };
+    my ($italian_locale) =
+      grep { $_->{current} } @{ $italian->ui_locale_options };
+    is( $english_locale->{locale}, 'en', 'the current locale is marked' );
+    is( $italian_locale->{locale}, 'it', 'for each locale' );
+};
+
 done_testing();
 
 1;

@@ -7,6 +7,7 @@ use v5.40;
 use lib 'lib', 't/lib';
 use Const::Fast;
 use Mojo::ByteStream;
+use Test::Fatal;
 use Test::Mojo;
 use Test::More;
 use GPForum::Test::PostFragmentServices;
@@ -171,6 +172,38 @@ subtest 'locale, mount path and entry size remain isolated' => sub {
     );
     is( $bounded->cache->stats->{writes},
         0, 'an oversized entry consumes no cache capacity' );
+};
+
+subtest 'rendering failure never poisons the cache' => sub {
+    my $fragments        = GPForum::Web::PostFragments->new;
+    my $post             = { post_id => 'post-1', position => 1 };
+    my $render_to_string = \&Mojolicious::Controller::render_to_string;
+    my $fail             = 1;
+    {
+        local *Mojolicious::Controller::render_to_string = sub {
+            if ($fail) {
+                $fail = 0;
+                return undef;
+            }
+            return $render_to_string->(@_);
+        };
+        my $error = exception { $fragments->render( $controller, $post ); };
+        like(
+            $error,
+            qr/Could[ ]not[ ]render[ ]post[ ]presentation[ ]fragments/msx,
+            'a failed partial stops rendering the response'
+        );
+        is( $fragments->cache->stats->{writes},
+            0, 'an incomplete presentation is never retained' );
+        my $recovered = $fragments->render( $controller, $post );
+        like(
+            "$recovered->{header}",
+            qr/id="post-post-1-heading"/msx,
+            'a subsequent healthy render produces the normal presentation'
+        );
+        is( $fragments->cache->stats->{writes},
+            1, 'the healthy result can be cached after the failed attempt' );
+    }
 };
 
 done_testing();

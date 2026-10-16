@@ -3,6 +3,7 @@
 
 package GPForum::Web::PostFragments;
 
+use Carp qw(croak);
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use JSON::MaybeXS;
@@ -51,12 +52,13 @@ sub render ( $self, $controller, $post ) {
 
     my $content   = { map { $_ => $post->{$_} } @CONTENT };
     my $fragments = {};
-    $controller->render_to_string(
+    my $rendered  = $controller->render_to_string(
         template  => 'forum/_post_fragments',
         layout    => undef,
         post      => $content,
         fragments => $fragments,
     );
+    croak 'Could not render post presentation fragments' if !defined $rendered;
     my $id = $post->{post_id};
     $fragments->{paths} = {
         map { $_ => $controller->ui_path( $_, post_id => $id ) }
@@ -124,7 +126,7 @@ C<cache> is a LocalCache by default; C<max_bytes> limits each entry.
 
 =head1 DEPENDENCIES
 
-L<Const::Fast>, L<Digest::SHA>, L<JSON::MaybeXS>, L<Mojo::Base>,
+L<Carp>, L<Const::Fast>, L<Digest::SHA>, L<JSON::MaybeXS>, L<Mojo::Base>,
 L<Mojo::Util>, L<GPForum::Service::Operations::LocalCache>.
 
 =head1 INCOMPATIBILITIES

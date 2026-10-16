@@ -556,6 +556,7 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
         ? CONCURRENCY_STRESS
         : DEFAULT_CLIENTS,
         http_scenarios => $args->{scenarios} // [@ORDER],
+        fixed_workers  => $args->{workers},
         mojo_requests  => 'at least 100 total; at least 10 per client'
     };
     $versions->{postgres} = $pg->{postgres};
@@ -825,7 +826,7 @@ sub _planned_skips ($args) {
             reason   => 'bounded PR/main modes; use deep sweep'
           };
     }
-    if ( $args->{mode} eq 'pr' ) {
+    if ( $args->{mode} eq 'pr' && !defined $args->{workers} ) {
         push @skips,
           {
             scenario => 'workers_4_8',

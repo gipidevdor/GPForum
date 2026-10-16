@@ -243,6 +243,13 @@ ok(
         [ [ 'health_live', STRESS_CONNECTIONS, STRESS_WORKERS ] ],
         'the CI stress plan executes 5000 connections on the selected endpoint'
     );
+    ok(
+        !(
+            any { $_->{scenario} eq 'workers_4_8' }
+            @{ read_json("$dir/suite-status.json")->{http}{skipped} }
+        ),
+        'explicit four-worker execution is not reported as skipped'
+    );
     local *GPForum::Performance::HTTP::nofile_soft =
       sub { return CONNECTIONS; };
     dies(

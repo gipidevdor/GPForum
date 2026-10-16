@@ -184,7 +184,8 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Each notification is its own mail; the digest (D01) is not built.
+Each notification is its own mail; the daily or weekly digest is
+L<GPForum::Worker::Handler::NotificationDigest>'s.
 
 =head1 AUTHOR
 

@@ -522,6 +522,10 @@ msgctxt "cli.jobs.name.identity_tokens"
 msgid "expired sign-in and verification tokens"
 msgstr "token di accesso e di verifica scaduti"
 
+msgctxt "cli.jobs.name.notification_digests"
+msgid "email digests"
+msgstr "riepiloghi via email"
+
 msgctxt "cli.jobs.name.outbox_messages"
 msgid "old outbox messages"
 msgstr "vecchi messaggi dell'outbox"
@@ -537,6 +541,16 @@ msgstr "vecchi contatori dei limiti di frequenza"
 msgctxt "cli.jobs.name.sessions"
 msgid "expired sessions"
 msgstr "sessioni scadute"
+
+#, python-brace-format
+msgctxt "cli.jobs.queued_many"
+msgid "{job}: {count} queued"
+msgstr "{job}: {count} accodati"
+
+#, python-brace-format
+msgctxt "cli.jobs.queued_one"
+msgid "{job}: 1 queued"
+msgstr "{job}: 1 accodato"
 
 msgctxt "cli.jobs.reason.antivirus_unavailable"
 msgid "antivirus unavailable"

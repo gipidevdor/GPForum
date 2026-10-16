@@ -505,6 +505,10 @@ msgctxt "cli.jobs.name.identity_tokens"
 msgid "expired sign-in and verification tokens"
 msgstr "expired sign-in and verification tokens"
 
+msgctxt "cli.jobs.name.notification_digests"
+msgid "email digests"
+msgstr "email digests"
+
 msgctxt "cli.jobs.name.outbox_messages"
 msgid "old outbox messages"
 msgstr "old outbox messages"
@@ -520,6 +524,16 @@ msgstr "old rate-limit counters"
 msgctxt "cli.jobs.name.sessions"
 msgid "expired sessions"
 msgstr "expired sessions"
+
+#, python-brace-format
+msgctxt "cli.jobs.queued_many"
+msgid "{job}: {count} queued"
+msgstr "{job}: {count} queued"
+
+#, python-brace-format
+msgctxt "cli.jobs.queued_one"
+msgid "{job}: 1 queued"
+msgstr "{job}: 1 queued"
 
 msgctxt "cli.jobs.reason.antivirus_unavailable"
 msgid "antivirus unavailable"

@@ -554,6 +554,18 @@ CI, evidence and internal refactors with no change in behaviour.
   `api.community_set_bookmark_folder_v1`; the list is
   `api.community_list_bookmarks_v3`, with the folder joined, and the folders
   `api.community_list_bookmark_folders_v1`.
+
+- **A daily or weekly email digest** (PB-08, D01, ADR 0078 amended,
+  migration 119). A member who turns the Digest channel on in `/settings`,
+  daily or weekly, receives one email per UTC day or week naming the
+  threads they follow (and those in categories they follow) with posts
+  they have not read: each thread linked, with its category and how many
+  posts are new, in their language, as plain text and HTML. The hourly
+  scheduled-jobs runner queues it through the outbox, once per member and
+  period and at most `--limit` members a run; the worker checks the
+  preferences again as it sends. The mail's one-click unsubscribe link
+  turns the digest off, audited. Nothing to report sends nothing.
+
 - **Notification preferences by kind, notification email and one-click
   unsubscribe** (PB-08, D02/D04/D05, ADR 0078 amended). In `/settings` a
   member turns replies in followed threads, mentions and moderation notices

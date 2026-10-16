@@ -40,14 +40,15 @@ const my %CHANNEL_DEFAULTS => (
 
 # ADR 0078: the kinds of notification a member controls, each on these
 # channels, and the scopes an unsubscribe link may name (a kind, or all
-# notification email). Their defaults live in api.notification_*: in the
-# inbox every kind is on, by email mentions and moderation notices are.
+# notification email, or the digest). Their defaults live in
+# api.notification_*: in the inbox every kind is on, by email mentions and
+# moderation notices are.
 const my @EVENT_TYPES     => qw(reply mention moderation);
 const my @TYPE_CHANNELS   => qw(in_app email);
 const my %IS_EVENT_TYPE   => map { $_ => 1 } @EVENT_TYPES;
 const my %IS_TYPE_CHANNEL => map { $_ => 1 } @TYPE_CHANNELS;
 const my %IS_UNSUBSCRIBE_SCOPE => map { $_ => 1 } @EVENT_TYPES,
-  'all';
+  'all', 'digest';
 const my $UNSUBSCRIBE_AUDIT_ACTION => 'notification.email_unsubscribed';
 
 has clock => sub { return GPForum::Service::Clock->new; };
@@ -373,14 +374,26 @@ sub unsubscribe ( $self, $input ) {
         },
     )->{audit};
     my $row = $functions->row(
-        'notification_unsubscribe',
-        {
-            user_id => $input->{user_id},
-            scope   => $scope,
-            now     => $self->clock->now_iso8601,
-            audit   => $audit,
-        }
-    ) || { status => 'not_found' };
+        $scope eq 'digest'
+        ? (
+            'notification_digest_unsubscribe',
+            {
+                user_id => $input->{user_id},
+                now     => $self->clock->now_iso8601,
+                audit   => $audit,
+            }
+          )
+        : (
+            'notification_unsubscribe',
+            {
+                user_id => $input->{user_id},
+                scope   => $scope,
+                now     => $self->clock->now_iso8601,
+                audit   => $audit,
+            }
+        )
+      )
+      || { status => 'not_found' };
     my $status = $row->{status} // 'not_found';
     return { ok => 0, status => $status }
       if $status ne 'ok' && $status ne 'unchanged';
@@ -397,7 +410,26 @@ sub type_channels {
 }
 
 sub unsubscribe_scopes {
-    return [ @EVENT_TYPES, 'all' ];
+    return [ @EVENT_TYPES, 'all', 'digest' ];
+}
+
+# ADR 0078: whether a queued digest is still to be mailed, read as it is
+# sent -- the digest and email channels on, an active account with a
+# verified address -- with the address and locale. Without the function
+# layer there is no digest.
+sub digest_plan ( $self, $user_id ) {
+    return { digest => 0 } if !$self->functions;
+    my $row =
+      $self->functions->row( 'notification_digest_plan',
+        { user_id => $user_id } );
+    return { digest => 0 } if !$row;
+
+    return {
+        digest        => $row->{digest} ? 1 : 0,
+        frequency     => $row->{frequency},
+        email_address => $row->{email_address},
+        locale        => $row->{locale},
+    };
 }
 
 sub _invalid ( $field, $message ) {
@@ -605,8 +637,8 @@ inbox only.
 
 =head2 unsubscribe
 
-Takes C<user_id>, C<scope> (a kind, or C<all> for the email channel) and
-C<via> (C<link> or C<one_click>) and turns that email off, audited as
+Takes C<user_id>, C<scope> (a kind, C<all> for the email channel, or
+C<digest> for the digest channel) and C<via> (C<link> or C<one_click>) and turns that email off, audited as
 C<notification.email_unsubscribed>. Returns C<< { ok => 1, status => 'ok'
 | 'unchanged', scope } >> or C<< { ok => 0, status => 'invalid' |
 'not_found' } >>.
@@ -621,7 +653,14 @@ The channels a kind is switched on, as an array reference.
 
 =head2 unsubscribe_scopes
 
-The scopes an unsubscribe may name: the kinds and C<all>.
+The scopes an unsubscribe may name: the kinds, C<all> and C<digest>.
+
+=head2 digest_plan
+
+Takes a user id. Returns C<< { digest, frequency, email_address, locale } >>
+from C<api.notification_digest_plan>: C<digest> is 1 while a digest is
+still to be mailed to the member (ADR 0078); without the function layer,
+C<< { digest => 0 } >>.
 
 =head1 DIAGNOSTICS
 

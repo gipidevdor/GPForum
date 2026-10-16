@@ -2908,6 +2908,59 @@ msgctxt "notifications.channel.in_app"
 msgid "In-app"
 msgstr "In-app"
 
+#, python-brace-format
+msgctxt "notifications.digest.footer"
+msgid "You receive this digest because of your notification settings: {settings_url}\nStop the digest: {unsubscribe_url}"
+msgstr "You receive this digest because of your notification settings: {settings_url}\nStop the digest: {unsubscribe_url}"
+
+msgctxt "notifications.digest.intro.daily"
+msgid "Posts from yesterday you have not read yet, in the discussions and categories you follow."
+msgstr "Posts from yesterday you have not read yet, in the discussions and categories you follow."
+
+msgctxt "notifications.digest.intro.weekly"
+msgid "Posts from last week you have not read yet, in the discussions and categories you follow."
+msgstr "Posts from last week you have not read yet, in the discussions and categories you follow."
+
+#, python-brace-format
+msgctxt "notifications.digest.item"
+msgid "{title} in {category}: {posts}"
+msgstr "{title} in {category}: {posts}"
+
+#, python-brace-format
+msgctxt "notifications.digest.item_meta"
+msgid "{category} · {posts}"
+msgstr "{category} · {posts}"
+
+#, python-brace-format
+msgctxt "notifications.digest.more"
+msgid "And {count} more discussion with new posts."
+msgid_plural "And {count} more discussions with new posts."
+msgstr[0] "And {count} more discussion with new posts."
+msgstr[1] "And {count} more discussions with new posts."
+
+#, python-brace-format
+msgctxt "notifications.digest.new_posts"
+msgid "{count} new post"
+msgid_plural "{count} new posts"
+msgstr[0] "{count} new post"
+msgstr[1] "{count} new posts"
+
+msgctxt "notifications.digest.settings_link"
+msgid "Notification settings"
+msgstr "Notification settings"
+
+msgctxt "notifications.digest.subject.daily"
+msgid "Your daily GPForum digest"
+msgstr "Your daily GPForum digest"
+
+msgctxt "notifications.digest.subject.weekly"
+msgid "Your weekly GPForum digest"
+msgstr "Your weekly GPForum digest"
+
+msgctxt "notifications.digest.unsubscribe_link"
+msgid "Stop the digest"
+msgstr "Stop the digest"
+
 msgctxt "notifications.digest_frequency"
 msgid "Digest frequency"
 msgstr "Digest frequency"
@@ -3043,8 +3096,8 @@ msgid "Notification pagination"
 msgstr "Notification pagination"
 
 msgctxt "notifications.preference.digest.description"
-msgid "Receive periodic summaries when digest delivery is enabled."
-msgstr "Receive periodic summaries when digest delivery is enabled."
+msgid "One email a day or a week with the posts you have not read in the discussions you follow. Choose daily or weekly; it needs Email on."
+msgstr "One email a day or a week with the posts you have not read in the discussions you follow. Choose daily or weekly; it needs Email on."
 
 msgctxt "notifications.preference.email.description"
 msgid "Allow email delivery for account and community notifications."
@@ -3137,6 +3190,10 @@ msgctxt "notifications.unsubscribe.done_scope.all"
 msgid "You will no longer receive notification email."
 msgstr "You will no longer receive notification email."
 
+msgctxt "notifications.unsubscribe.done_scope.digest"
+msgid "You will no longer receive the email digest."
+msgstr "You will no longer receive the email digest."
+
 msgctxt "notifications.unsubscribe.done_scope.mention"
 msgid "You will no longer receive email about mentions."
 msgstr "You will no longer receive email about mentions."
@@ -3173,6 +3230,10 @@ msgstr "Open settings"
 msgctxt "notifications.unsubscribe.scope.all"
 msgid "All notification email"
 msgstr "All notification email"
+
+msgctxt "notifications.unsubscribe.scope.digest"
+msgid "The daily or weekly email digest"
+msgstr "The daily or weekly email digest"
 
 msgctxt "notifications.unsubscribe.scope.mention"
 msgid "Email about mentions of me"

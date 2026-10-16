@@ -370,6 +370,14 @@ sub _pluralised_keys {
             $keys{$1} = 1;
         }
     }
+    for my $module ( path('lib')->list_tree->grep(qr/[.]pm\z/msx)->each ) {
+        my $content = $module->slurp('UTF-8');
+        while ( $content =~
+            /\b translate_count [(] \s* \$\w+ \s* , \s* '([^']+)'/gmsx )
+        {
+            $keys{$1} = 1;
+        }
+    }
     my $formatter =
       path( $INC{'GPForum/Service/I18N/Formatter.pm'} )->slurp('UTF-8');
     while ( $formatter =~ /'(common[.]time_[[:lower:]]+_ago)'/gmsx ) {

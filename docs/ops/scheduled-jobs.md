@@ -43,6 +43,24 @@ of items that failed. A run that fails -- the database gone -- exits 1 with
 reported, not none run: the jobs before the one that failed did their work,
 and the next run carries on.
 
+## Email digests
+
+The `notification_digests` job queues the daily and weekly email digests
+(ADR 0078, amendment of 2026-10-15). Each hourly run takes at most `--limit`
+members (100 by default, capped at 1,000) whose digest of the last period
+-- the UTC day, or the UTC week from Monday -- is not recorded yet, and
+records it once: queued as a `notification.digest.requested` outbox event
+that the worker mails, or empty when nothing was left unread. A second run
+of the same period queues nothing; a larger backlog drains over the next
+runs. Its line says how many it queued (`✓ email digests: 12 queued`); a
+member that could not be queued fails the job and is named in its errors,
+and is taken again next run. Records of periods older than 35 days are
+removed by the same job. It can be run alone:
+
+```sh
+gpforum scheduled-jobs --once --job notification_digests --limit 100
+```
+
 ## Expired forum drafts
 
 The `forum_drafts` job calls the versioned `forum_draft_purge` catalogue operation

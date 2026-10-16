@@ -94,7 +94,7 @@ claim. No competitor source code or assets were imported for this review.
 
 | ID | Feature | Verified status and scope | Package |
 | --- | --- | --- | --- |
-| D01 | Daily / weekly email digest | Foundation: channel/frequency preferences exist; digest generation, scheduling and delivery were not found. [notification-prefs], [notification-dispatch], [workers] | PB-08 |
+| D01 | Daily / weekly email digest | Done 2026-10-15: with the Digest channel on (daily or weekly) and email on, the hourly `notification_digests` scheduled job queues one digest per member and UTC day or week (recorded once, bounded by `--limit`, resumable) of unread posts in followed threads and followed categories, read with the member's permissions; the worker mails it in their locale as text and HTML with a one-click unsubscribe that turns the digest off (migration 119, ADR 0078 amended). No page creates a category follow yet. [notification-prefs], [notification-dispatch], [workers] | PB-08 |
 | D02 | Preferences by notification type | Done 2026-10-15: per-kind switches (replies in followed threads, mentions, moderation notices) for the inbox and email in settings, beside the channel switches; fanout reads them through one delivery plan (migration 118, ADR 0078 amended). [settings], [notification-prefs] | PB-08 |
 | D03 | Web push | Not found; no subscription or service-worker delivery workflow. [routes], [manifest] | PB-16 |
 | D04 | Email every reply / first reply | Partial 2026-10-15: a notification of a kind the member takes by email (replies in followed threads when switched on) is queued in the outbox and mailed in their locale, one mail per notification; a first-reply-only mode was not built. [notification-dispatch], [workers] | PB-08 |

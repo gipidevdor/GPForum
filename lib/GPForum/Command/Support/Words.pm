@@ -184,6 +184,10 @@ const my %ENGLISH => (
     'cli.jobs.skipped'                  => '{job}: not run ({reason})',
     'cli.jobs.failed'                   => '{job}: {error}',
 
+    'cli.jobs.name.notification_digests' => 'email digests',
+    'cli.jobs.queued_one'                => '{job}: 1 queued',
+    'cli.jobs.queued_many'               => '{job}: {count} queued',
+
     'cli.jobs.reason.antivirus_unavailable' => 'antivirus unavailable',
     'cli.jobs.reason.failed'                => 'failed',
     'cli.jobs.reason.scanning_off'          => 'scanning is off',

@@ -17,7 +17,7 @@ our $VERSION = '0.001';
 # ADR 0078: what a token is for, signed into it so that no other signature
 # the application makes with the same secret reads as one.
 const my $PURPOSE => 'gpforum.notification.unsubscribe.v1';
-const my %SCOPES  => map { $_ => 1 } qw(reply mention moderation all);
+const my %SCOPES  => map { $_ => 1 } qw(reply mention moderation all digest);
 
 # The longest token verify reads: a uuid and a scope, and the signature.
 const my $MAXIMUM_LENGTH => 160;
@@ -115,7 +115,7 @@ Version 0.001.
 
 ADR 0078. The token in an unsubscribe link, and in the mail's
 C<List-Unsubscribe> header (RFC 8058): the member's id and the scope it
-turns off (C<reply>, C<mention>, C<moderation> or C<all>), base64url, with
+turns off (C<reply>, C<mention>, C<moderation>, C<all> or C<digest>), base64url, with
 an HMAC-SHA-256 signature over them and the token's purpose. It is a
 capability: whoever holds the mail may turn that email off, and nothing
 else. It does not expire, as a link in an old mail must keep working, and

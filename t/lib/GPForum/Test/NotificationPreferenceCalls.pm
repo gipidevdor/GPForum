@@ -37,6 +37,10 @@ sub delivery_plan ( $self, @arguments ) {
     return $self->_called( delivery_plan => @arguments );
 }
 
+sub digest_plan ( $self, @arguments ) {
+    return $self->_called( digest_plan => @arguments );
+}
+
 sub send_notification_mail ( $self, @arguments ) {
     return $self->_called( send_notification_mail => @arguments );
 }
@@ -78,7 +82,8 @@ Version 0.001.
 
 Stands in for L<GPForum::Infrastructure::SqlFunction> (C<row>, C<rows>),
 L<GPForum::Infrastructure::EventRecorder> (C<record_event>, C<audit_call>),
-the preference store's C<delivery_plan> and the mailer's
+the preference store's C<delivery_plan> and C<digest_plan>, and the
+mailer's
 C<send_notification_mail> and C<public_base_url>.
 
 =head1 SUBROUTINES/METHODS
@@ -102,6 +107,10 @@ Answers the audit call prepared from the fields given.
 =head2 delivery_plan
 
 Records the plan asked for.
+
+=head2 digest_plan
+
+Records the digest plan asked for (ADR 0078).
 
 =head2 send_notification_mail
 

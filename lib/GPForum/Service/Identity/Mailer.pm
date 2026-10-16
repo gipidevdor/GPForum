@@ -133,17 +133,61 @@ sub send_notification_mail ( $self, $input ) {
     );
 }
 
-# A plain-text message through the transport; a delivery is logged when there
-# is a logger to log it.
+# ADR 0078: the daily or weekly digest, in the member's language, as a
+# plain-text and an HTML part of one multipart/alternative message, each
+# UTF-8 in quoted-printable (an HTML line may be longer than SMTP allows).
+# It carries the one-click unsubscribe of notification mail. The boundary
+# is named by the content, so it cannot occur in it.
+sub send_digest_mail ( $self, $input ) {
+    require Digest::SHA;
+    require Encode;
+    require MIME::QuotedPrint;
+    my %part = map {
+        $_ =>
+          MIME::QuotedPrint::encode_qp( Encode::encode( 'UTF-8', $input->{$_} ),
+            "\r\n" )
+    } qw(text html);
+    my $boundary =
+      'gpforum-digest-' . Digest::SHA::sha1_hex( $part{text} . $part{html} );
+    my $body = join "\r\n",
+      "--$boundary",
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Transfer-Encoding: quoted-printable',
+      q{}, $part{text},
+      "--$boundary",
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: quoted-printable',
+      q{},             $part{html},
+      "--$boundary--", q{};
+
+    return $self->_send_identity_mail(
+        {
+            body         => $body,
+            content_type => qq{multipart/alternative; boundary="$boundary"},
+            kind         => 'digest',
+            subject      => Encode::encode( 'MIME-Header', $input->{subject} ),
+            to           => $input->{to},
+            headers      => [
+                'MIME-Version'          => '1.0',
+                'List-Unsubscribe'      => "<$input->{unsubscribe_url}>",
+                'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+            ],
+        }
+    );
+}
+
+# A plain-text message through the transport, or the content type the
+# caller names; a delivery is logged when there is a logger to log it.
 sub _send_identity_mail ( $self, $input ) {
     require Email::Simple;
     my $email = Email::Simple->create(
         body   => $input->{body},
         header => [
-            'Content-Type' => 'text/plain; charset=UTF-8',
-            From           => $self->from_address,
-            Subject        => $input->{subject},
-            To             => $input->{to},
+            'Content-Type' => $input->{content_type}
+              // 'text/plain; charset=UTF-8',
+            From    => $self->from_address,
+            Subject => $input->{subject},
+            To      => $input->{to},
             @{ $input->{headers} || [] },
         ],
     );
@@ -299,6 +343,15 @@ C<List-Unsubscribe> and C<List-Unsubscribe-Post> headers. Logged as
 C<identity mail delivered: notification>. The headers are only one-click
 to a receiver that sees them under a DKIM signature, which the sending MTA
 adds.
+
+=head2 send_digest_mail
+
+Takes C<to>, C<subject>, C<text>, C<html> (both text, encoded here) and
+C<unsubscribe_url>, and sends the email digest (ADR 0078) as one
+C<multipart/alternative> message, its plain-text and HTML parts in UTF-8
+quoted-printable, with the RFC 8058 C<List-Unsubscribe> and
+C<List-Unsubscribe-Post> headers. Logged as C<identity mail delivered:
+digest>.
 
 =head1 DIAGNOSTICS
 

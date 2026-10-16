@@ -23,19 +23,21 @@ const my $COMMAND => 'gpforum-scheduled-jobs';
 # What each job works on, as an operator calls it, and how a count of what
 # it did is said: once, and more than once.
 const my %JOB_WORDS => (
-    attachment_backfill => 'cli.jobs.name.attachment_backfill',
-    attachment_scans    => 'cli.jobs.name.attachment_scans',
-    attachments         => 'cli.jobs.name.attachments',
-    dead_letters        => 'cli.jobs.name.dead_letters',
-    identity_tokens     => 'cli.jobs.name.identity_tokens',
-    forum_drafts        => 'cli.jobs.name.forum_drafts',
-    outbox_messages     => 'cli.jobs.name.outbox_messages',
-    partitions          => 'cli.jobs.name.partitions',
-    rate_limit_buckets  => 'cli.jobs.name.rate_limit_buckets',
-    sessions            => 'cli.jobs.name.sessions',
+    attachment_backfill  => 'cli.jobs.name.attachment_backfill',
+    attachment_scans     => 'cli.jobs.name.attachment_scans',
+    attachments          => 'cli.jobs.name.attachments',
+    dead_letters         => 'cli.jobs.name.dead_letters',
+    identity_tokens      => 'cli.jobs.name.identity_tokens',
+    notification_digests => 'cli.jobs.name.notification_digests',
+    forum_drafts         => 'cli.jobs.name.forum_drafts',
+    outbox_messages      => 'cli.jobs.name.outbox_messages',
+    partitions           => 'cli.jobs.name.partitions',
+    rate_limit_buckets   => 'cli.jobs.name.rate_limit_buckets',
+    sessions             => 'cli.jobs.name.sessions',
 );
 const my %DONE_WORDS => (
     deleted => [ 'cli.jobs.removed_one', 'cli.jobs.removed_many' ],
+    queued  => [ 'cli.jobs.queued_one',  'cli.jobs.queued_many' ],
     scanned => [ 'cli.jobs.scanned_one', 'cli.jobs.scanned_many' ],
 );
 
@@ -375,6 +377,9 @@ sub _job_count ($result) {
     }
     if ( exists $result->{scanned} ) {
         return $result->{scanned};
+    }
+    if ( exists $result->{queued} ) {
+        return $result->{queued};
     }
 
     return $result->{ok} ? 1 : 0;

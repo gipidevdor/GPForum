@@ -97,7 +97,7 @@ subtest 'without the function layer the defaults stand' => sub {
         'the kinds' );
     is_deeply(
         $store->unsubscribe_scopes,
-        [qw(reply mention moderation all)],
+        [qw(reply mention moderation all digest)],
         'and the unsubscribe scopes'
     );
     is(

@@ -726,6 +726,51 @@ const my %FUNCTION => (
             audit   => 'jsonb'
         ]
     },
+
+    # ADR 0078: the daily and weekly email digest.
+    notification_digest_due => {
+        version    => 2,
+        parameters => [ now => 'timestamptz', row_limit => 'integer' ]
+    },
+    notification_digest_items => {
+        version    => 2,
+        parameters => [
+            user_id      => 'uuid',
+            period_start => 'timestamptz',
+            period_end   => 'timestamptz',
+            member       => 'boolean',
+            global_read  => 'boolean',
+            category_ids => 'uuid[]',
+            space_ids    => 'uuid[]',
+            row_limit    => 'integer'
+        ]
+    },
+    notification_digest_record => {
+        version    => 2,
+        parameters => [
+            user_id       => 'uuid',
+            frequency     => 'text',
+            period_start  => 'timestamptz',
+            period_end    => 'timestamptz',
+            thread_count  => 'integer',
+            now           => 'timestamptz',
+            event         => 'jsonb',
+            outbox_id     => 'text',
+            outbox_extras => 'jsonb',
+            explicit      => 'boolean'
+        ]
+    },
+    notification_digest_plan =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
+    notification_digest_unsubscribe => {
+        version    => 2,
+        parameters =>
+          [ user_id => 'uuid', now => 'timestamptz', audit => 'jsonb' ]
+    },
+    notification_digest_purge => {
+        version    => 2,
+        parameters => [ before => 'timestamptz', row_limit => 'integer' ]
+    },
     community_project_feed => {
         version    => 2,
         parameters => [ row => 'jsonb', user_ids => 'uuid[]' ],

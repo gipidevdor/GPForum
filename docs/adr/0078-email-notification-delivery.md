@@ -160,6 +160,47 @@ mean anything. Migration 118.
   erased account keeps no address, so nothing is mailed and the rows go
   with the user row.
 
+### Amendment 2026-10-15: the daily and weekly email digest
+
+- **Who.** A member receives the digest while the digest channel is on with
+  the frequency daily or weekly (immediate and never send none: immediate
+  is the per-notification email), the email channel is on (it is all
+  notification email, so unsubscribing from all of it stops the digest
+  too) and the account is active with a verified address.
+- **What.** The posts of the period the member has not read (past their
+  read position) in the threads they follow and in the threads of the
+  categories they follow (a subscription with target type `category`; no
+  page creates one yet), written by someone else, visible, not by a member
+  they ignore or block, and readable by them as the viewer resolver reads
+  them (membership, global read, private grants; ADR 0102). Each thread is
+  named with its category and how many posts are new, latest first; the
+  digest names twenty and counts the rest. No post text goes into it.
+- **When.** A period is the UTC day, or the UTC week from Monday, before
+  the run, so a digest never names a post written after it was made. The
+  `notification_digests` job of the hourly scheduled-jobs runner queues
+  the digests of at most `--limit` due members (100 by default).
+- **Once.** `notification_digests` records each member's period once
+  (`api.notification_digest_record`, primary key member, frequency and
+  period start); with threads to name, the record and the
+  `notification.digest.requested` event go into the event log and outbox in
+  one transaction, and an empty period is recorded without one. A second
+  run of a period queues nothing, a run cut short leaves the rest due for
+  the next, and a member that fails is named in the job's errors and taken
+  again. Records of periods that ended over 35 days ago are removed by the
+  same job.
+- **Mail.** `Worker::Handler::NotificationDigest` (idempotency prefix
+  `worker.notification_digest`) reads `api.notification_digest_plan` as it
+  sends, so a digest switched off in between is not sent, and mails it in
+  the member's locale as one `multipart/alternative` message with a
+  plain-text and an HTML part (UTF-8, quoted-printable), with the one-click
+  `List-Unsubscribe` headers above.
+- **Unsubscribe.** The digest's signed link names the scope `digest`:
+  `api.notification_digest_unsubscribe` turns the digest channel off,
+  audited as `notification.email_unsubscribed` with that scope. The page
+  offers all notification email instead, as for any kind.
+- **Portability.** The digest records hold only dates and counts and go
+  with the user row; they are not exported.
+
 ## Consequences
 
 - Email is always sent asynchronously, so request latency is independent of
@@ -168,8 +209,8 @@ mean anything. Migration 118.
   damage of a database or log leak.
 - Delivery attempts become auditable records, adding a table and retention
   obligation (ADR 0074).
-- Open conflicts: delivery-attempt records, digests and bounce or
-  complaint handling do not exist yet. Notification email is sent
+- Open conflicts: delivery-attempt records and bounce or complaint
+  handling do not exist yet; the digest exists (amendment of 2026-10-15). Notification email is sent
   asynchronously through the outbox (amendment of 2026-10-15) and identity
   mail through its own outbox event; `docs/audit/email-lifecycle.md`
   records that verification and reset tokens are hashed, single-use and
@@ -189,13 +230,19 @@ mean anything. Migration 118.
 - Code (2026-10-15): `lib/GPForum/Service/Notification/PreferenceStore.pm`,
   `lib/GPForum/Service/Notification/UnsubscribeToken.pm`,
   `lib/GPForum/Worker/Handler/NotificationMail.pm`,
-  `lib/GPForum/Controller/Identity/Unsubscribe.pm`.
+  `lib/GPForum/Controller/Identity/Unsubscribe.pm`; the digest:
+  `lib/GPForum/Service/Notification/DigestQueue.pm`,
+  `lib/GPForum/Service/Notification/DigestMessage.pm`,
+  `lib/GPForum/Worker/Handler/NotificationDigest.pm`.
 - Migrations: `migrations/005_notifications_subscriptions.sql`,
   `migrations/025_identity_lifecycle_tokens.sql`,
-  `migrations/118_notification_type_preferences.sql`.
+  `migrations/118_notification_type_preferences.sql`,
+  `migrations/119_notification_digests.sql`.
 - Tests: `t/06-identity-web.t`, `t/integration/postgres-identity-stores.t`,
   `t/17-notifications.t`, `t/107-notification-workflow.t`,
   `t/110-identity-account-store.t`, `t/685-notification-preferences.t`,
-  `t/integration/postgres-notification-preferences.t`.
+  `t/integration/postgres-notification-preferences.t`,
+  `t/686-notification-digest.t`,
+  `t/integration/postgres-notification-digest.t`.
 - Docs: `docs/audit/email-lifecycle.md`,
   `docs/architecture/notification-workflow.md`.

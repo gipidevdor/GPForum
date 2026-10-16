@@ -11,6 +11,7 @@ use GPForum::Infrastructure::Row;
 use GPForum::Service::Attachment::Scanner;
 use GPForum::Service::Clock;
 use GPForum::Service::Forum::DraftStore;
+use GPForum::Service::Notification::DigestQueue;
 use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::RetentionStore;
 
@@ -33,21 +34,23 @@ const my @JOB_NAMES => qw(
   attachment_scans
   attachment_backfill
   partitions
+  notification_digests
 );
 const my $DEFAULT_RETENTION_DAYS => 30;
 const my $DEFAULT_RESCAN_LIMIT   => 100;
 const my @REGISTRY_COLUMNS => qw(partition_name range_end state table_name);
 const my %JOB_METHOD => (
-    attachment_backfill => 'backfill_unscanned_uploads',
-    attachment_scans    => 'rescan_pending_uploads',
-    attachments         => 'cleanup_orphans',
-    dead_letters        => 'purge_dead_letters',
-    identity_tokens     => 'purge_identity_tokens',
-    forum_drafts        => 'purge_forum_drafts',
-    outbox_messages     => 'purge_outbox_messages',
-    partitions          => 'partition_evidence',
-    rate_limit_buckets  => 'purge_rate_limit_buckets',
-    sessions            => 'purge_sessions',
+    attachment_backfill  => 'backfill_unscanned_uploads',
+    attachment_scans     => 'rescan_pending_uploads',
+    attachments          => 'cleanup_orphans',
+    dead_letters         => 'purge_dead_letters',
+    identity_tokens      => 'purge_identity_tokens',
+    forum_drafts         => 'purge_forum_drafts',
+    notification_digests => 'queue_notification_digests',
+    outbox_messages      => 'purge_outbox_messages',
+    partitions           => 'partition_evidence',
+    rate_limit_buckets   => 'purge_rate_limit_buckets',
+    sessions             => 'purge_sessions',
 );
 
 has attachment_scanner  => undef;   # optional: without one rescans are skipped
@@ -66,6 +69,13 @@ has retention_store => sub {
     );
 };
 has schema => undef;   # optional: only the partition and retention jobs read it
+has digest_queue => sub ($self) {
+    return undef if !$self->functions;
+    return GPForum::Service::Notification::DigestQueue->new(
+        clock  => $self->clock,
+        schema => $self->schema,
+    );
+};
 has draft_store => sub ($self) {
     return undef if !$self->functions;
     return GPForum::Service::Forum::DraftStore->new(
@@ -137,6 +147,14 @@ sub purge_identity_tokens ( $self, $input ) {
 sub purge_forum_drafts ( $self, $input ) {
     return _unavailable() if !$self->draft_store;
     return $self->draft_store->purge_expired($input);
+}
+
+# ADR 0078: the daily and weekly email digests of the members due one.
+sub queue_notification_digests ( $self, $input ) {
+    my $queue = $self->digest_queue;
+    return { ok => 1, queued => 0, skipped => 'unavailable' } if !$queue;
+
+    return $queue->run($input);
 }
 
 sub purge_rate_limit_buckets ( $self, $input ) {
@@ -313,7 +331,7 @@ Version 0.001.
 =head1 DESCRIPTION
 
 Runs the operational jobs GPForum does not execute during request handling:
-bounded retention deletes, attachment orphan cleanup, and partition
+the members' email digests (ADR 0078), bounded retention deletes, attachment orphan cleanup, and partition
 policy/evidence. It executes no partition DDL and does not persist
 partition registry rows; C<gpforum partitions> does both.
 
@@ -351,6 +369,12 @@ Deletes stale identity tokens.
 
 Deletes a bounded batch of expired drafts through the configured draft store
 and returns its deletion count, or an unavailable result when no store exists.
+
+=head2 queue_notification_digests
+
+Queues the daily and weekly email digests of at most C<limit> due members
+through L<GPForum::Service::Notification::DigestQueue> (ADR 0078), or skips
+as unavailable without the PostgreSQL function layer.
 
 =head2 purge_rate_limit_buckets
 

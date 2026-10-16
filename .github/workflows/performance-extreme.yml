@@ -131,7 +131,7 @@ jobs:
         with:
           postgres: 'true'
 
-      - name: Install wrk and optional EV within remaining setup budget
+      - name: Install wrk within remaining setup budget
         id: tools
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 2
@@ -148,14 +148,6 @@ jobs:
             exit 1
           fi
           timeout --signal=TERM --kill-after=5s "${budget}s" sudo apt-get install -y wrk
-          budget="$(setup_remaining)"
-          if [ "$budget" -ge 20 ]; then
-            if ! timeout --signal=TERM --kill-after=5s "${budget}s" sudo apt-get install -y libev-perl; then
-              echo 'Optional EV package unavailable; record the actual reactor.'
-            fi
-          else
-            echo 'Optional EV install skipped because the setup budget is exhausted.'
-          fi
 
       - name: Run bounded progressive, mixed and soak workloads
         id: workload

@@ -100,15 +100,11 @@ jobs:
         with:
           postgres: 'true'
 
-      - name: Install independent load generator and optional EV
+      - name: Install independent load generator
         id: tools
         run: |
           set -euo pipefail
           sudo apt-get install -y wrk
-          # Optional OS package; never an application dependency.
-          if ! sudo apt-get install -y libev-perl; then
-            echo 'Optional EV unavailable; the harness records the actual backend and reason.'
-          fi
 
       - name: Create disposable measurement databases
         id: databases

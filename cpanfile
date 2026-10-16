@@ -1,6 +1,8 @@
 requires 'perl', '5.040.0';
 
 requires 'Mojolicious', '9.49';
+# The supported OS profiles require libev's native epoll/kqueue backend.
+requires 'EV', '4.37';
 requires 'DBIx::Class', '0.082844';
 requires 'Minion', '12.0';
 requires 'JSON::MaybeXS', '1.004008';

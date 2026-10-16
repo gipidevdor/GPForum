@@ -663,9 +663,9 @@ bin/gpforum stress-load --profile 1000 --base-url https://forum.example --check 
 `gpforum hypnotoad-benchmark` also runs behind a local nginx or HAProxy
 (`--reverse-proxy --proxy auto`, see
 [DEPLOYMENT_EVIDENCE.md](DEPLOYMENT_EVIDENCE.md#behind-a-reverse-proxy)), and the
-scaling run records the reactor class: macOS reports
-`Mojo::Reactor::Poll`, so compare high socket concurrency with a host where
-`EV` is installed. `stress-load` profiles are `smoke`, `100`, `500` and
+scaling run records the reactor class and native backend: Linux requires
+EV/epoll and macOS/FreeBSD require EV/kqueue. Application startup refuses a
+fallback (see [Reactor backend](ops/reactor-backend.md)). `stress-load` profiles are `smoke`, `100`, `500` and
 `1000` in-flight requests ([ops/stress-load.md](ops/stress-load.md)); a
 single address hits the `forum_retrieval` read limit (60 per 60 s) unless
 `GPFORUM_FORUM_READ_RATE_LIMIT` is raised for the run.
@@ -941,8 +941,9 @@ without application-path performance changes.
 
 HTTP overhead (`/health/live`), home, category index, category/thread pages,
 search and SSR cache hits/misses have distinct rows. Worker scaling and
-Poll/optional EV comparisons use identical datasets and configuration;
-orders alternate over three repetitions. Existing sequential benchmark
+native EV runs use identical datasets and configuration; worker orders
+alternate over three repetitions. Poll is no longer a selectable server
+backend, and a failed native probe fails the run. Existing sequential benchmark
 commands remain available for single-client and profiling evidence; they
 are not used to infer concurrent page capacity.
 

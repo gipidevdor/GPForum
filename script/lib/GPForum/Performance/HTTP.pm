@@ -18,7 +18,7 @@ use List::Util   qw(min max sum any);
 use GPForum::Performance::Support
   qw(root_dir read_json write_json redact monotonic run_bounded);
 our @EXPORT_OK =
-  qw(scenarios free_port probe_url probe_reactor wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes);
+  qw(scenarios free_port probe_url probe_reactor native_backend_flags wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes);
 my @ORDER =
   qw(health_live home categories category thread search cache_hit cache_miss);
 ## no critic (ValuesAndExpressions::ProhibitConstantPragma) -- Core-only bootstrap cannot load Readonly before Carton dependencies.
@@ -37,6 +37,7 @@ use constant {
     MIN_GIB_EXPERIMENTAL     => 8,
     MIN_FD_EXPERIMENTAL      => 4096,
     EV_BACKEND_EPOLL         => 4,
+    EV_BACKEND_KQUEUE        => 8,
     CPU_PERCENT_SCALE        => 100,
     MAX_DURATION             => 30,
     MAX_REPETITIONS          => 5,
@@ -428,16 +429,18 @@ sub resources_between ( $before, $after, $duration, $snapshot ) {
     );
 }
 
+sub native_backend_flags {
+    return EV_BACKEND_EPOLL  if $OS eq 'Linux';
+    return EV_BACKEND_KQUEUE if $OS eq 'Darwin' || $OS eq 'FreeBSD';
+
+    croak "No supported native event backend for $OS";
+}
+
 sub probe_reactor ( $reactor, $diagnostics, $timeout ) {
-    if ( $reactor ne 'Poll' && $reactor ne 'EV' ) {
-        croak 'Unsupported reactor';
-    }
+    croak 'Native EV reactor required' if $reactor ne 'EV';
     my %env = %ENV;
     $env{MOJO_REACTOR} = "Mojo::Reactor::$reactor";
-    delete $env{LIBEV_FLAGS};
-    if ( $reactor eq 'EV' && $OS eq 'Linux' ) {
-        $env{LIBEV_FLAGS} = EV_BACKEND_EPOLL;
-    }
+    $env{LIBEV_FLAGS}  = native_backend_flags();
     my $code =
 q{my $class=ref Mojo::IOLoop->singleton->reactor; print $class; print ':' . EV::backend() if $class eq 'Mojo::Reactor::EV'};
     my $output = run_bounded(
@@ -452,8 +455,7 @@ q{my $class=ref Mojo::IOLoop->singleton->reactor; print $class; print ':' . EV::
         }
     );
     $output =~ s/\s+\z//msx;
-    return $output eq "Mojo::Reactor::$reactor"
-      . ( $reactor eq 'EV' && $OS eq 'Linux' ? ':4' : q{} );
+    return $output eq "Mojo::Reactor::$reactor:" . native_backend_flags();
 }
 
 sub prepare_dataset ( $mode, $diagnostics, $timeout ) {
@@ -644,10 +646,14 @@ sub mojo_measure ( $server, $cell, $args, $log, $deadline ) {
     if ( $expected && ( $observed // q{} ) ne $expected ) {
         croak "cache policy $expected could not be verified";
     }
-    my $route    = canonical_path($canonical);
-    my $before   = linux_cpu_ticks( $server->{master} );
-    my $started  = monotonic();
-    my %env      = ( %ENV, MOJO_REACTOR => 'Mojo::Reactor::Poll' );
+    my $route   = canonical_path($canonical);
+    my $before  = linux_cpu_ticks( $server->{master} );
+    my $started = monotonic();
+    my %env     = (
+        %ENV,
+        MOJO_REACTOR => 'Mojo::Reactor::EV',
+        LIBEV_FLAGS  => native_backend_flags(),
+    );
     my $requests = max(
         MOJO_MIN_PER_CLIENT,
         int(
@@ -897,34 +903,10 @@ sub _wrk_environment ( $state, $environment ) {
 }
 
 sub _reactors ($state) {
-    my @reactors = ('Poll');
-    my $reason;
-    if ( $state->{args}{mode} eq 'pr' ) {
-        $reason = 'PR smoke fixes Poll; Linux main/deep compare optional EV';
-    }
-    elsif ( $OS ne 'Linux' ) {
-        $reason =
-          'comparison is Linux-only; EV stays optional on other platforms';
-    }
-    else {
-        my $ev = _attempt(
-            sub {
-                probe_reactor( 'EV', $state->{diagnostics}, REACTOR_TIMEOUT );
-            }
-        );
-        if ( $ev->{value} ) { push @reactors, 'EV'; }
-        else {
-            $reason =
-              !$ev->{ok}
-              ? 'optional EV probe unavailable: ' . redact( $ev->{error} )
-              : 'EV unavailable or actual reactor/backend cannot be selected';
-        }
-    }
-    if ($reason) {
-        push $state->{skips}->@*,
-          { scenario => 'reactor_EV', reason => $reason };
-    }
-    return \@reactors;
+    croak 'Required native EV reactor/backend unavailable'
+      if !probe_reactor( 'EV', $state->{diagnostics}, REACTOR_TIMEOUT );
+
+    return ['EV'];
 }
 
 sub _checkpoint ($state) {
@@ -1036,7 +1018,7 @@ sub _cell ( $state, $group, $cell ) {
 
 sub _mojo_comparisons ( $state, $group ) {
     if (   $state->{generator} ne 'wrk'
-        || $group->{reactor} ne 'Poll'
+        || $group->{reactor} ne 'EV'
         || $group->{workers} != 2
         || $group->{cache_mode} ne 'normal' )
     {

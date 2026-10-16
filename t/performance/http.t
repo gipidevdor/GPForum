@@ -32,7 +32,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
 use JSON::PP;
 use lib 'script/lib';
 use GPForum::Performance::HTTP
-  qw(parse_wrk parse_mojo plan main runtime_environment wrk_version);
+  qw(parse_wrk parse_mojo plan main runtime_environment wrk_version probe_reactor native_backend_flags);
 use GPForum::Performance::Server;
 use GPForum::Performance::Support qw(read_json write_json run_bounded redact);
 
@@ -124,7 +124,7 @@ ok(
         directory => $dir,
         master    => 100,
         workers   => 2,
-        reactor   => 'Mojo::Reactor::Poll'
+        reactor   => 'Mojo::Reactor::EV'
       },
       'GPForum::Performance::Server';
     local *GPForum::Performance::Server::process_snapshot = sub {
@@ -133,22 +133,66 @@ ok(
             worker_pids    => [ WORKER_ONE, WORKER_TWO ]
         };
     };
-    write_json( "$dir/worker-101.json",
-        { pid => 101, reactor => $server->{reactor}, ev_backend => undef } );
+    write_json(
+        "$dir/worker-101.json",
+        {
+            pid        => 101,
+            reactor    => $server->{reactor},
+            ev_backend => native_backend_flags()
+        }
+    );
     dies(
         sub { $server->telemetry },
         qr/some\x20serving\x20workers/msx,
         'every serving PID required'
     );
-    write_json( "$dir/worker-102.json",
-        { pid => 102, reactor => $server->{reactor}, ev_backend => undef } );
+    write_json(
+        "$dir/worker-102.json",
+        {
+            pid        => 102,
+            reactor    => $server->{reactor},
+            ev_backend => native_backend_flags()
+        }
+    );
     is( scalar @{ $server->telemetry }, 2, 'all worker telemetry verified' );
     write_json( "$dir/worker-102.json",
-        { pid => 102, reactor => 'Mojo::Reactor::EV', ev_backend => 4 } );
+        { pid => 102, reactor => 'Mojo::Reactor::Poll', ev_backend => undef } );
     dies(
         sub { $server->telemetry },
         qr/did\x20not\x20match/msx,
         'worker reactor mismatch rejected'
+    );
+    write_json( "$dir/worker-102.json",
+        { pid => 102, reactor => $server->{reactor}, ev_backend => 1 } );
+    dies(
+        sub { $server->telemetry },
+        qr/required [ ] native [ ] backend/msx,
+        'an EV worker with select instead of the native backend is rejected'
+    );
+    dies(
+        sub { GPForum::Performance::Server->new( { reactor => 'Poll' } ) },
+        qr/Native [ ] EV [ ] reactor [ ] required/msx,
+        'the harness cannot launch a Poll server'
+    );
+}
+{
+    my $seen;
+    local *GPForum::Performance::HTTP::run_bounded =
+      sub ( $command, $options ) {
+        $seen = $options->{env};
+        return 'Mojo::Reactor::EV:' . native_backend_flags();
+      };
+    ok( probe_reactor( 'EV', '/unused', 1 ), 'native reactor probe succeeds' );
+    is( $seen->{LIBEV_FLAGS}, native_backend_flags(),
+        'the probe pins epoll or kqueue before EV loads' );
+    local *GPForum::Performance::HTTP::run_bounded = sub {
+        return 'Mojo::Reactor::EV:1';
+    };
+    ok( !probe_reactor( 'EV', '/unused', 1 ), 'an EV select probe fails' );
+    dies(
+        sub { probe_reactor( 'Poll', '/unused', 1 ) },
+        qr/Native [ ] EV [ ] reactor [ ] required/msx,
+        'Poll cannot be a fallback probe'
     );
 }
 {
@@ -340,6 +384,7 @@ sub test_partial_cells {
         return ( { counts => { posts => SEEDED_POSTS }, signature => 'known' },
             { postgres => '16.4', database_settings => {} } );
     };
+    local *GPForum::Performance::HTTP::probe_reactor = sub { return 1; };
     local *GPForum::Performance::HTTP::run_bounded =
       sub { return encode_json( { perl => 'v5.40', mojolicious => '9.49' } ); };
     local *GPForum::Performance::HTTP::wrk_version =
@@ -359,7 +404,7 @@ sub test_partial_cells {
     };
     local *GPForum::Performance::Server::new = sub ( $class, $options ) {
         return bless {
-            reactor => 'Mojo::Reactor::Poll',
+            reactor => 'Mojo::Reactor::EV',
             workers => $options->{workers}
         }, $class;
     };

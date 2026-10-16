@@ -7,7 +7,8 @@ profile declares support for it.
 `GPForum::OS::RuntimeEvidence` is the benchmark evidence probe used by
 `bin/gpforum hypnotoad-benchmark`. It reports:
 
-* declared event backend versus actual Mojolicious reactor class;
+* declared event backend versus actual Mojolicious reactor class, including
+  `expected_ev_backend` and `actual_ev_backend` libev flags;
 * native reactor dependency status for `Mojo::Reactor::EV`, `EV` and
   `IO::KQueue`;
 * Hypnotoad worker, listen, backlog, keep-alive and graceful-timeout settings;
@@ -20,9 +21,11 @@ profile declares support for it.
   available;
 * temporary filesystem path, `df` output and mount type.
 
-## Current macOS Finding
+## Earlier macOS Finding
 
-On the current macOS/Postgres.app development machine:
+The earlier macOS/Postgres.app development probe recorded the following.
+The reactor mismatch below is now prevented by mandatory native-backend
+startup enforcement; the remaining entries describe that historical probe.
 
 | Capability | Status | Evidence |
 | --- | --- | --- |
@@ -75,14 +78,12 @@ so benchmark runs can be compared honestly across macOS, FreeBSD and Linux.
 
 macOS and FreeBSD profiles declare a `kqueue` OS posture; Linux declares an
 `epoll` OS posture. In Mojolicious, the practical efficient reactor path is
-`Mojo::Reactor::EV` backed by the optional CPAN `EV` module. Without `EV`,
-Mojolicious falls back to `Mojo::Reactor::Poll`.
-
-GPForum does not make `EV` mandatory because it is an XS dependency and the
-project must remain portable across macOS, FreeBSD and Linux. Production
-operators who need high socket concurrency should explicitly test an
-environment with `EV` installed and compare it with the Poll fallback using
-`bin/gpforum hypnotoad-scaling`.
+`Mojo::Reactor::EV` backed by the mandatory, Carton-locked CPAN `EV` module.
+`GPForum::OS::Reactor` selects epoll (4) or kqueue (8) before EV loads and
+application startup verifies both the actual reactor and libev backend.
+GPForum refuses Poll or libev select/poll on these supported systems, even
+when EV is present. Tests preload the same policy before `Test::Mojo`.
+See [Reactor backend](ops/reactor-backend.md) for startup and embedding commands.
 
 `reuse=1` is portable at the GPForum policy layer only when the detected OS
 supports `SO_REUSEPORT`. UNIX socket listen URLs intentionally do not receive

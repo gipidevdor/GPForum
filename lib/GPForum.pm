@@ -3,6 +3,7 @@
 
 package GPForum;
 
+use GPForum::OS::Reactor;
 use Mojo::Base 'Mojolicious', -signatures;
 use v5.40;
 
@@ -25,6 +26,7 @@ use GPForum::Runtime;
 our $VERSION = '0.001';
 
 sub startup ($self) {
+    GPForum::OS::Reactor->assert_native;
 
     # bin/gpforum started Mojolicious::Commands without registering a
     # namespace, so it listed the framework's own commands -- including

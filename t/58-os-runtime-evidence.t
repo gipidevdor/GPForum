@@ -12,6 +12,7 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Config;
+use GPForum::OS;
 use GPForum::OS::Base;
 use GPForum::OS::RuntimeEvidence;
 use GPForum::OS::RuntimePolicy;
@@ -22,7 +23,7 @@ use GPForum::Test::RuntimeEvidenceFailingDbh;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 29;
+const my $EXPECTED_TESTS => 32;
 const my $WORKERS        => 2;
 
 plan tests => $EXPECTED_TESTS;
@@ -46,6 +47,9 @@ my $policy = GPForum::OS::RuntimePolicy->new(
     config  => $config,
     runtime => $runtime,
 );
+local *GPForum::OS::RuntimeEvidence::_actual_reactor = sub {    ## no critic (Variables::ProtectPrivateVars) -- exercise the unknown-OS Poll profile independently of the host's singleton
+    return 'Mojo::Reactor::Poll';
+};
 my $evidence = GPForum::OS::RuntimeEvidence->new(
     config         => $config,
     runtime        => $runtime,
@@ -128,5 +132,24 @@ my $no_db = GPForum::OS::RuntimeEvidence->new(
 )->report;
 is( $no_db->{postgresql}{available},
     0, 'evidence tolerates unavailable PostgreSQL settings' );
+
+{
+    require EV;
+    local *GPForum::OS::RuntimeEvidence::_actual_reactor = sub {    ## no critic (Variables::ProtectPrivateVars) -- isolate the observed class while retaining the real libev backend
+        return 'Mojo::Reactor::EV';
+    };
+    my $other_os = EV::backend() == 4 ? 'darwin' : 'linux';         ## no critic (ValuesAndExpressions::ProhibitMagicNumbers) -- libev's epoll backend
+    my $other    = GPForum::OS->from_name($other_os);
+    my $loop = GPForum::OS::RuntimeEvidence->new->_event_loop_report($other);  ## no critic (Subroutines::ProtectPrivateSubs) -- isolate event-loop evidence from database and resource probes
+    is( $loop->{status}, 'mismatch',
+        'EV with the wrong OS backend is a mismatch' );
+    is( $loop->{actual_ev_backend},
+        EV::backend(), 'evidence records the actual libev backend' );
+    isnt(
+        $loop->{actual_ev_backend},
+        $loop->{expected_ev_backend},
+        'evidence distinguishes native backend from reactor class'
+    );
+}
 
 1;

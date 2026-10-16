@@ -6,15 +6,15 @@ use Carp    qw(croak);
 use English qw(-no_match_vars);
 our $VERSION = '0.001';
 use File::Path                    qw(make_path);
-use POSIX                         qw(setsid WNOHANG _exit uname);
+use POSIX                         qw(setsid WNOHANG _exit);
 use Time::HiRes                   qw(sleep);
 use List::Util                    qw(min any);
 use GPForum::Performance::Support qw(root_dir read_json redact monotonic);
-use GPForum::Performance::HTTP    qw(free_port probe_url process_snapshot);
+use GPForum::Performance::HTTP
+  qw(free_port probe_url process_snapshot native_backend_flags);
 
 # Core constants keep startup and cleanup usable before application deps load.
 use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
-    EPOLL_BACKEND      => 4,
     SETUP_FAILURE      => 126,
     EXEC_FAILURE       => 127,
     STARTUP_SECONDS    => 30,
@@ -26,6 +26,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
 };
 
 sub new ( $class, $args ) {
+    croak 'Native EV reactor required' if $args->{reactor} ne 'EV';
     my $self = bless { $args->%* }, $class;
     $self->{directory} = "$args->{output}/diagnostics/server-$args->{index}";
     if ( -e $self->{directory} ) {
@@ -71,10 +72,7 @@ sub _environment($self) {
         GPFORUM_PERFORMANCE_TELEMETRY_DIR  => $self->{directory},
     );
 
-    if ( $self->{reactor} eq 'Mojo::Reactor::EV' && ( uname() )[0] eq 'Linux' )
-    {
-        $env{LIBEV_FLAGS} = EPOLL_BACKEND;
-    }
+    $env{LIBEV_FLAGS} = native_backend_flags();
     return \%env;
 }
 
@@ -168,11 +166,10 @@ sub telemetry ($self) {
     {
         croak 'some serving workers have not produced actual reactor telemetry';
     }
-    if (   $self->{reactor} eq 'Mojo::Reactor::EV'
-        && ( uname() )[0] eq 'Linux'
-        && any { ( $_->{ev_backend} // 0 ) != EPOLL_BACKEND } @rows )
+    if ( $self->{reactor} eq 'Mojo::Reactor::EV'
+        && any { ( $_->{ev_backend} // 0 ) != native_backend_flags() } @rows )
     {
-        croak 'serving EV worker did not select Linux epoll backend';
+        croak 'serving EV worker did not select the required native backend';
     }
     if (
         !(

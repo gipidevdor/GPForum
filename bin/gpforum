@@ -45,6 +45,7 @@ use lib "$FindBin::RealBin/../lib";
 # not `script/gpforum-carton exec perl -Ilib bin/gpforum migrate`. Only core
 # modules are loaded before that, since the others may be the ones missing.
 use GPForum::CLI::FrontDoor::Carton;
+use GPForum::OS::Reactor;
 
 our $VERSION = '0.001';
 

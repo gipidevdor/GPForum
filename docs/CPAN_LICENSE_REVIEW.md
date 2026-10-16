@@ -10,6 +10,7 @@ requirements without review.
 | --- | --- | --- | --- | --- |
 | perl | runtime | Perl 5 license | language runtime | allowed |
 | Mojolicious | runtime | Artistic-2.0 | mature web framework | allowed |
+| EV | runtime | Perl 5 license; bundled libev uses BSD-2-Clause or GPL-2.0-or-later | XS event loop; required epoll on Linux and kqueue on macOS/FreeBSD; pinned by Carton | allowed |
 | DBIx::Class | runtime | Perl 5 license | mature ORM layer | allowed |
 | Minion | runtime | Artistic-2.0 | optional async worker framework | allowed |
 | JSON::MaybeXS | runtime | Perl 5 license | JSON adapter selection | allowed |

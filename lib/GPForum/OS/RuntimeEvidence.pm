@@ -16,6 +16,7 @@ use GPForum::Config;
 use GPForum::Runtime;
 use GPForum::Infrastructure::Storage;
 use GPForum::OS::RuntimePolicy;
+use GPForum::OS::Reactor ();
 use GPForum::Schema;
 
 our $VERSION = '0.001';
@@ -139,18 +140,25 @@ sub _overall_status ( $self, $runtime_report ) {
 }
 
 sub _event_loop_report ( $self, $os ) {
-    my $declared = $os->event_backend;
-    my $actual   = _actual_reactor();
-    my $expected = _expected_reactor_class($declared);
-    my $status   = $actual eq $expected ? $STATUS_ACTIVE : $STATUS_MISMATCH;
+    my $declared   = $os->event_backend;
+    my $actual     = _actual_reactor();
+    my $expected   = _expected_reactor_class($declared);
+    my $native     = GPForum::OS::Reactor->expected_backend( $os->name );
+    my $ev_backend = $actual eq 'Mojo::Reactor::EV' ? EV::backend() : undef;
+    my $matches    = $actual eq $expected
+      && ( !$native
+        || ( defined $ev_backend && $ev_backend == $native->{flags} ) );
+    my $status = $matches ? $STATUS_ACTIVE : $STATUS_MISMATCH;
 
     return {
         status               => $status,
         declared_backend     => $declared,
         actual_reactor_class => $actual,
         expected_reactor     => $expected,
+        actual_ev_backend    => $ev_backend,
+        expected_ev_backend  => $native ? $native->{flags} : undef,
         portable_fallback    => $actual =~ /Poll\z/msx ? 1 : 0,
-        recommendation       => _reactor_recommendation( $declared, $actual ),
+        recommendation       => _reactor_recommendation( $declared, $matches ),
         modules              => {
             mojo_ev   => _module_file_available('Mojo::Reactor::EV'),
             ev        => _module_available('EV'),
@@ -352,10 +360,11 @@ sub _module_path ($module) {
     return $path;
 }
 
-sub _reactor_recommendation ( $declared, $actual ) {
+sub _reactor_recommendation ( $declared, $matches ) {
     return 'native-reactor-active'
-      if $actual eq _expected_reactor_class($declared);
-    return 'install optional EV module to activate Mojo::Reactor::EV'
+      if $matches;
+    return
+'native backend required: install locked EV and preload GPForum::OS::Reactor before EV or Mojo::IOLoop'
       if $declared eq 'kqueue' || $declared eq 'epoll';
 
     return 'poll fallback acceptable for conservative unknown OS mode';

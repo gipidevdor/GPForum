@@ -1,74 +1,61 @@
 # Reactor backend
 
-Date: 2026-06-02.
+GPForum requires the native event backend on every supported operating system:
 
-This document explains the following observed anomaly:
+| Operating system | Mojo reactor | Required libev backend | `LIBEV_FLAGS` |
+| --- | --- | --- | --- |
+| Linux | `Mojo::Reactor::EV` | epoll | 4 |
+| macOS | `Mojo::Reactor::EV` | kqueue | 8 |
+| FreeBSD | `Mojo::Reactor::EV` | kqueue | 8 |
 
-```text
-declared_event_backend=epoll
-actual_reactor=Mojo::Reactor::Poll
+`EV` is a mandatory runtime dependency installed and pinned by Carton. Run
+`script/bootstrap-deps --postgres` to install the locked dependency set.
+An optional OS EV package is no longer part of the performance workflow.
+
+## Startup enforcement
+
+`GPForum::OS::Reactor` sets `MOJO_REACTOR` and `LIBEV_FLAGS` before event-loop
+consumers load. `bin/gpforum` loads it before the command launcher, and the
+application loads it before Mojolicious. Inherited preferences for Poll,
+select, or another libev backend are overridden on supported hosts.
+
+Application startup verifies both the actual singleton reactor class and
+`EV::backend()`. Merely observing `Mojo::Reactor::EV` does not prove epoll or
+kqueue: libev can otherwise choose select, including on macOS. Missing EV,
+an unavailable native backend, or an already initialised incompatible loop
+stops startup. This applies to development, CI and production without a
+strict-mode opt-in. Existing loops are never destroyed or replaced.
+
+Use `bin/gpforum start` for the normal entry point. For an embedding process
+that loads Mojo first, preload the policy before the framework:
+
+```sh
+script/gpforum-carton exec perl -Ilib -MGPForum::OS::Reactor -S hypnotoad bin/gpforum
 ```
 
-## Diagnosis
+The default EV loop is created when EV loads, so setting `LIBEV_FLAGS` after
+that point cannot select a different backend. See the
+[EV API](https://metacpan.org/pod/EV) and
+[libev backend documentation](https://metacpan.org/pod/libev).
 
-`declared_event_backend` describes the OS posture the runtime profile wants or
-declares. `actual_reactor` is the class Mojolicious actually uses in that Perl
-process.
+Unknown operating systems retain the conservative portable behavior of the
+generic OS profile; they are outside the supported native-backend matrix.
 
-On macOS, `Mojo::Reactor::Poll` is expected: `epoll` is Linux-specific and
-cannot be the real backend. On Linux, `epoll` does not appear as a native
-Mojolicious reactor unless the environment provides compatible dependencies and
-event loop, and Mojolicious selects a reactor other than Poll. The mismatch must
-therefore be treated as a diagnostic signal, not as a universal error.
+## Evidence and verification
 
-## Repository state
+`GPForum::OS::RuntimeEvidence` reports the declared backend, expected and
+actual reactor, and expected and actual libev backend flags. A matching EV
+class with the wrong libev backend is a mismatch. HTTP and extreme-load
+benchmarks require EV with the host backend, and verify it in every serving
+worker; a failed probe cannot select Poll. Historical benchmark artifacts
+retain their observed reactor values.
 
-The repository already carries runtime evidence:
+`.proverc` preloads the same core-only policy before each test process, so
+`Test::Mojo` cannot initialise an incompatible default loop before the
+application loads. `t/688-native-reactor.t` exercises real subprocesses for
+native startup, inherited fallback preferences, missing EV, an existing Poll
+singleton and an existing libev select loop. `t/58-os-runtime-evidence.t`
+checks that the wrong native backend remains visible in the evidence.
 
-- `lib/GPForum/OS/RuntimeEvidence.pm` records the declared reactor, the expected
-  reactor, the actual reactor, and a recommendation;
-- `docs/OS_RUNTIME_EVIDENCE.md` documents the local mismatch;
-- `t/58-os-runtime-evidence.t` covers OS profiles and fallbacks;
-- `t/57-hypnotoad-benchmark.t` verifies that the benchmark report includes
-  `actual_reactor`.
-
-## Operational rule
-
-| Environment | Expected behavior | Gate |
-| --- | --- | --- |
-| macOS dev | `Mojo::Reactor::Poll` is acceptable | diagnostic warning |
-| FreeBSD dev/staging | fallback acceptable when documented | diagnostic warning |
-| Linux production | mismatch must be investigated | fail only in strict preflight |
-| Generic CI | do not assume epoll | portable test, no false failure |
-
-## Proposed patch
-
-Do not force a new reactor as a mandatory dependency. Make the message clearer
-first:
-
-- distinguish `declared_event_backend` from `actual_reactor`;
-- report the detected OS;
-- state whether the mismatch is expected on a non-Linux OS;
-- under `--strict`, fail only when the profile declares Linux/epoll and the
-  production target explicitly requires a native reactor.
-
-## Required tests
-
-1. macOS/fallback: an epoll/Poll mismatch produces a warning, not a failure.
-2. Linux strict: a production profile that requires a native backend, with Poll
-   as the actual reactor, produces a diagnostic failure.
-3. CI portability: the test does not assume epoll when `uname` is not Linux.
-4. Benchmark report: `actual_reactor` and the recommendation stay visible in
-   both text and JSON output.
-
-## Deploy
-
-In production, do not use the reactor as the only readiness proof. Check it
-together with:
-
-- `/health/ready`;
-- query plan evidence;
-- Hypnotoad benchmarks with real workers;
-- file descriptors and backlog;
-- p95/p99 request latency;
-- outbox pending/failed/dead-letter counts.
+Readiness still includes `/health/ready`, query plans, actual Hypnotoad
+workers, descriptors/backlog, request latency and outbox health.

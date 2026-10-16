@@ -66,23 +66,12 @@ sub _setup ( $context, $docker ) {
         %{$pg},
         wrk => wrk_version( File::Spec->catdir( $output, 'diagnostics' ) )
     };
-    my $selected = 'Poll';
-    for my $backend (qw(EV Poll)) {
-        croak 'No remaining budget for reactor verification'
-          if $budget->remaining < REACTOR_START_RESERVE;
-        if (
-            probe_reactor(
-                $backend, File::Spec->catdir( $output, 'diagnostics' ),
-                REACTOR_PROBE_SECONDS
-            )
-          )
-        {
-            $selected = $backend;
-            last;
-        }
-        skip( $state, "reactor_$backend",
-            'Requested backend unavailable in the actual runtime probe' );
-    }
+    croak 'No remaining budget for reactor verification'
+      if $budget->remaining < REACTOR_START_RESERVE;
+    croak 'Required native EV reactor/backend unavailable'
+      if !probe_reactor( 'EV', File::Spec->catdir( $output, 'diagnostics' ),
+        REACTOR_PROBE_SECONDS );
+    my $selected = 'EV';
     $context->{selected_reactor}               = $selected;
     $state->{configuration}{reactor_requested} = $selected;
     $state->{phases}{setup}                    = {

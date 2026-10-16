@@ -58,6 +58,7 @@ has audit   => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::Audit->new(
+        clock      => $self->clock,
         id_service => $self->id_service,
         recorder   => $self->recorder,
         schema     => $self->schema,

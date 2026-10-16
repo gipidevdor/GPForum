@@ -104,7 +104,11 @@ subtest 'a database it cannot reach is one sentence with its fix' => sub {
     ( my $closed = $database->{dsn} ) =~ s/port=\d+/port=1/msx;
     local $ENV{GPFORUM_DATABASE_DSN} = $closed;
     my $text = _text();
-    _has( $text, ':1 (connection refused)', 'the failure, classified' );
+    like(
+        $text,
+        qr{(?: :1 | /[.]s[.]PGSQL[.]1 ) [ ] [(]connection[ ]refused[)]}msx,
+        'the failure, classified for either a Unix socket or a remote host'
+    );
     _has(
         $text,
         "\N{BALLOT X} database: cannot reach PostgreSQL at ",

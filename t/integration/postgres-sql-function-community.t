@@ -259,9 +259,19 @@ sub _pages ( $new, $old, $method, $options, $label ) {
 }
 
 sub _page ($page) {
-    return {
-        %{$page}, items => [ map { +{ $_->get_columns } } @{ $page->{items} } ]
-    };
+    return { %{$page}, items => [ map { _columns($_) } @{ $page->{items} } ] };
+}
+
+sub _columns ($row) {
+    my %columns = $row->get_columns;
+
+    # Migration 121 adds the nullable folder projection to the SQL reader.
+    # This fixture has no folder assignments; the legacy Bookmark row has
+    # no such projection. Keep checking its value on the SQL path.
+    if ( $row->isa('GPForum::Schema::Result::Bookmark') ) {
+        $columns{folder} = undef;
+    }
+    return \%columns;
 }
 
 1;

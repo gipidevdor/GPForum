@@ -11,6 +11,7 @@ use lib 't/lib';
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use GPForum::Service::Identity::Event;
+use GPForum::Test::FixedClock;
 use Test::More;
 
 our $VERSION = '0.001';
@@ -20,8 +21,9 @@ const my $CREATED_AT     => '2026-01-01T00:00:00Z';
 const my $IDENTIFIER     => 'giacomo@example.test';
 const my $REQUEST_ADDR   => '198.51.100.10';
 
-my $events = GPForum::Service::Identity::Event->new;
-my $user   = {
+my $events = GPForum::Service::Identity::Event->new(
+    clock => GPForum::Test::FixedClock->new( iso8601 => $CREATED_AT ) );
+my $user = {
     id       => 'user-1',
     username => 'giacomo',
 };
@@ -45,6 +47,10 @@ is( $envelope->{correlation_id},
     'corr-1', 'registered_envelope keeps the supplied correlation id' );
 
 my $audit = $events->registered_audit( $user, 'corr-1' );
+is( $envelope->{timestamp},
+    $CREATED_AT, 'registration event uses the injected clock' );
+is( $audit->{created_at}, $CREATED_AT,
+    'registration audit uses the injected clock' );
 is( $audit->{action},
     'user.registered', 'registered_audit uses the registration action' );
 is( $audit->{target_id}, 'user-1', 'registered_audit targets the user id' );
@@ -67,6 +73,7 @@ is_deeply(
     {
         action         => 'identity.password_reset.requested',
         actor_id       => undef,
+        created_at     => $CREATED_AT,
         metadata       => {},
         schema_version => $SCHEMA_VERSION,
         target_id      => undef,
@@ -88,6 +95,7 @@ is_deeply(
     {
         action         => 'identity.email_changed',
         actor_id       => 'user-1',
+        created_at     => $CREATED_AT,
         metadata       => { email => 'new@example.test' },
         schema_version => $SCHEMA_VERSION,
         target_id      => 'user-1',
@@ -171,6 +179,7 @@ my $mail = $events->mail_envelope(
 );
 is( $mail->{event_type}, 'identity.mail.requested',
     'mail_envelope uses the identity mail event type' );
+is( $mail->{timestamp}, $CREATED_AT, 'mail event uses the injected clock' );
 is( $mail->{aggregate_type}, 'user', 'mail_envelope uses the user aggregate' );
 is(
     $mail->{idempotency_key},

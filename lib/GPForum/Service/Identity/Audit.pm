@@ -7,10 +7,12 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
+use GPForum::Service::Clock;
 use GPForum::Service::Identity::Event;
 
 our $VERSION = '0.001';
 
+has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
@@ -23,8 +25,10 @@ has recorder => sub {
         schema     => $self->schema,
     );
 };
-has schema => undef;    # optional: only the default recorder reads it
-has events => sub { return GPForum::Service::Identity::Event->new; };
+has schema => undef;          # optional: only the default recorder reads it
+has events => sub ($self) {
+    return GPForum::Service::Identity::Event->new( clock => $self->clock );
+};
 
 sub record_registration ( $self, $user, $correlation_id ) {
     $self->recorder->record_event(

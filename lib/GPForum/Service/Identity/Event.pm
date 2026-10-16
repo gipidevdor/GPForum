@@ -8,6 +8,8 @@ use Digest::SHA qw(sha256_hex);
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Service::Clock;
+
 our $VERSION = '0.001';
 
 const my $USER_AGGREGATE   => 'user';
@@ -20,7 +22,9 @@ const my $TARGET_SESSION   => 'session';
 const my $OUTCOME_ACCEPTED => 'accepted';
 const my $MAIL_REQUESTED   => 'identity.mail.requested';
 
-sub registered_envelope ( $, $user, $correlation_id ) {
+has clock => sub { return GPForum::Service::Clock->new; };
+
+sub registered_envelope ( $self, $user, $correlation_id ) {
     return {
         actor_id          => $user->{id},
         aggregate_id      => $user->{id},
@@ -32,14 +36,16 @@ sub registered_envelope ( $, $user, $correlation_id ) {
         idempotency_key   => join( q{:}, $REGISTERED, $user->{id} ),
         payload           => { username => $user->{username} },
         schema_version    => $SCHEMA_VERSION,
+        timestamp         => $self->clock->now_iso8601,
     };
 }
 
-sub registered_audit ( $, $user, $correlation_id ) {
+sub registered_audit ( $self, $user, $correlation_id ) {
     return {
         action         => $REGISTERED,
         actor_id       => $user->{id},
         correlation_id => $correlation_id,
+        created_at     => $self->clock->now_iso8601,
         metadata       => { username => $user->{username} },
         schema_version => $SCHEMA_VERSION,
         target_id      => $user->{id},
@@ -47,10 +53,11 @@ sub registered_audit ( $, $user, $correlation_id ) {
     };
 }
 
-sub action ( $, $input ) {
+sub action ( $self, $input ) {
     return {
         action         => $input->{action},
         actor_id       => $input->{actor_id},
+        created_at     => $input->{created_at} // $self->clock->now_iso8601,
         metadata       => $input->{metadata} || {},
         schema_version => $SCHEMA_VERSION,
         target_id      => $input->{target_id},
@@ -58,7 +65,7 @@ sub action ( $, $input ) {
     };
 }
 
-sub mail_envelope ( $, $input ) {
+sub mail_envelope ( $self, $input ) {
     return {
         actor_id          => $input->{user_id},
         aggregate_id      => $input->{user_id},
@@ -71,6 +78,7 @@ sub mail_envelope ( $, $input ) {
             token_id => $input->{token_id},
         },
         schema_version => $SCHEMA_VERSION,
+        timestamp      => $self->clock->now_iso8601,
     };
 }
 
@@ -148,6 +156,8 @@ Version 0.001.
 Owns C<user.registered> EventLog envelopes, registration AuditLog hashes,
 generic identity audit arguments, identity mail EventLog/outbox hashes,
 and login/logout request AuditLog hashes.
+Registration, action and mail timestamps use the supplied C<clock>, which
+defaults to L<GPForum::Service::Clock>.
 It does not persist rows. L<GPForum::Service::Identity::Audit> still writes
 EventLog, OutboxMessage, and AuditLog.
 L<GPForum::Service::Identity::SecurityAudit> still writes login and logout

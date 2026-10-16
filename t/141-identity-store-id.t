@@ -13,6 +13,7 @@ use GPForum::Service::Identity::Store;
 use GPForum::Service::Password;
 use GPForum::Service::SessionToken;
 use GPForum::Test::Id;
+use GPForum::Test::FixedClock;
 use Test::More;
 
 our $VERSION = '0.001';
@@ -30,6 +31,14 @@ my $store =
 ok( $store, 'an injected identity store constructs without Id' );
 is( $store->id_service->uuid,
     'generated-1', 'injected Test::Id supplies store identifiers' );
+my $clock       = GPForum::Test::FixedClock->new;
+my $timed_store = GPForum::Service::Identity::Store->new(
+    clock    => $clock,
+    recorder => undef
+);
+is( $timed_store->audit->events->clock,
+    $clock,
+    'the store shares its clock with identity event and audit builders' );
 
 ok(
     !GPForum::Service::Password->new->verify_password(

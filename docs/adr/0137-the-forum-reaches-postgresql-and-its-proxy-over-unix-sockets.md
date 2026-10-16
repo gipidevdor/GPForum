@@ -56,6 +56,15 @@ PostgreSQL.
    GPForum supports 16 to 18). The settings stay session settings, not
    startup `options`, so a transaction pooler in front of PostgreSQL still
    accepts the connection.
+5. **A socket is named by its path.** `gpforum setup`, `gpforum doctor` and
+   the failure sentences name the server as libpq does: `host:port` over
+   TCP, else the socket file, `DIRECTORY/.s.PGSQL.PORT`. Doctor takes the
+   directory from the connection it made (`PQhost`); before a connection,
+   a DSN without `host=` names the operating system's libpq default --
+   `/var/run/postgresql` on Debian, Ubuntu and Red Hat, `/tmp` for
+   Homebrew, the FreeBSD ports and PostgreSQL's own build. A socket that is
+   not there is its own failure, "there is no PostgreSQL socket at ...",
+   with the start command and `host=` to correct, not a refused connection.
 
 ### Server settings
 
@@ -111,6 +120,9 @@ does.
   options winning, the process role, and the one session statement.
 - `t/integration/postgres-plain-role.t`: a plain role connects with the
   session set and the server's message locale; a superuser gets `C`.
+- `t/694-database-socket-names.t`: the socket a server is named by, in
+  setup, doctor and the failure sentences, and a missing socket in both
+  languages.
 - `t/692-unix-listener.t`, `t/integration/postgres-unix-socket-clients.t`:
   the listener, its modes and the client addresses behind the proxy.
 

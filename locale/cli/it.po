@@ -1778,6 +1778,17 @@ msgstr ""
 "GPFORUM_DATABASE_DSN {where}."
 
 #, python-brace-format
+msgctxt "database.no_socket"
+msgid ""
+"There is no PostgreSQL socket at {server}: start PostgreSQL with {start}, or "
+"set host= in GPFORUM_DATABASE_DSN {where} to the directory that holds its "
+"socket."
+msgstr ""
+"Non c'è alcun socket di PostgreSQL in {server}: avvia PostgreSQL con "
+"{start}, oppure imposta host= in GPFORUM_DATABASE_DSN {where} sulla "
+"directory che contiene il suo socket."
+
+#, python-brace-format
 msgctxt "database.not_migrated"
 msgid ""
 "The database has no {relation} table yet: apply the migrations with "

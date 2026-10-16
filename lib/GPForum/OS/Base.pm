@@ -105,6 +105,12 @@ sub postgresql_superuser {
     return undef;
 }
 
+# Where the packaged libpq looks for the server's socket when a DSN names no
+# host: PostgreSQL's own default, which Homebrew and the FreeBSD ports keep.
+sub postgresql_socket_directory {
+    return '/tmp';
+}
+
 # The commands root runs to make the account GPForum's services run as, each
 # an argument list, given the account's name and its home; none where
 # gpforum setup leaves that to the operator, as docs/DEPLOYMENT.md shows.

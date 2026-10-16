@@ -60,6 +60,12 @@ sub postgresql_superuser {
     };
 }
 
+# Debian's, Ubuntu's and Red Hat's libpq look for the socket here when a
+# DSN names no host.
+sub postgresql_socket_directory {
+    return '/var/run/postgresql';
+}
+
 # A system account with a group of its own, which cannot log in, at home in
 # the code directory, as docs/DEPLOYMENT.md made it by hand.
 sub service_account_commands ( $self, $user, $home ) {

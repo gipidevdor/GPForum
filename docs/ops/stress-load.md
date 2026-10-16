@@ -41,7 +41,7 @@ Related sequential benches remain:
 2. Migrated PostgreSQL for the **server** process:
 
 ```sh
-export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum;host=127.0.0.1;port=5432'
+export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum'   # the local socket
 export GPFORUM_DATABASE_USER='…'
 export GPFORUM_DATABASE_PASSWORD='…'
 gpforum migrate
@@ -68,11 +68,11 @@ bin/gpforum stress-load --dry-run --profile 100 --human
 gpforum stress-load --dry-run --profile 1000 --json
 ```
 
-Local smoke against a live base URL:
+Local smoke against the service's socket, past the proxy:
 
 ```sh
 bin/gpforum stress-load --profile smoke \
-  --base-url http://127.0.0.1:8080 \
+  --base-url http+unix://%2Fopt%2Fgpforum%2Fvar%2Frun%2Fgpforum.sock \
   --human
 ```
 
@@ -89,7 +89,7 @@ Concurrency knobs without changing the named profile:
 ```sh
 bin/gpforum stress-load --profile 100 --concurrency 120 \
   --requests-per-client 20 \
-  --base-url http://127.0.0.1:8080 \
+  --base-url http+unix://%2Fopt%2Fgpforum%2Fvar%2Frun%2Fgpforum.sock \
   --route /categories --route /health/live \
   --human
 ```
@@ -97,7 +97,7 @@ bin/gpforum stress-load --profile 100 --concurrency 120 \
 Optional Make target (**not** part of `make check` / default CI):
 
 ```sh
-make stress-load PROFILE=smoke BASE_URL=http://127.0.0.1:8080
+make stress-load PROFILE=smoke BASE_URL=http+unix://%2Fopt%2Fgpforum%2Fvar%2Frun%2Fgpforum.sock
 # defaults: PROFILE=smoke, FORMAT=human; BASE_URL required for a live run
 make stress-load-dry   # dry-run only
 ```

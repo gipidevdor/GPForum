@@ -1253,7 +1253,7 @@ sub _ensure_database ( $self, $state, $plan, $held, $findings, $changed ) {
     );
     my %parameters = (
         database => _database_of($plan),
-        server   => _server_of($plan),
+        server   => $self->_server_of($plan),
         user     => $plan->{GPFORUM_DATABASE_USER},
     );
     my $made = { role_made => 0, database_made => 0 };
@@ -1413,7 +1413,7 @@ sub _with_superuser ( $self, $message, $held ) {
 sub _would_database ( $self, $state, $plan, $held ) {
     my %parameters = (
         database => _database_of($plan),
-        server   => _server_of($plan),
+        server   => $self->_server_of($plan),
         user     => $plan->{GPFORUM_DATABASE_USER},
     );
     if ( !$held->{superuser} ) {
@@ -1459,11 +1459,12 @@ sub _database_of ($plan) {
         $plan->{GPFORUM_DATABASE_DSN} )->{database};
 }
 
-sub _server_of ($plan) {
-    my $class = 'GPForum::Service::Operations::DatabaseProvisioning';
+sub _server_of ( $self, $plan ) {
+    my $class = q{GPForum::Service::Operations::DatabaseProvisioning};
 
     return $class->server_name(
-        $class->data_source( $plan->{GPFORUM_DATABASE_DSN} ) );
+        $class->data_source( $plan->{GPFORUM_DATABASE_DSN} ),
+        $self->os );
 }
 
 # The schema, as gpforum migrate brings it up to date. Returns whether setup

@@ -126,12 +126,15 @@ sub reason_of ( $class, $error ) {
     return $said =~ s/\s+/ /grmsx =~ s/\A \s+ | \s+ \z//grmsx;
 }
 
-# The server as an operator reads it: host:port, or the socket directory and
-# port.
-sub server_name ( $class, $source ) {
-    my $host = length $source->{host} ? $source->{host} : 'unix';
+# The server as an operator reads it, and as libpq names it: host:port over
+# TCP, or the socket's path -- in the directory the source names, or, with
+# no host, in the one the operating system's libpq uses (ADR 0137).
+sub server_name ( $class, $source, $os = GPForum::OS->detect ) {
+    my $host = $source->{host};
+    return "$host:$source->{port}" if length $host && $host !~ m{\A /}msx;
 
-    return "$host:$source->{port}";
+    my $directory = length $host ? $host : $os->postgresql_socket_directory;
+    return "$directory/.s.PGSQL.$source->{port}" =~ s{//+}{/}grmsx;
 }
 
 # Whether the server is on this host, where root may reach its superuser
@@ -588,8 +591,11 @@ Class method. What libpq said in a DBI error, without DBI's words around it.
 
 =head2 server_name
 
-Class method. The server of a data source as an operator reads it,
-C<host:port>.
+Class method. Takes a data source and, optionally, the L<GPForum::OS>
+profile (this host's by default). Returns the server as an operator and libpq
+name it: C<host:port> over TCP, or the socket's path -- in the directory
+C<host> names, or in the profile's C<postgresql_socket_directory> when there
+is no host.
 
 =head2 is_local
 

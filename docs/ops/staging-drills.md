@@ -37,7 +37,7 @@ host deploy is covered by the operator runbook in
 - Environment (same shape as other integration tools):
 
 ```sh
-export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum;host=127.0.0.1;port=5432'
+export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum'   # the local socket
 export GPFORUM_DATABASE_USER='gpforum_migrator'
 export GPFORUM_DATABASE_PASSWORD='…'
 ```
@@ -63,12 +63,12 @@ stops with "postmaster became multithreaded during startup":
 eval "$(script/gpforum-homebrew-env)"
 export LC_ALL=en_US.UTF-8
 mkdir -p "$HOME/gpforum-pgdata"
-initdb -D "$HOME/gpforum-pgdata" --auth-local=trust --auth-host=trust
+initdb -D "$HOME/gpforum-pgdata" --auth-local=trust
 pg_ctl -D "$HOME/gpforum-pgdata" -l "$HOME/gpforum-pgdata/logfile" \
-  -o '-p 55432' start
-export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=127.0.0.1;port=55432'
+  -o "-p 55432 -k /tmp -c listen_addresses=''" start
+export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=/tmp;port=55432'
 export GPFORUM_DATABASE_USER="$USER"
-# password empty when using trust on localhost
+# no password: trust on the local socket, and no TCP listener
 ```
 
 You still need OS system Perl 5.40+ (Homebrew's `perl` or distro

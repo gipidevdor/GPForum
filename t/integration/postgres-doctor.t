@@ -104,17 +104,32 @@ subtest 'a database it cannot reach is one sentence with its fix' => sub {
     ( my $closed = $database->{dsn} ) =~ s/port=\d+/port=1/msx;
     local $ENV{GPFORUM_DATABASE_DSN} = $closed;
     my $text = _text();
-    like(
-        $text,
-        qr{(?: :1 | /[.]s[.]PGSQL[.]1 ) [ ] [(]connection[ ]refused[)]}msx,
-        'the failure, classified for either a Unix socket or a remote host'
-    );
-    _has(
-        $text,
-        "\N{BALLOT X} database: cannot reach PostgreSQL at ",
-        'in one sentence'
-    );
-    like( $text, qr/Fix: [ ] start [ ] it [ ] with/msx, 'and its fix' );
+
+    # Over a socket there is no file for port 1: a missing socket, said as
+    # one (ADR 0137). Over TCP, a refused connection.
+    if ( $closed =~ m{host=/}msx ) {
+        _has(
+            $text,
+            "\N{BALLOT X} database: there is no PostgreSQL socket at ",
+            'the failure, classified for a Unix socket, in one sentence'
+        );
+        like( $text, qr{/[.]s[.]PGSQL[.]1}msx, 'naming the socket' );
+        like( $text, qr/Fix: [ ] start [ ] PostgreSQL [ ] with/msx,
+            'and its fix' );
+    }
+    else {
+        _has(
+            $text,
+            "\N{BALLOT X} database: cannot reach PostgreSQL at ",
+            'the failure, classified for a remote host, in one sentence'
+        );
+        like(
+            $text,
+            qr/:1 [ ] [(]connection[ ]refused[)]/msx,
+            'naming host and port'
+        );
+        like( $text, qr/Fix: [ ] start [ ] it [ ] with/msx, 'and its fix' );
+    }
     unlike( $text, qr/schema:/msx, 'the checks that need it wait' );
 };
 

@@ -23,6 +23,9 @@ const my %ENGLISH => (
     'database.refused' => 'Cannot reach PostgreSQL at {server}'
       . ' (connection refused): start it with {start},'
       . ' or correct GPFORUM_DATABASE_DSN {where}.',
+    'database.no_socket' => 'There is no PostgreSQL socket at {server}:'
+      . ' start PostgreSQL with {start}, or set host= in GPFORUM_DATABASE_DSN'
+      . ' {where} to the directory that holds its socket.',
     'database.unknown_host' => 'Cannot find the PostgreSQL host {host}:'
       . ' correct the host in GPFORUM_DATABASE_DSN {where}.',
     'database.authentication' => 'PostgreSQL at {server} refused the'
@@ -96,11 +99,14 @@ const my @CLASSES => (
         qr/conversione [ ] del [ ] nome [ ] host [ ] "([^"]+)"/msx,
     ],
     [
-        'database.refused',
-        undef,
-        qr/Connection [ ] refused/msx,
-        qr/Connessione [ ] rifiutata/msx,
-        qr/socket .* No [ ] such [ ] file [ ] or [ ] directory/msx,
+        'database.no_socket',
+        'server',
+        qr/socket [ ] "([^"]+)" [ ] failed: [ ] No [ ] such [ ] file/msx,
+qr/socket [ ] "([^"]+)" [ ] fallita: [ ] File [ ] o [ ] directory [ ] non/msx,
+    ],
+    [
+        'database.refused',            undef,
+        qr/Connection [ ] refused/msx, qr/Connessione [ ] rifiutata/msx,
     ],
     [
         'database.not_migrated',
@@ -337,7 +343,8 @@ that is set starts with C<it>, English otherwise.
 
 Takes an error's text and returns C<< { key, parameters } >>: the message
 key (C<database.refused>, C<database.unknown_host>,
-C<database.authentication>, C<database.no_hba>, C<database.unknown_role>,
+C<database.authentication>, C<database.no_hba>, C<database.no_socket>,
+C<database.unknown_role>,
 C<database.unknown_database> or C<database.not_migrated>) and the values its
 sentence names. Returns undef for any other text, including a refused
 connection or a missing socket that DBI, DBD::Pg or libpq did not report.

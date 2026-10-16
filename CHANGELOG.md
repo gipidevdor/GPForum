@@ -1877,6 +1877,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **`gpforum doctor` and `gpforum setup` named a socket "unix:5432", and a
+  missing socket a refused connection.** A DSN without `host=` reaches
+  PostgreSQL through libpq's socket directory, and both now name the socket
+  file as libpq does -- `/var/run/postgresql/.s.PGSQL.5432` on Debian, the
+  one the connection used when doctor made one -- and a socket that is not
+  there says so, with the start command and the `host=` to correct, in
+  either language (ADR 0137). The doctor, staging-drill and stress-load
+  guides no longer show TCP addresses for local connections.
+
 - **The announcements no longer cost every page a statement.** Since
   migration 113 each page read the active announcements from PostgreSQL;
   they are now kept in the application cache for 30 seconds under their own

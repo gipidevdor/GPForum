@@ -70,7 +70,7 @@ site=forum.example.com
    ✓ account gpforum: made, with /opt/gpforum/var/attachments for its uploads
    ✓ /etc/gpforum/gpforum.env: written, 0640 root:gpforum, with a new session secret and metrics token
    ✓ gpforum: linked into /usr/local/bin, so it runs from any directory
-   ✓ database gpforum at unix:5432: made, with its role gpforum
+   ✓ database gpforum at /var/run/postgresql/.s.PGSQL.5432: made, with its role gpforum
    ✓ Applied 51 migrations, 001 to 051; synced the query budgets (25 changed)
 
    Next: make the forum's owner, with sudo -u gpforum gpforum admin create --email EMAIL --username NAME
@@ -810,7 +810,9 @@ Minimum recommended posture:
   transaction they run in (`GPFORUM_SEARCH_STATEMENT_TIMEOUT_MS`; 0 leaves
   them under the 15s above) and rank only the newest 1000 matches
   (`GPFORUM_SEARCH_CANDIDATE_LIMIT`);
-- `application_name=gpforum` is set on connect;
+- each connection names its process in `application_name` (`gpforum-web`,
+  `gpforum-outbox`, `gpforum-migrate`, ...) and gives up after
+  `connect_timeout=5`, unless the DSN sets them (ADR 0137);
 - backups and restore tests exist before production launch: `gpforum
   backup` nightly and `gpforum restore --check` on each
   ([ops/backup-and-restore.md](ops/backup-and-restore.md));

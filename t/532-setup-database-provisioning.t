@@ -13,6 +13,7 @@ use Test::More;
 use lib 'lib';
 
 use GPForum::OS;
+use GPForum::OS::Linux;
 use GPForum::Service::Operations::DatabaseProvisioning;
 
 our $VERSION = '0.001';
@@ -42,9 +43,10 @@ subtest 'a data source is read as libpq reads it' => sub {
         undef, 'and nothing but PostgreSQL' );
     is(
         $class->server_name(
-            $class->data_source('dbi:Pg:dbname=x;port=55433')
+            $class->data_source(q{dbi:Pg:dbname=x;port=55433}),
+            GPForum::OS::Linux->new
         ),
-        'unix:55433',
+        q{/var/run/postgresql/.s.PGSQL.55433},
         'its server, as an operator reads it'
     );
     ok( $class->is_local( $class->data_source('dbi:Pg:dbname=x;host=::1') ),

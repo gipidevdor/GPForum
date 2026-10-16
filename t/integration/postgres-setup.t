@@ -84,8 +84,10 @@ subtest 'a fresh install, as a superuser who answers' => sub {
     );
     _has(
         $first->{output},
-        "\N{CHECK MARK} database $NAME at $source->{host}:$source->{port}:"
-          . " made, with its role $NAME, $way\n",
+        "\N{CHECK MARK} database $NAME at "
+          . GPForum::Service::Operations::DatabaseProvisioning->server_name(
+            $source)
+          . ": made, with its role $NAME, $way\n",
         'the database and its role, made, and the way in it used'
     );
     _has(

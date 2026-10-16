@@ -28,7 +28,7 @@ $ sudo -u gpforum gpforum doctor
 ✓ sized for 2 CPUs, 2 GB: 4 web processes, 4096 cache entries a process
 ✓ host: Linux with epoll, 2 CPUs
 ✓ open files: up to 65536
-✓ database: PostgreSQL 18.6, gpforum at 127.0.0.1:5432
+✓ database: PostgreSQL 18.6, gpforum at /var/run/postgresql/.s.PGSQL.5432
 ✓ schema: current (051)
 ✓ query budgets: as the code sets them
 ✓ readiness: 6 more checks of /health/ready pass
@@ -96,7 +96,7 @@ same way, on its own, with the command that installs it.
 $ sudo -u gpforum gpforum doctor --upgrade
 ✓ settings: production, read from /etc/gpforum/gpforum.env
 ✓ dependencies: the 18 modules this release needs, for Perl 5.40.1
-✓ database: PostgreSQL 18.6, gpforum at 127.0.0.1:5432
+✓ database: PostgreSQL 18.6, gpforum at /var/run/postgresql/.s.PGSQL.5432
 ✓ schema: current (052)
 ✓ query budgets: as the code sets them
 ! services: gpforum-outbox.service differs from this release's
@@ -118,7 +118,7 @@ the environment file; `--url URL` asks another address.
 
 ```text
 $ sudo -u gpforum gpforum status
-http://127.0.0.1:8080: ready, with warnings (production, 14 checks)
+http+unix://%2Fopt%2Fgpforum%2Fvar%2Frun%2Fgpforum.sock: ready, with warnings (production, 14 checks)
 
 ✓ database
 ✓ runtime

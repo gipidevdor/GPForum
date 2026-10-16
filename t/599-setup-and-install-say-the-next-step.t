@@ -149,7 +149,7 @@ subtest 'in Italian: the sender that followed, and what each login was told' =>
     );
     is(
         ( grep { index( $_, $FAILED ) == 0 } @lines )[0],
-        "${FAILED}database gpforum su unix:5432: nessun superutente di"
+"${FAILED}database gpforum su /var/run/postgresql/.s.PGSQL.5432: nessun superutente di"
           . ' PostgreSQL risponde qui (gpicchiarelli: role "gpicchiarelli"'
           . ' does not exist), quindi il database del ruolo gpforum non'
           . " \N{LATIN SMALL LETTER E WITH GRAVE} creato",

@@ -14,6 +14,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Config::Report;
 use GPForum::Migration::Plan;
 use GPForum::Migration::Runner;
+use GPForum::OS;
 use GPForum::OS::Preflight;
 use GPForum::OS::RuntimePolicy;
 use GPForum::Runtime;
@@ -22,6 +23,7 @@ use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::AntivirusCheck;
 use GPForum::Service::Operations::CacheFactory;
 use GPForum::Service::Operations::DatabaseFailure;
+use GPForum::Service::Operations::DatabaseProvisioning;
 use GPForum::Service::Admin::Settings;
 use GPForum::Service::Operations::Dependencies;
 use GPForum::Service::Operations::Findings;
@@ -498,7 +500,9 @@ sub _database ( $self, $state ) {
     };
     $state->{schema} = $database->{schema};
 
-    my %dsn = _dsn_parts( $config->database_dsn );
+    my $provisioning = q{GPForum::Service::Operations::DatabaseProvisioning};
+    my $source       = $provisioning->data_source( $config->database_dsn )
+      // $provisioning->data_source(q{dbi:Pg:});
     $state->{findings}->add(
         name    => 'database',
         status  => 'ok',
@@ -506,8 +510,8 @@ sub _database ( $self, $state ) {
             'doctor.database',
             {
                 version  => $database->{version} // q{?},
-                database => $dsn{dbname}         // 'gpforum',
-                server   => $dsn{server},
+                database => $source->{database}  // 'gpforum',
+                server   => $database->{server} // $self->_server_name($source),
             }
         ],
     );
@@ -944,12 +948,18 @@ sub _probe_sizing ( $self, $config ) {
 }
 
 sub _probe_database ( $self, $config ) {
-    my $schema = GPForum::Schema->connect_from_config($config);
-    my ($version) =
-      $schema->storage->dbh->selectrow_array('SHOW server_version');
+    my $schema    = GPForum::Schema->connect_from_config($config);
+    my $dbh       = $schema->storage->dbh;
+    my ($version) = $dbh->selectrow_array('SHOW server_version');
     $version =~ s/\s.*\z//msx;
 
-    return { schema => $schema, version => $version };
+    return {
+        schema  => $schema,
+        version => $version,
+        server  => $self->_server_name(
+            { host => $dbh->{pg_host} // q{}, port => $dbh->{pg_port} }
+        ),
+    };
 }
 
 sub _probe_schema ( $self, $schema ) {
@@ -1089,18 +1099,11 @@ sub _now ($self) {
     return $self->probes->{now} ? $self->probes->{now}->() : time;
 }
 
-# The host, port and database a DSN names, the server as host:port.
-sub _dsn_parts ($dsn) {
-    my ($rest) = ( $dsn // q{} ) =~ /\A dbi:Pg: (.*) \z/msxi;
-    my %parts =
-      map { /\A \s* ([^=\s]+) \s* = \s* (.*?) \s* \z/msx ? ( lc $1, $2 ) : () }
-      split /;/msx, $rest // q{};
-    $parts{dbname} //= $parts{database} // $parts{db};
-    my $host = $parts{host} // 'unix';
-    $parts{server} =
-      $host =~ m{\A /}msx ? $host : "$host:" . ( $parts{port} // '5432' );
-
-    return %parts;
+# The server a data source names, as libpq names it: host:port, or the
+# socket's path (ADR 0137).
+sub _server_name ( $self, $source ) {
+    return GPForum::Service::Operations::DatabaseProvisioning->server_name(
+        $source, $self->os // GPForum::OS->detect );
 }
 
 # An error's text without croak's " at FILE line N." or the newline after it.

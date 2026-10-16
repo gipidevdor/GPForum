@@ -1738,6 +1738,17 @@ msgstr ""
 "this host: allow it in pg_hba.conf, or correct GPFORUM_DATABASE_DSN {where}."
 
 #, python-brace-format
+msgctxt "database.no_socket"
+msgid ""
+"There is no PostgreSQL socket at {server}: start PostgreSQL with {start}, or "
+"set host= in GPFORUM_DATABASE_DSN {where} to the directory that holds its "
+"socket."
+msgstr ""
+"There is no PostgreSQL socket at {server}: start PostgreSQL with {start}, or "
+"set host= in GPFORUM_DATABASE_DSN {where} to the directory that holds its "
+"socket."
+
+#, python-brace-format
 msgctxt "database.not_migrated"
 msgid ""
 "The database has no {relation} table yet: apply the migrations with "

@@ -737,6 +737,7 @@ sub _parse_options (@argv) {
         'allow-1000!'          => \$args{allow_1000},
         'allow-5000!'          => \$args{allow_5000},
         'scenario=s@'          => \$args{scenarios},
+        'workers=i'            => \$args{workers},
         'disposable-database!' => \$args{disposable_database},
         'generator=s'          => \$args{generator},
         'dry-run!'             => \$args{dry_run},
@@ -759,6 +760,7 @@ sub _parse_options (@argv) {
 }
 
 sub _validate_options ($args) {
+    _validate_workers($args);
     if ( any { !exists $SCENARIOS{$_} } @{ $args->{scenarios} // [] } ) {
         croak 'unknown HTTP scenario';
     }
@@ -772,6 +774,15 @@ sub _validate_options ($args) {
         croak 'duration 1..30, repetitions 1..5 and deadline 30..1800 required';
     }
     return _connection_levels($args);
+}
+
+sub _validate_workers ($args) {
+    return if !defined $args->{workers};
+    croak 'workers 1..8 and mode pr required for a fixed worker comparison'
+      if $args->{workers} < 1
+      || $args->{workers} > WORKERS_LARGE
+      || $args->{mode} ne 'pr';
+    return;
 }
 
 sub _connection_levels ($args) {
@@ -1214,11 +1225,27 @@ sub _finish ($state) {
     return $state->{failures}->@* || !$state->{measurements}->@* ? 1 : 0;
 }
 
+sub _selected_plan ( $args, $skips ) {
+    my $cells =
+      _experimental_plan( $args, plan( $args->{mode}, $args->{levels} ),
+        $skips );
+    if ( $args->{scenarios} ) {
+        my %selected = map { $_ => 1 } $args->{scenarios}->@*;
+        $cells = [ grep { $selected{ $_->{scenario} } } $cells->@* ];
+    }
+    if ( defined $args->{workers} ) {
+        for my $cell ( $cells->@* ) {
+            $cell->{workers} = $args->{workers};
+        }
+    }
+    return $cells;
+}
+
 sub main (@argv) {
     my $args = _parse_options(@argv);
     if ( $args->{help} ) {
         print
-"Usage: script/performance-http --output DIR --mode pr|main|deep [--generator wrk|mojo|auto] --disposable-database [--duration 1..30 --repetitions 1..5 --deadline 30..1800 --concurrency 1,10,... --allow-1000 --allow-5000 --scenario NAME --dry-run]\n"
+"Usage: script/performance-http --output DIR --mode pr|main|deep [--generator wrk|mojo|auto] --disposable-database [--duration 1..30 --repetitions 1..5 --deadline 30..1800 --concurrency 1,10,... --allow-1000 --allow-5000 --scenario NAME --workers 1..8 (pr only) --dry-run]\n"
           or croak "Cannot write help: $ERRNO";
         return 0;
     }
@@ -1232,14 +1259,7 @@ sub main (@argv) {
         saturation   => {},
         server_index => 0,
     };
-    $state->{cells} =
-      _experimental_plan( $args, plan( $args->{mode}, $args->{levels} ),
-        $state->{skips} );
-    if ( $args->{scenarios} ) {
-        my %selected = map { $_ => 1 } $args->{scenarios}->@*;
-        $state->{cells} =
-          [ grep { $selected{ $_->{scenario} } } $state->{cells}->@* ];
-    }
+    $state->{cells} = _selected_plan( $args, $state->{skips} );
     if ( $args->{dry_run} ) { return _dry_run($state); }
     if ( !_database_is_disposable($args) ) {
         suite_status(

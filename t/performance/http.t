@@ -30,6 +30,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
     SEEDED_POSTS          => 4800,
     STRESS_CONNECTIONS    => 5000,
     STRESS_FD_LIMIT       => 16_384,
+    STRESS_WORKERS        => 4,
 };
 use JSON::PP;
 use lib 'script/lib';
@@ -233,12 +234,13 @@ ok(
         '--generator',   'wrk',
         '--concurrency', STRESS_CONNECTIONS,
         '--allow-5000',  '--scenario',
-        'health_live',   '--dry-run',
+        'health_live',   '--workers',
+        STRESS_WORKERS,  '--dry-run',
     );
     my $plan = decode_json( capture( sub { main(@options); } ) )->{plan};
     is_deeply(
         [ map { [ $_->@{qw(scenario concurrency workers)} ] } $plan->@* ],
-        [ [ 'health_live', STRESS_CONNECTIONS, 2 ] ],
+        [ [ 'health_live', STRESS_CONNECTIONS, STRESS_WORKERS ] ],
         'the CI stress plan executes 5000 connections on the selected endpoint'
     );
     local *GPForum::Performance::HTTP::nofile_soft =
@@ -257,6 +259,11 @@ ok(
         sub { main( @options, '--scenario', 'unknown' ); },
         qr/unknown[ ]HTTP[ ]scenario/msx,
         'an unknown endpoint cannot produce an empty successful test'
+    );
+    dies(
+        sub { main( @options, '--workers', 0 ); },
+        qr/workers.*required/msx,
+        'a fixed worker count must be positive'
     );
 }
 {

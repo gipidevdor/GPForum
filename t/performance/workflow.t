@@ -153,8 +153,9 @@ like(
     'ordinary CI compares 1000 and 5000 connections on the same runner'
 );
 ok(
-    index( $ordinary, '--scenario health_live --duration 10 --repetitions 3' )
-      >= 0,
+    index( $ordinary,
+        '--scenario health_live --workers 4 --duration 10 --repetitions 3' ) >=
+      0,
     'the transport capacity test is repeated and identifies its endpoint'
 );
 ok(

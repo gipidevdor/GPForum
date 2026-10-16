@@ -866,6 +866,10 @@ values masked, are the same before and after.
   page's first request took 95 ms under `prefork`, the second 16). The
   manager renders the main pages before it forks (`GPForum::Web::Warmup`,
   `GPFORUM_WARMUP_ENABLED`); the first request to a worker takes 21.
+  Warm-up now dispatches directly through the application's handler: it
+  opens neither a loopback TCP listener nor a second event loop. The
+  existing warm-up contracts and `t/690-warmup-without-network.t` verify
+  that the same pages compile and normal requests are not marked as warming.
 
 In process, the signed-in thread page went from 24.7 to about 14 ms, the
 category page from 15.1 to about 12, the home page from 17.5 to about 12
@@ -885,6 +889,10 @@ EV/kqueue (backend 8), measured about 12 ms of inclusive rendering and
 caching. Instrumentation increased the whole request to about 33.5 ms;
 these inclusive timings overlap and must not be added or compared with
 uninstrumented latency.
+
+The final warmed fragment profile reduced inclusive rendering to about
+9 ms; SQL execution remained about 1.5 ms. This identifies the saved work
+as template presentation rather than fewer authorization or database checks.
 
 `GPForum::Web::PostFragments` now caches escaped, static post presentation:
 author markup, translated labels, form fields, action paths and sheet

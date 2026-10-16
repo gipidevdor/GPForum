@@ -8,8 +8,6 @@ use v5.40;
 
 use Const::Fast;
 use GPForum::Infrastructure::Row;
-use Mojo::IOLoop;
-use Mojo::UserAgent;
 use Time::HiRes qw(time);
 
 our $VERSION = '0.001';
@@ -25,16 +23,9 @@ sub run ($self) {
     my $application = $self->application;
     my $started     = time;
 
-    # A client of its own, on a loop of its own: the server's loop is not
-    # running yet, and a request made through it would wait for it.
-    my $client = Mojo::UserAgent->new(
-        ioloop        => Mojo::IOLoop->new,
-        max_redirects => 0,
-    );
-    $client->server->app($application);
-
     $application->defaults->{'gpforum.warming'} = 1;
-    my @pages = map { _fetched( $client, $_ ) } @PAGES, $self->_listed_paths;
+    my @pages = map { _fetched( $application, $_ ) } @PAGES,
+      $self->_listed_paths;
     delete $application->defaults->{'gpforum.warming'};
     $self->_disconnect;
 
@@ -52,8 +43,19 @@ sub describe ( $, $report ) {
       join ', ', map { "$_->{path} $_->{status}" } @pages;
 }
 
-sub _fetched ( $client, $path ) {
-    my $status = $client->get($path)->res->code;
+sub _fetched ( $application, $path ) {
+
+    # Dispatch synchronously before the server starts. No HTTP listener or
+    # second event loop is needed just to compile the application's templates.
+    my $transaction = $application->build_tx;
+    $transaction->remote_address('127.0.0.1');
+    my $request = $transaction->req;
+    $request->method('GET');
+    $request->url->parse($path);
+    $request->url->base->parse('http://127.0.0.1');
+    $request->headers->host('127.0.0.1');
+    $application->handler($transaction);
+    my $status = $transaction->res->code;
 
     return { path => $path, status => $status // 0 };
 }
@@ -128,11 +130,12 @@ inherits it through the fork. L<GPForum::Bootstrap::Core> runs it from the
 C<before_server_start> hook when the server is a L<Mojo::Server::Prefork>
 (Hypnotoad is one) and C<warmup_enabled> is on.
 
-The pages are requested through an in-process client, as the test client
-requests them, with C<gpforum.warming> set on the stash defaults for the
-duration: the realtime listener is not started for those requests, since
-the workers would inherit its connection. The database connection the
-manager opened is closed afterwards for the same reason.
+The synchronous pages are dispatched directly through the application's
+normal handler, with C<gpforum.warming> set on the stash defaults for the
+duration. No TCP listener, HTTP client or additional event loop is opened.
+The realtime listener is not started for those requests, since the workers
+would inherit its connection. The database connection the manager opened
+is closed afterwards for the same reason.
 
 =head1 SUBROUTINES/METHODS
 
@@ -162,7 +165,7 @@ this module reads nothing itself.
 
 =head1 DEPENDENCIES
 
-L<Mojo::UserAgent>, L<GPForum::Infrastructure::Row>.
+L<GPForum::Infrastructure::Row>.
 
 =head1 INCOMPATIBILITIES
 

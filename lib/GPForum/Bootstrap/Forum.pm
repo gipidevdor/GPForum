@@ -14,6 +14,7 @@ use GPForum::Service::Attachment::Store;
 use GPForum::Service::Attachment::UploadPipeline;
 use GPForum::Service::Attachment::Workflow;
 use GPForum::Service::Community::BookmarkStore;
+use GPForum::Service::Community::BookmarkFolders;
 use GPForum::Service::Community::LikeStore;
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::ReplyLinks;
@@ -362,6 +363,14 @@ sub _register_attachment_helpers {
 sub _register_community_helpers {
     my ($application) = @_;
 
+    $application->helper(
+        gp_bookmark_folders => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Community::BookmarkFolders->new(
+                schema => $controller->gp_schema );
+        }
+    );
     $application->helper(
         gp_bookmark_store => sub {
             my ($controller) = @_;

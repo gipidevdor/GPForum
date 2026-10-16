@@ -28,7 +28,8 @@ const my $MANY_ROWS => 50;
 # (migration 109) and the reply targets (114), and the category, home and
 # thread pages one more each for the tags of their threads (117, ADR
 # 0135): one statement per page, however many rows, as the fifty-row
-# comparison below proves.
+# comparison below proves. The signed-in bookmarks page took one more on
+# 2026-10-15 for the member's folders (121, ADR 0136).
 const my %BUDGET => (
     anonymous => {
         categories => 1,
@@ -39,7 +40,7 @@ const my %BUDGET => (
         thread     => 6,
     },
     'signed in' => {
-        bookmarks     => 3,
+        bookmarks     => 4,
         categories    => 3,
         category      => 5,
         feed          => 3,

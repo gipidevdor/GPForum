@@ -218,6 +218,7 @@ sub _helper_names {
       gp_attachment_upload_pipeline
       gp_attachment_workflow
       gp_bookmark_store
+      gp_bookmark_folders
       gp_like_store
       gp_reply_links
       gp_thread_tags

@@ -176,6 +176,9 @@ sub register ( $, %input ) {
     $routes->post('/t/:thread_id/bookmark/remove')
       ->to('Forum::Community#remove_thread_bookmark')
       ->name('thread_bookmark_remove');
+    $routes->post('/bookmarks/:bookmark_id/folder')
+      ->to('Forum::Community#file_bookmark')
+      ->name('bookmark_folder');
     $routes->post('/t/:thread_id/subscribe')
       ->to('Forum::Community#subscribe_thread')
       ->name('thread_subscribe');

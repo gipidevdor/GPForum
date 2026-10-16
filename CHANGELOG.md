@@ -546,6 +546,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Bookmarks can be filed in folders.** A member names a folder with the
+  note when saving a bookmark, or moves a bookmark from the bookmarks page,
+  which now names their folders with counts and lists one folder or all
+  (ADR 0136, migration 121). The folder is a row beside the bookmark,
+  written after the bookmark command through
+  `api.community_set_bookmark_folder_v1`; the list is
+  `api.community_list_bookmarks_v3`, with the folder joined, and the folders
+  `api.community_list_bookmark_folders_v1`.
 - **Notification preferences by kind, notification email and one-click
   unsubscribe** (PB-08, D02/D04/D05, ADR 0078 amended). In `/settings` a
   member turns replies in followed threads, mentions and moderation notices

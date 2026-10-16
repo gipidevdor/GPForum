@@ -50,6 +50,9 @@
             <input type="hidden" name="command_id" value="<%= $engagement->{bookmark_command_id} || q{} %>">
             <label for="bookmark-note"><%= t('community.bookmark_note') %></label>
             <input id="bookmark-note" name="note" type="text" value="">
+            <label for="bookmark-folder"><%= t('community.bookmark_folder') %></label>
+            <input id="bookmark-folder" name="folder" type="text" value="" autocomplete="off" aria-describedby="bookmark-folder-hint">
+            <p class="ui-hint" id="bookmark-folder-hint"><%= t('community.bookmark_folder_hint') %></p>
             <button type="submit"><%= t('community.save_bookmark') %></button>
           </form>
         <% end %>

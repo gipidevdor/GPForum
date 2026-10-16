@@ -33,6 +33,7 @@ const my $TARGET_THREAD             => 'thread';
 const my $TARGET_USER               => 'user';
 const my $STATUS_BOOKMARKED         => 'bookmarked';
 const my $STATUS_BOOKMARK_REMOVED   => 'bookmark_removed';
+const my $STATUS_BOOKMARK_FILED     => 'bookmark_filed';
 const my $STATUS_SUBSCRIBED         => 'subscribed';
 const my $STATUS_SUBSCRIPTION_MUTED => 'subscription_muted';
 const my $STATUS_UNSUBSCRIBED       => 'unsubscribed';
@@ -57,6 +58,7 @@ const my $STATUS_READ_MARKED => 'read_marked';
 const my $STATUS_REPORTED    => 'reported';
 const my %WRITE_FLASH => (
     $STATUS_BOOKMARKED         => 'forum.bookmarked',
+    $STATUS_BOOKMARK_FILED     => 'forum.bookmark_filed',
     $STATUS_BOOKMARK_REMOVED   => 'forum.bookmark_removed',
     $STATUS_POST_CREATED       => 'forum.reply_posted',
     $STATUS_POST_DELETED       => 'forum.post_deleted',
@@ -248,6 +250,10 @@ sub bookmarked_status {
 
 sub bookmark_removed_status {
     return $STATUS_BOOKMARK_REMOVED;
+}
+
+sub bookmark_filed_status {
+    return $STATUS_BOOKMARK_FILED;
 }
 
 sub post_liked_status {
@@ -519,6 +525,11 @@ Returns C<bookmarked>.
 =head2 bookmark_removed_status
 
 Returns C<bookmark_removed>.
+
+=head2 bookmark_filed_status
+
+Returns C<bookmark_filed>, the status of a bookmark moved to a folder (ADR
+0136).
 
 =head2 post_liked_status
 

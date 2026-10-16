@@ -18,7 +18,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 352;
+const my $EXPECTED_TESTS   => 364;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -294,6 +294,7 @@ $test->element_exists('form[action="/t/thread-1/bookmark"]');
 $test->element_exists(
     'form[action="/t/thread-1/bookmark"] input[name="command_id"]');
 $test->element_exists('label[for="bookmark-note"]');
+$test->element_exists('label[for="bookmark-folder"]');
 $test->element_exists('form[action="/t/thread-1/subscribe"]');
 $test->element_exists(
     'form[action="/t/thread-1/subscribe"] input[name="command_id"]');
@@ -441,6 +442,26 @@ $test->get_ok('/bookmarks');
 $test->status_is($HTTP_OK);
 $test->element_exists('section[aria-labelledby="bookmarks-heading"]');
 $test->element_exists('a[href="/t/thread-1"]');
+$test->element_exists(
+    'nav[aria-label="Folders"] a[href="/bookmarks?folder=Later"]');
+$test->element_exists(
+'form[action="/bookmarks/bookmark-1/folder"] input[name="folder"][value="Later"]'
+);
+$test->text_is( 'h2.ui-row__title span.ui-badge' => 'Later' );
+$test->get_ok('/bookmarks?folder=Later');
+$test->status_is($HTTP_OK);
+$test->text_is( 'h1#bookmarks-heading' => 'Bookmarks in Later' );
+my $folder_csrf = _csrf_token($test);
+$test->post_ok(
+    '/bookmarks/bookmark-1/folder' => form => {
+        csrf_token => $folder_csrf,
+        folder     => 'Perl',
+    }
+);
+$test->status_is($HTTP_FOUND);
+$test->header_like( Location => qr{/bookmarks[?]folder=Perl\z}msx );
+$test->get_ok('/bookmarks');
+$test->status_is($HTTP_OK);
 
 # Each list names the discussion a row is about, not its id; a row about a
 # post leads to the post.
@@ -688,7 +709,7 @@ sub _install_forum_fakes {
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store
         gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_bookmark_folders gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
         gp_notification_dispatcher gp_search_service gp_rate_limiter
         gp_suspension_store gp_attachment_store
         )

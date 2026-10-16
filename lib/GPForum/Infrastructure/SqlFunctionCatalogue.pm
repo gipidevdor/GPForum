@@ -503,7 +503,7 @@ const my %FUNCTION => (
       { version => 2, parameters => [ target_id => 'uuid' ] },
 
     community_list_bookmarks => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id          => 'uuid',
             filter_sources   => 'boolean',
@@ -515,7 +515,8 @@ const my %FUNCTION => (
             target_type      => 'text',
             after_created_at => 'timestamp with time zone',
             after_id         => 'uuid',
-            row_limit        => 'integer'
+            row_limit        => 'integer',
+            folder           => 'text'
         ]
     },
     community_list_feed => {
@@ -548,6 +549,13 @@ const my %FUNCTION => (
             row_limit        => 'integer'
         ]
     },
+    community_set_bookmark_folder => {
+        version    => 2,
+        parameters =>
+          [ bookmark_id => 'uuid', user_id => 'uuid', folder => 'text' ]
+    },
+    community_list_bookmark_folders =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
     community_save_bookmark => {
         version    => 2,
         parameters => [ row => 'jsonb', restore => 'boolean' ],

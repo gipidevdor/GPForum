@@ -303,6 +303,7 @@ sub source_list_call ( $self, $user_id, $options ) {
         },
         after_created_at => $after->{sort_value},
         after_id         => $after->{id},
+        folder           => $options->{folder}      || undef,
         row_limit        => $options->{limit}       || $DEFAULT_LIMIT,
         target_type      => $options->{target_type} || undef,
     };

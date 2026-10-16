@@ -70,6 +70,10 @@ const my %RETAINED => (
     forum_resolve_viewer_v3      => 0,
     forum_resolve_viewer_v4      => 1,
 
+    # Migration 121 (bookmark folders) moved the bookmark list on.
+    community_list_bookmarks_v1 => 0,
+    community_list_bookmarks_v2 => 1,
+
     # Migration 116 (first-post review) moved these on.
     moderation_automod_rules_v1  => 0,
     moderation_automod_rules_v2  => 1,

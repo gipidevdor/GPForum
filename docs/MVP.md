@@ -33,6 +33,9 @@ otherwise.
 * `GET /tags` lists every tag with how many discussions the reader may read
   under it; `GET /tags/:slug` lists those discussions, in every category or
   in the one `?category=ID` names (ADR 0135).
+* `GET /bookmarks?folder=NAME` lists the member's bookmarks in one folder,
+  and `POST /bookmarks/:bookmark_id/folder` moves one (ADR 0136); the
+  bookmark save takes an optional `folder` with the note.
 * `GET /new-thread` renders the thread form with a CSRF token.
 
 ### Forum writing

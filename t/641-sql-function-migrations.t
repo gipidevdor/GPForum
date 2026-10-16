@@ -57,6 +57,7 @@ const my %RETAINED_BOUNDARIES => (
     search_ranked            => [@RETAINED_SEARCH_VERSIONS],
     search_autocomplete      => [@RETAINED_SUGGEST_VERSIONS],
     forum_list_categories    => [2],
+    community_list_bookmarks => [2],
     forum_resolve_viewer     => [ 2, 4 ],
     moderation_target        => [2],
     moderation_target_update => [2],
@@ -338,6 +339,11 @@ sub _boundary_arguments ( $name, $version, $entry ) {
     # The ranked search gained its scope at v7; the retained boundaries
     # forward the arguments of their day.
     if ( $name eq 'search_ranked' && $version < $CURRENT_SEARCH_VERSION ) {
+        pop @names;
+    }
+
+    # The bookmark list gained its folder at v3 (migration 121).
+    if ( $name eq 'community_list_bookmarks' && $version == 2 ) {
         pop @names;
     }
     return @names;

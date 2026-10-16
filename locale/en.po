@@ -1308,6 +1308,22 @@ msgctxt "community.added_at"
 msgid "Added at"
 msgstr "Added at"
 
+msgctxt "community.all_bookmarks"
+msgid "All bookmarks"
+msgstr "All bookmarks"
+
+msgctxt "community.bookmark_folder"
+msgid "Folder"
+msgstr "Folder"
+
+msgctxt "community.bookmark_folder_hint"
+msgid "Optional: a folder of your own, up to 40 characters."
+msgstr "Optional: a folder of your own, up to 40 characters."
+
+msgctxt "community.bookmark_folders"
+msgid "Folders"
+msgstr "Folders"
+
 msgctxt "community.bookmark_note"
 msgid "Bookmark note"
 msgstr "Bookmark note"
@@ -1324,6 +1340,11 @@ msgctxt "community.bookmarks_empty"
 msgid "No bookmarks saved yet."
 msgstr "No bookmarks saved yet."
 
+#, python-brace-format
+msgctxt "community.bookmarks_in_folder"
+msgid "Bookmarks in {folder}"
+msgstr "Bookmarks in {folder}"
+
 msgctxt "community.feed"
 msgid "Feed"
 msgstr "Feed"
@@ -1336,6 +1357,17 @@ msgctxt "community.feed_pagination"
 msgid "Feed pagination"
 msgstr "Feed pagination"
 
+#, python-brace-format
+msgctxt "community.folder_count"
+msgid "{count} bookmark"
+msgid_plural "{count} bookmarks"
+msgstr[0] "{count} bookmark"
+msgstr[1] "{count} bookmarks"
+
+msgctxt "community.folder_empty"
+msgid "Nothing in this folder."
+msgstr "Nothing in this folder."
+
 msgctxt "community.follow_thread"
 msgid "Follow thread"
 msgstr "Follow thread"
@@ -1347,6 +1379,10 @@ msgstr "item"
 msgctxt "community.jump_to_first_unread"
 msgid "Jump to first unread post"
 msgstr "Jump to first unread post"
+
+msgctxt "community.move_bookmark"
+msgid "Move"
+msgstr "Move"
 
 msgctxt "community.mute_notifications"
 msgid "Mute notifications"
@@ -1538,6 +1574,11 @@ msgstr "Back to categories"
 msgctxt "forum.back_to_category"
 msgid "Back to category"
 msgstr "Back to category"
+
+msgctxt "forum.bookmark_filed"
+msgid "Bookmark moved"
+msgstr "Bookmark moved"
+
 
 msgctxt "forum.bookmark_removed"
 msgid "Bookmark removed"
@@ -2912,6 +2953,11 @@ msgctxt "notifications.email_body.review_rejected"
 msgid "The staff reviewed your reply and did not publish it. {reason}"
 msgstr "The staff reviewed your reply and did not publish it. {reason}"
 
+#, python-brace-format
+msgctxt "notifications.email_footer"
+msgid "You receive this email because of your notification settings: {settings_url}\nStop this kind of email: {unsubscribe_url}"
+msgstr "You receive this email because of your notification settings: {settings_url}\nStop this kind of email: {unsubscribe_url}"
+
 msgctxt "notifications.email_subject.follow"
 msgid "New activity in a followed thread"
 msgstr "New activity in a followed thread"
@@ -2943,6 +2989,30 @@ msgstr "No notifications yet."
 msgctxt "notifications.inbox_label"
 msgid "Notification inbox"
 msgstr "Notification inbox"
+
+msgctxt "notifications.kind.mention"
+msgid "Mentions"
+msgstr "Mentions"
+
+msgctxt "notifications.kind.moderation"
+msgid "Moderation notices"
+msgstr "Moderation notices"
+
+msgctxt "notifications.kind.reply"
+msgid "Replies in threads you follow"
+msgstr "Replies in threads you follow"
+
+msgctxt "notifications.kind_description.mention"
+msgid "Someone mentions you by your username."
+msgstr "Someone mentions you by your username."
+
+msgctxt "notifications.kind_description.moderation"
+msgid "Staff publish or decline a post of yours held for review."
+msgstr "Staff publish or decline a post of yours held for review."
+
+msgctxt "notifications.kind_description.reply"
+msgid "A new reply in a thread you follow."
+msgstr "A new reply in a thread you follow."
 
 msgctxt "notifications.mark_all_read"
 msgid "Mark all as read"
@@ -3054,6 +3124,79 @@ msgstr[1] "{count} unread"
 msgctxt "notifications.unread_many"
 msgid "More than 99 unread"
 msgstr "More than 99 unread"
+
+msgctxt "notifications.unsubscribe.choose"
+msgid "Which email to stop"
+msgstr "Which email to stop"
+
+msgctxt "notifications.unsubscribe.description"
+msgid "Stop notification email from GPForum. Account email, such as password resets, still arrives."
+msgstr "Stop notification email from GPForum. Account email, such as password resets, still arrives."
+
+msgctxt "notifications.unsubscribe.done_scope.all"
+msgid "You will no longer receive notification email."
+msgstr "You will no longer receive notification email."
+
+msgctxt "notifications.unsubscribe.done_scope.mention"
+msgid "You will no longer receive email about mentions."
+msgstr "You will no longer receive email about mentions."
+
+msgctxt "notifications.unsubscribe.done_scope.moderation"
+msgid "You will no longer receive email about moderation notices."
+msgstr "You will no longer receive email about moderation notices."
+
+msgctxt "notifications.unsubscribe.done_scope.reply"
+msgid "You will no longer receive email about replies in threads you follow."
+msgstr "You will no longer receive email about replies in threads you follow."
+
+msgctxt "notifications.unsubscribe.done_title"
+msgid "You are unsubscribed"
+msgstr "You are unsubscribed"
+
+msgctxt "notifications.unsubscribe.invalid_status"
+msgid "The unsubscribe link is not valid. You can change your email preferences in your settings after signing in."
+msgstr "The unsubscribe link is not valid. You can change your email preferences in your settings after signing in."
+
+
+msgctxt "notifications.unsubscribe.invalid_title"
+msgid "This link does not work"
+msgstr "This link does not work"
+
+msgctxt "notifications.unsubscribe.next_steps"
+msgid "Next steps"
+msgstr "Next steps"
+
+msgctxt "notifications.unsubscribe.open_settings"
+msgid "Open settings"
+msgstr "Open settings"
+
+msgctxt "notifications.unsubscribe.scope.all"
+msgid "All notification email"
+msgstr "All notification email"
+
+msgctxt "notifications.unsubscribe.scope.mention"
+msgid "Email about mentions of me"
+msgstr "Email about mentions of me"
+
+msgctxt "notifications.unsubscribe.scope.moderation"
+msgid "Email about moderation notices"
+msgstr "Email about moderation notices"
+
+msgctxt "notifications.unsubscribe.scope.reply"
+msgid "Email about replies in threads I follow"
+msgstr "Email about replies in threads I follow"
+
+msgctxt "notifications.unsubscribe.settings_hint"
+msgid "You can turn email back on at any time in your settings."
+msgstr "You can turn email back on at any time in your settings."
+
+msgctxt "notifications.unsubscribe.submit"
+msgid "Unsubscribe"
+msgstr "Unsubscribe"
+
+msgctxt "notifications.unsubscribe.title"
+msgid "Unsubscribe from email"
+msgstr "Unsubscribe from email"
 
 msgctxt "permission.admin_console_view"
 msgid "View admin console"
@@ -3452,6 +3595,14 @@ msgctxt "settings.notification_channels"
 msgid "Notification channels"
 msgstr "Notification channels"
 
+msgctxt "settings.notification_kinds"
+msgid "Notifications by kind"
+msgstr "Notifications by kind"
+
+msgctxt "settings.notification_kinds_help"
+msgid "Choose where each kind of notification reaches you. Email needs the email channel on and a verified address."
+msgstr "Choose where each kind of notification reaches you. Email needs the email channel on and a verified address."
+
 msgctxt "settings.notifications"
 msgid "Notifications"
 msgstr "Notifications"
@@ -3686,112 +3837,3 @@ msgstr "Pagination"
 msgctxt "ui.status_banner"
 msgid "Status"
 msgstr "Status"
-
-msgctxt "settings.notification_kinds"
-msgid "Notifications by kind"
-msgstr "Notifications by kind"
-
-msgctxt "settings.notification_kinds_help"
-msgid "Choose where each kind of notification reaches you. Email needs the email channel on and a verified address."
-msgstr "Choose where each kind of notification reaches you. Email needs the email channel on and a verified address."
-
-msgctxt "notifications.kind.reply"
-msgid "Replies in threads you follow"
-msgstr "Replies in threads you follow"
-
-msgctxt "notifications.kind_description.reply"
-msgid "A new reply in a thread you follow."
-msgstr "A new reply in a thread you follow."
-
-msgctxt "notifications.kind.mention"
-msgid "Mentions"
-msgstr "Mentions"
-
-msgctxt "notifications.kind_description.mention"
-msgid "Someone mentions you by your username."
-msgstr "Someone mentions you by your username."
-
-msgctxt "notifications.kind.moderation"
-msgid "Moderation notices"
-msgstr "Moderation notices"
-
-msgctxt "notifications.kind_description.moderation"
-msgid "Staff publish or decline a post of yours held for review."
-msgstr "Staff publish or decline a post of yours held for review."
-
-#, python-brace-format
-msgctxt "notifications.email_footer"
-msgid "You receive this email because of your notification settings: {settings_url}\nStop this kind of email: {unsubscribe_url}"
-msgstr "You receive this email because of your notification settings: {settings_url}\nStop this kind of email: {unsubscribe_url}"
-
-msgctxt "notifications.unsubscribe.title"
-msgid "Unsubscribe from email"
-msgstr "Unsubscribe from email"
-
-msgctxt "notifications.unsubscribe.description"
-msgid "Stop notification email from GPForum. Account email, such as password resets, still arrives."
-msgstr "Stop notification email from GPForum. Account email, such as password resets, still arrives."
-
-msgctxt "notifications.unsubscribe.choose"
-msgid "Which email to stop"
-msgstr "Which email to stop"
-
-msgctxt "notifications.unsubscribe.scope.reply"
-msgid "Email about replies in threads I follow"
-msgstr "Email about replies in threads I follow"
-
-msgctxt "notifications.unsubscribe.scope.mention"
-msgid "Email about mentions of me"
-msgstr "Email about mentions of me"
-
-msgctxt "notifications.unsubscribe.scope.moderation"
-msgid "Email about moderation notices"
-msgstr "Email about moderation notices"
-
-msgctxt "notifications.unsubscribe.scope.all"
-msgid "All notification email"
-msgstr "All notification email"
-
-msgctxt "notifications.unsubscribe.submit"
-msgid "Unsubscribe"
-msgstr "Unsubscribe"
-
-msgctxt "notifications.unsubscribe.settings_hint"
-msgid "You can turn email back on at any time in your settings."
-msgstr "You can turn email back on at any time in your settings."
-
-msgctxt "notifications.unsubscribe.open_settings"
-msgid "Open settings"
-msgstr "Open settings"
-
-msgctxt "notifications.unsubscribe.next_steps"
-msgid "Next steps"
-msgstr "Next steps"
-
-msgctxt "notifications.unsubscribe.done_title"
-msgid "You are unsubscribed"
-msgstr "You are unsubscribed"
-
-msgctxt "notifications.unsubscribe.done_scope.reply"
-msgid "You will no longer receive email about replies in threads you follow."
-msgstr "You will no longer receive email about replies in threads you follow."
-
-msgctxt "notifications.unsubscribe.done_scope.mention"
-msgid "You will no longer receive email about mentions."
-msgstr "You will no longer receive email about mentions."
-
-msgctxt "notifications.unsubscribe.done_scope.moderation"
-msgid "You will no longer receive email about moderation notices."
-msgstr "You will no longer receive email about moderation notices."
-
-msgctxt "notifications.unsubscribe.done_scope.all"
-msgid "You will no longer receive notification email."
-msgstr "You will no longer receive notification email."
-
-msgctxt "notifications.unsubscribe.invalid_title"
-msgid "This link does not work"
-msgstr "This link does not work"
-
-msgctxt "notifications.unsubscribe.invalid_status"
-msgid "The unsubscribe link is not valid. You can change your email preferences in your settings after signing in."
-msgstr "The unsubscribe link is not valid. You can change your email preferences in your settings after signing in."

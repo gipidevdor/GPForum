@@ -8,6 +8,7 @@ use v5.40;
 
 use Const::Fast;
 
+use GPForum::Service::Community::BookmarkFolders;
 use GPForum::Service::Forum::ThreadTags;
 
 our $VERSION = '0.001';
@@ -31,6 +32,8 @@ has like_calls       => sub { return []; };
 has announcements    => sub { return []; };
 has reply_links      => sub { return []; };
 has thread_tag_sets  => sub { return []; };
+has bookmark_files   => sub { return []; };
+has bookmark_folders => sub { return { 'bookmark-1' => 'Later' }; };
 has thread_tags      => sub {
     return { 'thread-1' => [ { name => 'Perl', slug => 'perl' } ] };
 };
@@ -1044,6 +1047,12 @@ sub list_page_for_user {
         };
     }
 
+    my $folder = $self->bookmark_folders->{'bookmark-1'};
+    if ( defined $options->{folder}
+        && $options->{folder} ne ( $folder // q{} ) )
+    {
+        return { items => [], next_cursor => undef };
+    }
     return {
         items => [
             {
@@ -1056,6 +1065,7 @@ sub list_page_for_user {
                 note                => 'Read later',
                 created_at          => '2026-05-23T12:00:00Z',
                 deleted_at          => undef,
+                folder              => $folder,
             },
         ],
         next_cursor => 'bookmark-cursor',
@@ -1208,6 +1218,40 @@ sub is_slug {
     my ( $self, $slug ) = @_;
 
     return GPForum::Service::Forum::ThreadTags->is_slug($slug);
+}
+
+# Bookmark folders (ADR 0136): a filing is recorded and answered as the
+# function would; thread-1's bookmark starts in "Later".
+sub file_bookmark {
+    my ( $self, $bookmark_id, $user_id, $folder ) = @_;
+
+    push @{ $self->bookmark_files }, [ $bookmark_id, $user_id, $folder ];
+    return undef if $bookmark_id ne 'bookmark-1';
+    my $named = $self->normalise($folder);
+    $self->bookmark_folders->{$bookmark_id} = length $named ? $named : undef;
+    return {
+        bookmark_id => $bookmark_id,
+        folder      => $self->bookmark_folders->{$bookmark_id}
+    };
+}
+
+sub list_folders {
+    my ( $self, $user_id ) = @_;
+
+    my %count;
+    for my $folder ( grep { defined } values %{ $self->bookmark_folders } ) {
+        $count{$folder}++;
+    }
+    return [
+        map { { bookmark_count => $count{$_}, folder => $_ } }
+        sort keys %count
+    ];
+}
+
+sub normalise {
+    my ( $self, $text ) = @_;
+
+    return GPForum::Service::Community::BookmarkFolders->normalise($text);
 }
 
 sub active_announcements {

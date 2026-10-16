@@ -20,7 +20,7 @@ use GPForum::Test::SuspendedParticipation;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 278;
+const my $EXPECTED_TESTS       => 290;
 const my $HTTP_OK              => 200;
 const my $HTTP_CREATED         => 201;
 const my $HTTP_BAD_REQUEST     => 400;
@@ -517,12 +517,41 @@ $test->post_ok(
     '/t/thread-1/bookmark' => { Accept => 'application/json' } => form => {
         command_id => 'bookmark-1',
         csrf_token => $session_csrf,
+        folder     => 'Later',
         note       => 'Read later',
     }
 );
 $test->status_is($HTTP_OK);
 $test->json_is( '/status'             => 'bookmarked' );
 $test->json_is( '/bookmark/target_id' => 'thread-1' );
+is_deeply(
+    $fakes->bookmark_files->[-1],
+    [ 'bookmark-1', 'user-1', 'Later' ],
+    'the folder named with the save files the bookmark once stored (ADR 0136)'
+);
+_get_json_ok( $test, '/bookmarks?folder=Later' );
+$test->status_is($HTTP_OK);
+$test->json_is( '/folder'             => 'Later' );
+$test->json_is( '/folders/0/folder'   => 'Later' );
+$test->json_is( '/bookmarks/0/folder' => 'Later' );
+$test->post_ok(
+    '/bookmarks/bookmark-1/folder' => { Accept => 'application/json' } =>
+      form => {
+        csrf_token => $session_csrf,
+        folder     => 'Perl',
+      }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/status'          => 'bookmark_filed' );
+$test->json_is( '/bookmark/folder' => 'Perl' );
+$test->post_ok(
+    '/bookmarks/bookmark-9/folder' => { Accept => 'application/json' } =>
+      form => {
+        csrf_token => $session_csrf,
+        folder     => 'Perl',
+      }
+);
+$test->status_is($HTTP_NOT_FOUND);
 
 $test->post_ok(
     '/t/thread-1/bookmark/remove' => { Accept => 'application/json' } =>
@@ -711,7 +740,7 @@ sub _install_forum_fakes {
         gp_category_reader gp_thread_reader gp_thread_detail_reader
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_bookmark_folders gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
         gp_notification_dispatcher gp_report_store gp_search_service
         gp_rate_limiter gp_suspension_store gp_attachment_store
         )

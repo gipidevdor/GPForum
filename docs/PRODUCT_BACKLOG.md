@@ -58,7 +58,7 @@ claim. No competitor source code or assets were imported for this review.
 | A05 | Draft autosave | Present in the current change; locally validated. Private thread/reply drafts, revision conflicts, serialized progressive autosave and native Save. [draft-flow], [draft-client], [draft-schema] | PB-10 / Maintain |
 | A06 | Rich live preview | Present for the existing safe markup subset in the current change; locally validated. Native Preview and debounced live preview use the canonical post renderer. WYSIWYG/full Markdown remain separate. [draft-flow], [draft-client], [markup] | PB-10 / Maintain |
 | A07 | Collaborative editing / typing indicators | Not found. Specify typing presence separately from concurrent document editing. [realtime], [routes] | PB-10 / Defer collaborative editing |
-| A08 | Advanced bookmarks | Partial: bookmarks already have notes in UI and storage; folders/reminders are missing. [thread-tools], [bookmarks] | PB-13 |
+| A08 | Advanced bookmarks | Folders done 2026-10-15 (ADR 0136): a folder named with the note or from the bookmarks page (`bookmark_folders`, migration 121), the page filters by folder and names them with counts. Reminders are not done. [thread-tools], [bookmarks] | PB-13 |
 | A09 | Save an unpublished thread | Present in the current change; locally validated. Owner-only title/category/body/visibility drafts with resume/delete, 100-draft quota and 30-day expiry. [draft-flow], [draft-schema], [new-thread] | PB-10 / Maintain |
 
 ## B. Content organization

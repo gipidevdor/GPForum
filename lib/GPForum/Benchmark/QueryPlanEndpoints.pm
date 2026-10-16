@@ -417,7 +417,7 @@ my %ENDPOINT = (
     },
     bookmarks_function => {
         purpose   => 'saved bookmarks through its readable source function',
-        sql_label => 'community_list_bookmarks_v1',
+        sql_label => 'community_list_bookmarks_v3',
         call      => sub ($schema) {
             return GPForum::Service::Community::BookmarkStore->new(
                 schema      => $schema,

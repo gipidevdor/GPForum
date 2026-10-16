@@ -44,9 +44,12 @@ sub bookmarks ($self) {
         return $self->_unauthorized;
     }
 
+    my $folder =
+      $self->gp_bookmark_folders->normalise( $self->param('folder') );
     my $page = $self->gp_bookmark_store->list_page_for_user(
         $user_id,
         {
+            folder      => length( $folder // q{} ) ? $folder : undef,
             target_type => $self->forum_access->thread_target,
             limit       => $self->list_page_limit,
             after       => $self->param('after'),
@@ -54,8 +57,11 @@ sub bookmarks ($self) {
         }
     );
 
-    my $payload =
-      $self->gp_community_view_model->bookmarks_page( page => $page );
+    my $payload = $self->gp_community_view_model->bookmarks_page(
+        folder  => $folder,
+        folders => $self->gp_bookmark_folders->list_folders($user_id),
+        page    => $page,
+    );
 
     return $self->render_payload(
         {
@@ -76,19 +82,68 @@ sub create_thread_bookmark ($self) {
         return;
     }
 
-    return $self->_community_write_response(
-        'bookmark',
-        $self->forum_access->bookmarked_status,
-        $self->gp_community_workflow->save_bookmark(
-            {
-                command_id  => $self->command_id_param,
-                note        => $self->param('note'),
-                target_id   => $self->param('thread_id'),
-                target_type => $self->forum_access->thread_target,
-                user_id     => $user_id,
-            }
-        ),
+    my $result = $self->gp_community_workflow->save_bookmark(
+        {
+            command_id  => $self->command_id_param,
+            note        => $self->param('note'),
+            target_id   => $self->param('thread_id'),
+            target_type => $self->forum_access->thread_target,
+            user_id     => $user_id,
+        }
     );
+    $self->_file_saved_bookmark( $result, $user_id );
+
+    return $self->_community_write_response( 'bookmark',
+        $self->forum_access->bookmarked_status, $result );
+}
+
+# The folder named with a save (ADR 0136) is set once the bookmark is
+# stored; a field left out or empty leaves the bookmark where it is. A
+# write that fails leaves the bookmark as it is: the folder is a hint.
+sub _file_saved_bookmark ( $self, $result, $user_id ) {
+    my $folder = $self->param('folder');
+    return if !defined $folder || !length $folder;
+    return if ( $result->{status} // 'ok' ) ne 'ok';
+    my $bookmark_id = $self->_column( $result->{stored}, 'bookmark_id' );
+    return if !$bookmark_id;
+    try {
+        $self->gp_bookmark_folders->file_bookmark( $bookmark_id, $user_id,
+            $folder );
+    }
+    catch ($error) {
+        $self->app->log->warn("bookmark folder failed: $error");
+    };
+    return;
+}
+
+# Moves one of the member's bookmarks to a folder, or out of its folder,
+# from the bookmarks page; the page then shows that folder.
+sub file_bookmark ($self) {
+    my $user_id = $self->write_user_id('thread.bookmark.file');
+    if ( !$user_id ) {
+        return;
+    }
+
+    my $filed =
+      $self->gp_bookmark_folders->file_bookmark( $self->param('bookmark_id'),
+        $user_id, $self->param('folder') );
+    if ( !$filed ) {
+        return $self->_not_found('bookmark not found');
+    }
+    my $status = $self->forum_access->bookmark_filed_status;
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json => $self->gp_community_view_model->bookmark_response(
+                $status, $filed
+            ),
+            status => $HTTP_OK,
+        );
+    }
+    $self->set_success_flash( $self->forum_access->write_flash_key($status) );
+    my $folder = $filed->{folder} // q{};
+
+    return $self->redirect_to( $self->url_for('bookmarks')
+          ->query( length $folder ? ( folder => $folder ) : () ) );
 }
 
 sub remove_thread_bookmark ($self) {
@@ -402,6 +457,12 @@ Saves a thread bookmark.
 =head2 remove_thread_bookmark
 
 Removes a thread bookmark.
+
+=head2 file_bookmark
+
+Moves one of the member's bookmarks to the folder given, or out of its
+folder when the field is empty (ADR 0136); 404 when the bookmark is not
+the member's or the folder is too long.
 
 =head2 subscribe_thread
 

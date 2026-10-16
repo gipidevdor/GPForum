@@ -18,7 +18,22 @@ sub bookmarks_page ( $self, %input ) {
 
     return {
         bookmarks => [ map { $self->bookmark($_) } @{ $page->{items} || [] } ],
+        folder    => $input{folder} // q{},
+        folders   => [
+            map { $self->_folder($_) }
+              @{ ref $input{folders} eq 'ARRAY' ? $input{folders} : [] }
+        ],
         next_cursor => $page->{next_cursor},
+    };
+}
+
+# A folder of the member's with how many bookmarks it holds (ADR 0136).
+sub _folder ( $, $row ) {
+    my $hash = ref $row eq 'HASH' ? $row : {};
+
+    return {
+        bookmark_count => $hash->{bookmark_count} // 0,
+        folder         => $hash->{folder}         // q{},
     };
 }
 
@@ -65,6 +80,7 @@ sub bookmark ( $self, $row ) {
     return {
         bookmark_id  => $self->column( $row, 'bookmark_id' ),
         created_at   => $self->column( $row, 'created_at' ),
+        folder       => $self->loaded_column( $row, 'folder' ),
         note         => $self->column( $row, 'note' ),
         target_id    => $self->column( $row, 'target_id' ),
         thread_id    => $self->loaded_column( $row, 'source_thread_id' ),

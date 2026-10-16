@@ -198,10 +198,7 @@ capacity; it does not establish capacity for database-backed pages. Failures
 remain visible in the CI gate. The separate `connections-5000` report and
 raw generator logs are included in the candidate artifact and Job Summary.
 The runner raises its file limit to 32,768; the harness requires at least
-16,384. The stress run partitions client capacity across workers: the rounded
-up share of 5,000 plus 64 slots per worker for internal event-loop connections
-(1,314 per worker with four workers). All 5,000 HTTP connections can be
-accepted, while a single worker cannot monopolize the entire burst.
+16,384 and permits 5,000 clients per worker for this explicit stress test.
 The stress listener backlog and the runner's accept/SYN queue limits are
 8,192, so the initial 5,000-connection burst is queued. This stress comparison
 uses an explicit three-second response timeout at both connection levels;

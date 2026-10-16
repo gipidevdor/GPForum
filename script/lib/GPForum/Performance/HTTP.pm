@@ -18,7 +18,7 @@ use List::Util   qw(min max sum any);
 use GPForum::Performance::Support
   qw(root_dir read_json write_json redact monotonic run_bounded);
 our @EXPORT_OK =
-  qw(scenarios free_port probe_url probe_reactor native_backend_flags wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment client_budget wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes);
+  qw(scenarios free_port probe_url probe_reactor native_backend_flags wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes);
 my @ORDER =
   qw(health_live home categories category thread search cache_hit cache_miss);
 ## no critic (ValuesAndExpressions::ProhibitConstantPragma) -- Core-only bootstrap cannot load Readonly before Carton dependencies.
@@ -30,7 +30,6 @@ use constant {
     CONCURRENCY_MAX          => 500,
     CONCURRENCY_EXPERIMENTAL => 1000,
     CONCURRENCY_STRESS       => 5000,
-    STRESS_WORKER_HEADROOM   => 64,
     MIN_FD_STRESS            => 16_384,
     DEFAULT_CLIENTS          => 2048,
     DEFAULT_BACKLOG          => 1024,
@@ -127,17 +126,6 @@ sub _attempt ($callback) {
     return $result;
 }
 sub scenarios { return {%SCENARIOS} }
-
-sub client_budget ( $args, $workers ) {
-    return DEFAULT_CLIENTS if !$args->{allow_5000};
-
-    # Bound each worker's share of the burst. The extra slots accommodate
-    # internal event-loop connections without leaving the last HTTP clients
-    # stranded in the listener behind persistent keep-alive connections.
-    return
-      int( ( CONCURRENCY_STRESS + $workers - 1 ) / $workers ) +
-      STRESS_WORKER_HEADROOM;
-}
 
 sub which ($name) {
     for my $dir ( File::Spec->path ) {
@@ -567,10 +555,9 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
         read_rate_limit   => RATE_LIMIT,
         database_settings => $pg->{database_settings},
         backlog => $args->{allow_5000} ? STRESS_BACKLOG : DEFAULT_BACKLOG,
-        clients_per_worker => {
-            map { $_ => client_budget( $args, $_ ) }
-              ( 1, 2, WORKERS_MEDIUM, WORKERS_LARGE )
-        },
+        clients_per_worker => $args->{allow_5000}
+        ? CONCURRENCY_STRESS
+        : DEFAULT_CLIENTS,
         http_scenarios => $args->{scenarios} // [@ORDER],
         fixed_workers  => $args->{workers},
         mojo_requests  => 'at least 100 total; at least 10 per client'
@@ -1155,10 +1142,9 @@ sub _group ( $state, $group ) {
                     cache_mode => $group->{cache_mode},
                     index      => ++$state->{server_index},
                     deadline   => $state->{deadline},
-                    clients    =>
-                      client_budget( $state->{args}, $group->{workers} ),
-                    backlog => $state->{args}{allow_5000}
-                    ? STRESS_BACKLOG
+                    clients => $state->{args}{allow_5000} ? CONCURRENCY_STRESS
+                    : DEFAULT_CLIENTS,
+                    backlog => $state->{args}{allow_5000} ? STRESS_BACKLOG
                     : DEFAULT_BACKLOG,
                 }
             );

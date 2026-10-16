@@ -18,10 +18,10 @@ our $VERSION = '0.001';
 # Three things the shipped service files did that an operator would only
 # find out on the host (walkthrough 1, friction 16):
 #
-# - gpforum-unix-socket.service set
+# - the socket unit gpforum.service then had set
 #   GPFORUM_RUNTIME_LISTEN=http+unix://%2Frun%2F..., and systemd reads % as
 #   a specifier: %2 is none it knows, so it dropped the line and the service
-#   listened on TCP, where nginx's unix-socket site found nothing.
+#   listened on TCP, where nginx's socket site found nothing.
 # - The launchd plists ran every job as root.
 # - The settings page said to restart gpforum after a change, and the outbox
 #   worker, which sends with the mail settings, kept the old ones.
@@ -50,23 +50,20 @@ subtest 'every % in a systemd unit is one systemd reads' => sub {
         'the default socket lives under the deployed code directory'
     );
     like(
-        path('deploy/nginx/gpforum-unix-socket.conf')->slurp,
+        path('deploy/nginx/gpforum.conf')->slurp,
         qr{unix:/opt/gpforum/var/run/gpforum[.]sock}msx,
-        'the socket the unix-socket nginx site forwards to'
+        'the socket the nginx site forwards to'
     );
     my $in_file =
       'GPFORUM_RUNTIME_LISTEN=http+unix://%2Frun%2Fgpforum%2Fgpforum.sock';
     like( path('docs/DEPLOYMENT.md')->slurp,
         qr/^\Q$in_file\E$/msx,
         'and the environment file form, with one %, as the guide gives it' );
-    is(
-        readlink('deploy/systemd/gpforum-unix-socket.service'),
-        'gpforum.service',
-        'the old unit name is an alias of the single canonical template'
+    ok(
+        !-e 'deploy/systemd/gpforum-unix-socket.service'
+          && !-e 'deploy/nginx/gpforum-unix-socket.conf',
+        'one unit and one site: the socket variants are gone (ADR 0137)'
     );
-    is( readlink('deploy/nginx/gpforum-unix-socket.conf'),
-        'gpforum.conf',
-        'the old site name is an alias of the single canonical template' );
 };
 
 subtest 'every launchd job runs as the service account' => sub {
@@ -125,7 +122,7 @@ subtest 'the settings page restarts what reads the settings' => sub {
         my $text = path($_)->slurp;
         $text =~ /^EnvironmentFile=/msx && $text !~ /^Type=oneshot$/msx
       }
-      grep { !/unix-socket/msx } sort glob 'deploy/systemd/*.service';
+      sort glob 'deploy/systemd/*.service';
     is_deeply(
         \@long_running,
         [qw(gpforum-outbox gpforum)],

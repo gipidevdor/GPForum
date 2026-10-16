@@ -447,8 +447,7 @@ sub _reading_this_host_file ( $self, $expected ) {
 sub _shipped ( $self, $unit ) {
     my $manager = $self->_manager;
     my @templates =
-      grep { defined && -e path( $self->root, $_ ) }
-      ( $unit->{template}, $unit->{socket} );
+      grep { defined && -e path( $self->root, $_ ) } $unit->{template};
 
     my @rendered =
       map { $self->files->render_template( $manager, $_, $unit ) } @templates;

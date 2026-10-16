@@ -442,7 +442,7 @@ sub _nginx_conf_phase ( $self, $options ) {
         matched_profile => $winner,
         attempts        => \@attempts,
         note            =>
-'Passes when the installed site matches either tcp (gpforum.conf) or unix-socket template contract. Does not reload nginx.',
+'Passes when the installed site matches the gpforum.conf template contract. Does not reload nginx.',
         residual_gaps => \@gaps,
         error         => $winner ? undef : 'no deploy/nginx contract matched',
     };

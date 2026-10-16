@@ -59,7 +59,6 @@ subtest 'units printed for this checkout are as this release ships them' =>
 subtest 'units copied from deploy/ before it are still as shipped' => sub {
     my $directory = tempdir( CLEANUP => 1 );
     for my $file ( path('deploy/systemd')->list->each ) {
-        next if $file->basename eq 'gpforum-unix-socket.service';
         $file->copy_to( path( $directory, $file->basename ) );
     }
     is( _units( _host('linux'), $directory )->units( _findings() )->status,

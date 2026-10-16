@@ -15,6 +15,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
+- **Install `gpforum.service` and `gpforum.conf` in place of the
+  `gpforum-unix-socket` ones.** `deploy/systemd/gpforum-unix-socket.service`
+  and `deploy/nginx/gpforum-unix-socket.conf` were links to the single
+  templates, kept for the old names; nothing was released with them, so
+  they are gone (ADR 0137). A host that installed one disables it, and
+  writes the current files with `gpforum service print systemd --to DIR`
+  and `gpforum service print nginx`.
+
 - **Take the group's write permission off the stored uploads.** The service
   used to run under umask 007, so the uploads it wrote are `0660` and their
   directories `0770`, writable by the proxy's account in the `gpforum`

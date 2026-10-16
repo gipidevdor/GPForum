@@ -31,9 +31,7 @@ subtest 'the application takes a request as large as an attachment' => sub {
         '>', $largest,
         'more than the largest attachment, for the form around it' );
 
-    for my $nginx (
-        qw(deploy/nginx/gpforum.conf deploy/nginx/gpforum-unix-socket.conf))
-    {
+    for my $nginx (qw(deploy/nginx/gpforum.conf)) {
         my ($megabytes) =
           path($nginx)->slurp =~ /^ \s* client_max_body_size [ ] (\d+)m;/msx;
         is(

@@ -108,9 +108,7 @@ subtest 'every supervisor ships an outbox worker' => sub {
 
 subtest 'nginx takes an upload as large as the application accepts' => sub {
     my $largest = GPForum::Service::Attachment::Validator->max_bytes;
-    for my $file (
-        qw(deploy/nginx/gpforum.conf deploy/nginx/gpforum-unix-socket.conf))
-    {
+    for my $file (qw(deploy/nginx/gpforum.conf)) {
         my ($limit) =
           path($file)->slurp =~ /client_max_body_size \s+ (\d+)m;/msx;
         ok(
@@ -124,9 +122,7 @@ subtest 'nginx takes an upload as large as the application accepts' => sub {
 
 subtest 'the X-Accel-Redirect alias is the default attachment store' => sub {
     my $root = GPForum::Config->new->attachment_root;
-    for my $file (
-        qw(deploy/nginx/gpforum.conf deploy/nginx/gpforum-unix-socket.conf))
-    {
+    for my $file (qw(deploy/nginx/gpforum.conf)) {
         my ($alias) = path($file)->slurp =~
 m{location [ ] /internal-attachments/ [ ] [{] [^}]* alias [ ] ([^;]+);}msx;
         is( $alias, "$HOME/$root/", "$file serves the attachment root" );
@@ -159,9 +155,7 @@ subtest 'every path that reaches /metrics is kept to the loopback' => sub {
     is_deeply( \@paths, [qw(/metrics /metrics/)],
         'the application answers /metrics and /metrics/' );
 
-    for my $nginx (
-        qw(deploy/nginx/gpforum.conf deploy/nginx/gpforum-unix-socket.conf))
-    {
+    for my $nginx (qw(deploy/nginx/gpforum.conf)) {
         my $text = path($nginx)->slurp;
         my ($location) =
           $text =~

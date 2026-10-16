@@ -51,8 +51,9 @@ a template language or units generated in code, would drift from them.
    - the host named by `GPFORUM_PUBLIC_BASE_URL`, for `forum.example.com`,
      an accented name in its `xn--` form, which nginx, Caddy and certbot
      take;
-   - the first address of `GPFORUM_RUNTIME_LISTEN`, for `127.0.0.1:8080`,
-     with the UNIX-socket variants when that address is a socket;
+   - the socket `GPFORUM_RUNTIME_LISTEN` names, for
+     `/opt/gpforum/var/run/gpforum.sock` (one template each: ADR 0137
+     removed the TCP and socket variants);
    - `GPFORUM_ATTACHMENT_ROOT`, for the nginx alias.
 
    On the documented layout the output is the template, byte for byte.
@@ -114,7 +115,7 @@ a template language or units generated in code, would drift from them.
 
 - `t/540-service-files-rendered.t`: the documented layout renders each
   template unchanged, and another one renders with every path replaced. It
-  covers the UNIX-socket variant, the FreeBSD crontab, the launchd account,
+  covers the socket upstream, the FreeBSD crontab, the launchd account,
   logs and environment-file wrapper, and the nginx and Caddy sites. It
   checks the example-address note and the steps for each operating system.
 - `t/541-service-print-command.t`: what the operator reads, on standard

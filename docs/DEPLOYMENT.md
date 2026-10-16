@@ -586,7 +586,6 @@ operating system's nginx or Caddy reads them:
 
 ```text
 deploy/nginx/gpforum.conf
-deploy/nginx/gpforum-unix-socket.conf
 deploy/caddy/Caddyfile
 ```
 
@@ -684,8 +683,9 @@ connect to and closed to other users. The service itself runs under umask
 proxy's account, which joins the group, reads them and cannot replace them.
 nginx and Caddy configurations printed with
 `gpforum service print` resolve the same path under the deployed code
-directory. The old `gpforum-unix-socket` template names are compatibility
-links to the canonical templates, not separate configurations.
+directory. There is one unit and one site: the `gpforum-unix-socket`
+variants are gone, so a host that installed one installs `gpforum.service`
+and `gpforum.conf` in its place (ADR 0137).
 
 A connection on the socket carries no client address, so the service takes
 the client from the last `X-Forwarded-For` entry: the one the proxy appends

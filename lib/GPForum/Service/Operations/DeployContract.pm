@@ -44,20 +44,6 @@ const my @UNIT_CHECKS => (
         ],
     },
     {
-        path       => 'deploy/systemd/gpforum-unix-socket.service',
-        name       => 'gpforum-unix-socket.service',
-        must_match => [
-            qr/^User=gpforum\s*$/msx,
-            qr/^EnvironmentFile=\/etc\/gpforum\/gpforum[.]env\s*$/msx,
-            qr/^Environment=GPFORUM_LOG_PATH=\S+\s*$/msx,
-            $EXEC_START_WEB,
-        ],
-        labels => [
-            'User=gpforum',     'EnvironmentFile',
-            'GPFORUM_LOG_PATH', $THROUGH_THE_FRONT_DOOR,
-        ],
-    },
-    {
         path       => 'deploy/systemd/gpforum-outbox.service',
         name       => 'gpforum-outbox.service',
         must_match => [
@@ -91,26 +77,6 @@ const my @NGINX_CHECKS => (
     {
         path       => 'deploy/nginx/gpforum.conf',
         name       => 'gpforum.conf',
-        must_match => [
-            qr/upstream\s+gpforum_backend\s*[{]/msx,
-            qr{server\s+unix:/opt/gpforum/var/run/gpforum[.]sock;}msx,
-            qr{location\s+/internal-attachments/}msx,
-            qr/listen\s+443\s+ssl;/msx,
-            qr/ssl_certificate\s+\S+;/msx,
-            qr{return\s+301\s+https://}msx,
-        ],
-        labels => [
-            'upstream gpforum_backend',
-            'unix socket upstream',
-            'internal-attachments',
-            'TLS listener',
-            'certificate configured',
-            'plain HTTP redirected',
-        ],
-    },
-    {
-        path       => 'deploy/nginx/gpforum-unix-socket.conf',
-        name       => 'gpforum-unix-socket.conf',
         must_match => [
             qr/upstream\s+gpforum_backend\s*[{]/msx,
             qr{server\s+unix:/opt/gpforum/var/run/gpforum[.]sock;}msx,
@@ -213,8 +179,8 @@ patterns the file must contain) and C<labels> (one name per pattern, for
 the report). Every unit must run as C<gpforum>, read
 C</etc/gpforum/gpforum.env>, set C<GPFORUM_LOG_PATH> and start through
 C<bin/gpforum> (the two web units as C<gpforum start --service>), or, as
-units copied before that did, through C<script/gpforum-carton exec>. Every nginx site must define its upstream (TCP
-C<127.0.0.1:8080>, or the C</run/gpforum/gpforum.sock> socket), the
+units copied before that did, through C<script/gpforum-carton exec>. The nginx site must define its upstream, the service's socket
+C</opt/gpforum/var/run/gpforum.sock> (ADR 0137), the
 C</internal-attachments/> location, a TLS listener on 443 with a
 certificate, and a redirect of plain HTTP to HTTPS. The functions are
 exported on request only.
@@ -223,20 +189,20 @@ exported on request only.
 
 =head2 deploy_unit_checks
 
-Returns the list of the four systemd unit checks: C<gpforum.service>,
-C<gpforum-unix-socket.service>, C<gpforum-outbox.service> and
-C<gpforum-scheduled-jobs.service>, from F<deploy/systemd/>.
+Returns the list of the three systemd unit checks: C<gpforum.service>,
+C<gpforum-outbox.service> and C<gpforum-scheduled-jobs.service>, from
+F<deploy/systemd/>.
 
 =head2 deploy_nginx_checks
 
-Returns the list of the two nginx checks: C<gpforum.conf> and
-C<gpforum-unix-socket.conf>, from F<deploy/nginx/>.
+Returns the list of the nginx checks: C<gpforum.conf>, from
+F<deploy/nginx/>.
 
 =head2 deploy_host_unit_checks
 
 Returns the list of the unit checks for the units a host runs:
 C<gpforum.service>, C<gpforum-outbox.service> and
-C<gpforum-scheduled-jobs.service>, without the unix-socket variant.
+C<gpforum-scheduled-jobs.service>.
 
 =head2 deploy_match_text
 

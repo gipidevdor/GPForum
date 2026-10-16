@@ -24,8 +24,8 @@ use GPForum::Service::Operations::DeployContract qw(
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 35;
-const my $CORE_UNITS     => 4;
+const my $EXPECTED_TESTS => 33;
+const my $CORE_UNITS     => 3;
 const my $HOST_UNITS     => 3;
 
 const my $FRESH_CHECK  => 'script/fresh-checkout-check';
@@ -76,7 +76,8 @@ plan tests => $EXPECTED_TESTS;
 
 ok( scalar( deploy_unit_checks() ) >= $CORE_UNITS,
     'unit contracts cover core units' );
-ok( scalar( deploy_nginx_checks() ) >= 2, 'nginx contracts cover tcp+unix' );
+is( scalar( deploy_nginx_checks() ), 1,
+    q{one nginx contract: the socket site} );
 is( scalar( deploy_host_unit_checks() ),
     $HOST_UNITS, 'host unit observe covers web+outbox+scheduled-jobs' );
 
@@ -121,7 +122,7 @@ like(
 # one, so systemd -- which reads PIDFile once at start -- was left tracking a
 # dead process and the reload killed the service. `kill -USR2` is that same hot
 # deploy, so there is nothing correct to put in ExecReload at all.
-for my $unit (qw(gpforum.service gpforum-unix-socket.service)) {
+for my $unit (qw(gpforum.service)) {
     my $text = path("deploy/systemd/$unit")->slurp;
     like( $text, qr/^Type=forking$/msx, "$unit still forks" );
     unlike( $text, qr/^ExecReload=/msx,

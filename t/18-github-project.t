@@ -11,7 +11,7 @@ use Test::More;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 156;
+const my $EXPECTED_TESTS => 149;
 const my $CURLY_CLASS    => '[{]';
 const my $LAUNCHD_FRONT_DOOR =>
   qr{<string>/opt/gpforum/bin/gpforum</string> \s*}msx;
@@ -69,14 +69,12 @@ for my $required_file (
     deploy/systemd/gpforum-outbox.service
     deploy/systemd/gpforum-scheduled-jobs.service
     deploy/systemd/gpforum-scheduled-jobs.timer
-    deploy/systemd/gpforum-unix-socket.service
     deploy/freebsd/gpforum
     deploy/freebsd/gpforum_outbox
     deploy/launchd/com.gpforum.app.plist
     deploy/launchd/com.gpforum.outbox.plist
     deploy/launchd/com.gpforum.scheduled-jobs.plist
     deploy/nginx/gpforum.conf
-    deploy/nginx/gpforum-unix-socket.conf
     deploy/caddy/Caddyfile
     docs/adr/0092-github-project-success-contract.md
     bin/gpforum
@@ -108,13 +106,11 @@ my $systemd_outbox = path('deploy/systemd/gpforum-outbox.service')->slurp;
 my $systemd_jobs = path('deploy/systemd/gpforum-scheduled-jobs.service')->slurp;
 my $systemd_jobs_timer =
   path('deploy/systemd/gpforum-scheduled-jobs.timer')->slurp;
-my $systemd_socket = path('deploy/systemd/gpforum-unix-socket.service')->slurp;
 my $launchd_jobs =
   path('deploy/launchd/com.gpforum.scheduled-jobs.plist')->slurp;
 my $freebsd_rc    = path('deploy/freebsd/gpforum')->slurp;
 my $launchd_plist = path('deploy/launchd/com.gpforum.app.plist')->slurp;
 my $nginx         = path('deploy/nginx/gpforum.conf')->slurp;
-my $nginx_unix    = path('deploy/nginx/gpforum-unix-socket.conf')->slurp;
 my $caddy         = path('deploy/caddy/Caddyfile')->slurp;
 
 like(
@@ -223,11 +219,6 @@ like(
     'systemd outbox unit loads production environment file'
 );
 like(
-    $systemd_socket,
-    qr/EnvironmentFile=\/etc\/gpforum\/gpforum[.]env/msx,
-    'systemd unix socket unit loads production environment file'
-);
-like(
     $deployment,
     qr/\/etc\/gpforum\/gpforum[.]env/msx,
     'deployment docs name the systemd environment file'
@@ -260,26 +251,9 @@ unlike(
     'systemd outbox unit does not call local/bin/carton'
 );
 like(
-    $systemd_socket,
-    qr{^ExecStart=/opt/gpforum/bin/gpforum [ ] start [ ] --service$}msx,
-    'systemd unix socket unit starts Hypnotoad through bin/gpforum'
-);
-unlike( _commands($systemd_socket),
-    qr{/script/}msx, 'and runs nothing of script/' );
-unlike(
-    $systemd_socket,
-    qr{/opt/gpforum/local/bin/carton}msx,
-    'systemd unix socket unit does not call local/bin/carton'
-);
-like(
     $systemd_web,
     qr/RuntimeDirectory=gpforum/msx,
     'systemd web unit creates /run/gpforum'
-);
-like(
-    $systemd_socket,
-    qr/RuntimeDirectory=gpforum/msx,
-    'systemd unix socket unit creates /run/gpforum'
 );
 like(
     $freebsd_rc,
@@ -353,9 +327,9 @@ like(
     'nginx keeps an internal alias for X-Accel-Redirect'
 );
 like(
-    $nginx_unix,
+    $nginx,
     qr{root [ ] /opt/gpforum;}msx,
-    'unix-socket nginx serves /assets/ from the repo assets tree'
+    'nginx serves /assets/ from the repo assets tree'
 );
 unlike( $caddy, qr{public/assets}msx,
     'Caddy does not serve a missing public/assets path' );

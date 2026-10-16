@@ -19,8 +19,8 @@ use GPForum::Service::Operations::DeployChecklistDrill;
 our $VERSION = '0.001';
 
 const my $EXPECTED_TESTS    => 32;
-const my $MIN_SYSTEMD_UNITS => 4;
-const my $MIN_NGINX_CONFIGS => 2;
+const my $MIN_SYSTEMD_UNITS => 3;
+const my $MIN_NGINX_CONFIGS => 1;
 
 plan tests => $EXPECTED_TESTS;
 

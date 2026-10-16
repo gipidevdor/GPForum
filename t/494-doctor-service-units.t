@@ -213,7 +213,6 @@ sub _has ( $text, $phrase, $name ) {
 sub _installed {
     my $directory = tempdir( CLEANUP => 1 );
     for my $file ( path('deploy/systemd')->list->each ) {
-        next if $file->basename eq 'gpforum-unix-socket.service';
         $file->copy_to( path( $directory, $file->basename ) );
     }
 

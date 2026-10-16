@@ -15,7 +15,7 @@ HTTP health endpoints answer.
 | Env file settings | every setting in `/etc/gpforum/gpforum.env` passes the checks the service makes at its start, the ones `gpforum doctor` reports, under the file's `GPFORUM_ENV` (else `production`, as the units set); each problem named, values never printed | `--env-file` |
 | systemd units | `gpforum` / `gpforum-outbox` / `gpforum-scheduled-jobs.timer` report active | `--systemd` |
 | Installed unit files | Deploy contract (User / EnvironmentFile / ExecStart) for web, outbox, scheduled-jobs | `--unit-dir` |
-| Installed nginx site | Deploy contract (tcp or unix-socket template) | `--nginx-conf` |
+| Installed nginx site | Deploy contract (`deploy/nginx/gpforum.conf`) | `--nginx-conf` |
 | HTTP health | `/health/live`, `/health/ready` by HTTP code (optional `/metrics`) | `--base-url` |
 | TLS observe | `https` scheme recorded (pair with health probe) | `--base-url https://…` |
 | DB migrate / dump | Throwaway or staging DB path | `bin/gpforum staging-drill` |

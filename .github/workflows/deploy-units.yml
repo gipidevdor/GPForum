@@ -79,15 +79,14 @@ jobs:
             deploy/systemd/gpforum.service \
             deploy/systemd/gpforum-outbox.service \
             deploy/systemd/gpforum-scheduled-jobs.service \
-            deploy/systemd/gpforum-scheduled-jobs.timer \
-            deploy/systemd/gpforum-unix-socket.service
+            deploy/systemd/gpforum-scheduled-jobs.timer
 
       - name: Stand in for certbot's certificate
         run: |
           set -euo pipefail
-          # The sites name the pair certbot writes and nginx -t loads it, so a
+          # The site names the pair certbot writes and nginx -t loads it, so a
           # self-signed pair, valid for a day, stands at the same paths.
-          for site in deploy/nginx/gpforum.conf deploy/nginx/gpforum-unix-socket.conf; do
+          for site in deploy/nginx/gpforum.conf; do
             cert=$(awk '$1 == "ssl_certificate" { sub(/;$/, "", $2); print $2 }' "$site")
             key=$(awk '$1 == "ssl_certificate_key" { sub(/;$/, "", $2); print $2 }' "$site")
             sudo mkdir -p "$(dirname "$cert")" "$(dirname "$key")"
@@ -97,21 +96,12 @@ jobs:
             fi
           done
 
-      - name: Verify the TCP nginx site
+      - name: Verify the nginx site
         run: |
           set -euo pipefail
           sudo rm -f /etc/nginx/sites-enabled/default
           sudo cp deploy/nginx/gpforum.conf /etc/nginx/sites-available/gpforum
           sudo ln -sf /etc/nginx/sites-available/gpforum /etc/nginx/sites-enabled/gpforum
-          sudo nginx -t
-
-      - name: Verify the unix-socket nginx site
-        run: |
-          set -euo pipefail
-          # The two sites share server_name, so they are parsed one at a time.
-          sudo rm -f /etc/nginx/sites-enabled/gpforum
-          sudo cp deploy/nginx/gpforum-unix-socket.conf /etc/nginx/sites-available/gpforum-unix-socket
-          sudo ln -sf /etc/nginx/sites-available/gpforum-unix-socket /etc/nginx/sites-enabled/gpforum-unix-socket
           sudo nginx -t
 
       - name: Validate the Caddyfile

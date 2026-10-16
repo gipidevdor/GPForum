@@ -32,6 +32,8 @@ use constant {
     CONCURRENCY_STRESS       => 5000,
     MIN_FD_STRESS            => 16_384,
     DEFAULT_CLIENTS          => 2048,
+    DEFAULT_BACKLOG          => 1024,
+    STRESS_BACKLOG           => 8192,
     MIN_CPU_EXPERIMENTAL     => 4,
     WORKERS_MEDIUM           => 4,
     WORKERS_LARGE            => 8,
@@ -549,9 +551,9 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
           'local-only; 4096 entries; SSR TTL 3600s; miss harness TTL -1s',
         cache_miss_policy =>
           'SSR store expires immediately; category model cache remains warm',
-        read_rate_limit    => RATE_LIMIT,
-        database_settings  => $pg->{database_settings},
-        backlog            => 1024,
+        read_rate_limit   => RATE_LIMIT,
+        database_settings => $pg->{database_settings},
+        backlog => $args->{allow_5000} ? STRESS_BACKLOG : DEFAULT_BACKLOG,
         clients_per_worker => $args->{allow_5000}
         ? CONCURRENCY_STRESS
         : DEFAULT_CLIENTS,
@@ -1131,9 +1133,10 @@ sub _group ( $state, $group ) {
                     cache_mode => $group->{cache_mode},
                     index      => ++$state->{server_index},
                     deadline   => $state->{deadline},
-                    clients    => $state->{args}{allow_5000}
-                    ? CONCURRENCY_STRESS
+                    clients => $state->{args}{allow_5000} ? CONCURRENCY_STRESS
                     : DEFAULT_CLIENTS,
+                    backlog => $state->{args}{allow_5000} ? STRESS_BACKLOG
+                    : DEFAULT_BACKLOG,
                 }
             );
             $group->{index} = 0;

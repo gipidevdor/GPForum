@@ -154,6 +154,11 @@ like(
 );
 ok(
     index( $ordinary,
+        'net.core.somaxconn=8192 net.ipv4.tcp_max_syn_backlog=8192' ) >= 0,
+    'the runner queues are sized for the full connection burst'
+);
+ok(
+    index( $ordinary,
         '--scenario health_live --workers 4 --duration 10 --repetitions 3' ) >=
       0,
     'the transport capacity test is repeated and identifies its endpoint'

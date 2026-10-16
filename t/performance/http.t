@@ -31,6 +31,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
     STRESS_CONNECTIONS    => 5000,
     STRESS_FD_LIMIT       => 16_384,
     STRESS_WORKERS        => 4,
+    STRESS_BACKLOG        => 8192,
 };
 use JSON::PP;
 use lib 'script/lib';
@@ -228,6 +229,23 @@ ok(
     my $dir = tempdir( CLEANUP => 1 );
     local *GPForum::Performance::HTTP::nofile_soft =
       sub { return STRESS_FD_LIMIT; };
+    my $server = bless {
+        directory  => $dir,
+        workers    => STRESS_WORKERS,
+        reactor    => 'Mojo::Reactor::EV',
+        clients    => STRESS_CONNECTIONS,
+        backlog    => STRESS_BACKLOG,
+        cache_mode => 'normal',
+      },
+      'GPForum::Performance::Server';
+    my $environment =
+      GPForum::Performance::Server->can('_environment')->($server);
+    is( $environment->{GPFORUM_RUNTIME_BACKLOG}, STRESS_BACKLOG,
+'the application listener receives the queue for the full connection burst'
+    );
+    is( $environment->{GPFORUM_RUNTIME_CLIENTS},
+        STRESS_CONNECTIONS,
+        'the application receives the required client capacity' );
     my @options = (
         '--output',      $dir,
         '--mode',        'pr',

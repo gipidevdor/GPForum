@@ -201,6 +201,7 @@ jobs:
         run: |
           set -euo pipefail
           ulimit -n 32768
+          sudo sysctl -w net.core.somaxconn=8192 net.ipv4.tcp_max_syn_backlog=8192
           perl script/performance-evidence init --output "$PERF_OUTPUT/connections-5000" --mode pr
           script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT/connections-5000" \
             --mode pr --generator wrk --disposable-database --concurrency 1000,5000 --allow-5000 \

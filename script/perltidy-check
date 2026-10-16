@@ -6,12 +6,12 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 
-runner="perltidy"
+set -- perltidy
 
 # Route through the project wrapper so the locked tree and the validated
 # interpreter are used, instead of whatever happens to be on PATH.
 if [ -d "$root/local" ]; then
-    runner="$root/script/gpforum-carton exec perltidy"
+    set -- "$root/script/gpforum-carton" exec perltidy
 fi
 
 tmp_dir="${TMPDIR:-/tmp}/gpforum-perltidy-check.$$"
@@ -21,7 +21,7 @@ trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 file_list="$tmp_dir/files"
 find bin lib t script \
     -type f \( -path 'bin/*' -o -name '*.pm' -o -name '*.pl' -o -name '*.t' \) \
-    > "$file_list" 2>/dev/null || true
+    -print0 > "$file_list" 2>/dev/null || true
 
 # script/ holds a mix of shell and Perl. Both this gate and script/perlcritic
 # select the Perl programs by shebang, so the two agree about which files the
@@ -30,7 +30,7 @@ find bin lib t script \
 for candidate in script/*; do
     [ -f "$candidate" ] || continue
     if head -n 1 "$candidate" | grep -q 'perl'; then
-        echo "$candidate" >> "$file_list"
+        printf '%s\0' "$candidate" >> "$file_list"
     fi
 done
 
@@ -39,20 +39,9 @@ if [ ! -s "$file_list" ]; then
     exit 0
 fi
 
-status=0
-
-while IFS= read -r file; do
-    formatted="$tmp_dir/formatted"
-    if ! $runner -st --profile="$root/.perltidyrc" "$file" > "$formatted"; then
-        echo "perltidy-check: failed to format $file" >&2
-        status=1
-        continue
-    fi
-
-    if ! cmp -s "$file" "$formatted"; then
-        echo "perltidy-check: $file is not perltidy-clean" >&2
-        status=1
-    fi
-done < "$file_list"
-
-exit "$status"
+# The same byte comparison belongs to Perl::Tidy's --assert-tidy. Batch
+# the inputs so the validated interpreter and formatter start once per
+# argument-size batch, rather than once for every file in the repository.
+# Output stays in the owned temporary directory; no source is rewritten.
+xargs -0 "$@" --assert-tidy --standard-error-output \
+    --profile="$root/.perltidyrc" --output-path="$tmp_dir" < "$file_list"

@@ -194,7 +194,7 @@ jobs:
         continue-on-error: true
         run: script/gpforum-carton exec script/performance-hotpaths --output "$PERF_OUTPUT" --mode "$PERF_MODE" --disposable-database
 
-      - name: Verify 5000 HTTP connections
+      - name: Compare 1000 and 5000 HTTP connections
         id: connections
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.tools.outcome == 'success' && steps.migrations.outcome == 'success' }}
         continue-on-error: true
@@ -203,7 +203,7 @@ jobs:
           ulimit -n 32768
           perl script/performance-evidence init --output "$PERF_OUTPUT/connections-5000" --mode pr
           script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT/connections-5000" \
-            --mode pr --generator wrk --disposable-database --concurrency 5000 --allow-5000 \
+            --mode pr --generator wrk --disposable-database --concurrency 1000,5000 --allow-5000 \
             --scenario health_live --duration 10 --repetitions 3 --deadline 180
 
       - name: Fetch historical baseline data
@@ -240,7 +240,7 @@ jobs:
           if [ -f "$PERF_OUTPUT/connections-5000/metadata.json" ]; then
             perl script/performance-evidence finalize --output "$PERF_OUTPUT/connections-5000"
             perl script/performance-evidence validate --output "$PERF_OUTPUT/connections-5000"
-            printf '\n## 5000 HTTP connections: transport capacity on /health/live\n\n' >> "$GITHUB_STEP_SUMMARY"
+            printf '\n## 1000 vs 5000 HTTP connections: transport capacity on /health/live\n\n' >> "$GITHUB_STEP_SUMMARY"
             cat "$PERF_OUTPUT/connections-5000/report.md" >> "$GITHUB_STEP_SUMMARY"
           fi
         env:

@@ -149,8 +149,8 @@ like( $ordinary, qr/performance-publish/msx,
     'ordinary permanent history retained' );
 like(
     $ordinary,
-    qr/--concurrency[ ]5000[ ]--allow-5000/msx,
-    'ordinary CI executes the explicitly enabled 5000 connection test'
+    qr/--concurrency[ ]1000,5000[ ]--allow-5000/msx,
+    'ordinary CI compares 1000 and 5000 connections on the same runner'
 );
 ok(
     index( $ordinary, '--scenario health_live --duration 10 --repetitions 3' )

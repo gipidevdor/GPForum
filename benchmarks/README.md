@@ -190,8 +190,9 @@ rows for meaningful deep pages report plan limitations explicitly.
 
 ## Reproduce locally
 
-Every performance CI run also exercises 5,000 configured HTTP connections
-against `/health/live`, in three 10-second samples. This tests HTTP transport
+Every performance CI run also compares 1,000 and 5,000 configured HTTP
+connections against `/health/live`, in three 10-second samples at each level
+on the same runner with the same two-worker configuration. This tests HTTP transport
 capacity; it does not establish capacity for database-backed pages. Failures
 remain visible in the CI gate. The separate `connections-5000` report and
 raw generator logs are included in the candidate artifact and Job Summary.

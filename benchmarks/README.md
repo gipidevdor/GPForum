@@ -200,10 +200,13 @@ The runner raises its file limit to 32,768; the harness requires at least
 16,384 and permits 5,000 clients per worker for this explicit stress test.
 The stress listener backlog and the runner's accept/SYN queue limits are
 8,192, so the initial 5,000-connection burst is queued. This stress comparison
-uses an explicit five-second response timeout at both connection levels;
+uses an explicit three-second response timeout at both connection levels;
 the ordinary HTTP sweep retains its three-second default. Zero HTTP and
 transport errors are required. The timeout is recorded in the report and
 configuration, and failed samples remain available in history.
+The runtime uses `single_accept=1` for TCP, Unix and inherited listeners,
+so an initial burst yields between accepts instead of letting a worker
+drain the shared queue. An explicitly supplied `single_accept` is preserved.
 `wrk` connection counts are configured connections, not measured in-flight
 requests or virtual users.
 

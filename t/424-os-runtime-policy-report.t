@@ -153,19 +153,26 @@ subtest 'reuse=1 is added only where it can be' => sub {
         _policy( _profile( reuseport => 1 ), runtime_listen => $listen )
           ->hypnotoad_config->{listen},
         [
-            'http://*:8080?reuse=1',
-            'http://*:8081?x=1&reuse=1',
-            'http+unix://%2Ftmp%2Fgp.sock',
-            'http://*:8082?fd=3',
-            'http://*:8083?reuse=0',
-            'https://*:8443?cert=/c.pem&reuse=0',
+            'http://*:8080?single_accept=1&reuse=1',
+            'http://*:8081?x=1&single_accept=1&reuse=1',
+            'http+unix://%2Ftmp%2Fgp.sock?single_accept=1',
+            'http://*:8082?fd=3&single_accept=1',
+            'http://*:8083?reuse=0&single_accept=1',
+            'https://*:8443?cert=/c.pem&reuse=0&single_accept=1',
         ],
         'not on a UNIX socket, an inherited descriptor or a reuse already set'
     );
     is_deeply(
         _policy( _profile( reuseport => 0 ), runtime_listen => $listen )
           ->hypnotoad_config->{listen},
-        [ split /,/msx, $listen ],
+        [
+            'http://*:8080?single_accept=1',
+            'http://*:8081?x=1&single_accept=1',
+            'http+unix://%2Ftmp%2Fgp.sock?single_accept=1',
+            'http://*:8082?fd=3&single_accept=1',
+            'http://*:8083?reuse=0&single_accept=1',
+            'https://*:8443?cert=/c.pem&reuse=0&single_accept=1',
+        ],
         'and nowhere when SO_REUSEPORT is off'
     );
 };

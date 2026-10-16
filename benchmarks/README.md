@@ -18,9 +18,9 @@ application/database commands use the existing locked Carton tree. The separate
 
 | Mode | Trigger | HTTP workload | Other evidence |
 | --- | --- | --- | --- |
-| PR | Relevant changes targeting `main` | Same runner, head and base revisions; 2 workers, Poll, concurrency 1/10, 2-second cells, 3 repetitions | Required index/OFFSET rules, query-budget catalog, reader and stored-function plans, 1-worker/1,000-message PostgreSQL outbox |
-| Main | Relevant pushes to `main` | Concurrency 1/10/50/100; targeted 2/4-worker comparisons; Poll/EV on Linux when available; 3 repetitions | 3 plan repetitions; 1/2-worker PostgreSQL outbox, 3,000 messages, 3 repetitions; permanent publication |
-| Deep | Monday 01:37 UTC or manual `deep` | Concurrency up to 500, targeted 2/4/8 workers where CPU count permits; Poll/EV, 3 repetitions | 600 threads/72,000 posts; 1/2/4-worker, 10,000-message outbox; existing SQL-function service comparison; configured NYTProf profile |
+| PR | Relevant changes targeting `main` | Same runner, head and base revisions; 2 workers, native EV, concurrency 1/10, 2-second cells, 3 repetitions | Required index/OFFSET rules, query-budget catalog, reader and stored-function plans, 1-worker/1,000-message PostgreSQL outbox |
+| Main | Relevant pushes to `main` | Concurrency 1/10/50/100; targeted 2/4-worker comparisons; native EV; 3 repetitions | 3 plan repetitions; 1/2-worker PostgreSQL outbox, 3,000 messages, 3 repetitions; permanent publication |
+| Deep | Monday 01:37 UTC or manual `deep` | Concurrency up to 500, targeted 2/4/8 workers where CPU count permits; native EV, 3 repetitions | 600 threads/72,000 posts; 1/2/4-worker, 10,000-message outbox; existing SQL-function service comparison; configured NYTProf profile |
 
 Relevant paths include actual application sources (`lib`, `templates`,
 `assets`, `migrations`), `cpanfile*`, runtime/deployment files under `etc`
@@ -42,7 +42,8 @@ tests are explicitly skipped after exhaustion. The
 configuration deliberately avoids a full endpoint × worker × reactor ×
 concurrency matrix. Concurrency 1,000 requires an explicit local
 `--allow-1000 --concurrency ...` request and sufficient file-descriptor/CPU
-resources; it is never scheduled by default.
+resources in the general sweep. The separate CI transport comparison below
+explicitly schedules 1,000 and 5,000 connections.
 
 ## What the numbers mean
 
@@ -61,11 +62,11 @@ the observed `X-GPForum-Cache` header. The run records this policy and cache,
 PostgreSQL, generator and runtime versions.
 
 Server workers write private per-PID JSON telemetry before dispatch;
-the harness verifies every serving worker PID. On Linux, EV is an
-optional distribution package and its actual epoll backend is verified.
-Poll and EV share dataset, workers, endpoints, PostgreSQL and cache
-settings; their order alternates across repetitions. There is no EV
-application requirement on Linux, macOS or FreeBSD. CPU and RSS are sampled
+the harness verifies every serving worker PID. EV is a mandatory locked
+dependency: Linux uses epoll, macOS and FreeBSD use kqueue. A missing or
+incorrect native backend fails the run. Worker comparisons share dataset,
+endpoints, PostgreSQL and cache settings; their order alternates across
+repetitions. CPU and RSS are sampled
 for the server process group. Linux CPU comes from `/proc` tick deltas over
 the measured span; `ps` CPU averages are a marked fallback. RSS is a final
 sample and can double-count shared pages. Neither is a precise per-request

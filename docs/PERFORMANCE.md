@@ -875,62 +875,131 @@ In process, the signed-in thread page went from 24.7 to about 14 ms, the
 category page from 15.1 to about 12, the home page from 17.5 to about 12
 and the anonymous cached page from 2.7 to 1.8; NYTProf's profiled time per
 request fell from 65 to 37 ms, with `DateTime`, the formatter and the
-random reads gone from it. What is left is the templates' own code (a
-quarter of the request), an escape per expression (1,269 a page, a
-subroutine call each) and the 8 statements' round trips.
+random reads gone from it. What was left then, the templates' own code
+and the renders around it, is measured again below.
 
-### Static post fragment cache (2026-10-16)
+### Rendering in process (2026-10-17)
 
-The historical 60% rendering share above describes the page before those
-optimizations. It is not a current 19 ms rendering measurement. A new
-NYTProf run against local PostgreSQL 18.6 over a Unix socket, with
-EV/kqueue (backend 8), measured about 12 ms of inclusive rendering and
-1.5 ms in SQL execution per authenticated 15-post page before fragment
-caching. Instrumentation increased the whole request to about 33.5 ms;
-these inclusive timings overlap and must not be added or compared with
-uninstrumented latency.
+`script/bench-render` measures the hot pages as a worker renders them: in
+process through Test::Mojo, on a throwaway PostgreSQL database migrated and
+seeded with the `medium` profile (120 threads of 15 posts), with a member
+registered and signed in through the pages, so the session is a real
+server-side one. For each page it reports the request's median and p95, and
+the same for the page's render, from its `before_render` to its
+`after_render`: its template, its partials, its layout. The guest's thread
+page is rendered with the public page cache bypassed: what a miss pays.
 
-The final warmed fragment profile reduced inclusive rendering to about
-9 ms; SQL execution remained about 1.5 ms. This identifies the saved work
-as template presentation rather than fewer authorization or database checks.
+```sh
+# a database of its own, dropped afterwards (--keep-database keeps it,
+# --database NAME runs on one kept before)
+GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=/tmp/gpfv;port=55433' \
+GPFORUM_DATABASE_USER=gpforum \
+  script/gpforum-carton exec perl script/bench-render --iterations 200 --warmup 30
+# NYTProf on the measured requests only: exclusive time by package and the
+# subroutines that took most, with their calls
+GPFORUM_DATABASE_DSN=... GPFORUM_DATABASE_USER=gpforum \
+  script/gpforum-carton exec perl script/bench-render --page thread_member \
+  --nytprof var/profile/render.nyt
+```
 
-`GPForum::Web::PostFragments` now caches escaped, static post presentation:
-author markup, translated labels, form fields, action paths and sheet
-headings. One compiled partial builds all pieces on a miss. Each worker
-has an LRU of 512 entries, retained for one hour, with a 64 KiB limit per
-entry (at most 32 MiB of fragment payload, plus cache overhead). The key
-hashes every template input, including current source text, author, reply
-target, deletion and like state, locale and mounted base path. A change
-selects a new entry immediately; correctness does not depend on the TTL.
+**Where the time went** (main at `cc45bbd`; NYTProf on 100 signed-in thread
+pages, whose profiled times are about twice the real ones):
 
-The normal reader authorizes and loads every page before any cache lookup.
-Permission branches, forms, CSRF masks, command identifiers, attachment
-controls and relative timestamps are generated for the current request.
-The post body still passes the existing trusted-HTML policy each time;
-its source renderer already memoizes sanitized markup. Entries contain no
-session or command credentials. `t/689-post-fragment-cache.t` checks two
-separate sessions, a rejected cross-session CSRF submission, changed
-permissions and content, escaping, locale/base-path isolation and the size
-bound. Existing HTML and fragment contracts remain in force.
+- The render was 10.1 of the request's 21.1 profiled ms, in 23 renders: the
+  page and each of its 22 includes. An include went through the renderer as
+  a page does -- the `before_render` hook, the options copied to the stash,
+  the template's name hashed to find it, a trace line built for the log, a
+  glob assigned for its controller -- and cost 43 µs in real time, measured
+  by turning the home page's 20 timestamp includes into the helper they
+  wrap (5.38 to 4.52 ms). The home page made 62 renders, a category 41,
+  search 32.
+- By package: the compiled templates 12.7% of the profile,
+  `Mojolicious::Controller` 6.4% (454 `stash` calls a page), DBI 5.7%,
+  `Mojo::Util` 4.2%, `Bootstrap::UI` 4.1%, zlib 3.0%, `LocalCache` 2.6%,
+  `Mojolicious::Renderer` 2.4%.
+- The profiler overstates small subroutines. `_escape`, 593 calls a page,
+  takes 0.2 µs on a plain string, 0.1 ms a page; `t()` was 82 calls a page,
+  not 5,000, at 1.5 µs. Timed in a loop instead: a timestamp 29 µs, 11 of
+  them composing its "3 minutes ago" again; the theme selector's options
+  69 µs and the colour scheme 16 µs, each rebuilding the four palettes; a
+  locale's metadata 7 µs, rebuilding the locale table; a hit in the post
+  fragment cache 12 µs, 3.8 of them a JSON encoding and a SHA-256, 5.2 the
+  LRU's clock and list. The layout's header, navigation, footer, selectors
+  and notices were about 0.85 ms of every page.
 
-An alternating A/B run used the same application, real server-backed
-administrator session, medium seed (1,800 posts), database and 15-post
-thread; only the post template changed. Five runs per variant, each with
-20 warm-up requests followed by 100 measured requests, gave these medians
-of the five run summaries:
+**What changed**, each held to the HTML of 60 pages -- member, owner and
+guest, English and Italian, the thread's fragment included -- compared with
+the whitespace between tags collapsed:
 
-| Native, uninstrumented Test::Mojo request | Previous template | Cached fragments |
-| --- | ---: | ---: |
-| Median latency | 9.763 ms | 9.035 ms |
-| p95 latency | 10.384 ms | 9.633 ms |
+- `GPForum::Web::Partials`, behind `include`, compiles each EP partial once
+  per process and runs it with the stash localized as `include` localizes
+  it: no hook, no trace line, no lookup. Any other include (a format, a
+  layout, a template not on disk) is Mojolicious's (`t/693`).
+- In a partial, `<%= t('key') %>` reads the locale's plain messages from one
+  table escaped once per process (`I18N::plain_messages`); a message that
+  interpolates, falls back or is missing is still a call and logs as
+  before. The signed-in thread page calls `t` 10 times instead of 80.
+- A counted message whose only variable is the count is kept once composed
+  (`counted_messages`, at most 4,096); a `<time>` element is kept by what
+  decides it -- signed in or not, locale, zone, instant, phrase -- and the
+  reader's standing, locale and zone are read once a response.
+- The theme contracts and the locale table are built once per process and
+  read without copying; the selectors' options are built once a locale and
+  theme; the layout reads once each value it writes twice; the render
+  policy's contexts are a constant (`t/695`).
+- A post's sheets are no longer blocks: each sheet's opening is a cached
+  fragment, its forms and closing tag are written in place.
 
-The median improved by 7.5%; each cached run recorded 1,785 fragment hits
-and 15 misses. A final pair after the last code changes confirmed
-9.753/9.012 ms median and 10.803/9.893 ms p95. These are sequential,
-in-process page measurements with real PostgreSQL and session validation,
-not a 1,000- or 5,000-connection capacity result. The external HTTP load
-gate remains separate, with its original connection counts and strict
-zero-error, three-second requirement.
+**The post fragment cache: kept, and simplified.** Without it the posts of
+the signed-in thread page took 0.89 ms in a loop, with it 0.45: each post's
+static presentation (its author, labels, sheet openings and paths) is one
+lookup. The lookup is what changed. The key is the content itself, each
+value written with its length: no JSON, no SHA-256, and no two contents
+share a key. The entries live in two generations of plain hashes instead of
+`LocalCache`'s list and clock: a full current generation becomes the older
+one and the older one goes, at most 512 entries of at most 64 KiB. Nothing
+expires by time, since another content selects another entry. The edit
+form's text is in neither the key nor the cache any more: it is rendered
+with the form, for an editor only. A hit fell from 12 to 6 µs a post.
+
+**Before and after**, in process with PostgreSQL 18 over a Unix socket on
+the development laptop (Apple M4), main at `cc45bbd` against this work,
+alternated: five runs a side of 200 requests after 30 warm-up, the median
+of the runs' medians and p95s, in ms.
+
+| Page | Request p50 | Request p95 | Render p50 | Render p95 | Render |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Thread, signed in (15 posts) | 8.57 → 6.86 | 9.78 → 7.79 | 3.51 → 2.07 | 3.90 → 2.23 | −41% |
+| Thread, guest, page cache bypassed | 6.13 → 4.70 | 6.87 → 5.05 | 2.56 → 1.39 | 2.81 → 1.52 | −46% |
+| Category list (`/categories`) | 5.03 → 3.65 | 5.74 → 4.02 | 2.20 → 1.05 | 2.46 → 1.17 | −52% |
+| Category (`/c/ID`) | 7.45 → 5.26 | 8.28 → 5.68 | 3.71 → 1.77 | 4.03 → 1.91 | −52% |
+| Home | 9.83 → 6.46 | 10.60 → 6.97 | 5.29 → 2.36 | 5.50 → 2.55 | −55% |
+| Search | 10.47 → 8.37 | 11.53 → 9.32 | 3.38 → 1.80 | 3.86 → 2.05 | −47% |
+
+Across sessions on the same machine the signed-in thread page's render
+fell 38 to 42%, depending on the other load; every other page more than
+45%. NYTProf after the change, on the same 100 signed-in thread pages: the
+profiled request 17.2 ms (21.1 before) and its render 5.9 (10.1), one
+render where there were 23. By package: the compiled templates 10.7%, DBI
+8.3%, `Mojolicious::Controller` 4.1% (283 `stash` calls a page), zlib 3.7%,
+`Mojo::Util` 3.4%, `SqlFunction` 3.1%, `Controller::Forum::Base` and
+`ViewModel::Forum::Page` 2.9% each, `Infrastructure::Id` 2.8%,
+`Bootstrap::UI` 2.6%, `Web::Partials` 2.1%; `LocalCache` and
+`Mojolicious::Renderer` are gone from the top. Profiled times move with the
+machine's load; the shares compare.
+
+`t/694-render-work.t` counts what a signed-in thread render does instead of
+timing it: one render, partials and translations with no call of their
+own, no counted message composed and no table rebuilt again, the times'
+context read once, one fragment lookup a post and none rendered again.
+
+**What is left.** The page and its layout are still two renders through
+Mojolicious (the page cache renders them). The controller's view model is
+now nearly as large as the render: `thread_page_payload` takes 4.9
+profiled ms a signed-in thread page (142 column reads, 28 command ids, the
+attachments and the likes), then the 11 statements (1.3), gzip (0.5) and
+the session's validation. A member's post still costs about 30 µs of forms
+(like, report) and its time.
 
 ### Where the evidence lives
 
@@ -938,6 +1007,7 @@ zero-error, three-second requirement.
 | --- | --- |
 | Plans, budgets, page cache, feed fan-out and migrations on PostgreSQL | `t/integration/postgres-{search-plan,viewer-plan,query-plan-depth,query-budget,public-cache,feed-projection,migration-concurrently}.t`, run by `make integration` |
 | The plan gate's own logic | `t/54-query-plan-evidence.t`, `t/47-query-plan-check.t` |
+| Hot pages' rendering in process, and the work a render does | `script/bench-render`; `t/693-partials.t`, `t/694-render-work.t`, `t/695-render-memos.t`, `t/689-post-fragment-cache.t` |
 | Realtime fan-out across processes, and the bounded polling backstop | `t/85-realtime-outbox-multiprocess.t`; [realtime.md](realtime.md) |
 | 100, 500 and 1,000 concurrent clients | [ops/stress-load.md](ops/stress-load.md), JSON under [ops/evidence/](ops/evidence) |
 | OS and runtime posture | [OS_RUNTIME_EVIDENCE.md](OS_RUNTIME_EVIDENCE.md) |

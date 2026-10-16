@@ -1124,6 +1124,19 @@ CI, evidence and internal refactors with no change in behaviour.
   server that does not answer fails the connection in five seconds (ADR
   0137, with the socket and TCP measurements).
 
+- **The hot pages render in 41 to 55% less time: the signed-in thread page
+  in 41% less, the home page in 55% less.** Every `include` went through
+  Mojolicious's renderer as a page does, 43 microseconds each and 62 on the
+  home page; `GPForum::Web::Partials` compiles each partial once and runs it
+  with the stash localized as `include` does, and a partial's plain
+  `t('key')` reads one escaped table a locale. Counted messages, time
+  elements, the theme contracts, the locale table and the selectors'
+  options are built once instead of on every question, and the post
+  fragment cache is keyed by its content and kept in two generations, with
+  the edit form's text out of it. `script/bench-render` measures the pages
+  in process with a signed-in session, with NYTProf on request; the HTML is
+  the same (docs/PERFORMANCE.md, "Rendering in process"; `t/693`-`t/695`).
+
 - **The drills and evidence tools that read no setting no longer read the
   settings file.** `staging-drill-attachments`, `evidence-meta`,
   `evidence-validate`, `dead-letter-check` and `mail-lifecycle-check` use

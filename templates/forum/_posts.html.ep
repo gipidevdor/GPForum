@@ -12,8 +12,11 @@
 %# post comes back as the list now lists it, in its own place (hx-target on
 %# the item).
 %#
-%# Takes "posts"; reads the page's "engagement".
+%# Takes "posts"; reads the page's "engagement". What is the same for every
+%# post -- the reader's standing, the fragment cache -- is read once, above
+%# the loop.
 % my $signed_in = $engagement && $engagement->{authenticated};
+% my $fragments = ui_presenter->post_fragments;
 % my $sheet = begin
 %   my ($opening, $body) = @_;
     <%= $opening %>
@@ -31,7 +34,7 @@
 
 % for my $post (@{$posts}) {
 %   my $dom_id = 'post-' . $post->{post_id};
-%   my $static = ui_presenter->post_fragments->render($self, $post);
+%   my $static = $fragments->render($self, $post);
 %   my $paths = $static->{paths};
   <li class="ui-card-list__item" hx-target="this" hx-swap="outerHTML">
     <article class="post" id="<%= $dom_id %>" aria-labelledby="<%= $dom_id %>-heading">
@@ -89,7 +92,9 @@
               <form method="post" action="<%= $paths->{post_edit} %>" hx-post="<%= $paths->{post_edit} %>">
                 <%= csrf_field %>
                 <input type="hidden" name="command_id" value="<%= $post->{edit_command_id} || q{} %>">
-                <%= $static->{edit} %>
+                <label for="<%= $dom_id %>-edit-body"><%= t('forum.edit_body') %></label>
+                <textarea id="<%= $dom_id %>-edit-body" name="body_source" rows="10" required><%= $post->{body_source} %></textarea>
+                <button type="submit"><%= t('forum.save_edit') %></button>
               </form>
               <form method="post" enctype="multipart/form-data" action="<%= $paths->{post_attachment_upload} %>">
                 <%= csrf_field %>

@@ -1,5 +1,7 @@
 %# Static post presentation only. Forms, CSRF, commands, permissions and times
-%# stay in _posts. Each block uses the normal template escaping rules.
+%# stay in _posts, and so does the text of the edit form: only an editor sees
+%# it, and leaving it out keeps the post's source out of the cache key.
+%# Each block uses the normal template escaping rules.
 % my $dom_id = 'post-' . $post->{post_id};
 % my $ordinal = '#' . $post->{position};
 % my $header = begin
@@ -40,12 +42,6 @@
     <button type="submit"><%= t('moderation.submit_report') %></button>
 % end
 % $fragments->{report} = $report->();
-% my $edit = begin
-    <label for="<%= $dom_id %>-edit-body"><%= t('forum.edit_body') %></label>
-    <textarea id="<%= $dom_id %>-edit-body" name="body_source" rows="10" required><%= $post->{body_source} %></textarea>
-    <button type="submit"><%= t('forum.save_edit') %></button>
-% end
-% $fragments->{edit} = $edit->();
 % my $upload = begin
     <label for="<%= $dom_id %>-attachment"><%= t('form.attach_file') %></label>
     <input id="<%= $dom_id %>-attachment" name="attachment" type="file" required>

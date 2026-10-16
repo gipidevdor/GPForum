@@ -54,7 +54,7 @@ $test->app->helper(
 
 my $controller = $test->app->build_controller;
 my $presenter  = $controller->ui_presenter;
-my $cache      = $presenter->post_fragments->cache;
+my $cache      = $presenter->post_fragments;
 $test->get_ok('/__fragment/session/user-1')->status_is($OK);
 $test->get_ok('/t/thread-1')->status_is($OK);
 my $first   = $test->tx->res->dom;
@@ -130,9 +130,8 @@ is( $cache->stats->{hits},
     $before_denial,
     'a warm fragment cannot bypass the current visibility decision' );
 
-for my $entry ( values %{ $cache->entries } ) {
-    my $parts = $entry->{value};
-    my $html  = join q{}, map { "$parts->{$_}" }
+for my $parts ( values %{ $cache->entries } ) {
+    my $html = join q{}, map { "$parts->{$_}" }
       grep { $_ ne 'paths' } keys %{$parts};
     unlike(
         $html,
@@ -170,7 +169,7 @@ subtest 'locale, mount path and entry size remain isolated' => sub {
         qr{id="post-post-1-heading"}msx,
         'an oversized fragment still renders normally'
     );
-    is( $bounded->cache->stats->{writes},
+    is( $bounded->stats->{writes},
         0, 'an oversized entry consumes no cache capacity' );
 };
 
@@ -193,7 +192,7 @@ subtest 'rendering failure never poisons the cache' => sub {
             qr/Could[ ]not[ ]render[ ]post[ ]presentation[ ]fragments/msx,
             'a failed partial stops rendering the response'
         );
-        is( $fragments->cache->stats->{writes},
+        is( $fragments->stats->{writes},
             0, 'an incomplete presentation is never retained' );
         my $recovered = $fragments->render( $controller, $post );
         like(
@@ -201,7 +200,7 @@ subtest 'rendering failure never poisons the cache' => sub {
             qr/id="post-post-1-heading"/msx,
             'a subsequent healthy render produces the normal presentation'
         );
-        is( $fragments->cache->stats->{writes},
+        is( $fragments->stats->{writes},
             1, 'the healthy result can be cached after the failed attempt' );
     }
 };

@@ -5,52 +5,47 @@ package GPForum::Web::PostFragments;
 
 use Carp qw(croak);
 use Const::Fast;
-use Digest::SHA qw(sha256_hex);
-use JSON::MaybeXS;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::Util qw(encode);
 
-use GPForum::Service::Operations::LocalCache;
-
 our $VERSION = '0.001';
 
 const my $MAX_ENTRIES => 512;
-const my $TTL_SECONDS => 3600;
 const my $MAX_BYTES   => 64 * 1024;
+const my $HALF        => 2;
 const my @CONTENT => qw(
   post_id thread_id position author_username author_display_name author_profile_label
-  author_initial author_tint body_source deleted_at reply_to liked like_count
+  author_initial author_tint deleted_at liked like_count
 );
 
-has cache => sub {
-    return GPForum::Service::Operations::LocalCache->new(
-        namespace   => 'post-fragments-v1',
-        max_entries => $MAX_ENTRIES,
-        ttl_seconds => $TTL_SECONDS,
-    );
-};
-has max_bytes => $MAX_BYTES;
-has encoder => sub { return JSON::MaybeXS->new( canonical => 1, utf8 => 1 ); };
+has max_entries => $MAX_ENTRIES;
+has max_bytes   => $MAX_BYTES;
+has stats       => sub { return { hits => 0, misses => 0, writes => 0 }; };
+
+# The entries of two generations, the current one first. A hit in the older
+# one moves to the current one; when the current one holds half the bound it
+# becomes the older one, and the entries nobody asked for since go. A thread
+# page asks for every one of its posts, so a hit is two hash lookups and a
+# miss's bookkeeping a store, where an LRU's list and clock cost more than
+# the fragments saved.
+has generations => sub { return [ {}, {} ]; };
 
 # Only the already-authorized presentation data enters the cache. Forms,
-# capabilities, command ids, CSRF and relative timestamps are never stored.
-# Changed edit text, authors, reply targets and counters change the key immediately,
-# independently of asynchronous invalidation or the cache's retention time.
+# capabilities, command ids, CSRF, the edit form's text and relative
+# timestamps are never stored. The key is the content itself, every value
+# the static template reads with its length before it: authors, reply
+# targets, deletion and counters select another entry immediately, with no
+# digest that two contents could share.
 sub render ( $self, $controller, $post ) {
     my $url     = $controller->req->url;
     my $context = $controller->stash->{'gp.post_fragment_context'} //=
-      [ $controller->ui_locale, $url->base->path->to_string, ];
-    my $key =
-      'post-fragments:v1:'
-      . sha256_hex(
-        $self->encoder->encode( [ $context, @{$post}{@CONTENT} ] ) );
-    if ( $self->cache ) {
-        my $cached = $self->cache->get($key);
-        return $cached if $cached;
-    }
+      [ $controller->ui_locale, $url->base->path->to_string ];
+    my $key   = _key( $context, $post );
+    my $found = $self->_cached($key);
+    return $found if $found;
 
-    my $content   = { map { $_ => $post->{$_} } @CONTENT };
+    my $content   = { map { $_ => $post->{$_} } @CONTENT, 'reply_to' };
     my $fragments = {};
     my $rendered  = $controller->render_to_string(
         template  => 'forum/_post_fragments',
@@ -71,10 +66,62 @@ sub render ( $self, $controller, $post ) {
     {
         $bytes += length encode( 'UTF-8', $part );
     }
-    if ( $self->cache && $bytes <= $self->max_bytes ) {
-        $self->cache->put( $key, $fragments );
+    if ( $bytes <= $self->max_bytes ) {
+        $self->_keep( $key, $fragments );
     }
+
     return $fragments;
+}
+
+# Every cached presentation, by key, for inspection.
+sub entries ($self) {
+    my ( $current, $older ) = @{ $self->generations };
+
+    return { %{$older}, %{$current} };
+}
+
+sub _cached ( $self, $key ) {
+    my $generations = $self->generations;
+    my $found       = $generations->[0]{$key};
+    if ( !$found && ( $found = delete $generations->[1]{$key} ) ) {
+        $self->_make_room;
+        $generations->[0]{$key} = $found;
+    }
+    $self->stats->{ $found ? 'hits' : 'misses' } += 1;
+
+    return $found;
+}
+
+sub _keep ( $self, $key, $fragments ) {
+    return if $self->max_entries < $HALF;
+
+    $self->_make_room;
+    $self->generations->[0]{$key} = $fragments;
+    $self->stats->{writes} += 1;
+
+    return;
+}
+
+# A full current generation becomes the older one, and the older one goes.
+sub _make_room ($self) {
+    my $generations = $self->generations;
+    if ( keys %{ $generations->[0] } >= int( $self->max_entries / $HALF ) ) {
+        @{$generations} = ( {}, $generations->[0] );
+    }
+
+    return;
+}
+
+# Each value as its length, a colon and itself (a dash for none): no two
+# contents write the same key. The reply target, when there is one, goes in
+# field by field, each with its name.
+sub _key ( $context, $post ) {
+    my $reply = $post->{reply_to};
+
+    return join q{},
+      map { defined $_ ? length . q{:} . $_ : q{-} } @{$context},
+      @{$post}{@CONTENT}, ( $reply ? 'reply' : undef ),
+      map { ( $_, $reply->{$_} ) } sort keys %{ $reply || {} };
 }
 
 1;
@@ -95,39 +142,48 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-Keeps escaped, static template fragments in a process-local LRU for one hour,
-up to 512 entries of at most 64 KiB each. Nothing is sent to a shared cache.
-The key includes all values the static template reads, the locale and the
-application's mounted base path. Edit text, deletions, author changes and
-reply changes select a new entry immediately. Deploying a new process clears it.
+Keeps escaped, static template fragments in process memory, up to 512
+entries of at most 64 KiB each, in two generations: an entry not asked for
+while 256 others were stored is dropped. Nothing is sent to a shared cache.
+The key is the content: every value the static template reads, the locale
+and the application's mounted base path, each written with its length, so
+deletions, author changes, reply changes and like counts select a new entry
+immediately. Deploying a new process clears it.
 
 The caller must first load the post through the normal authorization and
 visibility checks. This cache cannot find a post by id or grant access.
-Forms, permissions, session data, CSRF masks, command identifiers, attachment
-controls and relative timestamps remain outside the cache. Post bodies still
-pass through the trusted-HTML policy on every render; their source renderer
-already memoizes sanitized markup. Static templates escape normally.
+Forms, permissions, session data, CSRF masks, command identifiers, the edit
+form's text, attachment controls and relative timestamps remain outside the
+cache. Post bodies still pass through the trusted-HTML policy on every
+render; their source renderer already memoizes sanitized markup. Static
+templates escape normally.
 
 =head1 SUBROUTINES/METHODS
 
 =head2 render
 
 Takes a controller and its authorized post view model. Returns a hash of
-rendered static fragments and named action paths. A disabled cache (C<undef>)
-renders normally. Entries exceeding C<max_bytes> are returned without storage.
+rendered static fragments and named action paths. With C<max_entries> below
+2 nothing is kept; entries exceeding C<max_bytes> are returned without
+storage.
+
+=head2 entries
+
+Returns a hash reference of every cached presentation by its key.
 
 =head1 DIAGNOSTICS
 
-Rendering and cache errors propagate to the caller.
+Rendering errors propagate to the caller; a render that produces nothing
+croaks C<Could not render post presentation fragments> and is not kept.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-C<cache> is a LocalCache by default; C<max_bytes> limits each entry.
+C<max_entries> bounds the entries, C<max_bytes> each entry; C<stats> counts
+hits, misses and writes.
 
 =head1 DEPENDENCIES
 
-L<Carp>, L<Const::Fast>, L<Digest::SHA>, L<JSON::MaybeXS>, L<Mojo::Base>,
-L<Mojo::Util>, L<GPForum::Service::Operations::LocalCache>.
+L<Carp>, L<Const::Fast>, L<Mojo::Base>, L<Mojo::Util>.
 
 =head1 INCOMPATIBILITIES
 

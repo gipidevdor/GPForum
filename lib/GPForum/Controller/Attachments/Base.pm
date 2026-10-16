@@ -10,6 +10,7 @@ use v5.40;
 
 use GPForum::Web::Access;
 use GPForum::Web::AttachmentAccess;
+use GPForum::Web::ClientAddress;
 use GPForum::Web::Guard;
 
 our $VERSION = '0.001';
@@ -195,7 +196,7 @@ sub download_actor_key ($self) {
     my $user_id = $self->current_user_id;
     return $user_id if defined $user_id && length $user_id;
 
-    return 'address:' . ( $self->tx->remote_address || 'unknown' );
+    return 'address:' . GPForum::Web::ClientAddress->of( $self->tx );
 }
 
 sub _rate_limited_user_id ($self) {

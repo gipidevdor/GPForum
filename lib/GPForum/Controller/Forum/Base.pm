@@ -9,6 +9,7 @@ use v5.40;
 
 use GPForum::Infrastructure::Row;
 use GPForum::Web::Access;
+use GPForum::Web::ClientAddress;
 use GPForum::Web::ForumAccess;
 use GPForum::Web::Guard;
 use GPForum::Web::Responder;
@@ -901,7 +902,7 @@ sub _allowed ( $self, $user_id, $action ) {
 
 sub read_allowed ( $self, $action ) {
     my $actor_id =
-      $self->_current_user_id || $self->tx->remote_address || 'anonymous';
+      $self->_current_user_id || GPForum::Web::ClientAddress->of( $self->tx );
     my $decision = $self->gp_rate_limiter->check(
         $self->forum_access->read_rate_input(
             {

@@ -81,6 +81,28 @@ unpinned critical dependencies; process layouts nobody can explain.
   request size limits; timeout policy.
 - Application nodes MUST not depend on local filesystem persistence.
 
+### The client behind the proxy (2026-10-16)
+
+- Hypnotoad listens on a Unix socket (`GPFORUM_RUNTIME_LISTEN`), whose only
+  client is the local proxy, and Mojolicious gives such a connection no peer
+  address. `GPForum::Web::ClientAddress` sets every request's client before
+  dispatch, in one place, for the rate limits, the audit rows and the
+  sessions alike.
+- On the Unix socket the client is the last `X-Forwarded-For` entry: the one
+  the proxy appended (nginx's `$proxy_add_x_forwarded_for`, Caddy's
+  default). Entries before it came from the client and are never read, and
+  `GPFORUM_RUNTIME_TRUSTED_PROXIES` is not walked, since it would step past
+  a loopback client to an entry that client forged.
+- A request with no address -- no entry, or one that is not an IPv4 or IPv6
+  address, as nginx's `unix:` -- is keyed by its own connection
+  (`connection:<id>`). It is not refused, because `gpforum status` and an
+  operator's curl ask the socket directly, and it never falls back to a
+  constant, which would put every such client in one bucket. Only the
+  `gpforum` group can open the socket, so a per-connection key gives a local
+  account nothing it does not already have.
+- A TCP listener keeps Mojolicious's reading: the peer, or with
+  `GPFORUM_RUNTIME_PROXY` on the last entry no trusted proxy wrote.
+
 ### Systemd or container runtime
 
 - Deployment MAY use systemd, containers or another supervised runtime.
@@ -135,4 +157,6 @@ path.
   `deploy/freebsd/`, `deploy/launchd/`, `deploy/caddy/`.
 - Tests: `t/33-health-readiness.t`, `t/98-operational-profiles.t`,
   `t/144-cpan-install.t`.
+- Client address: `lib/GPForum/Web/ClientAddress.pm`,
+  `t/691-client-address.t`, `t/integration/postgres-unix-socket-clients.t`.
 - Docs: `docs/DEPLOYMENT.md`, `docs/DEPLOYMENT_EVIDENCE.md`.

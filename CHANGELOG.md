@@ -261,6 +261,19 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **Behind the shipped proxy every client of the site shared one rate-limit
+  bucket.** Over the service's Unix socket Mojolicious gives a connection no
+  peer address, so the address read ahead of `X-Forwarded-For` was undef and
+  the controllers fell back to a constant: ten failed logins from anywhere
+  locked the login form for everyone for five minutes, registration and
+  password reset after five, search after sixty a minute, and the audit rows
+  and sessions hashed `unknown` for every client. A connection on the socket
+  now takes its client from the last `X-Forwarded-For` entry, the one nginx
+  and Caddy append; entries a client sent ahead of it are ignored, and a
+  request without one (`gpforum status`, curl on the socket) is keyed by its
+  own connection, never by a constant (ADR 0086). TCP listeners keep
+  `GPFORUM_RUNTIME_TRUSTED_PROXIES` as before.
+
 - **PostgreSQL can refuse direct access to forum tables.** The separately
   provisioned runtime login owns no objects, belongs to no roles and can
   execute only the 195 current API signatures. Versioned `SECURITY DEFINER`

@@ -684,6 +684,13 @@ closed to other users. nginx and Caddy configurations printed with
 directory. The old `gpforum-unix-socket` template names are compatibility
 links to the canonical templates, not separate configurations.
 
+A connection on the socket carries no client address, so the service takes
+the client from the last `X-Forwarded-For` entry: the one the proxy appends
+(`$proxy_add_x_forwarded_for` in the nginx files, Caddy's default). A proxy
+of your own must append it too, or every request is keyed by its connection
+alone and the rate limits stop following a client. Entries before the last
+are never read, so a client cannot choose its own address (ADR 0086).
+
 The browser-facing development command `gpforum start --foreground` retains
 its explicit HTTP listener on port 3000. Internal local connections use Unix
 sockets; the public browser-to-proxy listener remains HTTP/HTTPS.

@@ -9,6 +9,7 @@ use v5.40;
 use Time::HiRes qw(time);
 
 use GPForum::Web::Access;
+use GPForum::Web::ClientAddress;
 use GPForum::Web::ErrorPayload;
 use GPForum::Web::IdentityAccess;
 use GPForum::Web::SecurityEvent;
@@ -40,7 +41,7 @@ sub current_user_id ($self) {
 }
 
 sub request_address ($self) {
-    return $self->tx->remote_address || 'unknown';
+    return GPForum::Web::ClientAddress->of( $self->tx );
 }
 
 sub requested_locale ($self) {

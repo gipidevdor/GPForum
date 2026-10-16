@@ -5,7 +5,8 @@ package GPForum::Service::Operations::ServiceAccount;
 
 use Carp qw(croak);
 use Const::Fast;
-use English qw(-no_match_vars);
+use English    qw(-no_match_vars);
+use List::Util qw(any);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::File qw(path);
@@ -23,8 +24,9 @@ our $VERSION = '0.001';
 const my $PRIVATE_DIRECTORY => oct '750';
 
 # Where getpwnam and getgrnam put the ids.
-const my $USER_ID  => 2;
-const my $GROUP_ID => 2;
+const my $USER_ID       => 2;
+const my $GROUP_ID      => 2;
+const my $GROUP_MEMBERS => 3;
 
 has os   => sub { return GPForum::OS->detect; };
 has name => 'gpforum';
@@ -56,6 +58,40 @@ sub group_id ($self) {
     my @group = getgrnam $self->name;
 
     return @group ? $group[$GROUP_ID] : undef;
+}
+
+sub with_identity ( $self, $work ) {
+    my ( $uid, $gid ) = $self->ids;
+    croak 'the account ' . $self->name . ' does not exist' if !defined $uid;
+    return $work->()
+      if $EFFECTIVE_USER_ID == $uid
+      && ( split q{ }, $EFFECTIVE_GROUP_ID )[0] == $gid;
+    croak 'only root may use the service account identity'
+      if $EFFECTIVE_USER_ID != 0;
+
+    # Restore the user before the groups when the scope unwinds, including
+    # an exception. The real uid remains root, so restoration is possible.
+    local $EFFECTIVE_GROUP_ID = $self->_identity_groups($gid);
+    local $EFFECTIVE_USER_ID  = $uid;
+    croak 'could not use the service account identity'
+      if $EFFECTIVE_USER_ID != $uid
+      || ( split q{ }, $EFFECTIVE_GROUP_ID )[0] != $gid;
+    return $work->();
+}
+
+sub _identity_groups ( $self, $primary ) {
+    my %groups = ( $primary => 1 );
+    setgrent;
+    while ( my @group = getgrent ) {
+        if ( any { $_ eq $self->name }
+            split /\s+/msx,
+            $group[$GROUP_MEMBERS] // q{} )
+        {
+            $groups{ $group[$GROUP_ID] } = 1;
+        }
+    }
+    endgrent;
+    return join q{ }, $primary, sort { $a <=> $b } keys %groups;
 }
 
 # The commands that make the account on this system, each an argument list;
@@ -145,6 +181,14 @@ The id of the group named after the account, or undef.
 Takes the account's home and returns the commands that make the account on
 this system, each an argument list; empty where GPForum leaves it to the
 operator.
+
+=head2 with_identity
+
+Runs a callback with the account's effective user and group ids. Root may
+temporarily assume this identity; a process already running as the account
+calls it directly. The original identity is restored when the callback
+returns or throws. This lets setup check Unix socket peer authentication
+as the service that will use it, while provisioning remains privileged.
 
 =head2 make
 

@@ -672,6 +672,9 @@ socket directory; set `host=/path/to/directory` in that DSN when PostgreSQL
 keeps its socket elsewhere. A remote database still takes an explicit TCP
 host. Local peer authentication requires the service account and PostgreSQL
 role to agree, or a matching `pg_hba.conf` rule.
+When root runs `setup`, database provisioning stays privileged; connection
+checks, migrations and owner lookup use the service account. This matches
+the identity PostgreSQL sees after the service starts, including peer auth.
 
 Hypnotoad's default is `http+unix://var%2Frun%2Fgpforum.sock`. The service
 starts in the code directory and creates `var/run` with mode `0750` before

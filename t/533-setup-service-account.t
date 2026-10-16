@@ -5,9 +5,12 @@ package main;
 
 use v5.40;
 
+use Carp qw(croak);
 use Const::Fast;
 use English    qw(-no_match_vars);
 use File::Temp qw(tempdir);
+use IO::Socket::UNIX;
+use Socket qw(SOL_SOCKET);
 use Test::More;
 
 use lib 'lib';
@@ -17,9 +20,11 @@ use GPForum::Service::Operations::ServiceAccount;
 
 our $VERSION = '0.001';
 
-const my $PRIVATE   => oct '750';
-const my $MODE_BITS => oct '777';
-const my $FREE_ID   => 499;
+const my $PRIVATE                 => oct '750';
+const my $MODE_BITS               => oct '777';
+const my $FREE_ID                 => 499;
+const my $SOCKET_ACCESS           => oct '777';
+const my $SOCKET_DIRECTORY_ACCESS => oct '755';
 
 # ADR 0122: gpforum setup, run as root, makes the account the services run
 # as where the system has one command for it -- useradd on Linux, pw on
@@ -125,6 +130,83 @@ subtest 'the uploads directory is made for the account' => sub {
         !$class->new( name => 'no-such-account-530' )->ids,
         'an account that does not exist has no ids'
     );
+};
+
+subtest 'a callback can use the current account' => sub {
+    my $account = $class->new( name => scalar getpwuid $EFFECTIVE_USER_ID );
+    is( $account->with_identity( sub { return $EFFECTIVE_USER_ID; } ),
+        $EFFECTIVE_USER_ID, 'the current identity needs no privilege change' );
+};
+
+subtest 'root restores its identity after success and failure' => sub {
+    if ( $EFFECTIVE_USER_ID != 0 || !defined getpwnam 'nobody' ) {
+        plan skip_all => 'requires root and the unprivileged nobody account';
+    }
+    my $account = $class->new( name => 'nobody' );
+    my ( $uid, $gid ) = $account->ids;
+    my $groups = "$EFFECTIVE_GROUP_ID";
+    my $inside = $account->with_identity(
+        sub {
+            return [ $EFFECTIVE_USER_ID,
+                ( split q{ }, $EFFECTIVE_GROUP_ID )[0] ];
+        }
+    );
+    is_deeply(
+        $inside,
+        [ $uid, $gid ],
+        'the callback uses the service identity'
+    );
+    is( $EFFECTIVE_USER_ID,    0,       'the caller uid is restored' );
+    is( "$EFFECTIVE_GROUP_ID", $groups, 'the caller groups are restored' );
+    my $error;
+    try {
+        $account->with_identity( sub { croak 'identity test failure'; } );
+    }
+    catch ($caught) { $error = "$caught"; };
+    like(
+        $error,
+        qr/identity[ ]test[ ]failure/msx,
+        'the callback error is preserved'
+    );
+    is( $EFFECTIVE_USER_ID, 0,
+        'the caller uid is restored after an exception' );
+    is( "$EFFECTIVE_GROUP_ID", $groups,
+        'the caller groups are restored after an exception' );
+};
+
+subtest 'Unix socket credentials carry the service uid' => sub {
+    if ( $EFFECTIVE_USER_ID != 0 || !defined getpwnam 'nobody' ) {
+        plan skip_all => 'requires root and the unprivileged nobody account';
+    }
+    my $option;
+    try { $option = Socket::SO_PEERCRED(); }
+    catch ($error) { $option = undef; };
+    if ( !defined $option ) {
+        plan skip_all => 'SO_PEERCRED is unavailable on this host';
+    }
+    my $root = tempdir( 'gpforum-peer-XXXXXX', DIR => '/tmp', CLEANUP => 1 );
+    chmod $SOCKET_DIRECTORY_ACCESS, $root or croak "chmod: $OS_ERROR";
+    my $socket   = "$root/peer.sock";
+    my $listener = IO::Socket::UNIX->new( Local => $socket, Listen => 1 )
+      or croak "listen: $OS_ERROR";
+    chmod $SOCKET_ACCESS, $socket or croak "chmod: $OS_ERROR";
+    my $account = $class->new( name => 'nobody' );
+    my $client  = $account->with_identity(
+        sub {
+            return IO::Socket::UNIX->new( Peer => $socket )
+              // croak "connect: $OS_ERROR";
+        }
+    );
+    my $accepted    = $listener->accept // croak "accept: $OS_ERROR";
+    my $credentials = getsockopt $accepted, SOL_SOCKET, $option;
+    croak "peer credentials: $OS_ERROR" if !defined $credentials;
+    my ( undef, $uid, $gid ) = unpack 'iII', $credentials;
+    is_deeply(
+        [ $uid, $gid ],
+        [ $account->ids ],
+'the kernel reports the effective service identity used by peer authentication'
+    );
+    is( $EFFECTIVE_USER_ID, 0, 'the setup process is root again' );
 };
 
 done_testing();

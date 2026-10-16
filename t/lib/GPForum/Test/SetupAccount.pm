@@ -19,6 +19,12 @@ has exists          => 0;
 has fails           => undef;
 has system_commands => sub { return [ [qw(useradd --system gpforum)] ]; };
 has made            => sub { return []; };
+has identity_calls  => 0;
+
+sub with_identity ( $self, $work ) {
+    $self->identity_calls( $self->identity_calls + 1 );
+    return $work->();
+}
 
 # The ids it answers with instead, [ uid, gid ]: an account the file setup
 # writes is not the account's to read.

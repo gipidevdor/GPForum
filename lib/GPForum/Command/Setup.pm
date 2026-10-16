@@ -340,8 +340,12 @@ sub _setup ( $self, $options ) {
         $continue =
           $self->_ensure_database( $state, $plan, $database, $findings,
             \%changed )
-          && $self->_ensure_schema( $findings, \%changed );
-        $state->{owned} = $continue ? $self->owner_check->($self) : 1;
+          && $self->_ensure_schema( $state, $findings, \%changed );
+        $state->{owned} =
+          $continue
+          ? $self->_as_service( $state,
+            sub { return $self->owner_check->($self); } )
+          : 1;
     }
 
     return $self->_report( $options, $state, $findings, \%changed );
@@ -1260,7 +1264,8 @@ sub _ensure_database ( $self, $state, $plan, $held, $findings, $changed ) {
         }
     }
 
-    my $error = $self->database->connection_error(%target);
+    my $error = $self->_as_service( $state,
+        sub { return $self->database->connection_error(%target); } );
     if ( !defined $error ) {
         my $what =
             $made->{role_made} && $made->{database_made} ? 'made_both'
@@ -1463,14 +1468,20 @@ sub _server_of ($plan) {
 
 # The schema, as gpforum migrate brings it up to date. Returns whether setup
 # goes on.
-sub _ensure_schema ( $self, $findings, $changed ) {
-    my $migrated = $self->migrate->($self);
+sub _as_service ( $self, $state, $work ) {
+    return $work->() if !$state->{deployed} || !$self->_is_root;
+    return $self->account->with_identity($work);
+}
+
+sub _ensure_schema ( $self, $state, $findings, $changed ) {
+    my $migrated =
+      $self->_as_service( $state, sub { return $self->migrate->($self); } );
     if ( $migrated->{status} ) {
         $findings->add(
             name    => 'schema',
             status  => 'fail',
             message => ['setup.migrate_failed'],
-            fixes   => [ $self->_sudo . 'gpforum migrate' ],
+            fixes   => [ $self->_runner($state) . 'gpforum migrate' ],
         );
         return 0;
     }

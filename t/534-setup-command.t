@@ -31,17 +31,18 @@ use GPForum::Test::SetupTerminal;
 
 our $VERSION = '0.001';
 
-const my $EXIT_FAILURE => 1;
-const my $EXIT_USAGE   => 2;
-const my $FILE_MODE    => oct '640';
-const my $MODE_BITS    => oct '777';
-const my $NOT_ROOT     => 1_000;
-const my $QUESTIONS    => 3;
-const my $NO_GROUP     => 2_147_483_646;
-const my $HOST         => 'forum.gpforum.net';
-const my $EDIT         => 'GPForum::Command::Support::EnvironmentFileEdit';
-const my $OK           => "\N{CHECK MARK} ";
-const my $FAILED       => "\N{BALLOT X} ";
+const my $EXIT_FAILURE            => 1;
+const my $EXIT_USAGE              => 2;
+const my $FILE_MODE               => oct '640';
+const my $MODE_BITS               => oct '777';
+const my $NOT_ROOT                => 1_000;
+const my $QUESTIONS               => 3;
+const my $DATABASE_IDENTITY_STEPS => 3;
+const my $NO_GROUP                => 2_147_483_646;
+const my $HOST                    => 'forum.gpforum.net';
+const my $EDIT   => 'GPForum::Command::Support::EnvironmentFileEdit';
+const my $OK     => "\N{CHECK MARK} ";
+const my $FAILED => "\N{BALLOT X} ";
 
 # Where stat puts the mode, the owner and the group.
 const my $STAT_MODE => 2;
@@ -547,6 +548,24 @@ subtest 'in Italian, and as JSON' => sub {
     );
 };
 
+subtest 'a deployed setup checks the database as the service account' => sub {
+    my $account = GPForum::Test::SetupAccount->new;
+    my $run     = _setup(
+        {
+            file       => "$directory/peer-auth.env",
+            uid        => 0,
+            links_into => "$directory/service-bin",
+            account    => $account,
+        },
+        _flags()
+    );
+    is( $run->{status}, 0, 'the deployed setup succeeds' )
+      or diag $run->{output};
+    is( $account->identity_calls, $DATABASE_IDENTITY_STEPS,
+        'connection check, migrations and owner lookup use the service identity'
+    );
+};
+
 done_testing();
 
 # What a production install run by another account than root says first.
@@ -624,11 +643,14 @@ sub _setup ( $given, @arguments ) {
             language => $given->{language} // 'en'
         ),
         os            => GPForum::OS->from_name('linux'),
-        effective_uid => $NOT_ROOT,
-        host_name     => $HOST,
-        terminal => $given->{terminal} // GPForum::Test::SetupTerminal->new,
-        account  => $given->{account}  // GPForum::Test::SetupAccount->new,
-        database => $database,
+        effective_uid => $given->{uid} // $NOT_ROOT,
+        defined $given->{links_into}
+        ? ( links_into => $given->{links_into} )
+        : (),
+        host_name => $HOST,
+        terminal  => $given->{terminal} // GPForum::Test::SetupTerminal->new,
+        account   => $given->{account}  // GPForum::Test::SetupAccount->new,
+        database  => $database,
         defined $given->{input} ? ( input => $given->{input} ) : (),
         generate => sub { return 'secret-' . ++$secrets . $LONG; },
         migrate  => sub ($self) {

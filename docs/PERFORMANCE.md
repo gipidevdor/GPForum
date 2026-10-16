@@ -875,6 +875,55 @@ random reads gone from it. What is left is the templates' own code (a
 quarter of the request), an escape per expression (1,269 a page, a
 subroutine call each) and the 8 statements' round trips.
 
+### Static post fragment cache (2026-10-16)
+
+The historical 60% rendering share above describes the page before those
+optimizations. It is not a current 19 ms rendering measurement. A new
+NYTProf run against local PostgreSQL 18.6 over a Unix socket, with
+EV/kqueue (backend 8), measured about 12 ms of inclusive rendering and
+1.5 ms in SQL execution per authenticated 15-post page before fragment
+caching. Instrumentation increased the whole request to about 33.5 ms;
+these inclusive timings overlap and must not be added or compared with
+uninstrumented latency.
+
+`GPForum::Web::PostFragments` now caches escaped, static post presentation:
+author markup, translated labels, form fields, action paths and sheet
+headings. One compiled partial builds all pieces on a miss. Each worker
+has an LRU of 512 entries, retained for one hour, with a 64 KiB limit per
+entry (at most 32 MiB of fragment payload, plus cache overhead). The key
+hashes every template input, including current source text, author, reply
+target, deletion and like state, locale and mounted base path. A change
+selects a new entry immediately; correctness does not depend on the TTL.
+
+The normal reader authorizes and loads every page before any cache lookup.
+Permission branches, forms, CSRF masks, command identifiers, attachment
+controls and relative timestamps are generated for the current request.
+The post body still passes the existing trusted-HTML policy each time;
+its source renderer already memoizes sanitized markup. Entries contain no
+session or command credentials. `t/689-post-fragment-cache.t` checks two
+separate sessions, a rejected cross-session CSRF submission, changed
+permissions and content, escaping, locale/base-path isolation and the size
+bound. Existing HTML and fragment contracts remain in force.
+
+An alternating A/B run used the same application, real server-backed
+administrator session, medium seed (1,800 posts), database and 15-post
+thread; only the post template changed. Five runs per variant, each with
+20 warm-up requests followed by 100 measured requests, gave these medians
+of the five run summaries:
+
+| Native, uninstrumented Test::Mojo request | Previous template | Cached fragments |
+| --- | ---: | ---: |
+| Median latency | 9.763 ms | 9.035 ms |
+| p95 latency | 10.384 ms | 9.633 ms |
+
+The median improved by 7.5%; each cached run recorded 1,785 fragment hits
+and 15 misses. A final pair after the last code changes confirmed
+9.753/9.012 ms median and 10.803/9.893 ms p95. These are sequential,
+in-process page measurements with real PostgreSQL and session validation,
+not a 1,000- or 5,000-connection capacity result. The external HTTP load
+gate remains separate, with its original connection counts and strict
+zero-error, three-second requirement.
+
 ### Where the evidence lives
 
 | Evidence | Where |

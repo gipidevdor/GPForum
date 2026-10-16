@@ -19,6 +19,7 @@ use GPForum::ViewModel::Privacy::Presenter;
 use GPForum::Web::AssetManifest;
 use GPForum::Web::IdentityAccess;
 use GPForum::Web::RenderPolicy;
+use GPForum::Web::PostFragments;
 use GPForum::X::Argument;
 use Mojo::ByteStream;
 use Mojo::Util qw(xml_escape);
@@ -28,15 +29,18 @@ our $VERSION = '0.001';
 sub register {
     my ( undef, %input ) = @_;
 
-    my $application = $input{application};
-    my $i18n        = $input{i18n};
+    my $application    = $input{application};
+    my $i18n           = $input{i18n};
+    my $default_locale = $i18n->negotiate(q{});
 
     my $identity_access = GPForum::Web::IdentityAccess->new;
     my $locale_cookie   = $identity_access->locale_cookie_name;
     my $theme_cookie    = $identity_access->theme_cookie_name;
-    my $presenter       = GPForum::View::Presenter->new;
     my $render_policy   = GPForum::Web::RenderPolicy->new;
-    my $theme_registry  = GPForum::Theme::Registry->new(
+    my $post_fragments  = GPForum::Web::PostFragments->new;
+    my $presenter =
+      GPForum::View::Presenter->new( post_fragments => $post_fragments );
+    my $theme_registry = GPForum::Theme::Registry->new(
         configured_default_theme => $input{default_theme}, );
     my $default_timezone      = $input{default_timezone} || 'UTC';
     my $admin_view_model      = GPForum::ViewModel::Admin::Presenter->new;
@@ -83,12 +87,15 @@ sub register {
               if defined $cached_locale && length $cached_locale;
 
             my $locale =
-              $controller->i18n_service->supported_locale(
+              $i18n->supported_locale(
                 $controller->session('preferred_locale') )
-              || $controller->i18n_service->supported_locale(
-                $controller->cookie($locale_cookie) )
-              || $controller->i18n_service->negotiate(
-                $controller->req->headers->header('Accept-Language') || q{} );
+              || $i18n->supported_locale( $controller->cookie($locale_cookie) );
+            if ( !$locale ) {
+                my $accept =
+                  $controller->req->headers->header('Accept-Language') || q{};
+                $locale =
+                  length $accept ? $i18n->negotiate($accept) : $default_locale;
+            }
             $controller->stash( ui_locale => $locale );
 
             return $locale;

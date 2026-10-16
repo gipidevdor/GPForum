@@ -58,10 +58,10 @@ sub register {
     $application->renderer->cache->max_keys($TEMPLATE_CACHE_KEYS);
     _configure_warmup( $application, $config );
 
-    $application->helper(
-        gp_clock => sub { return GPForum::Service::Clock->new; } );
-    $application->helper(
-        gp_id => sub { return GPForum::Infrastructure::Id->new; } );
+    my $clock = GPForum::Service::Clock->new;
+    my $id    = GPForum::Infrastructure::Id->new;
+    $application->helper( gp_clock => sub { return $clock; } );
+    $application->helper( gp_id    => sub { return $id; } );
 
     my $realtime_hub;
     $application->helper(

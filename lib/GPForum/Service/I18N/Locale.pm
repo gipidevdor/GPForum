@@ -31,6 +31,9 @@ sub negotiate ( $self, $accept_language ) {
 }
 
 sub supported_locale ( $self, $locale ) {
+    return undef if !defined $locale || !length $locale;
+    return $locale
+      if $self->supported->{$locale} && $self->_is_locale_tag($locale);
     return $self->matching( $self->normalize($locale) );
 }
 

@@ -8,6 +8,10 @@ use v5.40;
 
 our $VERSION = '0.001';
 
+has post_fragments =>
+  undef
+  ; # optional: injected for thread HTML; action-only presenters do not render fragments
+
 sub action ( $self, %input ) {
     my %action = (
         href  => _string( $input{href} ),

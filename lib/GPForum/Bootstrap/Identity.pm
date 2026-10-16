@@ -96,21 +96,21 @@ sub _register_identity_helpers {
 
 sub _configure_session_guard {
     my ($application) = @_;
+    my $cookies = GPForum::Web::CookieSession->new;
 
     $application->hook(
         before_dispatch => sub {
             my ($controller) = @_;
 
-            _expire_stale_session($controller);
-            _validate_server_session($controller);
+            _expire_stale_session( $controller, $cookies );
+            _validate_server_session( $controller, $cookies );
         }
     );
 
     return;
 }
 
-sub _validate_server_session ($controller) {
-    my $cookies = GPForum::Web::CookieSession->new;
+sub _validate_server_session ( $controller, $cookies ) {
     if ( !$cookies->has_server_session($controller) ) {
         return undef;
     }
@@ -169,8 +169,7 @@ sub _invalidate_session ( $controller, $cookies, $validation ) {
     return;
 }
 
-sub _expire_stale_session ($controller) {
-    my $cookies = GPForum::Web::CookieSession->new;
+sub _expire_stale_session ( $controller, $cookies ) {
     if ( !$cookies->expired( $controller, time ) ) {
         return;
     }

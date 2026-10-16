@@ -205,7 +205,7 @@ jobs:
           perl script/performance-evidence init --output "$PERF_OUTPUT/connections-5000" --mode pr
           script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT/connections-5000" \
             --mode pr --generator wrk --disposable-database --concurrency 1000,5000 --allow-5000 \
-            --scenario health_live --workers 4 --duration 10 --repetitions 3 --deadline 180
+            --scenario health_live --workers 4 --wrk-timeout 5 --duration 10 --repetitions 3 --deadline 180
 
       - name: Fetch historical baseline data
         if: ${{ !cancelled() && github.event_name != 'pull_request' }}

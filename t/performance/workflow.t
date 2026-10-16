@@ -159,8 +159,8 @@ ok(
 );
 ok(
     index( $ordinary,
-        '--scenario health_live --workers 4 --duration 10 --repetitions 3' ) >=
-      0,
+'--scenario health_live --workers 4 --wrk-timeout 5 --duration 10 --repetitions 3'
+    ) >= 0,
     'the transport capacity test is repeated and identifies its endpoint'
 );
 ok(

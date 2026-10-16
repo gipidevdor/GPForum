@@ -32,6 +32,8 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
     STRESS_FD_LIMIT       => 16_384,
     STRESS_WORKERS        => 4,
     STRESS_BACKLOG        => 8192,
+    WRK_TIMEOUT_DEFAULT   => 3,
+    STRESS_WRK_TIMEOUT    => 5,
 };
 use JSON::PP;
 use lib 'script/lib';
@@ -214,6 +216,8 @@ ok(
             for my $pair (
                 [ '--duration',    0 ],
                 [ '--duration',    INVALID_DURATION ],
+                [ '--wrk-timeout', 0 ],
+                [ '--wrk-timeout', INVALID_DURATION ],
                 [ '--repetitions', INVALID_REPEATS ],
                 [ '--deadline',    INVALID_DEADLINE ],
                 [ '--concurrency', INVALID_CONNECTIONS ],
@@ -397,6 +401,22 @@ ok(
         'parent settings preserved' );
     is( $env->{configuration}{default_ev_backend},
         EV_BACKEND, 'defaultbackend transported' );
+    is( $env->{configuration}{wrk_timeout_seconds},
+        WRK_TIMEOUT_DEFAULT,
+        'the ordinary sweep keeps its three-second response timeout' );
+    my $stress = runtime_environment(
+        { postgres  => '16.4', database_settings => {} },
+        { signature => 'seed' },
+        {
+            mode        => 'pr',
+            duration    => 2,
+            repetitions => 3,
+            wrk_timeout => STRESS_WRK_TIMEOUT
+        }
+    );
+    is( $stress->{configuration}{wrk_timeout_seconds}, STRESS_WRK_TIMEOUT,
+        'the stress response budget is explicit in its measured configuration'
+    );
     is( $env->{configuration}{default_reactor},
         'Mojo::Reactor::EV', 'defaultclass transported' );
     ok(

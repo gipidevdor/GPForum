@@ -545,6 +545,7 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
         default_ev_backend    => delete( $versions->{default_ev_backend} ),
         http_duration_seconds => $args->{duration},
         http_repetitions      => $args->{repetitions},
+        wrk_timeout_seconds   => $args->{wrk_timeout} // REQUEST_TIMEOUT,
         http_concurrency      => $args->{levels}
           // $DEFAULTS{ $args->{mode} }{concurrency},
         cache =>
@@ -601,12 +602,12 @@ sub wrk_measure ( $server, $cell, $args, $log, $deadline ) {
     my $started   = monotonic();
     my $raw       = run_bounded(
         [
-            'wrk',       '--latency',
-            '-t',        min( 2, $cell->{concurrency} ),
-            '-c',        $cell->{concurrency},
-            '-d',        "$args->{duration}s",
-            '--timeout', '3s',
-            '-s',        root_dir() . '/benchmarks/wrk-metrics.lua',
+            'wrk', '--latency',
+            '-t',  min( 2, $cell->{concurrency} ),
+            '-c',  $cell->{concurrency},
+            '-d',  "$args->{duration}s",
+            '--timeout', ( $args->{wrk_timeout} // REQUEST_TIMEOUT ) . 's',
+            '-s', root_dir() . '/benchmarks/wrk-metrics.lua',
             $canonical
         ],
         {
@@ -727,7 +728,12 @@ sub suite_status ( $output, $status, $reason, $skips ) {
 
 sub _parse_options (@argv) {
     require Getopt::Long;
-    my %args = ( mode => 'pr', repetitions => 3, generator => 'auto' );
+    my %args = (
+        mode        => 'pr',
+        repetitions => 3,
+        generator   => 'auto',
+        wrk_timeout => REQUEST_TIMEOUT,
+    );
     Getopt::Long::Configure( 'no_auto_abbrev', 'no_ignore_case' );
     my $ok = Getopt::Long::GetOptionsFromArray(
         \@argv,
@@ -741,6 +747,7 @@ sub _parse_options (@argv) {
         'allow-5000!'          => \$args{allow_5000},
         'scenario=s@'          => \$args{scenarios},
         'workers=i'            => \$args{workers},
+        'wrk-timeout=i'        => \$args{wrk_timeout},
         'disposable-database!' => \$args{disposable_database},
         'generator=s'          => \$args{generator},
         'dry-run!'             => \$args{dry_run},
@@ -764,6 +771,8 @@ sub _parse_options (@argv) {
 
 sub _validate_options ($args) {
     _validate_workers($args);
+    croak 'wrk timeout 1..30 seconds required'
+      if $args->{wrk_timeout} < 1 || $args->{wrk_timeout} > MAX_DURATION;
     if ( any { !exists $SCENARIOS{$_} } @{ $args->{scenarios} // [] } ) {
         croak 'unknown HTTP scenario';
     }
@@ -1194,6 +1203,9 @@ sub _finish ($state) {
     my $status =
       !$state->{measurements}->@* ? 'failed' : $incomplete ? 'partial' : 'ok';
     my @limitations = (
+        'Configured wrk latency budget: '
+          . ( $state->{args}{wrk_timeout} // REQUEST_TIMEOUT )
+          . ' seconds.',
 'Shared runner and load generator share the host; values are comparative evidence, not production capacity.',
 'wrk uses closed-loop fixed connections and corrected latency histograms; in-flight concurrency is not measured.',
 'RSS is end-of-sample manager+workers residency, not peak; PostgreSQL and generator resources are separate.',
@@ -1249,7 +1261,7 @@ sub main (@argv) {
     my $args = _parse_options(@argv);
     if ( $args->{help} ) {
         print
-"Usage: script/performance-http --output DIR --mode pr|main|deep [--generator wrk|mojo|auto] --disposable-database [--duration 1..30 --repetitions 1..5 --deadline 30..1800 --concurrency 1,10,... --allow-1000 --allow-5000 --scenario NAME --workers 1..8 (pr only) --dry-run]\n"
+"Usage: script/performance-http --output DIR --mode pr|main|deep [--generator wrk|mojo|auto] --disposable-database [--duration 1..30 --repetitions 1..5 --deadline 30..1800 --concurrency 1,10,... --allow-1000 --allow-5000 --scenario NAME --workers 1..8 (pr only) --wrk-timeout 1..30 --dry-run]\n"
           or croak "Cannot write help: $ERRNO";
         return 0;
     }

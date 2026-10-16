@@ -856,8 +856,11 @@ my $config = GPForum::Config->from_environment(
 my $connected_schema = GPForum::Schema->connect_from_config($config);
 
 isa_ok( $connected_schema, 'GPForum::Schema' );
-is( $connected_schema->storage->connect_info->[0],
-    $config->database_dsn, 'schema uses configured database dsn' );
+is(
+    $connected_schema->storage->connect_info->[0],
+    $config->database_connection_dsn,
+    q{schema uses configured database dsn, with the startup options}
+);
 
 my $plan    = GPForum::Migration::Plan->new;
 my $summary = $plan->summary;

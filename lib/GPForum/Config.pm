@@ -7,7 +7,8 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use DateTime::TimeZone;
-use List::Util qw(any first max min);
+use English    qw(-no_match_vars);
+use List::Util qw(any first max min pairmap);
 use Mojo::File qw(path);
 
 use GPForum::Config::Report;
@@ -122,20 +123,27 @@ const my $LOCALE_DIRECTORY => _locale_directory_of(__FILE__);
 const my $MINIMUM_PREFIX       => 3;
 const my $SUGGESTION_PER_CHARS => 3;
 
-const my $SET_APPLICATION_NAME => q{SET application_name = 'gpforum'};
-
 # UniqueConflict falls back to matching "duplicate key" and "unique
 # constraint" in the server's error text when it cannot see a SQLSTATE. Those
 # are English strings: under any other lc_messages a real unique violation
 # would read as an unknown error and the savepoint recovery would rethrow it.
-# PostgreSQL lets only a superuser set lc_messages, and production connects
-# as an ordinary role: a plain SET refused every connection, migrations
-# included. So it is asked for and, when refused, left at the server's
-# setting -- the SQLSTATE, which UniqueConflict reads first, does not depend
-# on it.
-const my $SET_MESSAGE_LOCALE => join q{ },
-  q{DO $$ BEGIN PERFORM set_config('lc_messages', 'C', false);},
-  q{EXCEPTION WHEN insufficient_privilege THEN NULL; END $$};
+# PostgreSQL lets only a superuser, or a role granted SET on it, set
+# lc_messages, and production connects as an ordinary role: a plain SET
+# refused every connection, migrations included. So it is set where the role
+# may and otherwise left at the server's setting -- the SQLSTATE, which
+# UniqueConflict reads first, does not depend on it. Asking first is a
+# function call; the PL/pgSQL block with an exception handler it replaces
+# cost a millisecond of every connection's three (ADR 0137).
+const my $SET_MESSAGE_LOCALE =>
+  q{CASE WHEN pg_catalog.has_parameter_privilege('lc_messages', 'SET')}
+  . q{ THEN pg_catalog.set_config('lc_messages', 'C', false) END};
+
+# What a connection puts in its startup packet unless the DSN says
+# otherwise: the name pg_stat_activity and the server's log show for it, and
+# how long libpq waits for the server. A local socket answers in
+# milliseconds, so five seconds is a server that is not answering (ADR 0137).
+const my $APPLICATION     => 'gpforum';
+const my $CONNECT_TIMEOUT => 5;
 
 # The fuzzy-title threshold for search. Searcher matches titles with the pg_trgm
 # % operator, which reads this setting, because % can use the trigram index and
@@ -143,7 +151,7 @@ const my $SET_MESSAGE_LOCALE => join q{ },
 # used to bind; pg_trgm's own default of 0.3 would have quietly dropped every
 # match between 0.18 and 0.3. Setting a pg_trgm parameter before the extension
 # is loaded is allowed: PostgreSQL keeps it as a placeholder until then.
-const my $SET_SEARCH_SIMILARITY => q{SET pg_trgm.similarity_threshold = 0.18};
+const my $SEARCH_SIMILARITY => 0.18;
 
 # Every setting, in the order from_environment reads them and validate checks
 # them. One table drives the reading, the checks, the problems an operator is
@@ -1137,26 +1145,56 @@ sub runtime_listen_locations ($self) {
     return [ _csv_items( $self->runtime_listen ) ];
 }
 
-# The statements every connection runs once it is made: the timeouts, the
-# application's name, the message locale and the search similarity. The
-# query statistics know them by these texts, so a worker's first request,
-# which makes its connection, is not charged six statements it did not ask
-# for.
+# The statement every connection runs once it is made, alone in its list:
+# the timeouts, the search similarity and the message locale, set in one
+# round trip. The query statistics know it by this text, so a worker's
+# first request, which makes its connection, is not charged a statement it
+# did not ask for. The values are integers the settings checked, and the
+# threshold a constant.
 sub database_session_settings ($self) {
-    return [
-        'SET statement_timeout = ' . $self->database_statement_timeout_ms,
-        'SET idle_in_transaction_session_timeout = '
-          . $self->database_idle_in_transaction_timeout_ms,
-        'SET lock_timeout = ' . $self->database_lock_timeout_ms,
-        $SET_APPLICATION_NAME,
-        $SET_MESSAGE_LOCALE,
-        $SET_SEARCH_SIMILARITY,
-    ];
+    my @setting = (
+        statement_timeout => $self->database_statement_timeout_ms,
+        idle_in_transaction_session_timeout =>
+          $self->database_idle_in_transaction_timeout_ms,
+        lock_timeout                   => $self->database_lock_timeout_ms,
+        'pg_trgm.similarity_threshold' => $SEARCH_SIMILARITY,
+    );
+    my @calls = pairmap { "pg_catalog.set_config('$a', '$b', false)" } @setting;
+
+    return [ 'SELECT ' . join q{, }, @calls, $SET_MESSAGE_LOCALE ];
+}
+
+# The name this process's connections carry: gpforum-web for what Hypnotoad
+# loaded, gpforum-VERB for a verb run through the front door, gpforum
+# otherwise. The front door names the process "gpforum VERB" while the verb
+# runs; Hypnotoad sets HYPNOTOAD_APP in the manager its workers fork from.
+sub database_application_name ($self) {
+    return "$APPLICATION-web" if defined $ENV{HYPNOTOAD_APP};
+
+    my ($verb) = $PROGRAM_NAME =~ /\A $APPLICATION \s+ ([[:alnum:]_-]+)/msx;
+    return defined $verb ? "$APPLICATION-$verb" : $APPLICATION;
+}
+
+# The DSN with the startup options a connection gets unless the operator
+# set them: in the startup packet they cost no statement.
+sub database_connection_dsn ($self) {
+    my $dsn = $self->database_dsn;
+    my %given =
+      map { /\A \s* ([^=\s]+) \s* =/msx ? ( lc $1 => 1 ) : () }
+      split /;/msx, $dsn =~ s/\A dbi:Pg://rmsxi;
+    my @added = (
+        $given{application_name}
+        ? ()
+        : 'application_name=' . $self->database_application_name,
+        $given{connect_timeout} ? () : "connect_timeout=$CONNECT_TIMEOUT",
+    );
+
+    return join q{;}, $dsn, @added;
 }
 
 sub database_connect_info ($self) {
     return (
-        $self->database_dsn,
+        $self->database_connection_dsn,
         $self->database_user,
         $self->database_password,
         {
@@ -1850,16 +1888,29 @@ The comma-separated C<runtime_listen> locations as a list.
 
 =head2 database_session_settings
 
-The statements every connection runs once it is made, as an array
-reference: the timeouts, the application name, the message locale and the
-search similarity threshold. C<database_connect_info> passes them as
-C<on_connect_do>; the query statistics know them by these texts.
+The statement every connection runs once it is made, alone in an array
+reference: one C<SELECT> of C<set_config> calls for the timeouts, the
+search similarity threshold and, where the role may set it, the message
+locale (ADR 0137). C<database_connect_info> passes it as C<on_connect_do>;
+the query statistics know it by this text.
+
+=head2 database_application_name
+
+The C<application_name> this process's connections carry: C<gpforum-web>
+for what Hypnotoad loaded, C<gpforum-VERB> for a verb run through the front
+door, C<gpforum> otherwise.
+
+=head2 database_connection_dsn
+
+C<database_dsn> with C<application_name> and C<connect_timeout=5> added to
+its startup options, each unless the DSN already sets it.
 
 =head2 database_connect_info
 
-Returns DBI connection arguments for DBIx::Class. Session
-C<statement_timeout>, C<idle_in_transaction_session_timeout>,
-C<lock_timeout>, and C<application_name> are applied on connect. Zero
+Returns DBI connection arguments for DBIx::Class: C<database_connection_dsn>,
+the role and its password, and the attributes. Session
+C<statement_timeout>, C<idle_in_transaction_session_timeout> and
+C<lock_timeout> are applied on connect. Zero
 milliseconds disables that PostgreSQL timeout. C<gpforum migrate>
 clears C<statement_timeout> after connect so DDL is not capped at the web
 budget.

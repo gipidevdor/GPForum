@@ -1106,6 +1106,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **A database connection costs 27% less, and says which process made it.**
+  Every connection ran six statements after connecting; the PL/pgSQL block
+  that set `lc_messages` where the role may was 0.98 ms of a 3.6 ms
+  connection over the socket. One `SELECT` of `set_config` calls now sets
+  the session, and `application_name=gpforum-web` (or `gpforum-VERB`) and
+  `connect_timeout=5` travel in the startup packet unless the DSN sets them,
+  so `pg_stat_activity` tells the web processes from the workers and a
+  server that does not answer fails the connection in five seconds (ADR
+  0137, with the socket and TCP measurements).
+
 - **The drills and evidence tools that read no setting no longer read the
   settings file.** `staging-drill-attachments`, `evidence-meta`,
   `evidence-validate`, `dead-letter-check` and `mail-lifecycle-check` use

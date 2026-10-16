@@ -57,6 +57,44 @@ $admin->do(qq{CREATE DATABASE "$name" OWNER "$role"});
         '3s',
         'with the session settings applied'
     );
+
+    # ADR 0137: one statement sets the session, and the startup packet
+    # names the process. A role that may not set lc_messages keeps the
+    # server's, and still connects.
+    is_deeply(
+        $dbh->selectrow_arrayref(
+                q{SELECT current_setting('pg_trgm.similarity_threshold'),}
+              . q{ current_setting('statement_timeout'),}
+              . q{ current_setting('application_name')}
+        ),
+        [ '0.18', '15s', 'gpforum' ],
+        'the search threshold, the timeouts and the name, in one statement'
+    );
+    is(
+        scalar $dbh->selectrow_array(q{SELECT current_setting('lc_messages')}),
+        scalar $admin->selectrow_array(q{SHOW lc_messages}),
+        q{and the server's message locale where the role may not set it}
+    );
+    $schema->storage->disconnect;
+}
+
+{
+    local $ENV{GPFORUM_DATABASE_DSN} = $dsn;
+    my $schema =
+      GPForum::Schema->connect_from_config( GPForum::Config->from_environment );
+    my ($superuser) = $admin->selectrow_array(
+        'SELECT rolsuper FROM pg_roles WHERE rolname = current_user');
+  SKIP: {
+        if ( !$superuser ) {
+            skip 'the test login is not a superuser', 1;
+        }
+        is(
+            scalar $schema->storage->dbh->selectrow_array(
+                q{SELECT current_setting('lc_messages')}),
+            'C',
+            'a role that may set lc_messages gets C'
+        );
+    }
     $schema->storage->disconnect;
 }
 

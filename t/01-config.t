@@ -294,27 +294,35 @@ is( $runtime->as_hash->{os_preflight_settings}{min_recommended_workers},
     $CUSTOM_MIN_OS_WORKERS, 'runtime exposes OS preflight settings' );
 
 my @connect_info = $config->database_connect_info;
-is( $connect_info[0], $config->database_dsn,
-    'connect info includes database dsn' );
+is(
+    $connect_info[0],
+    $config->database_dsn . ';application_name=gpforum;connect_timeout=5',
+    'connect info includes database dsn, with the startup options'
+);
 is_deeply(
     $connect_info[$CONNECT_ATTR_INDEX]{on_connect_do},
     [
-        'SET statement_timeout = ' . $DEFAULT_STATEMENT_TIMEOUT_MS,
-        'SET idle_in_transaction_session_timeout = ' . $DEFAULT_IDLE_IN_TXN_MS,
-        'SET lock_timeout = ' . $DEFAULT_LOCK_TIMEOUT_MS,
-        q{SET application_name = 'gpforum'},
-
-        # UniqueConflict falls back to matching the server's English error
-        # text when no SQLSTATE is visible, so the locale is pinned -- asked
-        # for, not demanded: PostgreSQL lets only a superuser set it, and an
-        # ordinary role must still connect (t/integration/postgres-plain-role.t).
-        q{DO $$ BEGIN PERFORM set_config('lc_messages', 'C', false);}
-          . q{ EXCEPTION WHEN insufficient_privilege THEN NULL; END $$},
+        'SELECT ' . join q{, },
+        q{pg_catalog.set_config('statement_timeout',}
+          . " '$DEFAULT_STATEMENT_TIMEOUT_MS', false)",
+        q{pg_catalog.set_config('idle_in_transaction_session_timeout',}
+          . " '$DEFAULT_IDLE_IN_TXN_MS', false)",
+        "pg_catalog.set_config('lock_timeout', '$DEFAULT_LOCK_TIMEOUT_MS',"
+          . ' false)',
 
         # Search's fuzzy-title arm uses pg_trgm's % operator so it can use the
         # trigram index; % reads this threshold, and without it the default of
         # 0.3 would drop every match between 0.18 and 0.3.
-        q{SET pg_trgm.similarity_threshold = 0.18},
+        q{pg_catalog.set_config('pg_trgm.similarity_threshold', '0.18',}
+          . q{ false)},
+
+        # UniqueConflict falls back to matching the server's English error
+        # text when no SQLSTATE is visible, so the locale is pinned -- where
+        # the role may: PostgreSQL lets only a superuser or a role granted SET
+        # on it set it, and an ordinary role must still connect
+        # (t/integration/postgres-plain-role.t).
+        q{CASE WHEN pg_catalog.has_parameter_privilege('lc_messages', 'SET')}
+          . q{ THEN pg_catalog.set_config('lc_messages', 'C', false) END},
     ],
     'connect info sets PostgreSQL session timeouts on connect'
 );

@@ -38,7 +38,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
 use JSON::PP;
 use lib 'script/lib';
 use GPForum::Performance::HTTP
-  qw(parse_wrk parse_mojo plan main runtime_environment wrk_version probe_reactor native_backend_flags);
+  qw(parse_wrk parse_mojo plan main runtime_environment client_budget wrk_version probe_reactor native_backend_flags);
 use GPForum::Performance::Server;
 use GPForum::Performance::Support qw(read_json write_json run_bounded redact);
 
@@ -237,7 +237,7 @@ ok(
         directory  => $dir,
         workers    => STRESS_WORKERS,
         reactor    => 'Mojo::Reactor::EV',
-        clients    => STRESS_CONNECTIONS,
+        clients    => client_budget( { allow_5000 => 1 }, STRESS_WORKERS ),
         backlog    => STRESS_BACKLOG,
         cache_mode => 'normal',
       },
@@ -247,9 +247,20 @@ ok(
     is( $environment->{GPFORUM_RUNTIME_BACKLOG}, STRESS_BACKLOG,
 'the application listener receives the queue for the full connection burst'
     );
-    is( $environment->{GPFORUM_RUNTIME_CLIENTS},
-        STRESS_CONNECTIONS,
-        'the application receives the required client capacity' );
+    is(
+        $environment->{GPFORUM_RUNTIME_CLIENTS},
+        client_budget( { allow_5000 => 1 }, STRESS_WORKERS ),
+        'the application receives the required client capacity'
+    );
+    for my $workers ( 1, 2, STRESS_WORKERS, HIGH_WORKERS ) {
+        my $capacity = client_budget( { allow_5000 => 1 }, $workers );
+        ok( $capacity * $workers > STRESS_CONNECTIONS,
+            'aggregate capacity admits every stress connection with headroom' );
+        if ( $workers > 1 ) {
+            ok( $capacity < STRESS_CONNECTIONS,
+                'one worker cannot monopolize the full connection burst' );
+        }
+    }
     my @options = (
         '--output',      $dir,
         '--mode',        'pr',

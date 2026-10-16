@@ -44,23 +44,17 @@ sub outdated_unit ($self) {
       : 0;
 }
 
-# Hypnotoad's configuration. Accept one connection per event-loop turn so a
-# burst does not let one worker drain the shared listener before its peers.
-# This also applies to Unix sockets and inherited descriptors. Preserve an
-# explicit single_accept choice; SO_REUSEPORT still follows OS support.
+# Hypnotoad's configuration. Each listen location asks for SO_REUSEPORT when
+# the OS has it enabled, unless the location sets up its own socket.
 sub hypnotoad_config ($self) {
     my $reuseport = $self->_socket_snapshot->{reuseport}{enabled};
     my @listen;
     for my $location ( @{ $self->config->runtime_listen_locations } ) {
         my $separator = index( $location, q{?} ) >= 0 ? q{&} : q{?};
-        if ( $location !~ /[?&]single_accept=/msx ) {
-            $location .= $separator . 'single_accept=1';
-            $separator = q{&};
-        }
-        if ( $reuseport && $location !~ $OWN_SOCKET ) {
-            $location .= $separator . 'reuse=1';
-        }
-        push @listen, $location;
+        push @listen,
+          $reuseport && $location !~ $OWN_SOCKET
+          ? $location . $separator . 'reuse=1'
+          : $location;
     }
 
     return {

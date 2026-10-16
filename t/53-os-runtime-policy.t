@@ -66,11 +66,8 @@ is_deeply(
     [ '127.0.0.1', '::1' ],
     'X-Forwarded-For is believed from the loopback only, by default'
 );
-is(
-    $hypnotoad->{listen}[0],
-    'http://*:9000?single_accept=1&reuse=1',
-    'runtime policy enables fair acceptance and reuseport in listen URL'
-);
+is( $hypnotoad->{listen}[0],
+    'http://*:9000?reuse=1', 'runtime policy enables reuseport in listen URL' );
 is( $hypnotoad->{backlog},
     $CONFIGURED_BACKLOG, 'runtime policy applies configured backlog' );
 is( $hypnotoad->{clients},
@@ -107,37 +104,8 @@ my $unknown_policy = GPForum::OS::RuntimePolicy->new(
     config  => $unknown_config,
     runtime => $unknown_runtime,
 );
-is(
-    $unknown_policy->hypnotoad_config->{listen}[0],
-    'http://*:9000?single_accept=1',
-    'fair acceptance works without reuseport support'
-);
-
-for my $location ( 'http+unix://var%2Frun%2Fgpforum.sock',
-    'http://*:9000?fd=3', 'http://*:9000?reuse=0', )
-{
-    my $socket_policy = GPForum::OS::RuntimePolicy->new(
-        config  => GPForum::Config->new( runtime_listen => $location ),
-        runtime => $runtime,
-    );
-    my $separator = index( $location, q{?} ) >= 0 ? q{&} : q{?};
-    is(
-        $socket_policy->hypnotoad_config->{listen}[0],
-        $location . $separator . 'single_accept=1',
-        'fair acceptance preserves the supplied socket and its options'
-    );
-}
-my $explicit_accept = GPForum::OS::RuntimePolicy->new(
-    config => GPForum::Config->new(
-        runtime_listen => 'http+unix://var%2Frun%2Fgpforum.sock?single_accept=0'
-    ),
-    runtime => $runtime,
-);
-is(
-    $explicit_accept->hypnotoad_config->{listen}[0],
-    'http+unix://var%2Frun%2Fgpforum.sock?single_accept=0',
-    'an explicit acceptance policy is preserved'
-);
+is( $unknown_policy->hypnotoad_config->{listen}[0],
+    'http://*:9000', 'unsupported reuseport is not applied to listen URL' );
 is( $unknown_policy->report->{status},
     'degraded', 'unsupported requested runtime feature degrades policy' );
 

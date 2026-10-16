@@ -24,17 +24,20 @@ use GPForum::Test::PostgresHarness;
 
 our $VERSION = '0.001';
 
-const my $HTTP_FOUND    => 302;
-const my $HTTP_TOO_MANY => 429;
-const my $LOGIN_LIMIT   => 10;
-const my $START_POLLS   => 300;
-const my $POLL_SECONDS  => 0.1;
-const my $STOP_POLLS    => 100;
-const my $PASSWORD      => 'correct horse battery';
-const my $CLIENT_A      => '203.0.113.10';
-const my $CLIENT_B      => '203.0.113.20';
-const my $CLIENT_C      => '2001:db8::30';
-const my $FORGED        => '198.51.100.99';
+const my $HTTP_FOUND            => 302;
+const my $HTTP_TOO_MANY         => 429;
+const my $LOGIN_LIMIT           => 10;
+const my $START_POLLS           => 300;
+const my $POLL_SECONDS          => 0.1;
+const my $STOP_POLLS            => 100;
+const my $MODE_BITS             => oct '7777';
+const my $SOCKET_MODE           => oct '660';
+const my $SOCKET_DIRECTORY_MODE => oct '750';
+const my $PASSWORD              => 'correct horse battery';
+const my $CLIENT_A              => '203.0.113.10';
+const my $CLIENT_B              => '203.0.113.20';
+const my $CLIENT_C              => '2001:db8::30';
+const my $FORGED                => '198.51.100.99';
 const my $LOGIN_AUDIT_ADDRESS => q{SELECT metadata->>'request_address_hash'}
   . q{ FROM audit_log WHERE action = 'identity.login.requested'}
   . q{ ORDER BY created_at};
@@ -64,6 +67,14 @@ _member( $dbh, 'socketmember' );
 my $directory = tempdir( 'gpfsockXXXX', DIR => '/tmp', CLEANUP => 1 );
 my $socket    = "$directory/run/gpforum.sock";
 my $service   = _start_service( $directory, $socket );
+
+# The service runs under umask 027; the socket alone is the group's to write,
+# since the proxy's account joins the group (GPForum::OS::UnixListener).
+is( ( stat $socket )[2] & $MODE_BITS,
+    $SOCKET_MODE,
+    'the socket is the group\'s to read and write, nobody else\'s' );
+is( ( stat "$directory/run" )[2] & $MODE_BITS,
+    $SOCKET_DIRECTORY_MODE, 'and its directory the group\'s to enter only' );
 
 for ( 1 .. $LOGIN_LIMIT ) {
     _failed_login( $socket, $CLIENT_A );

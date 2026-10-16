@@ -18,6 +18,7 @@ use lib 'lib';
 use GPForum::CLI::start;
 use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::OS;
+use GPForum::Service::Attachment::FilesystemStorage;
 use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::DeployContract qw(
   deploy_match_text
@@ -44,7 +45,8 @@ const my $ROOT                  => path(q{.})->to_abs->to_string;
 const my $LABEL                 => 'ExecStart through bin/gpforum';
 const my $OTHER                 => '/srv/forum.env';
 const my $SOCKET_DIRECTORY_MODE => oct '750';
-const my $SOCKET_UMASK          => oct '007';
+const my $SERVICE_UMASK         => oct '027';
+const my $UPLOAD_MODE           => oct '640';
 const my $MODE_BITS             => oct '777';
 const my @IN_FOREGROUND         => qw(start --service --foreground);
 const my $RC_PATH => qr{/usr/bin/env [ ] PATH=[\$][{]gpforum_path[}]}msx;
@@ -208,7 +210,14 @@ sub _unix_sockets {
     my $original_umask = umask;
     my $start          = GPForum::CLI::start->new(
         root    => $root,
-        replace => sub (@) { $inherited_umask = umask; },
+        replace => sub (@) {
+            $inherited_umask = umask;
+
+            # What the service writes under it, as it writes an upload.
+            GPForum::Service::Attachment::FilesystemStorage->new(
+                root => "$root/attachments" )
+              ->write_object( 'ab/upload', 'bytes' );
+        },
     );
     $start->app->config(
         hypnotoad => {
@@ -220,8 +229,16 @@ sub _unix_sockets {
     is( ( stat "$root/run" )[2] & $MODE_BITS,
         $SOCKET_DIRECTORY_MODE,
         'the socket parent is closed to other accounts' );
-    is( $inherited_umask, $SOCKET_UMASK,
-        'Hypnotoad inherits a group-accessible, private socket mode' );
+
+    # The proxy's account is in the group: it reads the uploads it serves,
+    # and must not replace them. Only the socket is the group's to write.
+    is( $inherited_umask, $SERVICE_UMASK,
+        'Hypnotoad inherits the service umask, closed to the group for writing'
+    );
+    is( ( stat "$root/attachments/ab/upload" )[2] & $MODE_BITS,
+        $UPLOAD_MODE, 'so an upload is the group\'s to read, not to replace' );
+    is( ( stat "$root/attachments/ab" )[2] & $MODE_BITS,
+        $SOCKET_DIRECTORY_MODE, 'nor its directory to add to or remove from' );
     is( umask, $original_umask, 'a mocked exec does not leak the umask' );
 
     $start->app->config( hypnotoad => { listen => ['http://127.0.0.1:8080'] } );

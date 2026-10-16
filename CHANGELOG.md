@@ -15,6 +15,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
+- **Take the group's write permission off the stored uploads.** The service
+  used to run under umask 007, so the uploads it wrote are `0660` and their
+  directories `0770`, writable by the proxy's account in the `gpforum`
+  group. New ones are `0640` and `0750`; for those already stored run, as
+  root, `chmod -R g-w,o-rwx /opt/gpforum/var/attachments` (or the
+  `GPFORUM_ATTACHMENT_ROOT` you set).
+
 - **Write the new names of the old settings, drill variables and commands by
   hand.** Nothing was released with the old ones, so they are no longer
   read or installed, and neither the start, `gpforum setup` nor `gpforum
@@ -260,6 +267,14 @@ CI, evidence and internal refactors with no change in behaviour.
   `GPFORUM_GLIFISTORE_URL` is missing, while PostgreSQL stays authoritative.
 
 ### Security
+
+- **The proxy's account could replace stored uploads.** `gpforum start
+  --service` set umask 007 before Hypnotoad so the socket would be the
+  `gpforum` group's, and every file the service wrote became the group's to
+  write too -- while the deployment guide puts nginx's or Caddy's account in
+  that group. The service now runs under umask 027, and only the socket is
+  bound `0660`, before the first worker accepts and kept across a
+  zero-downtime upgrade (ADR 0086).
 
 - **Behind the shipped proxy every client of the site shared one rate-limit
   bucket.** Over the service's Unix socket Mojolicious gives a connection no

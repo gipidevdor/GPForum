@@ -28,7 +28,7 @@ our $VERSION = '0.001';
 
 const my $LISTEN                => 'http://127.0.0.1:3000';
 const my $SOCKET_DIRECTORY_MODE => oct '750';
-const my $SOCKET_UMASK          => oct '007';
+const my $SERVICE_UMASK         => oct '027';
 
 # The schemes Mojolicious's daemon listens on.
 const my $SCHEME => qr/\A (?: https? | http[+]unix ) \z/msx;
@@ -150,10 +150,7 @@ sub _hypnotoad ( $self, $words, $foreground ) {
     }
 
     # A relative socket lives under the service's code directory. Only its
-    # parent is made; Mojo owns the socket and handles inherited listeners.
-    # The proxy's account joins gpforum's group, so the socket is available
-    # to that group and closed to other local accounts.
-    my $unix_socket = 0;
+    # parent is made here; GPForum::OS::UnixListener binds the socket.
     for my $listen ( @{ $self->app->config->{hypnotoad}{listen} // [] } ) {
         my $url = Mojo::URL->new($listen);
         croak
@@ -162,9 +159,13 @@ sub _hypnotoad ( $self, $words, $foreground ) {
           if ( $url->scheme // q{} ) ne 'http+unix';
         path( url_unescape( $url->host ) )
           ->dirname->make_path( { mode => $SOCKET_DIRECTORY_MODE } );
-        $unix_socket = 1;
     }
-    my $previous_umask = $unix_socket ? umask $SOCKET_UMASK : undef;
+
+    # The proxy's account joins gpforum's group to reach the socket and read
+    # the files it serves, so what the service writes -- uploads and their
+    # directories -- is the group's to read and never to change: 0640 and
+    # 0750. Only the socket is the group's to write (GPForum::OS::UnixListener).
+    my $previous_umask = umask $SERVICE_UMASK;
 
     # The file the front door read, which Hypnotoad's bin/gpforum reads in
     # place of the host's: a unit printed for another file names it with
@@ -183,9 +184,7 @@ sub _hypnotoad ( $self, $words, $foreground ) {
         $EXECUTABLE_NAME, $hypnotoad, ( $foreground ? '-f' : () ),
         "$root/bin/gpforum"
     );
-    if ( defined $previous_umask ) {
-        umask $previous_umask;
-    }
+    umask $previous_umask;
 
     return 0;
 }

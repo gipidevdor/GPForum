@@ -678,8 +678,11 @@ the identity PostgreSQL sees after the service starts, including peer auth.
 
 Hypnotoad's default is `http+unix://var%2Frun%2Fgpforum.sock`. The service
 starts in the code directory and creates `var/run` with mode `0750` before
-binding the socket. The socket is accessible to the `gpforum` group and
-closed to other users. nginx and Caddy configurations printed with
+binding the socket. The socket, mode `0660`, is the `gpforum` group's to
+connect to and closed to other users. The service itself runs under umask
+`027`: the uploads it stores are `0640` and their directories `0750`, so the
+proxy's account, which joins the group, reads them and cannot replace them.
+nginx and Caddy configurations printed with
 `gpforum service print` resolve the same path under the deployed code
 directory. The old `gpforum-unix-socket` template names are compatibility
 links to the canonical templates, not separate configurations.

@@ -103,6 +103,19 @@ unpinned critical dependencies; process layouts nobody can explain.
 - A TCP listener keeps Mojolicious's reading: the peer, or with
   `GPFORUM_RUNTIME_PROXY` on the last entry no trusted proxy wrote.
 
+### File modes of the service (2026-10-16)
+
+- The proxy's account joins the `gpforum` group to reach the socket and to
+  read the attachments it sends (`X-Accel-Redirect`). The service therefore
+  runs under umask `027` (`gpforum start --service`): uploads are `0640`,
+  their directories `0750`, the group reads them and never changes them.
+- The socket is the one thing the group writes to, because connecting takes
+  write permission on it. `GPForum::OS::UnixListener` binds each
+  `http+unix` listener `0660` under a umask set around that bind alone, in
+  `before_server_start`, and hands it to Mojolicious through `MOJO_REUSE`;
+  a Hypnotoad upgrade inherits it there and keeps the same socket. Its
+  directory, `var/run`, is `0750`: the group enters it, nothing more.
+
 ### Systemd or container runtime
 
 - Deployment MAY use systemd, containers or another supervised runtime.
@@ -159,4 +172,6 @@ path.
   `t/144-cpan-install.t`.
 - Client address: `lib/GPForum/Web/ClientAddress.pm`,
   `t/691-client-address.t`, `t/integration/postgres-unix-socket-clients.t`.
+- File modes: `lib/GPForum/OS/UnixListener.pm`, `lib/GPForum/CLI/start.pm`,
+  `t/590-units-run-the-front-door.t`, `t/692-unix-listener.t`.
 - Docs: `docs/DEPLOYMENT.md`, `docs/DEPLOYMENT_EVIDENCE.md`.

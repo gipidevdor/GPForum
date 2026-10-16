@@ -5,6 +5,7 @@ package GPForum::Bootstrap::Security;
 
 use v5.40;
 
+use GPForum::OS::UnixListener;
 use GPForum::Security::BrowserHeaders;
 use GPForum::Web::ClientAddress;
 use Mojo::ByteStream;
@@ -31,6 +32,7 @@ sub register {
     );
     _mask_csrf_token_once_per_response($application);
     GPForum::Web::ClientAddress->register($application);
+    GPForum::OS::UnixListener->register($application);
 
     return;
 }

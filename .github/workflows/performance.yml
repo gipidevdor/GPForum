@@ -194,6 +194,18 @@ jobs:
         continue-on-error: true
         run: script/gpforum-carton exec script/performance-hotpaths --output "$PERF_OUTPUT" --mode "$PERF_MODE" --disposable-database
 
+      - name: Verify 5000 HTTP connections
+        id: connections
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.tools.outcome == 'success' && steps.migrations.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          ulimit -n 32768
+          perl script/performance-evidence init --output "$PERF_OUTPUT/connections-5000" --mode pr
+          script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT/connections-5000" \
+            --mode pr --generator wrk --disposable-database --concurrency 5000 --allow-5000 \
+            --scenario health_live --duration 10 --repetitions 3 --deadline 180
+
       - name: Fetch historical baseline data
         if: ${{ !cancelled() && github.event_name != 'pull_request' }}
         continue-on-error: true
@@ -225,6 +237,12 @@ jobs:
           fi
           perl script/performance-evidence validate --output "$PERF_OUTPUT"
           cat "$PERF_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$PERF_OUTPUT/connections-5000/metadata.json" ]; then
+            perl script/performance-evidence finalize --output "$PERF_OUTPUT/connections-5000"
+            perl script/performance-evidence validate --output "$PERF_OUTPUT/connections-5000"
+            printf '\n## 5000 HTTP connections: transport capacity on /health/live\n\n' >> "$GITHUB_STEP_SUMMARY"
+            cat "$PERF_OUTPUT/connections-5000/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
         env:
           PERF_CONTRACTS: ${{ steps.contracts.outcome }}
           PERF_SETUP: ${{ steps.dependencies.outcome }}
@@ -233,6 +251,7 @@ jobs:
           PERF_MIGRATIONS: ${{ steps.migrations.outcome }}
           PERF_HTTP: ${{ steps.http.outcome }}
           PERF_HOTPATHS: ${{ steps.hotpaths.outcome }}
+          PERF_CONNECTIONS: ${{ steps.connections.outcome }}
           PERF_BASE_SETUP: ${{ steps.base-setup.outcome }}
           PERF_BASE_HTTP: ${{ steps.base-http.outcome }}
           PERF_BASE_HOTPATHS: ${{ steps.base-hotpaths.outcome }}

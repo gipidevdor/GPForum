@@ -23,6 +23,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
     STOP_SECONDS       => 5,
     STOP_INTERVAL      => 0.05,
     LOG_LIMIT          => 200_000,
+    DEFAULT_CLIENTS    => 2048,
 };
 
 sub new ( $class, $args ) {
@@ -61,7 +62,7 @@ sub _environment($self) {
         GPFORUM_RUNTIME_LISTEN           => $self->{base},
         GPFORUM_RUNTIME_PID_FILE         => "$self->{directory}/hypnotoad.pid",
         GPFORUM_RUNTIME_BACKLOG          => 1024,
-        GPFORUM_RUNTIME_CLIENTS          => 2048,
+        GPFORUM_RUNTIME_CLIENTS          => $self->{clients} // DEFAULT_CLIENTS,
         GPFORUM_RUNTIME_REQUESTS         => 100_000_000,
         GPFORUM_RUNTIME_GRACEFUL_TIMEOUT => 3,
         GPFORUM_FORUM_READ_RATE_LIMIT    => 100_000_000,

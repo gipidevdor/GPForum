@@ -149,9 +149,25 @@ like( $ordinary, qr/performance-publish/msx,
     'ordinary permanent history retained' );
 like(
     $ordinary,
+    qr/--concurrency[ ]5000[ ]--allow-5000/msx,
+    'ordinary CI executes the explicitly enabled 5000 connection test'
+);
+ok(
+    index( $ordinary, '--scenario health_live --duration 10 --repetitions 3' )
+      >= 0,
+    'the transport capacity test is repeated and identifies its endpoint'
+);
+ok(
+    index( $ordinary, q{PERF_CONNECTIONS: ${{ steps.connections.outcome }}} )
+      >= 0,
+    'connection test failure reaches the existing CI gate'
+);
+like(
+    $ordinary,
     qr/cp[ ]-a[ ]script\/lib\/GPForum\/Performance/msx,
     'paired baseline receives exactly the head Perl harness'
 );
+
 for my $name ( 'ci.yml', 'performance.yml', 'performance-extreme.yml' ) {
     unlike(
         source($name),

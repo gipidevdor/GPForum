@@ -28,6 +28,8 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
     INVALID_CONNECTIONS   => 1000,
     EV_BACKEND            => 4,
     SEEDED_POSTS          => 4800,
+    STRESS_CONNECTIONS    => 5000,
+    STRESS_FD_LIMIT       => 16_384,
 };
 use JSON::PP;
 use lib 'script/lib';
@@ -219,6 +221,42 @@ ok(
                     qr/required|concurrency/msx, 'numeric override bounded' );
             }
         }
+    );
+}
+{
+    my $dir = tempdir( CLEANUP => 1 );
+    local *GPForum::Performance::HTTP::nofile_soft =
+      sub { return STRESS_FD_LIMIT; };
+    my @options = (
+        '--output',      $dir,
+        '--mode',        'pr',
+        '--generator',   'wrk',
+        '--concurrency', STRESS_CONNECTIONS,
+        '--allow-5000',  '--scenario',
+        'health_live',   '--dry-run',
+    );
+    my $plan = decode_json( capture( sub { main(@options); } ) )->{plan};
+    is_deeply(
+        [ map { [ $_->@{qw(scenario concurrency workers)} ] } $plan->@* ],
+        [ [ 'health_live', STRESS_CONNECTIONS, 2 ] ],
+        'the CI stress plan executes 5000 connections on the selected endpoint'
+    );
+    local *GPForum::Performance::HTTP::nofile_soft =
+      sub { return CONNECTIONS; };
+    dies(
+        sub { main(@options); },
+        qr/file[ ]descriptors/msx,
+        'an incapable runner fails explicitly instead of silently skipping 5000'
+    );
+    dies(
+        sub { main( @options, '--generator', 'mojo' ); },
+        qr/wrk[ ]generator/msx,
+        '5000 requires the independent generator'
+    );
+    dies(
+        sub { main( @options, '--scenario', 'unknown' ); },
+        qr/unknown[ ]HTTP[ ]scenario/msx,
+        'an unknown endpoint cannot produce an empty successful test'
     );
 }
 {

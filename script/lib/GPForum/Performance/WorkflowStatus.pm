@@ -21,6 +21,9 @@ sub statuses ($environment) {
         http_workflow     => 'PERF_HTTP',
         hotpaths_workflow => 'PERF_HOTPATHS',
     );
+    if ( exists $environment->{PERF_CONNECTIONS} ) {
+        $names{connections_workflow} = 'PERF_CONNECTIONS';
+    }
     if ( ( $environment->{GITHUB_EVENT_NAME} // q{} ) eq 'pull_request' ) {
         @names{qw(baseline_setup baseline_http baseline_hotpaths)} =
           qw(PERF_BASE_SETUP PERF_BASE_HTTP PERF_BASE_HOTPATHS);

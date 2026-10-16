@@ -25,6 +25,12 @@ is( $values->{contracts}{status}, 'failed', 'failed contract visible' );
 is( $values->{contracts}{failure_kind},
     'infrastructure_or_harness', 'contract failure classified' );
 is( $values->{setup}{status}, 'failed', 'failed dependency setup visible' );
+is(
+    statuses( { PERF_CONNECTIONS => 'failure' } )
+      ->{connections_workflow}{status},
+    'failed',
+    'a failed 5000-connection run remains a workflow failure'
+);
 is( $values->{http_workflow}{status}, 'skipped', 'unexecuted HTTP not PASS' );
 is( $values->{baseline_http}{status},
     'skipped', 'unexecuted paired baseline not PASS' );

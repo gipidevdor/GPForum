@@ -29,6 +29,9 @@ use constant {
     CONCURRENCY_EXTENDED     => 250,
     CONCURRENCY_MAX          => 500,
     CONCURRENCY_EXPERIMENTAL => 1000,
+    CONCURRENCY_STRESS       => 5000,
+    MIN_FD_STRESS            => 16_384,
+    DEFAULT_CLIENTS          => 2048,
     MIN_CPU_EXPERIMENTAL     => 4,
     WORKERS_MEDIUM           => 4,
     WORKERS_LARGE            => 8,
@@ -158,6 +161,12 @@ sub memory_bytes {
     if ( -r '/proc/meminfo' ) {
         my $text = bytes('/proc/meminfo');
         if ( $text =~ /^MemTotal:\s+(\d+)/msx ) { return KIB * $1; }
+    }
+    for my $name (qw(hw.memsize hw.physmem)) {
+        my $value = _attempt(
+            sub { run_bounded( [ 'sysctl', '-n', $name ], { timeout => 2 } ) } )
+          ->{value};
+        return 0 + $1 if defined $value && $value =~ /\A\s*(\d+)\s*\z/msx;
     }
     return 0;
 }
@@ -543,8 +552,11 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
         read_rate_limit    => RATE_LIMIT,
         database_settings  => $pg->{database_settings},
         backlog            => 1024,
-        clients_per_worker => 2048,
-        mojo_requests      => 'at least 100 total; at least 10 per client'
+        clients_per_worker => $args->{allow_5000}
+        ? CONCURRENCY_STRESS
+        : DEFAULT_CLIENTS,
+        http_scenarios => $args->{scenarios} // [@ORDER],
+        mojo_requests  => 'at least 100 total; at least 10 per client'
     };
     $versions->{postgres} = $pg->{postgres};
     $versions->{wrk}      = undef;
@@ -723,6 +735,8 @@ sub _parse_options (@argv) {
         'deadline=i'           => \$args{deadline},
         'concurrency=s'        => \$args{concurrency},
         'allow-1000!'          => \$args{allow_1000},
+        'allow-5000!'          => \$args{allow_5000},
+        'scenario=s@'          => \$args{scenarios},
         'disposable-database!' => \$args{disposable_database},
         'generator=s'          => \$args{generator},
         'dry-run!'             => \$args{dry_run},
@@ -745,6 +759,9 @@ sub _parse_options (@argv) {
 }
 
 sub _validate_options ($args) {
+    if ( any { !exists $SCENARIOS{$_} } @{ $args->{scenarios} // [] } ) {
+        croak 'unknown HTTP scenario';
+    }
     if (   $args->{duration} < 1
         || $args->{duration} > MAX_DURATION
         || $args->{repetitions} < 1
@@ -754,6 +771,10 @@ sub _validate_options ($args) {
     {
         croak 'duration 1..30, repetitions 1..5 and deadline 30..1800 required';
     }
+    return _connection_levels($args);
+}
+
+sub _connection_levels ($args) {
     if ( !defined $args->{concurrency} ) { return undef; }
     if ( $args->{concurrency} !~ /\A\d+(?:,\d+)*\z/msx ) {
         croak 'invalid concurrency list';
@@ -762,9 +783,12 @@ sub _validate_options ($args) {
     my @levels = sort { $a <=> $b } grep { !$seen{$_}++ } split /,/msx,
       $args->{concurrency};
     my $maximum =
-      $args->{allow_1000} ? CONCURRENCY_EXPERIMENTAL : CONCURRENCY_MAX;
+        $args->{allow_5000} ? CONCURRENCY_STRESS
+      : $args->{allow_1000} ? CONCURRENCY_EXPERIMENTAL
+      :                       CONCURRENCY_MAX;
     if ( any { $_ < 1 || $_ > $maximum } @levels ) {
-        croak 'concurrency must be 1..500 (1000 requires --allow-1000)';
+        croak
+'concurrency must be 1..500 (1000 requires --allow-1000; 5000 requires --allow-5000)';
     }
     $args->{levels} = \@levels;
     return undef;
@@ -816,6 +840,13 @@ sub _planned_skips ($args) {
 }
 
 sub _experimental_plan ( $args, $cells, $skips ) {
+    if ( $args->{allow_5000} ) {
+        croak '5000 connections require the independent wrk generator'
+          if $args->{generator} ne 'wrk';
+        croak '5000 connections require at least 16384 file descriptors'
+          if ( nofile_soft() // 0 ) < MIN_FD_STRESS;
+        return $cells;
+    }
     if ( !$args->{allow_1000} ) {
         push $skips->@*,
           {
@@ -1088,6 +1119,9 @@ sub _group ( $state, $group ) {
                     cache_mode => $group->{cache_mode},
                     index      => ++$state->{server_index},
                     deadline   => $state->{deadline},
+                    clients    => $state->{args}{allow_5000}
+                    ? CONCURRENCY_STRESS
+                    : DEFAULT_CLIENTS,
                 }
             );
             $group->{index} = 0;
@@ -1184,7 +1218,7 @@ sub main (@argv) {
     my $args = _parse_options(@argv);
     if ( $args->{help} ) {
         print
-"Usage: script/performance-http --output DIR --mode pr|main|deep [--generator wrk|mojo|auto] --disposable-database [--duration 1..30 --repetitions 1..5 --deadline 30..1800 --concurrency 1,10,... --allow-1000 --dry-run]\n"
+"Usage: script/performance-http --output DIR --mode pr|main|deep [--generator wrk|mojo|auto] --disposable-database [--duration 1..30 --repetitions 1..5 --deadline 30..1800 --concurrency 1,10,... --allow-1000 --allow-5000 --scenario NAME --dry-run]\n"
           or croak "Cannot write help: $ERRNO";
         return 0;
     }
@@ -1201,6 +1235,11 @@ sub main (@argv) {
     $state->{cells} =
       _experimental_plan( $args, plan( $args->{mode}, $args->{levels} ),
         $state->{skips} );
+    if ( $args->{scenarios} ) {
+        my %selected = map { $_ => 1 } $args->{scenarios}->@*;
+        $state->{cells} =
+          [ grep { $selected{ $_->{scenario} } } $state->{cells}->@* ];
+    }
     if ( $args->{dry_run} ) { return _dry_run($state); }
     if ( !_database_is_disposable($args) ) {
         suite_status(

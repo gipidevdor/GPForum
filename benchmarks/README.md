@@ -190,6 +190,16 @@ rows for meaningful deep pages report plan limitations explicitly.
 
 ## Reproduce locally
 
+Every performance CI run also exercises 5,000 configured HTTP connections
+against `/health/live`, in three 10-second samples. This tests HTTP transport
+capacity; it does not establish capacity for database-backed pages. Failures
+remain visible in the CI gate. The separate `connections-5000` report and
+raw generator logs are included in the candidate artifact and Job Summary.
+The runner raises its file limit to 32,768; the harness requires at least
+16,384 and permits 5,000 clients per worker for this explicit stress test.
+`wrk` connection counts are configured connections, not measured in-flight
+requests or virtual users.
+
 Use a disposable PostgreSQL cluster/database named `gpforum_perf_*`, never
 the application database. The database role needs CREATE DATABASE for the
 owned outbox and SQL-function helpers; nested plan inspection needs

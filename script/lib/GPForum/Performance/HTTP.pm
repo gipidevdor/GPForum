@@ -567,8 +567,10 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
         read_rate_limit   => RATE_LIMIT,
         database_settings => $pg->{database_settings},
         backlog => $args->{allow_5000} ? STRESS_BACKLOG : DEFAULT_BACKLOG,
-        clients_per_worker =>
-          { map { $_ => client_budget( $args, $_ ) } ( 1, 2, 4, 8 ) },
+        clients_per_worker => {
+            map { $_ => client_budget( $args, $_ ) }
+              ( 1, 2, WORKERS_MEDIUM, WORKERS_LARGE )
+        },
         http_scenarios => $args->{scenarios} // [@ORDER],
         fixed_workers  => $args->{workers},
         mojo_requests  => 'at least 100 total; at least 10 per client'

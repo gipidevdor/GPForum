@@ -13,6 +13,7 @@ const my $FALLBACK_THEME => 'auto';
 const my @THEME_NAMES    => qw(auto default dark high_contrast);
 const my $PREFERS_LIGHT  => '(prefers-color-scheme: light)';
 const my $PREFERS_DARK   => '(prefers-color-scheme: dark)';
+const my %SUPPORTED      => map { $_ => 1 } @THEME_NAMES;
 const my @TOKEN_NAMES => qw(
   background foreground muted surface surface_alt primary secondary accent
   border danger success focus_ring info warning surface_warning surface_danger
@@ -37,8 +38,7 @@ sub token_names {
 sub supported ( $self, $name ) {
     return 0 if !defined $name || !length $name;
 
-    my %supported = map { $_ => 1 } @{ $self->supported_themes };
-    return $supported{$name} ? 1 : 0;
+    return exists $SUPPORTED{$name} ? 1 : 0;
 }
 
 sub safe_theme_name ( $self, $name ) {
@@ -46,7 +46,7 @@ sub safe_theme_name ( $self, $name ) {
 }
 
 sub theme ( $self, $name ) {
-    my $theme  = _theme_contracts()->{ $self->safe_theme_name($name) };
+    my $theme  = $self->_shared($name);
     my %tokens = %{ $theme->{tokens} };
 
     return { %{$theme}, %tokens, tokens => \%tokens };
@@ -61,14 +61,14 @@ sub token ( $self, $theme_name, $token_name ) {
 }
 
 sub theme_color ( $self, $name ) {
-    return $self->theme($name)->{theme_color};
+    return $self->_shared($name)->{theme_color};
 }
 
 # The colour of the browser's own chrome around the page, as the meta tags
 # that state it: one for a theme with one palette, and for the automatic
 # theme one for each setting of the device.
 sub theme_colors ( $self, $name ) {
-    my $theme = $self->theme($name);
+    my $theme = $self->_shared($name);
 
     return [ { color => $theme->{theme_color} } ] if $theme->{name} ne 'auto';
 
@@ -79,14 +79,14 @@ sub theme_colors ( $self, $name ) {
 }
 
 sub color_scheme ( $self, $name ) {
-    return $self->theme($name)->{color_scheme};
+    return $self->_shared($name)->{color_scheme};
 }
 
 sub theme_options ( $self, $current_theme ) {
     my $safe_current = $self->safe_theme_name($current_theme);
     return [
         map {
-            my $theme = $self->theme($_);
+            my $theme = $self->_shared($_);
             {
                 current      => $_ eq $safe_current ? 1 : 0,
                 label_key    => $theme->{label_key},
@@ -103,6 +103,12 @@ sub css_variables ( $self, $name ) {
           @{ $self->token_names } ];
 }
 
+# The shared contract a theme name stands for, to read and never to hand
+# out: theme and tokens copy it.
+sub _shared ( $self, $name ) {
+    return _theme_contracts()->{ $self->safe_theme_name($name) };
+}
+
 sub _css_token_name ($name) {
     $name =~ s/_/-/gmsx;
 
@@ -113,7 +119,18 @@ sub _css_token_name ($name) {
 # the device asks for dark, and the stylesheet makes it the dark one then.
 # Its tokens here are the light theme's, which is what a server that cannot
 # see the device has to assume.
+#
+# The contracts are built once per process: every page asks for its theme
+# half a dozen times (its colour scheme, its theme colours, the selector's
+# options), and building all four palettes for each answer was 15
+# microseconds a time. Callers get copies (theme, tokens), as before.
 sub _theme_contracts {
+    state $contracts = _built_contracts();
+
+    return $contracts;
+}
+
+sub _built_contracts {
     my $contracts = _palettes();
     $contracts->{auto} = {
         %{ $contracts->{default} },

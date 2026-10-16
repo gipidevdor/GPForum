@@ -236,7 +236,16 @@ sub _is_locale_tag ( $, $tag ) {
     return 0;
 }
 
+# Read once per process: a page asks for its locale's metadata (direction,
+# script, typography) several times, and each answer built the whole table.
+# metadata and registry hand out copies of its entries.
 sub _metadata_registry {
+    state $registry = _built_registry();
+
+    return $registry;
+}
+
+sub _built_registry {
     return {
         en => {
             date_format       => '%Y-%m-%d',

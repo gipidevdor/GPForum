@@ -3,12 +3,18 @@
 
 package GPForum::Web::RenderPolicy;
 
+use Const::Fast;
 use GPForum::X::Argument;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::Util qw(xml_escape);
 
 our $VERSION = '0.001';
+
+const my %TRUSTED_CONTEXT => map { $_ => 1 } qw(
+  forum.post.body
+  search.snippet
+);
 
 sub trusted_html ( $self, %input ) {
     my $context = $input{context} || q{};
@@ -36,12 +42,7 @@ sub attribute ( $self, %input ) {
 }
 
 sub trusted_context ( $self, $context ) {
-    my %allowed = map { $_ => 1 } qw(
-      forum.post.body
-      search.snippet
-    );
-
-    return $allowed{$context} ? 1 : 0;
+    return exists $TRUSTED_CONTEXT{$context} ? 1 : 0;
 }
 
 1;

@@ -19,12 +19,21 @@ use GPForum::ViewModel::Privacy::Presenter;
 use GPForum::Web::AssetManifest;
 use GPForum::Web::IdentityAccess;
 use GPForum::Web::RenderPolicy;
+use GPForum::Web::Partials;
 use GPForum::Web::PostFragments;
 use GPForum::X::Argument;
+use Const::Fast;
 use Mojo::ByteStream;
 use Mojo::Util qw(xml_escape);
 
 our $VERSION = '0.001';
+
+# The <time> elements written so far, by everything that decides one: signed
+# in or not, the locale, the zone, the instant and the relative phrase it
+# reads as now. A list page writes one a row; at most 4,096 are kept, and
+# the table is emptied when it is full.
+const my $TIME_ELEMENTS => 4_096;
+my %TIME_ELEMENT;
 
 sub register {
     my ( undef, %input ) = @_;
@@ -101,6 +110,21 @@ sub register {
             return $locale;
         }
     );
+
+    # Every include of a partial template, compiled once and run without a
+    # render of its own, its plain translations read from one table a
+    # locale (GPForum::Web::Partials).
+    my $partials = GPForum::Web::Partials->new(
+        renderer => $application->renderer,
+        fallback => $application->renderer->helpers->{include},
+        messages => sub ($locale) { return $i18n->plain_messages($locale); },
+    );
+    $application->helper(
+        include => sub ( $controller, @arguments ) {
+            return $partials->include( $controller, @arguments );
+        }
+    );
+    $application->helper( ui_partials => sub { return $partials; } );
     _register_translation_helpers( $application, $default_timezone, $i18n );
     _register_presentation_helpers($application);
     _register_theme_helpers( $application, $theme_cookie );
@@ -125,6 +149,7 @@ sub _register_translation_helpers {
     # interpolate. Those are answered from the service's resolved table in
     # one step; a key not resolved yet, or a message with variables, goes
     # through translate as before, which resolves it for the next time.
+    my $resolved  = $i18n->resolved_messages;
     my $translate = sub {
         my ( $controller, $key, $variables ) = @_;
 
@@ -133,7 +158,7 @@ sub _register_translation_helpers {
             $locale = $controller->ui_locale;
         }
         if ( !$variables || !%{$variables} ) {
-            my $message = $i18n->resolved_messages->{$locale}{$key};
+            my $message = $resolved->{$locale}{$key};
             return $message
               if defined $message && index( $message, '{' ) < 0;
         }
@@ -227,36 +252,59 @@ sub _register_translation_helpers {
 # value the formatter cannot read is shown as it is. The components/timestamp
 # partial renders this; a page that shows many times calls it directly, since
 # a partial costs a render of its own.
+#
+# A page shows a time on every row, so what does not change within the
+# response -- signed in or not, the locale, the zone -- is read once and kept
+# on the stash with the services it asks.
 sub _time_element ( $controller, $at, $missing = undef ) {
     if ( !defined $at || !length $at ) {
         return Mojo::ByteStream->new( xml_escape( $missing // q{} ) );
     }
 
-    my $signed_in = $controller->session('user_id');
-    my $when      = $controller->i18n_service->formats->relative_datetime(
-        $controller->ui_locale,
-        $at,
-        $signed_in
-        ? $controller->ui_timezone
-        : $controller->ui_default_timezone
-    );
+    my ( $signed_in, $locale, $zone, $i18n ) =
+      @{ $controller->stash->{'gpforum.time_context'} //=
+          _time_context($controller) };
+    my $when = $i18n->formats->relative_datetime( $locale, $at, $zone );
     if ( !$when ) {
         return Mojo::ByteStream->new( xml_escape($at) );
     }
+
+    my $phrase = $signed_in && $when->{phrase};
+    my $name   = join "\0", $signed_in, $locale, $zone // q{}, $at,
+      $phrase ? ( $phrase, $when->{count} || 0 ) : ();
+    my $element = $TIME_ELEMENT{$name};
+    return Mojo::ByteStream->new($element) if defined $element;
 
     my $text = $when->{date};
     if ( !$signed_in ) {
         $text = $when->{absolute};
     }
-    elsif ( $when->{phrase} ) {
-        $text = $controller->tc( $when->{phrase}, $when->{count} );
+    elsif ($phrase) {
+        $text = $i18n->translate_count( $locale, $phrase, $when->{count} || 0 );
     }
 
-    return Mojo::ByteStream->new(
-        sprintf '<time datetime="%s" title="%s">%s</time>',
-        map { xml_escape($_) } $when->{datetime},
-        $when->{absolute}, $text
-    );
+    if ( keys %TIME_ELEMENT >= $TIME_ELEMENTS ) {
+        %TIME_ELEMENT = ();
+    }
+    $element = $TIME_ELEMENT{$name} =
+      sprintf '<time datetime="%s" title="%s">%s</time>',
+      map { xml_escape($_) } $when->{datetime},
+      $when->{absolute}, $text;
+
+    return Mojo::ByteStream->new($element);
+}
+
+sub _time_context ($controller) {
+    my $signed_in = $controller->session('user_id') ? 1 : 0;
+
+    return [
+        $signed_in,
+        $controller->ui_locale,
+        $signed_in
+        ? $controller->ui_timezone
+        : $controller->ui_default_timezone,
+        $controller->i18n_service,
+    ];
 }
 
 # The path of a named route, as url_for would write it, without the URL
@@ -278,7 +326,7 @@ sub _route_path_helper {
     return sub {
         my ( $controller, $name, %values ) = @_;
 
-        my $base = $controller->stash('ui_base_path');
+        my $base = $controller->stash->{ui_base_path};
         if ( !defined $base ) {
             my $url = $controller->req->url;
             $base = $url->base->path->to_string;
@@ -286,9 +334,14 @@ sub _route_path_helper {
             $controller->stash( ui_base_path => $base );
         }
 
-        my $route = $controller->app->routes->lookup($name)
-          // GPForum::X::Argument->throw( message => "unknown route: $name" );
-        my $writer = $writers{$name} //= _path_writer($route);
+        my ( $route, $writer ) = @{
+            $writers{$name} //= do {
+                my $named = $controller->app->routes->lookup($name)
+                  // GPForum::X::Argument->throw(
+                    message => "unknown route: $name" );
+                [ $named, _path_writer($named) ];
+            }
+        };
         return $base . $route->render( \%values )
           if !$writer || exists $values{format};
 
@@ -542,13 +595,16 @@ sub _register_presentation_helpers {
                   @{ $controller->i18n_service->supported_locales } ];
         }
     );
+
+    # Read once per response: the layout's forms each carry it.
     $application->helper(
         ui_return_to => sub {
             my ($controller) = @_;
 
-            my $return_to = $controller->req->url->path_query;
-            return
-              defined $return_to && length $return_to ? "$return_to" : q{/};
+            return $controller->stash->{'gpforum.return_to'} //= do {
+                my $return_to = $controller->req->url->path_query;
+                defined $return_to && length $return_to ? "$return_to" : q{/};
+            };
         }
     );
     $application->helper(

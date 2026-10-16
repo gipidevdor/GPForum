@@ -319,6 +319,7 @@ sub _helper_names {
       dt
       i18n
       i18n_service
+      include
       l
       num
       t
@@ -342,6 +343,7 @@ sub _helper_names {
       ui_locale_options
       ui_next_page
       ui_number
+      ui_partials
       ui_presenter
       ui_render_policy
       ui_return_to

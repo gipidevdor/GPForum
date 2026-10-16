@@ -12,7 +12,8 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-const my $FALLBACK_LOCALE => 'en';
+const my $FALLBACK_LOCALE  => 'en';
+const my $COUNTED_MESSAGES => 4_096;
 
 has default_locale => sub { return $FALLBACK_LOCALE; };
 has catalogs =>
@@ -23,7 +24,11 @@ has missing_key_logger => undef;    # optional: missing keys go unlogged
 # once, at start-up, so a message found once is the message for the life of
 # the process; a thread page asks for about 240 of them.
 has resolved_messages => sub { return {}; };
-has catalog           => sub {
+
+# The counted messages composed so far, by locale, key and count (see
+# translate_count), at most 4,096 of them.
+has counted_messages => sub { return {}; };
+has catalog          => sub {
     my ($self) = @_;
 
     return GPForum::Service::I18N::Catalog->new( catalogs => $self->catalogs, );
@@ -79,18 +84,57 @@ sub translate ( $self, $locale, $key, $variables = undef ) {
     return $self->catalog->interpolate( $message, $variables );
 }
 
+# A counted message whose only variable is the count is kept once composed:
+# a list page asks for one on every row ("3 replies", "5 minutes ago"), and
+# each composition picks the plural form and interpolates it. Only a message
+# the locale itself holds is kept, so a fallback or a missing key is still
+# logged on every lookup; and since a count can take any value, the table is
+# emptied whenever it reaches its bound.
+# The messages a supported locale holds as plain text, with no
+# placeholder, by key: what translate answers for each of them without
+# falling back or logging. None for a locale that is not supported.
+sub plain_messages ( $self, $locale ) {
+    return {} if ( $self->supported_locale($locale) // q{} ) ne $locale;
+
+    my %plain;
+    for my $key ( @{ $self->catalog_keys($locale) } ) {
+        my $message = $self->catalog->message( $locale, $key );
+        next if !_is_plain($message) || index( $message, '{' ) >= 0;
+        $plain{$key} = $message;
+    }
+
+    return \%plain;
+}
+
 sub translate_count ( $self, $locale, $key, $count, $variables = undef ) {
     if ( !$variables ) {
         $variables = {};
     }
     $variables->{count} = $count;
 
-    my $message = $self->_counted_message( $locale, $key, $count );
+    my $kept = $self->counted_messages;
+    my $name =
+      keys %{$variables} == 1
+      ? join( "\0", $locale // q{}, $key, $count // q{} )
+      : undef;
+    if ( defined $name && defined $kept->{$name} ) {
+        return $kept->{$name};
+    }
+
+    my ( $message, $own ) = $self->_counted_message( $locale, $key, $count );
     if ( !defined $message ) {
         return $key;
     }
 
-    return $self->catalog->interpolate( $message, $variables );
+    my $text = $self->catalog->interpolate( $message, $variables );
+    if ( defined $name && $own ) {
+        if ( keys %{$kept} >= $COUNTED_MESSAGES ) {
+            %{$kept} = ();
+        }
+        $kept->{$name} = $text;
+    }
+
+    return $text;
 }
 
 sub plural_category ( $self, $locale, $count ) {
@@ -173,24 +217,21 @@ sub _fallback_plain ( $self, $locale, $key ) {
     return undef;
 }
 
+# The message and whether the locale itself held it (rather than English).
 sub _counted_message ( $self, $locale, $key, $count ) {
     my $normalized = $self->supported_locale($locale) || q{};
-    my $message    = $self->_usable_counted( $normalized, $key, $count );
+    my $message    = $self->_plural_for( $normalized, $key, $count );
     if ( defined $message ) {
-        return $message;
+        return ( $message, 1 );
+    }
+
+    $message = $self->_fallback_counted( $normalized, $key, $count );
+    if ( defined $message ) {
+        return ( $message, 0 );
     }
 
     $self->_log_missing_key( $normalized || $FALLBACK_LOCALE, $key, 'missing' );
-    return undef;
-}
-
-sub _usable_counted ( $self, $locale, $key, $count ) {
-    my $message = $self->_plural_for( $locale, $key, $count );
-    if ( defined $message ) {
-        return $message;
-    }
-
-    return $self->_fallback_counted( $locale, $key, $count );
+    return ( undef, 0 );
 }
 
 sub _fallback_counted ( $self, $locale, $key, $count ) {
@@ -312,6 +353,13 @@ the message with each C<{name}> placeholder replaced by its variable (an
 unknown placeholder becomes empty), falling back to English and then to the
 key as described above.
 
+=head2 plain_messages
+
+Takes a locale. Returns a hash reference of the messages the locale's own
+catalog holds as plain text without placeholders, by key -- what
+C<translate> returns for each, with no fallback and nothing logged; an
+empty one for an unsupported locale.
+
 =head2 translate_count
 
 Takes a locale, a key, a count and an optional hash reference of variables;
@@ -319,6 +367,9 @@ the count is stored in the variables as C<count>, in the hash passed when
 there is one. Returns the message's plural form for the count (C<one> or
 C<other>, then C<other> when that form is absent; a plain string message is
 used as it is), interpolated, with the same fallbacks as C<translate>.
+A message the locale holds, asked for with no variable but the count, is
+kept by locale, key and count and answered from C<counted_messages> the next
+time; the table is emptied when it holds 4,096 messages.
 
 =head2 plural_category
 

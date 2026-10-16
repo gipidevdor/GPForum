@@ -1,11 +1,16 @@
 <!doctype html>
+%# Each value the page states more than once is read once.
 % my $locale_metadata = ui_locale_metadata;
-<html lang="<%= ui_locale %>" dir="<%= ui_direction %>" data-locale="<%= ui_locale %>" data-direction="<%= ui_direction %>" data-script="<%= $locale_metadata->{script} %>" data-theme="<%= ui_theme %>" data-color-scheme="<%= ui_theme_color_scheme %>">
+% my $page_locale = ui_locale;
+% my $page_direction = $locale_metadata->{direction};
+% my $page_theme = ui_theme;
+% my $page_color_scheme = ui_theme_color_scheme;
+<html lang="<%= $page_locale %>" dir="<%= $page_direction %>" data-locale="<%= $page_locale %>" data-direction="<%= $page_direction %>" data-script="<%= $locale_metadata->{script} %>" data-theme="<%= $page_theme %>" data-color-scheme="<%= $page_color_scheme %>">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="<%= ui_theme_color_scheme %>">
-    % for my $tint (@{ ui_theme_registry->theme_colors(ui_theme) }) {
+    <meta name="color-scheme" content="<%= $page_color_scheme %>">
+    % for my $tint (@{ ui_theme_registry->theme_colors($page_theme) }) {
       <meta name="theme-color"<%== $tint->{media} ? ' media="' . $tint->{media} . '"' : q{} %> content="<%= $tint->{color} %>">
     % }
     <title><%= title %></title>
@@ -36,7 +41,7 @@
       % }
     % }
   </head>
-  <body class="app-shell <%= ui_typography_class %><%= (stash('shell') // q{}) eq 'wide' ? ' app-shell--wide' : q{} %>">
+  <body class="app-shell <%= $locale_metadata->{typography_class} %><%= (stash('shell') // q{}) eq 'wide' ? ' app-shell--wide' : q{} %>">
     <a class="skip-link" href="#content"><%= t('nav.skip_to_content') %></a>
     <%= include 'components/site_header' %>
     <%= include 'components/site_announcements' %>

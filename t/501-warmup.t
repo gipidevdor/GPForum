@@ -58,13 +58,15 @@ ok(
     'and the mark is gone once the pages are warm'
 );
 
-for my $template (
-    qw(layouts/default.html.ep forum/thread.html.ep forum/_posts.html.ep))
-{
+for my $template (qw(layouts/default.html.ep forum/thread.html.ep)) {
     my $compiled =
       $app->renderer->cache->get( md5_sum encode 'UTF-8', $template );
     ok( $compiled && $compiled->compiled, "$template is compiled" );
 }
+
+# Partials are compiled by GPForum::Web::Partials, behind include.
+ok( $app->build_controller->ui_partials->is_compiled('forum/_posts'),
+    'forum/_posts.html.ep is compiled' );
 
 like(
     GPForum::Web::Warmup->describe($report),

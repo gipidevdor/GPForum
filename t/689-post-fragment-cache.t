@@ -84,8 +84,8 @@ ok( $cache->stats->{hits} > $before_other,
 $other->element_exists_not('form[action="/p/post-1"]');
 $other->element_exists_not('#post-post-1-edit');
 $other->text_is( '#post-post-1 .forum-post-body p' => 'First post' );
-my $other_csrf =
-  $other->tx->res->dom->at('input[name="csrf_token"]')->attr('value');
+my $other_page   = $other->tx->res->dom;
+my $other_csrf   = $other_page->at('input[name="csrf_token"]')->attr('value');
 my $like_command = 'fragment-session-like';
 $other->post_ok(
     '/p/post-1/like' => { Accept => 'application/json' } => form => {

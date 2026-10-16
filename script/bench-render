@@ -1,0 +1,479 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+
+use FindBin qw($Bin);
+use lib "$Bin/../lib";
+
+# The event loop GPForum requires (kqueue or epoll) is chosen before anything
+# loads EV or Mojo::IOLoop.
+use GPForum::OS::Reactor;
+
+use Carp qw(croak);
+use Const::Fast;
+use DBI;
+use English       qw(-no_match_vars);
+use Getopt::Long  qw(GetOptionsFromArray);
+use JSON::MaybeXS qw(encode_json);
+use List::Util    qw(sum0);
+use Time::HiRes   qw(clock_gettime CLOCK_MONOTONIC);
+
+use GPForum::Benchmark::Measure qw(percentile);
+use GPForum::Command::Migrate;
+use GPForum::Command::PerformanceSeed;
+use GPForum::Web::PublicHttpCache;
+
+our $VERSION = '0.001';
+
+# What the hot pages cost to render, in process, on a real database: a
+# throwaway database migrated and seeded with the medium profile (120 threads
+# of 15 posts), a member registered through /register and signed in through
+# /login, and each page requested through Test::Mojo after a warm-up. Per
+# page it reports the request's median and p95, and the same for the time
+# between the page's before_render hook and its after_render (the page's
+# template, its partials and its layout). Under Devel::NYTProf (--nytprof
+# FILE) it profiles only the measured requests and prints where their time
+# went, by package and by subroutine.
+#
+# A guest's thread page is answered from the public page cache in
+# production; the bench bypasses that cache, so the guest row is the cost of
+# rendering the page, which is what a cache miss pays.
+const my %DEFAULT => (
+    iterations => 200,
+    warmup     => 20,
+    top        => 20,
+);
+const my $MILLISECONDS => 1_000;
+const my $KIBIBYTE     => 1_024;
+const my $PERCENT      => 100;
+const my $P50          => 50;
+const my $P95          => 95;
+const my $HTTP_OK      => 200;
+const my $USAGE_ERROR  => 2;
+const my $READ_LIMIT   => 10_000_000;
+const my $SUBROUTINE   => 64;
+const my $PASSWORD     => 'render bench correct horse staple';
+const my $MEMBER       => 'render_bench';
+const my $THREAD_ID    => '018f1004-0001-7000-8000-000000000001';
+const my $CATEGORY_ID  => '018f1001-0001-7000-8000-000000000001';
+const my $COMPILED_EP  => 'templates (compiled EP)';
+const my $TEMPLATE_CODE =>
+  qr/\A (?:Mojo::Template|GPForum::Web::Partials)::Sandbox::/msx;
+const my @PAGES => (
+    [ thread_member => 'member', "/t/$THREAD_ID" ],
+    [ thread_guest  => 'guest',  "/t/$THREAD_ID" ],
+    [ categories    => 'member', '/categories' ],
+    [ category      => 'member', "/c/$CATEGORY_ID" ],
+    [ home          => 'member', q{/} ],
+    [ search        => 'member', '/search?q=performance' ],
+);
+
+exit main(@ARGV);
+
+sub main (@arguments) {
+    my $option = _options(@arguments);
+    return _usage( $option->{usage} ) if defined $option->{usage};
+    return _profile_run($option)      if defined $option->{nytprof};
+
+    my $admin_dsn = $ENV{GPFORUM_DATABASE_DSN}
+      // croak 'set GPFORUM_DATABASE_DSN to a database the user may CREATE in';
+    my $admin   = _connect($admin_dsn);
+    my $name    = $option->{database} // "gpforum_bench_render_$PROCESS_ID";
+    my $created = !defined $option->{database};
+    my $drop    = $created && !$option->{'keep-database'};
+    ( my $dsn = $admin_dsn ) =~ s/dbname=[^;]+/dbname=$name/msx;
+    my $report;
+    try {
+        if ($created) {
+            $admin->do( 'CREATE DATABASE ' . $admin->quote_identifier($name) );
+        }
+        $report = _bench( $dsn, $created, $option );
+    }
+    catch ($error) {
+        _drop( $admin, $name, $drop );
+        croak $error;
+    };
+    _drop( $admin, $name, $drop );
+    $report->{database} = $name;
+    $admin->disconnect;
+
+    print $option->{json} ? encode_json($report) . "\n" : _text($report)
+      or croak 'cannot write the report';
+
+    return 0;
+}
+
+# The options, with usage set to the exit status when only the usage is to
+# be printed: asked for, or a mistake.
+sub _options (@arguments) {
+    my %option = %DEFAULT;
+    if (
+        !GetOptionsFromArray(
+            \@arguments, \%option,     'iterations=i',  'warmup=i',
+            'page=s@',   'database=s', 'keep-database', 'nytprof=s',
+            'top=i',     'json',       'help',
+        )
+      )
+    {
+        return { usage => $USAGE_ERROR };
+    }
+    return { usage => 0 } if $option{help};
+
+    my %known   = map  { $_->[0] => 1 } @PAGES;
+    my @unknown = grep { !$known{$_} } @{ $option{page} // [] };
+    if ( @arguments || $option{iterations} < 1 || @unknown ) {
+        return { usage => $USAGE_ERROR };
+    }
+
+    return \%option;
+}
+
+sub _usage ($status) {
+    print 'Usage: script/bench-render [--iterations N] [--warmup N]'
+      . " [--page NAME]... [--json]\n"
+      . "       [--database NAME | --keep-database] [--nytprof FILE [--top N]]\n"
+      . '       Pages: '
+      . join( q{ }, map { $_->[0] } @PAGES ) . "\n"
+      . "       GPFORUM_DATABASE_DSN names a server the user may CREATE DATABASE on.\n"
+      or croak 'cannot write the usage';
+
+    return $status;
+}
+
+sub _connect ($dsn) {
+    return DBI->connect(
+        $dsn,
+        $ENV{GPFORUM_DATABASE_USER},
+        $ENV{GPFORUM_DATABASE_PASSWORD},
+        { AutoCommit => 1, PrintError => 0, RaiseError => 1 },
+    );
+}
+
+sub _drop ( $admin, $name, $drop ) {
+    if ($drop) {
+        $admin->do( 'DROP DATABASE IF EXISTS '
+              . $admin->quote_identifier($name)
+              . ' WITH (FORCE)' );
+    }
+
+    return;
+}
+
+sub _bench ( $dsn, $created, $option ) {
+    local $ENV{GPFORUM_DATABASE_DSN}              = $dsn;
+    local $ENV{GPFORUM_MINION_ENABLED}            = 0;
+    local $ENV{GPFORUM_REALTIME_LISTENER_ENABLED} = 0;
+    local $ENV{GPFORUM_WARMUP_ENABLED}            = 0;
+    local $ENV{GPFORUM_FORUM_READ_RATE_LIMIT}     = $READ_LIMIT;
+    local $ENV{GPFORUM_LOG_LEVEL} = $ENV{GPFORUM_LOG_LEVEL} || 'fatal';
+
+    require Test::Mojo;
+    if ($created) {
+        _quietly( sub { GPForum::Command::Migrate->new->run('--apply') } ) == 0
+          or croak 'migrations failed';
+        _quietly(
+            sub {
+                GPForum::Command::PerformanceSeed->new->run( '--profile',
+                    'medium' );
+            }
+        ) == 0 or croak 'medium seed failed';
+    }
+
+    my $member = Test::Mojo->new('GPForum');
+    my $app    = $member->app;
+    my $guest  = Test::Mojo->new($app);
+    $app->helper( gp_public_http_cache =>
+          sub { return GPForum::Web::PublicHttpCache->new( cache => undef ); }
+    );
+    _sign_in( $member, $dsn, $created );
+
+    my $render = _render_clock($app);
+    my %client = ( member => $member, guest => $guest );
+    my %wanted = map  { $_ => 1 } @{ $option->{page} // [] };
+    my @pages  = grep { !%wanted || $wanted{ $_->[0] } } @PAGES;
+
+    my @rows;
+    for my $page (@pages) {
+        my ( $label, $who, $path ) = @{$page};
+        push @rows,
+          _measure_page( $client{$who}, $label, $path, $render, $option );
+    }
+    if ( _profiling() ) {
+        DB::finish_profile();
+    }
+
+    return {
+        iterations => $option->{iterations},
+        warmup     => $option->{warmup},
+        perl       => "$PERL_VERSION",
+        pages      => \@rows,
+    };
+}
+
+# The member registers through the page, is activated in the database (the
+# mail that would verify the address is not read), and signs in, so the
+# session is a real server-side session with its cookie. A database kept
+# from an earlier run (--database) already has the member.
+sub _sign_in ( $client, $dsn, $created ) {
+    my $ua  = $client->ua;
+    my $dbh = _connect($dsn);
+    if ($created) {
+        my $form = $ua->get('/register');
+        $ua->post(
+            '/register' => form => {
+                command_id   => _form_value( $form, 'command_id' ),
+                csrf_token   => _form_value( $form, 'csrf_token' ),
+                username     => $MEMBER,
+                display_name => 'Render Bench',
+                email        => "$MEMBER\@example.test",
+                password     => $PASSWORD,
+            }
+        );
+        $dbh->do(
+            q{UPDATE users SET status = 'active', email_verified_at = now()}
+              . ' WHERE username = ?',
+            undef, $MEMBER
+        );
+    }
+    else {
+        # A database kept for repeated runs has counted every earlier
+        # sign-in: the bench's own counters are cleared, not the limit.
+        $dbh->do('DELETE FROM rate_limit_buckets');
+    }
+    $dbh->disconnect;
+
+    my $form = $ua->get('/login');
+    $ua->post(
+        '/login' => form => {
+            command_id => _form_value( $form, 'command_id' ),
+            csrf_token => _form_value( $form, 'csrf_token' ),
+            identifier => $MEMBER,
+            password   => $PASSWORD,
+        }
+    );
+    my $home = $ua->get(q{/})->res;
+    croak 'the bench member could not sign in'
+      if !$home->dom->at('form[action="/logout"]');
+
+    return;
+}
+
+sub _form_value ( $tx, $name ) {
+    my $input = $tx->res->dom->at(qq{input[name="$name"]})
+      // croak "no $name field on " . $tx->req->url;
+
+    return $input->attr('value');
+}
+
+# The time from a page's before_render to its after_render: the partials it
+# includes emit no hook of their own (GPForum::Web::Partials), and only the
+# outermost render emits after_render. It counts the renders too.
+sub _render_clock ($app) {
+    my %clock = ( started => undef, elapsed => 0, renders => 0 );
+    $app->hook(
+        before_render => sub ( $controller, $ ) {
+            $clock{started} //= clock_gettime(CLOCK_MONOTONIC);
+            ++$clock{renders};
+            return;
+        }
+    );
+    $app->hook(
+        after_render => sub ( $controller, $, $ ) {
+            if ( defined $clock{started} ) {
+                $clock{elapsed} =
+                  clock_gettime(CLOCK_MONOTONIC) - $clock{started};
+            }
+            return;
+        }
+    );
+
+    return \%clock;
+}
+
+sub _measure_page ( $client, $label, $path, $render, $option ) {
+    for ( 1 .. $option->{warmup} ) {
+        _request( $client, $path, $render );
+    }
+
+    my $profiling = _profiling();
+    if ($profiling) {
+        DB::enable_profile();
+    }
+    my ( @request, @rendering );
+    my ( $bytes,   $renders ) = ( 0, 0 );
+    for ( 1 .. $option->{iterations} ) {
+        my ( $elapsed, $rendered, $size, $count ) =
+          _request( $client, $path, $render );
+        push @request,   $elapsed;
+        push @rendering, $rendered;
+        ( $bytes, $renders ) = ( $size, $count );
+    }
+    if ($profiling) {
+        DB::disable_profile();
+    }
+
+    @request   = sort { $a <=> $b } @request;
+    @rendering = sort { $a <=> $b } @rendering;
+    return {
+        page              => $label,
+        path              => $path,
+        bytes             => $bytes,
+        renders           => $renders,
+        request_median_ms => _ms( percentile( \@request,   $P50 ) ),
+        request_p95_ms    => _ms( percentile( \@request,   $P95 ) ),
+        render_median_ms  => _ms( percentile( \@rendering, $P50 ) ),
+        render_p95_ms     => _ms( percentile( \@rendering, $P95 ) ),
+    };
+}
+
+sub _request ( $client, $path, $render ) {
+    $render->{started} = undef;
+    $render->{elapsed} = 0;
+    $render->{renders} = 0;
+    my $started = clock_gettime(CLOCK_MONOTONIC);
+    my $tx      = $client->ua->get($path);
+    my $elapsed = clock_gettime(CLOCK_MONOTONIC) - $started;
+    my $code    = $tx->res->code // 0;
+    croak "GET $path answered $code" if $code != $HTTP_OK;
+
+    return (
+        $elapsed,              $render->{elapsed},
+        length $tx->res->body, $render->{renders}
+    );
+}
+
+sub _ms ($seconds) {
+    return sprintf '%.3f', $seconds * $MILLISECONDS;
+}
+
+sub _profiling {
+    return defined &DB::enable_profile;
+}
+
+# Runs a command that reports on STDOUT without letting it write there: the
+# bench's own report is what STDOUT carries.
+sub _quietly ($code) {
+    my $output = q{};
+    open my $handle, '>', \$output
+      or croak 'failed to open output capture';
+    my $status = do {
+        local *STDOUT = $handle;
+        $code->();
+    };
+    close $handle or croak 'failed to close output capture';
+
+    return $status;
+}
+
+sub _text ($report) {
+    my $text =
+      sprintf "render bench: %d requests per page after %d warm-up (%s)\n",
+      $report->{iterations}, $report->{warmup}, $report->{database};
+    $text .= sprintf "%-14s %10s %10s %10s %10s %8s %8s\n", 'page',
+      'req p50', 'req p95', 'render p50', 'render p95', 'renders', 'KiB';
+    for my $row ( @{ $report->{pages} } ) {
+        $text .= sprintf "%-14s %10s %10s %10s %10s %8d %8.1f\n",
+          $row->{page},
+          @{$row}{
+            qw(request_median_ms request_p95_ms render_median_ms render_p95_ms renders)
+          },
+          $row->{bytes} / $KIBIBYTE;
+    }
+
+    return $text;
+}
+
+# Runs this bench again under Devel::NYTProf, with the profiler started only
+# around the measured requests, then reads the profile: the exclusive time by
+# package (the templates' compiled code as one), and the subroutines that
+# took the most exclusive time, with their call counts. Profiled times are
+# inflated by the profiler and only compare with each other.
+sub _profile_run ($option) {
+    my $file = $option->{nytprof};
+    my @passed;
+    for my $name (qw(iterations warmup database)) {
+        if ( defined $option->{$name} ) {
+            push @passed, "--$name", $option->{$name};
+        }
+    }
+    push @passed, map { ( '--page', $_ ) } @{ $option->{page} // [] };
+    if ( $option->{'keep-database'} ) {
+        push @passed, '--keep-database';
+    }
+    local $ENV{NYTPROF} = join q{:}, "file=$file", 'start=no',
+      $ENV{NYTPROF} // 'stmts=0';
+    system( $EXECUTABLE_NAME, '-d:NYTProf', $PROGRAM_NAME, @passed ) == 0
+      or croak "the profiled run failed: $CHILD_ERROR";
+
+    require Devel::NYTProf::Data;
+    my $profile =
+      Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    my $summary = _profile_summary( $profile, $option->{top} );
+    print $option->{json}
+      ? encode_json($summary) . "\n"
+      : _profile_text($summary)
+      or croak 'cannot write the profile';
+
+    return 0;
+}
+
+sub _profile_summary ( $profile, $top ) {
+    my ( %package, @subs );
+    for my $info ( values %{ $profile->subname_subinfo_map } ) {
+        next if !$info->calls;
+        my $package =
+          $info->package =~ $TEMPLATE_CODE ? $COMPILED_EP : $info->package;
+        $package{$package} += $info->excl_time;
+        push @subs, $info;
+    }
+    my $total    = sum0( values %package ) || 1;
+    my @packages = map {
+        {
+            package => $_,
+            ms      => _ms( $package{$_} ),
+            share   => sprintf( '%.1f', $PERCENT * $package{$_} / $total ),
+        }
+      }
+      reverse sort { $package{$a} <=> $package{$b} } keys %package;
+    @subs = reverse sort { $a->excl_time <=> $b->excl_time } @subs;
+
+    return {
+        profiled_ms => _ms($total),
+        packages    => [ @packages[ 0 .. _last( \@packages, $top ) ] ],
+        subs        => [
+            map {
+                {
+                    sub     => $_->subname,
+                    calls   => $_->calls,
+                    excl_ms => _ms( $_->excl_time ),
+                    incl_ms => _ms( $_->incl_time ),
+                }
+            } @subs[ 0 .. _last( \@subs, $top ) ]
+        ],
+    };
+}
+
+sub _last ( $list, $top ) {
+    return ( @{$list} < $top ? scalar @{$list} : $top ) - 1;
+}
+
+sub _profile_text ($summary) {
+    my $text = "profiled exclusive time: $summary->{profiled_ms} ms\n\n";
+    $text .= sprintf "%-48s %10s %6s\n", 'package', 'excl ms', q{%};
+    for my $row ( @{ $summary->{packages} } ) {
+        $text .= sprintf "%-48s %10s %6s\n", @{$row}{qw(package ms share)};
+    }
+    $text .= sprintf "\n%-64s %9s %10s %10s\n", 'subroutine', 'calls',
+      'excl ms', 'incl ms';
+    for my $row ( @{ $summary->{subs} } ) {
+        $text .= sprintf "%-64s %9d %10s %10s\n",
+          substr( $row->{sub}, 0, $SUBROUTINE ),
+          @{$row}{qw(calls excl_ms incl_ms)};
+    }
+
+    return $text;
+}

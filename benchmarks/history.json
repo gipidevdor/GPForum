@@ -95316,6 +95316,1446 @@
          "run_id" : "38950181866",
          "status" : "failed",
          "timestamp" : "2026-10-16T18:49:09.969989+00:00"
+      },
+      {
+         "commit" : "72e77f6b75a4e896e78f10299564784de26fea99",
+         "comparison_signature" : "c0e8f88235ca0927baebb4e0ea40f297f449bb354f33e01c4526338a32fdbc48",
+         "date" : "2026-10-16",
+         "metrics" : [
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 401,
+                  "cpu_percent" : 99.922,
+                  "duration_seconds" : 2.000408,
+                  "http_errors" : 0,
+                  "p50_ms" : 4.898,
+                  "p95_ms" : 5.337,
+                  "p99_ms" : 6.399,
+                  "requests_per_second" : 200.481355,
+                  "rss_bytes" : 394244096,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_miss",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 767,
+                  "cpu_percent" : 200.231,
+                  "duration_seconds" : 2.001863,
+                  "http_errors" : 0,
+                  "p50_ms" : 25.587,
+                  "p95_ms" : 31.306,
+                  "p99_ms" : 43.374,
+                  "requests_per_second" : 383.224079,
+                  "rss_bytes" : 394309632,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_miss",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 747,
+                  "cpu_percent" : 201.672,
+                  "duration_seconds" : 2.004293,
+                  "http_errors" : 0,
+                  "p50_ms" : 127.756,
+                  "p95_ms" : 161.892,
+                  "p99_ms" : 233.616,
+                  "requests_per_second" : 372.564305,
+                  "rss_bytes" : 396275712,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_miss",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 2501,
+                  "cpu_percent" : 99.403,
+                  "duration_seconds" : 2.099677,
+                  "http_errors" : 0,
+                  "p50_ms" : 0.83,
+                  "p95_ms" : 0.887,
+                  "p99_ms" : 0.99,
+                  "requests_per_second" : 1191.400007,
+                  "rss_bytes" : 394248192,
+                  "transport_errors" : 0
+               },
+               "scenario" : "health_live",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 4665,
+                  "cpu_percent" : 198.86,
+                  "duration_seconds" : 2.001925,
+                  "http_errors" : 0,
+                  "p50_ms" : 4.324,
+                  "p95_ms" : 4.5,
+                  "p99_ms" : 5.304,
+                  "requests_per_second" : 2290.337921,
+                  "rss_bytes" : 394248192,
+                  "transport_errors" : 0
+               },
+               "scenario" : "health_live",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 4577,
+                  "cpu_percent" : 200.736,
+                  "duration_seconds" : 2.003194,
+                  "http_errors" : 0,
+                  "p50_ms" : 21.433,
+                  "p95_ms" : 23.87,
+                  "p99_ms" : 32.486,
+                  "requests_per_second" : 2284.016476,
+                  "rss_bytes" : 394952704,
+                  "transport_errors" : 0
+               },
+               "scenario" : "health_live",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 4449,
+                  "cpu_percent" : 200.199,
+                  "duration_seconds" : 2.005206,
+                  "http_errors" : 0,
+                  "p50_ms" : 43.906,
+                  "p95_ms" : 50.075,
+                  "p99_ms" : 66.421,
+                  "requests_per_second" : 2216.537091,
+                  "rss_bytes" : 396374016,
+                  "transport_errors" : 0
+               },
+               "scenario" : "health_live",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 168,
+                  "cpu_percent" : 88.481,
+                  "duration_seconds" : 2.001422,
+                  "http_errors" : 0,
+                  "p50_ms" : 11.675,
+                  "p95_ms" : 13.338,
+                  "p99_ms" : 15.885,
+                  "requests_per_second" : 83.920108,
+                  "rss_bytes" : 396845056,
+                  "transport_errors" : 0
+               },
+               "scenario" : "home",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 301,
+                  "cpu_percent" : 177.02,
+                  "duration_seconds" : 2.003849,
+                  "http_errors" : 0,
+                  "p50_ms" : 60.528,
+                  "p95_ms" : 84.441,
+                  "p99_ms" : 120.831,
+                  "requests_per_second" : 150.210919,
+                  "rss_bytes" : 397627392,
+                  "transport_errors" : 0
+               },
+               "scenario" : "home",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 299,
+                  "cpu_percent" : 177.688,
+                  "duration_seconds" : 2.002537,
+                  "http_errors" : 0,
+                  "p50_ms" : 322.574,
+                  "p95_ms" : 536.182,
+                  "p99_ms" : 611.912,
+                  "requests_per_second" : 149.3106,
+                  "rss_bytes" : 400015360,
+                  "transport_errors" : 0
+               },
+               "scenario" : "home",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 1761,
+                  "cpu_percent" : 99.882,
+                  "duration_seconds" : 2.00099,
+                  "http_errors" : 0,
+                  "p50_ms" : 1.124,
+                  "p95_ms" : 1.178,
+                  "p99_ms" : 1.241,
+                  "requests_per_second" : 880.064368,
+                  "rss_bytes" : 400015360,
+                  "transport_errors" : 0
+               },
+               "scenario" : "categories",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3423,
+                  "cpu_percent" : 199.373,
+                  "duration_seconds" : 2.003739,
+                  "http_errors" : 0,
+                  "p50_ms" : 5.739,
+                  "p95_ms" : 7.443,
+                  "p99_ms" : 8.604,
+                  "requests_per_second" : 1708.231299,
+                  "rss_bytes" : 400015360,
+                  "transport_errors" : 0
+               },
+               "scenario" : "categories",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3507,
+                  "cpu_percent" : 199.728,
+                  "duration_seconds" : 2.003564,
+                  "http_errors" : 0,
+                  "p50_ms" : 27.843,
+                  "p95_ms" : 30.066,
+                  "p99_ms" : 41.519,
+                  "requests_per_second" : 1750.380821,
+                  "rss_bytes" : 400015360,
+                  "transport_errors" : 0
+               },
+               "scenario" : "categories",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 1749,
+                  "cpu_percent" : 99.4,
+                  "duration_seconds" : 2.000991,
+                  "http_errors" : 0,
+                  "p50_ms" : 1.12,
+                  "p95_ms" : 1.194,
+                  "p99_ms" : 3.197,
+                  "requests_per_second" : 873.001929,
+                  "rss_bytes" : 400048128,
+                  "transport_errors" : 0
+               },
+               "scenario" : "category",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3533,
+                  "cpu_percent" : 199.821,
+                  "duration_seconds" : 2.09972,
+                  "http_errors" : 0,
+                  "p50_ms" : 5.763,
+                  "p95_ms" : 6.026,
+                  "p99_ms" : 9.879,
+                  "requests_per_second" : 1720.469636,
+                  "rss_bytes" : 400048128,
+                  "transport_errors" : 0
+               },
+               "scenario" : "category",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3396,
+                  "cpu_percent" : 199.744,
+                  "duration_seconds" : 2.003191,
+                  "http_errors" : 0,
+                  "p50_ms" : 29.142,
+                  "p95_ms" : 37.295,
+                  "p99_ms" : 40.192,
+                  "requests_per_second" : 1695.295157,
+                  "rss_bytes" : 400048128,
+                  "transport_errors" : 0
+               },
+               "scenario" : "category",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 1706,
+                  "cpu_percent" : 99.443,
+                  "duration_seconds" : 2.0008,
+                  "http_errors" : 0,
+                  "p50_ms" : 1.17,
+                  "p95_ms" : 1.229,
+                  "p99_ms" : 1.473,
+                  "requests_per_second" : 851.60082,
+                  "rss_bytes" : 400179200,
+                  "transport_errors" : 0
+               },
+               "scenario" : "thread",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3522,
+                  "cpu_percent" : 199.339,
+                  "duration_seconds" : 2.099444,
+                  "http_errors" : 0,
+                  "p50_ms" : 5.83,
+                  "p95_ms" : 6.196,
+                  "p99_ms" : 10.228,
+                  "requests_per_second" : 1701.221373,
+                  "rss_bytes" : 400179200,
+                  "transport_errors" : 0
+               },
+               "scenario" : "thread",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3422,
+                  "cpu_percent" : 200.861,
+                  "duration_seconds" : 2.003488,
+                  "http_errors" : 0,
+                  "p50_ms" : 28.946,
+                  "p95_ms" : 30.343,
+                  "p99_ms" : 48.797,
+                  "requests_per_second" : 1708.021211,
+                  "rss_bytes" : 400281600,
+                  "transport_errors" : 0
+               },
+               "scenario" : "thread",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3340,
+                  "cpu_percent" : 201.6,
+                  "duration_seconds" : 2.006434,
+                  "http_errors" : 0,
+                  "p50_ms" : 59.15,
+                  "p95_ms" : 62.583,
+                  "p99_ms" : 99.63,
+                  "requests_per_second" : 1667.63113,
+                  "rss_bytes" : 403181568,
+                  "transport_errors" : 0
+               },
+               "scenario" : "thread",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 140,
+                  "cpu_percent" : 68.62,
+                  "duration_seconds" : 2.004662,
+                  "http_errors" : 0,
+                  "p50_ms" : 13.812,
+                  "p95_ms" : 16.452,
+                  "p99_ms" : 19.351,
+                  "requests_per_second" : 69.826969,
+                  "rss_bytes" : 403668992,
+                  "transport_errors" : 0
+               },
+               "scenario" : "search",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 270,
+                  "cpu_percent" : 137.663,
+                  "duration_seconds" : 2.002107,
+                  "http_errors" : 0,
+                  "p50_ms" : 72.248,
+                  "p95_ms" : 95.185,
+                  "p99_ms" : 157.498,
+                  "requests_per_second" : 134.857927,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "search",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 249,
+                  "cpu_percent" : 135.813,
+                  "duration_seconds" : 2.003716,
+                  "http_errors" : 0,
+                  "p50_ms" : 359.907,
+                  "p95_ms" : 656.523,
+                  "p99_ms" : 715.462,
+                  "requests_per_second" : 124.269108,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "search",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 200,
+                  "cpu_percent" : 138.716,
+                  "duration_seconds" : 2.003804,
+                  "http_errors" : 0,
+                  "p50_ms" : 768.79,
+                  "p95_ms" : 1436.084,
+                  "p99_ms" : 1517.555,
+                  "requests_per_second" : 99.810161,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "search",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 1785,
+                  "cpu_percent" : 99.434,
+                  "duration_seconds" : 2.001263,
+                  "http_errors" : 0,
+                  "p50_ms" : 1.125,
+                  "p95_ms" : 1.185,
+                  "p99_ms" : 1.519,
+                  "requests_per_second" : 880.534197,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_hit",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3438,
+                  "cpu_percent" : 198.805,
+                  "duration_seconds" : 2.003243,
+                  "http_errors" : 0,
+                  "p50_ms" : 5.805,
+                  "p95_ms" : 7.136,
+                  "p99_ms" : 9.329,
+                  "requests_per_second" : 1713.268434,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_hit",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3464,
+                  "cpu_percent" : 201.697,
+                  "duration_seconds" : 2.003076,
+                  "http_errors" : 0,
+                  "p50_ms" : 28.485,
+                  "p95_ms" : 29.821,
+                  "p99_ms" : 41.32,
+                  "requests_per_second" : 1728.251423,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_hit",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3349,
+                  "cpu_percent" : 200.146,
+                  "duration_seconds" : 2.005191,
+                  "http_errors" : 0,
+                  "p50_ms" : 58.381,
+                  "p95_ms" : 61.422,
+                  "p99_ms" : 93.773,
+                  "requests_per_second" : 1670.165087,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_hit",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 100,
+                  "concurrency_effective" : 10,
+                  "cpu_percent" : 23.593,
+                  "duration_seconds" : 0.083,
+                  "http_errors" : 0,
+                  "p50_ms" : 7.247,
+                  "p95_ms" : 10.636,
+                  "p99_ms" : 12.464,
+                  "requests_per_second" : 1205.922,
+                  "rss_bytes" : 404000768,
+                  "transport_errors" : 0
+               },
+               "scenario" : "health_live",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 100,
+                  "concurrency_effective" : 10,
+                  "cpu_percent" : 34.479,
+                  "duration_seconds" : 0.117,
+                  "http_errors" : 0,
+                  "p50_ms" : 10.675,
+                  "p95_ms" : 17.655,
+                  "p99_ms" : 18.937,
+                  "requests_per_second" : 854.336,
+                  "rss_bytes" : 404303872,
+                  "transport_errors" : 0
+               },
+               "scenario" : "thread",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 4885,
+                  "cpu_percent" : 374.22,
+                  "duration_seconds" : 2.007096,
+                  "http_errors" : 0,
+                  "p50_ms" : 20.858,
+                  "p95_ms" : 33.604,
+                  "p99_ms" : 46.357,
+                  "requests_per_second" : 2388.575929,
+                  "rss_bytes" : 655396864,
+                  "transport_errors" : 0
+               },
+               "scenario" : "thread",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 4863,
+                  "cpu_percent" : 388.088,
+                  "duration_seconds" : 2.009489,
+                  "http_errors" : 0,
+                  "p50_ms" : 38.175,
+                  "p95_ms" : 66.973,
+                  "p99_ms" : 74.999,
+                  "requests_per_second" : 2418.525307,
+                  "rss_bytes" : 659939328,
+                  "transport_errors" : 0
+               },
+               "scenario" : "thread",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 332,
+                  "cpu_percent" : 254.717,
+                  "duration_seconds" : 2.013822,
+                  "http_errors" : 0,
+                  "p50_ms" : 263.491,
+                  "p95_ms" : 616.315,
+                  "p99_ms" : 720.572,
+                  "requests_per_second" : 164.860648,
+                  "rss_bytes" : 661315584,
+                  "transport_errors" : 0
+               },
+               "scenario" : "search",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 318,
+                  "cpu_percent" : 262.188,
+                  "duration_seconds" : 2.009551,
+                  "http_errors" : 0,
+                  "p50_ms" : 489.675,
+                  "p95_ms" : 1106.354,
+                  "p99_ms" : 1374.894,
+                  "requests_per_second" : 158.244304,
+                  "rss_bytes" : 663252992,
+                  "transport_errors" : 0
+               },
+               "scenario" : "search",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 3332,
+                  "cpu_percent" : 222.585,
+                  "duration_seconds" : 2.003604,
+                  "http_errors" : 0,
+                  "p50_ms" : 29.388,
+                  "p95_ms" : 40.705,
+                  "p99_ms" : 61.104,
+                  "requests_per_second" : 1663.753932,
+                  "rss_bytes" : 663273472,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_hit",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "http",
+               "metrics" : {
+                  "completed" : 4778,
+                  "cpu_percent" : 378.155,
+                  "duration_seconds" : 2.004971,
+                  "http_errors" : 0,
+                  "p50_ms" : 37.571,
+                  "p95_ms" : 60.11,
+                  "p99_ms" : 87.139,
+                  "requests_per_second" : 2383.076862,
+                  "rss_bytes" : 663273472,
+                  "transport_errors" : 0
+               },
+               "scenario" : "cache_hit",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {},
+               "scenario" : "query-budget-catalog",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "sql_execution_ms" : 0.493
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 8,
+                  "sql_execution_ms" : 0.448
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "sql_execution_ms" : 0.487
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "sql_execution_ms" : 0.691
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 20,
+                  "sql_execution_ms" : 0.119
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 20,
+                  "sql_execution_ms" : 3.568
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "sql_execution_ms" : 1.974
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "sql_execution_ms" : 0.1
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 3,
+                  "sql_execution_ms" : 0.088
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 0,
+                  "sql_execution_ms" : 0.006
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "sql_execution_ms" : 0.027
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 0,
+                  "sql_execution_ms" : 0.007
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 1,
+                  "sql_execution_ms" : 0.004
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "sql_execution_ms" : 0.534
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "sql_execution_ms" : 0.565
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 15,
+                  "sql_execution_ms" : 0.304
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 15,
+                  "sql_execution_ms" : 0.351
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 20,
+                  "sql_execution_ms" : 0.11
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "sql_execution_ms" : 0.06
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "sql_execution_ms" : 0.054
+               },
+               "scenario" : "sql-plan-readers",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 8,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.404
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.478
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.482
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.744
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.566
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 26,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.52
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 15,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.27
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 15,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.368
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 20,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 2.88
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 1.741
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.188
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 1,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.165
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 0,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.007
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 3,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.215
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 1,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.054
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 1,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.022
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 20,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.072
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 20,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.143
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.071
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "database",
+               "metrics" : {
+                  "actual_rows" : 10,
+                  "nested_statements" : 2,
+                  "sql_execution_ms" : 0.08
+               },
+               "scenario" : "sql-plan-functions",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "outbox",
+               "metrics" : {
+                  "acknowledged" : 3000,
+                  "completed" : 3000,
+                  "duplicates" : 0,
+                  "duration_seconds" : 3.9429190158844,
+                  "lost" : 0,
+                  "messages_per_second" : 760.857625508978,
+                  "p50_ms" : 128.618001937866,
+                  "p95_ms" : 145.687818527222,
+                  "p99_ms" : 151.447057723999
+               },
+               "scenario" : "postgres-dispatch-noop",
+               "status" : "ok"
+            },
+            {
+               "comparison" : {
+                  "classification" : "not-comparable",
+                  "deltas_pct" : {},
+                  "reason" : "No baseline available."
+               },
+               "kind" : "outbox",
+               "metrics" : {
+                  "acknowledged" : 3000,
+                  "completed" : 3000,
+                  "duplicates" : 0,
+                  "duration_seconds" : 2.48917317390442,
+                  "lost" : 0,
+                  "messages_per_second" : 1205.21948068977,
+                  "p50_ms" : 163.758993148804,
+                  "p95_ms" : 185.679912567139,
+                  "p99_ms" : 186.047077178955
+               },
+               "scenario" : "postgres-dispatch-noop",
+               "status" : "ok"
+            }
+         ],
+         "mode" : "main",
+         "path" : "benchmarks/results/2026-10-16/72e77f6b75a4e896e78f10299564784de26fea99/38952069746-1",
+         "run_attempt" : "1",
+         "run_id" : "38952069746",
+         "status" : "failed",
+         "timestamp" : "2026-10-16T19:04:03.481920+00:00"
       }
    ],
    "schema_version" : 1

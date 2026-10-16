@@ -14,7 +14,11 @@ if [ ! -d t ] || ! find t -type f -name '*.t' | grep -q .; then
 fi
 
 rm -rf cover_db
-HARNESS_PERL_SWITCHES=-MDevel::Cover "$gpforum_carton" exec prove -lr t "$@"
+# .proverc supplies an explicit interpreter to preload the native reactor.
+# An explicit exec ignores HARNESS_PERL_SWITCHES: the suite would pass with
+# no coverage database at all. Override exec with both required preloads.
+"$gpforum_carton" exec prove \
+    --exec 'perl -Ilib -MGPForum::OS::Reactor -MDevel::Cover' -lr t "$@"
 
 # The report covers lib/ only. It used to select ^(lib/GPForum|t)/, counting
 # the test files -- which execute almost entirely -- in its own denominator.

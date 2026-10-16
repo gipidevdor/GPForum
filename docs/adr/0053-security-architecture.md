@@ -287,7 +287,7 @@ realtime, APIs, administration, and operations.
   `lib/GPForum/Service/SessionToken.pm`, `lib/GPForum/Web/Access.pm`,
   `lib/GPForum/Web/CookieSession.pm`,
   `lib/GPForum/Infrastructure/AuditRecord.pm`,
-  `migrations/016_security_abuse_hardening.sql`.
+  `migrations/001-schema/016_security_abuse_hardening.sql`.
 - `t/48-browser-security.t`, `t/50-security-hardening.t`,
   `t/55-security-abuse-hardening.t`, `t/108-web-access.t`,
   `t/114-web-cookie-session.t`, `t/116-infrastructure-audit-record.t`,

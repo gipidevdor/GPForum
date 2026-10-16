@@ -134,7 +134,7 @@ file.
 - `lib/GPForum/Service/Operations/PartitionLifecycle.pm`,
   `lib/GPForum/Command/PartitionMaintenance.pm`,
   `lib/GPForum/Command/Migrate.pm`.
-- `migrations/049_rolling_partitions.sql`.
+- `migrations/001-schema/049_rolling_partitions.sql`.
 - `deploy/systemd/gpforum-partition-maintenance.service`,
   `deploy/systemd/gpforum-partition-maintenance.timer`,
   `deploy/launchd/com.gpforum.partition-maintenance.plist`.

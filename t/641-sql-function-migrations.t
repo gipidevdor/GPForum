@@ -12,6 +12,8 @@ use Test::More;
 
 use lib 'lib';
 
+use GPForum::Migration::Plan;
+
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 
 our $VERSION = '0.001';
@@ -183,7 +185,7 @@ subtest 'only registered typed boundaries gain owner rights' => sub {
 };
 
 my ( @problems, %created );
-for my $file ( sort glob 'migrations/[0-9]*_*.sql' ) {
+for my $file ( @{ GPForum::Migration::Plan->new->files } ) {
     my ($version) = path($file)->basename =~ /\A (\d+) _/msx;
     next if $version lt $FIRST_API_MIGRATION;
 
@@ -297,7 +299,7 @@ sub _retired_boundary ( $name, $head, $body ) {
 # The functions a migration drops, by the version of the migration.
 sub _dropped {
     my %dropped;
-    for my $file ( glob 'migrations/[0-9]*_*.sql' ) {
+    for my $file ( @{ GPForum::Migration::Plan->new->files } ) {
         my ($version) = path($file)->basename =~ /\A (\d+) _/msx;
         my $code      = join "\n", grep { !/\A \s* --/msx } split /\n/msx,
           path($file)->slurp;
@@ -312,7 +314,7 @@ sub _dropped {
 # The tables the migrations create, which a function names as public.NAME.
 sub _tables {
     my %table;
-    for my $file ( glob 'migrations/[0-9]*_*.sql' ) {
+    for my $file ( @{ GPForum::Migration::Plan->new->files } ) {
         my $sql = path($file)->slurp;
         while ( $sql =~ /$CREATE_TABLE (?:$IF_NOT_EXISTS)? $TABLE_NAME/gimsx ) {
             $table{ lc $1 } = 1;

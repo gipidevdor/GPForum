@@ -36,8 +36,9 @@ const my $TABLES          => 3;
 const my $DEFAULT_WINDOW  => 3;
 const my $BLOCKED_WAIT_MS => 1_000;
 const my $LOCK_TIMEOUT_MS => 2_000;
-const my $MIGRATION_038   => 'migrations/038_monthly_log_partitions.sql';
-const my $MIGRATION_049   => 'migrations/049_rolling_partitions.sql';
+const my $MIGRATION_038 =>
+  'migrations/001-schema/038_monthly_log_partitions.sql';
+const my $MIGRATION_049   => 'migrations/001-schema/049_rolling_partitions.sql';
 const my @PARENTS         => qw(audit_log event_log notifications);
 const my @SEEDED_MONTHS   => qw(2026_09 2026_10 2026_11 2026_12);
 const my $USER_ID         => '018f1000-0000-7000-8000-00000000d001';

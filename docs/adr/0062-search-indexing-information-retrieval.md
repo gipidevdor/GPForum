@@ -260,8 +260,8 @@ consumption of Discussion, Moderation and Authorization events.
   `lib/GPForum/Service/Search/PermissionEngine.pm`,
   `lib/GPForum/Service/Search/Searcher.pm`,
   `lib/GPForum/Worker/Handler/SearchIndexing.pm`.
-- `migrations/003_forum_projection.sql` (`search_documents`, GIN and
-  `pg_trgm` indexes), `migrations/018_search_product_hardening.sql`.
+- `migrations/001-schema/003_forum_projection.sql` (`search_documents`, GIN and
+  `pg_trgm` indexes), `migrations/001-schema/018_search_product_hardening.sql`.
 - `docs/OBSERVABILITY.md`, `docs/PERFORMANCE.md`.
 - `t/19-search.t`,
   `t/55-security-abuse-hardening.t`, `t/09-architecture-documentation.t`.

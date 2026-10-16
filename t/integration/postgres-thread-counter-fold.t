@@ -18,7 +18,8 @@ use GPForum::Test::PostgresHarness;
 
 our $VERSION = '0.001';
 
-const my $MIGRATION         => 'migrations/051_fold_thread_counter_shards.sql';
+const my $MIGRATION =>
+  'migrations/001-schema/051_fold_thread_counter_shards.sql';
 const my $TRIGGER           => 'thread_counter_shards_into_counters';
 const my $SEEDED            => 7;
 const my $RESIDUAL          => 3;

@@ -265,8 +265,8 @@ Per ADR 0094, realtime behavior MUST remain accessibility-safe:
   (search), ADR 0066 and ADR 0067 (Redis), ADR 0071 (event catalog),
   ADR 0078 (notification delivery), ADR 0094 (accessibility), ADR 0099
   (projection stability)
-- `migrations/002_event_audit.sql` (`event_log`, `outbox_messages`,
-  `event_idempotency_keys`), `migrations/023_realtime_outbox_polling.sql`
+- `migrations/001-schema/002_event_audit.sql` (`event_log`, `outbox_messages`,
+  `event_idempotency_keys`), `migrations/001-schema/023_realtime_outbox_polling.sql`
 - `lib/GPForum/Infrastructure/EventRecorder.pm`,
   `lib/GPForum/Domain/EventEnvelope.pm`, `lib/GPForum/Service/Outbox/`,
   `lib/GPForum/Service/Realtime/`,

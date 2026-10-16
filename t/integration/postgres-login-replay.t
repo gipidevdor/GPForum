@@ -83,7 +83,7 @@ $dbh->do(
       . q{ 'session_token', 'raw-bearer-token'))))},
     undef, $exposed
 );
-$dbh->do( path('migrations/045_scrub_login_sessions.sql')->slurp );
+$dbh->do( path('migrations/001-schema/045_scrub_login_sessions.sql')->slurp );
 is(
     scalar $dbh->selectrow_array(
 q{SELECT count(*) FROM command_log WHERE payload::text LIKE '%raw-bearer-token%'}

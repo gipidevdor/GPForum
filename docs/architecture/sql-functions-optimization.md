@@ -8,7 +8,7 @@ steps, separate from publishing or merging the code.
 
 ## Changes
 
-[Migration 100](../../migrations/100_optimized_search_functions.sql) introduces
+[Migration 100](../../migrations/003-evolution/100_optimized_search_functions.sql) introduces
 ranked search and autocomplete v3 implementations with narrow v4 definer
 boundaries. The search candidate limit still follows the same ACL and live
 placement checks. Ranking carries identifiers and ranking inputs through the
@@ -16,14 +16,14 @@ sort; a materialized result page bounds the subsequent body, title and author
 lookups. The existing v1/v2 functions remain installed. Filter, date boundary,
 rank, capped-candidate count, result order and application JSON remain equivalent.
 
-[Migration 101](../../migrations/101_forum_post_context_functions.sql) introduces
+[Migration 101](../../migrations/003-evolution/101_forum_post_context_functions.sql) introduces
 `forum_post_context_v1/v2`. Modification, deletion and restoration fetch the
 post and the existing thread head in one call. The shared thread visibility
 gate still runs before the atomic write. Each successful workflow now needs
 two client calls rather than three. Domain refusals, idempotency and the
 write's lock order remain unchanged.
 
-[Migration 102](../../migrations/102_search_custom_plans.sql) adds search v5
+[Migration 102](../../migrations/003-evolution/102_search_custom_plans.sql) adds search v5
 implementations and narrow v6 definer entry points. The query bodies and return
 contracts are identical to v3/v4, but the invoker implementation uses static
 PL/pgSQL `RETURN QUERY` with `force_custom_plan`. PostgreSQL 16/17's SQL-language

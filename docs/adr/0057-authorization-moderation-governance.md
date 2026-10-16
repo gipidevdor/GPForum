@@ -251,8 +251,8 @@ If federation is implemented in the future:
 - Repository note: the recommended `resource_policies` entity does not exist;
   policy is role bindings plus the visibility columns (ADR 0110), with
   grants, revocations and effective permissions in
-  `migrations/004_platform_governance.sql`. The `resource_acl` table
-  `migrations/001_core_identity.sql` made was never written or read, and
+  `migrations/001-schema/004_platform_governance.sql`. The `resource_acl` table
+  `migrations/001-schema/001_core_identity.sql` made was never written or read, and
   migration 105 drops it.
 
 ## Related Decisions and Implementation
@@ -263,14 +263,14 @@ If federation is implemented in the future:
   ADR 0065 (community operations), ADR 0070 (permission matrix), ADR 0079
   (admin console), ADR 0080 (content policy), ADR 0094 (accessibility),
   ADR 0100 (domain integrity and moderation execution)
-- `migrations/001_core_identity.sql` (`roles`, `permissions`,
+- `migrations/001-schema/001_core_identity.sql` (`roles`, `permissions`,
   `role_permissions`, `role_bindings`, `resource_acl`),
-  `migrations/004_platform_governance.sql`,
-  `migrations/007_advanced_community.sql` (`reputation_events`,
-  `trust_score_snapshots`), `migrations/008_moderation_review.sql`
+  `migrations/001-schema/004_platform_governance.sql`,
+  `migrations/001-schema/007_advanced_community.sql` (`reputation_events`,
+  `trust_score_snapshots`), `migrations/001-schema/008_moderation_review.sql`
   (`reports`, `moderation_actions`, `suspensions`),
-  `migrations/009_admin_authorization.sql`,
-  `migrations/016_security_abuse_hardening.sql`
+  `migrations/001-schema/009_admin_authorization.sql`,
+  `migrations/001-schema/016_security_abuse_hardening.sql`
 - `lib/GPForum/Service/Admin/`, `lib/GPForum/Service/Moderation/`,
   `lib/GPForum/Service/Search/PermissionEngine.pm`,
   `lib/GPForum/Service/Operations/RateLimiter.pm`,

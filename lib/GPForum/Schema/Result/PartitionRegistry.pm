@@ -73,7 +73,7 @@ C<audit_log>, and C<notifications>.
 Rows are written by L<GPForum::Service::Operations::PartitionLifecycle>, which
 upserts C<state = 'created'> on the primary key
 C<(table_name, partition_name)> as it creates each monthly partition, and by
-C<migrations/038_monthly_log_partitions.sql> for the partitions a fresh
+C<migrations/001-schema/038_monthly_log_partitions.sql> for the partitions a fresh
 install starts with. C<range_start> and C<range_end> are UTC month boundaries.
 
 =head1 SUBROUTINES/METHODS

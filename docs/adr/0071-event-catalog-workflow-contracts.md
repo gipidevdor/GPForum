@@ -262,8 +262,8 @@ plus every asynchronous consumer.
   `lib/GPForum/Service/Moderation/Event.pm`,
   `lib/GPForum/Service/Identity/Event.pm`,
   `lib/GPForum/Service/Admin/Event.pm`
-- `migrations/002_event_audit.sql`,
-  `migrations/004_platform_governance.sql`
+- `migrations/001-schema/002_event_audit.sql`,
+  `migrations/001-schema/004_platform_governance.sql`
 - `t/13-outbox-dispatcher.t`, `t/121-outbox-boundaries.t`,
   `t/127-attachment-event.t`, `t/128-privacy-event.t`,
   `t/129-identity-event.t`, `t/130-moderation-event.t`,

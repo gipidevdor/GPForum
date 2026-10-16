@@ -47,127 +47,140 @@ const my @INVARIANT_TEST_FILES => (
     't/85-realtime-outbox-multiprocess.t',
 );
 const my @MIGRATION_CONSTRAINTS => (
-    [ 'migrations/002_event_audit.sql', qr/event_idempotency_keys_pkey/msx ],
     [
-        'migrations/002_event_audit.sql',
+        'migrations/001-schema/002_event_audit.sql',
+        qr/event_idempotency_keys_pkey/msx
+    ],
+    [
+        'migrations/001-schema/002_event_audit.sql',
         qr/outbox_messages_idempotency_key_key/msx,
     ],
-    [ 'migrations/002_event_audit.sql', qr/outbox_messages_status_check/msx ],
-    [ 'migrations/003_forum_projection.sql', qr/posts_thread_position_key/msx ],
     [
-        'migrations/003_forum_projection.sql',
+        'migrations/001-schema/002_event_audit.sql',
+        qr/outbox_messages_status_check/msx
+    ],
+    [
+        'migrations/001-schema/003_forum_projection.sql',
+        qr/posts_thread_position_key/msx
+    ],
+    [
+        'migrations/001-schema/003_forum_projection.sql',
         qr/thread_counters_reply_count_check/msx,
     ],
     [
-        'migrations/004_platform_governance.sql', qr/thread_read_state_pkey/msx,
+        'migrations/001-schema/004_platform_governance.sql',
+        qr/thread_read_state_pkey/msx,
     ],
     [
-        'migrations/004_platform_governance.sql',
+        'migrations/001-schema/004_platform_governance.sql',
         qr/user_read_marker_deltas_pkey/msx,
     ],
-    [ 'migrations/008_moderation_review.sql', qr/reports_status_check/msx ],
     [
-        'migrations/008_moderation_review.sql',
+        'migrations/001-schema/008_moderation_review.sql',
+        qr/reports_status_check/msx
+    ],
+    [
+        'migrations/001-schema/008_moderation_review.sql',
         qr/moderation_actions_target_type_check/msx,
     ],
     [
-        'migrations/022_outbox_concurrent_claim.sql',
+        'migrations/001-schema/022_outbox_concurrent_claim.sql',
         qr/idx_outbox_messages_claim_ready/msx,
     ],
     [
-        'migrations/022_outbox_concurrent_claim.sql',
+        'migrations/001-schema/022_outbox_concurrent_claim.sql',
         qr/idx_outbox_messages_pending_ready/msx,
     ],
     [
-        'migrations/022_outbox_concurrent_claim.sql',
+        'migrations/001-schema/022_outbox_concurrent_claim.sql',
         qr/idx_outbox_messages_failed_ready/msx,
     ],
     [
-        'migrations/022_outbox_concurrent_claim.sql',
+        'migrations/001-schema/022_outbox_concurrent_claim.sql',
         qr/idx_outbox_messages_stale_locks/msx,
     ],
     [
-        'migrations/024_privacy_erasure_job_idempotency.sql',
+        'migrations/001-schema/024_privacy_erasure_job_idempotency.sql',
         qr/idx_erasure_jobs_request_unique/msx,
     ],
     [
-        'migrations/027_privacy_resource_uniqueness.sql',
+        'migrations/001-schema/027_privacy_resource_uniqueness.sql',
         qr/idx_deletion_requests_open_resource_unique/msx,
     ],
     [
-        'migrations/027_privacy_resource_uniqueness.sql',
+        'migrations/001-schema/027_privacy_resource_uniqueness.sql',
         qr/idx_export_requests_pending_unique/msx,
     ],
     [
-        'migrations/027_privacy_resource_uniqueness.sql',
+        'migrations/001-schema/027_privacy_resource_uniqueness.sql',
         qr/idx_retention_holds_active_resource_unique/msx,
     ],
     [
-        'migrations/028_reputation_source_uniqueness.sql',
+        'migrations/001-schema/028_reputation_source_uniqueness.sql',
         qr/idx_reputation_events_source_unique/msx,
     ],
     [
-        'migrations/029_reputation_source_required.sql',
+        'migrations/001-schema/029_reputation_source_required.sql',
         qr/ALTER [ ] COLUMN [ ] source_id [ ] SET [ ] NOT [ ] NULL/msx,
     ],
     [
-        'migrations/029_reputation_source_required.sql',
+        'migrations/001-schema/029_reputation_source_required.sql',
         qr/idx_reputation_events_source_unique/msx,
     ],
     [
-        'migrations/030_identity_open_token_uniqueness.sql',
+        'migrations/001-schema/030_identity_open_token_uniqueness.sql',
         qr/idx_identity_tokens_open_user_type/msx,
     ],
     [
-        'migrations/030_identity_open_token_uniqueness.sql',
+        'migrations/001-schema/030_identity_open_token_uniqueness.sql',
         qr/email_verification/msx,
     ],
     [
-        'migrations/031_role_binding_active_uniqueness.sql',
+        'migrations/001-schema/031_role_binding_active_uniqueness.sql',
         qr/idx_role_bindings_active_unique/msx,
     ],
     [
-        'migrations/031_role_binding_active_uniqueness.sql',
+        'migrations/001-schema/031_role_binding_active_uniqueness.sql',
         qr/NULLS [ ] NOT [ ] DISTINCT/msx,
     ],
     [
-        'migrations/032_plugin_hook_uniqueness.sql',
+        'migrations/001-schema/032_plugin_hook_uniqueness.sql',
         qr/idx_plugin_hooks_plugin_name_unique/msx,
     ],
     [
-        'migrations/032_plugin_hook_uniqueness.sql',
+        'migrations/001-schema/032_plugin_hook_uniqueness.sql',
         qr/plugin_id, [ ] hook_name/msx,
     ],
     [
-        'migrations/033_dead_letter_source_uniqueness.sql',
+        'migrations/001-schema/033_dead_letter_source_uniqueness.sql',
         qr/idx_dead_letters_source_unique/msx,
     ],
     [
-        'migrations/033_dead_letter_source_uniqueness.sql',
+        'migrations/001-schema/033_dead_letter_source_uniqueness.sql',
         qr/source_table, [ ] source_id/msx,
     ],
     [
-        'migrations/034_import_failure_source_uniqueness.sql',
+        'migrations/001-schema/034_import_failure_source_uniqueness.sql',
         qr/idx_import_failures_source_unique/msx,
     ],
     [
-        'migrations/034_import_failure_source_uniqueness.sql',
+        'migrations/001-schema/034_import_failure_source_uniqueness.sql',
         qr/import_job_id, [ ] source_record_type, [ ] source_record_id/msx,
     ],
     [
-        'migrations/035_projection_generation_source_uniqueness.sql',
+        'migrations/001-schema/035_projection_generation_source_uniqueness.sql',
         qr/idx_projection_generations_source_unique/msx,
     ],
     [
-        'migrations/035_projection_generation_source_uniqueness.sql',
+        'migrations/001-schema/035_projection_generation_source_uniqueness.sql',
         qr/projection_name, [ ] built_from_event_id/msx,
     ],
     [
-        'migrations/036_credential_active_password_uniqueness.sql',
+        'migrations/001-schema/036_credential_active_password_uniqueness.sql',
         qr/idx_credentials_active_password_unique/msx,
     ],
     [
-        'migrations/036_credential_active_password_uniqueness.sql',
+        'migrations/001-schema/036_credential_active_password_uniqueness.sql',
         qr/revoked_at [ ] IS [ ] NULL [ ] AND [ ] type [ ] = [ ] 'password'/msx,
     ],
 );

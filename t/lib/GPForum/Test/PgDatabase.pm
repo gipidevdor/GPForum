@@ -15,12 +15,12 @@ use Scalar::Util qw(weaken);
 
 use GPForum::Command::Migrate;
 use GPForum::Config;
+use GPForum::Migration::Plan;
 use GPForum::Schema;
 use GPForum::Test::PostgresHarness;
 
 our $VERSION = '0.001';
 
-const my $MIGRATIONS    => 'migrations';
 const my $NAME_DIGITS   => 12;
 const my $SHA_BITS      => 256;
 const my $TEMPLATE_LOCK => 2_026_092_601;
@@ -228,15 +228,10 @@ sub _exists {
 
 # The template is rebuilt when a migration changes.
 sub _migration_digest {
-    opendir my $directory, $MIGRATIONS
-      or croak "cannot read $MIGRATIONS: $OS_ERROR";
-    my @files = sort grep { /[.]sql\z/msx } readdir $directory;
-    closedir $directory or croak "cannot close $MIGRATIONS: $OS_ERROR";
-
     my $digest = Digest::SHA->new($SHA_BITS);
-    for my $file (@files) {
-        $digest->add($file);
-        $digest->addfile( File::Spec->catfile( $MIGRATIONS, $file ) );
+    for my $file ( @{ GPForum::Migration::Plan->new->files } ) {
+        $digest->add( ( File::Spec->splitpath($file) )[2] );
+        $digest->addfile($file);
     }
 
     return $digest->hexdigest;

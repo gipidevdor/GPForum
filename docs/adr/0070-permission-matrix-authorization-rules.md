@@ -183,8 +183,8 @@ Operational permissions:
   `lib/GPForum/Service/Admin/RoleCatalog.pm`,
   `lib/GPForum/Service/Admin/RoleBindingStore.pm`,
   `lib/GPForum/Service/Realtime/SubscriptionPolicy.pm`
-- `migrations/001_core_identity.sql`,
-  `migrations/009_admin_authorization.sql`
+- `migrations/001-schema/001_core_identity.sql`,
+  `migrations/001-schema/009_admin_authorization.sql`
 - `docs/architecture/admin-workflow.md`,
   `docs/architecture/moderation-workflow.md`
 - `t/integration/postgres-admin-authorization.t`, `t/45-admin-bootstrap.t`,

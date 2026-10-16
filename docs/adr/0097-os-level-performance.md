@@ -383,7 +383,7 @@ Forbidden:
     it, but deployment does; the two need explicit reconciliation.
   - Section 22 requires a render version and a sanitized timestamp next to
     the raw and rendered safe body. `post_bodies`
-    (`migrations/003_forum_projection.sql`) stores `body_source`,
+    (`migrations/001-schema/003_forum_projection.sql`) stores `body_source`,
     `body_rendered_safe`, and `source_hash`, but no render version or
     sanitized timestamp column.
   - Section 32 says defaults MUST be conservative `auto`, but

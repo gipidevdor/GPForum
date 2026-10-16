@@ -120,7 +120,7 @@ promoted to core.
   console visibility), 0081 (import/export adapters), 0085 (webhook
   contracts).
 - Code: none since 2026-10-15 (the plugin modules were deleted).
-- Migrations: `migrations/011_plugins.sql` and
-  `migrations/032_plugin_hook_uniqueness.sql` made the tables;
-  `migrations/105_drop_unwired_subsystems.sql` drops them.
+- Migrations: `migrations/001-schema/011_plugins.sql` and
+  `migrations/001-schema/032_plugin_hook_uniqueness.sql` made the tables;
+  `migrations/003-evolution/105_drop_unwired_subsystems.sql` drops them.
 - Tests: none.

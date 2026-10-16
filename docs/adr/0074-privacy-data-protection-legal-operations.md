@@ -140,7 +140,7 @@ storing secrets in logs; exposing private data through search or cache.
   0045 (privacy access).
 - Code: `lib/GPForum/Service/Privacy/`, `lib/GPForum/Controller/Privacy.pm`,
   `lib/GPForum/Controller/Privacy/`, `lib/GPForum/Web/PrivacyAccess.pm`.
-- Migrations: `migrations/024_privacy_erasure_job_idempotency.sql`.
+- Migrations: `migrations/001-schema/024_privacy_erasure_job_idempotency.sql`.
 - Tests: `t/integration/postgres-privacy.t`, `t/62-privacy-web.t`,
   `t/100-privacy-controllers.t`, `t/101-privacy-workflow.t`,
   `t/119-privacy-erasure.t`, `t/125-privacy-completion.t`,

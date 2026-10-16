@@ -268,8 +268,8 @@ platform.
   (moderation events).
 - `ARCHITECTURE.md`, `EVENTS.md`, `lib/GPForum/Domain/EventEnvelope.pm`,
   `lib/GPForum/Service/Forum/PostingWorkflow.pm`.
-- `migrations/001_core_identity.sql`, `migrations/003_forum_projection.sql`
-  (`post_revisions`), `migrations/005_notifications_subscriptions.sql`,
-  `migrations/006_attachments.sql`, `migrations/008_moderation_review.sql`.
+- `migrations/001-schema/001_core_identity.sql`, `migrations/001-schema/003_forum_projection.sql`
+  (`post_revisions`), `migrations/001-schema/005_notifications_subscriptions.sql`,
+  `migrations/001-schema/006_attachments.sql`, `migrations/001-schema/008_moderation_review.sql`.
 - `t/11-forum-thread.t`, `t/12-forum-post.t`, `t/25-moderation-review.t`,
   `t/95-moderation-workflow.t`, `t/09-architecture-documentation.t`.

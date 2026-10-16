@@ -137,6 +137,6 @@ projection bounded contexts.
   runbook), 0082 (feeds and discovery); 0030 (discovery access).
 - Code: `lib/GPForum/Service/Search/`, `lib/GPForum/Bootstrap/Workers.pm`,
   `lib/GPForum/Controller/Forum/Search.pm`.
-- Migrations: `migrations/003_forum_projection.sql` (`search_documents`,
-  `pg_trgm`), `migrations/018_search_product_hardening.sql`.
+- Migrations: `migrations/001-schema/003_forum_projection.sql` (`search_documents`,
+  `pg_trgm`), `migrations/001-schema/018_search_product_hardening.sql`.
 - Tests: `t/19-search.t`, `t/integration/postgres.t`.

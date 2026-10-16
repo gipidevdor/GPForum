@@ -234,10 +234,10 @@ mean anything. Migration 118.
   `lib/GPForum/Service/Notification/DigestQueue.pm`,
   `lib/GPForum/Service/Notification/DigestMessage.pm`,
   `lib/GPForum/Worker/Handler/NotificationDigest.pm`.
-- Migrations: `migrations/005_notifications_subscriptions.sql`,
-  `migrations/025_identity_lifecycle_tokens.sql`,
-  `migrations/118_notification_type_preferences.sql`,
-  `migrations/119_notification_digests.sql`.
+- Migrations: `migrations/001-schema/005_notifications_subscriptions.sql`,
+  `migrations/001-schema/025_identity_lifecycle_tokens.sql`,
+  `migrations/003-evolution/118_notification_type_preferences.sql`,
+  `migrations/003-evolution/119_notification_digests.sql`.
 - Tests: `t/06-identity-web.t`, `t/integration/postgres-identity-stores.t`,
   `t/17-notifications.t`, `t/107-notification-workflow.t`,
   `t/110-identity-account-store.t`, `t/685-notification-preferences.t`,

@@ -63,7 +63,7 @@ the fake tests.
 
 `PRIV-002` has been mitigated:
 
-- `migrations/024_privacy_erasure_job_idempotency.sql` adds
+- `migrations/001-schema/024_privacy_erasure_job_idempotency.sql` adds
   `idx_erasure_jobs_request_unique`;
 - `ErasureJob` exposes `erasure_jobs_request_key`;
 - `DeletionWorkflow::approve_request` locks the deletion request with

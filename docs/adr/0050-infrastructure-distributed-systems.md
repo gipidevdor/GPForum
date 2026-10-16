@@ -255,7 +255,7 @@ caching, search, object storage, realtime, and workers.
 - ADR 0006 (LISTEN/NOTIFY realtime transport), ADR 0009 (outbox retry), ADR
   0012 (operational profiles and partition lifecycle), ADR 0048 (mandatory
   GlifiStore L2).
-- `migrations/002_event_audit.sql`, `migrations/003_forum_projection.sql`,
+- `migrations/001-schema/002_event_audit.sql`, `migrations/001-schema/003_forum_projection.sql`,
   `lib/GPForum/Infrastructure/Id.pm`, `lib/GPForum/Worker/MinionRegistrar.pm`,
   `lib/GPForum/Service/Attachment/FilesystemStorage.pm`.
 - `deploy/nginx/`, `deploy/systemd/`, `deploy/caddy/Caddyfile`.

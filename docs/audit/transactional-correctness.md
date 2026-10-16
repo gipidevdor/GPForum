@@ -58,7 +58,7 @@ Files involved:
 
 - `lib/GPForum/Service/Forum/PostStore.pm`
 - `lib/GPForum/Service/Forum/PostPosition.pm`
-- `migrations/003_forum_projection.sql`
+- `migrations/001-schema/003_forum_projection.sql`
 
 Current behavior: `PostStore::_insert_post` runs inside `schema->txn_do`,
 locks the `threads` record with `FOR NO KEY UPDATE`, re-reads its
@@ -136,7 +136,7 @@ Severity: high.
 Files involved:
 
 - `lib/GPForum/Service/Operations/CommandIdempotency.pm`
-- `migrations/004_platform_governance.sql`
+- `migrations/001-schema/004_platform_governance.sql`
 - `lib/GPForum/Service/Forum/PostingWorkflow.pm`
 
 Current behavior: `CommandIdempotency::run` looks for an existing row before the
@@ -164,7 +164,7 @@ Files involved:
 
 - `lib/GPForum/Service/Community/BookmarkStore.pm`
 - `lib/GPForum/Controller/Forum.pm`
-- `migrations/007_advanced_community.sql`
+- `migrations/001-schema/007_advanced_community.sql`
 
 Current behavior: `save_bookmark` calls `find_for_user_target`, then
 `create_bookmark` or restore. The constraint `bookmarks_user_target_key`
@@ -197,7 +197,7 @@ Files involved:
 
 - `lib/GPForum/Service/Notification/SubscriptionStore.pm`
 - `lib/GPForum/Controller/Forum.pm`
-- `migrations/005_notifications_subscriptions.sql`
+- `migrations/001-schema/005_notifications_subscriptions.sql`
 
 Current behavior: `save_subscription` does a find, then an insert/restore. The
 constraint `subscriptions_unique_target` prevents duplicates, but it does not
@@ -231,8 +231,8 @@ Files involved:
 
 - `lib/GPForum/Service/Moderation/ReportStore.pm`
 - `lib/GPForum/Controller/Forum.pm`
-- `migrations/008_moderation_review.sql`
-- `migrations/016_security_abuse_hardening.sql`
+- `migrations/001-schema/008_moderation_review.sql`
+- `migrations/001-schema/016_security_abuse_hardening.sql`
 
 Current behavior: `create_report` checks for an open duplicate inside the
 transaction, then inserts. HTTP mints and requires a `command_id` in
@@ -243,11 +243,11 @@ index on open/triaged reports, but it is not unique.
 Residual risk: closed by PG evidence. `t/integration/postgres-concurrency.t`
 runs two concurrent `create_report` calls → a single open report.
 
-Patch applied: `migrations/026_concurrency_uniqueness.sql` adds
+Patch applied: `migrations/001-schema/026_concurrency_uniqueness.sql` adds
 `idx_reports_reporter_target_open_unique`. `create_report` catches the conflict,
 reloads the open report, and records a `duplicate_blocked` audit entry. Fake
 tests in `t/159-concurrency-correctness.t`; PG evidence in
-Patch applicata: `migrations/026_concurrency_uniqueness.sql` aggiunge
+Patch applicata: `migrations/001-schema/026_concurrency_uniqueness.sql` aggiunge
 `idx_reports_reporter_target_open_unique`. `create_report` cattura il conflitto,
 ricarica il report aperto e registra un audit `duplicate_blocked`. Test fake in
 `t/159-concurrency-correctness.t`; evidenza PG in
@@ -294,7 +294,7 @@ Patch applied: hide/restore/lock/unlock lock the target with `FOR UPDATE`. The
 same `command_id` replays the existing `moderation_actions` row without a new
 event/audit/outbox write. A partial unique index
 `idx_moderation_actions_command_id` lives in
-`migrations/026_concurrency_uniqueness.sql`. When the target is already in the
+`migrations/001-schema/026_concurrency_uniqueness.sql`. When the target is already in the
 expected state, the store returns the most recent non-reversed action without a
 second insert. The HTTP forms mint and pass a `command_id`. Fake tests in
 `t/159-concurrency-correctness.t`, `t/25-moderation-review.t`, and
@@ -302,7 +302,7 @@ second insert. The HTTP forms mint and pass a `command_id`. Fake tests in
 Patch applicata: hide/restore/lock/unlock bloccano il target con `FOR UPDATE`.
 Lo stesso `command_id` replay la `moderation_actions` esistente senza nuovo
 evento/audit/outbox. Unique parziale `idx_moderation_actions_command_id` in
-`migrations/026_concurrency_uniqueness.sql`. Se il target è già nello stato
+`migrations/001-schema/026_concurrency_uniqueness.sql`. Se il target è già nello stato
 atteso, lo store restituisce l'action non reversed più recente senza un
 secondo insert. Le form HTTP mintano e passano `command_id`. Test fake in
 `t/159-concurrency-correctness.t`, `t/25-moderation-review.t` e
@@ -319,7 +319,7 @@ Files involved:
 - `lib/GPForum/Service/Privacy/Record.pm`
 - `lib/GPForum/Service/Privacy/Erasure.pm`
 - `lib/GPForum/Controller/Privacy.pm`
-- `migrations/004_platform_governance.sql`
+- `migrations/001-schema/004_platform_governance.sql`
 
 Current behavior: `request_deletion` requires a `command_id` at the HTTP
 boundary and, in the store, reloads a `pending`/`approved`/`held` request for the
@@ -332,7 +332,7 @@ lookup and its insert; PostgreSQL raises the unique violation and the store
 reuses the winner's request (`_deletion_request_race`, and the id collision
 cases beside it).
 
-Patch applied: `migrations/027_privacy_resource_uniqueness.sql` adds
+Patch applied: `migrations/001-schema/027_privacy_resource_uniqueness.sql` adds
 `idx_deletion_requests_open_resource_unique`. `DeletionWorkflow` catches the
 unique violation and reloads the open request. Tests in
 `t/integration/postgres-privacy.t`.
@@ -344,8 +344,8 @@ Severity: mitigated, historical risk `critical`.
 Files involved:
 
 - `lib/GPForum/Service/Privacy/DeletionWorkflow.pm`
-- `migrations/004_platform_governance.sql`
-- `migrations/024_privacy_erasure_job_idempotency.sql`
+- `migrations/001-schema/004_platform_governance.sql`
+- `migrations/001-schema/024_privacy_erasure_job_idempotency.sql`
 - `lib/GPForum/Schema/Result/ErasureJob.pm`
 
 Current behavior: `approve_request` locks `deletion_requests` with `FOR UPDATE`
@@ -385,7 +385,7 @@ has a second connection commit the competing hold between the store's lookup
 and its insert, and the store reuses it (`_hold_race`, `_hold_id_collision`,
 `_hold_id_race`).
 
-Patch applied: `migrations/027_privacy_resource_uniqueness.sql` adds
+Patch applied: `migrations/001-schema/027_privacy_resource_uniqueness.sql` adds
 `idx_retention_holds_active_resource_unique`. `RetentionHoldStore` catches the
 unique violation and reloads the active hold. Tests in
 `t/integration/postgres-privacy.t`.
@@ -450,7 +450,7 @@ Files involved:
 
 - `lib/GPForum/Service/Portability/ExportBundleBuilder.pm`
 - `lib/GPForum/Controller/Privacy.pm`
-- `migrations/010_import_export.sql`
+- `migrations/001-schema/010_import_export.sql`
 
 Current behavior: `create_request` requires an HTTP `command_id` and reloads a
 `pending` export for the same requester/subject/type/format. Completing an
@@ -463,7 +463,7 @@ store's lookup and its insert (`_export_request_race`, `_export_id_race`),
 and replays the export command from `command_log` (`_commanded_export`).
 
 Patch applied: `Privacy::Workflow` wraps `request_export` with
-`CommandIdempotency`. `migrations/027_privacy_resource_uniqueness.sql` adds
+`CommandIdempotency`. `migrations/001-schema/027_privacy_resource_uniqueness.sql` adds
 `idx_export_requests_pending_unique`. Tests in
 `t/integration/postgres-privacy.t`, `t/101-privacy-workflow.t`,
 `t/62-privacy-web.t`, and `t/27-export-bundle.t`.
@@ -515,8 +515,8 @@ Files involved:
 
 - `lib/GPForum/Infrastructure/EventRecorder.pm`
 - `lib/GPForum/Infrastructure/AuditRecord.pm`
-- `migrations/002_event_audit.sql`
-- `migrations/004_platform_governance.sql`
+- `migrations/001-schema/002_event_audit.sql`
+- `migrations/001-schema/004_platform_governance.sql`
 
 Current behavior: every audit record has `record_hash =
 sha256(canonical_record)`, and the canonical record includes `previous_hash`.
@@ -675,8 +675,8 @@ Files involved:
 - `lib/GPForum/Service/Community/ReputationLedger.pm`
 - `lib/GPForum/Schema/Result/ReputationEvent.pm`
 - `lib/GPForum/Worker/Handler/ReputationUpdate.pm`
-- `migrations/028_reputation_source_uniqueness.sql`
-- `migrations/029_reputation_source_required.sql`
+- `migrations/001-schema/028_reputation_source_uniqueness.sql`
+- `migrations/001-schema/029_reputation_source_required.sql`
 
 Current behavior: `record_event` reloads an existing event for
 `(user_id, source_type, source_id)` before inserting. A unique index

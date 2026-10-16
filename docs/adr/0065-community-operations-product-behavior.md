@@ -219,10 +219,10 @@ bounded contexts.
   'deleted')`; there is no `draft`, `open`, `quarantined`, `archived`,
   `published`, or `edited` state for threads or posts, and spaces and
   categories have no `restricted`, `hidden`, `archived`, or `quarantined`
-  visibility or archival column (`migrations/003_forum_projection.sql`).
+  visibility or archival column (`migrations/001-schema/003_forum_projection.sql`).
 - Open conflict: `reports.target_type` and `moderation_actions.target_type`
   accept only `thread`, `post`, and `user`
-  (`migrations/008_moderation_review.sql`), so attachment reports and
+  (`migrations/001-schema/008_moderation_review.sql`), so attachment reports and
   attachment moderation actions are not yet representable.
 
 ## Related Decisions and Implementation
@@ -240,9 +240,9 @@ bounded contexts.
   `docs/architecture/posting-workflow.md`,
   `docs/architecture/moderation-workflow.md`,
   `docs/architecture/notification-workflow.md`
-- `migrations/003_forum_projection.sql`,
-  `migrations/005_notifications_subscriptions.sql`,
-  `migrations/007_advanced_community.sql`,
-  `migrations/008_moderation_review.sql`
+- `migrations/001-schema/003_forum_projection.sql`,
+  `migrations/001-schema/005_notifications_subscriptions.sql`,
+  `migrations/001-schema/007_advanced_community.sql`,
+  `migrations/001-schema/008_moderation_review.sql`
 - `lib/GPForum/Service/Forum`, `lib/GPForum/Service/Moderation`,
   `lib/GPForum/Service/Notification`, `lib/GPForum/Service/Community`

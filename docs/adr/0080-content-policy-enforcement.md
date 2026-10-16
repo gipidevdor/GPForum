@@ -98,7 +98,7 @@ exposing reporter identity; avoid exposing internal detection details.
 - Code: `lib/GPForum/Service/Moderation/`,
   `lib/GPForum/Controller/Moderation.pm`,
   `lib/GPForum/Controller/Moderation/`, `templates/moderation/`.
-- Migrations: `migrations/008_moderation_review.sql`.
+- Migrations: `migrations/001-schema/008_moderation_review.sql`.
 - Tests: `t/25-moderation-review.t`, `t/43-moderation-web.t`,
   `t/94-moderation-controllers.t`, `t/95-moderation-workflow.t`,
   `t/130-moderation-event.t`.

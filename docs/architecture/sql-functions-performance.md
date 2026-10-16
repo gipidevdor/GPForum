@@ -79,12 +79,12 @@ writes of application tables while allowing the catalogue calls.
 | Metrics, retention, readiness, budgets, realtime and replication | 069 |
 | Partition horizon and outbox diagnostics | 070 |
 
-[Migration 059](../../migrations/059_runtime_api_boundaries.sql) and
-[migration 099](../../migrations/099_remaining_runtime_api_boundaries.sql)
+[Migration 059](../../migrations/002-function-api/059_runtime_api_boundaries.sql) and
+[migration 099](../../migrations/002-function-api/099_remaining_runtime_api_boundaries.sql)
 expose hardened `_v2` entry points. For concrete function bodies, see
-[forum writes](../../migrations/057_forum_write_functions.sql),
-[search](../../migrations/064_search_functions.sql) and
-[operational data](../../migrations/069_operations_realtime_functions.sql).
+[forum writes](../../migrations/002-function-api/057_forum_write_functions.sql),
+[search](../../migrations/002-function-api/064_search_functions.sql) and
+[operational data](../../migrations/002-function-api/069_operations_realtime_functions.sql).
 The implementation and helper functions have no public execution grants.
 A separate runtime login receives only the current catalogue's function grants and owns no
 objects. Tests connect with that login, exercise HTTP authentication and

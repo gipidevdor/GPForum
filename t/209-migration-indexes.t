@@ -12,6 +12,8 @@ use Test::More;
 
 use lib 'lib';
 
+use GPForum::Migration::Plan;
+
 use GPForum::Migration::Runner;
 
 our $VERSION = '0.001';
@@ -47,7 +49,7 @@ throws_ok(
 );
 
 my @blocking;
-for my $file ( sort { $a cmp $b } glob 'migrations/[0-9]*_*.sql' ) {
+for my $file ( @{ GPForum::Migration::Plan->new->files } ) {
     my ($version) = path($file)->basename =~ /\A (\d+) _/msx;
     next if $version le $LAST_BLOCKING;
 

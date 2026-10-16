@@ -45,6 +45,29 @@ ok( $built, 'marked no-transaction, it runs' ) or diag $error;
 is( $built->{valid},    1, 'and the index is valid' );
 is( $built->{recorded}, 1, 'and the migration is recorded once' );
 
+subtest 'flat and structured layouts share the applied migration history' =>
+  sub {
+    my $database  = GPForum::Test::PgDatabase->fresh;
+    my $directory = path( tempdir( CLEANUP => 1 ) );
+    for my $name ( @{ GPForum::Migration::Plan->new->files } ) {
+        my $file = path($name);
+        $file->copy_to( $directory->child( $file->basename ) );
+    }
+    my $flat = GPForum::Migration::Runner->new(
+        schema => $database->schema,
+        plan   => GPForum::Migration::Plan->new( directory => "$directory" ),
+    );
+    my $structured =
+      GPForum::Migration::Runner->new( schema => $database->schema, );
+    is_deeply( $flat->verify_applied, [],
+        'flat files match recorded checksums' );
+    is_deeply( $flat->apply_pending, [], 'flat layout reapplies nothing' );
+    is_deeply( $structured->verify_applied,
+        [], 'structured files match the same recorded checksums' );
+    is_deeply( $structured->apply_pending,
+        [], 'switching to structured layout reapplies nothing' );
+  };
+
 done_testing();
 
 # Applies the project's migrations plus one more, numbered 900, to a fresh
@@ -54,7 +77,8 @@ sub _apply {
 
     my $database  = GPForum::Test::PgDatabase->fresh;
     my $directory = path( tempdir( CLEANUP => 1 ) );
-    for my $file ( path('migrations')->list->each ) {
+    for my $name ( @{ GPForum::Migration::Plan->new->files } ) {
+        my $file = path($name);
         $file->copy_to( $directory->child( $file->basename ) );
     }
     $directory->child('900_test_concurrent_index.sql')->spew($sql);

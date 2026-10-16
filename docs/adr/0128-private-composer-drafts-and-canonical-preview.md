@@ -95,7 +95,7 @@ and ADRs 0126–0127 stored routines/runtime credentials continue to apply.
 - [Posting workflow](../architecture/posting-workflow.md)
 - [Privacy workflow](../architecture/privacy-workflow.md)
 - [Scheduled jobs](../ops/scheduled-jobs.md)
-- Migration: `migrations/103_forum_drafts.sql`
+- Migration: `migrations/003-evolution/103_forum_drafts.sql`
 - Tests: `t/650-forum-drafts-web.t`, `t/integration/postgres-drafts-web.t`
   and `t/js/composer.test.cjs`
 - Code: `GPForum::Service::Forum::DraftStore`,

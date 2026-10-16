@@ -6,8 +6,10 @@ package main;
 
 use v5.40;
 
-use Carp    qw(croak);
-use English qw(-no_match_vars);
+use Carp           qw(croak);
+use English        qw(-no_match_vars);
+use File::Basename qw(basename);
+use File::Find     qw(find);
 
 our $VERSION = '0.001';
 
@@ -108,7 +110,23 @@ sub _print_db_output ($db_evidence) {
 sub _final_indexes {
     my %index;
 
-    for my $file ( sort glob 'migrations/*.sql' ) {
+    my @files;
+    find(
+        {
+            no_chdir => 1,
+            wanted   => sub {
+                if ( -f && basename($_) =~ /\A [[:digit:]]+ _ .+ [.]sql \z/msx )
+                {
+                    push @files, $File::Find::name;
+                }
+            },
+        },
+        'migrations'
+    );
+    for my $file (
+        sort { _migration_version($a) <=> _migration_version($b) || $a cmp $b }
+        @files )
+    {
         my $sql = _slurp($file);
         $sql =~ s/--[^\n]*//gmsx;
 
@@ -183,6 +201,12 @@ sub _db_evidence {
 sub _database_dsn_present {
     return defined $ENV{GPFORUM_DATABASE_DSN}
       && length $ENV{GPFORUM_DATABASE_DSN} ? 1 : 0;
+}
+
+sub _migration_version ($file) {
+    my ($version) = basename($file) =~ /\A ([[:digit:]]+) /msx;
+
+    return $version;
 }
 
 sub _files_under {

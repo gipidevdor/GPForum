@@ -110,7 +110,7 @@ emergency operations.
 - Code: `lib/GPForum/Controller/Admin.pm`, `lib/GPForum/Controller/Admin/`,
   `lib/GPForum/Service/Admin/`, `lib/GPForum/Web/AdminAccess.pm`,
   `gpforum admin`, `templates/admin/`.
-- Migrations: `migrations/009_admin_authorization.sql`.
+- Migrations: `migrations/001-schema/009_admin_authorization.sql`.
 - Tests: `t/integration/postgres-admin-authorization.t` (roles, bindings,
   reviews and the permission gate), `t/26-admin-authorization.t` (the console
   reader), `t/44-admin-web.t`,

@@ -297,7 +297,7 @@ If these answers do not exist, the implementation is incomplete.
   state as first-class diagnostics.
 - Open conflicts:
   - Section 6 lists `generation_id` among the projection offset fields, but
-    `projection_offsets` (`migrations/004_platform_governance.sql`) had no
+    `projection_offsets` (`migrations/001-schema/004_platform_governance.sql`) had no
     `generation_id` column; generations live in `projection_generations`.
     Nothing ever wrote `projection_offsets`, and migration 105 drops it
     (2026-10-15): search reads its lag from the outbox (ADR 0110).
@@ -317,12 +317,12 @@ If these answers do not exist, the implementation is incomplete.
 - `lib/GPForum/Service/Outbox/Dispatcher.pm`,
   `lib/GPForum/Service/Outbox/DeadLetterRecorder.pm`,
   `lib/GPForum/Service/Outbox/Retry.pm`
-- `migrations/004_platform_governance.sql` (`projection_generations`;
+- `migrations/001-schema/004_platform_governance.sql` (`projection_generations`;
   its `projection_offsets` is dropped by
-  `migrations/105_drop_unwired_subsystems.sql`; its `thread_counter_shards` is folded into
-  `thread_counters` by `migrations/051_fold_thread_counter_shards.sql`,
+  `migrations/003-evolution/105_drop_unwired_subsystems.sql`; its `thread_counter_shards` is folded into
+  `thread_counters` by `migrations/001-schema/051_fold_thread_counter_shards.sql`,
   ADR 0119),
-  `migrations/014_hot_path_indexes.sql`
+  `migrations/001-schema/014_hot_path_indexes.sql`
 - `gpforum budgets`, `gpforum query-plan-evidence`,
   `script/query-plan-check`, `script/benchmark-http`
 - `docs/PERFORMANCE.md#query-budgets`, `docs/PERFORMANCE.md#database`,

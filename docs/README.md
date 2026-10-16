@@ -48,6 +48,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | [DEPLOYMENT.md](DEPLOYMENT.md) · [DEPLOYMENT_EVIDENCE.md](DEPLOYMENT_EVIDENCE.md) | Running GPForum behind a reverse proxy, and the evidence gate |
 | [OBSERVABILITY.md](OBSERVABILITY.md) | Health, logs, and metrics |
 | [POSTGRESQL_RELIABILITY.md](POSTGRESQL_RELIABILITY.md) | PostgreSQL 16–18 audit, feature matrix, implementation decisions and verification |
+| [Migration history](../migrations/README.md) | Ordered schema, function API and evolution phases; immutable SQL and authoring rules |
 | [ops/postgres-diagnostics.md](ops/postgres-diagnostics.md) | Optional SQL cost statistics and read-only lock, vacuum, freeze, WAL and checkpoint diagnostics |
 | [ops/reactor-backend.md](ops/reactor-backend.md) | Declared versus actual event-loop reactor |
 | [ops/scheduled-jobs.md](ops/scheduled-jobs.md) | Hourly retention/orphan cleanup command |

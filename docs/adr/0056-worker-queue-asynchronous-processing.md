@@ -268,12 +268,12 @@ propagation assistance.
   `lib/GPForum/Service/Outbox/` (`Retry.pm`, `FailureType.pm`,
   `DeadLetterRecorder.pm`), `lib/GPForum/Command/OutboxDispatch.pm`
 - `gpforum outbox`, `script/bench-outbox-dispatcher`
-- `migrations/004_platform_governance.sql` (`dead_letters`,
+- `migrations/001-schema/004_platform_governance.sql` (`dead_letters`,
   `projection_generations`; its `projection_offsets`, never written, is
   dropped by migration 105),
-  `migrations/021_outbox_delivery_reliability.sql`,
-  `migrations/022_outbox_concurrent_claim.sql`,
-  `migrations/024_privacy_erasure_job_idempotency.sql`
+  `migrations/001-schema/021_outbox_delivery_reliability.sql`,
+  `migrations/001-schema/022_outbox_concurrent_claim.sql`,
+  `migrations/001-schema/024_privacy_erasure_job_idempotency.sql`
 - `docs/OUTBOX_LIFECYCLE.md`, `docs/audit/failure-modes.md`
 - `t/13-outbox-dispatcher.t`, `t/16-workers-phase.t`,
   `t/83-outbox-worker-wiring.t`, `t/84-outbox-concurrent-dispatcher.t`,

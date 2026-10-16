@@ -27,7 +27,8 @@ const my $EXPECTED_TESTS => 446;
 # migration into a spurious failure, which trains people to bump the number
 # without reading the assertion. The checks below still prove the runner sees
 # every migration file, in order, with its checksum.
-const my $EXPECTED_MIGRATIONS => scalar( () = glob 'migrations/[0-9]*_*.sql' );
+const my $EXPECTED_MIGRATIONS =>
+  scalar @{ GPForum::Migration::Plan->new->files };
 
 # The runner issues three statements per migration (the migration SQL, the
 # schema_versions insert and the safety metadata write), less the three the

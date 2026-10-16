@@ -243,5 +243,5 @@ block), archives and drops them.
 - `docs/adr/0113-rolling-monthly-partitions.md` -- the decision
 - `docs/architecture/partition-lifecycle.md` -- the boundary
 - `docs/ops/scheduled-jobs.md` -- the oneshot runner and its timers
-- `migrations/038_monthly_log_partitions.sql`,
-  `migrations/049_rolling_partitions.sql` -- the partition layout
+- `migrations/001-schema/038_monthly_log_partitions.sql`,
+  `migrations/001-schema/049_rolling_partitions.sql` -- the partition layout

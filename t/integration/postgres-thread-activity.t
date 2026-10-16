@@ -38,8 +38,9 @@ my $dbh    = $schema->storage->dbh;
 
 $dbh->do('UPDATE threads SET last_activity_at = created_at');
 $dbh->do(
-    Mojo::File->new('migrations/046_thread_last_activity_backfill.sql')
-      ->slurp );
+    Mojo::File->new(
+        'migrations/001-schema/046_thread_last_activity_backfill.sql')->slurp
+);
 is(
     scalar $dbh->selectrow_array(
             q{SELECT count(*) FROM threads t WHERE t.last_activity_at <}

@@ -68,6 +68,10 @@ script/profile-nytprof -- -Ilib -It/lib t/17-notifications.t
 
 ## Migrations
 
+- Follow the [migration layout and inventory](migrations/README.md).
+  New migrations go in `migrations/003-evolution/`, with a globally unique
+  version above the current maximum. Directories do not determine execution
+  order. Keep existing filenames, version gaps and SQL bytes intact.
 - An applied migration never changes: the runner compares checksums and
   refuses to run when a file differs from what the database recorded.
 - An index on a table that already exists is built with

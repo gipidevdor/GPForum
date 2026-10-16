@@ -218,8 +218,8 @@ sub _install_replication_api ($dbh) {
     my @names =
       qw(ops_replication_recovery ops_replication_standbys ops_replication_slots ops_replication_position);
     for my $file (
-        'migrations/069_operations_realtime_functions.sql',
-        'migrations/099_remaining_runtime_api_boundaries.sql'
+        'migrations/002-function-api/069_operations_realtime_functions.sql',
+        'migrations/002-function-api/099_remaining_runtime_api_boundaries.sql'
       )
     {
         my $sql = path($file)->slurp;

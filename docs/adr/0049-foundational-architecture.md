@@ -211,7 +211,7 @@ superseding ADR.
 - `lib/GPForum.pm`, `lib/GPForum/Bootstrap/`, `lib/GPForum/Infrastructure/Id.pm`,
   `lib/GPForum/Service/Password.pm`,
   `lib/GPForum/Security/BrowserHeaders.pm`,
-  `migrations/002_event_audit.sql`, `cpanfile`, `.perlcriticrc`.
+  `migrations/001-schema/002_event_audit.sql`, `cpanfile`, `.perlcriticrc`.
 - `t/75-architecture-foundation.t`, `t/73-bootstrap-composition.t`,
   `t/34-architecture-discipline.t`, `t/143-service-id.t`,
   `t/48-browser-security.t`.

@@ -27,8 +27,10 @@ const my $SEEDED_POSTS     => 8;
 const my $THREAD_POSTS     => 3_000;
 const my $CATEGORY_THREADS => 1_500;
 const my $DEEP_ENOUGH      => 700;
-const my $MIGRATION        => 'migrations/053_forum_thread_page_functions.sql';
-const my $LIST_MIGRATION   => 'migrations/056_forum_read_functions.sql';
+const my $MIGRATION =>
+  'migrations/002-function-api/053_forum_thread_page_functions.sql';
+const my $LIST_MIGRATION =>
+  'migrations/002-function-api/056_forum_read_functions.sql';
 const my $KEYSET_BOUND =>
   qr/\n [ ]+ AND [ ] me[.]position [ ] >= [ ] p_after_position/msx;
 

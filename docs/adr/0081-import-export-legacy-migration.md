@@ -96,6 +96,6 @@ imports in request workflows.
 - ADRs: 0074 (data export rights), 0082 (canonical URLs and redirects), 0083
   (import/export adapter plugins); 0027 (attachment lifecycle).
 - Code: `lib/GPForum/Service/Portability/ExportBundleBuilder.pm`.
-- Migrations: `migrations/010_import_export.sql`; the import tables are
-  dropped by `migrations/105_drop_unwired_subsystems.sql`.
+- Migrations: `migrations/001-schema/010_import_export.sql`; the import tables are
+  dropped by `migrations/003-evolution/105_drop_unwired_subsystems.sql`.
 - Tests: `t/27-export-bundle.t`.

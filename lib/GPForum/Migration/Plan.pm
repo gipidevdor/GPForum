@@ -21,11 +21,23 @@ sub files ($self) {
             message => "migration directory not found: $directory" );
     }
 
-    return [
-        sort map { $_->to_string }
-          grep { $_->basename =~ /\A [[:digit:]]+ [_] .+ [.] sql \z/msx }
-          @{ $directory->list->to_array }
-    ];
+    my @files = sort {
+        _version_from_file($a) <=> _version_from_file($b)
+          || $a->basename cmp $b->basename
+    } grep { $_->basename =~ /\A [[:digit:]]+ [_] .+ [.] sql \z/msx }
+      @{ $directory->list_tree->to_array };
+
+    my %seen;
+    for my $file (@files) {
+        my $version = 0 + _version_from_file($file);
+        if ( exists $seen{$version} ) {
+            GPForum::X::Config->throw( message =>
+                  "duplicate migration version: $seen{$version} and $file" );
+        }
+        $seen{$version} = $file;
+    }
+
+    return [ map { $_->to_string } @files ];
 }
 
 sub summary ($self) {
@@ -84,7 +96,8 @@ framework.
 
 =head2 files
 
-Returns sorted migration file paths.
+Discovers SQL files recursively and returns paths in global numeric version
+order, independent of their directory. Duplicate versions are refused.
 
 =head2 summary
 
@@ -92,7 +105,8 @@ Returns version, description, and file metadata for migrations.
 
 =head1 DIAGNOSTICS
 
-Throws L<GPForum::X::Config> when the migration directory is missing.
+Throws L<GPForum::X::Config> when the migration directory is missing or two
+files claim the same numeric version.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -108,7 +122,7 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-This milestone plans migrations but does not yet apply them to a live database.
+Application is handled by L<GPForum::Migration::Runner>.
 
 =head1 AUTHOR
 

@@ -403,8 +403,8 @@ If these answers do not exist, the implementation is incomplete.
     the search `language` to `simple`, and the migrations install `pg_trgm`
     only, not `unaccent`.
   - Section 4 recommends `excerpt` and `generation_id` fields, but
-    `search_documents` (`migrations/003_forum_projection.sql`,
-    `migrations/018_search_product_hardening.sql`) has neither column.
+    `search_documents` (`migrations/001-schema/003_forum_projection.sql`,
+    `migrations/001-schema/018_search_product_hardening.sql`) has neither column.
 
 ## Related Decisions and Implementation
 
@@ -420,8 +420,8 @@ If these answers do not exist, the implementation is incomplete.
 - `lib/GPForum/Worker/MinionRegistrar.pm` (`gpforum.search.dispatch` task)
 - `lib/GPForum/Controller/Discovery.pm`, `lib/GPForum/Web/DiscoveryAccess.pm`,
   `lib/GPForum/Web/DiscoveryPayload.pm`
-- `migrations/003_forum_projection.sql` (`search_documents`),
-  `migrations/018_search_product_hardening.sql`
+- `migrations/001-schema/003_forum_projection.sql` (`search_documents`),
+  `migrations/001-schema/018_search_product_hardening.sql`
 - `t/19-search.t`, `t/30-public-discovery.t`, `t/71-bootstrap-discovery.t`,
   `t/78-web-operations-discovery-payloads.t`,
   `t/126-web-discovery-access.t`

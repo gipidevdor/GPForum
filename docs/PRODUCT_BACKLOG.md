@@ -320,7 +320,7 @@ historical ADR wording that predates the identity mailer.
 [realtime]: realtime.md
 [thread-tools]: ../templates/forum/_thread_tools.html.ep
 [bookmarks]: ../templates/forum/bookmarks.html.ep
-[forum-schema]: ../migrations/003_forum_projection.sql
+[forum-schema]: ../migrations/001-schema/003_forum_projection.sql
 [thread-reader]: ../lib/GPForum/Service/Forum/ThreadReader.pm
 [admin-settings]: ../lib/GPForum/Service/Admin/Settings.pm
 [profile]: ../templates/identity/profile.html.ep
@@ -335,11 +335,11 @@ historical ADR wording that predates the identity mailer.
 [settings]: ../templates/identity/settings.html.ep
 [identity-mail]: ../lib/GPForum/Service/Identity/Mailer.pm
 [credential-store]: ../lib/GPForum/Service/Identity/CredentialStore.pm
-[identity-schema]: ../migrations/001_core_identity.sql
+[identity-schema]: ../migrations/001-schema/001_core_identity.sql
 [identity-flow]: architecture/identity-workflow.md
 [reports]: ../templates/moderation/reports.html.ep
 [moderation-flow]: architecture/moderation-workflow.md
-[moderation-schema]: ../migrations/008_moderation_review.sql
+[moderation-schema]: ../migrations/001-schema/008_moderation_review.sql
 [rate-limiter]: ../lib/GPForum/Service/Operations/RateLimiter.pm
 [attachment-flow]: architecture/attachment-workflow.md
 [attachment-validator]: ../lib/GPForum/Service/Attachment/Validator.pm
@@ -368,6 +368,6 @@ historical ADR wording that predates the identity mailer.
 [architecture]: ../ARCHITECTURE.md
 [draft-flow]: architecture/composer-drafts.md
 [draft-client]: ../assets/js/composer.js
-[draft-schema]: ../migrations/103_forum_drafts.sql
+[draft-schema]: ../migrations/003-evolution/103_forum_drafts.sql
 [deployment]: DEPLOYMENT.md
 [upgrade]: ops/upgrade.md

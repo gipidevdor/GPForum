@@ -55,10 +55,10 @@ const my $GLIFISTORE_UNIX_URL => qr{\A unix:// \S+ \z}msx;
 
 # A public address: a scheme, a host (a name, an IPv4 address or a bracketed
 # IPv6 one), an optional port and an optional path.
-const my $URL_HOST =>
+const my $PUBLIC_HOST =>
   qr{ [[:alnum:]] [[:alnum:].-]* | \[ [[:xdigit:]:.]+ \] }msx;
 const my $URL_REST   => qr{ (?: : [[:digit:]]+ )? (?: [/?#] \S* )? }msx;
-const my $PUBLIC_URL => qr{\A (https?) :// ($URL_HOST) $URL_REST \z}msxi;
+const my $PUBLIC_URL => qr{\A (https?) :// ($PUBLIC_HOST) $URL_REST \z}msxi;
 
 # The names RFC 2606 keeps for examples, which no DNS will ever point at a
 # forum and no mail server delivers from: the template's

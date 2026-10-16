@@ -52,7 +52,7 @@ const my $SETTLE_SECONDS  => 0.05;
 const my $SETTLE_ATTEMPTS => 600;
 const my $NO_CHILD        => -1;
 const my $FRONTEND_PORT   => 18_081;
-const my $BACKEND_PORT    => 18_080;
+const my $BACKEND_SOCKET  => '/tmp/gpforum-backend.sock';
 const my $PID             => 4_242;
 const my $PROCESS_COLUMNS => 80;
 
@@ -428,7 +428,10 @@ sub _test_resolve_proxy {
 
 sub _test_start_proxy {
     my $runtime = _private('_start_reverse_proxy')->(
-        { port => $BACKEND_PORT, base_url => 'http://127.0.0.1:18080' },
+        {
+            socket   => $BACKEND_SOCKET,
+            base_url => 'http+unix://%2Ftmp%2Fgpforum-backend.sock'
+        },
         { frontend_port => $FRONTEND_PORT },
         { kind => 'haproxy', binary => '/usr/bin/true', version => 'v' },
     );
@@ -447,8 +450,8 @@ sub _test_start_proxy {
     );
     like(
         path( $runtime->{config_file} )->slurp,
-        qr/^ \s+ server [ ] hypnotoad [ ] 127[.]0[.]0[.]1:$BACKEND_PORT $/msx,
-        'which forwards to the backend hypnotoad'
+        qr/^ \s+ server [ ] hypnotoad [ ] unix[@]\Q$BACKEND_SOCKET\E $/msx,
+        'which forwards to the backend Hypnotoad Unix socket'
     );
 
     return;

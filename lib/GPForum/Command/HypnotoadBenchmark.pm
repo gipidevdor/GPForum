@@ -12,6 +12,7 @@ use JSON::MaybeXS qw(encode_json);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::UserAgent;
+use Mojo::Util  qw(url_escape);
 use Mojolicious ();
 
 use GPForum::Benchmark::HypnotoadText qw(text_report);
@@ -271,13 +272,17 @@ sub _in_process_report ($options) {
 }
 
 sub _start_hypnotoad ($options) {
-    my $directory   = tempdir( 'gpforum-hypnotoad-XXXXXX', TMPDIR => 1 );
-    my $port        = $options->{port} || free_port();
-    my $pid_file    = "$directory/hypnotoad.pid";
-    my $log_file    = "$directory/hypnotoad.log";
-    my $app_file    = "$directory/gpforum-hypnotoad-app.pl";
-    my $base_url    = "http://127.0.0.1:$port";
-    my %environment = _runtime_environment( $options, $port, $pid_file );
+    my $directory = tempdir( 'gpforum-hypnotoad-XXXXXX', TMPDIR => 1 );
+    my $socket = $options->{reverse_proxy} ? "$directory/backend.sock" : undef;
+    my $port   = defined $socket ? undef : $options->{port} || free_port();
+    my $pid_file = "$directory/hypnotoad.pid";
+    my $log_file = "$directory/hypnotoad.log";
+    my $app_file = "$directory/gpforum-hypnotoad-app.pl";
+    my $base_url =
+      defined $socket
+      ? 'http+unix://' . url_escape($socket)
+      : "http://127.0.0.1:$port";
+    my %environment = _runtime_environment( $options, $base_url, $pid_file );
 
     _write_hypnotoad_app($app_file);
 
@@ -305,6 +310,7 @@ sub _start_hypnotoad ($options) {
         app_file    => $app_file,
         base_url    => $base_url,
         port        => $port,
+        socket      => $socket,
         environment => \%environment,
         ua          => Mojo::UserAgent->new( request_timeout => 5 ),
     };
@@ -326,11 +332,11 @@ APP
     return;
 }
 
-sub _runtime_environment ( $options, $port, $pid_file ) {
+sub _runtime_environment ( $options, $listen, $pid_file ) {
     return (
         GPFORUM_LOG_LEVEL                  => 'fatal',
         GPFORUM_BENCHMARK_QUERY_HEADERS    => 1,
-        GPFORUM_RUNTIME_LISTEN             => "http://127.0.0.1:$port",
+        GPFORUM_RUNTIME_LISTEN             => $listen,
         GPFORUM_RUNTIME_PID_FILE           => $pid_file,
         GPFORUM_RUNTIME_WORKER_POLICY      => 'configured',
         GPFORUM_RUNTIME_PROXY              => $options->{reverse_proxy} ? 1 : 0,
@@ -429,6 +435,7 @@ sub _reverse_proxy_runtime_metadata ( $backend_runtime, $proxy_runtime,
     $metadata->{backend_hypnotoad} = {
         base_url          => $backend_runtime->{base_url},
         port              => $backend_runtime->{port},
+        socket            => $backend_runtime->{socket},
         workers_requested => $options->{workers},
     };
     $metadata->{frontend} = {

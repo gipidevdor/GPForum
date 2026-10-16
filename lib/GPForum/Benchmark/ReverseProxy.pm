@@ -45,15 +45,17 @@ sub resolve_proxy ($requested) {
 # Starts the resolved proxy in front of the backend hypnotoad, on the
 # frontend port asked for or a free one, and answers its runtime.
 sub start_proxy ( $backend_runtime, $options, $proxy ) {
+    croak 'The reverse proxy benchmark requires a backend Unix socket'
+      if !defined $backend_runtime->{socket};
     my $directory     = tempdir( 'gpforum-reverse-proxy-XXXXXX', TMPDIR => 1 );
     my $frontend_port = $options->{frontend_port} || free_port();
     my %settings      = (
-        kind          => $proxy->{kind},
-        config_file   => "$directory/$proxy->{kind}.conf",
-        pid_file      => "$directory/$proxy->{kind}.pid",
-        log_file      => "$directory/$proxy->{kind}.log",
-        frontend_port => $frontend_port,
-        backend_port  => $backend_runtime->{port},
+        kind           => $proxy->{kind},
+        config_file    => "$directory/$proxy->{kind}.conf",
+        pid_file       => "$directory/$proxy->{kind}.pid",
+        log_file       => "$directory/$proxy->{kind}.log",
+        frontend_port  => $frontend_port,
+        backend_socket => $backend_runtime->{socket},
     );
     _write_config( \%settings );
 
@@ -73,20 +75,20 @@ sub start_proxy ( $backend_runtime, $options, $proxy ) {
     }
 
     return {
-        process_pid  => $pid,
-        directory    => $directory,
-        kind         => $proxy->{kind},
-        binary       => $proxy->{binary},
-        version      => $proxy->{version},
-        config_file  => $settings{config_file},
-        pid_file     => $settings{pid_file},
-        log_file     => $settings{log_file},
-        base_url     => "http://127.0.0.1:$frontend_port",
-        port         => $frontend_port,
-        backend_url  => $backend_runtime->{base_url},
-        backend_port => $backend_runtime->{port},
-        command      => \@command,
-        ua           => Mojo::UserAgent->new( request_timeout => 5 ),
+        process_pid    => $pid,
+        directory      => $directory,
+        kind           => $proxy->{kind},
+        binary         => $proxy->{binary},
+        version        => $proxy->{version},
+        config_file    => $settings{config_file},
+        pid_file       => $settings{pid_file},
+        log_file       => $settings{log_file},
+        base_url       => "http://127.0.0.1:$frontend_port",
+        port           => $frontend_port,
+        backend_url    => $backend_runtime->{base_url},
+        backend_socket => $backend_runtime->{socket},
+        command        => \@command,
+        ua             => Mojo::UserAgent->new( request_timeout => 5 ),
     };
 }
 
@@ -97,6 +99,8 @@ sub proxy_command ( $kind, $binary, $config_file ) {
 }
 
 sub proxy_config ($settings) {
+    croak 'The reverse proxy benchmark requires a backend Unix socket'
+      if !defined $settings->{backend_socket};
     return $settings->{kind} eq 'nginx'
       ? _nginx_config($settings)
       : _haproxy_config($settings);
@@ -127,6 +131,10 @@ events {
 http {
     access_log off;
 
+    upstream gpforum_backend {
+        server unix:$settings->{backend_socket};
+    }
+
     server {
         listen 127.0.0.1:$settings->{frontend_port};
 
@@ -138,7 +146,7 @@ http {
             proxy_set_header X-Forwarded-Proto http;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header Connection "";
-            proxy_pass http://127.0.0.1:$settings->{backend_port};
+            proxy_pass http://gpforum_backend;
         }
     }
 }
@@ -164,7 +172,7 @@ frontend gpforum_frontend
     default_backend gpforum_backend
 
 backend gpforum_backend
-    server hypnotoad 127.0.0.1:$settings->{backend_port}
+    server hypnotoad unix\@$settings->{backend_socket}
 HAPROXY
 }
 
@@ -205,7 +213,7 @@ C<PATH>.
 
 =head2 start_proxy
 
-Given the backend runtime (C<port>, C<base_url>), the options
+Given the backend runtime (C<socket>, C<base_url>), the options
 (C<frontend_port>) and a resolved proxy, writes its configuration in a
 temporary directory, starts it in a session of its own and answers its
 runtime: pid, files, C<base_url>, C<port>, C<command> and a user agent.
@@ -218,7 +226,8 @@ proxy in the foreground.
 =head2 proxy_config
 
 Given C<kind>, C<pid_file>, C<log_file>, C<frontend_port> and
-C<backend_port>, the configuration text.
+C<backend_socket>, the configuration text. The local backend always uses
+a Unix socket; the frontend accepts the load generator's HTTP requests.
 
 =head1 DIAGNOSTICS
 

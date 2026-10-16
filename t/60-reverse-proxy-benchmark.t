@@ -8,6 +8,7 @@ use v5.40;
 use Carp qw(croak);
 use Const::Fast;
 use File::Temp    qw(tempdir);
+use File::Path    qw(remove_tree);
 use JSON::MaybeXS qw(decode_json);
 use Test::Exception;
 use Test::More;
@@ -168,11 +169,11 @@ qr/binary [ ] not [ ] found; [ ] searched [ ] nginx [ ] and [ ] haproxy/msx,
 
 my $nginx_config = proxy_config(
     {
-        kind          => 'nginx',
-        pid_file      => '/tmp/gpforum-nginx.pid',
-        log_file      => '/tmp/gpforum-nginx.log',
-        frontend_port => 7001,
-        backend_port  => 7002,
+        kind           => 'nginx',
+        pid_file       => '/tmp/gpforum-nginx.pid',
+        log_file       => '/tmp/gpforum-nginx.log',
+        frontend_port  => 7001,
+        backend_socket => '/tmp/gpforum-backend.sock',
     }
 );
 like(
@@ -187,8 +188,8 @@ like(
 );
 like(
     $nginx_config,
-    qr/proxy_pass [ ] http:\/\/127[.]0[.]0[.]1:7002;/msx,
-    'nginx config points at backend Hypnotoad'
+    qr/server [ ] unix:\/tmp\/gpforum-backend[.]sock;/msx,
+    'nginx config points at the backend Unix socket'
 );
 like(
     $nginx_config,
@@ -198,11 +199,11 @@ like(
 
 my $haproxy_config = proxy_config(
     {
-        kind          => 'haproxy',
-        pid_file      => '/tmp/gpforum-haproxy.pid',
-        log_file      => '/tmp/gpforum-haproxy.log',
-        frontend_port => 7101,
-        backend_port  => 7102,
+        kind           => 'haproxy',
+        pid_file       => '/tmp/gpforum-haproxy.pid',
+        log_file       => '/tmp/gpforum-haproxy.log',
+        frontend_port  => 7101,
+        backend_socket => '/tmp/gpforum-backend.sock',
     }
 );
 like(
@@ -212,8 +213,8 @@ like(
 );
 like(
     $haproxy_config,
-    qr/server [ ] hypnotoad [ ] 127[.]0[.]0[.]1:7102/msx,
-    'HAProxy config points at backend Hypnotoad'
+    qr/server [ ] hypnotoad [ ] unix[@]\/tmp\/gpforum-backend[.]sock/msx,
+    'HAProxy config points at the backend Unix socket'
 );
 like(
     $haproxy_config,
@@ -226,6 +227,39 @@ is_deeply(
     [ '/usr/sbin/haproxy', '-f', '/tmp/haproxy.cfg', '-db' ],
     'HAProxy command stays in foreground for cleanup'
 );
+
+throws_ok(
+    sub { proxy_config( { kind => 'nginx', backend_port => 7002 } ); },
+    qr/requires[ ]a[ ]backend[ ]Unix[ ]socket/msx,
+    'a missing backend socket cannot fall back to TCP'
+);
+
+subtest 'the proxied Hypnotoad listens only on its owned Unix socket' => sub {
+    my $runtime;
+    with_replaced_subs(
+        'GPForum::Command::HypnotoadBenchmark',
+        { _spawn => sub { return $WORKER_PID; } },
+        sub {
+            my $start =
+              GPForum::Command::HypnotoadBenchmark->can('_start_hypnotoad');
+            $runtime = $start->( _live_proxy_options() );
+        }
+    );
+    like(
+        $runtime->{base_url},
+        qr{\A http[+]unix://}msx,
+        'the readiness and direct comparison requests use Unix sockets'
+    );
+    is( $runtime->{environment}{GPFORUM_RUNTIME_LISTEN},
+        $runtime->{base_url}, 'Hypnotoad inherits the same socket listener' );
+    is(
+        $runtime->{socket},
+        "$runtime->{directory}/backend.sock",
+        'the proxy receives the owned socket path'
+    );
+    ok( !defined $runtime->{port}, 'no backend TCP port is allocated' );
+    remove_tree( $runtime->{directory} );
+};
 
 my $backend_stops = 0;
 my $proxy_stops   = 0;

@@ -70,7 +70,7 @@ site=forum.example.com
    ✓ account gpforum: made, with /opt/gpforum/var/attachments for its uploads
    ✓ /etc/gpforum/gpforum.env: written, 0640 root:gpforum, with a new session secret and metrics token
    ✓ gpforum: linked into /usr/local/bin, so it runs from any directory
-   ✓ database gpforum at 127.0.0.1:5432: made, with its role gpforum
+   ✓ database gpforum at unix:5432: made, with its role gpforum
    ✓ Applied 51 migrations, 001 to 051; synced the query budgets (25 changed)
 
    Next: make the forum's owner, with sudo -u gpforum gpforum admin create --email EMAIL --username NAME

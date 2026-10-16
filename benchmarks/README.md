@@ -197,7 +197,7 @@ owned outbox and SQL-function helpers; nested plan inspection needs
 `--generator mojo` if unavailable and retain its indicative limitation.
 
 ```sh
-export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum_perf_local;host=127.0.0.1;port=5432'
+export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum_perf_local'
 export GPFORUM_DATABASE_USER=benchmark_user
 # Supply a password via the local environment if required, not a tracked file.
 script/bootstrap-deps --postgres

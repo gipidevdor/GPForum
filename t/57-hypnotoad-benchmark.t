@@ -211,7 +211,7 @@ my %runtime_environment = _private('_runtime_environment')->(
         keep_alive => 5,
         workers    => 2,
     },
-    $LISTEN_PORT,
+    "http://127.0.0.1:$LISTEN_PORT",
     '/tmp/gpforum-hypnotoad-test.pid',
 );
 is( $runtime_environment{GPFORUM_RUNTIME_LISTEN},

@@ -14,10 +14,11 @@ use English      qw(-no_match_vars);
 use FindBin      qw($Bin);
 use Getopt::Long qw(GetOptionsFromArray);
 use IO::Select;
-use IO::Socket::INET;
+use IO::Socket::UNIX;
+use File::Temp    qw(tempdir);
 use JSON::MaybeXS qw(encode_json);
 use MIME::Base64  qw(encode_base64url);
-use POSIX         qw(_exit clock strftime);
+use POSIX         qw(_exit clock setsid strftime);
 use Time::HiRes   qw(sleep time);
 
 use lib "$Bin/../lib";
@@ -285,19 +286,24 @@ q{SELECT thread_id FROM threads WHERE category_id = ? AND slug LIKE 'depth-%'},
     return;
 }
 
-# A TCP proxy that holds each chunk for the delay before passing it on, in
+# A Unix socket proxy that holds each chunk for the delay before passing it on, in
 # both directions: a database on another host, as far as round trips go.
 # One process listens; one per connection forwards.
 sub _proxy ( $dsn, $delay ) {
-    my ($host)   = $dsn =~ /host=([^;]+)/msx;
-    my ($port)   = $dsn =~ /port=(\d+)/msx;
-    my $listener = IO::Socket::INET->new(
-        Listen    => $LISTEN_QUEUE,
-        LocalAddr => '127.0.0.1',
-        LocalPort => 0,
-        ReuseAddr => 1,
+    my $connection = _connect($dsn);
+    my ( $host, $port ) = @{$connection}{qw(pg_host pg_port)};
+    $connection->disconnect;
+    croak 'The SQL benchmark requires PostgreSQL on a local Unix socket'
+      if !defined $host || $host !~ m{\A /}msx;
+    my $directory =
+      tempdir( 'gpforum-sql-proxy-XXXXXX', DIR => '/tmp', CLEANUP => 1 );
+    my $socket   = "$directory/.s.PGSQL.$port";
+    my $listener = IO::Socket::UNIX->new(
+        Listen => $LISTEN_QUEUE,
+        Local  => $socket,
     ) or croak "proxy listen: $OS_ERROR";
     my $pid = fork // croak "fork: $OS_ERROR";
+
     if ( $pid == 0 ) {
 
         # Only the measuring parent owns the temporary database. Proxy
@@ -305,26 +311,32 @@ sub _proxy ( $dsn, $delay ) {
         local $SIG{TERM} = 'DEFAULT';
         local $SIG{INT}  = 'DEFAULT';
         local $SIG{CHLD} = 'IGNORE';
+        setsid() >= 0 or _exit(1);
         while ( my $client = $listener->accept ) {
             my $child = fork // croak "fork: $OS_ERROR";
             if ( $child == 0 ) {
-                _forward( $client, $host // '127.0.0.1', $port, $delay );
+                close $listener or _exit(1);
+                _forward( $client, "$host/.s.PGSQL.$port", $delay );
                 _exit(0);
             }
             close $client or croak "close: $OS_ERROR";
         }
         _exit(0);
     }
-    my $proxy_port = $listener->sockport;
     close $listener or croak "close: $OS_ERROR";
-    ( my $through = $dsn ) =~ s/port=\d+/port=$proxy_port/msx;
-    $through =~ s/host=[^;]+/host=127.0.0.1/msx;
+    ( my $through = $dsn ) =~ s/(?: ; )? (?: host | port ) = [^;]*//gmsx;
+    $through .= ";host=$directory;port=$port";
 
-    return { dsn => $through, pid => $pid };
+    return {
+        dsn       => $through,
+        pid       => $pid,
+        directory => $directory,
+        socket    => $socket
+    };
 }
 
-sub _forward ( $client, $host, $port, $delay ) {
-    my $server = IO::Socket::INET->new( PeerAddr => $host, PeerPort => $port )
+sub _forward ( $client, $socket, $delay ) {
+    my $server = IO::Socket::UNIX->new( Peer => $socket )
       or _exit(1);
     my %peer   = ( $client => $server, $server => $client );
     my $select = IO::Select->new( $client, $server );
@@ -351,8 +363,10 @@ sub _forward ( $client, $host, $port, $delay ) {
 sub _stop ($proxy) {
     return if !$proxy;
 
-    kill 'TERM', $proxy->{pid};
+    kill 'TERM', -$proxy->{pid};
     waitpid $proxy->{pid}, 0;
+    unlink $proxy->{socket}   or croak "remove proxy socket: $OS_ERROR";
+    rmdir $proxy->{directory} or croak "remove proxy directory: $OS_ERROR";
 
     return;
 }

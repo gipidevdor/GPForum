@@ -129,7 +129,7 @@ sub _test_forks_that_fail {
         _is_class(
             _raised(
                 sub {
-                    start_proxy( { port => 1 },
+                    start_proxy( { socket => '/tmp/gpforum-backend.sock' },
                         {}, { kind => 'nginx', binary => 'nginx' } );
                 }
             ),

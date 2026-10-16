@@ -934,7 +934,7 @@ the whitespace between tags collapsed:
 - `GPForum::Web::Partials`, behind `include`, compiles each EP partial once
   per process and runs it with the stash localized as `include` localizes
   it: no hook, no trace line, no lookup. Any other include (a format, a
-  layout, a template not on disk) is Mojolicious's (`t/693`).
+  layout, a template not on disk) is Mojolicious's (`t/696`).
 - In a partial, `<%= t('key') %>` reads the locale's plain messages from one
   table escaped once per process (`I18N::plain_messages`); a message that
   interpolates, falls back or is missing is still a call and logs as
@@ -1007,7 +1007,7 @@ the session's validation. A member's post still costs about 30 µs of forms
 | --- | --- |
 | Plans, budgets, page cache, feed fan-out and migrations on PostgreSQL | `t/integration/postgres-{search-plan,viewer-plan,query-plan-depth,query-budget,public-cache,feed-projection,migration-concurrently}.t`, run by `make integration` |
 | The plan gate's own logic | `t/54-query-plan-evidence.t`, `t/47-query-plan-check.t` |
-| Hot pages' rendering in process, and the work a render does | `script/bench-render`; `t/693-partials.t`, `t/694-render-work.t`, `t/695-render-memos.t`, `t/689-post-fragment-cache.t` |
+| Hot pages' rendering in process, and the work a render does | `script/bench-render`; `t/696-partials.t`, `t/694-render-work.t`, `t/695-render-memos.t`, `t/689-post-fragment-cache.t` |
 | Realtime fan-out across processes, and the bounded polling backstop | `t/85-realtime-outbox-multiprocess.t`; [realtime.md](realtime.md) |
 | 100, 500 and 1,000 concurrent clients | [ops/stress-load.md](ops/stress-load.md), JSON under [ops/evidence/](ops/evidence) |
 | OS and runtime posture | [OS_RUNTIME_EVIDENCE.md](OS_RUNTIME_EVIDENCE.md) |

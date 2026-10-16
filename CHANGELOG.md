@@ -1135,7 +1135,7 @@ CI, evidence and internal refactors with no change in behaviour.
   fragment cache is keyed by its content and kept in two generations, with
   the edit form's text out of it. `script/bench-render` measures the pages
   in process with a signed-in session, with NYTProf on request; the HTML is
-  the same (docs/PERFORMANCE.md, "Rendering in process"; `t/693`-`t/695`).
+  the same (docs/PERFORMANCE.md, "Rendering in process"; `t/694`-`t/696`).
 
 - **The drills and evidence tools that read no setting no longer read the
   settings file.** `staging-drill-attachments`, `evidence-meta`,

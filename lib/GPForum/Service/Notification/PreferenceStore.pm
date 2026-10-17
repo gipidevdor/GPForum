@@ -432,6 +432,32 @@ sub digest_plan ( $self, $user_id ) {
     };
 }
 
+# ADR 0078: a queued digest is mailed at most once. The worker claims it
+# before the transport takes it (claimed, or sent when a delivery before
+# took it, missing, invalid) and gives the claim back when the transport
+# refuses it. Without the function layer nothing is claimed.
+sub claim_digest_send ( $self, $digest ) {
+    return { status => 'unavailable' } if !$self->functions;
+    my $row = $self->functions->row(
+        'notification_digest_claim',
+        {
+            %{$digest}{qw(user_id frequency period_start event_id)},
+            now => $self->clock->now_iso8601,
+        }
+    );
+
+    return { status => $row ? $row->{status} : 'missing' };
+}
+
+sub release_digest_send ( $self, $digest ) {
+    return { status => 'unavailable' } if !$self->functions;
+    my $row =
+      $self->functions->row( 'notification_digest_release',
+        { %{$digest}{qw(user_id frequency period_start event_id)} } );
+
+    return { status => $row ? $row->{status} : 'unchanged' };
+}
+
 sub _invalid ( $field, $message ) {
     return {
         error  => $message,
@@ -661,6 +687,18 @@ Takes a user id. Returns C<< { digest, frequency, email_address, locale } >>
 from C<api.notification_digest_plan>: C<digest> is 1 while a digest is
 still to be mailed to the member (ADR 0078); without the function layer,
 C<< { digest => 0 } >>.
+
+=head2 claim_digest_send
+
+Takes C<< { user_id, frequency, period_start, event_id } >> of a queued
+digest. Returns C<< { status } >> from C<api.notification_digest_claim>:
+C<claimed> the first time, C<sent> when a delivery before claimed it,
+C<missing> or C<invalid>; C<unavailable> without the function layer.
+
+=head2 release_digest_send
+
+Takes the same digest. Gives its claim back (C<released>, or
+C<unchanged>) after the transport refused the mail.
 
 =head1 DIAGNOSTICS
 

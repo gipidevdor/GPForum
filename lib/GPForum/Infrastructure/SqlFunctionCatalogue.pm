@@ -778,6 +778,25 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ before => 'timestamptz', row_limit => 'integer' ]
     },
+    notification_digest_claim => {
+        version    => 2,
+        parameters => [
+            user_id      => 'uuid',
+            frequency    => 'text',
+            period_start => 'timestamptz',
+            event_id     => 'uuid',
+            now          => 'timestamptz'
+        ]
+    },
+    notification_digest_release => {
+        version    => 2,
+        parameters => [
+            user_id      => 'uuid',
+            frequency    => 'text',
+            period_start => 'timestamptz',
+            event_id     => 'uuid'
+        ]
+    },
     community_project_feed => {
         version    => 2,
         parameters => [ row => 'jsonb', user_ids => 'uuid[]' ],

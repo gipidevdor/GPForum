@@ -305,7 +305,11 @@ my $plan = {
     locale        => 'it',
 };
 my $preferences = GPForum::Test::NotificationPreferenceCalls->new(
-    answers => { digest_plan => sub (@) { return $plan; } } );
+    answers => {
+        digest_plan       => sub (@) { return $plan; },
+        claim_digest_send => { status => 'claimed' },
+    }
+);
 my $handler = GPForum::Worker::Handler::NotificationDigest->new(
     mailer => GPForum::Service::Identity::Mailer->new(
         transport       => $transport,

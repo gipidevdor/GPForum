@@ -41,6 +41,14 @@ sub digest_plan ( $self, @arguments ) {
     return $self->_called( digest_plan => @arguments );
 }
 
+sub claim_digest_send ( $self, @arguments ) {
+    return $self->_called( claim_digest_send => @arguments );
+}
+
+sub release_digest_send ( $self, @arguments ) {
+    return $self->_called( release_digest_send => @arguments );
+}
+
 sub send_notification_mail ( $self, @arguments ) {
     return $self->_called( send_notification_mail => @arguments );
 }
@@ -111,6 +119,14 @@ Records the plan asked for.
 =head2 digest_plan
 
 Records the digest plan asked for (ADR 0078).
+
+=head2 claim_digest_send
+
+Records the digest claimed for sending.
+
+=head2 release_digest_send
+
+Records the claim given back.
 
 =head2 send_notification_mail
 

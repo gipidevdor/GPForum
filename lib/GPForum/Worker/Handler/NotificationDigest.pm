@@ -3,6 +3,7 @@
 
 package GPForum::Worker::Handler::NotificationDigest;
 
+use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -58,6 +59,34 @@ sub handle ( $self, $event ) {
         return $task;
     }
 
+    # At most once (ADR 0078, 2026-10-17): the record is claimed before the
+    # transport takes the mail, so a delivery of the event after the mail
+    # went out -- the job not marked done -- sends nothing; a transport
+    # that refuses it gives the claim back for the retry.
+    my $digest_key = {
+        user_id      => $digest->{recipient_user_id},
+        frequency    => $digest->{frequency},
+        period_start => $digest->{period_start},
+        event_id     => $event->{event_id},
+    };
+    my $claim = $self->preference_store->claim_digest_send($digest_key);
+    if ( ( $claim->{status} // q{} ) ne 'claimed' ) {
+        $task->{skipped} = 1;
+        $task->{reason}  = $claim->{status} // 'missing';
+        return $task;
+    }
+    try {
+        $task->{delivered} = $self->_send( $digest, $plan, $event->{event_id} );
+    }
+    catch ($error) {
+        $self->preference_store->release_digest_send($digest_key);
+        croak $error;
+    };
+
+    return $task;
+}
+
+sub _send ( $self, $digest, $plan, $event_id ) {
     my $base = $self->mailer->public_base_url;
     my $unsubscribe =
         ( $base =~ s{ / \z}{}msxr )
@@ -74,17 +103,17 @@ sub handle ( $self, $event ) {
             unsubscribe_url => $unsubscribe,
         }
         );
-    $task->{delivered} = $self->mailer->send_digest_mail(
+
+    return $self->mailer->send_digest_mail(
         {
             to              => $plan->{email_address},
             subject         => $message->{subject},
             text            => $message->{text},
             html            => $message->{html},
             unsubscribe_url => $unsubscribe,
+            message_key     => $event_id,
         }
     );
-
-    return $task;
 }
 
 1;
@@ -122,7 +151,12 @@ and the signed link that stops the digest, which is also its RFC 8058
 C<List-Unsubscribe> header.
 
 The handler runs under the outbox's idempotent job runner
-(C<worker.notification_digest>), so a retried event sends once.
+(C<worker.notification_digest>), and sends at most once: it claims the
+digest's record (L<GPForum::Service::Notification::PreferenceStore/claim_digest_send>)
+before the transport takes the mail, so an event delivered again after
+the mail went out -- the job not yet marked done -- sends nothing, and a
+transport that refuses the mail gives the claim back for the retry. The
+mail's C<Message-ID> is named by the event, the same each time.
 
 =head1 SUBROUTINES/METHODS
 
@@ -133,11 +167,14 @@ True for C<notification.digest.requested>.
 =head2 handle
 
 Sends the digest and returns the task: C<action>, C<event_id>,
-C<frequency>, C<recipient_user_id>, and C<delivered> or C<skipped>.
+C<frequency>, C<recipient_user_id>, and C<delivered> or C<skipped> (with
+C<reason> C<sent> or C<missing> when the claim was refused).
 
 =head1 DIAGNOSTICS
 
-A transport failure propagates, and the outbox retries the event.
+A transport failure gives the claim back and propagates, and the outbox
+retries the event. A worker that dies between the claim and the
+transport loses that digest: it is never sent twice.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -145,7 +182,7 @@ The mailer's C<public_base_url> is the links' origin.
 
 =head1 DEPENDENCIES
 
-L<GPForum::Infrastructure::Id> and
+L<Carp>, L<GPForum::Infrastructure::Id> and
 L<GPForum::Service::Notification::DigestMessage>.
 
 =head1 INCOMPATIBILITIES

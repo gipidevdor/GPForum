@@ -171,8 +171,22 @@ sub send_digest_mail ( $self, $input ) {
                 'MIME-Version'          => '1.0',
                 'List-Unsubscribe'      => "<$input->{unsubscribe_url}>",
                 'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+                $self->_message_id( 'digest', $input->{message_key} ),
             ],
         }
+    );
+}
+
+# A Message-ID named by what the mail is (the digest's event id) rather
+# than by when it went out, so a mail sent again is the same message to a
+# mailbox that folds duplicates. Nothing without a key.
+sub _message_id ( $self, $kind, $key ) {
+    return () if !length( $key // q{} ) || $key =~ /[^[:alnum:]-]/msx;
+    my ($domain) = $self->from_address =~ /@ ([[:alnum:].-]+)/msx;
+
+    return (
+        'Message-ID' => sprintf '<gpforum-%s.%s@%s>',
+        $kind, $key, $domain // 'localhost'
     );
 }
 
@@ -350,8 +364,9 @@ Takes C<to>, C<subject>, C<text>, C<html> (both text, encoded here) and
 C<unsubscribe_url>, and sends the email digest (ADR 0078) as one
 C<multipart/alternative> message, its plain-text and HTML parts in UTF-8
 quoted-printable, with the RFC 8058 C<List-Unsubscribe> and
-C<List-Unsubscribe-Post> headers. Logged as C<identity mail delivered:
-digest>.
+C<List-Unsubscribe-Post> headers. An optional C<message_key> (the
+digest's event id) names its C<Message-ID>, the same each time it is
+sent. Logged as C<identity mail delivered: digest>.
 
 =head1 DIAGNOSTICS
 

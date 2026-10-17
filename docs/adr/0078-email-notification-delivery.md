@@ -239,6 +239,19 @@ one. Decided:
 - **What, again.** A thread of a followed category is left out when the
   member's own subscription to the thread is muted or asks for less than
   every post (`api.notification_digest_items_v4`).
+- **At most once.** The outbox's idempotent runner marks a handler done
+  only after it returns, so a mail SMTP accepted could be sent again when
+  that mark failed. A digest is mailed at most once instead:
+  `api.notification_digest_claim` stamps the record's `sent_at` before the
+  transport takes the mail (migration 123), a later delivery of the event
+  finds it claimed and sends nothing, and a transport that refuses the
+  mail gives the claim back (`api.notification_digest_release`) for the
+  retry. A worker that dies between the claim and the transport loses
+  that one digest; a missed digest is better than a second one, and the
+  next window does not repeat its posts. The mail's `Message-ID` is named
+  by the event (`<gpforum-digest.EVENT_ID@domain>`), so where SMTP fails
+  after accepting and the retry sends again, a mailbox that folds
+  duplicate Message-IDs shows one.
 
 ## Consequences
 
@@ -277,7 +290,8 @@ one. Decided:
   `migrations/001-schema/025_identity_lifecycle_tokens.sql`,
   `migrations/003-evolution/118_notification_type_preferences.sql`,
   `migrations/003-evolution/119_notification_digests.sql`,
-  `migrations/003-evolution/122_notification_digest_windows.sql`.
+  `migrations/003-evolution/122_notification_digest_windows.sql`,
+  `migrations/003-evolution/123_notification_digest_sent.sql`.
 - Tests: `t/06-identity-web.t`, `t/integration/postgres-identity-stores.t`,
   `t/17-notifications.t`, `t/107-notification-workflow.t`,
   `t/110-identity-account-store.t`, `t/685-notification-preferences.t`,
@@ -285,6 +299,7 @@ one. Decided:
   `t/686-notification-digest.t`,
   `t/integration/postgres-notification-digest.t`,
   `t/integration/postgres-notification-digest-windows.t`,
-  `t/701-digest-message-styles.t`.
+  `t/701-digest-message-styles.t`, `t/702-digest-send-once.t`,
+  `t/integration/postgres-notification-digest-sent.t`.
 - Docs: `docs/audit/email-lifecycle.md`,
   `docs/architecture/notification-workflow.md`.

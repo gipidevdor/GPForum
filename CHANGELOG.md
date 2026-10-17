@@ -1903,6 +1903,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **An email digest is mailed at most once (ADR 0078).** The outbox marks
+  a handler done only after it returns, so when that mark failed after the
+  mail server had accepted the digest, the retry mailed it again. The
+  worker now claims the digest's record before it sends (migration 123):
+  a second delivery of the event sends nothing, and a mail the server
+  refused is given back for the retry. The digest's `Message-ID` is named
+  by its event, the same on every attempt.
+
 - **Every member with the email digest on gets it, and a missed day is
   caught up (ADR 0078, amendment of 2026-10-17).** Only the last period
   could be due, taken in member-id order under the run's `--limit`: a run

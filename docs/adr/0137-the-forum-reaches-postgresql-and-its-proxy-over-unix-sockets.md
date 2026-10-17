@@ -81,6 +81,23 @@ PostgreSQL.
    not see. Doctor fails `database_socket` when the connection it made used
    such a socket and the installed `gpforum.service` hides it.
 
+7. **Peer authentication has a map.** A distribution authenticates the
+   socket by `peer`, which admits an account only as the role of its name;
+   ADR 0127's runtime role and the operator's migrations are both other
+   roles. `GPForum::Service::Operations::PeerAuthentication` writes one
+   `pg_hba.conf` line -- `local`, the forum's database, `gpforum` and
+   `gpforum_runtime`, `peer map=gpforum` -- to go above the distribution's
+   own local lines, and the `gpforum` map: the service's account as both
+   roles, the operator's login (`SUDO_USER`, else the real user's) as the
+   owner. The line names the forum's database and roles alone, so every
+   other connection keeps the distribution's rules, and neither role needs
+   a password. `gpforum setup` prints it on a deployed host whose database
+   is on the socket, it does not edit the server's files, which are the
+   operator's. `gpforum doctor` also connects as `GPFORUM_ADMIN_DATABASE_USER`
+   when the file names one, says a peer refusal as `database.peer`, and
+   repeats the lines. The `peer-auth` workflow runs Debian's packaged
+   cluster with the lines added, as the `gpforum` account and the runner.
+
 ### Server settings
 
 | Setting | Value | Why |
@@ -148,6 +165,10 @@ does.
   sites written for the socket, the group note, and the doctor finding.
 - `t/696-private-tmp-socket.t`: the printed units for a socket outside, under
   and in `/tmp`, and doctor on an installed unit that hides it.
+- `t/697-peer-authentication.t`, `t/integration/postgres-peer-map.t`: the
+  lines, the refusal in both languages, doctor's two connections, and a
+  cluster of the test's own admitting both roles with the lines and
+  neither without them.
 - `t/692-unix-listener.t`, `t/integration/postgres-unix-socket-clients.t`:
   the listener, its modes and the client addresses behind the proxy.
 

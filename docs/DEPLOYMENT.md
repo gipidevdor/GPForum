@@ -673,8 +673,14 @@ host. The systemd units run with `PrivateTmp=true`; for a socket under
 `/tmp` the printed units bind its directory in read-only, and for one in
 `/tmp` itself they run without a private `/tmp` and say how to give the
 server a directory of its own (`unix_socket_directories`); `gpforum doctor`
-fails `database_socket` when an installed unit hides the socket (ADR 0137). Local peer authentication requires the service account and PostgreSQL
-role to agree, or a matching `pg_hba.conf` rule.
+fails `database_socket` when an installed unit hides the socket (ADR 0137).
+Over the socket a distribution authenticates by `peer`, which admits an
+account only as the role of its name: the `gpforum` account as
+`gpforum_runtime` (ADR 0127) and the operator as `gpforum` need a map.
+`sudo gpforum setup` prints the `pg_hba.conf` and `pg_ident.conf` lines
+this host needs, and `gpforum doctor` repeats them under a refusal; the
+[runtime role guide](ops/sql-api-role.md#peer-authentication-on-the-socket)
+explains them.
 When root runs `setup`, database provisioning stays privileged; connection
 checks, migrations and owner lookup use the service account. This matches
 the identity PostgreSQL sees after the service starts, including peer auth.

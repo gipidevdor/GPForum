@@ -109,9 +109,10 @@ subtest 'a fresh host, answered with options' => sub {
               . ' gpforum',
             "${OK}Applied 51 migrations, 001 to 051",
             q{},
+            _peer_lines(),
             _next_steps($file),
         ],
-        'one line a step, then the next steps, reading the same file'
+q{one line a step, the peer lines, then the next steps, reading the same file}
     );
     unlike( $run->{output} . $run->{errors},
         qr/secret-\d/msx, 'and no secret is printed' );
@@ -139,6 +140,7 @@ subtest 'run again, it changes nothing and says so' => sub {
             q{},
             'Nothing changed: this host was set up already.',
             q{},
+            _peer_lines(),
             _next_steps($file),
         ],
         'each step as it was, and that nothing changed'
@@ -579,6 +581,30 @@ sub _not_root ($file) {
 
 # The next steps, run as the operator who ran setup -- whose file it is,
 # with no services' account here -- or as the one given.
+# What PostgreSQL's peer authentication needs on a deployed host whose
+# database is on the socket (ADR 0137): the service's account as both roles,
+# and the operator -- who runs the test, or whom sudo names -- as the owner.
+sub _peer_lines {
+    my $operator = $ENV{SUDO_USER} // getpwuid $REAL_USER_ID;
+    return (
+        q{PostgreSQL authenticates the socket by peer: the service's account}
+          . ' gpforum connects as gpforum and gpforum_runtime, and you as'
+          . ' gpforum. Add to pg_hba.conf, above its other local lines:',
+        '  local   gpforum   gpforum,gpforum_runtime   peer map=gpforum',
+        'and to pg_ident.conf:',
+        '  gpforum   gpforum   gpforum',
+        '  gpforum   gpforum   gpforum_runtime',
+        (
+            $operator eq 'root' || $operator eq 'gpforum'
+            ? ()
+            : "  gpforum   $operator   gpforum"
+        ),
+        'then reload PostgreSQL, whose SHOW hba_file and SHOW ident_file name'
+          . q{ the two files: sudo -u postgres psql -c 'SELECT pg_reload_conf()'},
+        q{},
+    );
+}
+
 sub _next_steps ( $file, $as = q{} ) {
     return (
         q{Next: make the forum's owner, with }

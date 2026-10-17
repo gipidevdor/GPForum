@@ -1,0 +1,108 @@
+name: Peer authentication
+
+# ADR 0137: the forum reaches PostgreSQL over its socket with peer
+# authentication. The other jobs connect as the image's superuser over a
+# trust or password rule; this one runs a Debian cluster as the package
+# installs it -- `local all all peer`, no map -- adds the lines gpforum setup
+# prints, and connects as the service's account and as the operator, which
+# is the case a distribution host meets and the others never do.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/GPForum/Service/Operations/PeerAuthentication.pm'
+      - 'lib/GPForum/Service/Operations/DatabaseFailure.pm'
+      - 'lib/GPForum/Config.pm'
+      - 't/integration/postgres-peer-map.t'
+      - '.github/workflows/peer-auth.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lib/GPForum/Service/Operations/PeerAuthentication.pm'
+      - 'lib/GPForum/Service/Operations/DatabaseFailure.pm'
+      - 'lib/GPForum/Config.pm'
+      - 't/integration/postgres-peer-map.t'
+      - '.github/workflows/peer-auth.yml'
+  schedule:
+    - cron: '41 4 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: peer-auth-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  peer:
+    name: Debian peer authentication with the gpforum map
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up GPForum
+        uses: ./.github/actions/setup-gpforum-perl
+
+      - name: Install the PostgreSQL server
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y postgresql libdbd-pg-perl
+          bin=$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb | sort -V | tail -n 1)")
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - name: A cluster of the test's own, peer and the map
+        env:
+          GPFORUM_REQUIRE_PEER_TEST: '1'
+        run: script/gpforum-carton exec prove -l -It/lib t/integration/postgres-peer-map.t
+
+      - name: The distribution's cluster, the service's account and the operator
+        run: |
+          set -euo pipefail
+          sudo systemctl start postgresql
+          sudo useradd --system --user-group --no-create-home gpforum
+          sudo -u postgres psql -v ON_ERROR_STOP=1 \
+            -c 'CREATE ROLE gpforum LOGIN' \
+            -c 'CREATE ROLE gpforum_runtime LOGIN NOINHERIT' \
+            -c 'CREATE DATABASE gpforum OWNER gpforum'
+          hba=$(sudo -u postgres psql -Atc 'SHOW hba_file')
+          ident=$(sudo -u postgres psql -Atc 'SHOW ident_file')
+          dsn='dbi:Pg:dbname=gpforum'
+          try() {
+            # account role: connect over the default socket, as the service does
+            # with the distribution's DBD::Pg: local/ is the runner's to read
+            sudo -u "$1" /usr/bin/perl -MDBI -e \
+              'DBI->connect($ARGV[0], $ARGV[1], q{}, {RaiseError => 1, PrintError => 0})' \
+              "$dsn" "$2"
+          }
+          if try gpforum gpforum_runtime 2>/dev/null; then
+            echo 'the stock rules let gpforum in as gpforum_runtime' >&2
+            exit 1
+          fi
+          # The lines gpforum setup prints, the operator being this runner.
+          script/gpforum-carton exec perl -Ilib -MGPForum::Service::Operations::PeerAuthentication -e '
+            my $peer = GPForum::Service::Operations::PeerAuthentication->new(operator => $ENV{USER});
+            open my $h, q{>}, q{hba.lines} or die; print {$h} map { "$_\n" } @{ $peer->hba_lines };
+            open my $i, q{>}, q{ident.lines} or die; print {$i} map { "$_\n" } @{ $peer->ident_lines };'
+          cat hba.lines ident.lines
+          sudo sh -c "cat hba.lines '$hba' > '$hba.new' && mv '$hba.new' '$hba'"
+          sudo sh -c "cat ident.lines >> '$ident'"
+          sudo -u postgres psql -Atc 'SELECT pg_reload_conf()'
+          sudo -u postgres psql -Atc 'SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL' | grep -qx 0
+          try gpforum gpforum_runtime
+          try gpforum gpforum
+          try "$USER" gpforum
+          if try "$USER" gpforum_runtime 2>/dev/null; then
+            echo 'the operator should not be the runtime role' >&2
+            exit 1
+          fi

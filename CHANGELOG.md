@@ -37,7 +37,9 @@ CI, evidence and internal refactors with no change in behaviour.
      nginx), then restart the proxy.
   4. *The database.* For PostgreSQL on this host, take `host=127.0.0.1;
      port=5432` out of `GPFORUM_DATABASE_DSN` (or set `host=` to the socket
-     directory): `gpforum doctor` says when it is still there.
+     directory): `gpforum doctor` says when it is still there. With the
+     runtime role, add the `pg_hba.conf` and `pg_ident.conf` lines `sudo
+     gpforum setup` prints, and reload PostgreSQL.
 
 - **Install `gpforum.service` and `gpforum.conf` in place of the
   `gpforum-unix-socket` ones.** `deploy/systemd/gpforum-unix-socket.service`
@@ -1900,6 +1902,20 @@ CI, evidence and internal refactors with no change in behaviour.
   production floors fail the same gate as OS preflight and query-budget drift.
 
 ### Fixed
+
+- **Over the socket, peer authentication refused both the runtime role and
+  the operator's migrations.** With Debian's `local all all peer` and the
+  host-less DSN, the web service (account `gpforum`) was refused as
+  `gpforum_runtime` and the operator's `gpforum migrate` (their own login)
+  as `gpforum`, and no map existed anywhere. `gpforum setup` prints, on a
+  deployed host whose database is on the socket, one `pg_hba.conf` line for
+  the forum's database and two roles through a `gpforum` map, and the
+  `pg_ident.conf` lines -- the service's account as both roles, the
+  operator as the owner -- with the reload. `gpforum doctor` checks the
+  operator's connection too when the file names a role for it, says a peer
+  refusal as one (which account, which role) in either language, and
+  repeats the lines. A new CI workflow runs a Debian cluster as packaged,
+  adds the lines and connects as both accounts (ADR 0137).
 
 - **A PostgreSQL whose socket is in `/tmp` was out of the services' reach.**
   The systemd units run with `PrivateTmp=true`, a `/tmp` of their own, so a

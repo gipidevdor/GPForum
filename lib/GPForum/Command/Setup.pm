@@ -34,6 +34,7 @@ use GPForum::Service::Operations::DatabaseFailure;
 use GPForum::Service::Operations::DatabaseProvisioning;
 use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
+use GPForum::Service::Operations::PeerAuthentication;
 use GPForum::Service::Operations::ServiceAccount;
 use GPForum::Service::Operations::ServiceFiles;
 use GPForum::X::Usage;
@@ -309,6 +310,7 @@ sub _setup ( $self, $options ) {
     my $refused = $self->_conflicts( $options, $state, $plan );
     return $refused if defined $refused;
     $self->_plan_sender( $state, $plan );
+    $state->{peer} = $self->_peer( $state, $plan );
 
     my $database = $self->_inspect_database( $state, $plan );
     my $lines    = $self->_planned_lines( $state, $plan );
@@ -1590,7 +1592,7 @@ sub _print_report ( $self, $options, $state, $findings, $changed, $closing ) {
     }
     elsif ( !$options->{dry_run} ) {
         push @lines, ( defined $closing ? ( q{}, $closing ) : () ), q{},
-          $self->_next_steps($state);
+          $self->_peer_lines($state), $self->_next_steps($state);
     }
     else {
         push @lines, q{}, $closing;
@@ -1598,6 +1600,52 @@ sub _print_report ( $self, $options, $state, $findings, $changed, $closing ) {
     $self->_say( join "\n", @lines );
 
     return $failed;
+}
+
+# The PostgreSQL rules a deployed host needs to reach its local server
+# over the socket by peer, which lets an account in only as its own role
+# unless a map says otherwise (ADR 0137): the service's account as the
+# owner and the runtime role, the operator as the owner. Undef for a
+# database on another host or a development checkout.
+sub _peer ( $self, $state, $plan ) {
+    return undef if !$state->{deployed};
+    my $source =
+      GPForum::Service::Operations::DatabaseProvisioning->data_source(
+        $plan->{GPFORUM_DATABASE_DSN} );
+    return undef if !defined $source;
+    return undef if length $source->{host} && $source->{host} !~ m{\A /}msx;
+
+    return GPForum::Service::Operations::PeerAuthentication->new(
+        os       => $self->os,
+        database => $source->{database} // $DATABASE_NAME,
+        account  => $self->account->name,
+        owner    => $plan->{GPFORUM_DATABASE_USER} // $DATABASE_NAME,
+    );
+}
+
+# The lines of pg_hba.conf and pg_ident.conf, each file's under a sentence
+# that says where they go, then the reload; and an empty line after them.
+sub _peer_lines ( $self, $state ) {
+    my $peer = $state->{peer};
+    return () if !defined $peer;
+
+    return (
+        $self->_said(
+            'setup.peer',
+            {
+                account => $peer->account,
+                owner   => $peer->owner,
+                runtime => $peer->runtime,
+            }
+        ),
+        ( map { "  $_" } @{ $peer->hba_lines } ),
+        $self->_said('setup.peer_ident'),
+        ( map { "  $_" } @{ $peer->ident_lines } ),
+        $self->_said(
+            'setup.peer_reload', { reload => $peer->reload_command }
+        ),
+        q{},
+    );
 }
 
 # The steps after setup, as the audit's first minutes have them: the

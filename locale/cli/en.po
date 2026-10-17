@@ -1786,6 +1786,19 @@ msgstr ""
 "database."
 
 #, python-brace-format
+msgctxt "database.peer"
+msgid ""
+"PostgreSQL at {server} refused role {user} to this account, {account}, by "
+"peer authentication: map {account} to {user} with the gpforum lines sudo "
+"gpforum setup prints for pg_hba.conf and pg_ident.conf, and reload "
+"PostgreSQL."
+msgstr ""
+"PostgreSQL at {server} refused role {user} to this account, {account}, by "
+"peer authentication: map {account} to {user} with the gpforum lines sudo "
+"gpforum setup prints for pg_hba.conf and pg_ident.conf, and reload "
+"PostgreSQL."
+
+#, python-brace-format
 msgctxt "database.refused"
 msgid ""
 "Cannot reach PostgreSQL at {server} (connection refused): start it with "
@@ -1892,6 +1905,11 @@ msgstr ""
 msgctxt "doctor.database"
 msgid "database: PostgreSQL {version}, {database} at {server}"
 msgstr "database: PostgreSQL {version}, {database} at {server}"
+
+#, python-brace-format
+msgctxt "doctor.database_admin"
+msgid "database: the operator's role {user} connects too"
+msgstr "database: the operator's role {user} connects too"
 
 #, python-brace-format
 msgctxt "doctor.database_failed"
@@ -2050,6 +2068,15 @@ msgstr ""
 msgctxt "doctor.outbox_stalled_one"
 msgid "outbox worker: 1 message waiting for {age}; nothing is sending it"
 msgstr "outbox worker: 1 message waiting for {age}; nothing is sending it"
+
+#, python-brace-format
+msgctxt "doctor.peer_lines"
+msgid ""
+"the gpforum lines: in pg_hba.conf, above its other local lines, {hba}; in "
+"pg_ident.conf, {ident}; then {reload}"
+msgstr ""
+"the gpforum lines: in pg_hba.conf, above its other local lines, {hba}; in "
+"pg_ident.conf, {ident}; then {reload}"
 
 #, python-brace-format
 msgctxt "doctor.private_tmp"
@@ -2883,6 +2910,30 @@ msgid ""
 msgstr ""
 "not run as root: {file} is yours, and the services' account {user} is not "
 "made"
+
+#, python-brace-format
+msgctxt "setup.peer"
+msgid ""
+"PostgreSQL authenticates the socket by peer: the service's account {account} "
+"connects as {owner} and {runtime}, and you as {owner}. Add to pg_hba.conf, "
+"above its other local lines:"
+msgstr ""
+"PostgreSQL authenticates the socket by peer: the service's account {account} "
+"connects as {owner} and {runtime}, and you as {owner}. Add to pg_hba.conf, "
+"above its other local lines:"
+
+msgctxt "setup.peer_ident"
+msgid "and to pg_ident.conf:"
+msgstr "and to pg_ident.conf:"
+
+#, python-brace-format
+msgctxt "setup.peer_reload"
+msgid ""
+"then reload PostgreSQL, whose SHOW hba_file and SHOW ident_file name the two "
+"files: {reload}"
+msgstr ""
+"then reload PostgreSQL, whose SHOW hba_file and SHOW ident_file name the two "
+"files: {reload}"
 
 #, python-brace-format
 msgctxt "setup.run_again"

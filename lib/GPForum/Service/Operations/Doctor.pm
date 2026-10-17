@@ -4,6 +4,7 @@
 package GPForum::Service::Operations::Doctor;
 
 use Const::Fast;
+use DBI;
 use List::Util qw(any);
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -32,6 +33,7 @@ use GPForum::Service::Operations::HttpProbe;
 use GPForum::Service::Operations::MailCheck;
 use GPForum::Service::Operations::MetricsTokens;
 use GPForum::Service::Operations::OSPreflight;
+use GPForum::Service::Operations::PeerAuthentication;
 use GPForum::Service::Operations::QueryBudget;
 use GPForum::Service::Operations::Readiness;
 use GPForum::Service::Operations::ReadinessFindings;
@@ -138,19 +140,20 @@ const my $HALF            => 0.5;
 # What each check asks of the host, by name. A test replaces any of them
 # through probes.
 const my %PROBE => (
-    account      => \&_probe_account,
-    address      => \&_probe_address,
-    antivirus    => \&_probe_antivirus,
-    budgets      => \&_probe_budgets,
-    database     => \&_probe_database,
-    dependencies => \&_probe_dependencies,
-    mail         => \&_probe_mail,
-    outbox       => \&_probe_outbox,
-    preflight    => \&_probe_preflight,
-    readiness    => \&_probe_readiness,
-    schema       => \&_probe_schema,
-    sizing       => \&_probe_sizing,
-    tls          => \&_probe_tls,
+    account        => \&_probe_account,
+    admin_database => \&_probe_admin_database,
+    address        => \&_probe_address,
+    antivirus      => \&_probe_antivirus,
+    budgets        => \&_probe_budgets,
+    database       => \&_probe_database,
+    dependencies   => \&_probe_dependencies,
+    mail           => \&_probe_mail,
+    outbox         => \&_probe_outbox,
+    preflight      => \&_probe_preflight,
+    readiness      => \&_probe_readiness,
+    schema         => \&_probe_schema,
+    sizing         => \&_probe_sizing,
+    tls            => \&_probe_tls,
 );
 
 const my %CHECK => (
@@ -520,12 +523,63 @@ sub _database ( $self, $state ) {
             }
         ],
     );
+    $self->_admin_database($state);
     $self->_over_tcp( $state, $source );
     $self->_hidden_socket( $state, $database->{server} );
     $self->_schema($state);
     $self->_budgets($state);
 
     return;
+}
+
+# The operator's connection, when the file names a role of its own for it
+# (GPFORUM_ADMIN_DATABASE_USER): migrate and api-role use it, and peer
+# authentication refuses it on its own, through a map line the service's
+# connection does not need (ADR 0137).
+sub _admin_database ( $self, $state ) {
+    my $config = $state->{config};
+    my $user   = $config->admin_database_user;
+    return if !defined $user || !length $user;
+    return if $user eq ( $config->database_user // q{} );
+
+    try {
+        $self->_probe( 'admin_database', $config );
+    }
+    catch ($error) {
+        $self->_database_failed( $state, $error, 'database_admin' );
+        return;
+    };
+    $state->{findings}->add(
+        name    => 'database_admin',
+        status  => 'ok',
+        message => [ 'doctor.database_admin', { user => $user } ],
+    );
+
+    return;
+}
+
+# The pg_hba.conf and pg_ident.conf lines, under a refusal by peer
+# authentication: what lets the service's account and the operator in.
+sub _peer_note ( $self, $state, $text ) {
+    return ()
+      if !GPForum::Service::Operations::PeerAuthentication->is_refusal($text);
+
+    my $source =
+      GPForum::Service::Operations::DatabaseProvisioning->data_source(
+        $state->{config}->database_dsn ) // {};
+    my $peer = GPForum::Service::Operations::PeerAuthentication->new(
+        os => $self->os // GPForum::OS->detect,
+        defined $source->{database} ? ( database => $source->{database} ) : (),
+    );
+
+    return [
+        'doctor.peer_lines',
+        {
+            hba    => join( q{; }, @{ $peer->hba_lines } ),
+            ident  => join( q{; }, @{ $peer->ident_lines } ),
+            reload => $peer->reload_command,
+        }
+    ];
 }
 
 # A socket in /tmp or /var/tmp, which an installed unit with PrivateTmp=true
@@ -602,7 +656,7 @@ sub _over_tcp ( $self, $state, $source ) {
     return;
 }
 
-sub _database_failed ( $self, $state, $error ) {
+sub _database_failed ( $self, $state, $error, $name = 'database' ) {
     my $text  = _trimmed($error);
     my $parts = GPForum::Service::Operations::DatabaseFailure->new(
         language         => $self->catalog->language,
@@ -612,7 +666,7 @@ sub _database_failed ( $self, $state, $error ) {
     )->parts($text);
     if ( !defined $parts ) {
         $state->{findings}->add(
-            name    => 'database',
+            name    => $name,
             status  => 'fail',
             message => [
                 'doctor.database_failed',
@@ -633,14 +687,17 @@ sub _database_failed ( $self, $state, $error ) {
     }
 
     $state->{findings}->add(
-        name    => 'database',
+        name    => $name,
         status  => 'fail',
         message => [
             'doctor.database_problem',
             { problem => _after_label( $parts->{problem} ) }
         ],
-        notes => defined $parts->{note} ? [ $parts->{note} ] : [],
-        fixes => length $parts->{fix}   ? [ $parts->{fix} ]  : [],
+        notes => [
+            defined $parts->{note} ? $parts->{note} : (),
+            $self->_peer_note( $state, $text ),
+        ],
+        fixes => length $parts->{fix} ? [ $parts->{fix} ] : [],
     );
 
     return;
@@ -1041,6 +1098,20 @@ sub _probe_database ( $self, $config ) {
             { host => $dbh->{pg_host} // q{}, port => $dbh->{pg_port} }
         ),
     };
+}
+
+# A connection as the operator's role, through its DSN when the file names
+# one; made and closed.
+sub _probe_admin_database ( $self, $config ) {
+    my $dbh = DBI->connect(
+        $config->admin_database_dsn // $config->database_connection_dsn,
+        $config->admin_database_user,
+        $config->admin_database_password // q{},
+        { AutoCommit => 1, PrintError => 0, RaiseError => 1 },
+    );
+    $dbh->disconnect;
+
+    return {};
 }
 
 sub _probe_schema ( $self, $schema ) {

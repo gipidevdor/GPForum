@@ -26,6 +26,42 @@ CREATE ROLE gpforum_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
 Set its authentication through the host's existing PostgreSQL policy. With
 password authentication, use `psql`'s `\password gpforum_runtime` prompt.
 
+### Peer authentication on the socket
+
+A DSN without `host=` reaches PostgreSQL through its socket (ADR 0137), and
+a distribution's `pg_hba.conf` authenticates the socket by `peer`: the
+connecting process's operating-system account, as the kernel reports it,
+must be the role's name. Debian's `local all all peer` therefore refuses
+both connections this guide needs -- the web and worker services run as
+the `gpforum` account and connect as `gpforum_runtime`, and the operator
+runs `migrate` and `api-role` from their own login as `gpforum` -- with
+"Peer authentication failed for user". A map in `pg_ident.conf` says which
+account may be which role. `sudo gpforum setup` prints these lines for the
+host, with the operator's login (here `alice`) in the last one:
+
+```text
+# pg_hba.conf, above the distribution's other local lines
+local   gpforum   gpforum,gpforum_runtime   peer map=gpforum
+
+# pg_ident.conf
+gpforum   gpforum   gpforum
+gpforum   gpforum   gpforum_runtime
+gpforum   alice   gpforum
+```
+
+`SHOW hba_file` and `SHOW ident_file` name the two files
+(`/etc/postgresql/18/main/` on Debian); reload with `sudo -u postgres psql -c
+'SELECT pg_reload_conf()'`, and `SELECT * FROM pg_hba_file_rules WHERE error
+IS NOT NULL` lists a line PostgreSQL could not read. The line applies to the
+forum's database and its two roles alone; every other connection keeps the
+distribution's rules, and no password is stored for either role. With a
+map, PostgreSQL no longer admits an account as its own role by default,
+which is why the `gpforum` account's line for the `gpforum` role is there.
+
+`sudo -u gpforum gpforum doctor` connects as `GPFORUM_DATABASE_USER` and, when
+the file it reads sets one, as `GPFORUM_ADMIN_DATABASE_USER`; a refusal says
+which account was refused which role, and repeats the lines.
+
 Keep the operator environment file separate from the web and worker service
 file. The operator file supplies the migration role as
 `GPFORUM_DATABASE_USER`, together with its database and authentication, and

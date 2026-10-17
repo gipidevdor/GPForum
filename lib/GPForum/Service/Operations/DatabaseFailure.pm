@@ -4,6 +4,7 @@
 package GPForum::Service::Operations::DatabaseFailure;
 
 use Const::Fast;
+use English    qw(-no_match_vars);
 use List::Util qw(any);
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -23,6 +24,10 @@ const my %ENGLISH => (
     'database.refused' => 'Cannot reach PostgreSQL at {server}'
       . ' (connection refused): start it with {start},'
       . ' or correct GPFORUM_DATABASE_DSN {where}.',
+    'database.peer' => 'PostgreSQL at {server} refused role {user} to this'
+      . ' account, {account}, by peer authentication: map {account} to {user}'
+      . ' with the gpforum lines sudo gpforum setup prints for pg_hba.conf and'
+      . ' pg_ident.conf, and reload PostgreSQL.',
     'database.no_socket' => 'There is no PostgreSQL socket at {server}:'
       . ' start PostgreSQL with {start}, or set host= in GPFORUM_DATABASE_DSN'
       . ' {where} to the directory that holds its socket.',
@@ -86,6 +91,12 @@ const my @CLASSES => (
         qr/password [ ] authentication [ ] failed/msx,
         qr/autenticazione [ ] con [ ] password [ ] fallita/msx,
         qr/no [ ] password [ ] supplied/msx,
+    ],
+    [
+        'database.peer',
+        'user',
+qr/Peer [ ] authentication [ ] failed [ ] for [ ] user [ ] "([^"]+)"/msx,
+        qr/autenticazione [ ] peer [ ] fallita [^"]* "([^"]+)"/msx,
     ],
     [
         'database.no_hba', undef,
@@ -162,7 +173,11 @@ sub classify ( $self, $text ) {
         my ($wording) = grep { $text =~ $_ } @wordings;
         next if !defined $wording;
 
-        my %parameters = ( _connection($text), %{ $self->_commands } );
+        my %parameters = (
+            _connection($text),
+            %{ $self->_commands },
+            account => scalar getpwuid $EFFECTIVE_USER_ID,
+        );
         if ( defined $captured ) {
             ( $parameters{$captured} ) = $text =~ $wording;
         }
@@ -343,7 +358,8 @@ that is set starts with C<it>, English otherwise.
 
 Takes an error's text and returns C<< { key, parameters } >>: the message
 key (C<database.refused>, C<database.unknown_host>,
-C<database.authentication>, C<database.no_hba>, C<database.no_socket>,
+C<database.authentication>, C<database.no_hba>, C<database.peer>,
+C<database.no_socket>,
 C<database.unknown_role>,
 C<database.unknown_database> or C<database.not_migrated>) and the values its
 sentence names. Returns undef for any other text, including a refused

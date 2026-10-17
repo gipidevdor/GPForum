@@ -140,6 +140,21 @@ The script made its own cluster and dropped it; it connected with
 executed and fetched per call, as `GPForum::Infrastructure::SqlFunction`
 does.
 
+**End to end (note of 2026-10-17).** `script/bench-socket` started each
+tree as its unit starts it, four workers, production settings, the medium
+seed, and drove it with keep-alive connections as a proxy's upstream
+ones: f377541 (TCP loopback, a TCP DSN, `Mojo::Reactor::Poll`) against
+`636572f` (this decision: the socket, EV) and `142178b` (with one accept
+at a time and the statement work of the same day), alternated, medians of
+three rounds. The signed-in thread page went from 104 to 149 to 168
+requests a second at one client and from 389 to 548 to 654 at 128, its
+p95 there from 487 to 333 to 216 ms; the category page from 484 to 745 to
+788 at 128 clients; a reply from 137 to 149 to 149 at one client and 613
+to 627 to 663 at 32. Under a burst of 96 new connections next to 32 busy
+ones the category page's new connections waited a p95 of 531 ms on main
+before the change (`1078afd`) and 175 with one accept at a time
+([PERFORMANCE.md](../PERFORMANCE.md#through-the-socket-2026-10-17)).
+
 ## Consequences
 
 - A host whose DSN still names `127.0.0.1` for a local server pays the TCP

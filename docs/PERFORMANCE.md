@@ -993,13 +993,9 @@ timing it: one render, partials and translations with no call of their
 own, no counted message composed and no table rebuilt again, the times'
 context read once, one fragment lookup a post and none rendered again.
 
-**What is left.** The page and its layout are still two renders through
-Mojolicious (the page cache renders them). The controller's view model is
-now nearly as large as the render: `thread_page_payload` takes 4.9
-profiled ms a signed-in thread page (142 column reads, 28 command ids, the
-attachments and the likes), then the 11 statements (1.3), gzip (0.5) and
-the session's validation. A member's post still costs about 30 µs of forms
-(like, report) and its time.
+**What was left** then -- the view model's 4.9 profiled ms, its 11
+statements, 142 column reads and 28 command ids, gzip and the session's
+validation -- is taken up in "Through the socket" below.
 
 ### Through the socket (2026-10-17)
 
@@ -1032,7 +1028,7 @@ and Mojolicious's worker accepts until the queue is empty, so it kept them.
 Each is a keep-alive connection the proxy reuses for up to a thousand
 requests, so the imbalance lasts. With 32 busy connections and 96 more
 opened at once, one of four workers held 59 to 103 of the 128 in every
-round on main; taking one connection at a time from a Unix socket
+round on main (`1078afd`); taking one connection at a time from a Unix socket
 (`single_accept=1`, `GPForum::OS::RuntimePolicy`), they split 32 to a
 worker. f377541, on TCP loopback, split 128 connections 22 to 42 a worker;
 TCP listeners are left as they were.
@@ -1048,6 +1044,150 @@ TCP listeners are left as they were.
 
 The split is the median round's; "all" adds the busy connections' and the
 new ones' requests a second.
+
+**End to end: f377541, before, after.** Three sides on the same laptop,
+alternated, three rounds of 8 s after 2 s of warm-up, four workers each:
+`f377541` (2026-10-15, before the socket: TCP loopback, a TCP DSN,
+`Mojo::Reactor::Poll`), `before` (`636572f`, main before this work: the
+Unix socket, EV, the rendering pass) and `after` (`142178b`). The
+laptop ran other work at the same time; a cell's rounds spread by up to
+10%. Medians of the rounds; req/s, then milliseconds.
+
+| Page | c | req/s f377541 → before → after | p50 ms | p95 ms | p99 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Thread, signed in | 1 | 104 → 149 → 168 | 9.6 → 6.7 → 5.8 | 10.1 → 7.2 → 6.5 | 11.0 → 7.8 → 7.7 |
+| Thread, signed in | 8 | 404 → 522 → 651 | 10.3 → 18.5 → 12.3 | 38.8 → 28.7 → 18.9 | 47.4 → 32.8 → 20.1 |
+| Thread, signed in | 32 | 406 → 568 → 661 | 74.8 → 51.8 → 47.1 | 107.9 → 87.1 → 55.1 | 160.2 → 95.8 → 58.9 |
+| Thread, signed in | 128 | 389 → 548 → 654 | 276.7 → 137.1 → 194.4 | 486.8 → 333.3 → 215.5 | 504.1 → 352.9 → 220.2 |
+| Thread, guest (cached) | 1 | 1,090 → 1,145 → 1,391 | 0.9 → 0.9 → 0.7 | 0.9 → 0.9 → 0.8 | 1.1 → 0.9 → 0.8 |
+| Thread, guest (cached) | 8 | 4,148 → 4,480 → 5,256 | 1.8 → 1.8 → 1.4 | 3.8 → 3.6 → 2.5 | 5.1 → 3.6 → 2.8 |
+| Thread, guest (cached) | 32 | 4,366 → 4,116 → 5,398 | 7.5 → 8.0 → 5.9 | 11.0 → 9.9 → 8.8 | 13.3 → 10.9 → 9.6 |
+| Thread, guest (cached) | 128 | 4,149 → 4,373 → 5,478 | 31.0 → 29.8 → 23.1 | 43.4 → 34.1 → 25.2 | 46.6 → 35.5 → 27.6 |
+| Home, signed in | 1 | 96 → 146 → 148 | 10.6 → 7.2 → 7.1 | 11.4 → 7.7 → 7.6 | 12.0 → 8.0 → 8.1 |
+| Home, signed in | 8 | 386 → 571 → 674 | 11.4 → 14.0 → 7.6 | 44.1 → 22.8 → 17.9 | 52.1 → 24.5 → 18.7 |
+| Home, signed in | 32 | 394 → 636 → 631 | 81.5 → 47.2 → 54.9 | 124.7 → 66.3 → 64.8 | 155.4 → 85.0 → 69.0 |
+| Home, signed in | 128 | 377 → 610 → 570 | 334.6 → 202.2 → 214.1 | 437.0 → 263.1 → 259.4 | 458.6 → 267.2 → 266.5 |
+| Category, signed in | 1 | 125 → 180 → 192 | 8.0 → 5.5 → 5.4 | 8.4 → 5.8 → 5.7 | 8.7 → 6.1 → 5.9 |
+| Category, signed in | 8 | 507 → 688 → 802 | 15.2 → 10.8 → 8.3 | 30.3 → 15.2 → 15.2 | 33.3 → 16.2 → 16.4 |
+| Category, signed in | 32 | 503 → 765 → 801 | 62.9 → 40.7 → 39.6 | 84.8 → 52.8 → 47.8 | 124.0 → 54.1 → 49.7 |
+| Category, signed in | 128 | 484 → 745 → 788 | 243.3 → 167.2 → 156.3 | 332.3 → 221.2 → 175.8 | 348.4 → 229.4 → 184.4 |
+| Search, signed in | 1 | 74 → 93 → 96 | 13.1 → 10.5 → 10.4 | 14.8 → 12.3 → 11.6 | 15.2 → 12.6 → 12.5 |
+| Search, signed in | 8 | 327 → 403 → 416 | 15.4 → 12.6 → 17.7 | 48.2 → 31.0 → 27.4 | 58.0 → 32.6 → 28.4 |
+| Search, signed in | 32 | 332 → 405 → 388 | 91.8 → 77.1 → 81.2 | 143.1 → 87.6 → 88.4 | 177.9 → 105.3 → 91.5 |
+| Search, signed in | 128 | 294 → 388 → 413 | 415.6 → 309.3 → 288.3 | 482.8 → 374.3 → 343.2 | 542.5 → 396.6 → 360.1 |
+
+The writes, 400 members (each may write 20 times a minute), a reply to one
+of 16 threads in turn; "form" is the post a browser without the page's
+script sends, answered with a redirect, "script" the page's own, with
+the draft fields, answered with the new post and a fresh composer. No
+request was refused.
+
+| Write | c | req/s f377541 → before → after | p50 ms | p95 ms | p99 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Reply, form | 1 | 137 → 149 → 149 | 7.3 → 6.9 → 6.7 | 8.1 → 7.4 → 7.1 | 8.9 → 8.0 → 7.5 |
+| Reply, form | 8 | 617 → 634 → 675 | 10.9 → 13.9 → 13.0 | 27.6 → 21.8 → 20.6 | 30.6 → 23.8 → 21.6 |
+| Reply, form | 32 | 613 → 627 → 663 | 46.1 → 45.2 → 48.2 | 78.3 → 72.7 → 66.3 | 94.8 → 78.3 → 72.2 |
+| Reply, script | 1 | 77 → 80 → 86 | 13.3 → 12.5 → 11.6 | 14.9 → 13.5 → 12.7 | 15.7 → 13.8 → 13.5 |
+| Reply, script | 8 | 334 → 315 → 381 | 14.3 → 14.9 → 13.4 | 51.9 → 39.5 → 36.2 | 60.0 → 40.4 → 43.8 |
+| Reply, script | 32 | 294 → 339 → 373 | 95.0 → 91.8 → 87.4 | 148.1 → 116.5 → 103.7 | 200.5 → 124.4 → 119.5 |
+
+From f377541 to `before` the socket, EV and the rendering pass gained 22
+to 62% a second on the pages that render, and the cached guest page -6 to
++8%. The regression was in where the connections went. With 128 opened at
+once on idle workers, f377541's busiest worker held 34 to 61 of them,
+`before`'s up to 71 and `after`'s 32 to 37; a first measurement taken
+before `script/bench-socket` existed in this form (the same method, an
+earlier harness) caught `before` at a p95 of 61 ms against 44 on the
+cached thread page at 128 clients, and 443 against 367 on the category
+page. Under a burst of new connections next to busy ones, the case a proxy
+meets when the load rises, the table above shows it whole. `after`
+against `before`: the signed-in thread page 13 to 25% more requests a
+second at every concurrency and its p95 at 128 clients from 333 to 216
+ms, the cached guest page 21 to 31% more (gzipped once), the category
+page 5 to 17% more, a reply 0 to 7% more and one through the page's
+script 8 to 21%; the home and search pages within the runs' spread.
+
+```sh
+GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=/tmp/gpfv;port=55433' \
+GPFORUM_DATABASE_USER=gpforum \
+  script/gpforum-carton exec perl script/bench-socket \
+  --side f377541=TREE_AT_f377541,tcp,poll --side before=TREE_AT_636572f \
+  --side after=TREE_AT_142178b --page thread_member --page thread_guest \
+  --page home --page category --page search --concurrency 1 \
+  --concurrency 8 --concurrency 32 --concurrency 128 --rounds 3 \
+  --members 8 --connections
+# the writes: 400 members, each may write 20 times a minute
+  ... --page reply --page reply_htmx --concurrency 1 --concurrency 8 \
+  --concurrency 32 --rounds 3 --members 400
+# a tree at a commit: git archive COMMIT | tar -x -C DIR, and local/ linked in
+```
+
+**What changed**, each measured on its own:
+
+- One accept at a time on a Unix socket (`single_accept=1`), above.
+- The seven reads a thread page makes after its posts -- likes, reply
+  targets, tags, attachment links, and a member's bookmark, subscription
+  and read state -- are one statement, `api.forum_thread_page_reads_v2`
+  (migration 124), answered to each store through
+  `GPForum::Infrastructure::SqlFunction::answering`: 5 statements a
+  signed-in thread page instead of 11, 3 a guest's instead of 6, and 405
+  µs for the seven reads instead of 615. The queries are written in the
+  function rather than calling the seven functions: inside PostgreSQL the
+  seven calls took 100 µs one by one and 137 nested in one statement,
+  the queries written out 74, and 89 through the boundary the runtime role
+  calls (the migration's comment says 40: an estimate written before the
+  measurement, in a file that cannot change).
+- Each function call took 64 µs, 20 of them DBIx::Class's `dbh_do`
+  runner; it takes the storage's handle directly and keeps `dbh_do`'s one
+  retry on a lost connection outside a transaction. A uuid in the shape
+  GPForum writes is read by one pattern first.
+- An id costs 1.6 µs instead of 3.8 (a page of random bytes, the bits
+  set in place); a signed-in thread page mints 28.
+- The thread page reads the member's own posts and the posts' ids once,
+  where the five command id maps and the likes each walked them again.
+- A page from the public cache is gzipped once for as long as its bytes
+  are the same: a hit gzipped them again, 0.12 of its 0.87 ms.
+
+In process (`script/bench-render`, 300 requests after 30, four rounds
+alternated, the fold alone against all the rest): the signed-in thread
+page 7.20 → 6.72 ms, the category page 5.87 → 5.48, the guest's thread
+page with the page cache bypassed 5.02 → 4.79, the home page 6.89 →
+6.76; the renders unchanged.
+
+**Decisions.**
+
+- *Gzip stays in the application.* On one host the proxy would run the
+  same zlib on the same CPUs; in the application the response is the same
+  through nginx, Caddy or none, `Vary` and `Content-Encoding` are written
+  in one place, and a cached page's gzipped bytes are now kept with it.
+  The Caddyfile's `encode` passes an already encoded response through.
+- *The session is validated on every request, once.* A revoked session
+  must be refused on its next request in any worker; a cache in the
+  worker would need every other worker told before that request, which a
+  `NOTIFY` does not promise. The validation is one statement of a
+  signed-in request; folding it with the viewer's, which forum pages read
+  next, would save one more.
+- *Hypnotoad.* Workers: automatic, two a worker CPU, held to the CPUs
+  (`cap-to-cpu`); on the M4 going from 4 to 8 gained little in October,
+  the added cores being the efficiency ones. Accepts: Mojolicious's 10,000
+  connections a worker before it is replaced; behind the proxy a worker
+  accepts one connection per thousand requests (`GPFORUM_RUNTIME_REQUESTS`,
+  the keep-alive requests a connection serves, whose description said a
+  process), so it is replaced every few million. Clients: 250 a worker, for
+  the proxy's connections and the realtime sockets. Keep-alive: the service
+  closes an idle connection after 5 s, and the shipped nginx site
+  (`keepalive_timeout 4s`) and Caddyfile (`keepalive 4s`) now close it
+  first, so no request goes down a connection being closed.
+
+**What is left.** The render is now a third of a signed-in thread page
+(2.1 of 6.7 ms in process): the page and its layout are two renders
+through Mojolicious, and a member's post still costs about 30 µs of forms
+(like, report) and its time, written by the templates. The thread's head
+and its posts are two statements that could be one. The session's
+validation and the viewer's resolution are two that could be one. The
+public page cache could keep the gzipped bytes in its entries
+(`GPForum::Web::PublicHttpCache`), and `Mojolicious::Sessions` signs and
+sets the session cookie on every response (`GPForum::Web::CookieSession`).
 
 ### Where the evidence lives
 

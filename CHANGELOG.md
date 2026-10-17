@@ -2965,6 +2965,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **The hot pages through the socket, end to end, before and after.**
+  `docs/PERFORMANCE.md` ("Through the socket") records f377541, main
+  before the socket work's statement and accept changes and main after
+  them, five pages and two writes at 1 to 128 clients, with the commands
+  that reproduce them, the decisions on gzip, the session's validation and
+  Hypnotoad's settings, and what is left; ADR 0137 has the end-to-end
+  note. The signed-in thread page: 104 → 149 → 168 requests a second at
+  one client, a p95 of 487 → 333 → 216 ms at 128.
 - **Security scanning is green again: the peer-authentication workflow
   passes actionlint.** Since that workflow arrived, shellcheck stopped the
   scan's lint job on two of its lines: it found initdb with `ls` and quoted

@@ -105,8 +105,11 @@ sub squares ( $self, $image, $sides ) {
     if ( !$self->available ) {
         GPForum::X::Unavailable->throw( message => 'no image tool installed' );
     }
-    my $extension = $EXTENSION{ $image->{media_type} // q{} }
-      // GPForum::X::Unavailable->throw( message => 'not an image' );
+    my $media_type = $image->{media_type} // q{};
+    if ( !exists $EXTENSION{$media_type} ) {
+        GPForum::X::Unavailable->throw( message => 'not an image' );
+    }
+    my $extension = $EXTENSION{$media_type};
 
     my $directory =
       tempdir( 'gpforum-avatar-XXXXXXXX', TMPDIR => 1, CLEANUP => 0 );

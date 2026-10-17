@@ -645,6 +645,20 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Profile pictures.** On the new `/settings/avatar` a member uploads a
+  PNG, JPEG, GIF or WebP of up to 5 MB and 8,000 pixels a side; it goes
+  through the attachment validation and the malware scan, and the system's
+  image tool -- libvips' `vipsthumbnail` (`libvips-tools`, `vips`), or
+  `sips` on a Mac -- crops it about its centre to a square kept at 64, 128
+  and 256 pixels with nothing of the original's metadata. It is shown on
+  the profile and beside the member's posts in place of the initial; the
+  one shown stays while a new one is checked, and a picture the scan
+  refuses or the tool cannot read is never shown. The member replaces or
+  removes it; staff holding `avatar.moderate` remove one from the profile,
+  audited with the reason given. Without the tool (or with
+  `GPFORUM_IMAGE_TOOL=none`) pictures are off. Erasure deletes the files
+  and the rows; the export says what is shown (ADR 0144, migration 131).
+
 - **Two-step sign-in with an authenticator app.** On the new
   `/settings/security` a member gives the password, scans a QR code drawn by
   the forum itself (or types the key), and confirms with a first code; ten

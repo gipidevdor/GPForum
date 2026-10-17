@@ -135,6 +135,12 @@ const my %RETAINED => (
     privacy_revoke_user_v14      => 1,
     admin_permission_allowed_v1  => 0,
     admin_permission_allowed_v2  => 1,
+
+    # Migration 131 (search reads live content) moved these on.
+    search_ranked_v7       => 0,
+    search_ranked_v8       => 1,
+    search_autocomplete_v5 => 0,
+    search_autocomplete_v6 => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

@@ -52,9 +52,10 @@ const my $PLAN_MODE =>
   qr/SET \s+ plan_cache_mode \s* = \s* force_(?:generic|custom)_plan/imsx;
 const my $DROP =>
   qr/DROP \s+ FUNCTION \s+ (?:IF \s+ EXISTS \s+)? (?<dropped>api [.] \w+)/imsx;
-const my @RETAINED_SEARCH_VERSIONS  => ( 2, 4, 6 );
-const my @RETAINED_SUGGEST_VERSIONS => ( 2, 4 );
-const my $CURRENT_SEARCH_VERSION    => 8;
+const my @RETAINED_SEARCH_VERSIONS  => ( 2, 4, 6, 8 );
+const my @RETAINED_SUGGEST_VERSIONS => ( 2, 4, 6 );
+const my $CURRENT_SEARCH_VERSION    => 10;
+const my $SCOPED_SEARCH_VERSION     => 8;
 const my %RETAINED_BOUNDARIES => (
     search_ranked            => [@RETAINED_SEARCH_VERSIONS],
     search_autocomplete      => [@RETAINED_SUGGEST_VERSIONS],
@@ -200,8 +201,8 @@ subtest 'only registered typed boundaries gain owner rights' => sub {
       $boundaries{"search_ranked_v$CURRENT_SEARCH_VERSION"}{arguments};
     ok(
         !_boundary(
-            'search_ranked_v10', $head,
-            "SELECT * FROM api.search_ranked_v9($arguments);"
+            'search_ranked_v12', $head,
+            "SELECT * FROM api.search_ranked_v11($arguments);"
         ),
         'an unregistered future version is refused'
     );
@@ -377,9 +378,9 @@ sub _boundary_arguments ( $name, $version, $entry ) {
         return $VERSION_2_ARGUMENTS{$name}->(@names);
     }
 
-    # The ranked search gained its scope at v7; the retained boundaries
-    # forward the arguments of their day.
-    if ( $name eq 'search_ranked' && $version < $CURRENT_SEARCH_VERSION ) {
+    # The ranked search gained its scope at v7, boundary v8; the retained
+    # boundaries before it forward the arguments of their day.
+    if ( $name eq 'search_ranked' && $version < $SCOPED_SEARCH_VERSION ) {
         pop @names;
     }
 

@@ -19,9 +19,9 @@ use GPForum::Test::PgDatabase;
 our $VERSION = '0.001';
 
 # The versions the catalogue calls today: search_ranked took the scope in
-# v7 (migration 110), autocomplete stayed at v6.
+# v7 (migration 110), and both read live content from migration 131.
 const my %CURRENT_SEARCH_VERSION =>
-  ( search_ranked => 8, search_autocomplete => 6 );
+  ( search_ranked => 10, search_autocomplete => 8 );
 const my $ISOLATED_BEFORE_SEARCH_VERSION => 4;
 const my $BEFORE_POST_CALLS              => 3;
 const my $COMBINED_POST_CALLS            => 2;

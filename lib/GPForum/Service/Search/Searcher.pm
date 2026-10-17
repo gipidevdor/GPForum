@@ -104,14 +104,27 @@ const my $TITLE_CONTAINS_CONDITION =>
 # word every document of postgres-search-plan.t's corpus holds -- 1,000
 # candidates -- went from 4 to 6.4 ms on PostgreSQL 18; a rare word is
 # unchanged. One subquery joining posts to threads was slower (8.2 ms).
+#
+# The same lookups find a thread only while it is not deleted and visible or
+# locked, and a post only while it is not deleted and visible -- the rule the
+# index is written by (search_index_entity). A hide or a delete leaves the
+# index through the outbox, a while later; until then its document matches
+# no category here and is not shown (migration 131).
+const my $LIVE_THREAD => join q{ },
+  q{AND live_thread.deleted_at IS NULL},
+  q{AND live_thread.moderation_state IN ('visible', 'locked')};
 const my $LIVE_CATEGORY => join q{ },
   q{(CASE me.entity_type},
   q{WHEN 'thread' THEN (SELECT live_thread.category_id},
-  q{FROM threads live_thread WHERE live_thread.thread_id = me.entity_id)},
+  q{FROM threads live_thread WHERE live_thread.thread_id = me.entity_id},
+  $LIVE_THREAD, q{)},
   q{WHEN 'post' THEN (SELECT live_thread.category_id},
   q{FROM threads live_thread WHERE live_thread.thread_id =},
   q{(SELECT live_post.thread_id FROM posts live_post},
-  q{WHERE live_post.post_id = me.entity_id))},
+  q{WHERE live_post.post_id = me.entity_id},
+  q{AND live_post.deleted_at IS NULL},
+  q{AND live_post.moderation_state = 'visible')},
+  $LIVE_THREAD, q{)},
   q{END)};
 
 # How many candidates the ranked query was given, on every row it returns:
@@ -825,6 +838,11 @@ only C<public> documents are searched. With one, its C<search_condition>
 is used (or, for an engine without one, the visibilities its
 C<search_visibility_for> lists), and each returned row is checked again
 with its C<permits> for C<search.view> before it is shown.
+
+A thread or a post is shown only while it is live, read when the query
+runs: a thread not deleted and visible or locked, a post not deleted and
+visible, in such a thread. A hide or a delete is out of search at once, not
+when the outbox removes its document.
 
 The category and space that rule reads are the document's live ones (ADR
 0102): a document is searched only while its category is still its

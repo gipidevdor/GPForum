@@ -107,7 +107,7 @@ const my %FUNCTION => (
     },
 
     search_ranked => {
-        version    => 8,
+        version    => 10,
         parameters => [
             permission_mode   => 'text',
             visibility_values => 'text[]',
@@ -130,7 +130,7 @@ const my %FUNCTION => (
         ]
     },
     search_autocomplete => {
-        version    => 6,
+        version    => 8,
         parameters => [
             permission_mode   => 'text',
             visibility_values => 'text[]',

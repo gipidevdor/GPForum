@@ -302,6 +302,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **Search showed hidden and deleted content until the outbox caught up.**
+  A hide or a delete leaves the index through the outbox, a while after it
+  is made, and until then search and its suggestions answered from the
+  document alone, title and body. Both now read the thread and the post as
+  they are when the query runs and leave out what is no longer visible,
+  whether its document has gone yet or not (migration 131,
+  `search_ranked_v9/v10`, `search_autocomplete_v7/v8`).
 - **A suspended member could still like, report and attach files.** Only
   posting and messaging checked the suspension. A like, an unlike, a report
   of a post, thread, profile or message, and an attachment upload or delete

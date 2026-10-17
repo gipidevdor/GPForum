@@ -9,9 +9,11 @@ use Mojo::Message::Response;
 
 our $VERSION = '0.001';
 
-# An anonymous GET as Web::PublicHttpCache sees it: a request, a response
-# whose headers it sets, a page body, and the last render it asked for.
+# An anonymous GET as Web::PublicHttpCache sees it: a request, a stash, a
+# response whose headers it sets, a page body, and the last render it asked
+# for.
 has last_render => undef;
+has stash       => sub { return {}; };
 has res         => sub { return Mojo::Message::Response->new; };
 
 sub render_to_string {

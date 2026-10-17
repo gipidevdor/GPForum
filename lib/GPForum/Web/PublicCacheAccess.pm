@@ -24,6 +24,13 @@ sub is_cacheable ( $self, $controller ) {
         return 0;
     }
 
+    # A flash message says what this visitor just did (ADR 0141): the page
+    # that shows it is theirs, neither served from the cache nor stored.
+    my $flash = $controller->session('flash');
+    if ( ref $flash eq 'HASH' && %{$flash} ) {
+        return 0;
+    }
+
     return 1;
 }
 
@@ -146,7 +153,8 @@ responsibilities.
 
 =head2 is_cacheable
 
-True for anonymous GET or HEAD requests.
+True for anonymous GET or HEAD requests whose session carries no flash
+message: the page that shows one is the visitor's own.
 
 =head2 client_has_fresh_copy
 

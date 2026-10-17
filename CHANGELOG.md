@@ -302,6 +302,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **A cached page published one visitor's CSRF token, and sign-in kept
+  it.** A public page was stored with the first visitor's token in its
+  language and theme forms, so those forms failed for everyone else, and a
+  page with a flash message showed it to the visitors after. A stored page
+  now carries no token; a visitor who is not signed in is let through on
+  `Sec-Fetch-Site: same-origin`, or an `Origin` of this site, while a
+  signed-in member always needs their own session's token. A page with a
+  flash message is not cached. The token is rotated at sign-in and at
+  sign-out, and the page after sign-out is a visitor's (ADR 0141).
 - **A post could be any length.** Only drafts had a maximum; a thread,
   reply or edit posted without one was bounded only by the request size, and
   each read renders it. A body now holds at most 50,000 characters wherever

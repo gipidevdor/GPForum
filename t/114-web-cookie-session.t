@@ -81,6 +81,25 @@ is( $cleared->data->{preferred_locale},
 is( $cleared->data->{login_rotation},
     'rot-2', 'replace_login writes login_rotation' );
 
+my $signing_in =
+  GPForum::Test::CookieSessionController->new(
+    data => { csrf_token => 'visitor-token' }, );
+$cookies->replace_login( $signing_in, { user_id => 'user-3' } );
+ok( !exists $signing_in->data->{csrf_token},
+    'replace_login drops the token drawn before sign-in' );
+
+my $signing_out = GPForum::Test::CookieSessionController->new(
+    data => {
+        csrf_token => 'member-token',
+        session_id => 'sess-3',
+        user_id    => 'user-3',
+    },
+);
+$cookies->sign_out($signing_out);
+is_deeply( $signing_out->data, {},
+    'sign_out leaves nothing of the member, the token included' );
+ok( !$signing_out->expired, 'and keeps the session for the visitor page' );
+
 is( $cookies->validation_reason(undef),
     'validation_failed', 'validation_reason maps a missing result' );
 is( $cookies->validation_reason( { ok => 0, error => 'revoked' } ),

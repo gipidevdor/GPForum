@@ -6,6 +6,7 @@ package GPForum::Web::Access;
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Mojo::URL;
 
 use GPForum::Web::Responder;
 
@@ -16,13 +17,75 @@ our $VERSION = '0.001';
 # header splitting and the NUL, tab, and vertical-tab variants of the same
 # trick.
 const my $UNSAFE_RETURN_TO => qr/[[:cntrl:]\\]/msx;
+const my $SAME_ORIGIN_SITE => 'same-origin';
 
+# A page served from the public cache is one rendering for every visitor, so
+# its forms carry no token (ADR 0141): one would be the first visitor's,
+# refused for everyone else and published to all. A visitor who is not
+# signed in is let through on the browser's word that the form was posted
+# from this site instead. A signed-in member is never served a cached page,
+# and always needs the token of their own session.
 sub csrf_invalid ( $self, $controller ) {
-    if ( $controller->validation->csrf_protect->has_error('csrf_token') ) {
+    if ( !$controller->validation->csrf_protect->has_error('csrf_token') ) {
+        return 0;
+    }
+    if ( !$self->user_id($controller) && $self->same_origin($controller) ) {
+        return 0;
+    }
+
+    return 1;
+}
+
+# Fetch metadata when the browser sends it: only same-origin, not a sibling
+# site (same-site) nor a typed or bookmarked request (none). A browser
+# without it is judged by Origin, which browsers send on every POST. A
+# request that says neither, or says "null", is not from this site.
+sub same_origin ( $self, $controller ) {
+    my $headers = $controller->req->headers;
+    my $site    = $headers->header('Sec-Fetch-Site');
+    if ( $self->has_text($site) ) {
+        return $site eq $SAME_ORIGIN_SITE ? 1 : 0;
+    }
+
+    my $origin = $headers->header('Origin');
+    if ( !$self->has_text($origin) ) {
+        return 0;
+    }
+
+    return $self->origin_matches( $controller, $origin );
+}
+
+# The request's own origin, or the one the forum is published under: behind
+# a proxy the request's scheme and host may not be the ones the browser saw.
+sub origin_matches ( $self, $controller, $origin ) {
+    if ( $origin eq $self->request_origin($controller) ) {
+        return 1;
+    }
+    if ( $origin eq
+        $self->configured_origin( $controller->gp_config->public_base_url ) )
+    {
         return 1;
     }
 
     return 0;
+}
+
+sub request_origin ( $, $controller ) {
+    my $base   = $controller->req->url->base;
+    my $scheme = $base->scheme || 'http';
+    my $host   = $controller->req->headers->host || $base->host || q{};
+
+    return join q{://}, $scheme, $host;
+}
+
+sub configured_origin ( $, $public_base_url ) {
+    my $url  = Mojo::URL->new($public_base_url);
+    my $host = $url->host || q{};
+    if ( defined $url->port ) {
+        $host .= q{:} . $url->port;
+    }
+
+    return join q{://}, $url->scheme || 'http', $host;
 }
 
 sub user_id ( $self, $controller ) {
@@ -82,7 +145,8 @@ Version 0.001.
 =head1 DESCRIPTION
 
 Owns the HTTP decision helpers that controllers previously duplicated:
-CSRF token validity, cookie-session user id, JSON negotiation, non-empty
+CSRF token validity, whether a request comes from this site's origin,
+cookie-session user id, JSON negotiation, non-empty
 text, and whether a submitted return path stays on this site. It does
 not render errors; L<GPForum::Web::Guard> keeps that responsibility. It
 does not talk to stores or DBIx::Class.
@@ -91,8 +155,34 @@ does not talk to stores or DBIx::Class.
 
 =head2 csrf_invalid
 
-Returns true when Mojolicious CSRF protection reports a missing or invalid
-token.
+Returns false when the request carries its session's CSRF token, as
+Mojolicious CSRF protection checks it. Without one, or with another
+session's, it is false only for a visitor who is not signed in whose request
+L</same_origin> says comes from this site: the forms of a page served from
+the public cache carry no token (ADR 0141). Otherwise true.
+
+=head2 same_origin
+
+True when C<Sec-Fetch-Site> is C<same-origin>; for a request without
+C<Sec-Fetch-Site>, when C<Origin> passes L</origin_matches>. False for any
+other C<Sec-Fetch-Site> (C<same-site>, C<cross-site>, C<none>) and for a
+request that names neither.
+
+=head2 origin_matches
+
+Takes the controller and an origin. True when it is L</request_origin> or
+the L</configured_origin> of the configuration's C<public_base_url>, read
+through the controller's C<gp_config> helper.
+
+=head2 request_origin
+
+The request's scheme (C<http> when it has none) and C<Host>, as
+C<scheme://host>.
+
+=head2 configured_origin
+
+Takes a base URL and returns its C<scheme://host>, with the port when the
+URL names one.
 
 =head2 user_id
 
@@ -119,11 +209,11 @@ the calling controller or L<GPForum::Web::Guard>.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-None.
+C<public_base_url>, for L</origin_matches>.
 
 =head1 DEPENDENCIES
 
-Uses L<GPForum::Web::Responder>.
+Uses L<Mojo::URL> and L<GPForum::Web::Responder>.
 
 =head1 INCOMPATIBILITIES
 

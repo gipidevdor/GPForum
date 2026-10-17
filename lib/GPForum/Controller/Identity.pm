@@ -159,7 +159,7 @@ sub logout ($self) {
             request_address => $self->request_address,
         }
     );
-    $self->session( expires => 1 );
+    GPForum::Web::CookieSession->new->sign_out($self);
 
     return $self->render(
         template => 'identity/logout_accepted',

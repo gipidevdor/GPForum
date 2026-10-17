@@ -468,8 +468,14 @@ my $login_form = {
     identifier => 'giacomo_forum',
     password   => 'correct horse battery staple',
 };
+
+# A lost response is a lost Set-Cookie too: the browser retries with the
+# session it had, whose token sign-in has since rotated (ADR 0141).
+my @cookies_before_login = @{ $test->ua->cookie_jar->all };
 $test->post_ok( '/login' => form => $login_form );
 $test->status_is($HTTP_FOUND);
+my $cookie_jar = $test->ua->cookie_jar;
+$cookie_jar->empty->add(@cookies_before_login);
 $test->post_ok( '/login' => form => $login_form );
 $test->status_is($HTTP_FOUND);
 

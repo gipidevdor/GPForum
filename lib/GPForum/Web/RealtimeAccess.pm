@@ -7,7 +7,6 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::JSON qw(encode_json);
-use Mojo::URL;
 
 use GPForum::Web::Access;
 
@@ -38,21 +37,15 @@ sub origin_allowed ( $self, $controller ) {
         return 1;
     }
 
-    return $self->_origin_matches( $controller, $origin );
+    return $self->access->origin_matches( $controller, $origin );
 }
 
-sub request_origin ( $, $controller ) {
-    my $base   = $controller->req->url->base;
-    my $scheme = $base->scheme || 'http';
-    my $host   = $controller->req->headers->host || $base->host || q{};
-
-    return join q{://}, $scheme, $host;
+sub request_origin ( $self, $controller ) {
+    return $self->access->request_origin($controller);
 }
 
 sub configured_origin ( $self, $public_base_url ) {
-    my $url = Mojo::URL->new($public_base_url);
-
-    return join q{://}, $url->scheme || 'http', $self->_origin_host($url);
+    return $self->access->configured_origin($public_base_url);
 }
 
 sub payload_bytes ( $, $message ) {
@@ -135,28 +128,6 @@ sub channel_type ( $, $channel ) {
     return _parsed_channel_type($channel);
 }
 
-sub _origin_matches ( $self, $controller, $origin ) {
-    if ( $origin eq $self->request_origin($controller) ) {
-        return 1;
-    }
-    if ( $origin eq
-        $self->configured_origin( $controller->gp_config->public_base_url ) )
-    {
-        return 1;
-    }
-
-    return 0;
-}
-
-sub _origin_host ( $, $url ) {
-    my $host = $url->host || q{};
-    if ( defined $url->port ) {
-        $host .= q{:} . $url->port;
-    }
-
-    return $host;
-}
-
 sub _parsed_channel_type ($channel) {
     if ( $channel =~ /\A ([[:lower:]] [[:lower:][:digit:]_]*) [:] /msx ) {
         return $1;
@@ -201,7 +172,8 @@ public origin.
 
 =head2 request_origin
 
-Builds the request origin from scheme and Host.
+Builds the request origin from scheme and Host, through
+L<GPForum::Web::Access>.
 
 =head2 configured_origin
 
@@ -265,7 +237,8 @@ C<configured_origin> reads the public base URL supplied by the caller.
 
 =head1 DEPENDENCIES
 
-Uses L<GPForum::Web::Access>, L<Mojo::JSON>, and L<Mojo::URL>.
+Uses L<GPForum::Web::Access>, whose origin rules it shares, and
+L<Mojo::JSON>.
 
 =head1 INCOMPATIBILITIES
 

@@ -131,6 +131,9 @@ realtime, APIs, administration, and operations.
 - All state-changing operations MUST require CSRF protection or use
   explicitly safe token mechanisms.
 - Session-authenticated requests MUST remain CSRF-resistant.
+- A page shared by every visitor MUST NOT carry a session's token; a
+  visitor who is not signed in may prove the origin instead, and the token
+  is rotated at sign-in and sign-out (ADR 0141).
 
 ### API Security
 

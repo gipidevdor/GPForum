@@ -55,14 +55,29 @@ sub clear ( $self, $controller ) {
     return;
 }
 
+# The CSRF token goes too, at sign-in and at sign-out (ADR 0141): one
+# read off a page before sign-in, or left in a browser after sign-out,
+# must not be good for the session that follows. The next form drawn gets
+# a new one.
 sub replace_login ( $self, $controller, $input ) {
     $self->_delete_keys(
         $controller,
         [
-            qw(user_id session_id session_token login_rotation session_expires_at_epoch preferred_locale preferred_theme preferred_timezone)
+            qw(user_id session_id session_token login_rotation session_expires_at_epoch preferred_locale preferred_theme preferred_timezone csrf_token)
         ]
     );
     $controller->session( $self->login_values($input) );
+
+    return;
+}
+
+# A visitor again: the cookie session keeps nothing of the member's, not
+# even the token, and stays a session, so the page that says they signed
+# out draws its forms with a token that session holds. Expiring the cookie
+# instead, as logout used to, left the member's keys to that page, which was
+# drawn as theirs, with forms whose token no session held any more.
+sub sign_out ( $self, $controller ) {
+    %{ $controller->session } = ();
 
     return;
 }
@@ -128,8 +143,9 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-Owns cookie-session presence, 30-day login duration, expiry, clearing, and
-login-value assembly. It does not validate server-side session rows, render
+Owns cookie-session presence, 30-day login duration, expiry, clearing,
+sign-out, login-value assembly, and the rotation of the CSRF token at
+sign-in and sign-out. It does not validate server-side session rows, render
 errors, or record telemetry. Bootstrap identity and the identity controller
 keep those responsibilities.
 
@@ -157,7 +173,13 @@ Deletes server-session keys and expires the Mojolicious session cookie.
 
 =head2 replace_login
 
-Resets login keys and writes a new authenticated cookie session.
+Resets login keys and the CSRF token, and writes a new authenticated cookie
+session; the next form drawn gets a new token.
+
+=head2 sign_out
+
+Empties the cookie session, the CSRF token with it, and leaves it a session:
+the page drawn next is a visitor's, with a new token.
 
 =head2 login_values
 

@@ -184,6 +184,9 @@ sub _current_entry ( $self, $key ) {
     return $entry;
 }
 
+# The page is rendered for every visitor, not for this one: its forms carry
+# no CSRF token (Bootstrap::Security), which would be this visitor's and
+# refused for any other, and the render leaves no token in their session.
 sub _build_entry ( $self, $input ) {
     my $body = encode(
         $BODY_ENCODING,
@@ -191,6 +194,7 @@ sub _build_entry ( $self, $input ) {
           . $input->{controller}->render_to_string(
             template => $input->{template},
             %{ $input->{payload} },
+            'gpforum.shared_render' => 1,
           )
     );
     my $epoch = time;
@@ -296,9 +300,16 @@ whose C<If-None-Match> or C<If-Modified-Since> matches the entry gets a 304
 with an empty body.
 
 Whether a request may use the cache is L<GPForum::Web::PublicCacheAccess>'s
-call: only a GET or HEAD from a visitor who is not signed in. Any other
-request, and every request when no cache is set, is rendered as usual with
-none of the cache headers.
+call: only a GET or HEAD from a visitor who is not signed in and has no
+flash message to read. Any other request, and every request when no cache
+is set, is rendered as usual with none of the cache headers.
+
+A page is stored as one rendering for every visitor, so it is rendered with
+the C<gpforum.shared_render> stash value set: its forms carry no CSRF token,
+which would be the first visitor's, and the render puts none in that
+visitor's session. Their handlers let a visitor who is not signed in through
+on proof that the form was posted from this site
+(L<GPForum::Web::Access/csrf_invalid>, ADR 0141).
 
 A page asks L</serve_cached> before its queries run, so a hit spares them.
 On a miss it hands the same options to L</render>, which then stores the page

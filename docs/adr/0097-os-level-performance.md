@@ -139,6 +139,16 @@ validate -> authorize -> write canonical row/event -> commit -> respond -> enque
   started past the front door MAY run on the loop that already exists, with a
   logged warning, because the backend changes throughput and not behavior
   (2026-10-17).
+- Open risk, under a drill: Hypnotoad's manager loads EV, and so creates
+  the kqueue, before it forks the workers, and a kqueue is not inherited
+  across fork(2). libev rebuilds it in the child only through EV's
+  pthread_atfork handler, which EV's documentation calls buggy on most BSDs;
+  if it does not run, the worker's first kevent fails and libev aborts the
+  worker. `t/700-ev-fork-drill.t` forks with a watcher registered in the
+  parent and requires the worker and the manager to keep serving on the
+  native backend; it passes on macOS and runs in `platform-freebsd.yml`. If
+  it ever fails on FreeBSD, the worker MUST call `EV::loop_fork` itself
+  right after the fork rather than fall back to poll.
 
 ### 10. Static Files And Attachments
 

@@ -2881,6 +2881,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **A drill for EV's kqueue across Hypnotoad's fork.** A kqueue is not
+  inherited by fork(2), and libev rebuilds it in a worker only through EV's
+  pthread_atfork handler, which EV calls buggy on most BSDs. `t/700` forks
+  with a watcher registered in the parent and requires the worker and the
+  manager to keep serving on the native backend; it passes on macOS and
+  `platform-freebsd.yml` now also runs when it changes. ADR 0097 records the
+  risk and the fallback (`EV::loop_fork` in the worker, never poll).
 - **HARNESS_PERL_SWITCHES reach the tests again, and coverage measures
   `GPForum::OS::Reactor`.** `.proverc` named an explicit interpreter to
   preload the reactor, which made prove ignore the switches that Devel::Cover

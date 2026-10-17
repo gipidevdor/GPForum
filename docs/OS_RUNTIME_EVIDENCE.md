@@ -81,8 +81,10 @@ macOS and FreeBSD profiles declare a `kqueue` OS posture; Linux declares an
 `Mojo::Reactor::EV` backed by the mandatory, Carton-locked CPAN `EV` module.
 `GPForum::OS::Reactor` selects epoll (4) or kqueue (8) before EV loads and
 application startup verifies both the actual reactor and libev backend.
-GPForum refuses Poll or libev select/poll on these supported systems, even
-when EV is present. Tests preload the same policy before `Test::Mojo`.
+Production refuses Poll or libev select/poll on these supported systems, even
+when EV is present; a development runner that loaded EV first runs on it with
+a warning. `script/gpforum-carton exec` exports the same choice for tests,
+morbo and profilers before any Perl starts.
 See [Reactor backend](ops/reactor-backend.md) for startup and embedding commands.
 
 `reuse=1` is portable at the GPForum policy layer only when the detected OS

@@ -13,6 +13,8 @@ our $VERSION = '0.001';
 # This bootstrap also runs before Carton dependencies are installed. Loading
 # EV here would initialise its default loop before LIBEV_FLAGS takes effect.
 use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma) -- core-only event-loop bootstrap
+    SELECT_BACKEND => 1,
+    POLL_BACKEND   => 2,
     EPOLL_BACKEND  => 4,
     KQUEUE_BACKEND => 8,
 };
@@ -43,7 +45,8 @@ sub configure ($class) {
     return $backend;
 }
 
-sub assert_native ($class) {
+sub assert_native ( $class, %option ) {
+    my $strict  = $option{strict} // 1;
     my $backend = $class->configure;
     return undef if !$backend;
 
@@ -58,24 +61,48 @@ sub assert_native ($class) {
           . $error;
     };
 
-    my $actual = EV::backend();
-    if ( !( EV::supported_backends() & $backend->{flags} )
-        || $actual != $backend->{flags} )
-    {
-        croak "GPForum requires $backend->{name} (libev $backend->{flags});"
-          . " actual libev backend is $actual. Load GPForum::OS::Reactor"
-          . ' before EV or Mojo::IOLoop (perl -Ilib -MGPForum::OS::Reactor).';
-    }
-
     require Mojo::IOLoop;
     my $reactor = ref Mojo::IOLoop->singleton->reactor;
-    if ( $reactor ne 'Mojo::Reactor::EV' ) {
-        croak "GPForum requires Mojo::Reactor::EV with $backend->{name};"
-          . " actual reactor is $reactor. Load GPForum::OS::Reactor"
-          . ' before Mojo::IOLoop.';
-    }
+    my $actual  = $reactor eq 'Mojo::Reactor::EV' ? EV::backend() : undef;
+    return $backend
+      if defined $actual
+      && $actual == $backend->{flags}
+      && EV::supported_backends() & $backend->{flags};
 
-    return $backend;
+    my $problem = _fallback( $backend, $reactor, $actual );
+    croak "GPForum requires $backend->{name}; $problem" if $strict;
+
+    return { %{$backend}, fallback => $problem };
+}
+
+# libev reads LIBEV_FLAGS once, when EV loads and creates its default loop,
+# and an existing Mojo singleton is never replaced: past that point only the
+# environment of the next process can choose. bin/gpforum and
+# script/gpforum-carton exec set it for everything they start, so the message
+# names them.
+sub _fallback ( $backend, $reactor, $actual ) {
+    my $found =
+      defined $actual
+      ? 'libev ' . _backend_name($actual) . " ($actual)"
+      : $reactor;
+
+    return
+        "this process runs $found, because EV or Mojo::IOLoop loaded"
+      . ' before GPForum::OS::Reactor could set'
+      . " LIBEV_FLAGS=$backend->{flags} MOJO_REACTOR=Mojo::Reactor::EV."
+      . ' Start through bin/gpforum or script/gpforum-carton exec, which set'
+      . ' both, or export them in the environment of the runner.';
+}
+
+sub _backend_name ($flags) {
+    state $name = {
+        SELECT_BACKEND() => 'select',
+        POLL_BACKEND()   => 'poll',
+        EPOLL_BACKEND()  => 'epoll',
+        KQUEUE_BACKEND() => 'kqueue',
+    };
+
+    return $name->{$flags} // 'backend';
 }
 
 1;
@@ -93,14 +120,18 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use GPForum::OS::Reactor; # before EV or any Mojo event-loop consumer
-    GPForum::OS::Reactor->assert_native;
+    GPForum::OS::Reactor->assert_native;                # refuses a fallback
+    my $backend = GPForum::OS::Reactor->assert_native( strict => 0 );
+    warn $backend->{fallback} if $backend->{fallback};  # development
 
 =head1 DESCRIPTION
 
 Linux uses libev epoll; macOS and FreeBSD use libev kqueue. Importing this
 core-only module sets C<MOJO_REACTOR> and C<LIBEV_FLAGS> before EV initialises
 its default loop. Application startup verifies the actual libev backend and
-singleton Mojo reactor, refusing a fallback or an incompatible existing loop.
+singleton Mojo reactor: production refuses a fallback or an incompatible
+existing loop, and development and tests run on it with a warning, since a
+runner that loads Test::Mojo or Mojo::IOLoop first has already chosen.
 
 =head1 SUBROUTINES/METHODS
 
@@ -120,14 +151,17 @@ systems keep Mojolicious's portable detection.
 
 =head2 assert_native
 
-Loads EV and Mojo::IOLoop and refuses startup unless both use the required
-native backend. Existing loops are never destroyed or replaced.
+Loads EV and Mojo::IOLoop and returns the required backend when the singleton
+reactor is Mojo::Reactor::EV on it. Otherwise it croaks, or, given
+C<< strict => 0 >>, returns the backend with a C<fallback> explanation and
+leaves the loop as it is: an existing loop is never destroyed or replaced.
+Missing EV croaks either way.
 
 =head1 DIAGNOSTICS
 
-Missing EV, an unavailable native backend, or an already initialised loop
-using another backend stops application startup with installation or preload
-guidance.
+Missing EV stops startup with installation guidance. A loop that EV or
+Mojo::IOLoop initialised before this module, on another backend or reactor,
+stops a strict caller with the entry points that set the backend first.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -140,8 +174,9 @@ Core L<Carp> and L<English>; L<EV> and L<Mojo::IOLoop> at verification time.
 
 =head1 INCOMPATIBILITIES
 
-A supported host cannot serve GPForum using Mojo::Reactor::Poll or libev
-select/poll. An embedding process must preload this module before its loop.
+A production host cannot serve GPForum using Mojo::Reactor::Poll or libev
+select/poll. An embedding process must preload this module before its loop, or
+export the variables it sets.
 
 =head1 BUGS AND LIMITATIONS
 

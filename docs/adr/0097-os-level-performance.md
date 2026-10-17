@@ -128,6 +128,18 @@ context that serves requests or runs workers.
 validate -> authorize -> write canonical row/event -> commit -> respond -> enqueue async work
 ```
 
+- The event loop MUST be `Mojo::Reactor::EV` on libev's native backend:
+  epoll (4) on Linux, kqueue (8) on macOS and FreeBSD
+  (`GPForum::OS::Reactor`, `docs/ops/reactor-backend.md`). libev reads
+  `LIBEV_FLAGS` once, when EV loads, so every entry point MUST choose before
+  any event-loop module loads: `bin/gpforum` (and the Hypnotoad and service
+  processes it starts) and `script/gpforum-carton exec` (morbo, prove, yath,
+  profilers) set `LIBEV_FLAGS` and `MOJO_REACTOR` themselves. Production
+  MUST refuse to start on any other backend or reactor; development and tests
+  started past the front door MAY run on the loop that already exists, with a
+  logged warning, because the backend changes throughput and not behavior
+  (2026-10-17).
+
 ### 10. Static Files And Attachments
 
 - Perl controllers SHOULD NOT serve large files except in explicitly justified

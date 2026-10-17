@@ -1903,6 +1903,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **Development runners start GPForum again on macOS and FreeBSD.**
+  `script/gpforum-carton exec morbo bin/gpforum`, `perl t/02-health.t` and
+  `prove --norc` stopped with
+  "actual libev backend is 1": they load EV before GPForum can choose, and
+  libev's own default there is select or poll. `script/gpforum-carton exec`
+  now exports `LIBEV_FLAGS` and `MOJO_REACTOR` for the native backend before
+  any Perl starts; a runner that bypasses it starts a development application
+  on the existing loop with a logged warning, and production still refuses
+  it, naming the variables and the entry points that set them (ADR 0097).
 - **Over the socket, peer authentication refused both the runtime role and
   the operator's migrations.** With Debian's `local all all peer` and the
   host-less DSN, the web service (account `gpforum`) was refused as

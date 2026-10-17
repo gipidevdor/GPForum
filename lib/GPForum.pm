@@ -26,7 +26,6 @@ use GPForum::Runtime;
 our $VERSION = '0.001';
 
 sub startup ($self) {
-    GPForum::OS::Reactor->assert_native;
 
     # bin/gpforum started Mojolicious::Commands without registering a
     # namespace, so it listed the framework's own commands -- including
@@ -39,7 +38,13 @@ sub startup ($self) {
     # because those are things an operator does use.
     $self->commands->namespaces( [ 'GPForum::CLI', 'Mojolicious::Command' ] );
 
-    my $config  = GPForum::Bootstrap::Config->load;
+    my $config = GPForum::Bootstrap::Config->load;
+
+    # A runner that loaded Mojo::IOLoop first (morbo, Test::Mojo under a bare
+    # prove or an IDE, a profiler) has already chosen libev's default; only
+    # production refuses it.
+    my $reactor =
+      GPForum::OS::Reactor->assert_native( strict => $config->is_production );
     my $runtime = GPForum::Runtime->from_config($config);
     my $runtime_policy =
       GPForum::OS::RuntimePolicy->new( config => $config, runtime => $runtime );
@@ -48,6 +53,9 @@ sub startup ($self) {
         application => $self,
         config      => $config,
     );
+    if ( $reactor && $reactor->{fallback} ) {
+        $self->log->warn( $reactor->{fallback} );
+    }
     GPForum::Bootstrap::Security->register(
         application => $self,
         config      => $config,

@@ -14,28 +14,44 @@ An optional OS EV package is no longer part of the performance workflow.
 
 ## Startup enforcement
 
-`GPForum::OS::Reactor` sets `MOJO_REACTOR` and `LIBEV_FLAGS` before event-loop
-consumers load. `bin/gpforum` loads it before the command launcher, and the
-application loads it before Mojolicious. Inherited preferences for Poll,
-select, or another libev backend are overridden on supported hosts.
+libev reads `LIBEV_FLAGS` once, when EV loads and creates its default loop,
+and an existing loop cannot be replaced. On macOS libev's own default is
+select, and on FreeBSD kqueue is outside libev's recommended set, so whatever
+loads EV first decides. The backend is therefore chosen before any Perl
+starts, at each entry point:
+
+- `bin/gpforum` loads `GPForum::OS::Reactor`, which sets `MOJO_REACTOR` and
+  `LIBEV_FLAGS`, before anything else; Hypnotoad, `gpforum start` and the
+  service units inherit them.
+- `script/gpforum-carton exec` exports the same two variables (from
+  `uname -s`) for everything it runs: `morbo bin/gpforum`, `prove` with or
+  without `--norc`, `yath`, `perl t/...` and profilers. `t/698` keeps its
+  table equal to the module's.
+- The application module loads `GPForum::OS::Reactor` before Mojolicious, for
+  an embedding process that loads nothing first.
+
+Inherited preferences for Poll, select, or another libev backend are
+overridden on supported hosts.
 
 Application startup verifies both the actual singleton reactor class and
 `EV::backend()`. Merely observing `Mojo::Reactor::EV` does not prove epoll or
-kqueue: libev can otherwise choose select, including on macOS. Missing EV,
-an unavailable native backend, or an already initialised incompatible loop
-stops startup. This applies to development, CI and production without a
-strict-mode opt-in. Existing loops are never destroyed or replaced.
+kqueue. In production (`GPFORUM_ENV` production, production-small,
+production-medium) a fallback stops startup and names the variables and the
+entry points that set them. In development and tests -- a runner that loaded
+`Test::Mojo` or `Mojo::IOLoop` before GPForum and bypassed the front door --
+the application starts on the loop that exists and logs a warning with the
+same text: the backend changes throughput, not behavior. Missing EV stops
+startup everywhere. Existing loops are never destroyed or replaced.
 
-Use `bin/gpforum start` for the normal entry point. For an embedding process
-that loads Mojo first, preload the policy before the framework:
+An embedding process that loads Mojo first and does not start through the
+front door preloads the policy, or exports the variables itself:
 
 ```sh
-script/gpforum-carton exec perl -Ilib -MGPForum::OS::Reactor -S hypnotoad bin/gpforum
+perl -Ilib -MGPForum::OS::Reactor -S hypnotoad bin/gpforum
+LIBEV_FLAGS=8 MOJO_REACTOR=Mojo::Reactor::EV hypnotoad bin/gpforum
 ```
 
-The default EV loop is created when EV loads, so setting `LIBEV_FLAGS` after
-that point cannot select a different backend. See the
-[EV API](https://metacpan.org/pod/EV) and
+See the [EV API](https://metacpan.org/pod/EV) and
 [libev backend documentation](https://metacpan.org/pod/libev).
 
 Unknown operating systems retain the conservative portable behavior of the
@@ -50,11 +66,11 @@ benchmarks require EV with the host backend, and verify it in every serving
 worker; a failed probe cannot select Poll. Historical benchmark artifacts
 retain their observed reactor values.
 
-`.proverc` preloads the same core-only policy before each test process, so
-`Test::Mojo` cannot initialise an incompatible default loop before the
-application loads. `t/688-native-reactor.t` exercises real subprocesses for
-native startup, inherited fallback preferences, missing EV, an existing Poll
-singleton and an existing libev select loop. `t/58-os-runtime-evidence.t`
+`t/688-native-reactor.t` exercises real subprocesses for native startup,
+inherited fallback preferences, missing EV, an existing Poll singleton and an
+existing libev select loop. `t/698-reactor-entry-points.t` checks the front
+door's backend, a `Test::Mojo`-first test through it, a development start on
+an existing select loop and the production refusal. `t/58-os-runtime-evidence.t`
 checks that the wrong native backend remains visible in the evidence.
 
 Readiness still includes `/health/ready`, query plans, actual Hypnotoad

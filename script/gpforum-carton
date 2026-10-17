@@ -10,6 +10,23 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 
+# libev reads LIBEV_FLAGS once, when EV loads, and morbo, Test::Mojo, yath or
+# a profiler load it before any GPForum code can choose: on macOS and FreeBSD
+# libev's own default is then select or poll. Choosing here, before any Perl
+# starts, gives every tool run through this script the native backend that
+# GPForum::OS::Reactor requires (keep the two tables equal; t/698 checks).
+# Another system keeps whatever it inherited.
+case $(uname -s) in
+    Linux) native_backend=4 ;;
+    Darwin | FreeBSD) native_backend=8 ;;
+    *) native_backend= ;;
+esac
+if [ -n "$native_backend" ]; then
+    LIBEV_FLAGS=$native_backend
+    MOJO_REACTOR=Mojo::Reactor::EV
+    export LIBEV_FLAGS MOJO_REACTOR
+fi
+
 if [ -n "${GPFORUM_CARTON:-}" ]; then
     if [ ! -x "${GPFORUM_CARTON}" ]; then
         echo "gpforum-carton: GPFORUM_CARTON is not executable: ${GPFORUM_CARTON}" >&2

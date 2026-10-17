@@ -67,27 +67,27 @@ SKIP: {
 
     ( $status, $output ) = _probe(
         ['-MEV'],
-        'require GPForum; GPForum->new;',
+        'require GPForum::OS::Reactor; GPForum::OS::Reactor->assert_native;',
         MOJO_REACTOR => 'Mojo::Reactor::EV',
         LIBEV_FLAGS  => 1
     );
-    isnt( $status, 0, 'an EV loop already using select refuses startup' );
+    isnt( $status, 0, 'a strict check refuses an EV loop already on select' );
     like(
         $output,
-        qr/actual [ ] libev [ ] backend [ ] is [ ] 1/msx,
+        qr/runs [ ] libev [ ] select [ ] [(]1[)]/msx,
         'the refusal reports the real backend, even with an EV reactor'
     );
 
     ( $status, $output ) = _probe(
         ['-MMojo::IOLoop'],
-        'require GPForum; GPForum->new;',
+        'require GPForum::OS::Reactor; GPForum::OS::Reactor->assert_native;',
         MOJO_REACTOR => 'Mojo::Reactor::Poll',
         LIBEV_FLAGS  => $native->{flags}
     );
-    isnt( $status, 0, 'an existing Poll singleton refuses startup' );
+    isnt( $status, 0, 'a strict check refuses an existing Poll singleton' );
     like(
         $output,
-        qr/actual [ ] reactor [ ] is [ ] Mojo::Reactor::Poll/msx,
+        qr/runs [ ] Mojo::Reactor::Poll/msx,
         'the refusal identifies Poll without replacing an existing loop'
     );
 

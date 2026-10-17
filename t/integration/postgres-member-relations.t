@@ -31,6 +31,7 @@ const my $HTTP_FORBIDDEN => 403;
 const my $HTTP_NOT_FOUND => 404;
 const my $MAXIMUM        => 500;
 const my $INBOX_ROWS     => 100;
+const my $FEED_ITEMS     => 3;
 const my @CANDIDATES     => ( 3, 4, 5 );
 const my $JSON           => { Accept => 'application/json' };
 
@@ -348,7 +349,7 @@ subtest 'the feed leaves out what a listed member wrote' => sub {
         ];
     };
     is_deeply(
-        $feed->(3),
+        $feed->($FEED_ITEMS),
         [ $post_id, $other_thread, $third_post ],
         'an unlisted member\'s post and thread are in the feed'
     );
@@ -360,11 +361,13 @@ subtest 'the feed leaves out what a listed member wrote' => sub {
         'ignoring them takes both out, before the page is cut' );
     $relations->set_relation(
         { owner_user_id => $owner, username => $other_name, kind => 'block' } );
-    is_deeply( $feed->(3), [$third_post], 'and so does blocking them' );
+    is_deeply( $feed->($FEED_ITEMS), [$third_post],
+        'and so does blocking them' );
 
     $relations->remove_relation(
         { owner_user_id => $owner, username => $other_name } );
-    is( scalar @{ $feed->(3) }, 3, 'removing them brings the items back' );
+    is( scalar @{ $feed->($FEED_ITEMS) },
+        $FEED_ITEMS, q{removing them brings the items back} );
     $dbh->do( q{DELETE FROM user_feed_items WHERE user_id = ?}, undef, $owner );
 };
 

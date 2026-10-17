@@ -529,16 +529,18 @@ subtest 'the settings page and the unsubscribe link' => sub {
 
 subtest 'one-click POSTs from one mail provider are limited per member' => sub {
     my $provider = Test::Mojo->new('GPForum');
-    my $tokens   = GPForum::Service::Notification::UnsubscribeToken->new(
+    my $signer   = GPForum::Service::Notification::UnsubscribeToken->new(
         secrets => $provider->app->secrets );
     my $one_click = { 'List-Unsubscribe' => 'One-Click' };
     my @members =
       map { _user( "pref_provider_$_", 1 ) } 1 .. $UNSUBSCRIBE_LIMIT + 1;
     my $answered = 0;
     for my $member (@members) {
-        my $token = $tokens->issue( $member, 'mention' );
+        my $token = $signer->issue( $member, 'mention' );
         $provider->post_ok( "/unsubscribe/$token" => form => $one_click );
-        $answered++ if $provider->tx->res->code == $HTTP_OK;
+        if ( $provider->tx->res->code == $HTTP_OK ) {
+            $answered++;
+        }
     }
     is(
         $answered,
@@ -548,7 +550,7 @@ subtest 'one-click POSTs from one mail provider are limited per member' => sub {
     is( $store->delivery_plan( $members[-1], 'mention' )->{email},
         0, 'and stops their mail' );
 
-    my $token = $tokens->issue( $members[0], 'mention' );
+    my $token = $signer->issue( $members[0], 'mention' );
     for ( 2 .. $UNSUBSCRIBE_LIMIT ) {
         $provider->post_ok( "/unsubscribe/$token" => form => $one_click );
     }

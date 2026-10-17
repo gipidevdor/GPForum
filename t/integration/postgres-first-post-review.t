@@ -442,9 +442,8 @@ subtest 'the author\'s list reads each place as the author does' => sub {
         '/held_posts/0/thread_title' => undef,
         'a thread hidden since is not named'
     )->json_is( '/held_posts/0/thread_id' => undef, 'nor linked' );
-    $test->get_ok('/pending')
-      ->status_is($HTTP_OK)
-      ->content_unlike( qr/\Q$thread_title\E/msx, 'on the page either' )
+    $test->get_ok('/pending')->status_is($HTTP_OK);
+    $test->content_unlike( qr/\Q$thread_title\E/msx, 'on the page either' )
       ->content_like(
         qr/Held [ ] in [ ] a [ ] place/msx,
         'while the author\'s words stay'
@@ -468,17 +467,15 @@ subtest 'the author\'s list reads each place as the author does' => sub {
     $staff->post_ok( "/moderation/review/$review_id/approve" => $JSON => form =>
           { csrf_token => _csrf($staff) } )->status_is($HTTP_OK);
     my $published = _answer($staff);
-    $test->get_ok( '/pending' => $JSON )
-      ->json_is( '/held_posts/0/review_id' => $review_id )
-      ->json_is(
+    $test->get_ok( '/pending' => $JSON );
+    $test->json_is( '/held_posts/0/review_id' => $review_id )->json_is(
         '/held_posts/0/thread_id' => $published->{thread_id},
         'an approved thread names the thread it became'
-      )
-      ->json_is(
+    )->json_is(
         '/held_posts/0/published_url' =>
           "/t/$published->{thread_id}#post-$published->{post_id}",
         'and links to its post'
-      );
+    );
 };
 
 subtest 'an erased member\'s held posts go, and an export has them' => sub {

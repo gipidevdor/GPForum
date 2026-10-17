@@ -91,6 +91,28 @@ const my %RETAINED_BOUNDARIES => (
     moderation_review_mine => [2],
 );
 
+# What each boundary's version 2 forwarded, from today's arguments: the
+# draft's arguments came at v3 of the write commands; the bookmark list
+# gained its folder (migration 121); the digest's due list its key and its
+# plan the time (migration 122); the author's held posts the reader's
+# scopes (migration 127).
+my %VERSION_2_ARGUMENTS = (
+    forum_write_command => sub (@names) {
+        return @names[ 0 .. $#names - $DRAFT_ARGUMENT_COUNT ];
+    },
+    forum_create_reply => sub (@names) {
+        return @names[ 0 .. $#names - $DRAFT_ARGUMENT_COUNT ];
+    },
+    community_list_bookmarks =>
+      sub (@names) { return @names[ 0 .. $#names - 1 ]; },
+    notification_digest_due => sub (@names) {
+        return grep { !/\A after_/msx } @names;
+    },
+    notification_digest_plan =>
+      sub (@names) { return @names[ 0 .. $#names - 1 ]; },
+    moderation_review_mine => sub (@names) { return @names[ 0, 1 ]; },
+);
+
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
 my %catalogued =
   map { $catalogue->function($_)->{function} => 1 } @{ $catalogue->names };
@@ -341,13 +363,8 @@ sub _tables {
 # what its implementation did not take yet.
 sub _boundary_arguments ( $name, $version, $entry ) {
     my @names = @{ $entry->{names} };
-    if (
-        $version == 2
-        && (   $name eq 'forum_write_command'
-            || $name eq 'forum_create_reply' )
-      )
-    {
-        splice @names, -$DRAFT_ARGUMENT_COUNT;
+    if ( $version == 2 && exists $VERSION_2_ARGUMENTS{$name} ) {
+        return $VERSION_2_ARGUMENTS{$name}->(@names);
     }
 
     # The ranked search gained its scope at v7; the retained boundaries
@@ -356,25 +373,6 @@ sub _boundary_arguments ( $name, $version, $entry ) {
         pop @names;
     }
 
-    # The bookmark list gained its folder at v3 (migration 121).
-    if ( $name eq 'community_list_bookmarks' && $version == 2 ) {
-        pop @names;
-    }
-
-    # The digest's due list gained its key, and its plan the time, at v3
-    # (migration 122).
-    if ( $name eq 'notification_digest_due' && $version == 2 ) {
-        @names = grep { !/\A after_/msx } @names;
-    }
-    if ( $name eq 'notification_digest_plan' && $version == 2 ) {
-        pop @names;
-    }
-
-    # The author's held posts gained the reader's scopes at v3 (migration
-    # 127).
-    if ( $name eq 'moderation_review_mine' && $version == 2 ) {
-        @names = @names[ 0, 1 ];
-    }
     return @names;
 }
 

@@ -1940,6 +1940,12 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **`GPFORUM_RUNTIME_REQUESTS` says what it counts.** It is Hypnotoad's
+  `requests`, the keep-alive requests one connection serves before it is
+  closed, and the settings page and the environment file template called
+  it the requests a web process serves before it is replaced (that is
+  Mojolicious's `accepts`, 10,000 connections, which GPForum leaves as it
+  is).
 - **The proxy closes an idle connection to the service before the service
   does.** nginx kept an idle upstream connection for its default 60
   seconds and Caddy for 2 minutes, and the service closes one after 5

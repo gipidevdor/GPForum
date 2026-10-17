@@ -495,7 +495,8 @@ const my @SETTINGS => map {
         type    => 'integer',
         check   => 'positive',
         section => 'processes',
-        summary => 'Requests a web process serves before it is replaced.',
+        summary => 'Requests one keep-alive connection serves before it is'
+          . ' closed.',
     },
     {
         name    => 'runtime_keep_alive',

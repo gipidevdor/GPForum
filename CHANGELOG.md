@@ -1950,6 +1950,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **The personal feed leaves out members on the reader's ignore or block
+  list.** The inbox, the mentions page and the digest left out an ignored
+  or blocked member's replies and posts, but the feed still listed their
+  threads and posts. `community_list_feed_v3` (migration 126) judges the
+  list before `LIMIT`, so a page stays full; taking the member off the
+  list brings the items back (ADR 0130).
+
 - **Approving a held post no longer publishes it for a suspended author.**
   An approval wrote the post as its author's command, but the posting
   workflow trusts the controller's participation check, which an approval

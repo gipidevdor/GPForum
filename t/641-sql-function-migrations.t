@@ -83,6 +83,9 @@ const my %RETAINED_BOUNDARIES => (
     notification_digest_items  => [2],
     notification_digest_record => [2],
     notification_digest_plan   => [2],
+
+    # Migration 126 (the feed leaves out listed members) moved this on.
+    community_list_feed => [2],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;

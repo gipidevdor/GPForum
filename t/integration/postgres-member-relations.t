@@ -15,6 +15,7 @@ use lib 't/lib';
 use GPForum::Benchmark::SeedDataset qw(seed_id);
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::SqlFunction;
+use GPForum::Service::Community::FeedReader;
 use GPForum::Service::Community::MentionReader;
 use GPForum::Service::Community::MentionStore;
 use GPForum::Service::Community::RelationStore;
@@ -310,6 +311,61 @@ subtest 'export carries the own list and erasure empties both sides' => sub {
     );
     is( $relations->relation_between( $third, $owner ),
         undef, 'nobody lists the erased member' );
+};
+
+subtest 'the feed leaves out what a listed member wrote' => sub {
+    my ( $other_thread, $third_post ) = (
+        $dbh->selectrow_array(
+            q{SELECT t.thread_id FROM threads t WHERE t.author_user_id = ?}
+              . q{ AND t.deleted_at IS NULL ORDER BY t.thread_id LIMIT 1},
+            undef,
+            $other
+        ),
+        $dbh->selectrow_array(
+            q{SELECT p.post_id FROM posts p WHERE p.author_user_id = ?}
+              . q{ AND p.deleted_at IS NULL ORDER BY p.post_id LIMIT 1},
+            undef,
+            $third
+        )
+    );
+    ok( $other_thread && $third_post, 'the seed has a thread and a post' );
+    $dbh->do( q{DELETE FROM user_feed_items WHERE user_id = ?}, undef, $owner );
+    my $insert =
+        q{INSERT INTO user_feed_items (user_id, item_type, item_id,}
+      . q{ created_at, visibility_version, permission_version)}
+      . q{ VALUES (?, ?, ?, now() - ?::interval, 1, 1)};
+    $dbh->do( $insert, undef, $owner, 'post',   $post_id,      '1 minute' );
+    $dbh->do( $insert, undef, $owner, 'thread', $other_thread, '2 minutes' );
+    $dbh->do( $insert, undef, $owner, 'post',   $third_post,   '3 minutes' );
+    my $reader =
+      GPForum::Service::Community::FeedReader->new( schema => $schema );
+    my $feed = sub ($limit) {
+        return [
+            map { $_->{item_id} } @{
+                $reader->list_page_for_user( $owner, { limit => $limit } )
+                  ->{items}
+            }
+        ];
+    };
+    is_deeply(
+        $feed->(3),
+        [ $post_id, $other_thread, $third_post ],
+        'an unlisted member\'s post and thread are in the feed'
+    );
+
+    $relations->set_relation(
+        { owner_user_id => $owner, username => $other_name, kind => 'ignore' }
+    );
+    is_deeply( $feed->(1), [$third_post],
+        'ignoring them takes both out, before the page is cut' );
+    $relations->set_relation(
+        { owner_user_id => $owner, username => $other_name, kind => 'block' } );
+    is_deeply( $feed->(3), [$third_post], 'and so does blocking them' );
+
+    $relations->remove_relation(
+        { owner_user_id => $owner, username => $other_name } );
+    is( scalar @{ $feed->(3) }, 3, 'removing them brings the items back' );
+    $dbh->do( q{DELETE FROM user_feed_items WHERE user_id = ?}, undef, $owner );
 };
 
 subtest 'a member ignores, blocks and manages the list in the browser' => sub {

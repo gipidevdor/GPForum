@@ -520,7 +520,7 @@ const my %FUNCTION => (
         ]
     },
     community_list_feed => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id          => 'uuid',
             filter_sources   => 'boolean',

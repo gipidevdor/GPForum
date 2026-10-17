@@ -38,6 +38,11 @@ a versioned function of schema `api` (ADR 0126) with its definer boundary
   (`notification_list_inbox_v3`, `notification_unread_count_v3`,
   `community_list_mentions_v3`). Taking the member off the list brings the
   earlier ones back; notifications skipped meanwhile are not created later.
+- their threads and posts are left out of the owner's personal feed, judged
+  in the query before `LIMIT` as well (`community_list_feed_v3`, migration
+  126, an amendment of 2026-10-17: the feed had kept them while the inbox,
+  the mentions page and the digest left them out). Taking the member off
+  the list brings them back.
 
 **Block** is ignore plus a refusal of the blocked member's actions towards the
 owner: a mention of the owner is not recorded at all (`MentionStore` skips it
@@ -71,7 +76,8 @@ Product decisions:
 
 The viewer resolver reads the reader's list in its one query
 (`forum_resolve_viewer_v5`), so a thread page pays no query more.
-The inbox and mentions reads add an anti-join on the list's primary key.
+The inbox, mentions and feed reads add an anti-join on the list's primary
+key.
 
 ## References
 

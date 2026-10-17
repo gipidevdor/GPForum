@@ -99,6 +99,10 @@ const my %RETAINED => (
     # Migration 125 (member notes) moved this on.
     privacy_revoke_user_v9  => 0,
     privacy_revoke_user_v10 => 1,
+
+    # Migration 126 (the feed leaves out listed members) moved this on.
+    community_list_feed_v1 => 0,
+    community_list_feed_v2 => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

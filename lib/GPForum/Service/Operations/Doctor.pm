@@ -521,8 +521,51 @@ sub _database ( $self, $state ) {
         ],
     );
     $self->_over_tcp( $state, $source );
+    $self->_hidden_socket( $state, $database->{server} );
     $self->_schema($state);
     $self->_budgets($state);
+
+    return;
+}
+
+# A socket in /tmp or /var/tmp, which an installed unit with PrivateTmp=true
+# and no binding does not see: doctor, outside the unit, connects, and the
+# service finds no socket (ADR 0137).
+sub _hidden_socket ( $self, $state, $server ) {
+    my ($directory) = ( $server // q{} ) =~ m{\A (/.*) / [^/]+ \z}msx;
+    return if !defined $directory;
+    my $place =
+      GPForum::Service::Operations::ServiceFiles->private_tmp_place($directory);
+    return if !defined $place;
+
+    my $units = $self->_units($state);
+    return if !$units->applies;
+    my $unit = path( $units->directory, 'gpforum.service' );
+    return if !-e $unit;
+
+    my $text = $unit->slurp;
+    return if $text !~ /^PrivateTmp=true$/msx;
+    return
+      if $place eq 'below'
+      && $text =~ /^BindReadOnlyPaths=.*(?<!\S)\Q$directory\E(?!\S)/msx;
+
+    $state->{findings}->add(
+        name    => 'database_socket',
+        status  => 'fail',
+        message => [
+            'doctor.private_tmp', { unit => $unit->basename, socket => $server }
+        ],
+        fixes => [
+            [
+                'doctor.fix_private_tmp',
+                {
+                        command => $units->files->print_command('systemd')
+                      . ' --to '
+                      . $units->directory
+                }
+            ]
+        ],
+    );
 
     return;
 }

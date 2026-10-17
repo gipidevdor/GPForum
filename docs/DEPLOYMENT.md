@@ -669,7 +669,11 @@ Unix sockets are the default for both local PostgreSQL and proxy-to-Hypnotoad
 connections. `GPFORUM_DATABASE_DSN=dbi:Pg:dbname=gpforum` uses libpq's packaged
 socket directory; set `host=/path/to/directory` in that DSN when PostgreSQL
 keeps its socket elsewhere. A remote database still takes an explicit TCP
-host. Local peer authentication requires the service account and PostgreSQL
+host. The systemd units run with `PrivateTmp=true`; for a socket under
+`/tmp` the printed units bind its directory in read-only, and for one in
+`/tmp` itself they run without a private `/tmp` and say how to give the
+server a directory of its own (`unix_socket_directories`); `gpforum doctor`
+fails `database_socket` when an installed unit hides the socket (ADR 0137). Local peer authentication requires the service account and PostgreSQL
 role to agree, or a matching `pg_hba.conf` rule.
 When root runs `setup`, database provisioning stays privileged; connection
 checks, migrations and owner lookup use the service account. This matches

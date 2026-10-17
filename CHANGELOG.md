@@ -1901,6 +1901,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **A PostgreSQL whose socket is in `/tmp` was out of the services' reach.**
+  The systemd units run with `PrivateTmp=true`, a `/tmp` of their own, so a
+  server built from source, which keeps its socket in `/tmp`, answered
+  `gpforum doctor` and not the service. `gpforum service print systemd` now
+  binds a socket directory under `/tmp` into the units read-only, and for
+  `/tmp` itself writes `PrivateTmp=false` with how to give the server a
+  directory of its own; doctor fails `database_socket` when the installed
+  unit hides the socket it connected through (ADR 0137).
+
 - **`gpforum doctor` and `gpforum setup` named a socket "unix:5432", and a
   missing socket a refused connection.** A DSN without `host=` reaches
   PostgreSQL through libpq's socket directory, and both now name the socket

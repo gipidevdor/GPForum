@@ -13,6 +13,7 @@ use Mojo::Util qw(decode url_unescape xml_escape);
 
 use GPForum::Config;
 use GPForum::OS;
+use GPForum::Service::Operations::DatabaseProvisioning;
 use GPForum::Service::Operations::Host;
 
 our $VERSION = '0.001';
@@ -283,6 +284,10 @@ const my @EXAMPLE_NAMES =>
   qw(example example.com example.net example.org invalid test localhost);
 const my $LOOPBACK => qr{\A (?: 127[.] | \[? ::1 \]? \z )}msx;
 
+# The directories systemd's PrivateTmp= gives a unit its own copy of: a
+# PostgreSQL socket in the host's is not in the unit's (ADR 0137).
+const my %PRIVATE_TMP => map { $_ => 1 } qw(/tmp /var/tmp);
+
 # A file name a shell takes bare; any other is single-quoted.
 const my $SHELL_SAFE => qr{\A [\w/.,:@%+=-]+ \z}msx;
 
@@ -400,6 +405,55 @@ sub render ( $self, $target, $names = [], $directory = undef ) {
     return \@rendered;
 }
 
+# The directory of the socket a local database is reached through: the
+# DSN's host= when it names one, else the libpq default of the operating
+# system the units run on; undef for a database over TCP.
+sub database_socket_directory ($self) {
+    my $source =
+      GPForum::Service::Operations::DatabaseProvisioning->data_source(
+        $self->_setting('GPFORUM_DATABASE_DSN') );
+    return undef if !defined $source;
+
+    my $host = $source->{host};
+    return $self->_target_os('systemd')->postgresql_socket_directory
+      if !length $host;
+    return $host =~ m{\A /}msx ? $host =~ s{(?<=.)/+\z}{}rmsx : undef;
+}
+
+# Where a socket directory stands to a unit with PrivateTmp=true: 'private'
+# for /tmp or /var/tmp itself, which the unit has its own of; 'below' for a
+# directory under them, which it can see once bound in; undef otherwise.
+sub private_tmp_place ( $class, $directory ) {
+    return undef     if !defined $directory;
+    return 'private' if exists $PRIVATE_TMP{$directory};
+
+    my ($top) = $directory =~ m{\A ( /tmp | /var/tmp ) / }msx;
+    return defined $top ? 'below' : undef;
+}
+
+# A unit that would not see the database's socket: one in a directory under
+# /tmp is bound in read-only; /tmp itself cannot be, so the unit gives up its
+# private one, and says how to have it back.
+sub _private_tmp ( $self, $text ) {
+    my $directory = $self->database_socket_directory;
+    my $place     = __PACKAGE__->private_tmp_place($directory);
+    return $text if !defined $place;
+
+    my $instead =
+      $place eq 'below'
+      ? "PrivateTmp=true\nBindReadOnlyPaths=$directory"
+      : join "\n",
+"# PostgreSQL keeps its socket in $directory, which PrivateTmp=true would",
+      '# hide from the service (ADR 0137). To have the private /tmp back, give',
+      q{# the server a directory of its own -- unix_socket_directories =},
+      q{# '/run/postgresql, /tmp' -- set host=/run/postgresql in},
+      '# GPFORUM_DATABASE_DSN and print the units again.',
+      'PrivateTmp=false';
+    $text =~ s{^PrivateTmp=true$}{$instead}msx;
+
+    return $text;
+}
+
 # The template a file is rendered from.
 sub template_of ( $self, $target, $file ) {
     return $file->{template};
@@ -422,6 +476,9 @@ sub render_template ( $self, $target, $template, $file = {} ) {
     }
     if ( my $file_read = $self->_other_env_file($target) ) {
         $text = $self->_reading( $target, $text, $file_read, $file );
+    }
+    if ( $target eq 'systemd' ) {
+        $text = $self->_private_tmp($text);
     }
 
     return $text;
@@ -978,6 +1035,20 @@ What to read beside a target's files, as C<[ key, parameters ]> pairs of the
 command-line catalog. For a proxy, one says that its account joins the
 C<gpforum> group, which alone may open the service's socket, and the command
 that adds it on this operating system.
+
+=head2 database_socket_directory
+
+The directory of the socket a local database is reached through: the DSN's
+C<host=> when it is a directory, else the libpq default of the operating
+system the units run on; undef for a database over TCP.
+
+=head2 private_tmp_place
+
+Class method. Takes a socket directory and returns C<private> for C</tmp> or
+C</var/tmp> itself, C<below> for a directory under either, undef otherwise:
+where it stands to a unit with C<PrivateTmp=true>. A printed systemd unit
+binds a C<below> directory in read-only and runs without a private C</tmp>
+for a C<private> one (ADR 0137).
 
 =head2 service_socket
 

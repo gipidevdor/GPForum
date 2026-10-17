@@ -66,6 +66,21 @@ PostgreSQL.
    not there is its own failure, "there is no PostgreSQL socket at ...",
    with the start command and `host=` to correct, not a refused connection.
 
+6. **A unit sees the socket despite `PrivateTmp=true`.** The systemd units
+   run with a private `/tmp` and `/var/tmp`. A distribution keeps the socket
+   in `/var/run/postgresql`, which the units see; PostgreSQL's own build and
+   some packages keep it in `/tmp`, which they do not -- doctor, run outside
+   the unit, connected while the service found no socket. `gpforum service
+   print systemd` writes, for the database socket the DSN names (or libpq's
+   default): a directory under `/tmp` bound in with `BindReadOnlyPaths=`,
+   which follows a server restart since the directory, not the socket file,
+   is bound; for `/tmp` itself `PrivateTmp=false`, with a comment giving the
+   way back -- a socket directory of the server's own in
+   `unix_socket_directories` and `host=` naming it. Binding the socket file
+   alone was rejected: a restarted server makes a new file the unit would
+   not see. Doctor fails `database_socket` when the connection it made used
+   such a socket and the installed `gpforum.service` hides it.
+
 ### Server settings
 
 | Setting | Value | Why |
@@ -131,6 +146,8 @@ does.
   languages.
 - `t/695-socket-upgrade-path.t`: the TCP refusal in both languages, the
   sites written for the socket, the group note, and the doctor finding.
+- `t/696-private-tmp-socket.t`: the printed units for a socket outside, under
+  and in `/tmp`, and doctor on an installed unit that hides it.
 - `t/692-unix-listener.t`, `t/integration/postgres-unix-socket-clients.t`:
   the listener, its modes and the client addresses behind the proxy.
 

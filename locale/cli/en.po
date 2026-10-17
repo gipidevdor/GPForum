@@ -1988,6 +1988,17 @@ msgstr ""
 "point {host} at this host in the DNS, or correct GPFORUM_PUBLIC_BASE_URL "
 "{where}"
 
+#, python-brace-format
+msgctxt "doctor.fix_private_tmp"
+msgid ""
+"print the units for this host, which see the socket, with {command}, then "
+"sudo systemctl daemon-reload and restart them; or give PostgreSQL a socket "
+"directory outside /tmp and set host= to it"
+msgstr ""
+"print the units for this host, which see the socket, with {command}, then "
+"sudo systemctl daemon-reload and restart them; or give PostgreSQL a socket "
+"directory outside /tmp and set host= to it"
+
 msgctxt "doctor.fix_proxy"
 msgid "put GPForum's nginx site in place:"
 msgstr "put GPForum's nginx site in place:"
@@ -2039,6 +2050,15 @@ msgstr ""
 msgctxt "doctor.outbox_stalled_one"
 msgid "outbox worker: 1 message waiting for {age}; nothing is sending it"
 msgstr "outbox worker: 1 message waiting for {age}; nothing is sending it"
+
+#, python-brace-format
+msgctxt "doctor.private_tmp"
+msgid ""
+"database socket: {unit} runs with PrivateTmp=true, which hides {socket} from "
+"the service"
+msgstr ""
+"database socket: {unit} runs with PrivateTmp=true, which hides {socket} from "
+"the service"
 
 msgctxt "doctor.reason_refused"
 msgid "connection refused"

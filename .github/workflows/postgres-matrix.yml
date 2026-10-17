@@ -13,8 +13,12 @@ on:
       - 'lib/GPForum/Migration/**'
       - 'lib/GPForum/Schema/**'
       - 'lib/GPForum/Schema.pm'
+      - 'lib/GPForum/Config.pm'
+      - 'lib/GPForum/OS/RuntimeEvidence.pm'
+      - 'lib/GPForum/Command/PostgresPerformance.pm'
       - 'lib/GPForum/Query/**'
       - 'lib/GPForum/Infrastructure/SqlFunction*'
+      - 'lib/GPForum/Infrastructure/Postgres*'
       - 'lib/GPForum/Infrastructure/EventRecorder.pm'
       - 'lib/GPForum/Infrastructure/AuditRecord.pm'
       - 'lib/GPForum/Service/Forum/**'
@@ -31,6 +35,7 @@ on:
       - 'lib/GPForum/Service/Realtime/**'
       - 'lib/GPForum/Service/Operations/**'
       - 'lib/GPForum/Worker/**'
+      - 'lib/GPForum/Benchmark/PostgresMetrics.pm'
       - 'lib/GPForum/Benchmark/PlanRules.pm'
       - 'lib/GPForum/Benchmark/QueryPlanEndpoints.pm'
       - 'lib/GPForum/Command/QueryPlanEvidence.pm'
@@ -44,6 +49,9 @@ on:
       - 'lib/GPForum/Command/StagingDrill.pm'
       - 'bin/gpforum'
       - 'script/query-plan-*'
+      - 'script/bench-postgres-configuration'
+      - 'script/bench-sql-functions'
+      - 'script/performance-outbox.pl'
       - 'script/postgres-diagnostics'
       - 'script/lib/GPForum/PostgreSQL/**'
       - 'docs/ops/postgres-diagnostics-schema-v1.json'
@@ -60,8 +68,12 @@ on:
       - 'lib/GPForum/Migration/**'
       - 'lib/GPForum/Schema/**'
       - 'lib/GPForum/Schema.pm'
+      - 'lib/GPForum/Config.pm'
+      - 'lib/GPForum/OS/RuntimeEvidence.pm'
+      - 'lib/GPForum/Command/PostgresPerformance.pm'
       - 'lib/GPForum/Query/**'
       - 'lib/GPForum/Infrastructure/SqlFunction*'
+      - 'lib/GPForum/Infrastructure/Postgres*'
       - 'lib/GPForum/Infrastructure/EventRecorder.pm'
       - 'lib/GPForum/Infrastructure/AuditRecord.pm'
       - 'lib/GPForum/Service/Forum/**'
@@ -78,6 +90,7 @@ on:
       - 'lib/GPForum/Service/Realtime/**'
       - 'lib/GPForum/Service/Operations/**'
       - 'lib/GPForum/Worker/**'
+      - 'lib/GPForum/Benchmark/PostgresMetrics.pm'
       - 'lib/GPForum/Benchmark/PlanRules.pm'
       - 'lib/GPForum/Benchmark/QueryPlanEndpoints.pm'
       - 'lib/GPForum/Command/QueryPlanEvidence.pm'
@@ -91,6 +104,9 @@ on:
       - 'lib/GPForum/Command/StagingDrill.pm'
       - 'bin/gpforum'
       - 'script/query-plan-*'
+      - 'script/bench-postgres-configuration'
+      - 'script/bench-sql-functions'
+      - 'script/performance-outbox.pl'
       - 'script/postgres-diagnostics'
       - 'script/lib/GPForum/PostgreSQL/**'
       - 'docs/ops/postgres-diagnostics-schema-v1.json'
@@ -221,6 +237,9 @@ jobs:
       # The directory, never a list of files: a list is where a new test goes
       # to never run. t/190-gate-honesty.t holds every workflow to this.
       - name: Run PostgreSQL integration tier
+        env:
+          # This job owns its disposable PostgreSQL container, including ALTER SYSTEM.
+          GPFORUM_POSTGRES_CONTROLLED_TEST: '1'
         run: make integration
 
       - name: Run platform check

@@ -24,6 +24,7 @@ our $VERSION = '0.001';
 const my %LABEL => (
     antivirus            => 'status.label_antivirus',
     database             => 'status.label_database',
+    postgres_performance => 'status.label_postgres_performance',
     endpointquerybudget  => 'status.label_budget_table',
     eventlog             => 'status.label_event_table',
     operational_profile  => 'status.label_profile',
@@ -45,6 +46,7 @@ const my $MIGRATE => 'gpforum migrate';
 const my %FIX => (
     antivirus            => 'gpforum antivirus-check',
     database             => 'gpforum doctor',
+    postgres_performance => 'gpforum postgres-performance inspect',
     endpointquerybudget  => $MIGRATE,
     eventlog             => $MIGRATE,
     outboxmessage        => $MIGRATE,
@@ -55,7 +57,8 @@ const my %FIX => (
 
 # The commands above that say why rather than repair: "gpforum
 # antivirus-check says why".
-const my %EXPLAINS => map { $_ => 1 } qw(antivirus database);
+const my %EXPLAINS => map { $_ => 1 }
+  qw(antivirus database postgres_performance);
 
 # The modes a check reports, by check and mode, in the operator's words.
 const my %MODE => (
@@ -198,7 +201,8 @@ sub _mode_detail ( $self, $check ) {
 # Why a check is not ok, in the report's own words: its error, its mode, or
 # the parts of its report that are not ok.
 sub _reason ( $self, $check ) {
-    return _shortened( $check->{error} ) if defined $check->{error};
+    return _shortened( $check->{error} )  if defined $check->{error};
+    return _shortened( $check->{reason} ) if defined $check->{reason};
 
     my $report = $check->{report};
     if ( ref $report eq 'HASH' ) {

@@ -24,6 +24,7 @@ const my @VERBS => (
     [qw(setup setup setup)],
     [qw(migrate setup migrate)],
     [qw(api-role setup api_role)],
+    [qw(postgres-performance check postgres_performance)],
     [qw(admin setup admin)],
     [qw(secret setup secret)],
     [qw(start run start application)],

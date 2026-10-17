@@ -1306,3 +1306,17 @@ SQL timings and HTTP capacity. Nested `auto_explain` evidence now records
 per-statement numeric counters, with absent measurements represented by null;
 inclusive nested buffers are never summed. No new index or query optimization
 is claimed without a representative before/after experiment.
+
+## Explicit PostgreSQL profiles
+
+Production/staging connections and readiness inspect the same sized server profile.
+Use `gpforum postgres-performance inspect|plan|apply|verify` and the
+[operator runbook](ops/postgres-performance.md) to review effective values and
+restart requirements. Strict is opt-in; ordinary tuning differences warn.
+
+[The 2026-10-17 local A/B record](../benchmarks/postgres-configuration/2026-10-17/README.md)
+contains identical cloned 100,000 and 1,000,000-document corpora, service and
+outbox measurements, CPU/RSS, buffer/I/O/WAL counters and nested query plans.
+It does not establish a general performance improvement. The one-million
+document trigram query still exceeds the web search budget; changing a
+profile does not repair that query's candidate recheck cost.

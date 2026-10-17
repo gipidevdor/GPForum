@@ -9,6 +9,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Config;
+use GPForum::Infrastructure::PostgresPerformance;
 use GPForum::Infrastructure::Storage;
 use GPForum::Service::Clock;
 use GPForum::Service::I18N::CliCatalog;
@@ -52,6 +53,7 @@ const my $MIGRATIONS_RUNBOOK => 'docs/DEPLOYMENT.md#postgresql-baseline';
 const my %RUNBOOK => (
     antivirus            => 'docs/ops/antivirus.md',
     database             => 'docs/DEPLOYMENT.md#postgresql-baseline',
+    postgres_performance => 'docs/ops/postgres-performance.md',
     endpointquerybudget  => $MIGRATIONS_RUNBOOK,
     eventlog             => $MIGRATIONS_RUNBOOK,
     operational_profile  => 'docs/architecture/operational-profiles.md',
@@ -88,6 +90,7 @@ sub check ($self) {
         $self->_partition_horizon_check,
         $self->_profile_check,
         $self->_replication_slot_check,
+        $self->_postgres_performance_check,
     );
 
     for my $check (@checks) {
@@ -103,6 +106,27 @@ sub check ($self) {
         runtime     => $self->runtime ? $self->runtime->as_hash : {},
         timestamp   => $self->clock->now_iso8601,
         latency_ms  => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+    };
+}
+
+sub _postgres_performance_check ($self) {
+    my $started = time;
+    my $dbh     = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
+    return _ok_check( 'postgres_performance', time )
+      if !$dbh
+      || !$dbh->isa('DBI::db')
+      || ( $dbh->{Driver}{Name} // q{} ) ne 'Pg';
+    my $report = GPForum::Infrastructure::PostgresPerformance->new(
+        config => $self->_config,
+        dbh    => $dbh,
+    )->inspect;
+    return {
+        name   => 'postgres_performance',
+        status => $report->{status},
+        report => $report,
+        reason => join( '; ',
+            map { "$_->{parameter}: $_->{reason}" } @{ $report->{findings} } ),
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
     };
 }
 

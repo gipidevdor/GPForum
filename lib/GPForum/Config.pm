@@ -372,6 +372,71 @@ const my @SETTINGS => map {
           . ' 0 means no limit.',
     },
     {
+        name    => 'postgres_profile',
+        env     => 'GPFORUM_POSTGRES_PROFILE',
+        default => 'shared',
+        one_of  => [qw(shared dedicated)],
+        section => 'database',
+        summary =>
+          'PostgreSQL memory profile: shared host or dedicated server.',
+    },
+    {
+        name    => 'postgres_strict',
+        env     => 'GPFORUM_POSTGRES_STRICT',
+        default => 0,
+        type    => 'boolean',
+        section => 'database',
+        summary =>
+'Refuse nonconforming PostgreSQL connections when explicitly enabled.',
+    },
+    {
+        name    => 'postgres_topology',
+        env     => 'GPFORUM_POSTGRES_TOPOLOGY',
+        default => 'auto',
+        one_of  => [qw(auto local remote managed)],
+        section => 'database',
+        summary => 'Database location; declare managed services explicitly.',
+    },
+    {
+        name    => 'postgres_memory_mb',
+        env     => 'GPFORUM_POSTGRES_MEMORY_MB',
+        default => 0,
+        type    => 'integer',
+        check   => 'non_negative',
+        section => 'database',
+        summary =>
+'Database host or container RAM in MiB; 0 detects only for declared local servers.',
+    },
+    {
+        name    => 'postgres_reserve_mb',
+        env     => 'GPFORUM_POSTGRES_RESERVE_MB',
+        default => 0,
+        type    => 'integer',
+        check   => 'non_negative',
+        section => 'database',
+        summary =>
+'RAM reserved for OS, GPForum and other services; 0 reserves half on shared hosts.',
+    },
+    {
+        name    => 'postgres_cpu_count',
+        env     => 'GPFORUM_POSTGRES_CPU_COUNT',
+        default => 0,
+        type    => 'integer',
+        check   => 'non_negative',
+        section => 'database',
+        summary =>
+          'Database CPU cores; 0 detects only for declared local servers.',
+    },
+    {
+        name    => 'postgres_storage',
+        env     => 'GPFORUM_POSTGRES_STORAGE',
+        default => 'unknown',
+        one_of  => [qw(unknown hdd ssd nvme)],
+        section => 'database',
+        summary =>
+          'Database storage class; unknown uses conservative planner costs.',
+    },
+    {
         name    => 'database_idle_in_transaction_timeout_ms',
         env     => 'GPFORUM_DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS',
         default => 10_000,

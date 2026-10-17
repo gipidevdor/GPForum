@@ -18,6 +18,7 @@ use GPForum::Infrastructure::Storage;
 use GPForum::OS::RuntimePolicy;
 use GPForum::OS::Reactor ();
 use GPForum::Schema;
+use GPForum::Infrastructure::PostgresPerformance;
 
 our $VERSION = '0.001';
 
@@ -33,21 +34,6 @@ const my $SOCKET_INT_BYTES => 4;
 # The columns of one `df -P` line, in order.
 const my @DF_COLUMNS =>
   qw(filesystem blocks used available_blocks capacity mounted_on);
-const my @POSTGRESQL_SETTINGS => qw(
-  checkpoint_completion_target
-  checkpoint_timeout
-  effective_cache_size
-  effective_io_concurrency
-  maintenance_work_mem
-  max_connections
-  max_wal_size
-  min_wal_size
-  random_page_cost
-  shared_buffers
-  synchronous_commit
-  wal_buffers
-  work_mem
-);
 
 # Each one is built on first use when it was not given: from the
 # environment, from the database the configuration names, or a fresh
@@ -225,43 +211,12 @@ sub _postgresql_report ($self) {
       }
       if !$dbh;
 
-    my $rows;
-    try {
-        my $placeholders = join q{,}, map { q{?} } @POSTGRESQL_SETTINGS;
-        $rows = $dbh->selectall_arrayref(
-            <<"SQL", { Slice => {} }, @POSTGRESQL_SETTINGS );
-SELECT name, setting, unit, source
-  FROM pg_settings
- WHERE name IN ($placeholders)
- ORDER BY name
-SQL
-    }
-    catch ($error) {
-        $rows = undef;
-    };
-    return {
-        status    => $STATUS_UNAVAILABLE,
-        available => 0,
-        reason    => 'pg_settings query failed',
-      }
-      if !$rows;
-
-    my %settings;
-    for my $row ( @{$rows} ) {
-        $settings{ $row->{name} } = {
-            setting => $row->{setting},
-            unit    => $row->{unit},
-            source  => $row->{source},
-        };
-    }
-
-    return {
-        status             => $STATUS_CONFIGURABLE,
-        available          => 1,
-        settings           => \%settings,
-        tuning_scope       => 'server-current-settings',
-        applied_by_gpforum => 0,
-    };
+    my $report = GPForum::Infrastructure::PostgresPerformance->new(
+        config => $self->_config,
+        dbh    => $dbh,
+    )->inspect;
+    $report->{tuning_scope} = 'server-current-settings';
+    return $report;
 }
 
 sub _filesystem_report ($self) {

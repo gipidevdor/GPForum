@@ -32,6 +32,7 @@ the verb, or says `none`.
 | --- | --- | --- |
 | `gpforum setup` | none | Makes the account, the environment file, the database and the schema before the forum runs; there is no console yet. |
 | `gpforum migrate` | none | The migrations, the partition window and the query budgets. Runs at deploy, before the new code serves. A web request must not change the schema of the database it is reading. |
+| `gpforum postgres-performance` | none | Inspect, plan, apply and verify server tuning with a separate operator connection; cluster-wide changes require explicit authority ([runbook](postgres-performance.md)). |
 | `gpforum api-role` | none | Plans the application login's access to the catalogued PostgreSQL functions; `--apply` provisions it after migrations. Uses the separate operator connection and environment file ([application role provisioning](sql-api-role.md)); web and worker services use the restricted login. |
 | `gpforum admin` | none | `gpforum admin create` makes the forum's owner, active and verified, before anyone can sign in to the console; `gpforum admin grant EMAIL` makes a member one. Later administrators are bound on `/admin/users/:user_id/roles`. |
 | `gpforum secret` | none | It writes the environment file, which the console only reads (`/admin/settings`). |

@@ -25,7 +25,7 @@ use GPForum::Test::SharedCacheClient;
 our $VERSION = '0.001';
 
 const my $EXPECTED_TESTS              => 47;
-const my $CHECK_COUNT                 => 14;
+const my $CHECK_COUNT                 => 15;
 const my $ENDPOINT_BUDGET_CHECK_INDEX => 7;
 const my $QUERY_BUDGET_DRIFT_INDEX    => 8;
 const my $SHARED_CACHE_CHECK_INDEX    => 9;

@@ -81,6 +81,13 @@ const my @SECTIONS => (
                 GPFORUM_DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS =>
                   'database_idle_in_transaction_timeout_ms'
             ],
+            [ GPFORUM_POSTGRES_PROFILE         => 'postgres_profile' ],
+            [ GPFORUM_POSTGRES_STRICT          => 'postgres_strict' ],
+            [ GPFORUM_POSTGRES_TOPOLOGY        => 'postgres_topology' ],
+            [ GPFORUM_POSTGRES_MEMORY_MB       => 'postgres_memory_mb' ],
+            [ GPFORUM_POSTGRES_RESERVE_MB      => 'postgres_reserve_mb' ],
+            [ GPFORUM_POSTGRES_CPU_COUNT       => 'postgres_cpu_count' ],
+            [ GPFORUM_POSTGRES_STORAGE         => 'postgres_storage' ],
             [ GPFORUM_DATABASE_LOCK_TIMEOUT_MS => 'database_lock_timeout_ms' ],
         ],
     },

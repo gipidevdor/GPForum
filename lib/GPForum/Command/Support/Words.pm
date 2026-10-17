@@ -70,7 +70,9 @@ const my %ENGLISH => (
 
     'cli.verb.setup' =>
       'Set this host up: the settings, the database, the schema',
-    'cli.verb.migrate'  => 'Bring the database up to date',
+    'cli.verb.migrate'              => 'Bring the database up to date',
+    'cli.verb.postgres_performance' =>
+      'Inspect and enforce PostgreSQL performance settings',
     'cli.verb.api_role' => 'Provision the PostgreSQL application role',
     'cli.verb.admin'    => q{Create the forum's owner, or make a member one},
     'cli.verb.secret'   => 'Rotate the session secret or the metrics token',

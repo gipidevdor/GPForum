@@ -110,7 +110,10 @@ const my @ROUND_TRIPS => qw(
   begin_work commit rollback pg_savepoint pg_release pg_rollback_to
 );
 
-exit main(@ARGV);
+# The configuration benchmark explicitly loads this workload as a library.
+# Other callers (including failure-injection drills using do) still run it.
+our $LOAD_AS_LIBRARY;
+exit main(@ARGV) if !$LOAD_AS_LIBRARY;
 
 sub main (@arguments) {
     my %option = %DEFAULT;
@@ -1137,3 +1140,5 @@ sub _before_catalogue ( $entries, $version ) {
 
     return ( $before, $class );
 }
+
+1;

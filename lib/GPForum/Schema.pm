@@ -11,7 +11,21 @@ our $VERSION = '0.001';
 __PACKAGE__->load_namespaces;
 
 sub connect_from_config ( $class, $config ) {
-    return $class->connect( $config->database_connect_info );
+    my ( $dsn, $user, $password, $attributes ) = $config->database_connect_info;
+    if (   $config->is_production
+        || $config->environment eq 'staging'
+        || $config->postgres_strict )
+    {
+        $attributes->{on_connect_call} = sub ($storage) {
+            require GPForum::Infrastructure::PostgresPerformance;
+            GPForum::Infrastructure::PostgresPerformance->new(
+                config => $config,
+                dbh    => $storage->dbh,
+            )->enforce;
+            return;
+        };
+    }
+    return $class->connect( $dsn, $user, $password, $attributes );
 }
 
 1;

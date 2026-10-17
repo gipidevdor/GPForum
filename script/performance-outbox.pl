@@ -17,6 +17,8 @@ use Time::HiRes   qw(time);
 use lib 'lib';
 use lib 't/lib';
 
+use GPForum::Benchmark::PostgresMetrics
+  qw(snapshot process_snapshot local_backend_pid);
 use GPForum::Command::Migrate;
 use GPForum::Service::Outbox::Dispatcher;
 use GPForum::Test::OutboxTransport;
@@ -106,6 +108,8 @@ sub _benchmark ($option) {
           { messages => $options{messages}, batch_size => $BATCH_SIZE },
         limitations => [
             'No-op transport excludes real handlers and external delivery.',
+'CPU/RSS samples cover local Unix-socket backends and workers; remote backend CPU is unavailable. RSS includes shared mappings; ps CPU has centisecond precision.',
+'I/O and WAL counters include cluster background activity; track_io_timing off makes I/O duration unavailable.',
 'Batch percentiles include claim, renewal, dispatch and acknowledgement.',
 'Timed wall span includes worker connection startup; migrations and seeding excluded.',
         ],
@@ -155,6 +159,7 @@ sub _run ( $database, $messages, $workers, $repetition, $children ) {
         push @{$children}, $pid;
     }
     close $barrier_read or croak "close barrier: $OS_ERROR";
+    my $before  = snapshot($dbh);
     my $started = time;
     print {$barrier_write} 'x' x $workers or croak "release barrier: $OS_ERROR";
     close $barrier_write                  or croak "close barrier: $OS_ERROR";
@@ -165,8 +170,17 @@ sub _run ( $database, $messages, $workers, $repetition, $children ) {
     }
     @{$children} = ();
     my $elapsed = time - $started;
-    return _summary( $dbh, $messages, $workers, $repetition,
+    my $summary = _summary( $dbh, $messages, $workers, $repetition,
         $directory, $elapsed, $failed );
+    $summary->{before}             = $before;
+    $summary->{after}              = snapshot($dbh);
+    $summary->{wal_bytes_inserted} = $dbh->selectrow_array(
+        'SELECT pg_wal_lsn_diff(?::pg_lsn, ?::pg_lsn)',
+        undef,
+        $summary->{after}{lsn},
+        $summary->{before}{lsn}
+    );
+    return $summary;
 }
 
 sub _spawn ( $database, $worker, $directory, $barrier_read, $barrier_write ) {
@@ -207,13 +221,15 @@ sub _summary ( $dbh, $messages, $workers, $repetition,
     $directory, $elapsed, $failed )
 {
     my @delivered;
+    my @resources;
     my @batch_ms;
     my $acknowledged = 0;
     my @errors;
     for my $worker ( 1 .. $workers ) {
         my $report = _read_report("$directory/$worker.json");
         push @delivered, @{ $report->{delivered} // [] };
-        push @batch_ms,  @{ $report->{batch_ms}  // [] };
+        push @resources, $report->{resources};
+        push @batch_ms,  @{ $report->{batch_ms} // [] };
         $acknowledged += $report->{acknowledged} // 0;
         if ( $report->{error} ) {
             push @errors, $report->{error};
@@ -232,6 +248,7 @@ sub _summary ( $dbh, $messages, $workers, $repetition,
           || $lost
           || $incomplete ? 'fail' : 'ok',
         workers             => $workers,
+        worker_resources    => \@resources,
         repetition          => $repetition,
         messages            => $messages,
         duration_seconds    => $elapsed,
@@ -266,7 +283,12 @@ sub _worker ($number) {
         worker_id => "performance-worker-$number",
     );
     my @batch_ms;
+    my $dbh          = $schema->storage->dbh;
+    my $backend      = local_backend_pid($dbh);
+    my $pg_before    = process_snapshot($backend);
+    my @cpu_before   = times;
     my $acknowledged = 0;
+
     while (1) {
         my $started = time;
         my $batch   = $dispatcher->dispatch_pending($BATCH_SIZE);
@@ -274,8 +296,23 @@ sub _worker ($number) {
         push @batch_ms, ( time - $started ) * $MILLISECONDS;
         $acknowledged += $batch->{acknowledged};
     }
+    my @cpu_after = times;
+    my $pg_after  = process_snapshot($backend);
+    my $resources = {
+        application_cpu_seconds => $cpu_after[0] +
+          $cpu_after[1] -
+          $cpu_before[0] -
+          $cpu_before[1],
+        application_process  => process_snapshot($PROCESS_ID),
+        postgres_before      => $pg_before,
+        postgres_after       => $pg_after,
+        postgres_cpu_seconds => $pg_before && $pg_after
+        ? $pg_after->{cpu_seconds} - $pg_before->{cpu_seconds}
+        : undef,
+    };
     $schema->storage->disconnect;
     return {
+        resources    => $resources,
         status       => 'ok',
         delivered    => $transport->delivered,
         batch_ms     => \@batch_ms,

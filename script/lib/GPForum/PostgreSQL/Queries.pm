@@ -90,7 +90,7 @@ JOIN pg_catalog.pg_database d ON d.oid = s.datid
 WHERE s.datname = current_database()
 SQL
         settings => <<'SQL',
-SELECT name, setting, unit, pending_restart
+SELECT name, setting, unit, source, context, pending_restart
 FROM pg_catalog.pg_settings
 WHERE name IN ('autovacuum', 'autovacuum_analyze_threshold',
  'autovacuum_analyze_scale_factor', 'autovacuum_vacuum_threshold',

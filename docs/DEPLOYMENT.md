@@ -808,6 +808,15 @@ leave the URL empty instead.
 
 ## PostgreSQL Baseline
 
+Select and verify an explicit sized PostgreSQL profile before production:
+[`gpforum postgres-performance`](ops/postgres-performance.md) inspects effective
+settings, exports a plan, applies individually authorized changes to an identified
+controlled cluster, and verifies activation. Production and staging connections
+warn on drift, readiness exposes findings, and opt-in
+`GPFORUM_POSTGRES_STRICT=1` refuses nonconforming connections. Remote/managed
+servers require declared server resources; shared hosts default to conservative
+memory reserves. Server restarts remain an operator action.
+
 Minimum recommended posture:
 
 - application role is not PostgreSQL superuser;

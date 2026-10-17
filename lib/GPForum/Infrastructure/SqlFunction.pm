@@ -20,6 +20,9 @@ const my $INVALID_PARAMETER => '22023';
 const my $UNIQUE_VIOLATION  => '23505';
 const my $POSTGRESQL_DSN    => qr/\A dbi:Pg:/imsx;
 
+# A uuid as PostgreSQL writes one and GPForum::Infrastructure::Id makes one.
+const my $WRITTEN_UUID => GPForum::Infrastructure::Id->uuid_pattern;
+
 # What a jsonb parameter given as a reference is written as, and what a json
 # column is read with: the codec the json columns of GPForum::Schema use.
 my $JSON = JSON::MaybeXS->new( canonical => 1, utf8 => 0 );
@@ -169,6 +172,10 @@ sub _typed ( $type, $value ) {
 # PostgreSQL would refuse the whole statement, which a page answered as a
 # 500 for a row that is not there. The call is not made and there are no
 # rows, as Infrastructure::PreparedQuery does for its statements.
+#
+# The ids GPForum writes itself -- the database's, the generator's -- are in
+# the one shape $WRITTEN_UUID matches, read at half the cost of every
+# spelling PostgreSQL accepts; only another is held to those.
 sub _malformed_id ( $entry, $bound ) {
     for my $index ( 0 .. $#{$bound} ) {
         next
@@ -181,6 +188,7 @@ sub _malformed_id ( $entry, $bound ) {
             : $bound->[$index]
           )
         {
+            next     if defined $value && $value =~ $WRITTEN_UUID;
             return 1 if !GPForum::Infrastructure::Id->is_uuid_spelling($value);
         }
     }
@@ -198,17 +206,52 @@ sub _execute ( $self, $entry, $bound ) {
         $stats->query_start( $entry->{sql},
             map { defined $_ ? $_ : 'NULL' } @{$bound} );
     }
-    my $rows = $storage->dbh_do(
-        sub ( $, $dbh ) {
-            return $self->_fetch( $dbh, $entry, $bound );
-        }
-    );
+    my $rows = $self->_on_handle( $storage, $entry, $bound );
     if ($stats) {
         $stats->query_end( $entry->{sql},
             map { defined $_ ? $_ : 'NULL' } @{$bound} );
     }
 
     return $rows;
+}
+
+# What dbh_do did for a call, without the block runner it built for each one
+# -- an object, a Try::Tiny and a preserved context, 20 us of a 64 us call:
+# the storage's handle as it stands, which DBIx::Class makes again in a
+# forked process, and, outside a transaction, one more try on a new
+# connection when the first failed because the connection was gone (after a
+# restart of PostgreSQL, say), as dbh_do retries. Inside txn_do the call
+# joins the transaction and is not tried again: a new connection would not
+# be in it.
+#
+# A storage that is not DBIx::Class's own -- a test's double, which answers
+# dbh_do alone -- is called through dbh_do, as before.
+sub _on_handle ( $self, $storage, $entry, $bound ) {
+    if ( !$storage->isa('DBIx::Class::Storage::DBI') ) {
+        return $storage->dbh_do(
+            sub ( $, $dbh ) { return $self->_fetch( $dbh, $entry, $bound ); } );
+    }
+
+    my ( $rows, $failure );
+    try {
+        $rows = $self->_fetch( _handle($storage), $entry, $bound );
+    }
+    catch ($error) {
+        $failure = $error;
+    };
+    return $rows   if !defined $failure;
+    croak $failure if $storage->transaction_depth || $storage->connected;
+
+    $storage->ensure_connected;
+
+    return $self->_fetch( _handle($storage), $entry, $bound );
+}
+
+# The storage's handle, connected again after a fork, never pinged: the
+# handle dbh_do gives its code. DBIx::Class names it _get_dbh; dbh, the
+# public one, pings PostgreSQL first, a round trip a call.
+sub _handle ($storage) {
+    return $storage->_get_dbh;
 }
 
 sub _fetch ( $self, $dbh, $entry, $bound ) {

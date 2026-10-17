@@ -34,7 +34,7 @@ const my %METHODS => (
         'DBIx::Class::Storage::DBI' => [
             qw(txn_do dbh_do insert update delete select select_single
               txn_begin txn_commit txn_rollback svp_begin svp_release dbh
-              _gen_sql_bind)
+              _get_dbh _gen_sql_bind)
         ],
     },
     dbi => {
@@ -50,6 +50,10 @@ const my %METHODS => (
         ],
     },
 );
+
+# Every bucket a measure answers, one that took no time as 0: a function
+# call charges DBIx::Class only the handle it takes.
+const my @BUCKETS => ( ( sort keys %METHODS ), 'other' );
 
 has active   => 0;
 has original => sub { return {}; };
@@ -91,7 +95,7 @@ sub unwrap ($self) {
 # Runs the code and answers the exclusive seconds each bucket took, and
 # "other" for the rest.
 sub measure ( $self, $code ) {
-    $self->spent( {} );
+    $self->spent( { map { $_ => 0 } @BUCKETS } );
     $self->stack( [] );
     $self->since(time);
     $self->active(1);
@@ -208,7 +212,7 @@ Puts the methods back.
 =head2 measure
 
 Runs the code and returns the exclusive seconds of each bucket: C<dbic>,
-C<dbi> and C<other>.
+C<dbi> and C<other>, each, 0 for one that took no time.
 
 =head2 charge
 

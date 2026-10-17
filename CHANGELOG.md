@@ -1140,6 +1140,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **A function call costs a third less in Perl.**
+  `GPForum::Infrastructure::SqlFunction` ran each call through DBIx::Class's
+  `dbh_do`, which built a block runner, a Try::Tiny and a preserved context
+  for every call: 20 of a 64 µs call. It now takes the storage's handle as
+  `dbh_do` did, and outside a transaction tries once more on a new
+  connection when the connection was gone, as `dbh_do` did
+  (`t/integration/postgres-sql-function-reconnect.t`). A uuid parameter in
+  the shape PostgreSQL and GPForum write is read by one pattern before the
+  other spellings PostgreSQL accepts, half the cost for the 50 ids of a
+  thread page's reads.
 - **A signed-in thread page sends five statements instead of eleven.** The
   reads it makes once it has its posts -- the likes, the posts they answer,
   the tags, the attachment links, and a member's bookmark, subscription

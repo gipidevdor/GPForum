@@ -302,6 +302,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **A few kilobytes of fence lines took seconds to render.** The body
+  renderer searched the rest of the body from each line opening a code
+  fence, and the rest of a paragraph from each `[`: 4,000 lines of "```a"
+  took over three seconds to write, and again to read. It now reads a
+  body in one pass, and a test counts the characters it reads on
+  adversarial bodies.
+
 - **The proxy's account could replace stored uploads.** `gpforum start
   --service` set umask 007 before Hypnotoad so the socket would be the
   `gpforum` group's, and every file the service wrote became the group's to

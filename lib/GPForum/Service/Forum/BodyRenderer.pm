@@ -4,7 +4,8 @@
 package GPForum::Service::Forum::BodyRenderer;
 
 use Const::Fast;
-use List::Util qw(any first);
+use English    qw(-no_match_vars);
+use List::Util qw(any);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::Util qw(xml_escape);
@@ -18,6 +19,9 @@ const my $KEEP_TRAILING => -1;
 const my $INDEX_MISS    => -1;
 const my $REL_SAFE      => 'nofollow noopener noreferrer';
 const my @SAFE_SCHEMES  => ( 'https://', 'http://', 'mailto:' );
+
+# Enough of a URL to tell whether it starts with an allowed scheme.
+const my $SCHEME_PROBE => 8;
 
 # A line, with or without its newline, that opens a fence (three backticks
 # and an info string with no backtick) or closes one (three backticks and
@@ -61,40 +65,60 @@ sub _render ($source) {
     );
 }
 
-# The source cut into fences and the prose between them. A fence is the lines
-# between an opening line and the first closing line below it; an opening
-# line that is never closed is prose, up to the next line that opens one.
+# The source cut into fences and the prose between them, in one pass over its
+# lines. A fence is the lines between an opening line, newline included, and
+# the first closing line below it; a prose run ends before any line that
+# opens a fence. An opening line with no closing line below is prose: when
+# the pass ends inside a fence, the lines held for it go back as prose. No
+# line is read more than twice, whatever the body holds -- searching the rest
+# of the body from each opening line made 4,000 of them take three seconds.
 sub _tokens ($text) {
-    my @lines = split /(?<=\n)/msx, $text;
     my @tokens;
-    my $at = 0;
-    while ( $at < @lines ) {
-        my $closing = _fence_close( \@lines, $at );
-        if ( defined $closing ) {
-            my $body = join q{}, @lines[ $at + 1 .. $closing - 1 ];
-            push @tokens, { text => $body =~ s/\n\z//msxr, type => 'fence' };
-            $at = $closing + 1;
+    my ( $fence, $prose );
+    for my $line ( split /(?<=\n)/msx, $text ) {
+        if ($fence) {
+            if ( _closes($line) ) {
+                my $body = join q{}, @{$fence}[ 1 .. $#{$fence} ];
+                push @tokens,
+                  { text => $body =~ s/\n\z//msxr, type => 'fence' };
+                ( $fence, $prose ) = ();
+                next;
+            }
+            push @{$fence}, $line;
             next;
         }
-
-        my $end = first { $lines[$_] =~ $OPEN_FENCE } $at + 1 .. $#lines;
-        $end //= scalar @lines;
-        push @tokens,
-          { text => join( q{}, @lines[ $at .. $end - 1 ] ), type => 'prose' };
-        $at = $end;
+        my $opens = _opens($line);
+        if ( $opens && $line =~ /\n\z/msx ) {
+            $fence = [$line];
+            next;
+        }
+        $prose = _prose_line( \@tokens, $opens ? undef : $prose, $line );
+    }
+    for my $line ( @{ $fence // [] } ) {
+        $prose = _prose_line( \@tokens, _opens($line) ? undef : $prose, $line );
     }
 
     return \@tokens;
 }
 
-# The index of the line that closes the fence line $at opens, or undef when
-# it opens none: an opening line needs its newline and a closing line below.
-sub _fence_close ( $lines, $at ) {
-    if ( $lines->[$at] !~ $OPEN_FENCE || $lines->[$at] !~ /\n\z/msx ) {
-        return undef;
+# $line added to the prose run $prose, or to a new one when there is none;
+# the run it went to.
+sub _prose_line ( $tokens, $prose, $line ) {
+    if ( !$prose ) {
+        $prose = { text => q{}, type => 'prose' };
+        push @{$tokens}, $prose;
     }
+    $prose->{text} .= $line;
 
-    return first { $lines->[$_] =~ $CLOSE_FENCE } $at + 1 .. $#{$lines};
+    return $prose;
+}
+
+sub _opens ($line) {
+    return $line =~ $OPEN_FENCE;
+}
+
+sub _closes ($line) {
+    return $line =~ $CLOSE_FENCE;
 }
 
 # Prose is paragraphs and block quotes: a run of quoted lines is one quote, a
@@ -166,12 +190,17 @@ sub _inline ($raw) {
 }
 
 # Links in escaped text: [label](url), not after a "!" (an image), with a
-# URL _link_at accepts. Any other "[" stays as typed.
+# URL _target accepts. Any other "[" stays as typed. The target found for
+# one "[" is kept for the next while it still lies ahead, so a run of "["
+# before one far "](" reads the text once, not once for each "[".
 sub _links ($text) {
     my $out = q{};
     my $pos = 0;
-    while ( ( my $open = index $text, '[', $pos ) != $INDEX_MISS ) {
-        my $link = _link_at( $text, $open );
+    my %ahead;
+    while ( !$ahead{exhausted}
+        && ( my $open = _scan( $text, '[', $pos ) ) != $INDEX_MISS )
+    {
+        my $link = _link_at( $text, $open, \%ahead );
         if ( !$link ) {
             $out .= substr $text, $pos, $open - $pos + 1;
             $pos = $open + 1;
@@ -184,42 +213,84 @@ sub _links ($text) {
     return $out . substr $text, $pos;
 }
 
-# The anchor for the link opening at $open, and where it ends; undef unless
-# its URL, already escaped, holds no entity but &amp; and no space and starts
-# with an allowed scheme.
-sub _link_at ( $text, $open ) {
+# The anchor for the link opening at $open, and where it ends; undef when
+# the "[" follows a "!" or has no allowed target.
+sub _link_at ( $text, $open, $ahead ) {
     if ( $open > 0 && substr( $text, $open - 1, 1 ) eq q{!} ) {
         return undef;
     }
-    my $mid = index $text, $LINK_CLOSE, $open + 1;
-    if ( $mid == $INDEX_MISS ) {
-        return undef;
-    }
-    my $url_start = $mid + length $LINK_CLOSE;
-    my $link_end  = index $text, ')', $url_start;
-    if ( $link_end == $INDEX_MISS ) {
+    my $target = _target( $text, $open, $ahead );
+    if ( !$target ) {
         return undef;
     }
 
-    my $url    = substr $text, $url_start, $link_end - $url_start;
-    my $probe  = $url =~ s/&amp;//gmsxr;
-    my $scheme = lc $url;
-    if (   index( $probe, q{&} ) != $INDEX_MISS
-        || $probe =~ /[[:space:]]/msx
-        || !( any { index( $scheme, $_ ) == 0 } @SAFE_SCHEMES ) )
-    {
-        return undef;
-    }
-
-    my $label = substr $text, $open + 1, $mid - $open - 1;
+    my $url_start = $target->{mid} + length $LINK_CLOSE;
+    my $url       = substr $text, $url_start, $target->{end} - $url_start;
+    my $label     = substr $text, $open + 1, $target->{mid} - $open - 1;
     return {
-        end  => $link_end + 1,
+        end  => $target->{end} + 1,
         html => '<a href="'
           . $url
           . '" rel="'
           . $REL_SAFE . q{">}
           . $label . '</a>',
     };
+}
+
+# The "](" after $open, the first ")" after that, and the first flaw after
+# that, in %{$ahead}; the target when its URL, already escaped, starts with an
+# allowed scheme and holds no flaw before its ")". Each position is searched
+# again only once $open has passed it: the next "](" lies after the last, so
+# the ")" and flaw found for the last are still the first after it, if they
+# lie beyond. Sets exhausted when no "](" or ")" is left, and so no link.
+sub _target ( $text, $open, $ahead ) {
+    if ( ( $ahead->{mid} // $INDEX_MISS ) <= $open ) {
+        my $mid = _scan( $text, $LINK_CLOSE, $open + 1 );
+        if ( $mid == $INDEX_MISS ) {
+            $ahead->{exhausted} = 1;
+            return undef;
+        }
+        my $url_start = $mid + length $LINK_CLOSE;
+        my $end =
+          ( $ahead->{end} // $INDEX_MISS ) >= $url_start
+          ? $ahead->{end}
+          : _scan( $text, ')', $url_start );
+        if ( $end == $INDEX_MISS ) {
+            $ahead->{exhausted} = 1;
+            return undef;
+        }
+        my $flaw =
+          ( $ahead->{flaw} // $INDEX_MISS ) >= $url_start
+          ? $ahead->{flaw}
+          : _flaw( $text, $url_start );
+        my $scheme = lc substr $text, $url_start, $SCHEME_PROBE;
+        %{$ahead} = (
+            end  => $end,
+            flaw => $flaw,
+            mid  => $mid,
+            safe => $flaw >= $end
+              && ( any { index( $scheme, $_ ) == 0 } @SAFE_SCHEMES ),
+        );
+    }
+
+    return $ahead->{safe} ? $ahead : undef;
+}
+
+# The first index at or after $from of whitespace or an entity but &amp;, or
+# the length of $text when there is none.
+sub _flaw ( $text, $from ) {
+    pos $text = $from;
+    if ( $text =~ / [[:space:]] | & (?! amp; ) /gmsx ) {
+        return $LAST_MATCH_START[0];
+    }
+
+    return length $text;
+}
+
+# The index of $needle in $text at or after $from, or -1: every search the
+# renderer makes goes through here, so a test can count what it reads.
+sub _scan ( $text, $needle, $from ) {
+    return index $text, $needle, $from;
 }
 
 # Emphasis runs after _links, so the string already contains the anchors that

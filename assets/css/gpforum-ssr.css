@@ -1585,6 +1585,13 @@ nav[aria-label$="pagination" i] a:hover,
   font-size: var(--font-size-lg);
 }
 
+/* A member's own picture in the same circle: the square the server cropped,
+   filling it, over the tint while it loads. */
+.avatar--picture {
+  display: block;
+  object-fit: cover;
+}
+
 /* A member's page opens with who they are, then what they have done in a
    line of figures. */
 .profile {

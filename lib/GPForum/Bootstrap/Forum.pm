@@ -6,6 +6,7 @@ package GPForum::Bootstrap::Forum;
 use v5.40;
 
 use GPForum::Infrastructure::Antivirus;
+use GPForum::Infrastructure::ImageTool;
 use GPForum::Service::Attachment::Delivery;
 use GPForum::Service::Attachment::FilesystemStorage;
 use GPForum::Service::Attachment::IntentBuilder;
@@ -13,6 +14,8 @@ use GPForum::Service::Attachment::MediaProcessor;
 use GPForum::Service::Attachment::Store;
 use GPForum::Service::Attachment::UploadPipeline;
 use GPForum::Service::Attachment::Workflow;
+use GPForum::Service::Community::AvatarStore;
+use GPForum::Service::Community::Avatars;
 use GPForum::Service::Community::BookmarkStore;
 use GPForum::Service::Community::BookmarkFolders;
 use GPForum::Service::Community::LikeStore;
@@ -353,8 +356,50 @@ sub _register_attachment_helpers {
             my ($controller) = @_;
 
             return GPForum::Service::Attachment::MediaProcessor->new(
+                avatars => $controller->gp_avatars,
                 storage => $controller->gp_attachment_storage,
                 store   => $controller->gp_attachment_store,
+            );
+        }
+    );
+
+    # ADR 0144: members' profile pictures, cropped by the system's image
+    # tool (built once: it holds only its program's path).
+    my ( $image_tool, $image_tool_built );
+    $application->helper(
+        gp_image_tool => sub {
+            my ($controller) = @_;
+
+            if ( !$image_tool_built ) {
+                $image_tool = GPForum::Infrastructure::ImageTool->from_config(
+                    $controller->gp_config );
+                $image_tool_built = 1;
+            }
+            return $image_tool;
+        }
+    );
+    $application->helper(
+        gp_avatar_store => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Community::AvatarStore->new(
+                clock      => $controller->gp_clock,
+                id_service => $controller->gp_id,
+                schema     => $controller->gp_schema,
+            );
+        }
+    );
+    $application->helper(
+        gp_avatars => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Community::Avatars->new(
+                attachments => $controller->gp_attachment_store,
+                image_tool  => $controller->gp_image_tool,
+                logger      => $controller->app->log,
+                pipeline    => $controller->gp_attachment_upload_pipeline,
+                storage     => $controller->gp_attachment_storage,
+                store       => $controller->gp_avatar_store,
             );
         }
     );

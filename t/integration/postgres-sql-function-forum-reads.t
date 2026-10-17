@@ -313,10 +313,17 @@ sub _readers (%options) {
     return \%reader;
 }
 
+# A thread page's posts also name the author's picture on the function
+# path (ADR 0144, migration 132), which the prepared statements never read:
+# the rest must match column for column.
 sub _columns ($rows) {
     return undef                             if !$rows;
     return [ map { _columns($_) } @{$rows} ] if ref $rows eq 'ARRAY';
-    return { $rows->get_columns };
+
+    my %columns = $rows->get_columns;
+    delete $columns{author_avatar_id};
+
+    return \%columns;
 }
 
 sub _pages ( $method, $request, $label ) {

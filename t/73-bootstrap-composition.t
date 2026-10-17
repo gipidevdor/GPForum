@@ -104,6 +104,7 @@ sub _route_names {
       admin_user_roles
       admin_users
       attachment_download
+      avatar_image
       bookmarks
       categories
       category
@@ -135,6 +136,7 @@ sub _route_names {
       metrics
       moderation_action_reverse
       moderation_actions
+      moderation_avatar_remove
       moderation_member_note_create
       moderation_member_note_delete
       moderation_member_note_update
@@ -188,6 +190,9 @@ sub _route_names {
       robots
       search_autocomplete
       settings
+      settings_avatar
+      settings_avatar_remove
+      settings_avatar_upload
       settings_update
       sitemap
       thread
@@ -227,6 +232,8 @@ sub _helper_names {
       gp_attachment_store
       gp_attachment_upload_pipeline
       gp_attachment_workflow
+      gp_avatar_store
+      gp_avatars
       gp_bookmark_store
       gp_bookmark_folders
       gp_like_store
@@ -261,6 +268,7 @@ sub _helper_names {
       gp_identity_store
       gp_identity_view_model
       gp_identity_workflow
+      gp_image_tool
       gp_local_cache
       gp_media_processor
       gp_member_note_store

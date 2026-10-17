@@ -347,11 +347,19 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
         # ADR 0142: whether two-step sign-in is on, since when, and the
         # recovery codes left; never the secret or the codes.
         second_factor => _second_factor_part($parts),
+
+        # ADR 0144: the picture the subject shows, since when, and the one
+        # waiting; the uploads themselves are among their attachments.
+        avatar => _avatar_part($parts),
     };
 }
 
 sub _second_factor_part ($parts) {
     return $parts->{second_factor} || { state => 'off' };
+}
+
+sub _avatar_part ($parts) {
+    return $parts->{avatar} || { attachment_id => undef };
 }
 
 sub safe_manifest ( $self, $bundle ) {

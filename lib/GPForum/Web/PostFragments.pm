@@ -16,7 +16,8 @@ const my $MAX_BYTES   => 64 * 1024;
 const my $HALF        => 2;
 const my @CONTENT => qw(
   post_id thread_id position author_username author_display_name author_profile_label
-  author_initial author_tint deleted_at liked like_count
+  author_initial author_tint author_user_id author_avatar_id deleted_at liked
+  like_count
 );
 
 has max_entries => $MAX_ENTRIES;

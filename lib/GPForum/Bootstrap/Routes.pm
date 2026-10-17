@@ -244,6 +244,9 @@ sub register ( $, %input ) {
     $routes->post('/moderation/members/:user_id/notes/:note_id/delete')
       ->to('Moderation::MemberNotes#remove')
       ->name('moderation_member_note_delete');
+    $routes->post('/moderation/members/:user_id/avatar/remove')
+      ->to('Moderation::Avatars#remove')
+      ->name('moderation_avatar_remove');
     $routes->get('/moderation/actions')
       ->to('Moderation#actions')
       ->name('moderation_actions');
@@ -361,6 +364,21 @@ sub register ( $, %input ) {
     $routes->post('/settings/email')
       ->to('Identity::Email#request_email_change')
       ->name('settings_email_update');
+
+    # ADR 0144: a member's profile picture, and the picture itself.
+    $routes->get('/settings/avatar')
+      ->to('Identity::Avatar#show')
+      ->name('settings_avatar');
+    $routes->post('/settings/avatar')
+      ->to('Identity::Avatar#upload')
+      ->name('settings_avatar_upload');
+    $routes->post('/settings/avatar/remove')
+      ->to('Identity::Avatar#remove')
+      ->name('settings_avatar_remove');
+    $routes->get(
+        '/avatars/:user_id/:avatar_id/:size' => [ size => [qw(64 128 256)] ] )
+      ->to('Identity::Avatar#image')
+      ->name('avatar_image');
 
     # ADR 0142: a member's two-step sign-in.
     $routes->get('/settings/security')

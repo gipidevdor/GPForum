@@ -6,7 +6,7 @@
 % my $ordinal = '#' . $post->{position};
 % my $header = begin
       <h3 class="visually-hidden" id="<%= $dom_id %>-heading"><%= t('forum.post_number', { position => $post->{position} }) %></h3>
-      <span class="avatar avatar--<%= $post->{author_tint} %> post__avatar" aria-hidden="true"><%= $post->{author_initial} %></span>
+      <%= include 'components/avatar', user_id => $post->{author_user_id}, avatar_id => $post->{author_avatar_id}, initial => $post->{author_initial}, tint => $post->{author_tint}, extra => 'post__avatar' %>
       <header class="post__header">
         <p class="ui-meta post__byline">
           % if ($post->{author_username}) {

@@ -221,6 +221,7 @@ sub default_permissions ($self) {
         _permission( 'privacy_rights',    'manage' ),
         _permission( 'member_note',       'view' ),
         _permission( 'member_note',       'write' ),
+        _permission( 'avatar',            'moderate' ),
     ];
 }
 
@@ -577,7 +578,7 @@ C<action>: C<admin_console> view and manage; C<category> read; C<report>
 view_queue, assign and resolve; C<post> and C<thread> moderate;
 C<moderation_action> view and reverse; C<suspension> view; C<user> suspend;
 C<privacy_rights> view and manage; C<member_note> view and write
-(ADR 0138).
+(ADR 0138); C<avatar> moderate (ADR 0144).
 
 =head1 DIAGNOSTICS
 

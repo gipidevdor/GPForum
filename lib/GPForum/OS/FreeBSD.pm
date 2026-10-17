@@ -30,6 +30,16 @@ sub antivirus_packaging {
     };
 }
 
+# ADR 0144: graphics/vips installs vipsthumbnail under /usr/local.
+sub image_tool_packaging {
+    return {
+        vips     => [qw(/usr/local/bin/vipsthumbnail vipsthumbnail)],
+        sips     => undef,
+        packages => [qw(vips)],
+        install  => 'pkg install vips',
+    };
+}
+
 # deploy/freebsd's rc scripts read /usr/local/etc, as ports keep their
 # configuration there.
 sub environment_file {

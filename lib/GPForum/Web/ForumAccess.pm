@@ -77,7 +77,13 @@ const my %WRITE_FLASH => (
     $STATUS_THREAD_UPDATED     => 'forum.thread_updated',
     $STATUS_UNSUBSCRIBED       => 'forum.unsubscribed',
 );
+
+# ADR 0144: a profile picture uploaded or removed, at most 10 a minute too:
+# each upload runs the image tool.
+const my $AVATAR_CHURN => qr/\A avatar[.](?:upload|remove)/msx;
+
 const my %PARTICIPATION_ACTIONS => (
+    'avatar.upload'  => 1,
     'draft.save'     => 1,
     'draft.preview'  => 1,
     'message.send'   => 1,
@@ -395,7 +401,10 @@ sub _window_limit ( $self, $requested, $default ) {
 }
 
 sub _churn_action ($action) {
-    return $action =~ $THREAD_CHURN || $action =~ $POST_CHURN ? 1 : 0;
+    return
+         $action =~ $THREAD_CHURN
+      || $action =~ $POST_CHURN
+      || $action =~ $AVATAR_CHURN ? 1 : 0;
 }
 
 sub _invalid_limit ( $self, $value ) {

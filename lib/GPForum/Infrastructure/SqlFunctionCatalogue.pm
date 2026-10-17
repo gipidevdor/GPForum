@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 16,
+        version    => 18,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 18,
+        version    => 20,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -698,6 +698,40 @@ const my %FUNCTION => (
     community_message_participant => {
         version    => 2,
         parameters => [ message_id => 'uuid', user_id => 'uuid' ]
+    },
+
+    # Migration 132: members' profile pictures (ADR 0144).
+    community_avatar_offer => {
+        version    => 2,
+        parameters => [
+            user_id       => 'uuid',
+            attachment_id => 'uuid',
+            now           => 'timestamptz'
+        ]
+    },
+    community_avatar_settle => {
+        version    => 2,
+        parameters => [
+            user_id       => 'uuid',
+            attachment_id => 'uuid',
+            outcome       => 'text',
+            now           => 'timestamptz'
+        ]
+    },
+    community_avatar_remove => {
+        version    => 2,
+        parameters =>
+          [ user_id => 'uuid', attachment_id => 'uuid', audit => 'jsonb' ]
+    },
+    community_avatar_status =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
+    community_avatar_image => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', variant_type => 'text' ]
+    },
+    community_avatar_objects => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', attachment_id => 'uuid' ]
     },
     community_find_bookmark => {
         version    => 2,
@@ -1404,7 +1438,7 @@ const my %FUNCTION => (
     },
 
     forum_thread_page_posts_scoped => {
-        version    => 2,
+        version    => 4,
         parameters => [
             thread_id      => 'uuid',
             standing       => 'text',
@@ -1636,7 +1670,7 @@ const my %FUNCTION => (
         parameters => [ thread_id => 'uuid' ],
     },
     forum_thread_page_posts => {
-        version    => 2,
+        version    => 4,
         parameters => [
             thread_id      => 'uuid',
             standing       => 'text',

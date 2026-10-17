@@ -14,7 +14,8 @@ has body_renderer => sub { return GPForum::Service::Forum::BodyRenderer->new; };
 
 # What a post reads of its row, for a double read column by column.
 const my @POST_NAMES => qw(
-  post_id author_username author_display_name author_user_id body
+  post_id author_username author_display_name author_user_id author_avatar_id
+  body
   body_source created_at moderation_state position thread_id visibility
   deleted_at
 );
@@ -93,6 +94,7 @@ sub post ( $self, $row ) {
 
     return {
         author_display_name  => $display_name,
+        author_avatar_id     => $data->{author_avatar_id},
         author_initial       => $self->initial( $display_name // $username ),
         author_tint          => $self->tint($username),
         author_profile_label => $self->profile_label($username),

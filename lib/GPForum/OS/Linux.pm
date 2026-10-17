@@ -34,6 +34,16 @@ sub antivirus_packaging {
     };
 }
 
+# ADR 0144: Debian and Ubuntu package vipsthumbnail in libvips-tools.
+sub image_tool_packaging {
+    return {
+        vips     => [qw(/usr/bin/vipsthumbnail vipsthumbnail)],
+        sips     => undef,
+        packages => [qw(libvips-tools)],
+        install  => 'apt install libvips-tools',
+    };
+}
+
 # Debian and Ubuntu's postgresql package: a systemd service, and the server's
 # superuser is the postgres system user.
 sub postgresql_packaging {

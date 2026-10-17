@@ -69,6 +69,19 @@ sub antivirus_packaging {
     };
 }
 
+# ADR 0144: the image tool profile pictures are cropped with -- libvips'
+# vipsthumbnail, where the package installs it, then on PATH -- and the
+# package that installs it. An operating system with a tool of its own names
+# it as sips.
+sub image_tool_packaging {
+    return {
+        vips     => [qw(vipsthumbnail)],
+        sips     => undef,
+        packages => [],
+        install  => undef,
+    };
+}
+
 # Where the service reads its GPFORUM_* settings once deployed: the
 # environment file deploy/systemd's units name. A subclass whose supervisor
 # keeps them elsewhere says where.

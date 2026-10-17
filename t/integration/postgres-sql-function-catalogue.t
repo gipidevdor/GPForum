@@ -141,6 +141,16 @@ const my %RETAINED => (
     search_ranked_v8       => 1,
     search_autocomplete_v5 => 0,
     search_autocomplete_v6 => 1,
+
+    # Migration 132 (profile pictures) moved these on.
+    portability_export_parts_v17      => 0,
+    portability_export_parts_v18      => 1,
+    privacy_revoke_user_v15           => 0,
+    privacy_revoke_user_v16           => 1,
+    forum_thread_page_posts_v1        => 0,
+    forum_thread_page_posts_v2        => 1,
+    forum_thread_page_posts_scoped_v1 => 0,
+    forum_thread_page_posts_scoped_v2 => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

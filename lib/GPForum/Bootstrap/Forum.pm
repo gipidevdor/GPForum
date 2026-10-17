@@ -38,6 +38,7 @@ use GPForum::Service::Forum::ReadState;
 use GPForum::Service::Forum::ReadWorkflow;
 use GPForum::Service::Forum::Readability;
 use GPForum::Service::Forum::ThreadComposer;
+use GPForum::Service::Forum::ThreadPageReads;
 use GPForum::Service::Forum::ThreadDetailReader;
 use GPForum::Service::Forum::ThreadReader;
 use GPForum::Service::Forum::ThreadStore;
@@ -439,6 +440,26 @@ sub _register_community_helpers {
                 logger              => $controller->app->log,
                 report_store        => $controller->gp_report_store,
                 subscription_store  => $controller->gp_subscription_store,
+            );
+        }
+    );
+
+    # Migration 124: the reads a thread page makes once it has its posts,
+    # in one statement, each answered to the store that makes it.
+    $application->helper(
+        gp_thread_page_reads => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Forum::ThreadPageReads->new(
+                attachment_store   => $controller->gp_attachment_store,
+                bookmark_store     => $controller->gp_bookmark_store,
+                like_store         => $controller->gp_like_store,
+                logger             => $controller->app->log,
+                read_state         => $controller->gp_thread_read_state,
+                reply_links        => $controller->gp_reply_links,
+                schema             => $controller->gp_schema,
+                subscription_store => $controller->gp_subscription_store,
+                thread_tags        => $controller->gp_thread_tags,
             );
         }
     );

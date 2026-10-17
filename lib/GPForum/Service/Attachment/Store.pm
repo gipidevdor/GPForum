@@ -464,16 +464,7 @@ sub attachments_for_posts ( $self, $post_ids, $input ) {
     if ( $self->functions ) {
         $rows = [
             map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows(
-                    'attachment_links',
-                    {
-                        attachment_id => undef,
-                        target_type   => $self->lifecycle->post_link_target,
-                        target_id     => undef,
-                        post_ids      => \@ids,
-                        row_limit => $self->lifecycle->post_link_rows( \@ids )
-                    }
-                )
+                $self->functions->rows( @{ $self->post_links_call( \@ids ) } )
             }
         ];
     }
@@ -527,6 +518,25 @@ sub attachments_for_posts ( $self, $post_ids, $input ) {
     }
 
     return \%by_post;
+}
+
+# The call attachments_for_posts makes for the links of a page's posts, each
+# post once, in order: a page that reads the links with its other reads in
+# one statement (Service::Forum::ThreadPageReads) answers it.
+sub post_links_call ( $self, $post_ids ) {
+    my %requested = map { $_ => 1 } @{$post_ids};
+    my @ids       = sort keys %requested;
+
+    return [
+        'attachment_links',
+        {
+            attachment_id => undef,
+            target_type   => $self->lifecycle->post_link_target,
+            target_id     => undef,
+            post_ids      => \@ids,
+            row_limit     => $self->lifecycle->post_link_rows( \@ids ),
+        }
+    ];
 }
 
 # Uploads that never completed: intents nobody linked, old enough not to be
@@ -1080,6 +1090,12 @@ reference of C<< { attachment_id, byte_size, media_type, original_filename } >>,
 one per linked attachment that L</download_for> lets the viewer have, read
 from the download decision's own columns. The link query is capped at ten
 rows per requested post. Posts without such attachments have no key.
+
+=head2 post_links_call
+
+Takes an array reference of post ids; answers the call
+L</attachments_for_posts> makes for their links, the function's catalogue
+name and its values: each post once, sorted, the row cap for that many.
 
 =head2 cleanup_orphans
 

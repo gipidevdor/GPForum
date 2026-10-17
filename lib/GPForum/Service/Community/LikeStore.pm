@@ -49,12 +49,7 @@ sub unlike ( $self, $input ) {
 sub summary_for_posts ( $self, $post_ids, $viewer_user_id = undef ) {
     return {} if !@{$post_ids};
     my $rows = $self->_functions->rows(
-        'community_post_likes',
-        {
-            post_ids       => $post_ids,
-            viewer_user_id => _nullable($viewer_user_id),
-        }
-    );
+        @{ $self->summary_call( $post_ids, $viewer_user_id ) } );
     return {
         map {
             $_->{post_id} => {
@@ -63,6 +58,19 @@ sub summary_for_posts ( $self, $post_ids, $viewer_user_id = undef ) {
             }
         } @{$rows}
     };
+}
+
+# The call summary_for_posts makes, its function's name and its values:
+# a page that reads the likes with its other reads in one statement
+# (GPForum::Service::Forum::ThreadPageReads) answers this call.
+sub summary_call ( $, $post_ids, $viewer_user_id = undef ) {
+    return [
+        'community_post_likes',
+        {
+            post_ids       => $post_ids,
+            viewer_user_id => _nullable($viewer_user_id),
+        }
+    ];
 }
 
 sub _written ( $self, $name, $input ) {
@@ -138,6 +146,13 @@ As L</like>, taking the like back; C<changed> is 0 when none was given.
 
 Takes post ids and the viewer's user id (or nothing). Returns, by post id,
 C<like_count> and C<liked>; posts nobody liked are absent.
+
+=head2 summary_call
+
+Takes what L</summary_for_posts> takes; answers the call it makes, the
+function's catalogue name and its values, as
+L<GPForum::Infrastructure::SqlFunction/answer_key> takes them. It needs no
+store: the class answers it too.
 
 =head1 DIAGNOSTICS
 

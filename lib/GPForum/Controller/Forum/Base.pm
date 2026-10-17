@@ -548,8 +548,34 @@ sub post_fragment ( $self, $status ) {
 }
 
 # The thread page's payload for a page the detail reader returned, with a
-# command id for each action the reader may take.
+# command id for each action the reader may take. The reads it makes once
+# it has the posts -- likes, reply targets, tags, attachment links, and a
+# member's bookmark, subscription and read state -- are read in one
+# statement first, and each store takes its rows from it (migration 124).
+#
+# A store that cannot even be made leaves the reads to themselves: each then
+# meets it as it did, and degrades or fails the page as it did.
 sub thread_page_payload ( $self, $page, $user_id ) {
+    my $payload = sub { return $self->_thread_page_payload( $page, $user_id ) };
+    my $reads;
+    try {
+        $reads = $self->gp_thread_page_reads;
+    }
+    catch ($error) {
+        return $payload->();
+    };
+
+    return $reads->reading(
+        {
+            page           => $page,
+            thread_id      => $self->param('thread_id'),
+            viewer_user_id => $user_id,
+        },
+        $payload
+    );
+}
+
+sub _thread_page_payload ( $self, $page, $user_id ) {
     my $posts            = $page->{posts}{items};
     my $attachments      = $self->attachments_for_posts($posts);
     my $move_command_id  = $self->_thread_edit_command_id( $page, $user_id );

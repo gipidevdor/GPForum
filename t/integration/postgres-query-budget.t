@@ -29,7 +29,11 @@ const my $MANY_ROWS => 50;
 # thread pages one more each for the tags of their threads (117, ADR
 # 0135): one statement per page, however many rows, as the fifty-row
 # comparison below proves. The signed-in bookmarks page took one more on
-# 2026-10-15 for the member's folders (121, ADR 0136).
+# 2026-10-15 for the member's folders (121, ADR 0136). On 2026-10-17 the
+# thread page's reads after its posts -- likes, reply targets, tags,
+# attachment links, and a member's bookmark, subscription and read state --
+# became one statement (migration 124): six fewer signed in, three for a
+# guest.
 const my %BUDGET => (
     anonymous => {
         categories => 1,
@@ -37,7 +41,7 @@ const my %BUDGET => (
         home       => 3,
         profile    => 6,
         search     => 3,
-        thread     => 6,
+        thread     => 3,
     },
     'signed in' => {
         bookmarks     => 4,
@@ -48,7 +52,7 @@ const my %BUDGET => (
         notifications => 4,
         profile       => 7,
         search        => 5,
-        thread        => 11,
+        thread        => 5,
     },
 );
 

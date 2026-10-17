@@ -82,16 +82,24 @@ sub set_thread_tags ( $self, $thread_id, $text ) {
 # For the threads of a page, by thread id: the tags of each, in order. A
 # thread without tags is absent.
 sub tags_for_threads ( $self, $thread_ids ) {
-    my @ids = grep { GPForum::Infrastructure::Id->is_uuid($_) } @{$thread_ids};
-    return {} if !@ids;
-    my $rows =
-      $self->_functions->rows( 'forum_thread_tags', { thread_ids => \@ids } );
+    my $call = $self->tags_call($thread_ids) // return {};
+    my $rows = $self->_functions->rows( @{$call} );
     my %tags;
     for my $row ( @{$rows} ) {
         push @{ $tags{ $row->{thread_id} } }, _tag($row);
     }
 
     return \%tags;
+}
+
+# The call tags_for_threads makes, or undef when it makes none: a page that
+# reads the tags with its other reads in one statement
+# (Service::Forum::ThreadPageReads) answers it.
+sub tags_call ( $, $thread_ids ) {
+    my @ids = grep { GPForum::Infrastructure::Id->is_uuid($_) } @{$thread_ids};
+    return undef if !@ids;
+
+    return [ 'forum_thread_tags', { thread_ids => \@ids } ];
 }
 
 # The threads under one tag the viewer may read, newest activity first, in
@@ -205,6 +213,12 @@ now, in order.
 =head2 tags_for_threads
 
 The tags of the given threads, by thread id, each list in order.
+
+=head2 tags_call
+
+Takes thread ids; answers the call L</tags_for_threads> makes, the
+function's catalogue name and its values, or undef when no id is a uuid
+and no call is made. The class answers it too.
 
 =head2 list_tagged_threads
 

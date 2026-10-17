@@ -50,11 +50,17 @@ sub state_for_thread ( $self, $user_id, $thread_id ) {
 
 # The row by its key, through a statement built once (every signed-in
 # thread page reads one).
+# The call state_for_thread makes on PostgreSQL for a member: a page that
+# reads the state with its other reads in one statement
+# (Service::Forum::ThreadPageReads) answers it.
+sub state_call ( $, $user_id, $thread_id ) {
+    return [ 'forum_read_state',
+        { user_id => $user_id, thread_id => $thread_id } ];
+}
+
 sub _stored_state ( $self, $user_id, $thread_id ) {
     return GPForum::Infrastructure::ResultRow->from(
-        $self->functions->row(
-            'forum_read_state', { user_id => $user_id, thread_id => $thread_id }
-        )
+        $self->functions->row( @{ $self->state_call( $user_id, $thread_id ) } )
     ) if $self->functions;
     my $states = $self->schema->resultset('ThreadReadState');
     my %key    = ( thread_id => $thread_id, user_id => $user_id );
@@ -407,6 +413,12 @@ Takes a user id and a thread id. Returns
 C<< { user_id, thread_id, last_read_position, last_read_at } >> from the
 stored marker, or with position 0 and C<last_read_at> undef when there is
 none or either id is empty.
+
+=head2 state_call
+
+Takes a user id and a thread id; answers the call L</state_for_thread>
+makes on PostgreSQL, the function's catalogue name and its values. The
+class answers it too.
 
 =head2 summary_for_page
 

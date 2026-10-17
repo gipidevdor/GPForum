@@ -1140,6 +1140,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **A signed-in thread page sends five statements instead of eleven.** The
+  reads it makes once it has its posts -- the likes, the posts they answer,
+  the tags, the attachment links, and a member's bookmark, subscription
+  and read state -- are one call, `api.forum_thread_page_reads_v2`
+  (migration 124), made before them; each store still asks for its rows
+  and takes them from that call's answer
+  (`GPForum::Service::Forum::ThreadPageReads`,
+  `GPForum::Infrastructure::SqlFunction::answering`). A guest's page sends
+  three instead of six. The seven reads took 615 µs as seven calls and 405
+  as one. The query budget test holds the thread page to 5 and 3.
 - **A database connection costs 27% less, and says which process made it.**
   Every connection ran six statements after connecting; the PL/pgSQL block
   that set `lc_messages` where the role may was 0.98 ms of a 3.6 ms

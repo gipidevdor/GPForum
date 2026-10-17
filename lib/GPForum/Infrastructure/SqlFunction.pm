@@ -28,6 +28,17 @@ my $JSON = JSON::MaybeXS->new( canonical => 1, utf8 => 0 );
 # however many layers the requests make.
 my $CATALOGUE = GPForum::Infrastructure::SqlFunctionCatalogue->new;
 
+# The calls answered ahead while code runs under answering: each call's rows
+# under its key, taken once. Every layer makes its own SqlFunction, so the
+# answers are the process's, held only for the time of one answering.
+my %ANSWERING = ( answers => undef );
+
+# What separates the parts of a key: the function, then each bound value,
+# an array's elements in order, a NULL as itself.
+const my $KEY_UNIT    => "\N{INFORMATION SEPARATOR ONE}";
+const my $KEY_ELEMENT => "\N{INFORMATION SEPARATOR TWO}";
+const my $KEY_NULL    => "\N{NULL}";
+
 __PACKAGE__->requires('schema');
 has catalogue => sub { return $CATALOGUE; };
 
@@ -61,12 +72,52 @@ sub rows ( $self, $name, $values ) {
     my @bound = _bound( $entry, $values );
     return [] if _malformed_id( $entry, \@bound );
 
-    my $rows = $self->_execute( $entry, \@bound );
+    my $rows = _answered( $entry, \@bound )
+      // $self->_execute( $entry, \@bound );
     if ( %{ $entry->{json} } ) {
         _decode_json( $entry, $rows );
     }
 
     return $rows;
+}
+
+# Runs code with some of the calls it will make already answered: a page
+# that knows which reads it makes reads them in one statement first
+# (GPForum::Service::Forum::ThreadPageReads), and the layers that make each
+# read take its rows from the answers instead of the database. An answer is
+# a call's rows under answer_key, and is taken once: the same call again
+# goes to the database. A call no answer names, and every call once the code
+# has returned or died, goes to the database as before.
+sub answering ( $class, $answers, $code ) {
+    ## no critic (Variables::ProhibitLocalVars) -- held for the code's run alone, and given back when it dies
+    local $ANSWERING{answers} = $answers;
+    ## use critic
+
+    return $code->();
+}
+
+# The key an answer is kept under: the function a call names and the values
+# it binds, as rows binds them.
+sub answer_key ( $self, $name, $values ) {
+    my $entry = $self->catalogue->function($name);
+
+    return _key( $entry, [ _bound( $entry, $values ) ] );
+}
+
+sub _answered ( $entry, $bound ) {
+    my $answers = $ANSWERING{answers};
+    return undef if !$answers || !%{$answers};
+
+    return delete $answers->{ _key( $entry, $bound ) };
+}
+
+sub _key ( $entry, $bound ) {
+    return join $KEY_UNIT, $entry->{function}, map {
+           !defined $_ ? $KEY_NULL
+          : ref $_ eq 'ARRAY'
+          ? join( $KEY_ELEMENT, map { $_ // $KEY_NULL } @{$_} )
+          : $_
+    } @{$bound};
 }
 
 # The first row, or undef.
@@ -282,6 +333,25 @@ As L</rows>, the first row or undef.
 
 As L</rows> takes its arguments, the statement the call would send and its
 values as they would be bound, in an array reference, without sending it.
+
+=head2 answering
+
+    my $payload = GPForum::Infrastructure::SqlFunction->answering(
+        { $functions->answer_key( $name, $values ) => \@rows },
+        sub { return build_the_page() },
+    );
+
+A class method. Runs the code with the answers given -- rows, under the
+key L</answer_key> makes for the call they answer -- and returns what it
+returns. While it runs, a call of L</rows> or L</row> whose key is among the
+answers takes those rows, once, and sends nothing; any other call, and
+every call after the code has returned or died, goes to the database.
+
+=head2 answer_key
+
+Takes a function's catalogue name and its parameters, as L</rows> does, and
+answers the key L</answering> keeps that call's rows under: the function
+and the values as they would be bound.
 
 =head1 DIAGNOSTICS
 

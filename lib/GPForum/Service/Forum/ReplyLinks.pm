@@ -40,8 +40,7 @@ sub link_reply ( $self, $post_id, $reply_to_post_id ) {
 # position and its author's name. A post answering none is absent.
 sub targets_for_posts ( $self, $post_ids ) {
     return {} if !@{$post_ids};
-    my $rows = $self->_functions->rows( 'forum_reply_targets',
-        { post_ids => $post_ids } );
+    my $rows = $self->_functions->rows( @{ $self->targets_call($post_ids) } );
     return {
         map {
             $_->{post_id} => {
@@ -51,6 +50,12 @@ sub targets_for_posts ( $self, $post_ids ) {
             }
         } @{$rows}
     };
+}
+
+# The call targets_for_posts makes: a page that reads the targets with its
+# other reads in one statement (Service::Forum::ThreadPageReads) answers it.
+sub targets_call ( $, $post_ids ) {
+    return [ 'forum_reply_targets', { post_ids => $post_ids } ];
 }
 
 # Reply links exist only as api.* functions (ADR 0126).
@@ -101,6 +106,11 @@ not a uuid.
 
 Takes post ids. Returns, by post id, C<post_id>, C<position> and
 C<author_username> of the post answered; posts answering none are absent.
+
+=head2 targets_call
+
+Takes post ids; answers the call L</targets_for_posts> makes, the
+function's catalogue name and its values. The class answers it too.
 
 =head1 DIAGNOSTICS
 

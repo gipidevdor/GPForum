@@ -99,12 +99,7 @@ sub find_for_user_target ( $self, $user_id, $target_type, $target_id ) {
     if ( $self->functions ) {
         return GPForum::Infrastructure::ResultRow->from(
             $self->functions->row(
-                'notification_find_subscription',
-                {
-                    user_id     => $user_id,
-                    target_type => $target_type,
-                    target_id   => $target_id
-                }
+                @{ $self->find_call( $user_id, $target_type, $target_id ) }
             )
         );
     }
@@ -126,6 +121,20 @@ sub find_for_user_target ( $self, $user_id, $target_type, $target_id ) {
         fallback => sub { return [ $rows->find( \%key ) // () ]; },
         values   => { map { ( "me.$_" => $key{$_} ) } keys %key },
     );
+}
+
+# The call find_for_user_target makes on PostgreSQL: a page that reads the
+# subscription with its other reads in one statement
+# (Service::Forum::ThreadPageReads) answers it.
+sub find_call ( $, $user_id, $target_type, $target_id ) {
+    return [
+        'notification_find_subscription',
+        {
+            user_id     => $user_id,
+            target_type => $target_type,
+            target_id   => $target_id,
+        }
+    ];
 }
 
 sub status_for_user_target ( $self, $user_id, $target_type, $target_id ) {
@@ -436,6 +445,12 @@ propagates from here.
 
 Takes a user id, a target type and a target id. Returns that member's
 C<Subscription> row for the target, whatever its state, or undef.
+
+=head2 find_call
+
+Takes what L</find_for_user_target> takes; answers the call it makes on
+PostgreSQL, the function's catalogue name and its values. The class
+answers it too.
 
 =head2 status_for_user_target
 

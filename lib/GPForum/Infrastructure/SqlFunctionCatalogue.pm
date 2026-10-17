@@ -1459,6 +1459,21 @@ const my %FUNCTION => (
             row_limit      => 'integer',
         ],
     },
+
+    # Migration 124: the seven reads a thread page makes once it has its
+    # posts, in one call (GPForum::Service::Forum::ThreadPageReads).
+    forum_thread_page_reads => {
+        version    => 2,
+        parameters => [
+            thread_id              => 'uuid',
+            post_ids               => 'uuid[]',
+            viewer_user_id         => 'uuid',
+            engagement_target_type => 'text',
+            link_target_type       => 'text',
+            link_post_ids          => 'uuid[]',
+            link_row_limit         => 'integer',
+        ],
+    },
     forum_create_reply => {
         version    => 4,
         parameters => [

@@ -128,3 +128,4 @@ Run `bin/gpforum help migrate` for the operator interface. The database tests co
 - [121_bookmark_folders.sql](003-evolution/121_bookmark_folders.sql)
 - [122_notification_digest_windows.sql](003-evolution/122_notification_digest_windows.sql)
 - [123_notification_digest_sent.sql](003-evolution/123_notification_digest_sent.sql)
+- [124_thread_page_reads.sql](003-evolution/124_thread_page_reads.sql)

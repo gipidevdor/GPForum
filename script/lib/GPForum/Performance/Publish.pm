@@ -29,7 +29,10 @@ our $VERSION   = '0.001';
 our @EXPORT_OK = qw(manifest append_result publish git_command main);
 my @FILES =
   qw(metadata.json summary.json http.json database.json outbox.json reactor.json workers.json report.md);
-my $BRANCH = 'main';
+
+# The history lives on a branch of its own: committed to main it grew by
+# megabytes a day and raced every push. Main holds the harness, not the data.
+my $BRANCH = 'performance-data';
 
 sub _bytes ($path) {
     open my $file, '<:raw', $path or die "Cannot read publication data\n";
@@ -225,7 +228,7 @@ sub _attempt ( $directory, $remote, $relative, $payload, $environment ) {
     die "Cannot inspect results branch; publication is not confirmed\n"
       if $exists->{returncode} != 0 && $exists->{returncode} != 2;
     die
-"Main branch is missing; refusing to initialize or replace application history\n"
+"The $BRANCH branch is missing; refusing to initialize or replace its history\n"
       if $exists->{returncode} == 2;
     git_command(
         $directory,

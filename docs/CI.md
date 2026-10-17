@@ -250,7 +250,8 @@ baseline rules, bounded cost, schema, local commands and publication model.
 Relevant PRs and pushes to `main` now run real Hypnotoad and PostgreSQL
 benchmarks automatically. PR jobs compare the exact base/head revisions on
 one runner with separate disposable databases and locked dependency trees;
-main runs retain compact evidence at `benchmarks/results/` on `main`.
+main runs retain compact evidence at `benchmarks/results/` on the
+`performance-data` branch, never on `main`.
 The weekly Monday 01:37 UTC/manual deep run adds
 targeted worker/reactor scaling, PostgreSQL service comparisons and profiles.
 The harnesses, schema validator, comparisons, report renderer, publisher and
@@ -264,9 +265,9 @@ results. It neither writes history nor grants repository write access.
 Measurement jobs have a read-only token and upload summaries/artifacts even
 after failures. Only a separate trusted-main job can write history; it
 validates artifacts as data, rejects overwritten results and retries
-ordinary concurrent Git pushes against the latest main tip. Generated
-result/index paths are excluded from the performance trigger, so publication
-cannot create a benchmark loop. Main's branch rules must permit the
+ordinary concurrent Git pushes against the latest `performance-data` tip.
+It never writes `main`, so publication can neither create a benchmark loop
+nor race the pushes of the code. The data branch's rules must permit the
 job-scoped token to append evidence commits. Raw diagnostic
 logs/profiles have 14-day retention; permanent history contains small JSON
 and regenerated Markdown only.

@@ -1940,6 +1940,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **Performance evidence no longer lands on `main`.** The performance
+  workflow committed its history to `main`: `benchmarks/` grew by
+  megabytes a day and every publication raced the pushes of the code. The
+  history (`benchmarks/results/`, `latest.json`, `history.json`) now lives
+  on the `performance-data` branch, which the publisher appends to and
+  never creates; the baseline is read from there, every run keeps its
+  evidence as an artifact for 14 days, and `main` keeps only the harness,
+  schema and documentation.
+
 - **CI finishes on `main`.** `ci.yml` was one sequential job of about two
   hours with `cancel-in-progress` on every ref, so each push to `main`
   cancelled the run before it and `main` had no finished result; the

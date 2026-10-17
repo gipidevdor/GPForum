@@ -3,10 +3,12 @@
 [Performance and profiling](../.github/workflows/performance.yml) measures a
 real Hypnotoad server against migrated PostgreSQL and the existing
 deterministic `PerformanceSeed` dataset. The historical results live on
-[main](https://github.com/gpicchiarelli/GPForum/tree/main/benchmarks/results)
-at the canonical path `benchmarks/results/`, alongside the harness, schema
-and documentation. Main is the requested permanent destination; a results
-branch is not required.
+the [performance-data](https://github.com/gpicchiarelli/GPForum/tree/performance-data/benchmarks/results)
+branch at the canonical path `benchmarks/results/`, never on `main`, which
+holds the harness, schema and documentation. Until 2026-10-17 they were
+committed to `main`: the history grew by megabytes a day and every
+publication raced the pushes of the code. Every run also keeps its evidence
+as a workflow artifact for 14 days.
 
 The preliminary findings and reuse decisions are recorded in [AUDIT.md](AUDIT.md).
 All harnesses, report/schema/baseline tools, publication and their tests are
@@ -25,10 +27,10 @@ application/database commands use the existing locked Carton tree. The separate
 Relevant paths include actual application sources (`lib`, `templates`,
 `assets`, `migrations`), `cpanfile*`, runtime/deployment files under `etc`
 and `deploy`, entrypoints under `bin` and `script`, benchmark files/tests,
-the Perl setup action, and the performance workflow. Generated
+the Perl setup action, and the performance workflow. The generated
 `benchmarks/results/**`, `benchmarks/latest.json` and `benchmarks/history.json`
-are excluded from performance triggers, so an evidence publication cannot
-retrigger a measurement.
+exist only on the data branch, which triggers no workflow, so an evidence
+publication cannot retrigger a measurement.
 Manual runs on other branches keep artifacts but cannot publish history.
 The PostgreSQL/outbox test support actually used by the harness also triggers
 measurement and participates in its compatibility fingerprint.
@@ -120,7 +122,7 @@ CPU/RSS percentage deltas are diagnostic and do not alone confirm a
 regression. A single short PR outbox run is indicative.
 
 Every run uploads a Job Summary and artifacts, including partial failure
-evidence. The published structure is append-only:
+evidence. The structure published on `performance-data` is append-only:
 
 ```text
 benchmarks/
@@ -152,11 +154,12 @@ base checkouts use `contents: read`, no persisted Git credentials and no
 repository secrets. Publication validates the expected commit/run/attempt,
 schema, sizes, paths and secret patterns; artifacts are treated as data
 and never executed. Ordinary Git pushes append only result/index files to
-the current main tip and provide an atomic branch update; bounded retries
-reload the newest tip after contention, preserving intervening application
-commits. No personal token or force push is used. Main publication adds
-evidence commits to application history and therefore requires main's rules
-to allow the job-scoped `GITHUB_TOKEN` to push these updates. A rule or token
+the current `performance-data` tip and provide an atomic branch update;
+bounded retries reload the newest tip after contention, preserving
+intervening publications. No personal token or force push is used. The
+publisher never creates the branch: a missing one is refused, and the
+artifact is kept. The branch's rules must allow the job-scoped
+`GITHUB_TOKEN` to push these updates. A rule or token
 rejection remains visible and the artifact is still retained. Optional PR
 comments are omitted to keep this workflow usable for external forks; the
 Job Summary contains the complete report.

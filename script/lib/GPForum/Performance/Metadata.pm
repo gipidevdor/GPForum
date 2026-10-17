@@ -145,7 +145,7 @@ sub initial ( $mode, $commit = undef ) {
         configuration => { harness_sha256 => _fingerprints() },
         artifact_url  => $ENV{GPFORUM_PERF_ARTIFACT_URL} // q{},
         history_url   =>
-          "https://github.com/$repository/tree/main/benchmarks/results",
+"https://github.com/$repository/tree/performance-data/benchmarks/results",
         run_url => $ENV{GITHUB_RUN_ID}
         ? ( $ENV{GITHUB_SERVER_URL} // 'https://github.com' )
           . "/$repository/actions/runs/$ENV{GITHUB_RUN_ID}"

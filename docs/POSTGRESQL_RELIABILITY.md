@@ -202,7 +202,7 @@ including runner setup. Cold caches, scheduling and package installation can
 increase those times; the 15-minute cap remains the cost ceiling.
 
 The existing performance pipeline published
-[this source's complete HTTP/SQL/outbox report](../benchmarks/results/2026-10-11/3e1a0af78cee9cb79704f4730b7b7d933bc10874/38164142546-1/report.md)
+[this source's complete HTTP/SQL/outbox report](https://github.com/gpicchiarelli/GPForum/blob/performance-data/benchmarks/results/2026-10-11/3e1a0af78cee9cb79704f4730b7b7d933bc10874/38164142546-1/report.md)
 automatically. Against the compatible historical `2237bb6` run, its 113
 comparisons classify 76 stable, 4 improvements, 20 possible regressions,
 12 `confirmed-regression` timing signals and 1 non-comparable observation.
@@ -216,7 +216,7 @@ and recheck them with paired measurements before proposing query changes.
 All deterministic plan, correctness and query-budget checks passed.
 
 The follow-up clock fix changes the harness fingerprint. Its
-[published run](../benchmarks/results/2026-10-11/fc031d6ec7fb488326b04f2e3b0c78f1c6682352/38165363259-1/report.md)
+[published run](https://github.com/gpicchiarelli/GPForum/blob/performance-data/benchmarks/results/2026-10-11/fc031d6ec7fb488326b04f2e3b0c78f1c6682352/38165363259-1/report.md)
 therefore reports 113 measured configurations with 113 non-comparable timing
 classifications and an explicit absent baseline. It does not relabel the
 previous advisory flags as stable or claim an improvement. SQL reader/nested

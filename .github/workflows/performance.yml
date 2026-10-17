@@ -212,10 +212,12 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
-            git fetch --no-tags --depth=1 origin main
+          # The history lives on performance-data, never on main: committed
+          # to main it grew by megabytes a day and raced every push.
+          if git ls-remote --exit-code --heads origin performance-data >/dev/null 2>&1; then
+            git fetch --no-tags --depth=1 origin performance-data
             mkdir -p "$RUNNER_TEMP/performance-history"
-            # Read only evidence from main; no fetched program is executed.
+            # Read only evidence from the data branch; no fetched program is executed.
             git archive FETCH_HEAD benchmarks/results | tar -x -C "$RUNNER_TEMP/performance-history"
           fi
 
@@ -308,6 +310,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+      # Onto the performance-data branch, never main (script/lib/GPForum/
+      # Performance/Publish.pm); the branch must exist, the publisher never
+      # creates it.
       - name: Validate and publish only canonical JSON and Markdown
         run: perl script/performance-publish --input "$RUNNER_TEMP/performance-incoming" --repository "$GITHUB_REPOSITORY" --expected-commit "$GITHUB_SHA" --expected-run "$GITHUB_RUN_ID" --expected-attempt "$GITHUB_RUN_ATTEMPT"
         env:

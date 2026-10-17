@@ -21,6 +21,7 @@ use GPForum::Performance::Evidence qw(initial finalize);
 use GPForum::Performance::Publish  qw(manifest append_result publish);
 use GPForum::Performance::Support  qw(read_json write_json run_bounded);
 
+my $DATA     = 'performance-data';
 my $root     = tempdir( CLEANUP => 1 );
 my $sequence = 0;
 
@@ -51,7 +52,7 @@ sub rejected ( $code, $pattern, $label ) {
     return undef;
 }
 
-sub remote {
+sub remote ( $with_data = 1 ) {
     my $directory = "$root/case-" . ++$sequence;
     make_path( "$directory/remote.git", "$directory/application" );
     git( "$directory/remote.git", 'init', '--quiet', '--bare' );
@@ -77,7 +78,27 @@ sub remote {
         '--quiet',                "$directory/remote.git",
         'main'
     );
+    if ($with_data) { data_branch($directory); }
     return ( "$directory/remote.git", $directory );
+}
+
+sub data_branch ($directory) {
+    my $data = "$directory/data";
+    make_path("$data/benchmarks");
+    git( $data, 'init', '--quiet', '--initial-branch', $DATA );
+    text( "$data/benchmarks/README.md", "# Performance evidence\n" );
+    git( $data, 'add', 'benchmarks/README.md' );
+    git(
+        $data,    '-c', 'user.name=Test Fixture',
+        '-c',     'user.email=fixture@example.invalid',
+        'commit', '--quiet', '-m', 'Initial evidence'
+    );
+    git( $data, 'push', '--quiet', "$directory/remote.git", $DATA );
+    return 1;
+}
+
+sub head ( $remote, $branch ) {
+    return git( $remote, 'rev-parse', "refs/heads/$branch" );
 }
 
 sub sample ( $directory, $run = '77', $attempt = '1' ) {
@@ -98,7 +119,7 @@ sub sample ( $directory, $run = '77', $attempt = '1' ) {
 }
 
 sub checkout ( $remote, $directory ) {
-    git( $directory, 'clone', '--quiet', '--branch', 'main', $remote,
+    git( $directory, 'clone', '--quiet', '--branch', $DATA, $remote,
         "$directory/results" );
     return "$directory/results";
 }
@@ -106,6 +127,7 @@ sub checkout ( $remote, $directory ) {
 subtest 'first append, repeated attempt, allowlist and application history' =>
   sub {
     my ( $remote, $directory ) = remote();
+    my $main   = head( $remote, 'main' );
     my $source = sample($directory);
     make_path("$source/diagnostics");
     text( "$source/diagnostics/secret.log", 'never publish raw logs' );
@@ -128,15 +150,13 @@ subtest 'first append, repeated attempt, allowlist and application history' =>
         2, 'attempts distinct' );
     is( read_json("$clone/benchmarks/latest.json")->{run},
         undef, 'unexecuted runs are not latest valid' );
-    is(
-        raw("$clone/application.pl"),
-        "# application source must be preserved\n",
-        'application preserved'
-    );
+    is( head( $remote, 'main' ),
+        $main, 'main is never written: the evidence has a branch of its own' );
+    ok( !-e "$clone/application.pl", 'which holds no application code' );
     like(
         git( $clone, 'log', '--format=%s' ),
-        qr/Initial\x20application/msx,
-        'application history preserved'
+        qr/Initial\x20evidence/msx,
+        'evidence history preserved'
     );
   };
 subtest 'historical overwrite rejected' => sub {
@@ -325,17 +345,17 @@ subtest 'denied pushes stop and preserve artifact' => sub {
     is( $pushes, ATTEMPTS, 'exact attempt limit' );
     ok( -e "$source/summary.json", 'artifact remains available' );
 };
-subtest 'missing main cannot create orphan application history' => sub {
-    my $directory = "$root/empty";
-    make_path("$directory/remote.git");
-    git( "$directory/remote.git", 'init', '--quiet', '--bare' );
+subtest 'a missing data branch is never created' => sub {
+    my ( $remote, $directory ) = remote(0);
+    my $main = head( $remote, 'main' );
     rejected(
-        sub { publish( sample($directory), "$directory/remote.git" ) },
+        sub { publish( sample($directory), $remote ) },
         qr/refusing\x20to\x20initialize/msx,
-        'missing code branch refused'
+        'missing data branch refused'
     );
-    is( git( "$directory/remote.git", 'for-each-ref' ),
-        q{}, 'no branch created' );
+    is( git( $remote, 'for-each-ref', '--format=%(refname)' ),
+        "refs/heads/main\n", 'no branch created' );
+    is( head( $remote, 'main' ), $main, 'and main untouched' );
 };
 
 sub test_workflow_security {

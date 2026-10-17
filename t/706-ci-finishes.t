@@ -81,6 +81,31 @@ like(
     'on a schedule'
 );
 
+# The first coverage run that finished failed: t/performance runs the harness
+# of script/lib/ in timed child processes, which Devel::Cover slows past their
+# deadlines and whose output it mixes with the JSON they print, and the report
+# selects lib/ only. Those tests run once, in the lint job. Nor could the
+# artifact upload walk cover_db/'s thousands of files: it goes as one archive.
+my $coverage = join "\n",
+  grep { !/\A \s* [#]/msx } split /\n/msx, path('script/coverage')->slurp;
+like(
+    $coverage,
+    qr/exec [ ] prove [ ] -l [ ] t [ ] t\/integration [ ] "[\$][@]"$/msx,
+    'coverage measures t/ and t/integration'
+);
+unlike(
+    $coverage,
+    qr/t\/performance|prove [ ] -lr/msx,
+    'and not the harness tests of t/performance'
+);
+ok( index( $job{coverage}, 'tar -czf cover_db.tar.gz cover_db' ) >= 0,
+    'the coverage database is archived' );
+like(
+    $job{coverage},
+    qr/name: [ ] gpforum-cover-db\n [ ]+ path: [ ] cover_db[.]tar[.]gz$/msx,
+    'and uploaded as one file'
+);
+
 for my $check (
     'script/perlcritic',         'script/perltidy-check',
     'script/architecture-check', 'script/adr-index --check',

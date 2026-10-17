@@ -1950,6 +1950,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **The coverage gate can pass.** Its first run to finish failed outside
+  `lib/`: `script/coverage` instrumented `t/performance/`, whose tests drive
+  the harness of `script/lib/` in timed child processes that Devel::Cover
+  slowed past their deadlines and whose JSON it mixed with its own output,
+  and the upload action could not walk the thousands of files of
+  `cover_db/`. Coverage now runs `t/` and `t/integration/` -- the report
+  selects `lib/` only, and `t/performance/` runs uninstrumented in the lint
+  job -- and uploads the database as one `cover_db.tar.gz`.
+
 - **The list of held posts no longer names a place its author lost.** The
   author's `/pending` page and its JSON named the thread and category each
   held post went to by their current title, even once the thread was

@@ -19,7 +19,13 @@ rm -rf cover_db
 # interpreter for prove would ignore these switches and leave no database,
 # and a module preloaded before Devel::Cover is reported as never run
 # (t/699).
-HARNESS_PERL_SWITCHES=-MDevel::Cover "$gpforum_carton" exec prove -lr t "$@"
+#
+# t/ and t/integration, not t/performance: those tests drive the harness of
+# script/lib/ -- which the report below does not select -- in timed child
+# processes that Devel::Cover slowed past their deadlines and whose JSON it
+# interleaved with its own output, so the first run that finished failed on
+# them. They run uninstrumented in CI's lint job.
+HARNESS_PERL_SWITCHES=-MDevel::Cover "$gpforum_carton" exec prove -l t t/integration "$@"
 
 # The report covers lib/ only. It used to select ^(lib/GPForum|t)/, counting
 # the test files -- which execute almost entirely -- in its own denominator.

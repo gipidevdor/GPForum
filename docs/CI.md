@@ -185,7 +185,12 @@ developer's laptop.
 | `coverage` | `name: gpforum-cover-db` |
 
 The ADR index check is new as a step of its own; it also runs inside
-`t/190-gate-honesty.t`.
+`t/190-gate-honesty.t`. `script/coverage` instruments `t/` and
+`t/integration/`, not `t/performance/`: those tests drive the harness of
+`script/lib/`, which the report does not select, in timed child processes
+that Devel::Cover slowed past their deadlines, and they failed the first
+coverage run that finished. The coverage database is uploaded as one archive,
+`cover_db.tar.gz`; the upload action could not walk its thousands of files.
 
 ## Running the gates locally
 

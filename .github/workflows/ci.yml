@@ -287,11 +287,20 @@ jobs:
       - name: Run coverage gate
         run: script/coverage -j 4
 
+      # One archive: the upload action failed on the thousands of files of
+      # cover_db/ ("Maximum call stack size exceeded").
+      - name: Archive the coverage database
+        if: always()
+        run: |
+          if [ -d cover_db ]; then
+            tar -czf cover_db.tar.gz cover_db
+          fi
+
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gpforum-cover-db
-          path: cover_db/
+          path: cover_db.tar.gz
           retention-days: 14
           if-no-files-found: warn

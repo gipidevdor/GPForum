@@ -1903,6 +1903,12 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **The email digest's HTML keeps its own styles.** The body's inline
+  style quoted its font name ("Segoe UI") inside a double-quoted
+  attribute, so the attribute ended at the quote and the rest of the
+  declaration -- size, colours, measure -- spilled out as stray
+  attributes. Every inline style is now escaped into its attribute.
+
 - **Development runners start GPForum again on macOS and FreeBSD.**
   `script/gpforum-carton exec morbo bin/gpforum`, `perl t/02-health.t` and
   `prove --norc` stopped with

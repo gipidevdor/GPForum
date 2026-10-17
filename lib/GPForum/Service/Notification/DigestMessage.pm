@@ -120,9 +120,9 @@ sub _html ( $self, $locale, $text, $items ) {
       defined $text->{more}
       ? '<p>' . xml_escape( $text->{more} ) . '</p>'
       : q{};
-    my $footer = sprintf '<p style="%s"><a href="%s">%s</a> &middot; '
+    my $footer = sprintf '<p%s><a href="%s">%s</a> &middot; '
       . '<a href="%s">%s</a></p>',
-      $FOOTER_STYLE, xml_escape( $text->{settings_url} ),
+      _style($FOOTER_STYLE), xml_escape( $text->{settings_url} ),
       xml_escape( $self->_t( $locale, 'notifications.digest.settings_link' ) ),
       xml_escape( $text->{unsubscribe_url} ),
       xml_escape(
@@ -133,11 +133,11 @@ sub _html ( $self, $locale, $text, $items ) {
       '<head><meta charset="utf-8">',
       '<meta name="viewport" content="width=device-width, initial-scale=1">',
       '<title>', xml_escape( $text->{subject} ), '</title></head>',
-      qq{<body style="$BODY_STYLE">},
-      qq{<h1 style="$HEADING_STYLE">}, xml_escape( $text->{subject} ),
+      '<body',   _style($BODY_STYLE),    '>',
+      '<h1',     _style($HEADING_STYLE), '>', xml_escape( $text->{subject} ),
       '</h1>',
       '<p>', xml_escape( $text->{intro} ), '</p>',
-      qq{<ul style="$LIST_STYLE">}, @list, '</ul>',
+      '<ul', _style($LIST_STYLE), '>', @list, '</ul>',
       $more, $footer, '</body></html>', "\n";
 }
 
@@ -148,14 +148,14 @@ sub _html_item ( $self, $locale, $item ) {
         { category => $item->{category}, posts => $item->{posts} }
     );
 
-    return
-        qq{<li style="$ITEM_STYLE"><a href="}
-      . xml_escape( $item->{url} )
-      . qq{" style="$LINK_STYLE">}
-      . xml_escape( $item->{title} )
-      . qq{</a><br><span style="$MUTED_STYLE">}
-      . xml_escape($meta)
-      . '</span></li>';
+    return sprintf '<li%s><a href="%s"%s>%s</a><br><span%s>%s</span></li>',
+      _style($ITEM_STYLE), xml_escape( $item->{url} ), _style($LINK_STYLE),
+      xml_escape( $item->{title} ), _style($MUTED_STYLE), xml_escape($meta);
+}
+
+# An inline style attribute, escaped: a style may quote a font name.
+sub _style ($style) {
+    return sprintf ' style="%s"', xml_escape($style);
 }
 
 sub _t ( $self, $locale, $key, $variables = undef ) {

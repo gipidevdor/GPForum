@@ -1950,6 +1950,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **One-click unsubscribes from a mail provider all land.** The
+  unsubscribe link was rate limited per client address, and a mail
+  provider posts every user's RFC 8058 one-click unsubscribe from a few
+  addresses: past 60 in five minutes the rest were refused with 429, and
+  mail clients do not retry. A signed link is now limited per account it
+  names; a link that does not verify, per address (ADR 0078).
+
 - **The personal feed leaves out members on the reader's ignore or block
   list.** The inbox, the mentions page and the digest left out an ignored
   or blocked member's replies and posts, but the feed still listed their

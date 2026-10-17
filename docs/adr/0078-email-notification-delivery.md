@@ -146,8 +146,12 @@ mean anything. Migration 118.
   choice of all notification email, and a button posting with CSRF. The
   mail client's one-click `POST` (body `List-Unsubscribe=One-Click`) has no
   session; the signed token is its credential, so it is accepted without
-  a CSRF token and stops the mail's kind. Both are rate limited by
-  address (`identity.unsubscribe`) and need no sign-in. `api.notification_unsubscribe`
+  a CSRF token and stops the mail's kind. Both need no sign-in and are
+  rate limited (`identity.unsubscribe`) per account the signed link
+  names, a link that does not verify per address (amended 2026-10-17: a
+  mail provider posts its users' one-click unsubscribes from a few
+  addresses, and a limit per address turned most of them away, which
+  RFC 8058 clients do not retry). `api.notification_unsubscribe`
   turns the kind's email (or the email channel) off and audits a change
   as `notification.email_unsubscribed` with its scope and how it was made;
   no change, no audit. The headers count as one-click only under a DKIM

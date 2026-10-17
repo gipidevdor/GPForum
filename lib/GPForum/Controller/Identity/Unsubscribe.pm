@@ -43,10 +43,10 @@ sub unsubscribe ($self) {
     if ( !$one_click && GPForum::Web::Access->new->csrf_invalid($self) ) {
         return $self->_csrf_failure;
     }
-    if ( !$self->_identity_allowed('identity.unsubscribe') ) {
+    my $claim = $self->gp_unsubscribe_tokens->verify( $self->param('token') );
+    if ( !$self->_unsubscribe_allowed($claim) ) {
         return $self->_rate_limited;
     }
-    my $claim = $self->gp_unsubscribe_tokens->verify( $self->param('token') );
     return $self->_invalid_link if !$claim;
 
     my $scope =
@@ -83,6 +83,25 @@ sub unsubscribe ($self) {
     );
 }
 
+# A signed link is limited per account it names: a mail provider posts the
+# one-click unsubscribes of all its users from a few addresses, and a limit
+# per address turned most of them away (RFC 8058 clients do not retry). A
+# link that does not verify is limited per address, as before.
+sub _unsubscribe_allowed ( $self, $claim ) {
+    return $self->_identity_allowed('identity.unsubscribe') if !$claim;
+
+    my $decision = $self->gp_rate_limiter->check(
+        $self->identity_access->write_rate_input(
+            {
+                action   => 'identity.unsubscribe',
+                actor_id => $claim->{user_id},
+            }
+        )
+    );
+
+    return $decision->{ok};
+}
+
 sub _invalid_link ($self) {
     return $self->render(
         template => 'identity/unsubscribe_invalid',
@@ -116,8 +135,10 @@ email it stops (one kind of notification) with a button, and the choice of
 stopping all notification email instead. The button posts with the page's
 CSRF token; a mail client's one-click POST (body
 C<List-Unsubscribe=One-Click>) needs none, since it has no session and the
-signed token is the credential, and stops the kind the link names. Both are
-rate limited by address and need no sign-in. A link that does not verify,
+signed token is the credential, and stops the kind the link names. Both
+need no sign-in and are rate limited per account the link names, so the
+one-click POSTs a mail provider sends from a few addresses for many members
+all land; a link that does not verify is limited per address. A link that does not verify,
 or names an account that is gone, answers 404 with nothing changed. The
 change and how it was made are audited.
 

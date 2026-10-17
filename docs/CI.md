@@ -14,7 +14,7 @@ documented host instructions work, not that CI has a private path.
 
 | Target | Workflow | Runner | Trigger | Blocks merge |
 | --- | --- | --- | --- | --- |
-| Ubuntu (primary quality gate) | [ci.yml](../.github/workflows/ci.yml) | `ubuntu-latest`, system `/usr/bin/perl` | every push and pull request to `main` | yes |
+| Ubuntu (primary quality gate) | [ci.yml](../.github/workflows/ci.yml) | `ubuntu-26.04`, system `/usr/bin/perl` | every push and pull request to `main`; coverage nightly and on demand | yes |
 | Debian stable | [platform-debian.yml](../.github/workflows/platform-debian.yml) | `debian:trixie` container | code paths on `main`, weekly, manual | no |
 | FreeBSD | [platform-freebsd.yml](../.github/workflows/platform-freebsd.yml) | FreeBSD VM on an Ubuntu runner | OS/rc paths on `main`, weekly, manual | no |
 | macOS developer host | [platform-macos.yml](../.github/workflows/platform-macos.yml) | `macos-latest` with Homebrew | OS/launchd paths on `main`, weekly, manual | no |
@@ -77,7 +77,7 @@ run in their offline, simulate and dry-run modes, exactly as
 | Static analysis | `ci.yml` (`script/perlcritic`, `script/perl-syntax-check`, `script/architecture-check`), `security.yml` (actionlint, shellcheck) |
 | Formatting validation | `ci.yml` (`script/perltidy-check`) |
 | Test execution | `ci.yml`, `platform-debian.yml`, `platform-freebsd.yml`, `platform-macos.yml`, `postgres-matrix.yml` |
-| Coverage validation | `ci.yml` (`script/coverage`, `cover_db/` artifact) |
+| Coverage validation | `ci.yml` coverage job, nightly and on demand (`script/coverage`, `cover_db/` artifact) |
 | Continuous performance evidence and profiling | [performance.yml](../.github/workflows/performance.yml) (paired PR HTTP/SQL/outbox, representative main runs, weekly/manual deep sweep and configured NYTProf) |
 | Bounded Sunday saturation and recovery evidence | [performance-extreme.yml](../.github/workflows/performance-extreme.yml), single standard runner, maximum 30 minutes, immutable artifacts |
 | Security scanning | [security.yml](../.github/workflows/security.yml) (CPANSA advisories, license review, gitleaks, workflow and shell linting, OpenSSF Scorecard) |
@@ -86,6 +86,106 @@ run in their offline, simulate and dry-run modes, exactly as
 | Migration validation | `postgres-matrix.yml` (plan, apply, idempotent re-apply, fresh/upgrade/dump-restore drill) |
 | Database recovery validation | `postgres-recovery.yml` (weekly/manual manifest-verified isolated PITR; no PR matrix expansion) |
 | Accessibility gates | `ci.yml` test suite (`t/65-accessible-theme.t`, `t/35-forum-accessible-ssr.t`, the `*-access.t` authorization suite) per [ADR 0094](adr/0094-accessibility-engineering.md) |
+
+## What ci.yml runs
+
+Until 2026-10-17 `ci.yml` was one sequential job of about two hours, with
+`cancel-in-progress` on every ref. Every push to `main` cancelled the run
+before it, so from a69a995 on `main` had no finished result; the integration
+tier ran twice (`make integration`, then again inside `prove -lr t`), and no
+`prove` ran in parallel. It is now four jobs that start together. A run on
+`main` is never cancelled: a newer push waits for it, and GitHub keeps one
+pending run per branch. Other refs still cancel a superseded run.
+
+| Job | Runs | Typical length |
+| --- | --- | --- |
+| `lint` | every push and pull request | under 10 minutes |
+| `unit` | every push and pull request | under 10 minutes |
+| `integration` | every push and pull request, PostgreSQL 16 over its Unix socket | under 10 minutes |
+| `coverage` | nightly at 02:17 UTC and on demand (`workflow_dispatch`) | under an hour |
+
+`t/706-ci-finishes.t` reads the two tables below: every check that ran before
+must still run, every command of the second table must be in its job, and
+every one-line step of `ci.yml` must be in the second table.
+
+### Before: one job, in this order
+
+| Command | Now |
+| --- | --- |
+| `script/gpforum-system-perl --preflight` | same |
+| `script/bootstrap-deps --postgres` | same |
+| `script/gpforum-carton check` | same |
+| `script/cpan-license-check` | same |
+| `git diff --check` | same |
+| `prove -I script/lib -I t/lib -lr t/performance` | same |
+| `node --test t/js/*.test.cjs` | same |
+| `script/gpforum-carton exec script/perl-syntax-check` | same |
+| `script/perltidy-check` | same |
+| `script/perlcritic` | same |
+| `bin/gpforum migrate` | same |
+| `bin/gpforum performance-seed --profile small` | same |
+| `bin/gpforum budgets --sync` | same |
+| `bin/gpforum budgets --check` | same |
+| `script/architecture-check` | same |
+| `script/query-plan-check --require-db` | same |
+| `bin/gpforum os-preflight --json` | same |
+| `postgresql-client-16` | same |
+| `clamd --config-file` | same |
+| `make integration` | `make integration JOBS=4` |
+| `script/gpforum-carton exec prove -lr t` | `script/gpforum-carton exec prove -l -j 4 t`, `make integration JOBS=4` |
+| `bin/gpforum benchmark --fixture --check` | same |
+| `bin/gpforum query-plan-evidence --check` | same |
+| `script/benchmark-http --configured --check` | same |
+| `bin/gpforum hypnotoad-benchmark --check` | same |
+| `bin/gpforum platform-check --with-db` | same |
+| `script/coverage` | `script/coverage -j 4` |
+| `name: gpforum-cover-db` | same |
+
+`t/553-backup-postgres.t`, the one test under `t/` that needed a database,
+is now `t/integration/postgres-backup.t`: the unit job has none, as on a
+developer's laptop.
+
+### After: four jobs
+
+| Job | Command |
+| --- | --- |
+| every job | `script/gpforum-system-perl --preflight` |
+| every job | `script/bootstrap-deps --postgres` |
+| `lint` | `script/gpforum-carton check` |
+| `lint` | `script/cpan-license-check` |
+| `lint` | `git diff --check` |
+| `lint` | `prove -I script/lib -I t/lib -lr t/performance` |
+| `lint` | `node --test t/js/*.test.cjs` |
+| `lint` | `script/gpforum-carton exec script/perl-syntax-check` |
+| `lint` | `script/perltidy-check` |
+| `lint` | `script/perlcritic` |
+| `lint` | `script/architecture-check` |
+| `lint` | `script/gpforum-carton exec perl script/adr-index --check` |
+| `unit` | `script/gpforum-carton exec prove -l -j 4 t` |
+| `integration` | `postgresql-client-16` |
+| `integration` | `bin/gpforum migrate` |
+| `integration` | `bin/gpforum performance-seed --profile small` |
+| `integration` | `bin/gpforum budgets --sync` |
+| `integration` | `bin/gpforum budgets --check` |
+| `integration` | `script/query-plan-check --require-db` |
+| `integration` | `bin/gpforum os-preflight --json` |
+| `integration` | `clamd --config-file` |
+| `integration` | `make integration JOBS=4` |
+| `integration` | `bin/gpforum benchmark --fixture --check` |
+| `integration` | `bin/gpforum query-plan-evidence --check` |
+| `integration` | `script/benchmark-http --configured --check` |
+| `integration` | `bin/gpforum hypnotoad-benchmark --check` |
+| `integration` | `bin/gpforum platform-check --with-db` |
+| `coverage` | `postgresql-client-16` |
+| `coverage` | `bin/gpforum migrate` |
+| `coverage` | `bin/gpforum performance-seed --profile small` |
+| `coverage` | `bin/gpforum budgets --sync` |
+| `coverage` | `clamd --config-file` |
+| `coverage` | `script/coverage -j 4` |
+| `coverage` | `name: gpforum-cover-db` |
+
+The ADR index check is new as a step of its own; it also runs inside
+`t/190-gate-honesty.t`.
 
 ## Running the gates locally
 
@@ -138,8 +238,10 @@ sudo "$(script/gpforum-system-perl --print)" -S cpanm -M https://cpan.metacpan.o
 is the composite action every Ubuntu workflow uses: system packages, Carton for
 the system Perl, the system-Perl assertion, the dependency cache, and
 `script/bootstrap-deps`. `ci.yml` keeps those steps inline on purpose — it is
-the canonical gate, pinned command by command by `t/18-github-project.t`, so the
-contract test reads the pipeline itself rather than an indirection.
+the canonical gate, pinned command by command by `t/18-github-project.t` and
+`t/706-ci-finishes.t`, so the contract tests read the pipeline itself rather
+than an indirection. Its jobs share each setup step through a YAML anchor
+(`&checkout`, `*checkout`), written once in the first job.
 
 ## Continuous performance measurements
 

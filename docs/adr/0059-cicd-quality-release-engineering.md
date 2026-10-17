@@ -289,8 +289,12 @@ platform architecture.
   are reproducible from `cpanfile.snapshot` and versioned migrations, and a
   failed release can be rolled back instead of patched by hand.
 - Every change pays the full gate cost (critic, formatting, migrations,
-  PostgreSQL integration, benchmark smokes, coverage), which lengthens CI and
-  makes flaky tests release blockers.
+  PostgreSQL integration, benchmark smokes), which makes flaky tests release
+  blockers. Since 2026-10-17 `ci.yml` pays it in four parallel jobs (lint,
+  unit, integration, coverage) and never cancels a run on `main`: as one
+  two-hour job cancelled by each push, `main` had no finished result. The
+  instrumented coverage run is nightly and on demand, not on every push;
+  `docs/CI.md` lists every check before and after.
 - Operators must keep rollback and recovery procedures documented and
   rehearsed, keep secrets outside the repository and rotatable, and record any
   emergency gate bypass with scope, risk, operator and follow-up.

@@ -30,14 +30,16 @@ test: ## Run the test suite
 	script/gpforum-carton exec prove -lr t
 
 # Without a DSN every integration test skips, and a tier where everything
-# skipped has not passed. This target refuses instead.
-integration: ## Run the PostgreSQL integration tier (needs GPFORUM_DATABASE_DSN)
+# skipped has not passed. This target refuses instead. JOBS=N runs N tests at
+# once (each owns its databases); one at a time it stays verbose.
+JOBS ?= 1
+integration: ## Run the PostgreSQL integration tier (needs GPFORUM_DATABASE_DSN; JOBS=N in parallel)
 	@if [ -z "$$GPFORUM_DATABASE_DSN" ]; then \
 	  echo 'integration: GPFORUM_DATABASE_DSN is not set; nothing was tested' >&2; \
 	  echo 'integration: point it at a server where the user may CREATE DATABASE' >&2; \
 	  exit 1; \
 	fi
-	script/gpforum-carton exec prove -lv -It/lib -r t/integration
+	script/gpforum-carton exec prove -l $(if $(filter 1,$(JOBS)),-v,-j $(JOBS)) -It/lib -r t/integration
 
 # No --severity override. The profile declares `severity = brutal` and the
 # baseline in etc/ was recorded at that level, so passing --severity 5 here

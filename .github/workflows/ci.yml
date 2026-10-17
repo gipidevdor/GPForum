@@ -7,46 +7,41 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    # Nightly: the whole gate plus the instrumented coverage run.
+    - cron: '17 2 * * *'
   workflow_dispatch:
+    inputs:
+      coverage:
+        description: Also run the instrumented coverage gate
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
+# One sequential job of about two hours, cancelled by every push, left main
+# without a single finished run. The gate is now four parallel jobs, and a run
+# on main is never cancelled: a newer push waits for it instead (GitHub keeps
+# one pending run per group). Other refs still cancel a superseded run.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  perl:
-    name: Perl quality gate
+  lint:
+    name: Lint
     runs-on: ubuntu-26.04
-    # The instrumented suite follows the quality and PostgreSQL gates and
-    # can exceed one hour on a shared runner. Keep the full coverage ratchet.
-    timeout-minutes: 120
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: gpforum_test
-        volumes:
-          - /var/run/postgresql:/var/run/postgresql
-        options: >-
-          --health-cmd "pg_isready -U postgres -d gpforum_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      PGHOST: /var/run/postgresql
-      GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=/var/run/postgresql;port=5432
-      GPFORUM_DATABASE_USER: postgres
-      GPFORUM_DATABASE_PASSWORD: postgres
-
+    # About eight minutes with a warm dependency cache; the limit leaves room
+    # for a cold one after a cpanfile.snapshot change.
+    timeout-minutes: 30
     steps:
-      - name: Checkout
+      - &checkout
+        name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install system dependencies
+      - &system-dependencies
+        name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client locales nodejs
@@ -57,38 +52,28 @@ jobs:
           # Carton is a host tool for the OS system Perl, not a Carton-local binary.
           sudo /usr/bin/perl /usr/bin/cpanm --notest Carton
 
-      # Match pg_dump/pg_restore to the PostgreSQL 16 service. The system
-      # Perl wrapper prepends /usr/bin, so PATH alone cannot select them.
-      - name: Install matching PostgreSQL client
-        run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' \
-            "$(lsb_release -cs)" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-16
-          echo 'GPFORUM_PG_DUMP=/usr/lib/postgresql/16/bin/pg_dump' >> "$GITHUB_ENV"
-          echo 'GPFORUM_PG_RESTORE=/usr/lib/postgresql/16/bin/pg_restore' >> "$GITHUB_ENV"
-
-      - name: Verify system Perl
+      - &verify-system-perl
+        name: Verify system Perl
         run: |
           test "$(readlink -f "$(command -v perl)")" = /usr/bin/perl
           script/gpforum-system-perl --preflight
           script/gpforum-system-perl --require
 
-      - name: Resolve Perl version for the dependency cache
+      - &perl-version
+        name: Resolve Perl version for the dependency cache
         id: system-perl
         run: |
           printf 'version=%s\n' "$(/usr/bin/perl -MConfig -e 'print $Config{version}')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore locked CPAN tree
+      - &cpan-tree
+        name: Restore locked CPAN tree
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: local
           key: gpforum-carton-${{ runner.os }}-${{ runner.arch }}-perl${{ steps.system-perl.outputs.version }}-pgtrue-${{ hashFiles('cpanfile', 'cpanfile.postgres', 'cpanfile.snapshot') }}
 
-      - name: Install Perl dependencies
+      - &perl-dependencies
+        name: Install Perl dependencies
         run: script/bootstrap-deps --postgres
 
       - name: Verify dependency lock
@@ -100,6 +85,8 @@ jobs:
       - name: Check whitespace
         run: git diff --check
 
+      # Core Perl only, before the locked tree is used: the harness must run
+      # on a runner that has nothing else.
       - name: Check continuous performance evidence contracts
         run: prove -I script/lib -I t/lib -lr t/performance
 
@@ -117,20 +104,93 @@ jobs:
       - name: Run Perl::Critic
         run: script/perlcritic
 
-      - name: Apply database migrations
+      - name: Run architecture boundary check
+        run: script/architecture-check
+
+      - name: Check the ADR index
+        run: script/gpforum-carton exec perl script/adr-index --check
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - *checkout
+      - *system-dependencies
+      - *verify-system-perl
+      - *perl-version
+      - *cpan-tree
+      - *perl-dependencies
+
+      # t/ only, not recursive: t/integration runs once, in its own job, and
+      # t/performance runs on core Perl in the lint job. No database here, as
+      # on a developer's laptop.
+      - name: Run unit tests
+        run: script/gpforum-carton exec prove -l -j 4 t
+
+  integration:
+    name: PostgreSQL integration
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    services: &postgres-service
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gpforum_test
+        # The server's socket directory, shared with the runner: every
+        # connection below goes over the Unix socket (ADR 0137), not TCP.
+        volumes:
+          - /var/run/postgresql:/var/run/postgresql
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gpforum_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env: &postgres-env
+      PGHOST: /var/run/postgresql
+      GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=/var/run/postgresql;port=5432
+      GPFORUM_DATABASE_USER: postgres
+      GPFORUM_DATABASE_PASSWORD: postgres
+
+    steps:
+      - *checkout
+      - *system-dependencies
+
+      # Match pg_dump/pg_restore to the PostgreSQL 16 service. The system
+      # Perl wrapper prepends /usr/bin, so PATH alone cannot select them.
+      - &postgres-client
+        name: Install matching PostgreSQL client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' \
+            "$(lsb_release -cs)" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+          echo 'GPFORUM_PG_DUMP=/usr/lib/postgresql/16/bin/pg_dump' >> "$GITHUB_ENV"
+          echo 'GPFORUM_PG_RESTORE=/usr/lib/postgresql/16/bin/pg_restore' >> "$GITHUB_ENV"
+
+      - *verify-system-perl
+      - *perl-version
+      - *cpan-tree
+      - *perl-dependencies
+
+      - &migrate
+        name: Apply database migrations
         run: bin/gpforum migrate
 
-      - name: Seed production evidence dataset
+      - &seed
+        name: Seed production evidence dataset
         run: bin/gpforum performance-seed --profile small
 
-      - name: Sync query budget catalog
+      - &budgets
+        name: Sync query budget catalog
         run: bin/gpforum budgets --sync
 
       - name: Check query budget catalog
         run: bin/gpforum budgets --check
-
-      - name: Run architecture boundary check
-        run: script/architecture-check
 
       - name: Run query plan check
         run: script/query-plan-check --require-db
@@ -144,7 +204,8 @@ jobs:
       # never sits in this file -- rather than downloading the full set. Its
       # files live under /tmp: the package's enforced AppArmor profile lets
       # clamd write there, and not under the runner's home.
-      - name: Start the system clamd with a test signature
+      - &clamd
+        name: Start the system clamd with a test signature
         run: |
           sudo apt-get install -y clamav-daemon
           sudo systemctl stop clamav-daemon clamav-freshclam || true
@@ -172,12 +233,10 @@ jobs:
           exit 1
 
       # The directory, never a list of files: a list is where a new test goes
-      # to never run. t/190-gate-honesty.t holds every workflow to this.
+      # to never run. t/190-gate-honesty.t holds every workflow to this. Each
+      # test creates and drops databases of its own, so four run at once.
       - name: Run PostgreSQL integration tier
-        run: make integration
-
-      - name: Run tests
-        run: script/gpforum-carton exec prove -lr t
+        run: make integration JOBS=4
 
       - name: Run benchmark smoke
         run: bin/gpforum benchmark --fixture --check --iterations 2 --warmup 1 --route /health/live --route /categories
@@ -201,11 +260,38 @@ jobs:
       - name: Run platform check
         run: bin/gpforum platform-check --with-db
 
+  # The instrumented suite takes most of an hour even in parallel: nightly and
+  # on demand, never on a push, so it can no longer hold the gate hostage.
+  coverage:
+    name: Coverage
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.coverage)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    services: *postgres-service
+    env: *postgres-env
+    steps:
+      - *checkout
+      - *system-dependencies
+      - *postgres-client
+      - *verify-system-perl
+      - *perl-version
+      - *cpan-tree
+      - *perl-dependencies
+      - *migrate
+      - *seed
+      - *budgets
+      - *clamd
+
+      # Every test, the integration tier included, so lib/ is measured as
+      # before; the ratchet is etc/coverage-floor.
       - name: Run coverage gate
-        run: script/coverage
+        run: script/coverage -j 4
 
       - name: Upload coverage artifact
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gpforum-cover-db
           path: cover_db/
+          retention-days: 14
+          if-no-files-found: warn

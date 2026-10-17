@@ -1940,6 +1940,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **CI finishes on `main`.** `ci.yml` was one sequential job of about two
+  hours with `cancel-in-progress` on every ref, so each push to `main`
+  cancelled the run before it and `main` had no finished result; the
+  integration tier ran twice and no `prove` ran in parallel. It is now four
+  jobs that start together: lint, unit (`prove -l -j 4 t`), integration
+  (`make integration JOBS=4`, once, over PostgreSQL's Unix socket) and
+  coverage, which runs nightly and on demand. A run on `main` is never
+  cancelled. `docs/CI.md` lists every check before and after, and
+  `t/706-ci-finishes.t` holds the workflow to that list. The backup test
+  that needed a database moved into `t/integration/`.
+
 - **`GPFORUM_RUNTIME_REQUESTS` says what it counts.** It is Hypnotoad's
   `requests`, the keep-alive requests one connection serves before it is
   closed, and the settings page and the environment file template called

@@ -140,8 +140,8 @@ like(
 );
 like(
     $ci,
-    qr/script\/gpforum-carton [ ] exec [ ] prove [ ] -lr [ ] t/msx,
-    'CI runs prove -lr t through system-Perl Carton'
+qr/script\/gpforum-carton [ ] exec [ ] prove [ ] -l [ ] -j [ ] \d+ [ ] t$/msx,
+    'CI runs prove -l -j N t through system-Perl Carton'
 );
 like( $ci, qr/script\/coverage/msx,          'CI runs coverage' );
 like( $ci, qr/gpforum [ ] benchmark [ ]/msx, 'CI runs benchmark smoke' );

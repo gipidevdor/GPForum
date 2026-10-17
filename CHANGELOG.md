@@ -2909,6 +2909,18 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **`script/bench-socket` measures the hot pages through the listener the
+  service runs, under concurrent clients.** Each side is a checkout with
+  its own database, migrated and seeded with the medium profile by its own
+  `bin/gpforum`, and its own server started as the unit starts it
+  (`gpforum start --service --foreground`, production settings); members
+  register and sign in through the pages. Each cell is a page at a
+  concurrency, that many keep-alive connections speaking to the Unix socket
+  (or, for a checkout from before the socket, TCP loopback) as a proxy's
+  upstream connections do; the sides alternate, the order reversed each
+  round, and the report is each cell's median. `--connections` counts the
+  connections each worker holds in the middle of a cell; `--burst N` opens
+  N more at once a quarter of the way in and reports what they waited.
 - **A drill for EV's kqueue across Hypnotoad's fork.** A kqueue is not
   inherited by fork(2), and libev rebuilds it in a worker only through EV's
   pthread_atfork handler, which EV calls buggy on most BSDs. `t/700` forks

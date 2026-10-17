@@ -1,0 +1,1076 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+
+use FindBin qw($Bin);
+use lib "$Bin/../lib";
+
+# The event loop GPForum requires (kqueue or epoll) is chosen before anything
+# loads EV, for the load generator's own loop.
+use GPForum::OS::Reactor;
+
+use Carp qw(croak);
+use Const::Fast;
+use DBI;
+use EV;
+use English qw(-no_match_vars);
+use Errno   qw(EAGAIN EINPROGRESS EINTR);
+use Fcntl   qw(F_GETFL F_SETFL O_NONBLOCK);
+use File::Spec;
+use File::Temp    qw(tempdir tempfile);
+use Getopt::Long  qw(GetOptionsFromArray);
+use JSON::MaybeXS qw(decode_json encode_json);
+use List::Util    qw(sum0);
+use Mojo::UserAgent;
+use Mojo::Util qw(url_escape);
+use POSIX      qw(WNOHANG _exit setsid);
+use Socket     qw(
+  AF_INET AF_UNIX IPPROTO_TCP SOCK_STREAM TCP_NODELAY inet_aton
+  pack_sockaddr_in pack_sockaddr_un
+);
+use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC sleep);
+
+use GPForum::Benchmark::Measure qw(percentile);
+use GPForum::Benchmark::Process qw(free_port);
+
+our $VERSION = '0.001';
+
+# What the hot pages cost through the listener the service runs, under
+# concurrent clients. Each side is a checkout: its own database, migrated
+# and seeded with the medium profile by its own bin/gpforum, and its own
+# server started as the service starts it -- `bin/gpforum start --service
+# --foreground`, production settings, the workers asked for -- listening on
+# a Unix socket or on TCP loopback. Members register through /register,
+# each from its own forwarded address, are activated in the database and
+# sign in through /login, so their sessions are real server-side ones.
+#
+# Each measurement is one page at one concurrency: that many keep-alive
+# connections, as a proxy's upstream connections are, each sending its next
+# request when the last is answered, with the headers the shipped nginx site
+# adds. The sides alternate, their order reversed every round, and the
+# report is each cell's median over the rounds. No proxy runs: the clients
+# speak to the listener directly, so the time is the server's.
+#
+# --connections counts the connections each worker holds in the middle of a
+# cell; --burst N opens N more a quarter of the way into it, all at once,
+# and reports what they waited on their own, as a proxy's new upstream
+# connections wait when the load rises.
+const my %DEFAULT => (
+    duration => 8,
+    warmup   => 2,
+    rounds   => 3,
+    workers  => 4,
+    members  => 400,
+    procs    => 2,
+);
+const my @CONCURRENCY  => ( 1, 8, 32, 128 );
+const my $MILLISECONDS => 1_000;
+const my $PERCENT      => 100;
+const my $P50          => 50;
+const my $P95          => 95;
+const my $P99          => 99;
+const my $USAGE_ERROR  => 2;
+const my $READ_LIMIT   => 100_000_000;
+const my $READ_MEMBERS => 8;
+const my $BUFFER       => 262_144;
+const my $READY        => 60;
+const my $POLL         => 0.2;
+const my $START_DELAY  => 0.2;
+const my $RECONNECT    => 0.01;
+const my $GRACE        => 30;
+const my $STOP_WAIT    => 15;
+const my $WRITE_WARMUP => 0.5;
+const my $BURST_SHARE  => 0.75;
+const my $SECRET_BYTES => 32;
+const my $BYTE         => 256;
+const my $OCTET        => 256;
+const my $HTTP_ERROR   => 400;
+const my $HTTP_OK      => 200;
+const my $CRLF2        => "\r\n\r\n";
+const my %ANSWERED     => map { $_ => 1 } qw(200 302 303);
+const my $HOST         => 'forum.bench.test';
+const my $PASSWORD     => 'socket bench correct horse staple';
+const my $THREAD_ID    => '018f1004-0001-7000-8000-000000000001';
+const my $CATEGORY_ID  => '018f1001-0001-7000-8000-000000000001';
+const my @REPLY_THREAD => ( 101 .. 116 );
+const my $REPLY_BODY => 'body_source=A+socket+bench+reply+{n}%2C+with+a'
+  . '+sentence+or+two+of+ordinary+text+in+it.';
+const my %HEADERS => (
+    'Accept'            => 'text/html',
+    'Accept-Encoding'   => 'gzip, deflate, br',
+    'X-Forwarded-Proto' => 'https',
+);
+const my %PAGE => (
+    thread_member => { path => "/t/$THREAD_ID",         who => 'member' },
+    thread_guest  => { path => "/t/$THREAD_ID",         who => 'guest' },
+    home          => { path => q{/},                    who => 'member' },
+    category      => { path => "/c/$CATEGORY_ID",       who => 'member' },
+    search        => { path => '/search?q=performance', who => 'member' },
+
+    # The form a browser without the page's script posts: answered with a
+    # redirect to the new post.
+    reply => {
+        method => 'POST',
+        who    => 'writer',
+        body   => "csrf_token={csrf}&command_id={uuid}&$REPLY_BODY",
+    },
+
+    # What the page's script posts: the composer's draft fields as well,
+    # answered with the new post and a fresh composer.
+    reply_htmx => {
+        method  => 'POST',
+        who     => 'writer',
+        headers => { 'HX-Request' => 'true' },
+        body    => 'csrf_token={csrf}&command_id={uuid}&draft_id={uuid}'
+          . "&draft_revision=0&$REPLY_BODY",
+    },
+);
+const my @PAGES => qw(
+  thread_member thread_guest home category search reply reply_htmx
+);
+
+exit main(@ARGV);
+
+sub main (@arguments) {
+    my $option = _options(@arguments);
+    return _usage( $option->{usage} ) if defined $option->{usage};
+
+    my $admin_dsn = $ENV{GPFORUM_DATABASE_DSN}
+      // croak 'set GPFORUM_DATABASE_DSN to a server the user may CREATE in';
+    my @sides = map { _side( $_, $admin_dsn, $option ) } @{ $option->{side} };
+    my ( $rows, $error );
+    try {
+        for my $side (@sides) {
+            _prepare($side);
+        }
+        $rows = _measure( \@sides, $option );
+    }
+    catch ($caught) {
+        $error = $caught;
+    };
+    _finish( \@sides, $option );
+    croak $error if defined $error;
+
+    print _report( \@sides, $rows, $option ) or croak 'cannot write the report';
+
+    return 0;
+}
+
+sub _options (@arguments) {
+    my %option = ( %DEFAULT, side => [], page => [], concurrency => [] );
+    if (
+        !GetOptionsFromArray(
+            \@arguments,      \%option,     'side=s@',  'page=s@',
+            'concurrency=i@', 'duration=f', 'warmup=f', 'rounds=i',
+            'workers=i',      'members=i',  'procs=i',  'json=s',
+            'connections',    'keep',       'help',     'burst=i',
+        )
+      )
+    {
+        return { usage => $USAGE_ERROR };
+    }
+    return { usage => 0 } if $option{help};
+
+    if ( !@{ $option{page} } ) {
+        @{ $option{page} } = @PAGES;
+    }
+    if ( !@{ $option{concurrency} } ) {
+        @{ $option{concurrency} } = @CONCURRENCY;
+    }
+    my @unknown = grep { !$PAGE{$_} } @{ $option{page} };
+    if (   @arguments
+        || @unknown
+        || !@{ $option{side} }
+        || $option{rounds} < 1
+        || $option{members} < $READ_MEMBERS )
+    {
+        return { usage => $USAGE_ERROR };
+    }
+
+    return \%option;
+}
+
+sub _usage ($status) {
+    my $pages = join q{ }, @PAGES;
+    print <<"USAGE" or croak 'cannot write the usage';
+Usage: script/bench-socket --side LABEL=CHECKOUT[,tcp][,poll]...
+       [--page NAME]... [--concurrency N]... [--duration S] [--warmup S]
+       [--rounds N] [--workers N] [--members N] [--procs N] [--connections]
+       [--burst N] [--json FILE] [--keep]
+       Pages: $pages
+       A side listens on a Unix socket and reaches PostgreSQL through its
+       socket; tcp makes both TCP loopback (a checkout from before
+       2026-10-16), poll runs Mojo::Reactor::Poll (one from before EV was
+       required). GPFORUM_DATABASE_DSN names a server, by its socket
+       directory, the user may CREATE DATABASE on; for a tcp side it must
+       listen on 127.0.0.1 too.
+USAGE
+
+    return $status;
+}
+
+# A side as --side gives it: a label, a checkout, and how it is reached.
+sub _side ( $spelling, $admin_dsn, $option ) {
+    my ( $label, $rest ) = split /=/msx, $spelling, 2;
+    croak "--side $spelling: LABEL=CHECKOUT[,tcp][,poll]"
+      if !defined $rest || !length $label;
+    my ( $checkout, @flags ) = split /,/msx, $rest;
+    croak "--side $spelling: $checkout has no bin/gpforum"
+      if !-x "$checkout/bin/gpforum";
+    my %flag = map { $_ => 1 } @flags;
+    my $name = "gpforum_bench_socket_${label}_$PROCESS_ID";
+    my $dsn  = _side_dsn( $admin_dsn, $name, $flag{tcp} );
+    my $run  = tempdir( 'gpforum-bench-socket-XXXXXX', TMPDIR => 1 );
+
+    return {
+        label    => $label,
+        checkout => File::Spec->rel2abs($checkout),
+        tcp      => $flag{tcp}  ? 1 : 0,
+        poll     => $flag{poll} ? 1 : 0,
+        database => $name,
+        dsn      => $dsn,
+        admin    => $admin_dsn,
+        run      => $run,
+        workers  => $option->{workers},
+        members  => $option->{members},
+        target   => $flag{tcp}
+        ? 'tcp:127.0.0.1:' . free_port()
+        : "unix:$run/gpforum.sock",
+    };
+}
+
+# The side's database on the same server: through the socket the admin DSN
+# names, or for a tcp side through 127.0.0.1 on the same port.
+sub _side_dsn ( $admin_dsn, $name, $tcp ) {
+    ( my $dsn = $admin_dsn ) =~ s/dbname=[^;]+/dbname=$name/msx;
+    if ($tcp) {
+        $dsn =~ s/host=[^;]+/host=127.0.0.1/msx;
+    }
+
+    return $dsn;
+}
+
+sub _connect ($dsn) {
+    return DBI->connect(
+        $dsn,
+        $ENV{GPFORUM_DATABASE_USER},
+        $ENV{GPFORUM_DATABASE_PASSWORD},
+        { AutoCommit => 1, PrintError => 0, RaiseError => 1 },
+    );
+}
+
+# The database, migrated and seeded by the side's own commands; the server;
+# its members.
+sub _prepare ($side) {
+    my $admin = _connect( $side->{admin} );
+    $admin->do(
+        'CREATE DATABASE ' . $admin->quote_identifier( $side->{database} ) );
+    $side->{created} = 1;
+    $admin->disconnect;
+
+    my %database = (
+        GPFORUM_DATABASE_DSN => $side->{dsn},
+        LC_ALL               => 'en_US.UTF-8',
+    );
+    for my $command ( [ 'migrate', '--quiet' ],
+        [ 'performance-seed', '--profile', 'medium' ] )
+    {
+        _run_quietly( $side, \%database, @{$command} );
+    }
+    _start($side);
+    $side->{members_signed_in} = _sign_in($side);
+
+    return;
+}
+
+sub _run_quietly ( $side, $environment, @command ) {
+    my $pid = fork // croak "cannot fork: $OS_ERROR";
+    if ( !$pid ) {
+        local %ENV = ( %ENV, %{$environment} );
+        chdir $side->{checkout} or _exit(1);
+        open STDOUT, '>>', "$side->{run}/setup.log" or _exit(1);
+        open STDERR, '>&', \*STDOUT                 or _exit(1);
+        exec {"$side->{checkout}/bin/gpforum"} "$side->{checkout}/bin/gpforum",
+          @command
+          or _exit(1);
+    }
+    waitpid $pid, 0;
+    croak "$side->{label}: gpforum @command failed; see $side->{run}/setup.log"
+      if $CHILD_ERROR;
+
+    return;
+}
+
+# The service as its unit starts it, with production settings a laptop can
+# give: mail through sendmail (the outbox worker that would send it does not
+# run), no antivirus (nothing is uploaded), the read limit raised.
+sub _service_environment ($side) {
+    my %environment = (
+        LC_ALL                        => 'en_US.UTF-8',
+        GPFORUM_ENV                   => 'production',
+        GPFORUM_PUBLIC_BASE_URL       => "https://$HOST",
+        GPFORUM_SESSION_SECRET        => _random_hex(),
+        GPFORUM_METRICS_TOKEN         => _random_hex(),
+        GPFORUM_DATABASE_DSN          => $side->{dsn},
+        GPFORUM_MAIL_TRANSPORT        => 'sendmail',
+        GPFORUM_MAIL_FROM             => "forum\@$HOST",
+        GPFORUM_ANTIVIRUS             => 'none',
+        GPFORUM_LOG_PATH              => "$side->{run}/gpforum.log",
+        GPFORUM_WEB_PROCESSES         => $side->{workers},
+        GPFORUM_RUNTIME_WORKER_POLICY => 'configured',
+        GPFORUM_RUNTIME_PID_FILE      => "$side->{run}/hypnotoad.pid",
+        GPFORUM_RUNTIME_LISTEN        => _listen($side),
+        GPFORUM_FORUM_READ_RATE_LIMIT => $READ_LIMIT,
+    );
+    if ( $side->{poll} ) {
+        $environment{MOJO_REACTOR} = 'Mojo::Reactor::Poll';
+    }
+
+    return \%environment;
+}
+
+sub _listen ($side) {
+    my ( $kind, $where ) = split /:/msx, $side->{target}, 2;
+    return "http://$where" if $kind eq 'tcp';
+
+    return 'http+unix://' . url_escape($where);
+}
+
+sub _random_hex {
+    return join q{}, map { sprintf '%02x', int rand $BYTE } 1 .. $SECRET_BYTES;
+}
+
+sub _start ($side) {
+    my $environment = _service_environment($side);
+    my $pid         = fork // croak "cannot fork: $OS_ERROR";
+    if ( !$pid ) {
+        setsid();
+        local %ENV = ( %ENV, %{$environment} );
+        if ( !$side->{poll} ) {
+            delete $ENV{MOJO_REACTOR};
+        }
+        chdir $side->{checkout} or _exit(1);
+        open STDOUT, '>',  "$side->{run}/service.log" or _exit(1);
+        open STDERR, '>&', \*STDOUT                   or _exit(1);
+        exec {"$side->{checkout}/bin/gpforum"} "$side->{checkout}/bin/gpforum",
+          qw(start --service --foreground)
+          or _exit(1);
+    }
+    $side->{pid} = $pid;
+    _await_ready($side);
+
+    return;
+}
+
+sub _await_ready ($side) {
+    my $deadline = clock_gettime(CLOCK_MONOTONIC) + $READY;
+    while ( clock_gettime(CLOCK_MONOTONIC) < $deadline ) {
+        croak "$side->{label}: the service stopped; see $side->{run}"
+          if waitpid( $side->{pid}, WNOHANG ) == $side->{pid};
+        my $tx = _agent()->get( _base($side) . '/health/live' => _proxy() );
+        return if ( $tx->res->code // 0 ) == $HTTP_OK;
+        sleep $POLL;
+    }
+    croak "$side->{label}: the service did not answer in $READY s";
+}
+
+sub _agent {
+    state $ua = do {
+        my $agent = Mojo::UserAgent->new(
+            max_redirects   => 0,
+            request_timeout => $GRACE,
+        );
+        $agent->cookie_jar->ignore( sub { return 1; } );
+        $agent;
+    };
+
+    return $ua;
+}
+
+sub _base ($side) {
+    my ( $kind, $where ) = split /:/msx, $side->{target}, 2;
+    return "http://$where" if $kind eq 'tcp';
+
+    return 'http+unix://' . url_escape($where);
+}
+
+sub _proxy ( $address = '10.9.0.1' ) {
+    return {
+        %HEADERS,
+        Host              => $HOST,
+        'X-Forwarded-For' => $address,
+        'X-Real-IP'       => $address,
+    };
+}
+
+# The members: registered, activated in the database,
+# signed in, each with the session's CSRF token read from a page.
+sub _sign_in ($side) {
+    my $dbh = _connect( $side->{dsn} );
+    my @members;
+    for my $number ( 1 .. $side->{members} ) {
+        push @members, _member( $side, $dbh, $number );
+    }
+    $dbh->disconnect;
+
+    return \@members;
+}
+
+sub _member ( $side, $dbh, $number ) {
+    my %member = (
+        name    => "socket_bench_$number",
+        address => sprintf( '10.%d.%d.%d',
+            1 + int( $number / ( $OCTET * $OCTET ) ),
+            int( $number / $OCTET ) % $OCTET,
+            $number % $OCTET ),
+        jar => {},
+    );
+    my $form = _visit( $side, \%member, GET => '/register' );
+    _visit(
+        $side,
+        \%member,
+        POST => '/register',
+        {
+            command_id   => _field( $form, 'command_id' ),
+            csrf_token   => _field( $form, 'csrf_token' ),
+            username     => $member{name},
+            display_name => "Socket Bench $number",
+            email        => "$member{name}\@example.test",
+            password     => $PASSWORD,
+        }
+    );
+    $dbh->do(
+        q{UPDATE users SET status = 'active', email_verified_at = now()}
+          . ' WHERE username = ?',
+        undef, $member{name}
+    );
+    my $login = _visit( $side, \%member, GET => '/login' );
+    _visit(
+        $side,
+        \%member,
+        POST => '/login',
+        {
+            command_id => _field( $login, 'command_id' ),
+            csrf_token => _field( $login, 'csrf_token' ),
+            identifier => $member{name},
+            password   => $PASSWORD,
+        }
+    );
+    my $home = _visit( $side, \%member, GET => q{/} );
+    croak "$side->{label}: $member{name} could not sign in"
+      if !$home->res->dom->at('form[action="/logout"]');
+
+    return {
+        address => $member{address},
+        csrf    => _field( $home, 'csrf_token' ),
+        cookie  => join q{; },
+        map { "$_=$member{jar}{$_}" } sort keys %{ $member{jar} },
+    };
+}
+
+sub _visit ( $side, $member, $method, $path, $form = undef ) {
+    my %headers = %{ _proxy( $member->{address} ) };
+    if ( %{ $member->{jar} } ) {
+        $headers{Cookie} = join q{; },
+          map { "$_=$member->{jar}{$_}" } sort keys %{ $member->{jar} };
+    }
+    my $url = _base($side) . $path;
+    my $tx =
+      $form
+      ? _agent()->build_tx( $method => $url => \%headers => form => $form )
+      : _agent()->build_tx( $method => $url => \%headers );
+    $tx = _agent()->start($tx);
+    my $code = $tx->res->code // 0;
+    croak "$side->{label}: $method $path answered $code"
+      if !$code || $code >= $HTTP_ERROR;
+    for my $cookie ( @{ $tx->res->cookies } ) {
+        $member->{jar}{ $cookie->name } = $cookie->value;
+    }
+
+    return $tx;
+}
+
+sub _field ( $tx, $name ) {
+    my $input = $tx->res->dom->at(qq{input[name="$name"]})
+      // croak "no $name field on " . $tx->req->url;
+
+    return $input->attr('value');
+}
+
+# Every cell on every side, the sides' order reversed each round.
+sub _measure ( $sides, $option ) {
+    my @rows;
+    for my $round ( 1 .. $option->{rounds} ) {
+        my @order = $round % 2 ? @{$sides} : reverse @{$sides};
+        for my $page ( @{ $option->{page} } ) {
+            for my $concurrency ( @{ $option->{concurrency} } ) {
+                for my $side (@order) {
+                    my $row = _cell( $side, $page, $concurrency, $option );
+                    $row->{round} = $round;
+                    push @rows, $row;
+                    _log_row( $row, $option );
+                }
+            }
+        }
+    }
+
+    return \@rows;
+}
+
+sub _log_row ( $row, $option ) {
+    printf {*STDERR} 'r%d %-14s c=%-4d %-10s %8.1f req/s p50 %8.2f p95 %8.2f'
+      . " p99 %8.2f%s%s\n",
+      @{$row}{qw(round page concurrency side rps p50_ms p95_ms p99_ms)},
+      ( $row->{connections} ? " connections $row->{connections}" : q{} ),
+      (
+        $row->{burst}
+        ? sprintf( q{ burst p50 %.2f p95 %.2f p99 %.2f},
+            @{ $row->{burst} }{qw(p50_ms p95_ms p99_ms)} )
+        : q{}
+      ) or croak q{cannot write the progress};
+    return if !defined $option->{json};
+
+    open my $handle, '>>', $option->{json}
+      or croak "cannot append to $option->{json}: $OS_ERROR";
+    print {$handle} encode_json($row) . "\n"
+      or croak "cannot write $option->{json}";
+    close $handle or croak "cannot close $option->{json}";
+
+    return;
+}
+
+sub _cell ( $side, $page, $concurrency, $option ) {
+    my $definition = { %{ $PAGE{$page} } };
+    my $writer     = $definition->{who} eq 'writer';
+    if ($writer) {
+
+        # The bench's own counters: each member may write 20 times a minute.
+        my $dbh = _connect( $side->{dsn} );
+        $dbh->do('DELETE FROM rate_limit_buckets');
+        $dbh->disconnect;
+    }
+    my %load = (
+        target      => $side->{target},
+        request     => _request_template( $side, $definition ),
+        concurrency => $concurrency,
+        duration    => $writer ? $option->{duration} / 2 : $option->{duration},
+        warmup      => $writer ? $WRITE_WARMUP           : $option->{warmup},
+        procs       => $concurrency >= $option->{procs} ? $option->{procs} : 1,
+        burst       => $writer                          ? 0 : $option->{burst},
+    );
+    my $census = $option->{connections} ? _census_start($side) : undef;
+    my $result = _load( \%load, $census );
+
+    return {
+        %{$result},
+        side        => $side->{label},
+        page        => $page,
+        concurrency => $concurrency,
+    };
+}
+
+sub _request_template ( $side, $definition ) {
+    my @members = @{ $side->{members_signed_in} };
+    my $who     = $definition->{who};
+    my $paths =
+      $definition->{path}
+      ? [ $definition->{path} ]
+      : [ map { sprintf '/t/018f1004-%04x-7000-8000-%012x/replies', $_, $_ }
+          @REPLY_THREAD ];
+    my %headers = ( %HEADERS, %{ $definition->{headers} // {} } );
+
+    return {
+        method => $definition->{method} // 'GET',
+        paths  => $paths,
+        head   => join( q{},
+            "Host: $HOST\r\n",
+            map { "$_: $headers{$_}\r\n" } sort keys %headers ),
+        body => $definition->{body},
+        members => $who eq 'guest' ? [ { address => '10.9.0.1' } ]
+        : $who eq 'member' ? [ @members[ 0 .. $READ_MEMBERS - 1 ] ]
+        :                    \@members,
+    };
+}
+
+# The load: its processes each run their share of the connections and write
+# what they measured to a file, merged here.
+sub _load ( $load, $census ) {
+    my $procs = $load->{procs};
+    my $start = clock_gettime(CLOCK_MONOTONIC) + $START_DELAY;
+    my @children;
+    for my $index ( 0 .. $procs - 1 ) {
+        my $share = int( $load->{concurrency} / $procs ) +
+          ( $index < $load->{concurrency} % $procs ? 1 : 0 );
+        push @children,
+          _spawn_client( $load,
+            { index => $index, share => $share, start => $start } );
+    }
+    my $burst = _spawn_burst( $load, $start );
+    my $connections;
+    if ($census) {
+        sleep $START_DELAY + $load->{warmup} + $load->{duration} / 2;
+        $connections = _census_count($census);
+    }
+    my $merged = _merge( $load, \@children, $connections );
+    if ($burst) {
+        $merged->{burst} = _merge( $burst->{load}, [ $burst->{child} ], undef );
+    }
+
+    return $merged;
+}
+
+# --burst N: N more connections opened at once a quarter of the way into
+# the measured time, next to the busy ones, and measured on their own until
+# the end: a proxy opening upstream connections when the load rises.
+sub _spawn_burst ( $load, $start ) {
+    return undef if !$load->{burst};
+
+    my %burst = (
+        %{$load},
+        warmup   => 0,
+        duration => $load->{duration} * $BURST_SHARE,
+    );
+    my $opens = $start + $load->{warmup} + $load->{duration} - $burst{duration};
+
+    return {
+        load  => \%burst,
+        child => _spawn_client(
+            \%burst,
+            {
+                index => $load->{procs},
+                share => $load->{burst},
+                start => $opens,
+            }
+        ),
+    };
+}
+
+sub _spawn_client ( $load, $part ) {
+    my ( $handle, $file ) =
+      tempfile( 'gpforum-bench-socket-XXXXXX', TMPDIR => 1 );
+    close $handle or croak "cannot close $file";
+    my $pid = fork // croak "cannot fork: $OS_ERROR";
+    if ( !$pid ) {
+        my $measured = _client( $load, $part );
+        open my $out, '>', $file or _exit(1);
+        print {$out} encode_json($measured) or _exit(1);
+        close $out                          or _exit(1);
+        _exit(0);
+    }
+
+    return { pid => $pid, file => $file };
+}
+
+sub _merge ( $load, $children, $connections ) {
+    my ( @latency, %status );
+    my ( $errors,  $bytes ) = ( 0, 0 );
+    for my $child ( @{$children} ) {
+        waitpid $child->{pid}, 0;
+        my $measured = decode_json( _slurp( $child->{file} ) );
+        unlink $child->{file};
+        push @latency, @{ $measured->{latency} };
+        for my $code ( keys %{ $measured->{status} } ) {
+            $status{$code} += $measured->{status}{$code};
+        }
+        $errors += $measured->{errors};
+        $bytes  += $measured->{bytes};
+    }
+    @latency = sort { $a <=> $b } @latency;
+
+    return {
+        rps      => @latency / $load->{duration},
+        p50_ms   => _ms( percentile( \@latency, $P50 ) ),
+        p95_ms   => _ms( percentile( \@latency, $P95 ) ),
+        p99_ms   => _ms( percentile( \@latency, $P99 ) ),
+        requests => scalar @latency,
+        errors   => $errors,
+        status   => \%status,
+        bytes    => @latency ? int( $bytes / @latency ) : 0,
+        ( defined $connections ? ( connections => $connections ) : () ),
+    };
+}
+
+sub _slurp ($file) {
+    open my $handle, '<', $file or croak "a load process failed: $file";
+    local $INPUT_RECORD_SEPARATOR = undef;
+    my $text = <$handle>;
+    close $handle or croak "cannot close $file";
+
+    return $text;
+}
+
+sub _ms ($seconds) {
+    return 0 + sprintf '%.2f', $seconds * $MILLISECONDS;
+}
+
+# One load process: its connections, each sending its next request when
+# the last is answered, from the start for warm-up plus duration seconds;
+# what was answered after the warm-up is measured.
+sub _client ( $load, $part ) {
+
+    # The kernel queue the sign-in's requests opened in the parent is not
+    # this process's: libev makes its own again before the loop runs. Its
+    # clock is the one it read when the parent's loop last ran, minutes ago
+    # by now, and the timers below would count from then.
+    EV::default_loop()->loop_fork;
+    EV::now_update();
+    srand( $PROCESS_ID ^ time );
+    my $state = {
+        load     => $load,
+        index    => $part->{index},
+        member   => $part->{index},
+        sequence => 0,
+        measured => $part->{start} + $load->{warmup},
+        ends     => $part->{start} + $load->{warmup} + $load->{duration},
+        latency  => [],
+        status   => {},
+        errors   => 0,
+        bytes    => 0,
+        open     => $part->{share},
+    };
+    my @connections = map { {} } 1 .. $part->{share};
+    my $go          = EV::timer(
+        _until( $part->{start} ),
+        0,
+        sub {
+            for my $connection (@connections) {
+                _send( $state, $connection );
+            }
+        }
+    );
+    my $guard =
+      EV::timer( _until( $state->{ends} ) + $GRACE, 0, sub { EV::break(); } );
+    EV::run();
+
+    return {
+        latency => $state->{latency},
+        status  => $state->{status},
+        errors  => $state->{errors},
+        bytes   => $state->{bytes},
+    };
+}
+
+sub _until ($when) {
+    my $delay = $when - clock_gettime(CLOCK_MONOTONIC);
+    return $delay > 0 ? $delay : 0;
+}
+
+sub _send ( $state, $connection ) {
+    my $now = clock_gettime(CLOCK_MONOTONIC);
+    if ( $now >= $state->{ends} ) {
+        _close($connection);
+        if ( !--$state->{open} ) {
+            EV::break();
+        }
+        return;
+    }
+    if ( !$connection->{handle} && !_open( $state, $connection ) ) {
+        $connection->{retry} =
+          EV::timer( $RECONNECT, 0, sub { _send( $state, $connection ); } );
+        return;
+    }
+    $connection->{out}     = _next_request($state);
+    $connection->{started} = $now;
+    $connection->{in}      = q{};
+    $connection->{watcher} = EV::io( $connection->{handle}, EV::WRITE,
+        sub { _write( $state, $connection ); } );
+
+    return;
+}
+
+sub _open ( $state, $connection ) {
+    my ( $kind, $where ) = split /:/msx, $state->{load}{target}, 2;
+    my $handle;
+    if ( $kind eq 'unix' ) {
+        socket $handle, AF_UNIX, SOCK_STREAM, 0 or croak "socket: $OS_ERROR";
+    }
+    else {
+        socket $handle, AF_INET, SOCK_STREAM, 0 or croak "socket: $OS_ERROR";
+        setsockopt $handle, IPPROTO_TCP, TCP_NODELAY, 1
+          or croak "setsockopt: $OS_ERROR";
+    }
+    my $flags = fcntl $handle, F_GETFL, 0 or croak "fcntl: $OS_ERROR";
+    fcntl $handle, F_SETFL, $flags | O_NONBLOCK or croak "fcntl: $OS_ERROR";
+    my $address =
+      $kind eq 'unix'
+      ? pack_sockaddr_un($where)
+      : pack_sockaddr_in( ( split /:/msx, $where )[1], inet_aton('127.0.0.1') );
+    if ( !connect $handle, $address ) {
+        if ( $OS_ERROR != EINPROGRESS && $OS_ERROR != EAGAIN ) {
+            ++$state->{errors};
+            return 0;
+        }
+    }
+    $connection->{handle} = $handle;
+
+    return 1;
+}
+
+sub _next_request ($state) {
+    my $template = $state->{load}{request};
+    my $members  = $template->{members};
+    my $member   = $members->[ $state->{member} % @{$members} ];
+    $state->{member} += $state->{load}{procs};
+    my $sequence = ++$state->{sequence};
+    my $paths    = $template->{paths};
+    my $path = $paths->[ ( $sequence * $state->{load}{procs} + $state->{index} )
+      % @{$paths} ];
+    my $address = $member->{address};
+
+    my $request =
+        "$template->{method} $path HTTP/1.1\r\n$template->{head}"
+      . "X-Forwarded-For: $address\r\nX-Real-IP: $address\r\n"
+      . ( defined $member->{cookie} ? "Cookie: $member->{cookie}\r\n" : q{} );
+    return "$request\r\n" if !defined $template->{body};
+
+    my $body = _body( $template->{body}, $member, "$PROCESS_ID-$sequence" );
+    return
+        $request
+      . "Content-Type: application/x-www-form-urlencoded\r\n"
+      . 'Content-Length: '
+      . length($body)
+      . "\r\n\r\n$body";
+}
+
+sub _body ( $template, $member, $number ) {
+    my $body  = $template;
+    my $token = url_escape( $member->{csrf} // q{} );
+    $body =~ s/[{]csrf[}]/$token/gmsx;
+    $body =~ s/[{]uuid[}]/_uuid()/egmsx;
+    $body =~ s/[{]n[}]/$number/gmsx;
+
+    return $body;
+}
+
+sub _uuid {
+    my $hex = join q{}, map { sprintf '%02x', int rand $BYTE } 1 .. 16;    ## no critic (ValuesAndExpressions::ProhibitMagicNumbers) -- a uuid's sixteen bytes
+    substr $hex, 12, 1, '4';                                               ## no critic (ValuesAndExpressions::ProhibitMagicNumbers) -- the version digit
+    return join q{-}, unpack 'A8 A4 A4 A4 A12', $hex;
+}
+
+sub _write ( $state, $connection ) {
+    my $written = syswrite $connection->{handle}, $connection->{out};
+    if ( !defined $written ) {
+        return if $OS_ERROR == EAGAIN || $OS_ERROR == EINTR;
+        return _failed( $state, $connection );
+    }
+    substr $connection->{out}, 0, $written, q{};
+    return if length $connection->{out};
+
+    $connection->{watcher} = EV::io( $connection->{handle}, EV::READ,
+        sub { _read( $state, $connection ); } );
+
+    return;
+}
+
+sub _failed ( $state, $connection ) {
+    ++$state->{errors};
+    _close($connection);
+    _send( $state, $connection );
+
+    return;
+}
+
+sub _close ($connection) {
+    undef $connection->{watcher};
+    if ( $connection->{handle} ) {
+        close $connection->{handle} or undef;
+    }
+    undef $connection->{handle};
+
+    return;
+}
+
+sub _read ( $state, $connection ) {
+    my $read = sysread $connection->{handle}, $connection->{in}, $BUFFER,
+      length $connection->{in};
+    if ( !defined $read ) {
+        return if $OS_ERROR == EAGAIN || $OS_ERROR == EINTR;
+        return _failed( $state, $connection );
+    }
+    return _failed( $state, $connection ) if !$read;
+
+    my $response = _response( $connection->{in} ) // return;
+    my $now      = clock_gettime(CLOCK_MONOTONIC);
+    if (   $connection->{started} >= $state->{measured}
+        && $now <= $state->{ends} )
+    {
+        push @{ $state->{latency} }, $now - $connection->{started};
+        ++$state->{status}{ $response->{code} };
+        $state->{bytes} += $response->{body};
+    }
+    if ( $response->{close} ) {
+        _close($connection);
+    }
+    _send( $state, $connection );
+
+    return;
+}
+
+# The response in a buffer, once it is whole: its status, its body's length,
+# and whether the server closes the connection after it.
+sub _response ($buffer) {
+    my $end = index $buffer, $CRLF2;
+    return undef if $end < 0;
+
+    my $head    = substr $buffer, 0, $end;
+    my ($code)  = $head =~ m{\A HTTP/1[.][01] [ ] (\d{3})}msx;
+    my $closes  = $head =~ /^Connection: \s* close/imsx ? 1 : 0;
+    my $body_at = $end + length $CRLF2;
+    if ( $head =~ /^Content-Length: \s* (\d+)/imsx ) {
+        return undef if length $buffer < $body_at + $1;
+        return { code => $code, body => $1, close => $closes };
+    }
+    if ( $head =~ /^Transfer-Encoding: \s* chunked/imsx ) {
+        return undef if $buffer !~ /\r\n0\r\n\r\n\z/msx;
+        return {
+            code  => $code,
+            body  => length($buffer) - $body_at,
+            close => $closes
+        };
+    }
+
+    return { code => $code, body => length($buffer) - $body_at, close => 1 };
+}
+
+# The connections each worker holds, before a cell and in its middle: the
+# difference is the cell's, by worker. It needs pgrep and lsof.
+sub _census_start ($side) {
+    return { side => $side, before => _worker_sockets($side) };
+}
+
+sub _census_count ($census) {
+    my $now    = _worker_sockets( $census->{side} );
+    my $before = $census->{before};
+
+    return join q{/}, reverse sort { $a <=> $b }
+      map { $now->{$_} - ( $before->{$_} // 0 ) } keys %{$now};
+}
+
+sub _worker_sockets ($side) {
+    open my $file, '<', "$side->{run}/hypnotoad.pid"
+      or croak "no pid file in $side->{run}";
+    my $manager = <$file>;
+    close $file or croak 'cannot close the pid file';
+    chomp $manager;
+    my %sockets;
+    for my $worker ( _command_lines( 'pgrep', '-P', $manager ) ) {
+        my @open =
+          $side->{tcp}
+          ? _command_lines( 'lsof', '-nP', '-a', '-p', $worker, '-iTCP',
+            '-sTCP:ESTABLISHED' )
+          : _command_lines( 'lsof', '-nP', '-a', '-p', $worker, '-U' );
+        $sockets{$worker} = @open ? @open - 1 : 0;
+    }
+
+    return \%sockets;
+}
+
+sub _command_lines (@command) {
+    open my $output, q{-|}, @command
+      or croak "cannot run $command[0]: $OS_ERROR";
+    my @lines = <$output>;
+    chomp @lines;
+    close $output or undef;
+
+    return @lines;
+}
+
+sub _finish ( $sides, $option ) {
+    for my $side ( @{$sides} ) {
+        _stop($side);
+        next if !$side->{created} || $option->{keep};
+
+        my $admin = _connect( $side->{admin} );
+        $admin->do( 'DROP DATABASE IF EXISTS '
+              . $admin->quote_identifier( $side->{database} )
+              . ' WITH (FORCE)' );
+        $admin->disconnect;
+    }
+
+    return;
+}
+
+# The manager in the foreground stops its workers on TERM; anything still
+# running after that is killed with its session.
+sub _stop ($side) {
+    return if !$side->{pid};
+
+    kill 'TERM', $side->{pid};
+    my $deadline = clock_gettime(CLOCK_MONOTONIC) + $STOP_WAIT;
+    while ( clock_gettime(CLOCK_MONOTONIC) < $deadline ) {
+        return if waitpid( $side->{pid}, WNOHANG ) == $side->{pid};
+        sleep $POLL;
+    }
+    kill 'KILL', -$side->{pid};
+    waitpid $side->{pid}, 0;
+
+    return;
+}
+
+# Each cell's median over the rounds, and the change from the first side.
+sub _report ( $sides, $rows, $option ) {
+    my %cell;
+    for my $row ( @{$rows} ) {
+        push @{ $cell{ $row->{page} }{ $row->{concurrency} }{ $row->{side} } },
+          $row;
+    }
+    my $first = $sides->[0]{label};
+    my $text =
+      sprintf q{socket bench: %d workers, %d rounds of %s s after %s s}
+      . " warm-up, medians\n",
+      @{$option}{qw(workers rounds duration warmup)};
+    $text .= sprintf "%-14s %5s %-10s %9s %8s %8s %8s %7s %7s\n", 'page', 'c',
+      'side', 'req/s', 'p50 ms', 'p95 ms', 'p99 ms', 'req/s', 'errors';
+    for my $page ( @{ $option->{page} } ) {
+        for my $concurrency ( @{ $option->{concurrency} } ) {
+            my $base = _median_row( $cell{$page}{$concurrency}{$first} );
+            for my $side ( @{$sides} ) {
+                my $rows   = $cell{$page}{$concurrency}{ $side->{label} };
+                my $median = _median_row($rows);
+                $text .=
+                  sprintf "%-14s %5d %-10s %9.1f %8.2f %8.2f %8.2f %7s %7d\n",
+                  $page, $concurrency, $side->{label},
+                  @{$median}{qw(rps p50_ms p95_ms p99_ms)},
+                  _change( $base->{rps}, $median->{rps} ), $median->{errors};
+                next if !$option->{burst};
+
+                my $burst =
+                  _median_row( [ map { $_->{burst} // () } @{ $rows // [] } ] );
+                $text .= sprintf "%-14s %5s %-10s %9.1f %8.2f %8.2f %8.2f\n",
+                  q{}, "+$option->{burst}", $side->{label},
+                  @{$burst}{qw(rps p50_ms p95_ms p99_ms)};
+            }
+        }
+    }
+
+    return $text;
+}
+
+sub _median_row ($rows) {
+    my %median;
+    for my $key (qw(rps p50_ms p95_ms p99_ms)) {
+        my @values = sort { $a <=> $b } map { $_->{$key} } @{ $rows // [] };
+        $median{$key} = @values ? percentile( \@values, $P50 ) : 0;
+    }
+    $median{errors} = sum0 map { $_->{errors} + _refused($_) } @{ $rows // [] };
+
+    return \%median;
+}
+
+# Answers that are neither a page nor a redirect, as the errors' column
+# counts them.
+sub _refused ($row) {
+    return sum0 map { $row->{status}{$_} }
+      grep { !exists $ANSWERED{$_} } keys %{ $row->{status} };
+}
+
+sub _change ( $base, $value ) {
+    return q{} if !$base;
+
+    return sprintf '%+.0f%%', $PERCENT * ( $value / $base - 1 );
+}

@@ -15,11 +15,20 @@ const my $THUMBNAIL => 'thumbnail';
 
 __PACKAGE__->requires(qw(storage store));
 
+# ADR 0144: members' profile pictures (Service::Community::Avatars), which
+# take the place of the thumbnail for an upload waiting to be one.
+has avatars => undef;    # optional: without it every image gets a thumbnail
+
 sub process ( $self, $attachment_id ) {
     my $attachment = $self->store->find_attachment($attachment_id);
     my $rejected   = _rejected_attachment($attachment);
     if ($rejected) {
         return $rejected;
+    }
+
+    if ( $self->avatars ) {
+        my $picture = $self->avatars->process($attachment_id);
+        return { %{$picture}, avatar => 1 } if $picture;
     }
 
     my $existing = $self->_existing_thumbnail($attachment_id);
@@ -174,7 +183,10 @@ Constructor (L<GPForum::Base>). C<storage> (an object with C<read_object>,
 C<exists_object> and C<write_object>, such as
 L<GPForum::Service::Attachment::FilesystemStorage>) and C<store>, the
 L<GPForum::Service::Attachment::Store> that records the variant, are required:
-a missing one throws L<GPForum::X::Argument>.
+a missing one throws L<GPForum::X::Argument>. C<avatars>, a
+L<GPForum::Service::Community::Avatars>, is optional: an upload waiting to be
+a member's profile picture is then cropped to its squares instead
+(ADR 0144), and the answer is the avatars' with C<< avatar => 1 >>.
 
 =head2 process
 

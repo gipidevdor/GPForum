@@ -43,7 +43,10 @@ sub public_profile ( $self, $username, $options ) {
     return {
         ok      => 1,
         profile => {
-            user    => _user_hash($user),
+            user    => {
+                %{ _user_hash($user) },
+                avatar_id => $self->_avatar_id($user),
+            },
             trust   => $self->_trust_hash($user),
             counts  => $counts,
             threads => $threads,
@@ -65,6 +68,17 @@ sub _find_public_user ( $self, $username ) {
     return undef if ( _column( $user, 'status' ) || q{} ) eq 'suspended';
 
     return $user;
+}
+
+# ADR 0144: the picture the member shows, or undef. Only the PostgreSQL
+# function layer holds pictures.
+sub _avatar_id ( $self, $user ) {
+    return undef if !$self->functions;
+
+    my $status = $self->functions->row( 'community_avatar_status',
+        { user_id => _column( $user, 'id' ) } );
+
+    return $status ? $status->{attachment_id} : undef;
 }
 
 sub _trust_hash ( $self, $user ) {
@@ -400,7 +414,8 @@ C<< { ok => 0, error => 'not_found' } >> when there is no such member or
 the member is deleted or suspended. Otherwise returns
 C<< { ok => 1, profile => { user, trust, counts, threads, replies } } >>:
 C<user> has the id, username, display name, status, trust level, timestamps
-and an C<@username> C<profile_label>; C<trust> has C<score>,
+and an C<@username> C<profile_label>, and C<avatar_id>, the picture the
+member shows or undef (ADR 0144); C<trust> has C<score>,
 C<trust_level>, C<calculated_at>, C<version> and C<badge>; C<counts> has
 C<public_threads>, C<public_replies> and C<total_public>; C<threads> and
 C<replies> are C<< { items, next_cursor } >> of plain hashes. The same limit

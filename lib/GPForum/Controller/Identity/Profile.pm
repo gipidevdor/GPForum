@@ -61,8 +61,26 @@ sub profile ($self) {
         template => 'identity/profile',
         profile  => $profile,
         relation => $relation // q{},
+        avatar_moderation =>
+          $self->_avatar_moderation( $reader, $page->{user} || {} ),
         status   => $HTTP_OK,
     );
+}
+
+# ADR 0144: staff holding avatar.moderate globally see the form that removes
+# the picture the member shows; nobody else, and never in the JSON.
+sub _avatar_moderation ( $self, $reader, $user ) {
+    return 0 if !$reader || !$user->{avatar_id};
+
+    return $self->gp_permission_gate->allowed(
+        { user_id => $reader },
+        {
+            action        => 'moderate',
+            resource_type => 'avatar',
+            resource_id   => undef,
+            space_id      => undef,
+        }
+    ) ? 1 : 0;
 }
 
 1;

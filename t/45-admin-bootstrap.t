@@ -24,7 +24,7 @@ our $VERSION = '0.001';
 
 const my $EXIT_USAGE => 2;
 
-const my $EXPECTED_TESTS => 27;
+const my $EXPECTED_TESTS => 28;
 const my $CREATED_ROWS   => 1;
 
 plan tests => $EXPECTED_TESTS;
@@ -90,6 +90,8 @@ ok(
       && _has_permission( $first, 'member_note.write' ),
     'bootstrap includes the staff notes permissions (ADR 0138)'
 );
+ok( _has_permission( $first, 'avatar.moderate' ),
+    'bootstrap includes removing a member\'s picture (ADR 0144)' );
 
 my $repeat_bootstrap = $bootstrapper->bootstrap(
     {

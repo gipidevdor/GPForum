@@ -247,6 +247,21 @@ const my @SETTINGS => map {
           . ' (X-Accel-Redirect); empty serves them from GPForum.',
         example => '/protected-attachments',
     },
+
+    # ADR 0144: profile pictures are cropped by the image tool the system
+    # installed (vipsthumbnail, or sips on macOS). The test environment
+    # assumes none, so a run never depends on what the host has.
+    {
+        name         => 'image_tool',
+        env          => 'GPFORUM_IMAGE_TOOL',
+        default      => 'system',
+        one_of       => [qw(system none)],
+        default_when => [ [ environment => ['test'], 'none' ] ],
+        section      => 'application',
+        summary      => q{How profile pictures are cropped: system, the}
+          . q{ system's vipsthumbnail (sips on macOS), or none, which turns}
+          . q{ them off.},
+    },
     {
         name    => 'default_locale',
         env     => 'GPFORUM_DEFAULT_LOCALE',

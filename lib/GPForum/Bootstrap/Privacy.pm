@@ -34,6 +34,7 @@ sub register {
             my ($controller) = @_;
 
             return GPForum::Service::Privacy::DeletionWorkflow->new(
+                avatars    => $controller->gp_avatars,
                 clock      => $controller->gp_clock,
                 id_service => $controller->gp_id,
                 schema     => $controller->gp_schema,

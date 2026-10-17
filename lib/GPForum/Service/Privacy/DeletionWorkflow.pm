@@ -57,6 +57,10 @@ has recorder => sub {
     );
 };
 __PACKAGE__->requires(qw(schema));
+
+# ADR 0144: the profile pictures (Service::Community::Avatars), whose stored
+# files erasure deletes before the rows.
+has avatars => undef;    # optional: without it only the rows go
 has record     => sub { return GPForum::Service::Privacy::Record->new; };
 has completion => sub {
     my ($self) = @_;
@@ -722,6 +726,13 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
         # ADR 0142: and their two-step sign-in secret, recovery codes and
         # challenges.
         $self->_revoke_user_rows( 'SecondFactor', $user_id, $timestamp );
+
+        # ADR 0144: and their profile pictures: the stored files first, then
+        # the rows.
+        if ( $self->avatars ) {
+            $self->avatars->erase_files($user_id);
+        }
+        $self->_revoke_user_rows( 'Avatar', $user_id, $timestamp );
     }
 
     return $self->erasure->result( $user_id, $already );
@@ -1015,7 +1026,9 @@ L<GPForum::Service::Privacy::Erasure>, L<GPForum::Service::Privacy::Event>,
 L<GPForum::Service::Privacy::Record>.
 
 Extends L<GPForum::Base>: built without C<schema> it throws
-L<GPForum::X::Argument>.
+L<GPForum::X::Argument>. C<avatars>, a L<GPForum::Service::Community::Avatars>, is
+optional: given one, erasure deletes the stored files of the member's
+profile pictures before their rows (ADR 0144).
 
 =head1 INCOMPATIBILITIES
 

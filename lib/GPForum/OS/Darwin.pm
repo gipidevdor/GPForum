@@ -53,6 +53,20 @@ sub antivirus_packaging {
     };
 }
 
+# ADR 0144: Homebrew's vips under either prefix, else the sips every Mac
+# has.
+sub image_tool_packaging {
+    return {
+        vips => [
+            qw(/opt/homebrew/bin/vipsthumbnail /usr/local/bin/vipsthumbnail
+              vipsthumbnail)
+        ],
+        sips     => '/usr/bin/sips',
+        packages => [qw(vips)],
+        install  => 'brew install vips',
+    };
+}
+
 # launchd has no environment file of its own: GPForum's lives under
 # Homebrew's prefix, beside the services Homebrew runs, and bin/gpforum reads
 # it for the service and for a command typed by hand (ADR 0120). The plists

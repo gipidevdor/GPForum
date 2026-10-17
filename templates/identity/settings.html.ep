@@ -126,6 +126,12 @@
     <p><a href="<%= ui_path('settings_security') %>"><%= t('auth.second_factor_settings_open') %></a></p>
   </section>
 
+  <section class="settings-group" aria-labelledby="settings-avatar-heading">
+    <h2 id="settings-avatar-heading"><%= t('avatar.title') %></h2>
+    <p><%= t('avatar.settings_description') %></p>
+    <p><a href="<%= ui_path('settings_avatar') %>"><%= t('avatar.settings_open') %></a></p>
+  </section>
+
   <section class="settings-group" aria-labelledby="settings-relations-heading">
     <h2 id="settings-relations-heading"><%= t('community.relation_page_title') %></h2>
     <p><%= t('community.relation_settings_description') %></p>

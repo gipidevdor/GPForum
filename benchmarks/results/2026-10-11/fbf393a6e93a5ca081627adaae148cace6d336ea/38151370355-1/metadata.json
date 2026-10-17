@@ -1,0 +1,135 @@
+{
+  "artifact_url": "",
+  "commit": "fbf393a6e93a5ca081627adaae148cace6d336ea",
+  "comparison_signature": "b0bab53c1a87534d2137c2b962392c02c624c6c6b80336e98568bc722534f481",
+  "configuration": {
+    "backlog": 1024,
+    "cache": "local-only; 4096 entries; SSR TTL 3600s; miss harness TTL -1s",
+    "cache_miss_policy": "SSR store expires immediately; category model cache remains warm",
+    "clients_per_worker": 2048,
+    "database_settings": {
+      "effective_cache_size": "4GB",
+      "effective_io_concurrency": "1",
+      "jit": "on",
+      "max_connections": "100",
+      "random_page_cost": "4",
+      "shared_buffers": "128MB",
+      "synchronous_commit": "on",
+      "work_mem": "4MB"
+    },
+    "default_ev_backend": 4,
+    "default_reactor": "Mojo::Reactor::EV",
+    "harness_sha256": {
+      "benchmarks/hypnotoad-app.pl": "076b27d9062ce65ac88113864181b27bcededead02f49d136a0bf00f47727f12",
+      "benchmarks/wrk-metrics.lua": "c66846fe8ad3a8c2b8d6b45816a8ff52cfd3267bb678b9b25e6e82d6b231af03",
+      "script/performance-evidence.py": "42f848f641a4bb427d1715d5044c1c50e9c885350146135c5900e035f7866190",
+      "script/performance-hotpaths.py": "0bd37e25119d3c375c035308fab7c9e2d1cc96e279d558d4b33d6ba846909168",
+      "script/performance-http.py": "f8e0ddf805bd47d1ff240641cce270951ad50d961d30a63721ce300e050e6847",
+      "script/performance-outbox.pl": "ce7987b939d90c8392992b5fb600ec7f84ea0bb342161aec86103520fe63e4e4",
+      "t/lib/GPForum/Test/OutboxTransport.pm": "c0df6d59ffb0966cb89af15f1a7a7c17b9cda8ddeec4ea875c92fc5d978d84ba",
+      "t/lib/GPForum/Test/PostgresHarness.pm": "c608f802f29fbd9628e9b32d57dd71ab48e50c994fd4f6c30abfdf0333b28c87"
+    },
+    "hotpaths": {
+      "analyze": true,
+      "deadline_seconds": 300,
+      "outbox": {
+        "batch_size": 100,
+        "database": "fresh owned",
+        "messages": 3000,
+        "repetitions": 3,
+        "transport": "recording no-op",
+        "workers": [
+          1,
+          2
+        ]
+      },
+      "plan_cli_profile_label": "medium",
+      "plan_repetitions": 3,
+      "plans": [
+        "readers",
+        "functions"
+      ],
+      "profiling": "configured NYTProf deep only",
+      "sql_service_comparison": {
+        "enabled": false,
+        "proxy_delay_ms": 0.5,
+        "read_iterations": 30,
+        "warmup": 5,
+        "write_iterations": 10
+      }
+    },
+    "http_concurrency": [
+      1,
+      10,
+      50,
+      100
+    ],
+    "http_duration_seconds": 2,
+    "http_repetitions": 3,
+    "mojo_requests": "at least 100 total; at least 10 per client",
+    "read_rate_limit": 100000000,
+    "wrk_binary_sha256": "511730eb9a7223c9dd5597008704688d538f53fb611fdabd6bd3cffc99903e13",
+    "wrk_upstream_version_verified": false
+  },
+  "dataset": {
+    "counts": {
+      "bookmarks": 25,
+      "categories": 8,
+      "feed_items": 240,
+      "moderation_actions": 25,
+      "notifications": 75,
+      "permissions": 6,
+      "posts": 4800,
+      "posts_per_thread": 20,
+      "read_states": 75,
+      "reports": 50,
+      "role_bindings": 25,
+      "roles": 3,
+      "sessions": 25,
+      "subscriptions": 25,
+      "threads": 240,
+      "users": 25
+    },
+    "implementation_sha256": {
+      "lib/GPForum/Benchmark/SeedDataset.pm": "8c3d32ab10783f871b4e5c4122a16a01cea73b686dde249c1af050a2559ed0cb",
+      "lib/GPForum/Command/PerformanceSeed.pm": "ee7d3093ffc5cd7d0cc2f564417c6ad7f1e113aa0c1316b1b59386e9b32d717e"
+    },
+    "mode": "main",
+    "profile": "custom",
+    "seed_version": "SeedDataset-v1",
+    "signature": "bb2304f8a1924d67d5a91fc72c84390928e769a4d85c3b4cfe7852eec0471d2f"
+  },
+  "date": "2026-10-11",
+  "dirty": false,
+  "history_url": "https://github.com/gpicchiarelli/GPForum/tree/main/benchmarks/results",
+  "kind": "metadata",
+  "limitations": [
+    "Shared runners and a colocated load generator give comparative CI evidence, not production capacity."
+  ],
+  "mode": "main",
+  "run_attempt": "1",
+  "run_id": "38151370355",
+  "run_url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38151370355",
+  "runner": {
+    "arch": "x86_64",
+    "cpu_count": 4,
+    "cpu_model": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "image": "ubuntu26",
+    "image_version": "20260927.149.1",
+    "kernel": "7.0.0-1012-azure",
+    "label": "ubuntu-26.04",
+    "memory_bytes": 16758468608,
+    "name": "GitHub Actions 1000066995",
+    "os": "Linux"
+  },
+  "schema_version": 1,
+  "timestamp": "2026-10-11T15:28:19.907515+00:00",
+  "versions": {
+    "ev": "4.37",
+    "mojolicious": "9.49",
+    "perl": "v5.40.1",
+    "postgres": "16.15 (Debian 16.15-1.pgdg13+2)",
+    "wrk": "wrk (distribution package 4.1.0-4build3; CLI upstream unspecified)"
+  },
+  "working_tree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

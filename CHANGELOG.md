@@ -302,6 +302,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **A post could be any length.** Only drafts had a maximum; a thread,
+  reply or edit posted without one was bounded only by the request size, and
+  each read renders it. A body now holds at most 50,000 characters wherever
+  it is written -- thread, reply, edit, preview, draft -- refused in the
+  reader's language, and `post_bodies` and `held_posts` check the same
+  number (ADR 0140, migration 129).
+
 - **A few kilobytes of fence lines took seconds to render.** The body
   renderer searched the rest of the body from each line opening a code
   fence, and the rest of a paragraph from each `[`: 4,000 lines of "```a"

@@ -7,14 +7,13 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Controller::Forum::ComposerBase', -signatures;
 use v5.40;
 
+use GPForum::Service::Forum::BodyLength;
 use GPForum::Service::Forum::BodyRenderer;
 
 our $VERSION = '0.001';
 
 const my $HTTP_OK       => 200;
 const my $HTTP_CONFLICT => 409;
-
-const my $MAX_BODY => 50_000;
 
 sub list ($self) {
     $self->private_draft_response;
@@ -76,8 +75,18 @@ sub preview ($self) {
     my $owner = $self->write_user_id('draft.preview');
     return if !$owner;
     my $input = $self->draft_input($owner);
-    return $self->save_response( $input, { ok => 0, status => 'invalid' } )
-      if length( $input->{body_source} // q{} ) > $MAX_BODY;
+    return $self->save_response(
+        $input,
+        {
+            errors => {
+                body_source =>
+                  GPForum::Service::Forum::BodyLength->too_long_error
+            },
+            ok     => 0,
+            status => 'invalid',
+        }
+      )
+      if GPForum::Service::Forum::BodyLength->too_long( $input->{body_source} );
     return if !$self->_target_allowed($input);
     my $html = GPForum::Service::Forum::BodyRenderer->new->render_safe(
         $self->_trim( $input->{body_source} ) );

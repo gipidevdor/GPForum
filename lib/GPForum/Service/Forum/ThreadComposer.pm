@@ -7,6 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Service::Forum::BodyLength;
 use GPForum::Service::Forum::BodyRenderer;
 use GPForum::Infrastructure::Id;
 use GPForum::Service::Forum::Visibility;
@@ -15,7 +16,6 @@ our $VERSION = '0.001';
 
 const my $MINIMUM_TITLE_LENGTH => 3;
 const my $MAXIMUM_TITLE_LENGTH => 160;
-const my $MINIMUM_BODY_LENGTH  => 1;
 const my $FIRST_POST_POSITION  => 1;
 const my %ALLOWED_VISIBILITY => (
     public  => 1,
@@ -48,9 +48,7 @@ sub prepare ( $self, $input ) {
       length $visibility ? $visibility : $values->{visibility_floor};
 
     my $body_error =
-      length $values->{body_source} >= $MINIMUM_BODY_LENGTH
-      ? undef
-      : 'body is required';
+      GPForum::Service::Forum::BodyLength->error( $values->{body_source} );
     my $errors = _errors(
         $values,
         [qw(category_id author_user_id body_hash)],
@@ -328,7 +326,9 @@ On failure returns C<< { ok => 0, errors => \%errors, values => \%values } >>,
 with one message per failing field: C<category_id is required>,
 C<author_user_id is required>, C<title is required>,
 C<title length is invalid> (fewer than 3 or more than 160 characters),
-C<body is required>, C<body_hash is required>, C<visibility is invalid>
+C<body is required>, C<body is too long> (past
+L<GPForum::Service::Forum::BodyLength/maximum>), C<body_hash is required>,
+C<visibility is invalid>
 (not C<public>, C<members> or C<private>) or
 C<visibility is broader than its category>.
 
@@ -365,7 +365,7 @@ None.
 
 =head1 DEPENDENCIES
 
-L<GPForum::Service::Forum::BodyRenderer>, L<GPForum::Service::Forum::Visibility>,
+L<GPForum::Service::Forum::BodyLength>, L<GPForum::Service::Forum::BodyRenderer>, L<GPForum::Service::Forum::Visibility>,
 L<GPForum::Infrastructure::Id>.
 
 =head1 INCOMPATIBILITIES

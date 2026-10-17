@@ -57,7 +57,8 @@ sub save_response ( $self, $input, $result ) {
           $status == $HTTP_CONFLICT
           ? 'forum.draft_conflict'
           : 'forum.draft_save_failed';
-        $result->{error} = $self->i18n($key);
+        $result->{error} = $self->body_refusal( $result->{errors} )
+          // $self->i18n($key);
         return $self->render( json => $result, status => $status )
           if $self->_wants_json;
         $self->stash( composer_draft_error => $result->{error} );

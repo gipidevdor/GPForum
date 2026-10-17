@@ -8,6 +8,7 @@ use Mojo::Base 'GPForum::Controller::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Row;
+use GPForum::Service::Forum::BodyLength;
 use GPForum::Web::Access;
 use GPForum::Web::ClientAddress;
 use GPForum::Web::ForumAccess;
@@ -903,6 +904,7 @@ sub _write_failure ( $self, $result, $handlers ) {
     if ( $self->forum_access->is_unavailable($result) ) {
         return $self->_service_unavailable;
     }
+    $self->body_refusal( ( $result->{prepared} // {} )->{errors} );
 
     my $status  = $result->{status} || q{};
     my $handler = $handlers->{$status};
@@ -911,6 +913,18 @@ sub _write_failure ( $self, $result, $handlers ) {
     }
 
     return $self->_system_failure;
+}
+
+# ADR 0140: a body past the one maximum length is refused in the reader's
+# language, on the body field; the message, or undef for any other errors.
+sub body_refusal ( $self, $errors ) {
+    return undef if ref $errors ne 'HASH';
+    return undef
+      if ( $errors->{body_source} // q{} ) ne
+      GPForum::Service::Forum::BodyLength->too_long_error;
+
+    return $errors->{body_source} = $self->i18n( 'forum.body_too_long',
+        { limit => GPForum::Service::Forum::BodyLength->maximum } );
 }
 
 sub _allowed ( $self, $user_id, $action ) {
@@ -1101,6 +1115,12 @@ L<GPForum::Web::ForumAccess>.
 
 Returns the authenticated actor after CSRF, rate-limit, and suspension
 checks, or renders the matching HTTP error.
+
+=head2 body_refusal
+
+Takes a hash of field errors. When the body field holds the too-long refusal
+of L<GPForum::Service::Forum::BodyLength>, replaces it with the message in
+the reader's language and returns that message; otherwise returns undef.
 
 =head2 fresh_composer_draft
 

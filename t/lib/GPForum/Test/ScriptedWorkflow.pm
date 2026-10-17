@@ -15,6 +15,10 @@ sub login ( $self, $input ) {
     return $self->answer;
 }
 
+sub create_reply ( $self, $input ) {
+    return $self->answer;
+}
+
 sub save_bookmark ( $self, $input ) {
     return $self->answer;
 }
@@ -40,7 +44,7 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-Stands in for the identity or community workflow when a controller test needs
+Stands in for the identity, community or posting workflow when a controller test needs
 a result the real workflow only gives when its store breaks or races, such as
 C<failed> or C<conflict>.
 
@@ -51,6 +55,10 @@ C<failed> or C<conflict>.
 The result hash every call returns; C<< { ok => 1 } >> by default.
 
 =head2 login
+
+Returns L</answer>.
+
+=head2 create_reply
 
 Returns L</answer>.
 

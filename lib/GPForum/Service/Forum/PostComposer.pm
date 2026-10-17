@@ -7,14 +7,14 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Service::Forum::BodyLength;
 use GPForum::Service::Forum::BodyRenderer;
 use GPForum::Infrastructure::Id;
 use GPForum::Service::Forum::Visibility;
 
 our $VERSION = '0.001';
 
-const my $MINIMUM_BODY_LENGTH => 1;
-const my $FIRST_REVISION      => 1;
+const my $FIRST_REVISION => 1;
 const my %ALLOWED_VISIBILITY => (
     public  => 1,
     members => 1,
@@ -215,9 +215,7 @@ sub _position_error ($values) {
 }
 
 sub _body_error ($values) {
-    return length $values->{body_source} >= $MINIMUM_BODY_LENGTH
-      ? undef
-      : 'body is required';
+    return GPForum::Service::Forum::BodyLength->error( $values->{body_source} );
 }
 
 sub _visibility_error ($values) {
@@ -345,7 +343,8 @@ number.
 
 Nothing is thrown. The errors returned are C<FIELD is required> for
 C<thread_id>, C<author_user_id>, C<post_id>, C<editor_user_id> and
-C<body_hash>; C<position is invalid>; C<body is required>;
+C<body_hash>; C<position is invalid>; C<body is required>; C<body is too long> past
+L<GPForum::Service::Forum::BodyLength/maximum>;
 C<visibility is invalid> for anything but C<public>, C<members> and
 C<private>; and C<visibility is broader than its thread>.
 
@@ -355,7 +354,7 @@ None.
 
 =head1 DEPENDENCIES
 
-L<GPForum::Service::Forum::BodyRenderer>, L<GPForum::Infrastructure::Id>,
+L<GPForum::Service::Forum::BodyLength>, L<GPForum::Service::Forum::BodyRenderer>, L<GPForum::Infrastructure::Id>,
 L<GPForum::Service::Forum::Visibility>.
 
 =head1 INCOMPATIBILITIES

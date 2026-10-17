@@ -10,12 +10,12 @@ use v5.40;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Clock;
+use GPForum::Service::Forum::BodyLength;
 use GPForum::X::Argument;
 
 our $VERSION = '0.001';
 
 const my $MAXIMUM_TITLE   => 300;
-const my $MAXIMUM_BODY    => 50_000;
 const my $MAXIMUM_COMMAND => 200;
 const my $DEFAULT_PURGE   => 100;
 const my $MAXIMUM_PURGE   => 1_000;
@@ -93,8 +93,11 @@ sub _validation_errors ($values) {
     if ( length $values->{title} > $MAXIMUM_TITLE ) {
         $errors{title} = 'draft title is too long';
     }
-    if ( length $values->{body_source} > $MAXIMUM_BODY ) {
-        $errors{body_source} = 'draft body is too long';
+    if ( GPForum::Service::Forum::BodyLength->too_long( $values->{body_source} )
+      )
+    {
+        $errors{body_source} =
+          GPForum::Service::Forum::BodyLength->too_long_error;
     }
     if (   !defined $values->{command_id}
         || !length $values->{command_id}
@@ -209,7 +212,8 @@ for tests. Retention batches default to 100 and are bounded at 1,000 rows.
 
 =head1 DEPENDENCIES
 
-L<GPForum::Infrastructure::SqlFunction>, L<GPForum::Service::Clock>.
+L<GPForum::Infrastructure::SqlFunction>, L<GPForum::Service::Clock>,
+L<GPForum::Service::Forum::BodyLength>.
 
 =head1 INCOMPATIBILITIES
 

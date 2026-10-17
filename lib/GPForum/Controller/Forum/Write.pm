@@ -175,7 +175,8 @@ sub create_reply ($self) {
     );
 
     if ( !$result->{ok} ) {
-        my $refusal = $self->_automod_refusal($result);
+        my $refusal = $self->_automod_refusal($result)
+          // $self->body_refusal( ( $result->{prepared} // {} )->{errors} );
         if ( $draft->{draft_id} && !$self->_wants_json ) {
             my $key =
               ( $result->{status} // q{} ) eq 'conflict'

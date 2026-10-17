@@ -145,22 +145,27 @@ for my $action ( $workflow =~ /uses:[ ]+(\S+)/gmsx ) {
 my $ordinary = source('performance.yml');
 like( $ordinary, qr/^[ ]{2}pull_request:/msx, 'ordinary PR evidence retained' );
 like( $ordinary, qr/^[ ]{2}push:/msx, 'ordinary main evidence retained' );
-like( $ordinary, qr/performance-publish/msx,
-    'ordinary permanent history retained' );
-
-# The history lives on the performance-data branch. Committed to main it grew
-# by megabytes a day, and every publication raced the pushes of the code.
-ok(
-    index( $ordinary, 'git fetch --no-tags --depth=1 origin performance-data' )
-      >= 0,
-    'the baseline history is read from the data branch'
+unlike( $ordinary, qr/performance-publish/msx,
+    'automatic evidence collection does not write to branches' );
+unlike(
+    $ordinary,
+    qr/contents:[ ]write/msx,
+    'automatic measurements have read-only repository access'
 );
-unlike( $ordinary, qr/origin[ ]main$/msx, 'and nothing is read from main' );
+
+# Branch consolidation preserves the existing history on main; new runs keep
+# their artifacts without recreating a separate data branch.
+ok( index( $ordinary, 'git fetch --no-tags --depth=1 origin main' ) >= 0,
+    'the preserved baseline history is read from main' );
+unlike(
+    $ordinary,
+    qr/origin[ ]performance-data/msx,
+    'automatic measurement needs no separate data branch'
+);
 for my $generated (qw(results latest.json history.json)) {
     ok(
-        !-e File::Spec->catfile( $FindBin::Bin, '../../benchmarks',
-            $generated ),
-        "main carries no benchmarks/$generated"
+        -e File::Spec->catfile( $FindBin::Bin, '../../benchmarks', $generated ),
+        "main preserves historical benchmarks/$generated"
     );
 }
 like(

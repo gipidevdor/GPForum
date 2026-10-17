@@ -360,12 +360,9 @@ subtest 'a missing data branch is never created' => sub {
 
 sub test_workflow_security {
     my $workflow = raw('.github/workflows/performance.yml');
-    my ( $benchmark, $publisher ) = split m{\n[ ]{2}publish:\n}msx, $workflow,
-      2;
-    ok( defined $publisher, 'publisher is an isolated job' );
     ok(
-        index( $benchmark, 'contents: write' ) < 0,
-        'benchmark has no write permission'
+        index( $workflow, 'contents: write' ) < 0,
+        'automatic measurements have no write permission'
     );
     for my $forbidden (
         'pull_request_target',       'workflow_run:',
@@ -383,14 +380,14 @@ sub test_workflow_security {
     {
         ok( index( $workflow, $required ) >= 0, "$required configured" );
     }
-    ok(
-        index( $publisher,
-q{github.event_name != 'pull_request' && github.ref == 'refs/heads/main'}
-        ) >= 0,
-        'only trusted main executions publish'
-    );
+    for my $mutation ( 'performance-publish', 'git push' ) {
+        ok(
+            index( $workflow, $mutation ) < 0,
+            "automatic measurements exclude $mutation"
+        );
+    }
     return undef;
 }
-subtest 'workflow permissions and publication paths prevent a CI loop' =>
+subtest 'workflow retains artifacts without branch writes' =>
   \&test_workflow_security;
 done_testing;

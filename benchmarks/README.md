@@ -2,13 +2,13 @@
 
 [Performance and profiling](../.github/workflows/performance.yml) measures a
 real Hypnotoad server against migrated PostgreSQL and the existing
-deterministic `PerformanceSeed` dataset. The historical results live on
-the [performance-data](https://github.com/gpicchiarelli/GPForum/tree/performance-data/benchmarks/results)
-branch at the canonical path `benchmarks/results/`, never on `main`, which
-holds the harness, schema and documentation. Until 2026-10-17 they were
-committed to `main`: the history grew by megabytes a day and every
-publication raced the pushes of the code. Every run also keeps its evidence
-as a workflow artifact for 14 days.
+deterministic `PerformanceSeed` dataset. The historical results were merged
+from `performance-data` into `main` on 2026-10-17 before retiring that branch.
+The preserved snapshot is at [benchmarks/results](results/), with
+`latest.json` and `history.json` as its indexes. Every new run keeps its
+evidence as a workflow artifact for 14 days and publishes a Job Summary.
+Automatic measurements have read-only repository access and do not update
+branches.
 
 The preliminary findings and reuse decisions are recorded in [AUDIT.md](AUDIT.md).
 All harnesses, report/schema/baseline tools, publication and their tests are
@@ -21,7 +21,7 @@ application/database commands use the existing locked Carton tree. The separate
 | Mode | Trigger | HTTP workload | Other evidence |
 | --- | --- | --- | --- |
 | PR | Relevant changes targeting `main` | Same runner, head and base revisions; 2 workers, native EV, concurrency 1/10, 2-second cells, 3 repetitions | Required index/OFFSET rules, query-budget catalog, reader and stored-function plans, 1-worker/1,000-message PostgreSQL outbox |
-| Main | Relevant pushes to `main` | Concurrency 1/10/50/100; targeted 2/4-worker comparisons; native EV; 3 repetitions | 3 plan repetitions; 1/2-worker PostgreSQL outbox, 3,000 messages, 3 repetitions; permanent publication |
+| Main | Relevant pushes to `main` | Concurrency 1/10/50/100; targeted 2/4-worker comparisons; native EV; 3 repetitions | 3 plan repetitions; 1/2-worker PostgreSQL outbox, 3,000 messages, 3 repetitions; workflow artifacts |
 | Deep | Monday 01:37 UTC or manual `deep` | Concurrency up to 500, targeted 2/4/8 workers where CPU count permits; native EV, 3 repetitions | 600 threads/72,000 posts; 1/2/4-worker, 10,000-message outbox; existing SQL-function service comparison; configured NYTProf profile |
 
 Relevant paths include actual application sources (`lib`, `templates`,
@@ -29,9 +29,9 @@ Relevant paths include actual application sources (`lib`, `templates`,
 and `deploy`, entrypoints under `bin` and `script`, benchmark files/tests,
 the Perl setup action, and the performance workflow. The generated
 `benchmarks/results/**`, `benchmarks/latest.json` and `benchmarks/history.json`
-exist only on the data branch, which triggers no workflow, so an evidence
-publication cannot retrigger a measurement.
-Manual runs on other branches keep artifacts but cannot publish history.
+are excluded from measurement triggers. Historical evidence can be retained
+through an explicitly reviewed commit on `main`; automatic runs keep artifacts.
+Manual runs on other refs use the same artifact policy.
 The PostgreSQL/outbox test support actually used by the harness also triggers
 measurement and participates in its compatibility fingerprint.
 
@@ -122,7 +122,7 @@ CPU/RSS percentage deltas are diagnostic and do not alone confirm a
 regression. A single short PR outbox run is indicative.
 
 Every run uploads a Job Summary and artifacts, including partial failure
-evidence. The structure published on `performance-data` is append-only:
+evidence. The historical snapshot retained on `main` has this structure:
 
 ```text
 benchmarks/
@@ -149,20 +149,13 @@ too. Same-commit reruns have different run/attempt paths; existing data
 cannot be overwritten with different contents. Profiles, credentials,
 logs and temporary files are excluded from publication.
 
-Only a separate job on trusted `main` gets `contents: write`; PR jobs and
-base checkouts use `contents: read`, no persisted Git credentials and no
-repository secrets. Publication validates the expected commit/run/attempt,
-schema, sizes, paths and secret patterns; artifacts are treated as data
-and never executed. Ordinary Git pushes append only result/index files to
-the current `performance-data` tip and provide an atomic branch update;
-bounded retries reload the newest tip after contention, preserving
-intervening publications. No personal token or force push is used. The
-publisher never creates the branch: a missing one is refused, and the
-artifact is kept. The branch's rules must allow the job-scoped
-`GITHUB_TOKEN` to push these updates. A rule or token
-rejection remains visible and the artifact is still retained. Optional PR
-comments are omitted to keep this workflow usable for external forks; the
-Job Summary contains the complete report.
+All workflow jobs use `contents: read`, no persisted Git credentials and no
+repository secrets. Artifacts are validated as data and never executed. The
+workflow reads the preserved history from `main` for compatible baselines and
+keeps new evidence as artifacts; it does not push commits or require a data
+branch. The existing standalone publication tool remains covered by its tests,
+but CI does not invoke it. Optional PR comments are omitted; the Job Summary
+contains the complete report.
 
 ## Cost and limits
 

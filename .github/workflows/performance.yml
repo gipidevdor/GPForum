@@ -1,7 +1,7 @@
 name: Performance and profiling
 
-# PR code has only a read token. Only the isolated publication job can write;
-# it consumes validated data and never executes files from an artifact.
+# Measurements use read-only repository access. Historical evidence is kept
+# on main; new runs retain artifacts without creating or updating branches.
 on:
   push:
     branches: [main]
@@ -212,12 +212,11 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          # The history lives on performance-data, never on main: committed
-          # to main it grew by megabytes a day and raced every push.
-          if git ls-remote --exit-code --heads origin performance-data >/dev/null 2>&1; then
-            git fetch --no-tags --depth=1 origin performance-data
+          # Branch consolidation preserved the existing history on main.
+          if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+            git fetch --no-tags --depth=1 origin main
             mkdir -p "$RUNNER_TEMP/performance-history"
-            # Read only evidence from the data branch; no fetched program is executed.
+            # Read only historical evidence; no fetched program is executed.
             git archive FETCH_HEAD benchmarks/results | tar -x -C "$RUNNER_TEMP/performance-history"
           fi
 
@@ -282,38 +281,3 @@ jobs:
         if: always()
         # The connection gate is all or nothing: its own summary must be ok.
         run: perl script/performance-workflow-status --output "$PERF_OUTPUT" --check --gate "$PERF_OUTPUT/connections-5000"
-
-  publish:
-    name: Publish immutable performance history
-    needs: benchmarks
-    # PR/fork code and manual runs of other refs cannot receive this token.
-    # Validated partial/failure reports still become historical evidence.
-    if: ${{ always() && !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-26.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-      actions: read
-    concurrency:
-      # Each result gets its own pending slot; optimistic push retries below
-      # handle contention without GitHub dropping a third pending publication.
-      group: performance-evidence-publication-${{ github.run_id }}
-      cancel-in-progress: false
-    steps:
-      - name: Checkout trusted publication code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Download this run's data artifact
-        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "gpforum-performance-head-${GITHUB_RUN_ATTEMPT}" --dir "$RUNNER_TEMP/performance-incoming"
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      # Onto the performance-data branch, never main (script/lib/GPForum/
-      # Performance/Publish.pm); the branch must exist, the publisher never
-      # creates it.
-      - name: Validate and publish only canonical JSON and Markdown
-        run: perl script/performance-publish --input "$RUNNER_TEMP/performance-incoming" --repository "$GITHUB_REPOSITORY" --expected-commit "$GITHUB_SHA" --expected-run "$GITHUB_RUN_ID" --expected-attempt "$GITHUB_RUN_ATTEMPT"
-        env:
-          GITHUB_TOKEN: ${{ github.token }}

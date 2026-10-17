@@ -34,6 +34,8 @@ const my $MANY_ROWS => 50;
 # attachment links, and a member's bookmark, subscription and read state --
 # became one statement (migration 124): six fewer signed in, three for a
 # guest.
+# On 2026-10-17 the profile reads the picture the member shows (migration
+# 131, ADR 0144): one more.
 const my %BUDGET => (
     anonymous => {
         categories => 1,
@@ -50,7 +52,7 @@ const my %BUDGET => (
         feed          => 3,
         home          => 5,
         notifications => 4,
-        profile       => 7,
+        profile       => 8,
         search        => 5,
         thread        => 5,
     },

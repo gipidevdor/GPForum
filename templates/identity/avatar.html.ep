@@ -1,5 +1,5 @@
 % layout 'default';
-% title t('avatar.title') . ' - ' . t('app.name');
+% title t('profile.avatar_title') . ' - ' . t('app.name');
 %# ADR 0144: the member's picture, the one waiting, the form that uploads a
 %# new one and the one that takes it away. Everything works without
 %# JavaScript; the upload is an ordinary multipart form.
@@ -9,8 +9,8 @@
 <section aria-labelledby="avatar-heading">
   <%= include 'components/page_header',
     heading_id => 'avatar-heading',
-    component_title => t('avatar.title'),
-    description => t('avatar.intro'),
+    component_title => t('profile.avatar_title'),
+    description => t('profile.avatar_intro'),
     actions_label => t('settings.title'),
     actions => ui_actions(
       { href => ui_path('settings'), label => t('settings.title') },
@@ -20,45 +20,45 @@
     <%= include 'components/alert', tone => 'error', message => stash('error') %>
   % }
   % if ($pending eq 'checking') {
-    <%= include 'components/alert', tone => 'notice', message => t('avatar.pending_checking') %>
+    <%= include 'components/alert', tone => 'notice', message => t('profile.avatar_pending_checking') %>
   % } elsif ($pending eq 'refused') {
-    <%= include 'components/alert', tone => 'warning', message => t('avatar.pending_refused') %>
+    <%= include 'components/alert', tone => 'warning', message => t('profile.avatar_pending_refused') %>
   % } elsif ($pending eq 'unreadable') {
-    <%= include 'components/alert', tone => 'warning', message => t('avatar.pending_unreadable') %>
+    <%= include 'components/alert', tone => 'warning', message => t('profile.avatar_pending_unreadable') %>
   % }
 
   <section class="settings-group" aria-labelledby="avatar-current-heading">
-    <h2 id="avatar-current-heading"><%= t('avatar.current') %></h2>
+    <h2 id="avatar-current-heading"><%= t('profile.avatar_current') %></h2>
     % if ($shown) {
       <div class="profile">
         <%= include 'components/avatar', user_id => stash('user_id'), avatar_id => $shown, size => 'large' %>
         % if (stash('shown_at')) {
-          <p class="ui-meta"><%= t('avatar.shown_since') %> <%= include 'components/timestamp', at => stash('shown_at') %></p>
+          <p class="ui-meta"><%= t('profile.avatar_shown_since') %> <%= include 'components/timestamp', at => stash('shown_at') %></p>
         % }
       </div>
     % } else {
-      <p><%= t('avatar.none') %></p>
+      <p><%= t('profile.avatar_none') %></p>
     % }
     % if ($shown || length $pending) {
       <form method="post" action="<%= ui_path('settings_avatar_remove') %>">
         <%= csrf_field %>
-        <button type="submit" class="button--quiet"><%= t('avatar.remove') %></button>
+        <button type="submit" class="button--quiet"><%= t('profile.avatar_remove') %></button>
       </form>
     % }
   </section>
 
   <section class="settings-group" aria-labelledby="avatar-upload-heading">
-    <h2 id="avatar-upload-heading"><%= t($shown ? 'avatar.replace' : 'avatar.upload') %></h2>
+    <h2 id="avatar-upload-heading"><%= t($shown ? 'profile.avatar_replace' : 'profile.avatar_upload') %></h2>
     % if (stash('available')) {
       <form method="post" action="<%= ui_path('settings_avatar_upload') %>" enctype="multipart/form-data">
         <%= csrf_field %>
-        <label for="avatar-file"><%= t('avatar.file') %></label>
+        <label for="avatar-file"><%= t('profile.avatar_file') %></label>
         <input id="avatar-file" name="avatar" type="file" accept="image/png,image/jpeg,image/gif,image/webp" required aria-describedby="avatar-file-hint">
-        <p class="ui-meta" id="avatar-file-hint"><%= t('avatar.file_hint', { megabytes => int(stash('maximum_bytes') / (1024 * 1024)), pixels => stash('maximum_side') }) %></p>
-        <button type="submit"><%= t('avatar.send') %></button>
+        <p class="ui-meta" id="avatar-file-hint"><%= t('profile.avatar_file_hint', { megabytes => int(stash('maximum_bytes') / (1024 * 1024)), pixels => stash('maximum_side') }) %></p>
+        <button type="submit"><%= t('profile.avatar_send') %></button>
       </form>
     % } else {
-      <p><%= t('avatar.unavailable') %></p>
+      <p><%= t('profile.avatar_unavailable') %></p>
     % }
   </section>
 </section>

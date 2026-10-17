@@ -279,8 +279,16 @@ sub _shape ($values) {
       ( defined $values->{after_post_id}  ? 'after' : 'first' );
 }
 
+# The function path's rows also name the author's picture (ADR 0144,
+# migration 131), which the prepared statements never read: the rest must
+# match column for column.
 sub _columns ($row) {
-    return $row ? { $row->get_columns } : undef;
+    return undef if !$row;
+
+    my %columns = $row->get_columns;
+    delete $columns{author_avatar_id};
+
+    return \%columns;
 }
 
 # The long thread gets sixty more posts by three authors, at every

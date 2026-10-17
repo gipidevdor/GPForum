@@ -97,16 +97,16 @@
   % if (stash('avatar_moderation')) {
     %# ADR 0144: staff remove the picture shown, the one this page showed.
     <div class="toolbar">
-      <button type="button" class="button--quiet" popovertarget="profile-avatar-remove"><%= t('avatar.moderate') %></button>
-      <%= include 'components/sheet', sheet_id => 'profile-avatar-remove', component_title => t('avatar.moderate'), sheet_body => begin %>
+      <button type="button" class="button--quiet" popovertarget="profile-avatar-remove"><%= t('profile.avatar_moderate') %></button>
+      <%= include 'components/sheet', sheet_id => 'profile-avatar-remove', component_title => t('profile.avatar_moderate'), sheet_body => begin %>
         <form method="post" action="<%= ui_path('moderation_avatar_remove', user_id => $user->{user_id}) %>">
           <%= csrf_field %>
           <input type="hidden" name="avatar_id" value="<%= $user->{avatar_id} %>">
           <input type="hidden" name="return_to" value="<%= ui_path('profile', username => $user->{username}) %>">
-          <label for="profile-avatar-reason"><%= t('avatar.moderate_reason') %></label>
+          <label for="profile-avatar-reason"><%= t('profile.avatar_moderate_reason') %></label>
           <textarea id="profile-avatar-reason" name="reason" rows="3" maxlength="500"></textarea>
-          <p class="sheet__consequence"><%= t('avatar.moderate_consequence') %></p>
-          <button type="submit" class="button--danger"><%= t('avatar.moderate') %></button>
+          <p class="sheet__consequence"><%= t('profile.avatar_moderate_consequence') %></p>
+          <button type="submit" class="button--danger"><%= t('profile.avatar_moderate') %></button>
         </form>
       <% end %>
     </div>

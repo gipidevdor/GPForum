@@ -19,8 +19,10 @@ sub engine ($self) {
 sub commands ( $self, $source, $directory, $image, $sides ) {
     return map {
         [
-            $self->program, $source, '--size', "${_}x$_", '--smartcrop',
-            'centre',       '-o',    "$directory/avatar-$_.png",
+            $self->program, $source,
+            '--size',       "${_}x$_",
+            '--smartcrop',  'centre',
+            '-o',           "$directory/avatar-$_.png",
         ]
     } @{$sides};
 }

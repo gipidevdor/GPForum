@@ -375,8 +375,8 @@ sub register ( $, %input ) {
     $routes->post('/settings/avatar/remove')
       ->to('Identity::Avatar#remove')
       ->name('settings_avatar_remove');
-    $routes->get( '/avatars/:user_id/:avatar_id/:size' =>
-          [ size => [qw(64 128 256)] ] )
+    $routes->get(
+        '/avatars/:user_id/:avatar_id/:size' => [ size => [qw(64 128 256)] ] )
       ->to('Identity::Avatar#image')
       ->name('avatar_image');
 

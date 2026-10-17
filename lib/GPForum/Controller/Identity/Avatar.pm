@@ -11,17 +11,17 @@ use GPForum::Infrastructure::Id;
 
 our $VERSION = '0.001';
 
-const my $HTTP_OK          => 200;
+const my $HTTP_OK           => 200;
 const my $HTTP_NOT_MODIFIED => 304;
-const my $HTTP_BAD_REQUEST => 400;
-const my $HTTP_NOT_FOUND   => 404;
-const my $HTTP_TOO_LARGE   => 413;
-const my $HTTP_UNSUPPORTED => 415;
-const my $HTTP_UNPROCESSED => 422;
-const my $HTTP_UNAVAILABLE => 503;
-const my $NO_STORE         => 'no-store';
-const my $UPLOAD           => 'avatar.upload';
-const my $REMOVE           => 'avatar.remove';
+const my $HTTP_BAD_REQUEST  => 400;
+const my $HTTP_NOT_FOUND    => 404;
+const my $HTTP_TOO_LARGE    => 413;
+const my $HTTP_UNSUPPORTED  => 415;
+const my $HTTP_UNPROCESSED  => 422;
+const my $HTTP_UNAVAILABLE  => 503;
+const my $NO_STORE          => 'no-store';
+const my $UPLOAD            => 'avatar.upload';
+const my $REMOVE            => 'avatar.remove';
 
 # How long a picture's address may be kept: an hour, then revalidated by its
 # ETag. A picture removed or erased leaves shared caches within the hour.
@@ -34,18 +34,18 @@ const my $REPLACED_PICTURE => 'public, max-age=60';
 # What an upload's answer is, as a status and a message, for the page and
 # for JSON.
 const my %ANSWER => (
-    shown           => [ $HTTP_OK,          'avatar.shown' ],
-    checking        => [ $HTTP_OK,          'avatar.checking' ],
-    unavailable     => [ $HTTP_UNAVAILABLE, 'avatar.unavailable' ],
-    missing         => [ $HTTP_BAD_REQUEST, 'avatar.missing' ],
-    too_large       => [ $HTTP_TOO_LARGE,   'avatar.too_large' ],
-    not_image       => [ $HTTP_UNSUPPORTED, 'avatar.not_image' ],
-    unreadable      => [ $HTTP_UNPROCESSED, 'avatar.unreadable' ],
-    too_many_pixels => [ $HTTP_UNPROCESSED, 'avatar.too_many_pixels' ],
-    invalid         => [ $HTTP_BAD_REQUEST, 'avatar.invalid' ],
-    refused         => [ $HTTP_UNPROCESSED, 'avatar.refused' ],
-    failed          => [ $HTTP_UNAVAILABLE, 'avatar.failed' ],
-    stale           => [ $HTTP_OK,          'avatar.checking' ],
+    shown           => [ $HTTP_OK,          'profile.avatar_shown' ],
+    checking        => [ $HTTP_OK,          'profile.avatar_checking' ],
+    unavailable     => [ $HTTP_UNAVAILABLE, 'profile.avatar_unavailable' ],
+    missing         => [ $HTTP_BAD_REQUEST, 'profile.avatar_missing' ],
+    too_large       => [ $HTTP_TOO_LARGE,   'profile.avatar_too_large' ],
+    not_image       => [ $HTTP_UNSUPPORTED, 'profile.avatar_not_image' ],
+    unreadable      => [ $HTTP_UNPROCESSED, 'profile.avatar_unreadable' ],
+    too_many_pixels => [ $HTTP_UNPROCESSED, 'profile.avatar_too_many_pixels' ],
+    invalid         => [ $HTTP_BAD_REQUEST, 'profile.avatar_invalid' ],
+    refused         => [ $HTTP_UNPROCESSED, 'profile.avatar_refused' ],
+    failed          => [ $HTTP_UNAVAILABLE, 'profile.avatar_failed' ],
+    stale           => [ $HTTP_OK,          'profile.avatar_checking' ],
 );
 
 # The member's picture, the form that replaces it and the one that removes
@@ -86,7 +86,7 @@ sub remove ($self) {
     if ( $self->_wants_json ) {
         return $self->render(
             json => {
-                ok     => $status eq 'ok' ? 1 : 0,
+                ok     => $status eq 'ok' ? 1         : 0,
                 status => $status eq 'ok' ? 'removed' : $status,
             },
             status => $status eq 'ok' ? $HTTP_OK : $HTTP_NOT_FOUND,
@@ -94,7 +94,7 @@ sub remove ($self) {
     }
     return $self->_not_found('no profile picture') if $status ne 'ok';
 
-    $self->set_success_flash('avatar.removed');
+    $self->set_success_flash('profile.avatar_removed');
     return $self->redirect_to('settings_avatar');
 }
 

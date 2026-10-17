@@ -22,12 +22,13 @@ sub commands ( $self, $source, $directory, $image, $sides ) {
 
     return (
         [
-            $self->program, '-s',    'format', 'png', '-c', $side, $side,
-            $source,        '--out', $square,
+            $self->program, '-s',  'format', 'png',
+            '-c',           $side, $side,    $source,
+            '--out',        $square,
         ],
         map {
             [
-                $self->program, '-z',    $_, $_, $square,
+                $self->program, '-z', $_, $_, $square,
                 '--out',        "$directory/avatar-$_.png",
             ]
         } @{$sides}

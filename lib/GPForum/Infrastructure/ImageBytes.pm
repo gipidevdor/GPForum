@@ -10,21 +10,27 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-const my $PNG_SIGNATURE => "\x89PNG\x0d\x0a\x1a\x0a";
+const my $PNG_SIGNATURE => pack 'H*', '89504e470d0a1a0a';
+const my $JPEG_START    => pack 'H*', 'ffd8';
+const my $ZERO_BYTE     => pack 'C',  0;
 const my $PNG_IHDR_END  => 24;
 const my $CHUNK_HEAD    => 8;
 const my $CHUNK_CRC     => 4;
+const my $FIELD         => 4;
+const my $PAIR          => 2;
 const my $GIF_HEADER    => 10;
+const my $GIF_SIZE      => 6;
 const my $WEBP_HEADER   => 30;
-const my $JPEG_SOI      => 2;
-const my $MARKER_LENGTH => 4;
+const my $WEBP_KIND     => 12;
 const my $SOF_LENGTH    => 9;
+const my $SOF_SIZE      => 5;
+const my $MARKER_PREFIX => 0xff;
 const my $FOURTEEN_BITS => 0x3fff;
-const my $TWENTY_FOUR   => 0xffffff;
-const my $BYTE          => 8;
+const my $FOURTEEN      => 14;
 const my $VP8_START     => 26;
 const my $VP8L_START    => 21;
 const my $VP8X_START    => 24;
+const my $THREE_BYTES   => 3;
 
 # The chunks a picture needs to be drawn: its header, palette and
 # transparency, its pixels and its end. Everything else -- text, time,
@@ -32,25 +38,26 @@ const my $VP8X_START    => 24;
 const my %CRITICAL_PNG => map { $_ => 1 } qw(IHDR PLTE tRNS IDAT IEND);
 
 # JPEG's start-of-frame markers: SOF0 to SOF15 but DHT (C4), JPG (C8) and
-# DAC (CC), which are not frames.
+# DAC (CC), which are not frames; and the markers that carry no length.
 const my %JPEG_FRAME => map { $_ => 1 }
   grep { $_ != 0xc4 && $_ != 0xc8 && $_ != 0xcc } 0xc0 .. 0xcf;
-const my %JPEG_STANDALONE => map { $_ => 1 } 0x01, 0xd0 .. 0xd8;
+const my %JPEG_STANDALONE => map { $_ => 1 } 0x01,
+  0xd0 .. 0xd8;
+
+const my %READER => (
+    'image/png'  => \&_png,
+    'image/gif'  => \&_gif,
+    'image/jpeg' => \&_jpeg,
+    'image/webp' => \&_webp,
+);
 
 # The width and height an image declares, from its header alone -- nothing
 # is decoded -- or undef when the bytes do not read as the media type says.
 sub dimensions ( $self, $content, $media_type ) {
     return undef if !defined $content || !defined $media_type;
+    return undef if !exists $READER{ lc $media_type };
 
-    my $reader = {
-        'image/png'  => \&_png,
-        'image/gif'  => \&_gif,
-        'image/jpeg' => \&_jpeg,
-        'image/webp' => \&_webp,
-    }->{ lc $media_type };
-    return undef if !$reader;
-
-    my ( $width, $height ) = $reader->($content);
+    my ( $width, $height ) = $READER{ lc $media_type }->($content);
     return undef if !$width || !$height;
 
     return { width => $width, height => $height };
@@ -64,73 +71,85 @@ sub plain_png ( $self, $content ) {
 
     my $kept   = $PNG_SIGNATURE;
     my $offset = length $PNG_SIGNATURE;
-    my $ended  = 0;
     while ( $offset + $CHUNK_HEAD <= length $content ) {
-        my ( $length, $type ) = unpack 'N a4', substr $content, $offset,
-          $CHUNK_HEAD;
-        my $whole = $CHUNK_HEAD + $length + $CHUNK_CRC;
-        return undef if $offset + $whole > length $content;
+        my ( $type, $chunk ) = _chunk_at( $content, $offset );
+        return undef if !defined $chunk;
 
-        my $chunk = substr $content, $offset, $whole;
-        my $crc   = unpack 'N', substr $chunk, -$CHUNK_CRC;
-        return undef
-          if _crc32( substr $chunk, $MARKER_LENGTH, $length + $MARKER_LENGTH )
-          != $crc;
-        $kept .= $chunk if exists $CRITICAL_PNG{$type};
-        $offset += $whole;
+        if ( exists $CRITICAL_PNG{$type} ) {
+            $kept .= $chunk;
+        }
+        $offset += length $chunk;
         if ( $type eq 'IEND' ) {
-            $ended = 1;
-            last;
+            return _first_is_header($kept) ? $kept : undef;
         }
     }
-    return undef if !$ended;
-    return undef if substr( $kept, length($PNG_SIGNATURE) + $MARKER_LENGTH,
-        $MARKER_LENGTH ) ne 'IHDR';
 
-    return $kept;
+    return undef;
+}
+
+# The chunk at an offset, whole, and its type; no chunk when it runs past
+# the end or fails its CRC.
+sub _chunk_at ( $content, $offset ) {
+    my ( $length, $type ) = unpack 'N a4', substr $content, $offset,
+      $CHUNK_HEAD;
+    my $whole = $CHUNK_HEAD + $length + $CHUNK_CRC;
+    return if $offset + $whole > length $content;
+
+    my $chunk = substr $content, $offset, $whole;
+    my $crc   = unpack 'N', substr $chunk, -$CHUNK_CRC;
+    return
+      if Compress::Zlib::crc32( substr $chunk, $FIELD, $length + $FIELD ) !=
+      $crc;
+
+    return ( $type, $chunk );
+}
+
+sub _first_is_header ($png) {
+    return substr( $png, length($PNG_SIGNATURE) + $FIELD, $FIELD ) eq 'IHDR';
 }
 
 sub _png ($content) {
     return if length $content < $PNG_IHDR_END;
     return if index( $content, $PNG_SIGNATURE ) != 0;
-    return if substr( $content, length($PNG_SIGNATURE) + $MARKER_LENGTH,
-        $MARKER_LENGTH ) ne 'IHDR';
+    return if !_first_is_header($content);
 
-    return unpack 'N N', substr $content, $PNG_IHDR_END - $BYTE, $BYTE;
+    return unpack 'N N', substr $content, $PNG_IHDR_END - $CHUNK_HEAD,
+      $CHUNK_HEAD;
 }
 
 sub _gif ($content) {
     return if length $content < $GIF_HEADER;
     return if $content !~ /\A GIF8[79]a/msx;
 
-    return unpack 'v v', substr $content, 6, $MARKER_LENGTH;
+    return unpack 'v v', substr $content, $GIF_SIZE, $FIELD;
 }
 
 # Walks the markers to the first frame header, which holds the size.
 sub _jpeg ($content) {
-    return if substr( $content, 0, $JPEG_SOI ) ne "\xff\xd8";
+    return if substr( $content, 0, $PAIR ) ne $JPEG_START;
 
-    my $offset = $JPEG_SOI;
-    while ( $offset + $MARKER_LENGTH <= length $content ) {
-        my ( $prefix, $marker ) = unpack 'C C', substr $content, $offset, 2;
-        return if $prefix != 0xff;
-        if ( $marker == 0xff ) {
+    my $offset = $PAIR;
+    while ( $offset + $FIELD <= length $content ) {
+        my ( $prefix, $marker ) = unpack 'C C', substr $content, $offset, $PAIR;
+        return if $prefix != $MARKER_PREFIX;
+
+        if ( $marker == $MARKER_PREFIX ) {
             $offset += 1;
-            next;
         }
-        if ( exists $JPEG_STANDALONE{$marker} ) {
-            $offset += 2;
-            next;
+        elsif ( exists $JPEG_STANDALONE{$marker} ) {
+            $offset += $PAIR;
         }
-        my $length = unpack 'n', substr $content, $offset + 2, 2;
-        return if $length < 2;
-        if ( exists $JPEG_FRAME{$marker} ) {
+        elsif ( exists $JPEG_FRAME{$marker} ) {
             return if $offset + $SOF_LENGTH > length $content;
             my ( $height, $width ) = unpack 'n n',
-              substr $content, $offset + 5, $MARKER_LENGTH;
+              substr $content, $offset + $SOF_SIZE, $FIELD;
             return ( $width, $height );
         }
-        $offset += 2 + $length;
+        else {
+            my $length = unpack 'n', substr $content, $offset + $PAIR, $PAIR;
+            return if $length < $PAIR;
+            $offset += $PAIR + $length;
+        }
     }
 
     return;
@@ -141,33 +160,28 @@ sub _webp ($content) {
     return if length $content < $WEBP_HEADER;
     return if $content !~ /\A RIFF .{4} WEBP/msx;
 
-    my $kind = substr $content, 12, $MARKER_LENGTH;
+    my $kind = substr $content, $WEBP_KIND, $FIELD;
     if ( $kind eq 'VP8 ' ) {
         my ( $width, $height ) = unpack 'v v', substr $content, $VP8_START,
-          $MARKER_LENGTH;
+          $FIELD;
         return ( $width & $FOURTEEN_BITS, $height & $FOURTEEN_BITS );
     }
     if ( $kind eq 'VP8L' ) {
-        my $bits = unpack 'V', substr $content, $VP8L_START, $MARKER_LENGTH;
+        my $bits = unpack 'V', substr $content, $VP8L_START, $FIELD;
         return ( ( $bits & $FOURTEEN_BITS ) + 1,
-            ( ( $bits >> 14 ) & $FOURTEEN_BITS ) + 1 );
+            ( ( $bits >> $FOURTEEN ) & $FOURTEEN_BITS ) + 1 );
     }
     if ( $kind eq 'VP8X' ) {
-        my ( $w0, $w1, $w2, $h0, $h1, $h2 ) = unpack 'C6', substr $content,
-          $VP8X_START, 6;
-        return (
-            ( ( $w0 | $w1 << $BYTE | $w2 << ( 2 * $BYTE ) ) & $TWENTY_FOUR ) +
-              1,
-            ( ( $h0 | $h1 << $BYTE | $h2 << ( 2 * $BYTE ) ) & $TWENTY_FOUR ) +
-              1
-        );
+        return ( _three_bytes( $content, $VP8X_START ) + 1,
+            _three_bytes( $content, $VP8X_START + $THREE_BYTES ) + 1 );
     }
 
     return;
 }
 
-sub _crc32 ($bytes) {
-    return Compress::Zlib::crc32($bytes);
+# A 24-bit little-endian number.
+sub _three_bytes ( $content, $offset ) {
+    return unpack 'V', substr( $content, $offset, $THREE_BYTES ) . $ZERO_BYTE;
 }
 
 1;

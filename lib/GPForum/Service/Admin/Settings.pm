@@ -46,6 +46,7 @@ const my @SECTIONS => (
             [
                 GPFORUM_ATTACHMENT_ACCEL_REDIRECT => 'attachment_accel_redirect'
             ],
+            [ GPFORUM_IMAGE_TOOL => 'image_tool' ],
         ],
     },
     {

@@ -60,7 +60,7 @@ __PACKAGE__->requires(qw(schema));
 
 # ADR 0144: the profile pictures (Service::Community::Avatars), whose stored
 # files erasure deletes before the rows.
-has avatars => undef;    # optional: without it only the rows go
+has avatars    => undef;    # optional: without it only the rows go
 has record     => sub { return GPForum::Service::Privacy::Record->new; };
 has completion => sub {
     my ($self) = @_;

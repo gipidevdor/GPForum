@@ -58,12 +58,12 @@ sub profile ($self) {
     }
 
     return $self->render(
-        template => 'identity/profile',
-        profile  => $profile,
-        relation => $relation // q{},
+        template          => 'identity/profile',
+        profile           => $profile,
+        relation          => $relation // q{},
         avatar_moderation =>
           $self->_avatar_moderation( $reader, $page->{user} || {} ),
-        status   => $HTTP_OK,
+        status => $HTTP_OK,
     );
 }
 

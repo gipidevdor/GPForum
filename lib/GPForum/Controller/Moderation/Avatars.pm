@@ -39,7 +39,7 @@ sub remove ($self) {
         $self,
         $self->moderation_access->invalid_request(
             {
-                reason => 'a reason is at most '
+                    reason => 'a reason is at most '
                   . $self->gp_avatar_store->maximum_reason
                   . ' characters'
             }
@@ -51,7 +51,7 @@ sub remove ($self) {
         status => $HTTP_OK,
     ) if $self->_wants_json;
 
-    $self->set_success_flash('avatar.moderated');
+    $self->set_success_flash('profile.avatar_moderated');
     my $return_to =
       GPForum::Web::Access->new->safe_return_to( $self->param('return_to') );
     return $self->redirect_to( $return_to

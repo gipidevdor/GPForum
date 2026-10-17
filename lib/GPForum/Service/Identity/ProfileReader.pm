@@ -43,10 +43,7 @@ sub public_profile ( $self, $username, $options ) {
     return {
         ok      => 1,
         profile => {
-            user    => {
-                %{ _user_hash($user) },
-                avatar_id => $self->_avatar_id($user),
-            },
+            user    => _user_hash( $user, $self->_avatar_id($user) ),
             trust   => $self->_trust_hash($user),
             counts  => $counts,
             threads => $threads,
@@ -289,8 +286,9 @@ sub _reply_query ( $user_id, $after = undef ) {
     return $query;
 }
 
-sub _user_hash ($user) {
+sub _user_hash ( $user, $avatar_id = undef ) {
     return {
+        avatar_id     => $avatar_id,
         user_id       => _column( $user, 'id' ),
         username      => _column( $user, 'username' ),
         display_name  => _column( $user, 'display_name' ),

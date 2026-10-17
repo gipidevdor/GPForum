@@ -20,13 +20,15 @@ const my $MAXIMUM_BYTES  => 5 * 1_024 * 1_024;
 const my $MAXIMUM_SIDE   => 8_000;
 const my $MAXIMUM_PIXELS => 40_000_000;
 const my $SQUARE_TYPE    => 'image/png';
-const my %IMAGE_TYPE     => map { $_ => 1 } qw(
+const my %IMAGE_TYPE => map { $_ => 1 } qw(
   image/gif image/jpeg image/png image/webp
 );
-const my $REPLACED  => 'avatar replaced';
-const my $REMOVED   => 'avatar removed';
-const my $MODERATED => 'avatar removed by staff';
-const my $UNREAD    => 'avatar unreadable';
+const my %REFUSED_SCAN => map { $_ => 1 } qw(infected failed);
+const my %OFFERED      => map { $_ => 1 } qw(ok replayed);
+const my $REPLACED     => 'avatar replaced';
+const my $REMOVED      => 'avatar removed';
+const my $MODERATED    => 'avatar removed by staff';
+const my $UNREAD       => 'avatar unreadable';
 
 # The pictures' rows (Community::AvatarStore), the attachments they are
 # (Attachment::Store), the upload pipeline that validates, stores and scans
@@ -37,9 +39,8 @@ __PACKAGE__->requires(qw(store attachments pipeline storage));
 # operator turned pictures off.
 has image_tool => undef;    # optional: without one, no picture is taken
 has logger     => undef;    # optional: a tool that fails is logged
-has validator  =>
-  sub { return GPForum::Service::Attachment::Validator->new; };
-has bytes => sub { return GPForum::Infrastructure::ImageBytes->new; };
+has validator  => sub { return GPForum::Service::Attachment::Validator->new; };
+has bytes      => sub { return GPForum::Infrastructure::ImageBytes->new; };
 
 sub maximum_bytes ($self) { return $MAXIMUM_BYTES; }
 
@@ -60,12 +61,36 @@ sub available ($self) {
 sub upload ( $self, $input ) {
     return { status => 'unavailable' } if !$self->available;
 
+    my $picture = $self->_picture($input);
+    return $picture if $picture->{status};
+
+    my $user_id = $input->{user_id};
+    my $stored  = $self->pipeline->upload_and_link(
+        {
+            actor_user_id     => $user_id,
+            content           => $picture->{content},
+            media_type        => $picture->{media_type},
+            original_filename => _filename( $input, $picture->{media_type} ),
+            target_id         => $user_id,
+            target_type       => 'profile',
+        }
+    );
+    return { status => 'invalid', errors => $stored->{errors} }
+      if !$stored->{ok};
+
+    return $self->_offered( $user_id, $stored->{attachment},
+        $picture->{content} );
+}
+
+# The bytes and their type, or the refusal that stops them before anything
+# is stored.
+sub _picture ( $self, $input ) {
     my $upload  = $input->{upload};
     my $content = $input->{content};
     if ( !defined $content && $upload ) {
         return { status => 'too_large' }
           if $upload->can('size') && $upload->size > $MAXIMUM_BYTES;
-        $content = $upload->asset->slurp if $upload->can('asset');
+        $content = _slurped($upload);
     }
     return { status => 'missing' }   if !defined $content || !length $content;
     return { status => 'too_large' } if length $content > $MAXIMUM_BYTES;
@@ -77,28 +102,19 @@ sub upload ( $self, $input ) {
     return { status => 'unreadable' }      if !$size;
     return { status => 'too_many_pixels' } if _too_big($size);
 
-    my $user_id = $input->{user_id};
-    my $stored  = $self->pipeline->upload_and_link(
-        {
-            actor_user_id     => $user_id,
-            content           => $content,
-            media_type        => $media_type,
-            original_filename => _filename( $input, $upload, $media_type ),
-            target_id         => $user_id,
-            target_type       => 'profile',
-        }
-    );
-    return { status => 'invalid', errors => $stored->{errors} }
-      if !$stored->{ok};
+    return { content => $content, media_type => $media_type };
+}
 
-    my $attachment = $stored->{attachment};
+# A stored upload the scan did not refuse is offered as the member's
+# picture, and cropped now when the scan has already passed it.
+sub _offered ( $self, $user_id, $attachment, $content ) {
     return { status => 'refused' }
-      if ( $attachment->{scan_status} // q{} ) =~ /\A (?:infected|failed) \z/msx;
+      if exists $REFUSED_SCAN{ $attachment->{scan_status} // q{} };
 
     my $attachment_id = $attachment->{attachment_id};
     my $offered       = $self->store->offer( $user_id, $attachment_id );
     return { status => 'failed' }
-      if ( $offered->{status} // q{} ) !~ /\A (?:ok|replayed) \z/msx;
+      if !exists $OFFERED{ $offered->{status} // q{} };
     $self->_discard( $user_id, $offered->{replaced_attachment_id},
         $user_id, $REPLACED );
 
@@ -183,8 +199,10 @@ sub remove_own ( $self, $user_id ) {
 sub moderate ( $self, $input ) {
     my $removed = $self->store->remove_by_staff($input);
     for my $attachment_id ( @{ $removed->{attachment_ids} } ) {
-        $self->_discard( $input->{subject_user_id},
-            $attachment_id, $input->{actor_user_id}, $MODERATED );
+        $self->_discard(
+            $input->{subject_user_id}, $attachment_id,
+            $input->{actor_user_id},   $MODERATED
+        );
     }
 
     return { status => $removed->{status}, field => $removed->{field} };
@@ -283,8 +301,7 @@ sub _store_square ( $self, $attachment_id, $object_key, $side, $png ) {
 sub _discard ( $self, $user_id, $attachment_id, $actor_id, $reason ) {
     return if !defined $attachment_id;
 
-    for my $object ( @{ $self->store->objects( $user_id, $attachment_id ) } )
-    {
+    for my $object ( @{ $self->store->objects( $user_id, $attachment_id ) } ) {
         $self->storage->delete_object( $object->{object_key} );
     }
     $self->attachments->soft_delete( $attachment_id, $actor_id, $reason );
@@ -292,16 +309,25 @@ sub _discard ( $self, $user_id, $attachment_id, $actor_id, $reason ) {
     return;
 }
 
+sub _slurped ($upload) {
+    return $upload->can('asset') ? $upload->asset->slurp : undef;
+}
+
 sub _too_big ($size) {
-    return $size->{width} > $MAXIMUM_SIDE
+    return
+         $size->{width} > $MAXIMUM_SIDE
       || $size->{height} > $MAXIMUM_SIDE
       || $size->{width} * $size->{height} > $MAXIMUM_PIXELS ? 1 : 0;
 }
 
-sub _filename ( $input, $upload, $media_type ) {
-    my $name = $input->{original_filename};
-    if ( ( !defined $name || !length $name ) && $upload ) {
-        $name = $upload->filename if $upload->can('filename');
+sub _filename ( $input, $media_type ) {
+    my $upload = $input->{upload};
+    my $name   = $input->{original_filename};
+    if (   ( !defined $name || !length $name )
+        && $upload
+        && $upload->can('filename') )
+    {
+        $name = $upload->filename;
     }
     return $name if defined $name && length $name;
 

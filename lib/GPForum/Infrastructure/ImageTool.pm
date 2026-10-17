@@ -5,7 +5,7 @@ package GPForum::Infrastructure::ImageTool;
 
 use Carp qw(croak);
 use Const::Fast;
-use English qw(-no_match_vars);
+use English    qw(-no_match_vars);
 use File::Path qw(remove_tree);
 use File::Spec;
 use File::Temp qw(tempdir);
@@ -24,7 +24,7 @@ const my $DEFAULT_TIMEOUT => 20;
 const my $PRIVATE_FILE    => oct '600';
 const my $PRIVATE_DIR     => oct '700';
 const my $SIGNAL_MASK     => 127;
-const my %EXTENSION       => (
+const my %EXTENSION => (
     'image/gif'  => 'gif',
     'image/jpeg' => 'jpg',
     'image/png'  => 'png',
@@ -33,9 +33,9 @@ const my %EXTENSION       => (
 
 # The program the operating system installed, or undef when it has none:
 # the tool is then unavailable and profile pictures are off.
-has program         => undef;    # optional: undef is "not installed"
+has program         => undef;              # optional: undef is "not installed"
 has timeout_seconds => $DEFAULT_TIMEOUT;
-has bytes => sub { return GPForum::Infrastructure::ImageBytes->new; };
+has bytes           => sub { return GPForum::Infrastructure::ImageBytes->new; };
 
 # GPFORUM_IMAGE_TOOL: system, the tool the operating system installed, or
 # none (ADR 0144).
@@ -116,14 +116,15 @@ sub squares ( $self, $image, $sides ) {
     my ( $squares, $failure );
     try {
         chmod $PRIVATE_DIR, $directory or croak "chmod $directory: $ERRNO";
-        $squares =
-          $self->_squares_in( $directory, $extension, $image, $sides );
+        $squares = $self->_squares_in( $directory, $extension, $image, $sides );
     }
     catch ($error) {
         $failure = $error;
     };
     remove_tree($directory);
-    die $failure if defined $failure;
+    if ( defined $failure ) {
+        croak $failure;
+    }
 
     return $squares;
 }
@@ -133,9 +134,7 @@ sub _squares_in ( $self, $directory, $extension, $image, $sides ) {
     _write_private( $source, $image->{content} );
 
     my $deadline = time + $self->timeout_seconds;
-    for my $command (
-        $self->commands( $source, $directory, $image, $sides ) )
-    {
+    for my $command ( $self->commands( $source, $directory, $image, $sides ) ) {
         return undef if !$self->_ran( $command, $deadline );
     }
 
@@ -156,8 +155,8 @@ sub _squares_in ( $self, $directory, $extension, $image, $sides ) {
 # whole run; a tool killed by a signal -- a crash on a crafted file -- did
 # not read the picture.
 sub _ran ( $self, $command, $deadline ) {
-    my $left = $deadline - time;
-    if ( $left <= 0 ) {
+    my $remaining = $deadline - time;
+    if ( $remaining <= 0 ) {
         GPForum::X::Unavailable->throw( message => 'image tool timed out' );
     }
 
@@ -175,10 +174,9 @@ sub _ran ( $self, $command, $deadline ) {
     my $status;
     try {
         local $SIG{ALRM} = sub {
-            GPForum::X::Unavailable->throw(
-                message => 'image tool timed out' );
+            GPForum::X::Unavailable->throw( message => 'image tool timed out' );
         };
-        alarm $left;
+        alarm $remaining;
         local $INPUT_RECORD_SEPARATOR = undef;
         my $ignored = <$output>;
         waitpid $pid, 0;
@@ -189,7 +187,7 @@ sub _ran ( $self, $command, $deadline ) {
         alarm 0;
         kill 'KILL', $pid;
         waitpid $pid, 0;
-        die $error;
+        croak $error;
     };
 
     return 0 if $status & $SIGNAL_MASK;

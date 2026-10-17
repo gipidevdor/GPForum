@@ -350,12 +350,16 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
 
         # ADR 0144: the picture the subject shows, since when, and the one
         # waiting; the uploads themselves are among their attachments.
-        avatar => $parts->{avatar} || { attachment_id => undef },
+        avatar => _avatar_part($parts),
     };
 }
 
 sub _second_factor_part ($parts) {
     return $parts->{second_factor} || { state => 'off' };
+}
+
+sub _avatar_part ($parts) {
+    return $parts->{avatar} || { attachment_id => undef };
 }
 
 sub safe_manifest ( $self, $bundle ) {

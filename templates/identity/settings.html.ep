@@ -127,9 +127,9 @@
   </section>
 
   <section class="settings-group" aria-labelledby="settings-avatar-heading">
-    <h2 id="settings-avatar-heading"><%= t('avatar.title') %></h2>
-    <p><%= t('avatar.settings_description') %></p>
-    <p><a href="<%= ui_path('settings_avatar') %>"><%= t('avatar.settings_open') %></a></p>
+    <h2 id="settings-avatar-heading"><%= t('profile.avatar_title') %></h2>
+    <p><%= t('profile.avatar_settings_description') %></p>
+    <p><a href="<%= ui_path('settings_avatar') %>"><%= t('profile.avatar_settings_open') %></a></p>
   </section>
 
   <section class="settings-group" aria-labelledby="settings-relations-heading">

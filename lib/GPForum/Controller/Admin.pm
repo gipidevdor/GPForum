@@ -7,6 +7,8 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
 use v5.40;
 
+use GPForum::Web::MemberNotes;
+
 our $VERSION = '0.001';
 
 const my $HTTP_OK          => 200;
@@ -95,7 +97,7 @@ sub user_roles ($self) {
         return $self->_bad_request( { user_id => 'user_id is required' } );
     }
 
-    return $self->_render_user_roles($target_user_id);
+    return $self->_render_user_roles( $target_user_id, $user_id );
 }
 
 sub audit ($self) {
@@ -356,13 +358,19 @@ sub _categories_payload ($self) {
     );
 }
 
-sub _render_user_roles ( $self, $target_user_id ) {
-    my $bindings;
+sub _render_user_roles ( $self, $target_user_id, $user_id ) {
+    my ( $bindings, $notes );
     try {
         $bindings =
           $self->gp_permission_review->roles_for_user( $target_user_id,
             { limit => $self->limit_param },
           );
+
+        # ADR 0138: the staff notes about the member, for staff who may
+        # read them.
+        $notes =
+          GPForum::Web::MemberNotes->new->for_member( $self, $user_id,
+            $target_user_id );
     }
     catch ($error) {
         $self->app->log->error("admin user roles failed: $error");
@@ -375,6 +383,7 @@ sub _render_user_roles ( $self, $target_user_id ) {
                 bindings           => $bindings,
                 bind_command_id    => $self->_new_command_id,
                 csrf_token         => $self->csrf_token,
+                member_notes       => $notes,
                 revoke_command_ids =>
                   $self->_ids_for( $bindings, 'binding_id' ),
                 user_id => $target_user_id,

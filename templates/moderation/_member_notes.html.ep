@@ -1,0 +1,73 @@
+%# ADR 0138: the private staff notes about one member, newest first, with
+%# who wrote and last edited each, and the form that adds one.
+%#
+%# Takes "notes_block" (GPForum::Web::MemberNotes) and "compact": beside a
+%# report the notes are shown without their edit and delete forms. Every
+%# form comes back to the page it was sent from.
+% my $block = stash('notes_block');
+% my $notes = $block->{notes} || [];
+% my $compact = stash('compact');
+% my $subject = $block->{subject_user_id};
+% my $return_to = url_with->path_query;
+<section class="member-notes" aria-labelledby="<%= $block->{ui}{heading_id} %>">
+  <h3 id="<%= $block->{ui}{heading_id} %>"><%= defined $block->{subject_username} ? t('moderation.member_notes_about', { username => $block->{subject_username} }) : t('moderation.member_notes') %></h3>
+  <p class="ui-meta"><%= t('moderation.member_notes_intro') %></p>
+  % if ($block->{unavailable}) {
+    <p><%= t('moderation.member_notes_unavailable') %></p>
+  % } elsif (@{$notes}) {
+    <ol class="ui-card-list" aria-label="<%= t('moderation.member_notes') %>">
+      % for my $note (@{$notes}) {
+        % my @lines = @{$note->{body_lines}};
+        <li class="ui-card-list__item">
+          <article>
+            <p><% for my $index (0 .. $#lines) { %><%= $lines[$index] %><% if ($index < $#lines) { %><br><% } %><% } %></p>
+            <dl>
+              <dt><%= t('moderation.member_note_author') %></dt>
+              <dd><%= $note->{author_username} // t('common.none') %>, <time datetime="<%= $note->{created_at} %>"><%= dt($note->{created_at}) %></time></dd>
+              % if ($note->{updated_at}) {
+                <dt><%= t('moderation.member_note_edited_by') %></dt>
+                <dd><%= $note->{updated_by_username} // t('common.none') %>, <time datetime="<%= $note->{updated_at} %>"><%= dt($note->{updated_at}) %></time></dd>
+              % }
+            </dl>
+            % if (!$compact && $block->{can_write}) {
+              <details>
+                <summary><%= t('moderation.member_note_edit') %></summary>
+                <form method="post" action="<%= ui_path('moderation_member_note_update', user_id => $subject, note_id => $note->{note_id}) %>">
+                  <%= csrf_field %>
+                  <input type="hidden" name="return_to" value="<%= $return_to %>">
+                  <label for="<%= $note->{ui}{body_id} %>"><%= t('moderation.member_note_body') %></label>
+                  <textarea id="<%= $note->{ui}{body_id} %>" name="body" rows="4" maxlength="<%= $block->{maximum} %>" required><%= $note->{body} %></textarea>
+                  <button type="submit"><%= t('moderation.member_note_save') %></button>
+                </form>
+              </details>
+              <form method="post" action="<%= ui_path('moderation_member_note_delete', user_id => $subject, note_id => $note->{note_id}) %>">
+                <%= csrf_field %>
+                <input type="hidden" name="return_to" value="<%= $return_to %>">
+                <%= include 'components/danger_confirm',
+                  confirm_id => $note->{ui}{confirm_id},
+                  consequence => t('moderation.member_note_delete_consequence'),
+                  button_label => t('moderation.member_note_delete') %>
+              </form>
+            % }
+          </article>
+        </li>
+      % }
+    </ol>
+    % if ($block->{note_total} > @{$notes}) {
+      <p class="ui-meta"><%= t('moderation.member_notes_more', { count => $block->{note_total} }) %> <a href="<%= ui_path('admin_user_roles', user_id => $subject) %>"><%= t('moderation.member_note_all') %></a></p>
+    % }
+  % } else {
+    <p><%= t('moderation.member_notes_empty') %></p>
+  % }
+  % if ($block->{can_write} && !$block->{unavailable}) {
+    <form method="post" action="<%= ui_path('moderation_member_note_create', user_id => $subject) %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $block->{add_command_id} %>">
+      <input type="hidden" name="return_to" value="<%= $return_to %>">
+      <label for="<%= $block->{ui}{add_body_id} %>"><%= t('moderation.member_note_body') %></label>
+      <textarea id="<%= $block->{ui}{add_body_id} %>" name="body" rows="3" maxlength="<%= $block->{maximum} %>" required aria-describedby="<%= $block->{ui}{add_body_id} %>-help"></textarea>
+      <p id="<%= $block->{ui}{add_body_id} %>-help" class="ui-meta"><%= t('moderation.member_note_body_help') %></p>
+      <button type="submit"><%= t('moderation.member_note_add') %></button>
+    </form>
+  % }
+</section>

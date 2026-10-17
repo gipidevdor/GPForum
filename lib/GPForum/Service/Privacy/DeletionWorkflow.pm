@@ -711,6 +711,9 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
 
         # ADR 0134: and their posts held for review.
         $self->_revoke_user_rows( 'HeldPost', $user_id, $timestamp );
+
+        # ADR 0138: and the staff notes about them.
+        $self->_revoke_user_rows( 'MemberNote', $user_id, $timestamp );
     }
 
     return $self->erasure->result( $user_id, $already );

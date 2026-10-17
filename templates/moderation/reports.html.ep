@@ -20,6 +20,9 @@
     <button type="submit"><%= t('common.filter') %></button>
   </form>
 
+  % if ($member_notes_unavailable) {
+    <p class="ui-meta"><%= t('moderation.member_notes_unavailable') %></p>
+  % }
   % if (@{$reports}) {
     <ol class="ui-card-list" aria-label="<%= t('moderation.report_queue') %>">
       % for my $report (@{$reports}) {
@@ -46,6 +49,9 @@
               <dt><%= t('common.created') %></dt>
               <dd><time datetime="<%= $report->{created_at} %>"><%= dt($report->{created_at}) %></time></dd>
             </dl>
+            % if (my $notes = $member_notes->{$report->{report_id}}) {
+              <%= include 'moderation/_member_notes', notes_block => $notes, compact => 1 %>
+            % }
             % if ($report->{target_type} eq 'post') {
               <form method="post" action="<%= ui_path('moderation_post_hide', post_id => $report->{target_id}) %>">
                 <%= csrf_field %>

@@ -89,6 +89,7 @@ sub user_roles_page ( $self, %input ) {
         bind_command_id => $self->string( $input{bind_command_id} ),
         bindings        => $self->_bindings_with_revoke( \%input ),
         csrf_token      => $input{csrf_token},
+        member_notes    => $input{member_notes},
         user_id         => $input{user_id},
     };
 }

@@ -24,7 +24,7 @@ our $VERSION = '0.001';
 
 const my $EXIT_USAGE => 2;
 
-const my $EXPECTED_TESTS => 26;
+const my $EXPECTED_TESTS => 27;
 const my $CREATED_ROWS   => 1;
 
 plan tests => $EXPECTED_TESTS;
@@ -84,6 +84,11 @@ ok(
 ok(
     _has_permission( $first, 'privacy_rights.manage' ),
     'bootstrap includes privacy rights management permission'
+);
+ok(
+    _has_permission( $first, 'member_note.view' )
+      && _has_permission( $first, 'member_note.write' ),
+    'bootstrap includes the staff notes permissions (ADR 0138)'
 );
 
 my $repeat_bootstrap = $bootstrapper->bootstrap(

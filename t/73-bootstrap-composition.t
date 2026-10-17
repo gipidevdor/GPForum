@@ -129,6 +129,9 @@ sub _route_names {
       metrics
       moderation_action_reverse
       moderation_actions
+      moderation_member_note_create
+      moderation_member_note_delete
+      moderation_member_note_update
       moderation_post_hide
       moderation_post_restore
       moderation_report_assign
@@ -253,6 +256,7 @@ sub _helper_names {
       gp_identity_workflow
       gp_local_cache
       gp_media_processor
+      gp_member_note_store
       gp_mention_reader
       gp_mention_store
       gp_metadata_builder

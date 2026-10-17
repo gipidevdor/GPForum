@@ -10,9 +10,51 @@ our $VERSION = '0.001';
 
 sub reports_page ( $self, %input ) {
     return {
-        csrf_token => $input{csrf_token},
-        reports    => [ map { $self->report($_) } @{ $input{reports} || [] } ],
-        status     => $input{status},
+        csrf_token               => $input{csrf_token},
+        member_notes             => $input{member_notes} || {},
+        member_notes_unavailable => $input{member_notes_unavailable} ? 1 : 0,
+        reports => [ map { $self->report($_) } @{ $input{reports} || [] } ],
+        status  => $input{status},
+    };
+}
+
+# ADR 0138: the staff notes about one member, as a block of the member's
+# admin page or of a report. The scope keeps the block's element ids apart
+# from another block's on the same page.
+sub member_notes ( $self, %input ) {
+    my $scope = $self->stable_id( 'member-notes', $input{scope} );
+    my @notes;
+    for my $row ( @{ $input{notes} || [] } ) {
+        my $note_id = $self->column( $row, 'note_id' );
+        my $body    = $self->string( $self->column( $row, 'body' ) );
+        push @notes,
+          {
+            author_username     => $self->column( $row, 'author_username' ),
+            body                => $body,
+            body_lines          => [ split /\n/msx, $body ],
+            created_at          => $self->column( $row, 'created_at' ),
+            note_id             => $note_id,
+            updated_at          => $self->column( $row, 'updated_at' ),
+            updated_by_username => $self->column( $row, 'updated_by_username' ),
+            ui                  => {
+                body_id    => $self->stable_id( $scope, $note_id, 'body' ),
+                confirm_id => $self->stable_id( $scope, $note_id, 'confirm' ),
+            },
+          };
+    }
+
+    return {
+        add_command_id   => $self->string( $input{add_command_id} ),
+        can_write        => $input{can_write} ? 1 : 0,
+        maximum          => $input{maximum},
+        note_total       => 0 + ( $input{note_total} // scalar @notes ),
+        notes            => \@notes,
+        subject_user_id  => $input{subject_user_id},
+        subject_username => $input{subject_username},
+        ui               => {
+            add_body_id => $self->stable_id( $scope, 'add-body' ),
+            heading_id  => $self->stable_id( $scope, 'heading' ),
+        },
     };
 }
 

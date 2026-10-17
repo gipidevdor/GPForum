@@ -608,6 +608,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Staff keep private notes on members.** Staff holding the new
+  `member_note.view` permission read notes about a member on the member's
+  admin page, and the three newest beside every report about the member's
+  profile, posts or threads, with who wrote and last edited each and when;
+  `member_note.write` adds, edits and deletes them through forms that work
+  without JavaScript, with CSRF, the moderation rate limit and suspended
+  staff refused. Every change is audited without the text. The member never
+  sees them; they are in no feed, search, event or realtime message, the
+  data export leaves them out and erasure deletes them (ADR 0138, migration
+  125).
 - **Bookmarks can be filed in folders.** A member names a folder with the
   note when saving a bookmark, or moves a bookmark from the bookmarks page,
   which now names their folders with counts and lists one folder or all

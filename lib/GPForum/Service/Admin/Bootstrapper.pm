@@ -219,6 +219,8 @@ sub default_permissions ($self) {
         _permission( 'user',              'suspend' ),
         _permission( 'privacy_rights',    'view' ),
         _permission( 'privacy_rights',    'manage' ),
+        _permission( 'member_note',       'view' ),
+        _permission( 'member_note',       'write' ),
     ];
 }
 
@@ -574,7 +576,8 @@ a hash reference with C<name> (C<resource_type.action>), C<resource_type> and
 C<action>: C<admin_console> view and manage; C<category> read; C<report>
 view_queue, assign and resolve; C<post> and C<thread> moderate;
 C<moderation_action> view and reverse; C<suspension> view; C<user> suspend;
-C<privacy_rights> view and manage.
+C<privacy_rights> view and manage; C<member_note> view and write
+(ADR 0138).
 
 =head1 DIAGNOSTICS
 

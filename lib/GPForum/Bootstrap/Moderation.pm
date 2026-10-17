@@ -7,6 +7,7 @@ use v5.40;
 
 use GPForum::Service::Moderation::ActionStore;
 use GPForum::Service::Moderation::AutomodStore;
+use GPForum::Service::Moderation::MemberNoteStore;
 use GPForum::Service::Moderation::ReportStore;
 use GPForum::Service::Forum::ViewerResolver;
 use GPForum::Service::Moderation::ReviewReader;
@@ -56,6 +57,16 @@ sub register {
                     schema => $controller->gp_schema,
                 ),
             );
+        }
+    );
+
+    # ADR 0138: private staff notes on members.
+    $application->helper(
+        gp_member_note_store => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Moderation::MemberNoteStore->new(
+                schema => $controller->gp_schema );
         }
     );
     $application->helper(

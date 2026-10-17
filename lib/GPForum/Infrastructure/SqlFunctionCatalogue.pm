@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 10,
+        version    => 12,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -991,6 +991,41 @@ const my %FUNCTION => (
             now           => 'timestamptz',
             audit         => 'jsonb',
         ],
+    },
+    moderation_member_note_add => {
+        version    => 2,
+        parameters => [
+            note_id         => 'uuid',
+            subject_user_id => 'uuid',
+            author_user_id  => 'uuid',
+            body            => 'text',
+            now             => 'timestamptz',
+            audit           => 'jsonb',
+        ],
+    },
+    moderation_member_note_edit => {
+        version    => 2,
+        parameters => [
+            note_id         => 'uuid',
+            subject_user_id => 'uuid',
+            editor_user_id  => 'uuid',
+            body            => 'text',
+            now             => 'timestamptz',
+            audit           => 'jsonb',
+        ],
+    },
+    moderation_member_note_delete => {
+        version    => 2,
+        parameters =>
+          [ note_id => 'uuid', subject_user_id => 'uuid', audit => 'jsonb' ],
+    },
+    moderation_member_notes => {
+        version    => 2,
+        parameters => [ subject_user_id => 'uuid', row_limit => 'integer' ]
+    },
+    moderation_member_notes_for_reports => {
+        version    => 2,
+        parameters => [ report_ids => 'uuid[]', per_member => 'integer' ]
     },
     moderation_suspension_find =>
       { version => 2, parameters => [ suspension_id => 'uuid' ] },

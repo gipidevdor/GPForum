@@ -224,6 +224,15 @@ sub register ( $, %input ) {
     $routes->post('/moderation/review/:review_id/reject')
       ->to('Moderation::Review#reject')
       ->name('moderation_review_reject');
+    $routes->post('/moderation/members/:user_id/notes')
+      ->to('Moderation::MemberNotes#create')
+      ->name('moderation_member_note_create');
+    $routes->post('/moderation/members/:user_id/notes/:note_id')
+      ->to('Moderation::MemberNotes#update')
+      ->name('moderation_member_note_update');
+    $routes->post('/moderation/members/:user_id/notes/:note_id/delete')
+      ->to('Moderation::MemberNotes#remove')
+      ->name('moderation_member_note_delete');
     $routes->get('/moderation/actions')
       ->to('Moderation#actions')
       ->name('moderation_actions');

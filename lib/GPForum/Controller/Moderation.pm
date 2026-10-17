@@ -7,6 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
 use v5.40;
 
+use GPForum::Web::MemberNotes;
 use GPForum::Web::UrlId;
 
 our $VERSION = '0.001';
@@ -21,14 +22,21 @@ sub reports ($self) {
     }
 
     my $status = $self->status_param;
-    my $rows;
+    my ( $reports, $notes, $notes_unavailable );
     try {
-        $rows = $self->gp_report_store->list_queue(
-            {
-                status => $status,
-                limit  => $self->queue_limit,
-            }
+        $reports = $self->_with_command_ids(
+            $self->gp_report_store->list_queue(
+                {
+                    status => $status,
+                    limit  => $self->queue_limit,
+                }
+            )
         );
+
+        # ADR 0138: beside each report, the staff notes about its member.
+        ( $notes, $notes_unavailable ) =
+          GPForum::Web::MemberNotes->new->for_reports( $self, $user_id,
+            $reports );
     }
     catch ($error) {
         $self->app->log->error("moderation report queue failed: $error");
@@ -38,9 +46,11 @@ sub reports ($self) {
     return $self->render_payload(
         {
             payload => $self->gp_moderation_view_model->reports_page(
-                csrf_token => $self->csrf_token,
-                reports    => $self->_with_command_ids($rows),
-                status     => $status,
+                csrf_token               => $self->csrf_token,
+                member_notes             => $notes,
+                member_notes_unavailable => $notes_unavailable,
+                reports                  => $reports,
+                status                   => $status,
             ),
             status   => $HTTP_OK,
             template => 'moderation/reports',

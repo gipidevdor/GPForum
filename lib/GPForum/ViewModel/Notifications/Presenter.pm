@@ -79,9 +79,10 @@ sub notification ( $self, $row, %input ) {
               . '-heading',
         },
     };
-    $payload->{presentation} =
-      $input{renderer}->render_inbox_item( $input{locale}, $payload )
-      if $input{renderer};
+    if ( $input{renderer} ) {
+        $payload->{presentation} =
+          $input{renderer}->render_inbox_item( $input{locale}, $payload );
+    }
 
     return $payload;
 }
@@ -107,9 +108,10 @@ sub mention ( $self, $row, %input ) {
               . '-heading',
         },
     };
-    $payload->{presentation} =
-      $input{renderer}->render_mention( $input{locale}, $payload )
-      if $input{renderer};
+    if ( $input{renderer} ) {
+        $payload->{presentation} =
+          $input{renderer}->render_mention( $input{locale}, $payload );
+    }
 
     return $payload;
 }

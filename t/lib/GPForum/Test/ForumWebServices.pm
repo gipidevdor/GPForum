@@ -13,6 +13,8 @@ use GPForum::Service::Forum::ThreadTags;
 
 our $VERSION = '0.001';
 
+const my $DEFAULT_SEARCH_LIMIT => 3;
+
 # The rows the moderation routes act on. Their ids are uuids: a route answers
 # 404 for a path id that is not one before the workflow runs
 # (GPForum::Web::UrlId), so a double answering only to 'post-1' could never be
@@ -409,8 +411,9 @@ sub prepare {
 
     my %errors;
     if ( exists $input->{thread_id} ) {
-        $errors{body_source} = 'body_source is required'
-          if !defined $input->{body_source} || !length $input->{body_source};
+        if ( !defined $input->{body_source} || !length $input->{body_source} ) {
+            $errors{body_source} = 'body_source is required';
+        }
         return { ok => 0, errors => \%errors, values => { %{$input} } }
           if %errors;
 
@@ -420,12 +423,15 @@ sub prepare {
         };
     }
 
-    $errors{category_id} = 'category_id is required'
-      if !defined $input->{category_id} || !length $input->{category_id};
-    $errors{title} = 'title is required'
-      if !defined $input->{title} || !length $input->{title};
-    $errors{body_source} = 'body_source is required'
-      if !defined $input->{body_source} || !length $input->{body_source};
+    if ( !defined $input->{category_id} || !length $input->{category_id} ) {
+        $errors{category_id} = 'category_id is required';
+    }
+    if ( !defined $input->{title} || !length $input->{title} ) {
+        $errors{title} = 'title is required';
+    }
+    if ( !defined $input->{body_source} || !length $input->{body_source} ) {
+        $errors{body_source} = 'body_source is required';
+    }
     return { ok => 0, errors => \%errors, values => { %{$input} } } if %errors;
 
     return {
@@ -1403,7 +1409,7 @@ sub search {
     return [] if $query eq 'missing';
 
     if ( $query eq 'many' ) {
-        my $limit = $options->{limit} || 3;
+        my $limit = $options->{limit} || $DEFAULT_SEARCH_LIMIT;
         return [
             map {
                 {

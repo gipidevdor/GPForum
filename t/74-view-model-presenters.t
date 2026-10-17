@@ -4,6 +4,7 @@
 package main;
 
 use v5.40;
+use utf8;
 
 use Const::Fast;
 use Scalar::Util qw(blessed);
@@ -553,6 +554,11 @@ is(
     'admin-user-bad-value-1-heading',
     'base presenter builds safe stable HTML ids'
 );
+is( $admin->stable_id( 'café', 'a١b' ),
+    'caf-a-b', 'stable ids retain the existing ASCII-only alphabet' );
+is( $admin->stable_id( undef, q{--}, 'AZ_09.x:y-z' ),
+    'AZ_09.x:y-z',
+    'stable ids preserve allowed punctuation and omit empty parts' );
 my $audit = $admin->audit_entry(
     {
         action         => 'admin.role_bound',

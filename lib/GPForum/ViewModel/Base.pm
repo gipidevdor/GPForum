@@ -101,10 +101,12 @@ sub stable_id ( $self, @parts ) {
     my @tokens;
     for my $part (@parts) {
         my $token = $self->string($part);
-        $token =~ s/[^A-Za-z0-9_.:-]+/-/gmsx;
+        $token =~ s/[^\w.:-]+/-/agmsx;
         $token =~ s/\A-+//msx;
         $token =~ s/-+\z//msx;
-        push @tokens, $token if length $token;
+        if ( length $token ) {
+            push @tokens, $token;
+        }
     }
 
     return join q{-}, @tokens;
@@ -121,23 +123,25 @@ sub form_fields ( $self, %input ) {
     my $errors = $input{errors} || {};
     my $values = $input{values} || {};
 
-    return [
-        map {
-            my $error_id  = $_->{id} . '-error';
-            my $has_error = exists $errors->{ $_->{name} };
-            +{
-                %{$_},
-                error       => $errors->{ $_->{name} },
-                error_attrs => $self->field_error_attrs(
-                    described_by => $error_id,
-                    has_error    => $has_error,
-                ),
-                error_id => $error_id,
-                value    => $values->{ $_->{value_key} || $_->{name} }
-                  // $values->{ $_->{name} } // q{},
-            }
-        } @{ $input{specs} || [] }
-    ];
+    my @fields;
+    for my $spec ( @{ $input{specs} || [] } ) {
+        my $error_id  = $spec->{id} . '-error';
+        my $has_error = exists $errors->{ $spec->{name} };
+        push @fields,
+          {
+            %{$spec},
+            error       => $errors->{ $spec->{name} },
+            error_attrs => $self->field_error_attrs(
+                described_by => $error_id,
+                has_error    => $has_error,
+            ),
+            error_id => $error_id,
+            value    => $values->{ $spec->{value_key} || $spec->{name} }
+              // $values->{ $spec->{name} } // q{},
+          };
+    }
+
+    return \@fields;
 }
 
 sub form_error_fields ( $self, $fields ) {

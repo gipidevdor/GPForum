@@ -23,9 +23,11 @@ sub new {
 sub selectrow_array    { return }
 sub selectall_arrayref { return [] }
 sub selectcol_arrayref { return [] }
-sub do                 { return '0E0' }
-sub quote_identifier   { return qq{"$_[1]"} }
-sub driver_name        { return 'Pg' }
+
+# DBI fixes this method name; it is never exported as a Perl keyword.
+sub do               { return '0E0' }         ## no critic (Subroutines::ProhibitBuiltinHomonyms) -- Implements DBI's do method, preserving the real handle's API.
+sub quote_identifier { return qq{"$_[1]"} }
+sub driver_name      { return 'Pg' }
 
 1;
 

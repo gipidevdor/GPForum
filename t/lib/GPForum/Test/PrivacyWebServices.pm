@@ -3,7 +3,7 @@
 
 package GPForum::Test::PrivacyWebServices;
 
-use Mojo::Base -base;
+use Mojo::Base -base, -signatures;
 use v5.40;
 
 use Const::Fast;
@@ -316,9 +316,7 @@ sub create_hold {
     return $hold;
 }
 
-sub hold_request {
-    my ( $self, $request_id, $actor_id, $reason, $hold ) = @_;
-
+sub hold_request ( $self, $request_id, $actor_id, $reason, $hold ) {
     return {
         action => {
             actor_id           => $actor_id,

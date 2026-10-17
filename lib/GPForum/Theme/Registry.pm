@@ -84,17 +84,19 @@ sub color_scheme ( $self, $name ) {
 
 sub theme_options ( $self, $current_theme ) {
     my $safe_current = $self->safe_theme_name($current_theme);
-    return [
-        map {
-            my $theme = $self->_shared($_);
-            {
-                current      => $_ eq $safe_current ? 1 : 0,
-                label_key    => $theme->{label_key},
-                name         => $_,
-                color_scheme => $theme->{color_scheme},
-            }
-        } @{ $self->supported_themes }
-    ];
+    my @options;
+    for my $name ( @{ $self->supported_themes } ) {
+        my $theme = $self->_shared($name);
+        push @options,
+          {
+            current      => $name eq $safe_current ? 1 : 0,
+            label_key    => $theme->{label_key},
+            name         => $name,
+            color_scheme => $theme->{color_scheme},
+          };
+    }
+
+    return \@options;
 }
 
 sub css_variables ( $self, $name ) {

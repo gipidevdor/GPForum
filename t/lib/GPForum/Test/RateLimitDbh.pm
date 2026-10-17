@@ -3,10 +3,13 @@
 
 package GPForum::Test::RateLimitDbh;
 
+use Const::Fast;
 use Mojo::Base -base;
 use v5.40;
 
 our $VERSION = '0.001';
+
+const my $WINDOW_STARTED_AT_BIND => 3;
 
 has calls   => sub { return []; };
 has buckets => sub { return {}; };
@@ -16,11 +19,11 @@ sub selectrow_hashref {
 
     push @{ $self->calls }, { sql => $sql, bind => \@bind };
 
-    my $key = join q{:}, @bind[ 0 .. 3 ];
+    my $key = join q{:}, @bind[ 0 .. $WINDOW_STARTED_AT_BIND ];
     $self->buckets->{$key} ||= {
         actor_hash        => $bind[1],
         observed_count    => 0,
-        window_started_at => $bind[3],
+        window_started_at => $bind[$WINDOW_STARTED_AT_BIND],
     };
     $self->buckets->{$key}{observed_count} += 1;
 

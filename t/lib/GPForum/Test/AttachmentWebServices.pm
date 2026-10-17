@@ -19,6 +19,7 @@ our $VERSION = '0.001';
 # because a lone CR fails the same whitelist.
 const my $CARRIAGE_RETURN => 13;
 const my $LINE_FEED       => 10;
+const my $PNG_SIGNATURE   => pack 'H*', '89504e470d0a1a0a';
 const my $INJECTED_KEY => 'attachments/user-1/streamed'
   . chr($CARRIAGE_RETURN)
   . chr($LINE_FEED)
@@ -122,7 +123,7 @@ sub download {
         ok                => 1,
         attachment_id     => $input->{attachment_id},
         byte_size         => 8,
-        content           => "\x89PNG\x0d\x0a\x1a\x0a",
+        content           => $PNG_SIGNATURE,
         media_type        => 'image/png',
         object_key        => 'attachments/user-1/attachment-1',
         original_filename => 'photo.png',

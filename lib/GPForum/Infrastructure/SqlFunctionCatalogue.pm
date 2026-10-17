@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 12,
+        version    => 14,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 14,
+        version    => 16,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -651,6 +651,54 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ owner_user_id => 'uuid', other_user_id => 'uuid' ],
     },
+
+    # ADR 0139: direct messages between two members.
+    community_message_start =>
+      { version => 2, parameters => [ row => 'jsonb' ] },
+    community_message_reply =>
+      { version => 2, parameters => [ row => 'jsonb' ] },
+    community_message_inbox => {
+        version    => 2,
+        parameters => [
+            user_id   => 'uuid',
+            after_at  => 'timestamptz',
+            after_id  => 'uuid',
+            row_limit => 'integer'
+        ]
+    },
+    community_message_conversation => {
+        version    => 2,
+        parameters => [ conversation_id => 'uuid', user_id => 'uuid' ]
+    },
+    community_message_list => {
+        version    => 2,
+        parameters => [
+            conversation_id => 'uuid',
+            user_id         => 'uuid',
+            before_position => 'bigint',
+            row_limit       => 'integer'
+        ]
+    },
+    community_message_mark_read => {
+        version    => 2,
+        parameters => [
+            conversation_id => 'uuid',
+            user_id         => 'uuid',
+            now             => 'timestamptz'
+        ]
+    },
+    community_message_conversation_with => {
+        version    => 2,
+        parameters => [ user_id => 'uuid', username => 'text' ]
+    },
+    community_message_for_report => {
+        version    => 2,
+        parameters => [ message_id => 'uuid', user_id => 'uuid' ]
+    },
+    community_message_participant => {
+        version    => 2,
+        parameters => [ message_id => 'uuid', user_id => 'uuid' ]
+    },
     community_find_bookmark => {
         version    => 2,
         parameters =>
@@ -707,18 +755,18 @@ const my %FUNCTION => (
 
     # ADR 0078: notification preferences by kind, and the unsubscribe link.
     notification_type_preferences =>
-      { version => 2, parameters => [ user_id => 'uuid' ] },
+      { version => 4, parameters => [ user_id => 'uuid' ] },
     notification_set_type_preferences => {
-        version    => 2,
+        version    => 4,
         parameters =>
           [ user_id => 'uuid', preferences => 'jsonb', now => 'timestamptz' ]
     },
     notification_delivery_plan => {
-        version    => 2,
+        version    => 4,
         parameters => [ user_id => 'uuid', notification_type => 'text' ]
     },
     notification_unsubscribe => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id => 'uuid',
             scope   => 'text',
@@ -926,7 +974,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     moderation_automod_record => {
-        version    => 2,
+        version    => 4,
         parameters => [
             report          => 'jsonb',
             event           => 'jsonb',
@@ -1033,6 +1081,12 @@ const my %FUNCTION => (
     moderation_member_notes_for_reports => {
         version    => 2,
         parameters => [ report_ids => 'uuid[]', per_member => 'integer' ]
+    },
+
+    # ADR 0139: staff read a reported message, audited.
+    moderation_reported_message => {
+        version    => 2,
+        parameters => [ report_id => 'uuid', audit => 'jsonb' ]
     },
     moderation_suspension_find =>
       { version => 2, parameters => [ suspension_id => 'uuid' ] },
@@ -1369,7 +1423,7 @@ const my %FUNCTION => (
         ],
     },
     notification_list_inbox => {
-        version    => 4,
+        version    => 6,
         parameters => [
             recipient_user_id     => 'uuid',
             filter_sources        => 'boolean',
@@ -1384,7 +1438,7 @@ const my %FUNCTION => (
         ],
     },
     notification_unread_count => {
-        version    => 4,
+        version    => 6,
         parameters => [
             recipient_user_id => 'uuid',
             filter_sources    => 'boolean',

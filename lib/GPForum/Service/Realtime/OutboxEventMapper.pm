@@ -25,6 +25,8 @@ const my $POST_DELETED                => 'post.deleted';
 const my $POST_UNDELETED              => 'post.undeleted';
 const my $THREAD_UPDATE               => 'thread.update';
 const my $MODERATION_QUEUE_INVALIDATE => 'moderation.queue.invalidate';
+const my $MESSAGE_SENT                => 'direct_message.sent';
+const my $MESSAGE_UPDATE              => 'direct_message.update';
 
 const my %THREAD_CONTENT => (
     $THREAD_CREATED   => 1,
@@ -54,7 +56,10 @@ has realtime_contract =>
 # backstop's rebuild from the notification tables cost queries in every
 # worker for every polled post.
 sub events_for_payload ( $self, $raw_payload ) {
-    my $payload      = $self->payload_contract->normalize($raw_payload);
+    my $payload = $self->payload_contract->normalize($raw_payload);
+    return $self->_message_events($payload)
+      if ( $payload->{event_type} // q{} ) eq $MESSAGE_SENT;
+
     my $domain_event = $self->_domain_realtime_event_for($payload);
 
     return $domain_event ? ($domain_event) : ();
@@ -122,6 +127,41 @@ sub _thread_created_event ( $self, $payload ) {
     );
 }
 
+# ADR 0139: a direct message is a hint on each member's own channel -- the
+# recipient's first, under the event's id, then the sender's other pages --
+# naming the conversation and the message, never the text.
+sub _message_events ( $self, $payload ) {
+    my $conversation_id = _event_value( $payload, 'conversation_id' );
+    my $message_id      = _event_value( $payload, 'message_id' );
+    return () if !defined $conversation_id || !defined $message_id;
+
+    my @frames;
+    for my $member (
+        grep { defined }
+        map  { _event_value( $payload, $_ ) }
+        qw(recipient_user_id sender_user_id)
+      )
+    {
+        push @frames,
+          $self->realtime_contract->build(
+            ( @frames ? () : ( event_id => $payload->{event_id} ) ),
+            type           => $MESSAGE_UPDATE,
+            aggregate_type => 'user',
+            aggregate_id   => $member,
+            actor_id       => $payload->{actor_id},
+            correlation_id => $payload->{correlation_id},
+            causation_id   => $payload->{event_id},
+            payload        => {
+                conversation_id => $conversation_id,
+                message_id      => $message_id,
+            },
+            metadata => { source_event_type => $payload->{event_type} },
+          );
+    }
+
+    return @frames;
+}
+
 sub _moderation_event ( $self, $payload ) {
     return $self->realtime_contract->build(
         event_id       => $payload->{event_id},
@@ -164,7 +204,8 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-Maps an outbox domain event to at most one realtime frame, built with
+Maps an outbox domain event to realtime frames (at most one, but for a
+direct message), built with
 L<GPForum::Service::Realtime::EventEnvelope>. The frame is a hint: it
 carries ids only and is idempotent, so a duplicate or a late one is
 harmless (F<docs/realtime.md>). The worker's
@@ -195,6 +236,12 @@ event type as its payload.
 
 =item *
 
+C<direct_message.sent> (ADR 0139) becomes C<direct_message.update> on the
+recipient's and then the sender's own C<notifications> channel, with
+C<< payload => { conversation_id, message_id } >>.
+
+=item *
+
 Every other event maps to nothing.
 
 =back
@@ -214,8 +261,8 @@ and C<realtime_contract> (a L<GPForum::Service::Realtime::EventEnvelope>).
 
 Takes an outbox message payload, normalized first with the C<normalize>
 method of L<GPForum::Jobs::EventPayload> (anything but a hash reference
-becomes an empty one). Returns a list of zero or one realtime frame
-hash references. The frame is built, not validated.
+becomes an empty one). Returns a list of realtime frame hash references:
+none or one, or two for a direct message. The frame is built, not validated.
 
 =head1 DIAGNOSTICS
 

@@ -126,6 +126,12 @@ sub _route_names {
       login_submit
       member_relations
       mentions
+      message_compose
+      message_conversation
+      message_reply
+      message_report
+      message_start
+      messages
       metrics
       moderation_action_reverse
       moderation_actions
@@ -137,6 +143,7 @@ sub _route_names {
       moderation_report_assign
       moderation_report_release
       moderation_report_resolve
+      moderation_reported_message
       moderation_reports
       moderation_review
       moderation_review_approve
@@ -259,6 +266,7 @@ sub _helper_names {
       gp_member_note_store
       gp_mention_reader
       gp_mention_store
+      gp_message_store
       gp_metadata_builder
       gp_metrics_snapshot
       gp_moderation_action_store

@@ -84,20 +84,21 @@ subtest 'without the function layer the defaults stand' => sub {
         [ map { _choices($_) } @{$kinds} ],
         [
             qw(reply:in_app:1 reply:email:0 mention:in_app:1 mention:email:1
-              moderation:in_app:1 moderation:email:1)
+              moderation:in_app:1 moderation:email:1 message:in_app:1
+              message:email:1)
         ],
-        'the inbox for every kind, email for mentions and moderation'
+        'the inbox for every kind, email for mentions, moderation and messages'
     );
     is(
         $kinds->[2]{label_key},
         'notifications.kind.moderation',
         'with the i18n keys'
     );
-    is_deeply( $store->event_types, [qw(reply mention moderation)],
+    is_deeply( $store->event_types, [qw(reply mention moderation message)],
         'the kinds' );
     is_deeply(
         $store->unsubscribe_scopes,
-        [qw(reply mention moderation all digest)],
+        [qw(reply mention moderation message all digest)],
         'and the unsubscribe scopes'
     );
     is(

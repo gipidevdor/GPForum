@@ -100,6 +100,11 @@ plus every asynchronous consumer.
   - producer: community workflow (ADR 0129)
   - consumers: cache invalidation
   - payload: `post_id`, `thread_id`, `user_id`, `author_user_id`
+- `direct_message.sent`
+  - producer: direct messages (ADR 0139)
+  - consumers: notification dispatch (the first unread message), realtime
+  - payload: `conversation_id`, `message_id`, `sender_user_id`,
+    `recipient_user_id`, `first_unread`, `started`; never the text
 - `thread.moved`
   - producer: moderation workflow
   - consumers: feed projection, search indexing, cache invalidation, audit

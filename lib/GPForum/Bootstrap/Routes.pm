@@ -248,6 +248,11 @@ sub register ( $, %input ) {
     $routes->post('/moderation/reports/:report_id/resolve')
       ->to('Moderation::Queue#resolve_report')
       ->name('moderation_report_resolve');
+
+    # ADR 0139: staff read a reported direct message, audited.
+    $routes->post('/moderation/reports/:report_id/message')
+      ->to('Moderation::ReportedMessage#show')
+      ->name('moderation_reported_message');
     $routes->post('/moderation/posts/:post_id/hide')
       ->to('Moderation::Actions#hide_post')
       ->name('moderation_post_hide');
@@ -378,6 +383,24 @@ sub register ( $, %input ) {
     $routes->get('/settings/ignored')
       ->to('Identity::Relations#list')
       ->name('member_relations');
+
+    # ADR 0139: direct messages between two members.
+    $routes->get('/messages')->to('Messages#inbox')->name('messages');
+    $routes->get('/messages/new/:username')
+      ->to('Messages#compose')
+      ->name('message_compose');
+    $routes->post('/messages/new/:username')
+      ->to('Messages#start')
+      ->name('message_start');
+    $routes->get('/messages/:conversation_id')
+      ->to('Messages#conversation')
+      ->name('message_conversation');
+    $routes->post('/messages/:conversation_id')
+      ->to('Messages#reply')
+      ->name('message_reply');
+    $routes->post('/messages/:conversation_id/:message_id/report')
+      ->to('Messages#report')
+      ->name('message_report');
     $routes->get('/privacy')
       ->to('Privacy#dashboard')
       ->name('privacy_dashboard');

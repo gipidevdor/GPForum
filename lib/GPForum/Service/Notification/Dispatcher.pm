@@ -214,6 +214,10 @@ sub _queue_email ( $self, $input ) {
             thread_id         => $payload->{thread_id},
             post_id           => $payload->{post_id},
             reason            => $payload->{reason},
+
+            # ADR 0139: a direct message's mail links to its conversation.
+            map { defined $payload->{$_} ? ( $_ => $payload->{$_} ) : () }
+              qw(conversation_id),
         },
     );
 

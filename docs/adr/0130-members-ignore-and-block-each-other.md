@@ -46,8 +46,9 @@ a versioned function of schema `api` (ADR 0126) with its definer boundary
 
 **Block** is ignore plus a refusal of the blocked member's actions towards the
 owner: a mention of the owner is not recorded at all (`MentionStore` skips it
-as `blocked`), so it neither notifies nor lists. Direct messages, when they
-exist, refuse a blocked sender as well.
+as `blocked`), so it neither notifies nor lists. Direct messages refuse a
+message when either member blocks the other, and an ignored or blocked
+member's messages notify nothing (ADR 0139, an amendment of 2026-10-17).
 
 Product decisions:
 

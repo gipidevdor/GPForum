@@ -24,6 +24,9 @@
           % if ($payload->{post_id}) {
             % $notification_href .= '#post-' . $payload->{post_id};
           % }
+        % } elsif ($payload->{conversation_id}) {
+          %# ADR 0139: a direct message opens its conversation.
+          % $notification_href = url_for('message_conversation', conversation_id => $payload->{conversation_id})->to_string;
         % }
         <li class="ui-card-list__item">
           <%= include 'components/notification_surface',

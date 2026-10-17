@@ -13,18 +13,23 @@ use GPForum::Service::Moderation::Automod;
 our $VERSION = '0.001';
 
 # ADR 0133: the fields each screened command writes, and what a flag of
-# the command reports: the thread (its title is the thread's) or the post.
+# the command reports: the thread (its title is the thread's), the post or
+# the direct message.
 const my %FIELDS => (
     'thread.create' => [qw(title body_source)],
     'thread.edit'   => ['title'],
     'reply.create'  => ['body_source'],
     'post.edit'     => ['body_source'],
+
+    # ADR 0139: a direct message is screened as a reply is.
+    'message.send' => ['body'],
 );
 const my %TARGET => (
-    'thread.create' => [ thread => 'thread_id' ],
-    'thread.edit'   => [ thread => 'thread_id' ],
-    'reply.create'  => [ post   => 'post_id' ],
-    'post.edit'     => [ post   => 'post_id' ],
+    'thread.create' => [ thread  => 'thread_id' ],
+    'thread.edit'   => [ thread  => 'thread_id' ],
+    'reply.create'  => [ post    => 'post_id' ],
+    'post.edit'     => [ post    => 'post_id' ],
+    'message.send'  => [ message => 'message_id' ],
 );
 
 # ADR 0134: the commands whose post can be held for review instead.

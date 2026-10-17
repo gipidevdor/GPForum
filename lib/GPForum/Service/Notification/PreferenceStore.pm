@@ -41,9 +41,9 @@ const my %CHANNEL_DEFAULTS => (
 # ADR 0078: the kinds of notification a member controls, each on these
 # channels, and the scopes an unsubscribe link may name (a kind, or all
 # notification email, or the digest). Their defaults live in
-# api.notification_*: in the inbox every kind is on, by email mentions and
-# moderation notices are.
-const my @EVENT_TYPES     => qw(reply mention moderation);
+# api.notification_*: in the inbox every kind is on, by email mentions,
+# moderation notices and direct messages (ADR 0139) are.
+const my @EVENT_TYPES     => qw(reply mention moderation message);
 const my @TYPE_CHANNELS   => qw(in_app email);
 const my %IS_EVENT_TYPE   => map { $_ => 1 } @EVENT_TYPES;
 const my %IS_TYPE_CHANNEL => map { $_ => 1 } @TYPE_CHANNELS;
@@ -633,7 +633,7 @@ member with no stored rows gets C<in_app> and C<email>.
 =head2 type_preferences_for_user
 
 ADR 0078. Takes a user id and returns an array reference with one hash per
-kind of notification (C<reply>, C<mention>, C<moderation>): C<event_type>,
+kind of notification (C<reply>, C<mention>, C<moderation>, C<message>): C<event_type>,
 C<label_key>, C<description_key> and C<channels>, an array reference of
 C<< { channel, enabled, label_key } >> for C<in_app> and C<email>, stored
 or by default. Without the function layer, the defaults.

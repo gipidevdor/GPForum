@@ -1,0 +1,38 @@
+% layout 'default';
+% title t('messages.inbox') . ' - ' . t('app.name');
+%# ADR 0139: the reader's conversations, the one moved last first. Only the
+%# reader sees this page; it is never cached.
+<section aria-labelledby="messages-heading">
+  <%= include 'components/page_header', heading_id => 'messages-heading', component_title => t('messages.inbox'), description => t('messages.inbox_intro') %>
+  % if (@{$conversations}) {
+    <ol class="ui-card-list" aria-label="<%= t('messages.inbox') %>">
+      % for my $conversation (@{$conversations}) {
+        % my $other = $conversation->{other};
+        <li class="ui-card-list__item ui-row">
+          <article aria-labelledby="<%= $conversation->{ui}{heading_id} %>">
+            <h2 class="ui-row__title" id="<%= $conversation->{ui}{heading_id} %>">
+              <a href="<%= ui_path('message_conversation', conversation_id => $conversation->{conversation_id}) %>"><%= $other->{gone} ? t('messages.member_gone') : $other->{display_name} %></a>
+            </h2>
+            <p class="ui-meta">
+              % if ($conversation->{unread_count}) {
+                <span class="ui-badge"><%= tc('messages.unread_count', $conversation->{unread_count}) %></span>
+              % }
+              % if (!$other->{gone}) {
+                <span>@<%= $other->{username} %></span>
+              % }
+              <span><%= include 'components/timestamp', at => $conversation->{last_message_at} %></span>
+            </p>
+            % if (length $conversation->{last_excerpt}) {
+              <p><% if ($conversation->{last_is_own}) { %><span class="ui-meta"><%= t('messages.you') %>:</span> <% } %><%= $conversation->{last_excerpt} %></p>
+            % }
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state', heading_id => 'messages-empty-heading', component_title => t('messages.empty') %>
+  % }
+  % if ($next_cursor) {
+    <%= include 'components/pagination', label => t('messages.pagination'), items => ui_next_page(href => url_for('messages')->query(after => $next_cursor), label => t('messages.older_conversations')) %>
+  % }
+</section>

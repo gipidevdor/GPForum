@@ -66,13 +66,13 @@ const my %RETAINED_BOUNDARIES => (
     forum_write_command      => [2],
     forum_create_reply       => [2],
     identity_update_user     => [2],
-    portability_export_parts => [ 2, 4, 6, 8, 10, 12 ],
-    privacy_revoke_user      => [ 2, 4, 6, 8, 10 ],
+    portability_export_parts => [ 2, 4, 6, 8, 10, 12, 14 ],
+    privacy_revoke_user      => [ 2, 4, 6, 8, 10, 12 ],
     privacy_update           => [2],
 
     # Migration 112 (member relations) moved these on.
-    notification_list_inbox   => [2],
-    notification_unread_count => [2],
+    notification_list_inbox   => [ 2, 4 ],
+    notification_unread_count => [ 2, 4 ],
     community_list_mentions   => [2],
 
     # Migration 116 (first-post review) moved this on.
@@ -89,6 +89,13 @@ const my %RETAINED_BOUNDARIES => (
 
     # Migration 127 (held posts read as their author) moved this on.
     moderation_review_mine => [2],
+
+    # Migration 128 (direct messages) moved these on.
+    notification_type_preferences     => [2],
+    notification_set_type_preferences => [2],
+    notification_delivery_plan        => [2],
+    notification_unsubscribe          => [2],
+    moderation_automod_record         => [2],
 );
 
 # What each boundary's version 2 forwarded, from today's arguments: the

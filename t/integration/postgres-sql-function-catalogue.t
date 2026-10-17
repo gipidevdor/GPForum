@@ -107,6 +107,26 @@ const my %RETAINED => (
     # Migration 127 (held posts read as their author) moved this on.
     moderation_review_mine_v1 => 0,
     moderation_review_mine_v2 => 1,
+
+    # Migration 128 (direct messages) moved these on.
+    portability_export_parts_v13         => 0,
+    portability_export_parts_v14         => 1,
+    privacy_revoke_user_v11              => 0,
+    privacy_revoke_user_v12              => 1,
+    notification_list_inbox_v3           => 0,
+    notification_list_inbox_v4           => 1,
+    notification_unread_count_v3         => 0,
+    notification_unread_count_v4         => 1,
+    notification_type_preferences_v1     => 0,
+    notification_type_preferences_v2     => 1,
+    notification_set_type_preferences_v1 => 0,
+    notification_set_type_preferences_v2 => 1,
+    notification_delivery_plan_v1        => 0,
+    notification_delivery_plan_v2        => 1,
+    notification_unsubscribe_v1          => 0,
+    notification_unsubscribe_v2          => 1,
+    moderation_automod_record_v1         => 0,
+    moderation_automod_record_v2         => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

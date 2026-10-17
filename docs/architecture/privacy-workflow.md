@@ -71,6 +71,17 @@ deletes the erased member's list and removes them from every other member's
 list through `privacy_revoke_user` with source `MemberRelation`. The contract
 is in [ADR 0130](../adr/0130-members-ignore-and-block-each-other.md).
 
+## Direct messages
+
+Member exports include the requester's conversations under `direct_messages`
+(the conversation id, the other member's username, when it started) with the
+messages the requester wrote, and a manifest count; never the other member's
+messages. Erasure deletes the messages the erased member wrote and their side
+of every conversation through `privacy_revoke_user` with source
+`DirectMessage`; the other member keeps their own messages, and a
+conversation nobody is left in is deleted. The contract is in
+[ADR 0139](../adr/0139-direct-messages.md).
+
 HTTP errors go through `GPForum::Web::Guard`, which renders existing
 `ErrorPayload` contracts via `Responder`. Page limits, the `privacy_http`
 write rate-limit hash, permission-target hashes, catalog `view` action,

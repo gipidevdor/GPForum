@@ -2442,6 +2442,166 @@ msgctxt "mentions.title"
 msgid "Mention"
 msgstr "Mention"
 
+msgctxt "messages.back_to_inbox"
+msgid "All messages"
+msgstr "All messages"
+
+msgctxt "messages.body"
+msgid "Message"
+msgstr "Message"
+
+#, python-brace-format
+msgctxt "messages.body_help"
+msgid "Plain text, up to {limit} characters. Only the two of you read it."
+msgstr "Plain text, up to {limit} characters. Only the two of you read it."
+
+msgctxt "messages.compose_intro"
+msgid "Your message starts a private conversation. The member is notified, and you can both answer from Messages."
+msgstr "Your message starts a private conversation. The member is notified, and you can both answer from Messages."
+
+#, python-brace-format
+msgctxt "messages.conversation_with"
+msgid "Conversation with {name}"
+msgstr "Conversation with {name}"
+
+msgctxt "messages.empty"
+msgid "No conversations yet. Write to a member from their profile."
+msgstr "No conversations yet. Write to a member from their profile."
+
+msgctxt "messages.inbox"
+msgid "Messages"
+msgstr "Messages"
+
+msgctxt "messages.inbox_intro"
+msgid "Private conversations with other members. Only the two of you read them."
+msgstr "Private conversations with other members. Only the two of you read them."
+
+msgctxt "messages.member_gone"
+msgid "Former member"
+msgstr "Former member"
+
+msgctxt "messages.member_gone_notice"
+msgid "This member's account was deleted. You can read your own messages, but not answer."
+msgstr "This member's account was deleted. You can read your own messages, but not answer."
+
+msgctxt "messages.messages_label"
+msgid "Messages in this conversation"
+msgstr "Messages in this conversation"
+
+msgctxt "messages.no_messages"
+msgid "No messages here."
+msgstr "No messages here."
+
+msgctxt "messages.older_conversations"
+msgid "Older conversations"
+msgstr "Older conversations"
+
+msgctxt "messages.older_messages"
+msgid "Older messages"
+msgstr "Older messages"
+
+msgctxt "messages.open_profile"
+msgid "Open their profile"
+msgstr "Open their profile"
+
+msgctxt "messages.pagination"
+msgid "More messages"
+msgstr "More messages"
+
+msgctxt "messages.reader_blocks_notice"
+msgid "You block this member, so you cannot write to them."
+msgstr "You block this member, so you cannot write to them."
+
+msgctxt "messages.refused_blocked"
+msgid "This member cannot receive your messages."
+msgstr "This member cannot receive your messages."
+
+#, python-brace-format
+msgctxt "messages.refused_body"
+msgid "Write a message of 1 to {limit} characters."
+msgstr "Write a message of 1 to {limit} characters."
+
+msgctxt "messages.refused_conflict"
+msgid "This form was already used for another message. Write it again."
+msgstr "This form was already used for another message. Write it again."
+
+msgctxt "messages.refused_failed"
+msgid "The message could not be sent. Try again in a moment."
+msgstr "The message could not be sent. Try again in a moment."
+
+msgctxt "messages.refused_forbidden"
+msgid "Your account cannot send messages now."
+msgstr "Your account cannot send messages now."
+
+msgctxt "messages.refused_gone"
+msgid "This member's account was deleted; the message was not sent."
+msgstr "This member's account was deleted; the message was not sent."
+
+msgctxt "messages.refused_invalid"
+msgid "The message could not be sent as written."
+msgstr "The message could not be sent as written."
+
+msgctxt "messages.refused_limit"
+msgid "You have started as many new conversations as you may today. Try again tomorrow, or answer one you already have."
+msgstr "You have started as many new conversations as you may today. Try again tomorrow, or answer one you already have."
+
+msgctxt "messages.refused_links"
+msgid "This message has more links than a new member may send."
+msgstr "This message has more links than a new member may send."
+
+msgctxt "messages.refused_not_found"
+msgid "There is no such member to write to."
+msgstr "There is no such member to write to."
+
+msgctxt "messages.refused_self"
+msgid "You cannot write to yourself."
+msgstr "You cannot write to yourself."
+
+#, python-brace-format
+msgctxt "messages.refused_watched_word"
+msgid "This message contains words the community does not allow: {phrases}."
+msgstr "This message contains words the community does not allow: {phrases}."
+
+msgctxt "messages.reply"
+msgid "Answer"
+msgstr "Answer"
+
+msgctxt "messages.report"
+msgid "Report message"
+msgstr "Report message"
+
+msgctxt "messages.report_consequence"
+msgid "The moderators will read this one message, and nothing else of the conversation."
+msgstr "The moderators will read this one message, and nothing else of the conversation."
+
+msgctxt "messages.send"
+msgid "Send"
+msgstr "Send"
+
+msgctxt "messages.sent"
+msgid "Message sent."
+msgstr "Message sent."
+
+#, python-brace-format
+msgctxt "messages.unread_count"
+msgid "{count} unread"
+msgid_plural "{count} unread"
+msgstr[0] "{count} unread"
+msgstr[1] "{count} unread"
+
+msgctxt "messages.write"
+msgid "Send a message"
+msgstr "Send a message"
+
+#, python-brace-format
+msgctxt "messages.write_to"
+msgid "Write to {name}"
+msgstr "Write to {name}"
+
+msgctxt "messages.you"
+msgid "You"
+msgstr "You"
+
 msgctxt "moderation.action.post_hidden"
 msgid "Post hidden"
 msgstr "Post hidden"
@@ -2505,6 +2665,10 @@ msgstr "Automod"
 msgctxt "moderation.automod_watched_word"
 msgid "Contains a watched word"
 msgstr "Contains a watched word"
+
+msgctxt "moderation.back_to_reports"
+msgid "Back to reports"
+msgstr "Back to reports"
 
 msgctxt "moderation.hide_hint"
 msgid "A hidden thread leaves every list and page until a moderator restores it."
@@ -2640,6 +2804,10 @@ msgctxt "moderation.queue"
 msgid "Moderation queue"
 msgstr "Moderation queue"
 
+msgctxt "moderation.read_reported_message"
+msgid "Read the reported message"
+msgstr "Read the reported message"
+
 msgctxt "moderation.reason.abuse"
 msgid "Abuse"
 msgstr "Abuse"
@@ -2679,6 +2847,18 @@ msgstr "Moderation report queue"
 msgctxt "moderation.report_thread"
 msgid "Report thread"
 msgstr "Report thread"
+
+msgctxt "moderation.reported_message"
+msgid "Reported message"
+msgstr "Reported message"
+
+msgctxt "moderation.reported_message_audited"
+msgid "Reading a reported message is recorded in the audit log."
+msgstr "Reading a reported message is recorded in the audit log."
+
+msgctxt "moderation.reported_message_gone"
+msgid "The message no longer exists: its author's account was deleted."
+msgstr "The message no longer exists: its author's account was deleted."
 
 msgctxt "moderation.reporter"
 msgid "Reported by"
@@ -2908,6 +3088,10 @@ msgctxt "nav.mentions"
 msgid "Mentions"
 msgstr "Mentions"
 
+msgctxt "nav.messages"
+msgid "Messages"
+msgstr "Messages"
+
 msgctxt "nav.moderation"
 msgid "Moderation"
 msgstr "Moderation"
@@ -2952,6 +3136,10 @@ msgstr "Tags"
 msgctxt "nav.your_data"
 msgid "Your data"
 msgstr "Your data"
+
+msgctxt "notifications.body.direct_message"
+msgid "A member sent you a private message."
+msgstr "A member sent you a private message."
 
 msgctxt "notifications.body.follow"
 msgid "A followed thread has new activity."
@@ -3063,6 +3251,10 @@ msgctxt "notifications.digest_frequency.weekly"
 msgid "Weekly"
 msgstr "Weekly"
 
+msgctxt "notifications.email_body.direct_message"
+msgid "A member sent you a private message. Open GPForum to read it."
+msgstr "A member sent you a private message. Open GPForum to read it."
+
 msgctxt "notifications.email_body.follow"
 msgid "Open GPForum to review new activity in a thread you follow."
 msgstr "Open GPForum to review new activity in a thread you follow."
@@ -3092,6 +3284,10 @@ msgstr "The staff reviewed your reply and did not publish it. {reason}"
 msgctxt "notifications.email_footer"
 msgid "You receive this email because of your notification settings: {settings_url}\nStop this kind of email: {unsubscribe_url}"
 msgstr "You receive this email because of your notification settings: {settings_url}\nStop this kind of email: {unsubscribe_url}"
+
+msgctxt "notifications.email_subject.direct_message"
+msgid "New private message"
+msgstr "New private message"
 
 msgctxt "notifications.email_subject.follow"
 msgid "New activity in a followed thread"
@@ -3129,6 +3325,10 @@ msgctxt "notifications.kind.mention"
 msgid "Mentions"
 msgstr "Mentions"
 
+msgctxt "notifications.kind.message"
+msgid "Private messages"
+msgstr "Private messages"
+
 msgctxt "notifications.kind.moderation"
 msgid "Moderation notices"
 msgstr "Moderation notices"
@@ -3140,6 +3340,10 @@ msgstr "Replies in threads you follow"
 msgctxt "notifications.kind_description.mention"
 msgid "Someone mentions you by your username."
 msgstr "Someone mentions you by your username."
+
+msgctxt "notifications.kind_description.message"
+msgid "A new message in one of your conversations, once until you read it."
+msgstr "A new message in one of your conversations, once until you read it."
 
 msgctxt "notifications.kind_description.moderation"
 msgid "Staff publish or decline a post of yours held for review."
@@ -3201,6 +3405,10 @@ msgctxt "notifications.received_at"
 msgid "Received at"
 msgstr "Received at"
 
+msgctxt "notifications.title.direct_message"
+msgid "New private message"
+msgstr "New private message"
+
 msgctxt "notifications.title.follow"
 msgid "New activity in a followed thread"
 msgstr "New activity in a followed thread"
@@ -3224,6 +3432,10 @@ msgstr "Your post was published"
 msgctxt "notifications.title.review_rejected"
 msgid "Your reply was not published"
 msgstr "Your reply was not published"
+
+msgctxt "notifications.type.direct_message"
+msgid "Message"
+msgstr "Message"
 
 msgctxt "notifications.type.follow"
 msgid "Follow"
@@ -3320,6 +3532,10 @@ msgstr "The daily or weekly email digest"
 msgctxt "notifications.unsubscribe.scope.mention"
 msgid "Email about mentions of me"
 msgstr "Email about mentions of me"
+
+msgctxt "notifications.unsubscribe.scope.message"
+msgid "Email about private messages to me"
+msgstr "Email about private messages to me"
 
 msgctxt "notifications.unsubscribe.scope.moderation"
 msgid "Email about moderation notices"
@@ -3908,6 +4124,10 @@ msgstr "Withdrawn"
 msgctxt "target.member_note"
 msgid "Staff note"
 msgstr "Staff note"
+
+msgctxt "target.message"
+msgid "Direct message"
+msgstr "Direct message"
 
 msgctxt "target.post"
 msgid "Post"

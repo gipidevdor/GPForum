@@ -22,6 +22,9 @@ const my $MODERATION_INVALIDATE => 'moderation.queue.invalidate';
 const my %CHANNEL_TYPE_FOR_EVENT => (
     $THREAD_UPDATE      => 'thread',
     $NOTIFICATION_BADGE => $NOTIFICATIONS,
+
+    # ADR 0139: a direct message's hint, on the member's own channel.
+    'direct_message.update' => $NOTIFICATIONS,
 );
 
 has authorizer =>

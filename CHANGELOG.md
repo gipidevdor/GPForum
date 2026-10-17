@@ -608,6 +608,20 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Members write to each other in private.** A profile offers "Send a
+  message"; two members hold one conversation, listed on the new
+  `/messages` inbox with how many messages wait, and read and answered on
+  its own page, plain text of up to 5000 characters, never cached and found
+  by nobody else. The recipient is notified once per unread run, in the
+  inbox and by email under the new "Private messages" kind of the
+  notification settings, and their open pages get a realtime hint; nothing
+  carries the text. A block either way refuses messages, an ignore silences
+  their notices, a suspended member cannot send, the watched words and the
+  link rule screen them, and a new member starts at most 3 conversations a
+  day (20 for others). A member reports a message to the moderators, who
+  read only that message, through a form that audits the reading. Erasure
+  deletes the member's messages and the export holds the ones they wrote
+  (ADR 0139, migration 128).
 - **Staff keep private notes on members.** Staff holding the new
   `member_note.view` permission read notes about a member on the member's
   admin page, and the three newest beside every report about the member's

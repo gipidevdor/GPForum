@@ -91,6 +91,15 @@
                   button_label => t('moderation.suspend_user') %>
               </form>
             % }
+            %# ADR 0139: a reported direct message is read only through this
+            %# form, and the reading is audited.
+            % if ($report->{target_type} eq 'message') {
+              <form method="post" action="<%= ui_path('moderation_reported_message', report_id => $report->{report_id}) %>">
+                <%= csrf_field %>
+                <p class="ui-meta"><%= t('moderation.reported_message_audited') %></p>
+                <button type="submit"><%= t('moderation.read_reported_message') %></button>
+              </form>
+            % }
             <form method="post" action="<%= ui_path('moderation_report_assign', report_id => $report->{report_id}) %>">
               <%= csrf_field %>
               <input type="hidden" name="command_id" value="<%= $report->{assign_command_id} || q{} %>">

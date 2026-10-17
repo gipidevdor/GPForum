@@ -55,6 +55,10 @@
       <p class="ui-meta" role="status"><%= t($held eq 'block' ? 'community.relation_blocking_notice' : 'community.relation_ignoring_notice') %></p>
     % }
     <div class="toolbar">
+      %# ADR 0139: write to the member, unless the reader blocks them.
+      % if ($held ne 'block') {
+        <a class="button button--secondary" href="<%= ui_path('message_compose', username => $user->{username}) %>"><%= t('messages.write') %></a>
+      % }
       <button type="button" class="button--quiet" popovertarget="profile-report"><%= t('moderation.report_profile') %></button>
       <%= include 'components/sheet', sheet_id => 'profile-report', component_title => t('moderation.report_profile'), sheet_body => begin %>
         <%= include 'forum/_report_form',

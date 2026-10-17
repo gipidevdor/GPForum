@@ -1,0 +1,26 @@
+% layout 'default';
+% title t('moderation.reported_message') . ' - ' . t('app.name');
+%# ADR 0139: the one direct message a report names, read by staff through an
+%# audited request. Nothing else of the conversation is shown.
+<section aria-labelledby="reported-message-heading">
+  <%= include 'components/page_header',
+    heading_id => 'reported-message-heading',
+    component_title => t('moderation.reported_message'),
+    description => t('moderation.reported_message_audited'),
+    actions_label => t('moderation.reports'),
+    actions => ui_actions({ href => ui_path('moderation_reports'), label => t('moderation.back_to_reports') }) %>
+  % if ($gone) {
+    <%= include 'components/empty_state', heading_id => 'reported-message-gone-heading', component_title => t('moderation.reported_message_gone') %>
+  % } else {
+    % my @lines = split /\n/, ($message->{body} // q{});
+    <article class="post" aria-labelledby="reported-message-author">
+      <header class="post__header">
+        <p class="ui-meta post__byline">
+          <a class="post__author" id="reported-message-author" href="<%= ui_path('admin_user_roles', user_id => $message->{author_user_id}) %>">@<%= $message->{author_username} %></a>
+          <span><%= include 'components/timestamp', at => $message->{created_at} %></span>
+        </p>
+      </header>
+      <div class="forum-post-body"><p><% for my $index (0 .. $#lines) { %><%= $lines[$index] %><% if ($index < $#lines) { %><br><% } %><% } %></p></div>
+    </article>
+  % }
+</section>

@@ -13,5 +13,6 @@
     <a href="<%= ui_path('drafts') %>"<%== $current->('drafts') %>><%= t('nav.drafts') %></a>
     <a href="<%= ui_path('feed') %>"<%== $current->('feed') %>><%= t('nav.feed') %></a>
     <a href="<%= ui_path('notifications') %>"<%== $current->('notifications') %>><%= t('nav.notifications') %></a>
+    <a href="<%= ui_path('messages') %>"<%== $current->('messages') %>><%= t('nav.messages') %></a>
   % }
 </nav>

@@ -79,13 +79,15 @@ subtest 'every kind has its default on both channels' => sub {
             [ 'mention',    'email',  1, 0 ],
             [ 'moderation', 'in_app', 1, 0 ],
             [ 'moderation', 'email',  1, 0 ],
+            [ 'message',    'in_app', 1, 0 ],
+            [ 'message',    'email',  1, 0 ],
         ],
-        'inbox on for all, email for mentions and moderation notices'
+        'inbox on for all, email for mentions, moderation notices and messages'
     );
     my $page = $store->type_preferences_for_user($member);
     is_deeply(
         [ map { $_->{event_type} } @{$page} ],
-        [qw(reply mention moderation)],
+        [qw(reply mention moderation message)],
         'the settings page lists the kinds in order'
     );
     is_deeply(

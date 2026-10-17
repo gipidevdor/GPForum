@@ -87,10 +87,7 @@ sub _message ( $self, $mail, $plan ) {
     );
     my $base = $self->mailer->public_base_url;
     $base =~ s{ / \z}{}msx;
-    my $target =
-      GPForum::Infrastructure::Id->is_uuid_spelling( $mail->{thread_id} )
-      ? "/t/$mail->{thread_id}"
-      : '/notifications';
+    my $target = _target($mail);
     my $unsubscribe =
         $base
       . '/unsubscribe/'
@@ -113,6 +110,18 @@ sub _message ( $self, $mail, $plan ) {
             q{--}, $footer ),
         unsubscribe_url => $unsubscribe,
     };
+}
+
+# The page the mail links to: the thread, the conversation of a direct
+# message (ADR 0139), or the inbox.
+sub _target ($mail) {
+    return "/t/$mail->{thread_id}"
+      if GPForum::Infrastructure::Id->is_uuid_spelling( $mail->{thread_id} );
+    return "/messages/$mail->{conversation_id}"
+      if GPForum::Infrastructure::Id->is_uuid_spelling(
+        $mail->{conversation_id} );
+
+    return '/notifications';
 }
 
 1;
@@ -147,7 +156,7 @@ the mail only while they still say email: the address and locale are read
 then, never carried in the event. The mail is plain text in the member's
 language: the notification's subject and body as
 L<GPForum::Service::Notification::Renderer/render_email> says them, a link
-to the thread (or the inbox), and a footer naming the settings page and the
+to the thread (or the conversation of a direct message, or the inbox), and a footer naming the settings page and the
 signed link that turns this kind of email off, which is also the mail's
 RFC 8058 C<List-Unsubscribe> header. No post text goes into it.
 

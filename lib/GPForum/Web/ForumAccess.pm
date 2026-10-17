@@ -80,6 +80,7 @@ const my %WRITE_FLASH => (
 const my %PARTICIPATION_ACTIONS => (
     'draft.save'     => 1,
     'draft.preview'  => 1,
+    'message.send'   => 1,
     'post.delete'    => 1,
     'post.edit'      => 1,
     'post.restore'   => 1,

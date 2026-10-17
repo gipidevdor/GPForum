@@ -22,6 +22,7 @@ use GPForum::Service::Forum::ThreadTags;
 use GPForum::Service::Community::FeedReader;
 use GPForum::Service::Community::MentionReader;
 use GPForum::Service::Community::MentionStore;
+use GPForum::Service::Community::MessageStore;
 use GPForum::Service::Community::RelationStore;
 use GPForum::Service::Community::Workflow;
 use GPForum::Service::Forum::CategoryReader;
@@ -483,6 +484,23 @@ sub _register_community_helpers {
 
             return GPForum::Service::Community::RelationStore->new(
                 schema => $controller->gp_schema );
+        }
+    );
+
+    # ADR 0139: direct messages, screened as a reply is (ADR 0133).
+    $application->helper(
+        gp_message_store => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Community::MessageStore->new(
+                schema  => $controller->gp_schema,
+                automod => GPForum::Service::Forum::PostingAutomod->new(
+                    logger => $controller->app->log,
+                    store  => GPForum::Service::Moderation::AutomodStore->new(
+                        schema => $controller->gp_schema
+                    ),
+                ),
+            );
         }
     );
     $application->helper(

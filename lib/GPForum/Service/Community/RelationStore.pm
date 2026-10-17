@@ -21,9 +21,11 @@ const my $MAXIMUM_USERNAME  => 200;
 const my %KINDS             => ( ignore => 1, block => 1 );
 
 # ADR 0130: the notifications a relation silences. A member's reply or
-# mention leaves the list owner's inbox; any other type -- a staff notice --
-# is never silenced, whoever sent it.
-const my %MEMBER_NOTIFICATIONS => ( reply => 1, mention => 1 );
+# mention leaves the list owner's inbox, and so does the notice of their
+# direct message (ADR 0139); any other type -- a staff notice -- is never
+# silenced, whoever sent it.
+const my %MEMBER_NOTIFICATIONS =>
+  ( reply => 1, mention => 1, direct_message => 1 );
 
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
@@ -119,7 +121,8 @@ sub blocks ( $self, $owner_user_id, $other_user_id ) {
 }
 
 # True when a notification of this type, from this actor, is silenced for
-# the recipient: a reply or mention by a member they ignore or block.
+# the recipient: a reply, mention or direct message by a member they ignore
+# or block.
 sub silences ( $self, $recipient_user_id, $notification_type, $actor_id ) {
     return 0 if !exists $MEMBER_NOTIFICATIONS{ $notification_type // q{} };
 
@@ -195,7 +198,7 @@ True when the owner blocks the other member.
 =head2 silences
 
 True when a notification of this type from this actor is silenced for the
-recipient: only replies and mentions are.
+recipient: only replies, mentions and direct messages are.
 
 =head2 maximum_relations
 
@@ -224,7 +227,7 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Direct messages do not exist yet; when they do, a block refuses them too.
+A block refuses direct messages (ADR 0139); that is the message store's.
 
 =head1 AUTHOR
 

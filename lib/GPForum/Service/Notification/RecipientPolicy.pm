@@ -6,6 +6,8 @@ package GPForum::Service::Notification::RecipientPolicy;
 use Mojo::Base 'GPForum::Service::Forum::Readability', -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::Id;
+
 our $VERSION = '0.001';
 
 # ADR 0102: a notification about a post or thread reaches only a recipient
@@ -13,8 +15,25 @@ our $VERSION = '0.001';
 # members-only category, used to notify everyone subscribed or mentioned and
 # hand them the thread, the post and the actor. A public source costs one
 # query; any other, the recipient's viewer as well.
+#
+# ADR 0139: a direct message reaches only a member of its conversation.
 sub can_notify ( $self, $recipient, $source_type, $source_id, @ ) {
+    return $self->_message_participant( $recipient, $source_id )
+      if ( $source_type // q{} ) eq 'message';
+
     return $self->readable_by( $recipient, $source_type, $source_id );
+}
+
+sub _message_participant ( $self, $recipient, $message_id ) {
+    return 0
+      if !$self->functions
+      || !GPForum::Infrastructure::Id->is_uuid_spelling($message_id)
+      || !GPForum::Infrastructure::Id->is_uuid_spelling($recipient);
+
+    my $row = $self->functions->row( 'community_message_participant',
+        { message_id => $message_id, user_id => $recipient } );
+
+    return $row && $row->{participant} ? 1 : 0;
 }
 
 1;
@@ -42,7 +61,8 @@ Version 0.001.
 
 The notification dispatcher's permission hook (ADR 0102): a recipient is
 notified about a post or thread only if they can read it, as
-L<GPForum::Service::Forum::Readability> judges.
+L<GPForum::Service::Forum::Readability> judges; about a direct message only
+if they are a member of its conversation (ADR 0139).
 
 =head1 SUBROUTINES/METHODS
 

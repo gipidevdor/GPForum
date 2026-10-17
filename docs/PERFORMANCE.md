@@ -1001,6 +1001,54 @@ attachments and the likes), then the 11 statements (1.3), gzip (0.5) and
 the session's validation. A member's post still costs about 30 µs of forms
 (like, report) and its time.
 
+### Through the socket (2026-10-17)
+
+`script/bench-socket` measures the pages through the listener the service
+runs, under concurrent clients. Each side is a checkout with a database of
+its own, migrated and seeded with the `medium` profile by that checkout's
+`bin/gpforum`, and a server started as the unit starts it: `gpforum start
+--service --foreground`, `GPFORUM_ENV=production`, four workers. Members
+register and sign in through the pages, each from its own forwarded
+address. A measurement is one page at one concurrency: that many keep-alive
+connections, as a proxy's upstream connections are, each sending its next
+request when the last is answered, with the headers the shipped nginx site
+adds. No proxy is installed on the development laptop, so the clients
+speak to the Unix socket directly, or to TCP loopback for a checkout from
+before the socket; the time is the server's. The sides alternate, the
+order reversed each round, and a cell is the median of its rounds.
+
+```sh
+GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=/tmp/gpfv;port=55433' \
+GPFORUM_DATABASE_USER=gpforum \
+  script/gpforum-carton exec perl script/bench-socket \
+  --side main=CHECKOUT --side mine=. --connections --burst 96 \
+  --page category --page thread_member --page thread_guest \
+  --concurrency 32 --duration 12 --rounds 3 --members 8
+```
+
+**Where the connections go.** A connect to a Unix socket is queued at once:
+a burst of them was all in the listener's queue when the first worker woke,
+and Mojolicious's worker accepts until the queue is empty, so it kept them.
+Each is a keep-alive connection the proxy reuses for up to a thousand
+requests, so the imbalance lasts. With 32 busy connections and 96 more
+opened at once, one of four workers held 59 to 103 of the 128 in every
+round on main; taking one connection at a time from a Unix socket
+(`single_accept=1`, `GPForum::OS::RuntimePolicy`), they split 32 to a
+worker. f377541, on TCP loopback, split 128 connections 22 to 42 a worker;
+TCP listeners are left as they were.
+
+| Page, 32 busy + 96 new connections | Split | New p50 ms | New p95 ms | All req/s |
+| --- | --- | ---: | ---: | ---: |
+| Category, main | 100/23/4/4 | 491.8 | 530.7 | 821 |
+| Category, one at a time | 33/33/33/32 | 165.8 | 175.0 | 904 |
+| Thread, signed in, main | 91/23/7/7 | 617.7 | 667.1 | 616 |
+| Thread, signed in, one at a time | 32/32/32/32 | 227.1 | 251.1 | 657 |
+| Thread, guest (cached), main | 66/36/13/13 | 34.8 | 64.6 | 4,973 |
+| Thread, guest (cached), one at a time | 32/32/32/32 | 29.0 | 32.7 | 5,235 |
+
+The split is the median round's; "all" adds the busy connections' and the
+new ones' requests a second.
+
 ### Where the evidence lives
 
 | Evidence | Where |

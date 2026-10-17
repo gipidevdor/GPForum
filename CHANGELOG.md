@@ -1903,6 +1903,17 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **A burst of connections through the proxy no longer lands on one
+  worker.** Since the listener moved to a Unix socket, connections the
+  proxy opened at once were all queued when the first worker woke, and that
+  worker, accepting until the queue was empty, kept them: with 32 busy
+  connections and 96 new ones, one of four workers held 59 to 103 of the
+  128, keep-alive connections the proxy then reuses, and the new ones'
+  p95 on the category page was 531 ms. Each worker now takes one
+  connection at a time from a Unix socket (`single_accept=1`, unless the
+  location sets it): 32 to a worker, a p95 of 175 ms, and 10% more
+  requests served in all. TCP listeners are unchanged
+  (docs/PERFORMANCE.md, "Through the socket").
 - **An email digest is mailed at most once (ADR 0078).** The outbox marks
   a handler done only after it returns, so when that mark failed after the
   mail server had accepted the digest, the retry mailed it again. The

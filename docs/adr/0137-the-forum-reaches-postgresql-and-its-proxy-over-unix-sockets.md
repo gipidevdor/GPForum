@@ -151,6 +151,13 @@ does.
   groupmod -m` on FreeBSD, `dseditgroup` on macOS); the site always
   forwards to the socket, since the service refuses any other listener.
   The TCP upstream that `ServiceFiles` derived from a TCP listener is gone.
+- A connect to the socket is queued at once, and a worker accepting until
+  the queue is empty kept a whole burst of the proxy's new upstream
+  connections: 59 to 103 of 128 on one of four workers, for as long as the
+  proxy kept them alive. Since 2026-10-17 each worker takes one connection
+  at a time from a Unix socket (`single_accept=1`, added by
+  `GPForum::OS::RuntimePolicy` unless the location sets it), and a burst
+  splits evenly ([PERFORMANCE.md](../PERFORMANCE.md#through-the-socket-2026-10-17)).
 
 ## Verification
 
@@ -171,6 +178,8 @@ does.
   neither without them.
 - `t/692-unix-listener.t`, `t/integration/postgres-unix-socket-clients.t`:
   the listener, its modes and the client addresses behind the proxy.
+- `t/424-os-runtime-policy-report.t`: `single_accept=1` on each Unix
+  socket that does not say otherwise, and on no TCP listener.
 
 ## References
 

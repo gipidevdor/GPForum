@@ -21,6 +21,11 @@ const my $MIN_BACKLOG     => 64;
 # inherited from a supervisor, or one that already says whether to reuse.
 const my $OWN_SOCKET => qr{ \A http[+]unix: | [?&] (?: fd | reuse ) = }msx;
 
+# A UNIX socket that does not already say how many connections a worker
+# takes from the queue at a time.
+const my $UNIX_SOCKET   => qr{ \A http[+]unix: }msx;
+const my $SINGLE_ACCEPT => qr{ [?&] single_accept = }msx;
+
 __PACKAGE__->requires(qw(config runtime));
 
 # The directories systemd makes for the service (RuntimeDirectory=gpforum
@@ -46,11 +51,27 @@ sub outdated_unit ($self) {
 
 # Hypnotoad's configuration. Each listen location asks for SO_REUSEPORT when
 # the OS has it enabled, unless the location sets up its own socket.
+#
+# A UNIX socket's workers take one connection at a time from its queue
+# (single_accept=1). A connect to a UNIX socket is queued at once, so a
+# burst of them -- the proxy opening its upstream connections after a quiet
+# spell -- was all in the queue when the first worker woke, and that worker,
+# accepting until the queue was empty, kept them all: 76 of 128 connections
+# on one of four workers, each a keep-alive connection the proxy then reuses
+# for up to a thousand requests, so the p95 of a page at 128 clients was
+# twice its p50 (docs/PERFORMANCE.md, "Through the socket"). Taking one at a
+# time, the workers woken with it take the rest: 32 each. A TCP listener is
+# left as Mojolicious has it: in the same measurement its connections came
+# spread across the workers already.
 sub hypnotoad_config ($self) {
     my $reuseport = $self->_socket_snapshot->{reuseport}{enabled};
     my @listen;
     for my $location ( @{ $self->config->runtime_listen_locations } ) {
         my $separator = index( $location, q{?} ) >= 0 ? q{&} : q{?};
+        if ( $location =~ $UNIX_SOCKET && $location !~ $SINGLE_ACCEPT ) {
+            push @listen, $location . $separator . 'single_accept=1';
+            next;
+        }
         push @listen,
           $reuseport && $location !~ $OWN_SOCKET
           ? $location . $separator . 'reuse=1'

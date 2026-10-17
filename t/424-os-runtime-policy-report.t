@@ -155,7 +155,7 @@ subtest 'reuse=1 is added only where it can be' => sub {
         [
             'http://*:8080?reuse=1',
             'http://*:8081?x=1&reuse=1',
-            'http+unix://%2Ftmp%2Fgp.sock',
+            'http+unix://%2Ftmp%2Fgp.sock?single_accept=1',
             'http://*:8082?fd=3',
             'http://*:8083?reuse=0',
             'https://*:8443?cert=/c.pem&reuse=0',
@@ -165,8 +165,34 @@ subtest 'reuse=1 is added only where it can be' => sub {
     is_deeply(
         _policy( _profile( reuseport => 0 ), runtime_listen => $listen )
           ->hypnotoad_config->{listen},
-        [ split /,/msx, $listen ],
+        [
+            map { m{\A http[+]unix:}msx ? "$_?single_accept=1" : $_ }
+              split /,/msx,
+            $listen
+        ],
         'and nowhere when SO_REUSEPORT is off'
+    );
+};
+
+# A burst of connections to a UNIX socket is queued at once, and a worker
+# accepting until the queue is empty kept most of them: each worker takes
+# one at a time there. A TCP listener is left as Mojolicious has it, and a
+# choice the location already makes is kept.
+subtest 'a UNIX socket is accepted from one connection at a time' => sub {
+    my $listen = join q{,}, 'http+unix://%2Ftmp%2Fa.sock',
+      'http+unix://%2Ftmp%2Fb.sock?single_accept=0',
+      'http+unix://%2Ftmp%2Fc.sock?fd=4', 'http://*:8080';
+
+    is_deeply(
+        _policy( _profile( reuseport => 1 ), runtime_listen => $listen )
+          ->hypnotoad_config->{listen},
+        [
+            'http+unix://%2Ftmp%2Fa.sock?single_accept=1',
+            'http+unix://%2Ftmp%2Fb.sock?single_accept=0',
+            'http+unix://%2Ftmp%2Fc.sock?fd=4&single_accept=1',
+            'http://*:8080?reuse=1',
+        ],
+        'single_accept=1 on each UNIX socket that does not say otherwise'
     );
 };
 

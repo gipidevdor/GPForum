@@ -5,11 +5,17 @@ package main;
 
 use v5.40;
 
+use lib 'lib';
+
+# The native event backend, chosen before Test::Mojo loads EV: the
+# production application below refuses any other, and a run that skips
+# script/gpforum-carton (perl or prove alone) would otherwise start on
+# libev's own default (ADR 0097).
+use GPForum::OS::Reactor;
+
 use Const::Fast;
 use Test::Mojo;
 use Test::More;
-
-use lib 'lib';
 
 our $VERSION = '0.001';
 

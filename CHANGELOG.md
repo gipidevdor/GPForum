@@ -2965,6 +2965,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **Security scanning is green again: the peer-authentication workflow
+  passes actionlint.** Since that workflow arrived, shellcheck stopped the
+  scan's lint job on two of its lines: it found initdb with `ls` and quoted
+  Perl in single quotes. It now finds initdb with `find`, and the Perl
+  carries a shellcheck note that its `$` signs are Perl's own.
 - **The 5,000-connection gate can no longer pass without measuring 5,000
   connections, and says when the runner cannot meet its bar (ADR 0063).**
   A p95 over two seconds at 1,000 used to skip every 5,000 sample as

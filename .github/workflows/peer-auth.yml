@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get install -y postgresql libdbd-pg-perl
-          bin=$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb | sort -V | tail -n 1)")
+          bin=$(dirname "$(find /usr/lib/postgresql -path '*/bin/initdb' | sort -V | tail -n 1)")
           echo "$bin" >> "$GITHUB_PATH"
 
       - name: A cluster of the test's own, peer and the map
@@ -90,6 +90,7 @@ jobs:
             exit 1
           fi
           # The lines gpforum setup prints, the operator being this runner.
+          # shellcheck disable=SC2016 # Perl's own variables, not the shell's
           script/gpforum-carton exec perl -Ilib -MGPForum::Service::Operations::PeerAuthentication -e '
             my $peer = GPForum::Service::Operations::PeerAuthentication->new(operator => $ENV{USER});
             open my $h, q{>}, q{hba.lines} or die; print {$h} map { "$_\n" } @{ $peer->hba_lines };

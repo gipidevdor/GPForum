@@ -343,7 +343,15 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
 
         # ADR 0139: the subject's conversations and the messages they wrote.
         direct_messages => $parts->{direct_messages} || [],
+
+        # ADR 0142: whether two-step sign-in is on, since when, and the
+        # recovery codes left; never the secret or the codes.
+        second_factor => _second_factor_part($parts),
     };
+}
+
+sub _second_factor_part ($parts) {
+    return $parts->{second_factor} || { state => 'off' };
 }
 
 sub safe_manifest ( $self, $bundle ) {

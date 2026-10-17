@@ -718,6 +718,10 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
         # ADR 0139: and the direct messages they wrote, with their side of
         # each conversation.
         $self->_revoke_user_rows( 'DirectMessage', $user_id, $timestamp );
+
+        # ADR 0142: and their two-step sign-in secret, recovery codes and
+        # challenges.
+        $self->_revoke_user_rows( 'SecondFactor', $user_id, $timestamp );
     }
 
     return $self->erasure->result( $user_id, $already );

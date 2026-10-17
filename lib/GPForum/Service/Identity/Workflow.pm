@@ -73,7 +73,11 @@ sub login ( $self, $input ) {
     if ( $tried->{failed} ) {
         return _failed_result();
     }
-    my $stored = $tried->{value};
+    my $stored   = $tried->{value};
+    my $two_step = _second_step($stored);
+    if ($two_step) {
+        return $two_step;
+    }
     if ( !$stored || !$stored->{ok} ) {
         my $unverified =
           $stored && ( $stored->{error} || q{} ) eq q{unverified};
@@ -82,6 +86,60 @@ sub login ( $self, $input ) {
         return _result( error => $error, status => q{rejected} );
     }
 
+    return $self->_signed_in($stored);
+}
+
+# ADR 0142: the password verified and the member has two-step sign-in on:
+# the challenge's token for the cookie, or the lock after ten wrong answers.
+sub _second_step ($stored) {
+    my $error = $stored ? $stored->{error} // q{} : q{};
+    if ( $error eq 'second_factor' ) {
+        return _result(
+            error  => $error,
+            status => 'second_factor',
+            stored => {
+                challenge_token => $stored->{challenge_token},
+                user_id         => $stored->{user_id},
+            },
+        );
+    }
+    if ( $error eq 'second_factor_locked' ) {
+        return _result( error => $error, status => 'second_factor_locked' );
+    }
+
+    return undef;
+}
+
+# The second step of a sign-in (ADR 0142): the session, as a login answers
+# it, with how it passed; or the refusal, status expired, wrong (with
+# attempts_left) or locked.
+sub complete_second_factor ( $self, $input ) {
+    my $tried = $self->_try_store(
+        sub { return $self->store->complete_second_factor($input); } );
+    if ( $tried->{failed} ) {
+        return _failed_result();
+    }
+    my $stored = $tried->{value} || { error => 'expired' };
+    if ( !$stored->{ok} ) {
+        return {
+            %{
+                _result(
+                    error  => $stored->{error},
+                    status => $stored->{error}
+                )
+            },
+            attempts_left => $stored->{attempts_left} // 0,
+        };
+    }
+
+    my $signed_in = $self->_signed_in($stored);
+    $signed_in->{stored}{method}        = $stored->{method};
+    $signed_in->{stored}{recovery_left} = $stored->{recovery_left};
+
+    return $signed_in;
+}
+
+sub _signed_in ( $self, $stored ) {
     return _result(
         status => 'ok',
         stored => {
@@ -849,6 +907,16 @@ Requires C<command_id>.
 
 Authenticates an identifier and password. Requires C<command_id>. Failed
 credentials are C<rejected> without enumerating whether the account exists.
+A member with two-step sign-in on (ADR 0142) is answered with status
+C<second_factor> and the challenge's C<challenge_token> instead of a
+session, or C<second_factor_locked>.
+
+=head2 complete_second_factor
+
+Takes C<challenge_token>, C<code>, C<request_address> and C<user_agent>
+and answers the challenge: status C<ok> with the session as L</login>
+answers it, plus C<method> and C<recovery_left>; or C<expired>, C<wrong>
+(with C<attempts_left>), C<locked> or C<failed>.
 
 =head2 logout
 

@@ -65,6 +65,17 @@ sub register ( $, %input ) {
     $routes->post('/admin/users/:user_id/roles')
       ->to('Admin::Bindings#bind_role')
       ->name('admin_role_bind');
+
+    # ADR 0142: two-step sign-in for staff, and a member's reset.
+    $routes->get('/admin/security')
+      ->to('Admin::SecondFactor#show')
+      ->name('admin_second_factor');
+    $routes->post('/admin/security/policy')
+      ->to('Admin::SecondFactor#set_policy')
+      ->name('admin_second_factor_policy');
+    $routes->post('/admin/users/:user_id/second-factor/reset')
+      ->to('Admin::SecondFactor#reset_member')
+      ->name('admin_second_factor_reset');
     $routes->post('/admin/role-bindings/:binding_id/revoke')
       ->to('Admin::Bindings#revoke_binding')
       ->name('admin_role_binding_revoke');
@@ -308,6 +319,14 @@ sub register ( $, %input ) {
       ->name('register_submit');
     $routes->get('/login')->to('Identity#login_form')->name('login');
     $routes->post('/login')->to('Identity#login')->name('login_submit');
+
+    # ADR 0142: the second step of a sign-in.
+    $routes->get('/login/second-factor')
+      ->to('Identity#second_factor_form')
+      ->name('login_second_factor');
+    $routes->post('/login/second-factor')
+      ->to('Identity#second_factor')
+      ->name('login_second_factor_submit');
     $routes->get('/password/reset')
       ->to('Identity::Password#password_reset_request_form')
       ->name('password_reset_request');
@@ -342,6 +361,16 @@ sub register ( $, %input ) {
     $routes->post('/settings/email')
       ->to('Identity::Email#request_email_change')
       ->name('settings_email_update');
+
+    # ADR 0142: a member's two-step sign-in.
+    $routes->get('/settings/security')
+      ->to('Identity::Security#show')
+      ->name('settings_security');
+    for my $step (qw(begin cancel confirm renew disable)) {
+        $routes->post("/settings/security/$step")
+          ->to("Identity::Security#$step")
+          ->name("settings_security_$step");
+    }
 
     # ADR 0078: a notification mail's unsubscribe link (RFC 8058).
     $routes->get('/unsubscribe/#token')

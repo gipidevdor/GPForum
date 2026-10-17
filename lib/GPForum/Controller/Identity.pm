@@ -13,9 +13,11 @@ use Time::HiRes qw(time);
 
 our $VERSION = '0.001';
 
+const my $HTTP_OK           => 200;
 const my $HTTP_ACCEPTED     => 202;
 const my $HTTP_BAD_REQUEST  => 400;
 const my $HTTP_UNAUTHORIZED => 401;
+const my $HTTP_TOO_MANY     => 429;
 
 # The pages a reader passes through to sign in, up or out: none of them is
 # where they were going.
@@ -105,6 +107,12 @@ sub login ($self) {
     if ( $result->{ok} ) {
         return $self->_accept_login( $result->{stored} );
     }
+    if ( $result->{status} eq 'second_factor' ) {
+        return $self->_ask_second_step( $result->{stored} );
+    }
+    if ( $result->{status} eq 'second_factor_locked' ) {
+        return $self->_second_step_locked;
+    }
     if ( ( $result->{status} || q{} ) eq 'failed' ) {
         return $self->identity_unavailable;
     }
@@ -133,6 +141,169 @@ sub _account_login_guard ($self) {
     }
 
     return $self->_rate_limited;
+}
+
+# ADR 0142: the second step of a sign-in, for a member with two-step
+# sign-in on whose password verified. The challenge's token is in the
+# signed cookie; without one there is nothing to answer.
+sub second_factor_form ($self) {
+    if ( !$self->_challenge_token ) {
+        return $self->redirect_to('login');
+    }
+
+    return $self->_render_second_step( $HTTP_OK, undef );
+}
+
+sub second_factor ($self) {
+    my $blocked = $self->identity_post_guard('identity.second_factor');
+    if ($blocked) {
+        return $blocked;
+    }
+    my $token = $self->_challenge_token;
+    if ( !$token ) {
+        return $self->_second_step_expired;
+    }
+
+    my $result = $self->gp_identity_workflow->complete_second_factor(
+        {
+            challenge_token => $token,
+            code            => $self->param('code'),
+            request_address => $self->request_address,
+            user_agent      => $self->req->headers->user_agent || 'unknown',
+        }
+    );
+    my $status = $result->{status} // 'failed';
+    if ( $result->{ok} ) {
+        my $return_to = $self->session('second_factor_return_to');
+        $self->_forget_challenge;
+        if ( ( $result->{stored}{method} // q{} ) eq 'recovery' ) {
+            $self->flash(
+                warning => $self->t(
+                    'auth.second_factor_recovery_used',
+                    { count => $result->{stored}{recovery_left} // 0 }
+                )
+            );
+        }
+        return $self->_accept_login( $result->{stored}, $return_to );
+    }
+    if ( $status eq 'wrong' ) {
+        return $self->_wrong_second_step( $result->{attempts_left} );
+    }
+    if ( $status eq 'locked' ) {
+        $self->_forget_challenge;
+        return $self->_second_step_locked;
+    }
+    if ( $status eq 'failed' ) {
+        return $self->identity_unavailable;
+    }
+
+    return $self->_second_step_expired;
+}
+
+sub _ask_second_step ( $self, $stored ) {
+    $self->session(
+        second_factor_challenge => $stored->{challenge_token},
+        second_factor_return_to => $self->_after_login,
+    );
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json => {
+                status => 'second_factor',
+                next   => $self->url_for('login_second_factor')->to_string,
+            },
+            status => $HTTP_ACCEPTED,
+        );
+    }
+
+    return $self->redirect_to('login_second_factor');
+}
+
+sub _challenge_token ($self) {
+    my $token = $self->session('second_factor_challenge');
+
+    return defined $token && length $token ? $token : undef;
+}
+
+sub _forget_challenge ($self) {
+    delete $self->session->{second_factor_challenge};
+    delete $self->session->{second_factor_return_to};
+
+    return;
+}
+
+sub _wrong_second_step ( $self, $attempts_left ) {
+    GPForum::Web::SecurityEvent->new->record_event(
+        $self,
+        'auth_denial',
+        {
+            action => 'identity.second_factor',
+            status => $HTTP_UNAUTHORIZED,
+        }
+    );
+    if ( !$attempts_left ) {
+        return $self->_second_step_expired;
+    }
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json => {
+                status        => 'wrong',
+                attempts_left => 0 + $attempts_left,
+            },
+            status => $HTTP_UNAUTHORIZED,
+        );
+    }
+
+    return $self->_render_second_step(
+        $HTTP_UNAUTHORIZED,
+        $self->t(
+            'auth.second_factor_wrong_code',
+            { count => 0 + $attempts_left }
+        )
+    );
+}
+
+sub _second_step_expired ($self) {
+    $self->_forget_challenge;
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json   => { status => 'expired' },
+            status => $HTTP_UNAUTHORIZED,
+        );
+    }
+
+    $self->flash( error => $self->t('auth.second_factor_expired') );
+    return $self->redirect_to('login');
+}
+
+sub _second_step_locked ($self) {
+    GPForum::Web::SecurityEvent->new->record_event(
+        $self,
+        'auth_denial',
+        {
+            action => 'identity.second_factor',
+            status => $HTTP_TOO_MANY,
+        }
+    );
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json   => { status => 'locked' },
+            status => $HTTP_TOO_MANY,
+        );
+    }
+
+    return $self->_render_login_form( $HTTP_TOO_MANY,
+        { login => $self->t('auth.second_factor_locked') } );
+}
+
+sub _render_second_step ( $self, $status, $error ) {
+    $self->res->headers->cache_control('private, no-store');
+
+    return $self->render(
+        template => 'identity/second_factor',
+        status   => $status,
+        error    => $error,
+        digits   => $self->gp_second_factor->codes->digits,
+    );
 }
 
 sub logout ($self) {
@@ -167,7 +338,7 @@ sub logout ($self) {
     );
 }
 
-sub _accept_login ( $self, $authenticated ) {
+sub _accept_login ( $self, $authenticated, $return_to = undef ) {
     $self->_apply_login_session($authenticated);
     $self->_record_identity_audit(
         'record_login_request',
@@ -189,8 +360,32 @@ sub _accept_login ( $self, $authenticated ) {
         );
     }
 
+    # ADR 0142: staff the policy requires two-step sign-in of, who have
+    # none, are sent to set it up; the staff consoles refuse them until then.
+    if ( $self->_second_step_owed( $authenticated->{user_id} ) ) {
+        $self->flash( error => $self->t('auth.second_factor_staff_required') );
+        return $self->redirect_to('settings_security');
+    }
+
     $self->flash( success => $self->t('auth.login_accepted_title') );
-    return $self->redirect_to( $self->_after_login );
+    return $self->redirect_to(
+        defined $return_to
+        ? $self->safe_return_to($return_to)
+        : $self->_after_login
+    );
+}
+
+sub _second_step_owed ( $self, $user_id ) {
+    my $status;
+    try {
+        $status = $self->gp_second_factor->status($user_id);
+    }
+    catch ($error) {
+        $self->app->log->warn("second factor status degraded: $error");
+        return 0;
+    };
+
+    return $status->{staff_required} && $status->{state} ne 'active' ? 1 : 0;
 }
 
 # Where a reader goes once signed in: back to the page the login form was
@@ -327,6 +522,18 @@ Renders the login form.
 =head2 login
 
 Authenticates a member and establishes a server session.
+
+=head2 second_factor_form
+
+Renders the second step of a sign-in (ADR 0142) while the signed cookie
+holds a challenge's token; sends the reader to the login form otherwise.
+
+=head2 second_factor
+
+Answers the challenge with a code from the authenticator app or a recovery
+code, after CSRF and rate-limit checks. A right answer signs the member in
+as L</login> does; a wrong one says how many tries are left; an expired or
+spent challenge sends the reader back to the login form.
 
 =head2 logout
 

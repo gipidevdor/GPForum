@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 14,
+        version    => 16,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 16,
+        version    => 18,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -1199,6 +1199,97 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ identifier => 'text', by_email => 'boolean' ],
     },
+
+    # ADR 0142: two-step sign-in.
+    identity_second_factor_status =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
+    identity_second_factor_begin => {
+        version    => 2,
+        parameters => [
+            user_id       => 'uuid',
+            secret_sealed => 'text',
+            key_id        => 'text',
+            now           => 'timestamptz',
+        ],
+    },
+    identity_second_factor_cancel =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
+    identity_second_factor_confirm => {
+        version    => 2,
+        parameters => [
+            user_id         => 'uuid',
+            step            => 'bigint',
+            code_hashes     => 'text[]',
+            now             => 'timestamptz',
+            keep_session_id => 'uuid',
+            audit           => 'jsonb',
+            mail            => 'jsonb',
+        ],
+    },
+    identity_second_factor_disable => {
+        version    => 2,
+        parameters => [
+            user_id       => 'uuid',
+            step          => 'bigint',
+            recovery_hash => 'text',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+            mail          => 'jsonb',
+        ],
+    },
+    identity_second_factor_renew => {
+        version    => 2,
+        parameters => [
+            user_id     => 'uuid',
+            step        => 'bigint',
+            code_hashes => 'text[]',
+            now         => 'timestamptz',
+            audit       => 'jsonb',
+        ],
+    },
+    identity_second_factor_challenge_open =>
+      { version => 2, parameters => [ row => 'jsonb' ] },
+    identity_second_factor_challenge => {
+        version    => 2,
+        parameters => [ token_hash => 'text', now => 'timestamptz' ],
+    },
+    identity_second_factor_challenge_answer => {
+        version    => 2,
+        parameters => [
+            token_hash    => 'text',
+            step          => 'bigint',
+            recovery_hash => 'text',
+            resealed      => 'text',
+            key_id        => 'text',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+            mail          => 'jsonb',
+        ],
+    },
+    admin_second_factor_member =>
+      { version => 2, parameters => [ user_id => 'uuid' ] },
+    admin_second_factor_reset => {
+        version    => 2,
+        parameters => [
+            user_id       => 'uuid',
+            actor_user_id => 'uuid',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+            mail          => 'jsonb',
+        ],
+    },
+    admin_second_factor_policy => { version => 2, parameters => [] },
+    admin_second_factor_staff  =>
+      { version => 2, parameters => [ row_limit => 'integer' ] },
+    admin_second_factor_policy_set => {
+        version    => 2,
+        parameters => [
+            required      => 'boolean',
+            actor_user_id => 'uuid',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+        ],
+    },
     identity_registration_duplicates => {
         version    => 2,
         parameters => [ username => 'text', email => 'text' ],
@@ -1413,7 +1504,7 @@ const my %FUNCTION => (
         ],
     },
     admin_permission_allowed => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id       => 'uuid',
             resource_type => 'text',

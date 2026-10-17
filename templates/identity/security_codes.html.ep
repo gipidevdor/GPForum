@@ -1,0 +1,19 @@
+% layout 'default';
+% title t('auth.second_factor_codes_title') . ' - ' . t('app.name');
+%# ADR 0142: the recovery codes, shown once and never again; the page is
+%# not stored by any cache.
+
+<section aria-labelledby="security-codes-heading">
+  <%= include 'components/page_header',
+    heading_id => 'security-codes-heading',
+    component_title => t('auth.second_factor_codes_title'),
+    description => t('auth.second_factor_codes_description') %>
+  <%= include 'components/alert', message => $message %>
+  <ol aria-label="<%= t('auth.second_factor_codes_title') %>">
+    % for my $code (@{$recovery_codes}) {
+      <li><code translate="no"><%= $code %></code></li>
+    % }
+  </ol>
+  <p><%= t('auth.second_factor_codes_once') %></p>
+  <p><a href="<%= ui_path('settings_security') %>"><%= t('auth.second_factor_codes_done') %></a></p>
+</section>

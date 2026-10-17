@@ -16,8 +16,23 @@ const my %SEND_METHOD => (
     password_reset     => 'send_password_reset',
 );
 
+# ADR 0142: notices that carry no token, in the member's language: two-step
+# sign-in was turned on or off, an administrator reset it, or ten wrong
+# codes locked it for an hour.
+const my %NOTICE => map { $_ => 1 } qw(
+  second_factor_enabled
+  second_factor_disabled
+  second_factor_reset
+  second_factor_locked
+);
+const my $SECURITY_PATH => '/settings/security';
+
 has mailer => undef;    # optional: task is only captured
-has sink   => undef;    # optional: tests capture tasks
+has i18n   => sub {
+    require GPForum::Service::I18N;
+    return GPForum::Service::I18N->new;
+};
+has sink => undef;      # optional: tests capture tasks
 
 sub supports ( $, $event ) {
     return ( $event->{event_type} || q{} ) eq $MAIL_REQUESTED;
@@ -58,7 +73,7 @@ sub _complete_mail ( $, $mail ) {
     if ( !_has_text( $mail->{to} ) ) {
         return undef;
     }
-    if ( !_has_text( $mail->{token} ) ) {
+    if ( !_has_text( $mail->{token} ) && !exists $NOTICE{ $mail->{kind} } ) {
         return undef;
     }
 
@@ -66,6 +81,9 @@ sub _complete_mail ( $, $mail ) {
 }
 
 sub _send ( $self, $mail, $task ) {
+    return $self->_send_notice( $mail, $task )
+      if exists $NOTICE{ $mail->{kind} };
+
     my $method = $self->_send_method( $mail->{kind} );
     if ( !$method ) {
         $task->{skipped} = 1;
@@ -80,6 +98,31 @@ sub _send ( $self, $mail, $task ) {
         {
             to    => $mail->{to},
             token => $mail->{token},
+        }
+    );
+
+    return $task;
+}
+
+sub _send_notice ( $self, $mail, $task ) {
+    if ( !$self->mailer ) {
+        $task->{skipped} = 1;
+        return $task;
+    }
+
+    my $locale = $mail->{locale} || 'en';
+    my $base   = $self->mailer->public_base_url;
+    $base =~ s{ / \z}{}msx;
+    my $kind = $mail->{kind};
+    $task->{delivered} = $self->mailer->send_security_notice(
+        {
+            to      => $mail->{to},
+            subject =>
+              $self->i18n->translate( $locale, "auth.${kind}_mail_subject" ),
+            body => $self->i18n->translate(
+                $locale, "auth.${kind}_mail_body",
+                { url => $base . $SECURITY_PATH }
+            ),
         }
     );
 
@@ -135,7 +178,8 @@ Version 0.001.
 =head1 DESCRIPTION
 
 Sends password-reset, email-change, and verification mail for
-C<identity.mail.requested> outbox payloads. The raw token lives on the
+C<identity.mail.requested> outbox payloads, and the two-step sign-in
+notices (ADR 0142) in the member's language. The raw token lives on the
 outbox C<mail> hash, not on EventLog. Delivery is at-least-once: an
 outbox retry after send and before C<mark_done> resends from that
 payload. Delivery exceptions propagate so the dispatcher can retry.

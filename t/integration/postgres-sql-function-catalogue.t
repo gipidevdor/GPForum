@@ -127,6 +127,14 @@ const my %RETAINED => (
     notification_unsubscribe_v2          => 1,
     moderation_automod_record_v1         => 0,
     moderation_automod_record_v2         => 1,
+
+    # Migration 130 (two-step sign-in) moved these on.
+    portability_export_parts_v15 => 0,
+    portability_export_parts_v16 => 1,
+    privacy_revoke_user_v13      => 0,
+    privacy_revoke_user_v14      => 1,
+    admin_permission_allowed_v1  => 0,
+    admin_permission_allowed_v2  => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

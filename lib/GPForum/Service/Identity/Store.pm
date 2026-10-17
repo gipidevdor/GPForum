@@ -16,6 +16,7 @@ use GPForum::Service::Identity::AuthStore;
 use GPForum::Service::Identity::CredentialStore;
 use GPForum::Service::Identity::PreferenceStore;
 use GPForum::Service::Identity::RegistrationStore;
+use GPForum::Service::Identity::SecondFactor;
 use GPForum::Service::Identity::SessionStore;
 use GPForum::Service::Identity::Support;
 use GPForum::Service::Identity::TokenStore;
@@ -54,7 +55,16 @@ has session_tokens  => sub { return GPForum::Service::SessionToken->new; };
 has session_seconds => sub { return $SESSION_DAYS * $DAY_SECONDS; };
 has session_touch_interval_seconds => undef;    # optional: SessionStore default
 has support => sub { return GPForum::Service::Identity::Support->new; };
-has audit   => sub {
+
+# ADR 0142: two-step sign-in, which a login asks for once the password
+# verifies (Service::Identity::SecondFactor). Without the configured keys
+# a member who has it on is still asked, and cannot answer: it fails
+# closed.
+has second_factor => sub ($self) {
+    return GPForum::Service::Identity::SecondFactor->new(
+        schema => $self->schema );
+};
+has audit => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::Audit->new(
@@ -134,6 +144,7 @@ has auth_store => sub {
         credential_store => $self->credential_store,
         password         => $self->password,
         schema           => $self->schema,
+        second_factor    => $self->second_factor,
         session_store    => $self->session_store,
         support          => $self->support,
     );
@@ -190,6 +201,10 @@ sub register_call ( $self, $registration, $input = {} ) {
 
 sub authenticate_login ( $self, $input ) {
     return $self->auth_store->authenticate_login($input);
+}
+
+sub complete_second_factor ( $self, $input ) {
+    return $self->auth_store->complete_second_factor($input);
 }
 
 sub request_password_reset ( $self, $input ) {
@@ -307,6 +322,10 @@ Delegates prepared registration persistence to the registration store.
 =head2 authenticate_login
 
 Delegates credential verification and session creation to the auth store.
+
+=head2 complete_second_factor
+
+Delegates the second step of a sign-in to the auth store (ADR 0142).
 
 =head2 request_password_reset
 

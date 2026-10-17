@@ -59,6 +59,8 @@ const my @SECTIONS => (
             ],
             [ GPFORUM_METRICS_TOKEN         => 'metrics_token' ],
             [ GPFORUM_METRICS_TOKENS        => 'previous_metrics_tokens' ],
+            [ GPFORUM_SECOND_FACTOR_KEY     => 'second_factor_key' ],
+            [ GPFORUM_SECOND_FACTOR_KEYS    => 'previous_second_factor_keys' ],
             [ GPFORUM_FORUM_READ_RATE_LIMIT => 'forum_read_rate_limit' ],
         ],
     },
@@ -207,6 +209,8 @@ const my %SECRET => map { $_ => 1 } qw(
   GPFORUM_DATABASE_PASSWORD
   GPFORUM_METRICS_TOKEN
   GPFORUM_METRICS_TOKENS
+  GPFORUM_SECOND_FACTOR_KEY
+  GPFORUM_SECOND_FACTOR_KEYS
   GPFORUM_SESSION_SECRET
   GPFORUM_SESSION_SECRETS
   GPFORUM_SMTP_PASSWORD

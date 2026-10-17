@@ -90,6 +90,7 @@ sub user_roles_page ( $self, %input ) {
         bindings        => $self->_bindings_with_revoke( \%input ),
         csrf_token      => $input{csrf_token},
         member_notes    => $input{member_notes},
+        second_factor   => $input{second_factor},
         user_id         => $input{user_id},
     };
 }

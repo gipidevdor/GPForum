@@ -7,9 +7,12 @@ use v5.40;
 
 use Const::Fast;
 
+use GPForum::Service::Identity::CredentialStore;
 use GPForum::Service::Identity::Mailer;
 use GPForum::Service::Identity::ProfileReader;
 use GPForum::Service::Identity::Registration;
+use GPForum::Service::Identity::SecondFactor;
+use GPForum::Service::Identity::SecretBox;
 use GPForum::Service::Identity::SecurityAudit;
 use GPForum::Service::Identity::Store;
 use GPForum::Service::Identity::Workflow;
@@ -54,11 +57,35 @@ sub _register_identity_helpers {
                 schema => $controller->gp_schema );
         }
     );
+
+    # ADR 0142: two-step sign-in, its secrets sealed with the settings'
+    # key.
+    my $second_factor_keys = $config ? $config->second_factor_keys : [];
+    $application->helper(
+        gp_second_factor => sub {
+            my ($controller) = @_;
+            my $schema = $controller->gp_schema;
+
+            return GPForum::Service::Identity::SecondFactor->new(
+                schema => $schema,
+                box    => GPForum::Service::Identity::SecretBox->new(
+                    keys => $second_factor_keys
+                ),
+                credential_store =>
+                  GPForum::Service::Identity::CredentialStore->new(
+                    schema => $schema
+                  ),
+            );
+        }
+    );
     $application->helper(
         gp_identity_store => sub {
+            my ($controller) = @_;
+
             return GPForum::Service::Identity::Store->new(
-                schema                         => shift->gp_schema,
+                schema                         => $controller->gp_schema,
                 session_touch_interval_seconds => $touch_interval,
+                second_factor                  => $controller->gp_second_factor,
             );
         }
     );

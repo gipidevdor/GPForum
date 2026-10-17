@@ -359,7 +359,7 @@ sub _categories_payload ($self) {
 }
 
 sub _render_user_roles ( $self, $target_user_id, $user_id ) {
-    my ( $bindings, $notes );
+    my ( $bindings, $notes, $second_factor );
     try {
         $bindings =
           $self->gp_permission_review->roles_for_user( $target_user_id,
@@ -371,6 +371,11 @@ sub _render_user_roles ( $self, $target_user_id, $user_id ) {
         $notes =
           GPForum::Web::MemberNotes->new->for_member( $self, $user_id,
             $target_user_id );
+
+        # ADR 0142: whether the member has two-step sign-in on; never the
+        # secret.
+        $second_factor =
+          $self->gp_second_factor->member_summary($target_user_id);
     }
     catch ($error) {
         $self->app->log->error("admin user roles failed: $error");
@@ -384,6 +389,7 @@ sub _render_user_roles ( $self, $target_user_id, $user_id ) {
                 bind_command_id    => $self->_new_command_id,
                 csrf_token         => $self->csrf_token,
                 member_notes       => $notes,
+                second_factor      => $second_factor,
                 revoke_command_ids =>
                   $self->_ids_for( $bindings, 'binding_id' ),
                 user_id => $target_user_id,

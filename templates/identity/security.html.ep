@@ -1,0 +1,102 @@
+% layout 'default';
+% title t('auth.second_factor_title') . ' - ' . t('app.name');
+%# ADR 0142: a member's two-step sign-in: off with the way to set it up,
+%# pending with the QR code and the key to type, on with the way to renew
+%# the recovery codes and to turn it off.
+
+<section aria-labelledby="security-heading">
+  <%= include 'components/page_header',
+    heading_id => 'security-heading',
+    component_title => t('auth.second_factor_title'),
+    description => t('auth.second_factor_intro'),
+    actions_label => t('settings.title'),
+    actions => ui_actions(
+      { href => ui_path('settings'), label => t('settings.title') },
+    ) %>
+
+  % if ($staff_required && $state ne 'active') {
+    <%= include 'components/alert', tone => 'warning', message => t('auth.second_factor_staff_required') %>
+  % }
+
+  % if ($state eq 'off') {
+    <section class="settings-group" aria-labelledby="security-off-heading">
+      <h2 id="security-off-heading"><%= t('auth.second_factor_state_off') %></h2>
+      % if ($available) {
+        <p><%= t('auth.second_factor_off_description') %></p>
+        <form method="post" action="<%= ui_path('settings_security_begin') %>">
+          <%= csrf_field %>
+          <label for="security-begin-password"><%= t('auth.current_password') %></label>
+          <input id="security-begin-password" name="password" type="password" autocomplete="current-password" required>
+          <button type="submit"><%= t('auth.second_factor_begin') %></button>
+        </form>
+      % } else {
+        <p><%= t('auth.second_factor_unavailable') %></p>
+      % }
+    </section>
+  % } elsif ($state eq 'pending') {
+    <section class="settings-group" aria-labelledby="security-pending-heading">
+      <h2 id="security-pending-heading"><%= t('auth.second_factor_pending_title') %></h2>
+      % if ($enrollment) {
+        <ol>
+          <li>
+            % if ($enrollment->{qr}) {
+              <p><%= t('auth.second_factor_step_scan') %></p>
+            % }
+            <figure>
+              <%== $enrollment->{qr} // q{} %>
+              <figcaption class="ui-meta"><%= t('auth.second_factor_step_type') %> <code translate="no"><%= $enrollment->{secret} %></code></figcaption>
+            </figure>
+          </li>
+          <li>
+            <form method="post" action="<%= ui_path('settings_security_confirm') %>">
+              <%= csrf_field %>
+              <label for="security-confirm-code"><%= t('auth.second_factor_step_confirm', { digits => $digits }) %></label>
+              <input id="security-confirm-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="64" required>
+              <button type="submit"><%= t('auth.second_factor_confirm') %></button>
+            </form>
+          </li>
+        </ol>
+      % } else {
+        <p><%= t('auth.second_factor_pending_unreadable') %></p>
+      % }
+      <form method="post" action="<%= ui_path('settings_security_cancel') %>">
+        <%= csrf_field %>
+        <button class="button--secondary" type="submit"><%= t('auth.second_factor_cancel') %></button>
+      </form>
+    </section>
+  % } else {
+    <section class="settings-group" aria-labelledby="security-on-heading">
+      <h2 id="security-on-heading"><%= t('auth.second_factor_state_active') %></h2>
+      <p class="ui-meta">
+        <span><%= t('auth.second_factor_on_since') %> <%= include 'components/timestamp', at => $confirmed_at %></span>
+        <span><%= t('auth.second_factor_recovery_left', { count => $recovery_left }) %></span>
+      </p>
+    </section>
+
+    <section class="settings-group" aria-labelledby="security-renew-heading">
+      <h2 id="security-renew-heading"><%= t('auth.second_factor_renew_title') %></h2>
+      <p id="security-renew-help"><%= t('auth.second_factor_renew_description') %></p>
+      <form method="post" action="<%= ui_path('settings_security_renew') %>">
+        <%= csrf_field %>
+        <label for="security-renew-code"><%= t('auth.second_factor_app_code', { digits => $digits }) %></label>
+        <input id="security-renew-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="64" required aria-describedby="security-renew-help">
+        <button type="submit"><%= t('auth.second_factor_renew') %></button>
+      </form>
+    </section>
+
+    <section class="settings-group" aria-labelledby="security-disable-heading">
+      <h2 id="security-disable-heading"><%= t('auth.second_factor_disable_title') %></h2>
+      <form method="post" action="<%= ui_path('settings_security_disable') %>">
+        <%= csrf_field %>
+        <label for="security-disable-password"><%= t('auth.current_password') %></label>
+        <input id="security-disable-password" name="password" type="password" autocomplete="current-password" required>
+        <label for="security-disable-code"><%= t('auth.second_factor_code') %></label>
+        <input id="security-disable-code" name="code" type="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="64" required>
+        <%= include 'components/danger_confirm',
+          confirm_id => 'security-disable-confirm',
+          consequence => t('auth.second_factor_disable_consequence'),
+          button_label => t('auth.second_factor_disable') %>
+      </form>
+    </section>
+  % }
+</section>

@@ -10,12 +10,20 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::ResultRow::IdentityUser;
 
+use GPForum::Service::Identity::SecondFactor;
 use GPForum::Service::Identity::Support;
 
 our $VERSION = '0.001';
 
 __PACKAGE__->requires(qw(credential_store password schema session_store));
 has support => sub { return GPForum::Service::Identity::Support->new; };
+
+# ADR 0142: asked for a challenge once the password verifies; without the
+# configured keys a member who has it on is asked and cannot answer.
+has second_factor => sub ($self) {
+    return GPForum::Service::Identity::SecondFactor->new(
+        schema => $self->schema );
+};
 
 # An identifier with an @ is an address, any other a username. An unknown or
 # deleted account costs the work a wrong password costs and gets its answer.
@@ -56,6 +64,13 @@ sub authenticate_login ( $self, $input ) {
         return { error => 'unverified', ok => 0 };
     }
 
+    return $self->_second_step( $user, $credential )
+      // $self->_signed_in( $user, $credential, $input );
+}
+
+# The session a verified password opens for a member without two-step
+# sign-in.
+sub _signed_in ( $self, $user, $credential, $input ) {
     my $session = $self->_open_session( $user, $credential, $input );
     if ( !$session ) {
         return _invalid_login();
@@ -69,6 +84,88 @@ sub authenticate_login ( $self, $input ) {
         user          => $user,
         user_id       => $self->support->column( $user, 'id' ),
     };
+}
+
+# ADR 0142: a member with two-step sign-in on gets a challenge rather than
+# a session once the password verifies: its token goes to the signed cookie,
+# its hash to the store. Ten wrong answers in an hour refuse a new one.
+sub _second_step ( $self, $user, $credential ) {
+    if ( !$self->second_factor ) {
+        return undef;
+    }
+
+    my $user_id = $self->support->column( $user, 'id' );
+    my $opened  = $self->second_factor->open_challenge( $user_id,
+        $self->support->column( $credential, 'id' ) );
+    my $status = $opened->{status};
+    if ( $status eq 'none' ) {
+        return undef;
+    }
+    if ( $status eq 'open' ) {
+        return {
+            challenge_token => $opened->{token},
+            error           => 'second_factor',
+            ok              => 0,
+            user_id         => $user_id,
+        };
+    }
+    if ( $status eq 'locked' ) {
+        return { error => 'second_factor_locked', ok => 0 };
+    }
+
+    return _invalid_login();
+}
+
+# The second step of a sign-in: the code, or a recovery code, answers the
+# challenge the cookie's token names. A right answer opens the session in
+# the transaction that closes the challenge, which holds the password
+# credential that verified, as _open_session does; a wrong one is counted
+# and committed. Answers ok with the session, or the refusal: expired,
+# wrong (attempts_left), locked.
+sub complete_second_factor ( $self, $input ) {
+    my $two_step = $self->second_factor;
+    my $prepared = $two_step
+      && $two_step->prepare_answer( $input->{challenge_token}, $input->{code} );
+    if ( !$prepared ) {
+        return { error => 'expired', ok => 0 };
+    }
+
+    return $self->schema->txn_do(
+        sub {
+            my $answer = $two_step->answer($prepared);
+            if ( !$answer->{ok} ) {
+                return {
+                    attempts_left => $answer->{attempts_left},
+                    error         => $answer->{status},
+                    ok            => 0,
+                };
+            }
+
+            my $user    = $self->_user_by_id( $answer->{user_id} );
+            my $session = $self->session_store->create_session( $user, $input );
+            return {
+                method        => $answer->{method},
+                ok            => 1,
+                recovery_left => $answer->{recovery_left},
+                session       => $session->{session},
+                session_id    =>
+                  $self->support->column( $session->{session}, 'session_id' ),
+                session_token => $session->{session_token},
+                user          => $user,
+                user_id       => $answer->{user_id},
+            };
+        }
+    );
+}
+
+sub _user_by_id ( $self, $user_id ) {
+    if ( !$self->functions ) {
+        return { id => $user_id };
+    }
+
+    return $self->functions->row( 'identity_user_by_id',
+        { user_id => $user_id } )
+      || { id => $user_id };
 }
 
 # The member's active password credential, when the password verifies
@@ -168,6 +265,19 @@ transaction that first holds the verified credential C<FOR SHARE> and opens
 nothing when it is no longer the member's active password, so a login that
 verified a password a concurrent reset or change replaced is refused as
 C<invalid_credentials> rather than outliving the reset's revocation.
+
+A member with two-step sign-in on (ADR 0142) is answered C<second_factor>
+with the challenge's C<challenge_token> instead of a session, or
+C<second_factor_locked> after ten wrong answers in the hour.
+
+=head2 complete_second_factor
+
+Takes C<challenge_token>, C<code>, C<request_address> and C<user_agent>;
+answers the challenge and, when it is right, opens the session in the same
+transaction, which holds the password credential that verified. Answers
+the session as L</authenticate_login> does, with C<method> and
+C<recovery_left>, or C<ok> 0 with C<error> C<expired>, C<wrong> (and
+C<attempts_left>) or C<locked>.
 
 =head1 DIAGNOSTICS
 

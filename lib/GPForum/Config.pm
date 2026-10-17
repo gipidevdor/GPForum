@@ -19,7 +19,9 @@ use GPForum::X::Config;
 our $VERSION = '0.001';
 
 const my $DEVELOPMENT_SESSION_SECRET => 'gpforum-development-secret-change-me';
-const my $MAXIMUM_PROCESS_COUNT      => 512;
+const my $DEVELOPMENT_SECOND_FACTOR_KEY =>
+  'gpforum-development-second-factor-key-change-me';
+const my $MAXIMUM_PROCESS_COUNT => 512;
 
 # Production signs sessions with a secret at least this long: 32 characters
 # of `openssl rand -hex 32` is 128 bits of it.
@@ -732,6 +734,28 @@ const my @SETTINGS => map {
           . ' while scrapers move to the new one.',
     },
 
+    # ADR 0142: the key two-step sign-in secrets are sealed with. Empty in
+    # development uses a fixed development key; empty where the forum is
+    # deployed leaves two-step sign-in off until one is set.
+    {
+        name    => 'second_factor_key',
+        env     => 'GPFORUM_SECOND_FACTOR_KEY',
+        default => q{},
+        check   => 'second_factor_key',
+        section => 'security',
+        summary => 'Seals two-step sign-in secrets: a long random string;'
+          . ' without one, deployed forums offer no two-step sign-in.',
+        generate => $SECRET_GENERATOR,
+    },
+    {
+        name    => 'previous_second_factor_keys',
+        env     => 'GPFORUM_SECOND_FACTOR_KEYS',
+        type    => 'list',
+        section => 'security',
+        summary => 'Earlier two-step sign-in keys, comma separated, still'
+          . ' opening the secrets they sealed.',
+    },
+
     # Optional everywhere (D2): without one each process keeps its own cache,
     # which is all a single host needs.
     {
@@ -913,6 +937,7 @@ my %RULE = (
     session_secret        => \&_rule_session_secret,
     previous_secrets      => \&_rule_previous_secrets,
     metrics_token         => \&_rule_metrics_token,
+    second_factor_key     => \&_rule_second_factor_key,
     listen                => \&_rule_listen,
     trusted_when_proxied  => \&_rule_trusted_when_proxied,
     required_by_minion    => \&_rule_required_by_minion,
@@ -994,6 +1019,19 @@ sub signing_secrets ($self) {
 
 sub accepted_metrics_tokens ($self) {
     return _unique_head( $self->metrics_token, $self->previous_metrics_tokens );
+}
+
+# ADR 0142: the keys that open two-step sign-in secrets, the one that seals
+# first; in development, a fixed key when none is set, and where the forum
+# is deployed, none.
+sub second_factor_keys ($self) {
+    my $key = $self->second_factor_key // q{};
+    if ( !length $key ) {
+        return [] if _is_deployed( $self->environment );
+        $key = $DEVELOPMENT_SECOND_FACTOR_KEY;
+    }
+
+    return _unique_head( $key, $self->previous_second_factor_keys );
 }
 
 # Mail sent by smtp with TLS on, from a Perl that cannot load the TLS module,
@@ -1529,6 +1567,27 @@ sub _rule_previous_secrets ( $self, $setting, $value ) {
       : undef;
 }
 
+# A key set where the forum is deployed is not the development one, and in
+# production it is as long as a session secret.
+sub _rule_second_factor_key ( $self, $setting, $value ) {
+    my $environment = $self->environment;
+    return undef if !length( $value // q{} );
+    return _problem_of( $setting, 'config.development_secret', q{} )
+      if _is_deployed($environment)
+      && $value eq $DEVELOPMENT_SECOND_FACTOR_KEY;
+
+    return _is_production($environment)
+      && length $value < $MINIMUM_PRODUCTION_SECRET
+      ? _problem_of(
+        $setting, 'config.short_secret',
+        $value,
+        environment => $environment,
+        length      => length $value,
+        minimum     => $MINIMUM_PRODUCTION_SECRET,
+      )
+      : undef;
+}
+
 # /metrics never answers unauthenticated where it is deployed.
 sub _rule_metrics_token ( $self, $setting, $value ) {
     return _is_deployed( $self->environment )
@@ -1811,6 +1870,14 @@ C<GPFORUM_METRICS_TOKENS>. Scrapers may present either during rotation.
 Staging and production refuse to start without C<GPFORUM_METRICS_TOKEN>, so
 the list is never empty there and C</metrics> cannot fail open. Development
 and test may leave it unset and keep C</metrics> unauthenticated.
+
+=head2 second_factor_keys
+
+Returns the keys two-step sign-in secrets are sealed and opened with (ADR
+0142): C<GPFORUM_SECOND_FACTOR_KEY> first, which seals, then those of
+C<GPFORUM_SECOND_FACTOR_KEYS>, which still open. Without a key, development
+and test use a fixed development key, and a deployed forum gets an empty
+list: two-step sign-in is not offered there until a key is set.
 
 =head2 smtp_tls_problem
 

@@ -631,6 +631,22 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Two-step sign-in with an authenticator app.** On the new
+  `/settings/security` a member gives the password, scans a QR code drawn by
+  the forum itself (or types the key), and confirms with a first code; ten
+  single-use recovery codes are shown once and the member's other sessions
+  end. A sign-in then asks for a six-digit code, or a recovery code, after
+  the password, each accepted once; five wrong codes end the attempt, ten in
+  an hour pause sign-in for that hour. The password and a code turn it off,
+  and the member is mailed in their language whenever it is turned on, off,
+  reset or paused. Staff see on a member's admin page whether it is on --
+  never the secret -- and an administrator resets it for a member who lost
+  their phone; on `/admin/security` an administrator who has it on may
+  require it of every staff member, whose consoles stay closed until they
+  set it up. Secrets are sealed with `GPFORUM_SECOND_FACTOR_KEY`, which a
+  deployed forum needs before it offers two-step sign-in (`openssl rand -hex
+  32`; rotate through `GPFORUM_SECOND_FACTOR_KEYS`). Erasure deletes it and
+  the export says only whether it was on (ADR 0142, migration 130).
 - **Members write to each other in private.** A profile offers "Send a
   message"; two members hold one conversation, listed on the new
   `/messages` inbox with how many messages wait, and read and answered on

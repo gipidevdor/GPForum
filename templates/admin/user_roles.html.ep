@@ -58,6 +58,40 @@
       component_title => t('admin.no_role_bindings') %>
   % }
 
+  % if (my $second = stash('second_factor')) {
+    %# ADR 0142: whether the member has two-step sign-in on, and the way to
+    %# turn it off for one who lost their app and their recovery codes.
+    <section aria-labelledby="admin-user-second-factor-heading">
+      <%= include 'components/section_header',
+        heading_id => 'admin-user-second-factor-heading',
+        component_title => t('auth.second_factor_title') %>
+      <dl>
+        <dt><%= t('admin.second_factor_state') %></dt>
+        % my %state_label = (
+        %   off     => t('admin.second_factor_state_off'),
+        %   pending => t('admin.second_factor_state_pending'),
+        %   active  => t('admin.second_factor_state_active'),
+        % );
+        <dd><span class="ui-badge"><%= $state_label{ $second->{state} } %></span></dd>
+        % if ($second->{state} eq 'active') {
+          <dt><%= t('auth.second_factor_on_since') %></dt>
+          <dd><%= include 'components/timestamp', at => $second->{confirmed_at} %></dd>
+          <dt><%= t('admin.second_factor_recovery_left') %></dt>
+          <dd><%= $second->{recovery_left} %></dd>
+        % }
+      </dl>
+      % if ($second->{state} ne 'off') {
+        <form method="post" action="<%= ui_path('admin_second_factor_reset', user_id => $user_id) %>">
+          <%= csrf_field %>
+          <%= include 'components/danger_confirm',
+            confirm_id => 'second-factor-reset-confirm',
+            consequence => t('admin.second_factor_reset_consequence'),
+            button_label => t('admin.second_factor_reset') %>
+        </form>
+      % }
+    </section>
+  % }
+
   % if ($member_notes) {
     <%= include 'moderation/_member_notes', notes_block => $member_notes, compact => 0 %>
   % }

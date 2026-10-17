@@ -839,6 +839,99 @@ msgctxt "admin.search_status_unavailable"
 msgid "The search status is unavailable."
 msgstr "The search status is unavailable."
 
+msgctxt "admin.second_factor"
+msgid "Two-step sign-in"
+msgstr "Two-step sign-in"
+
+msgctxt "admin.second_factor_failed"
+msgid "The change could not be saved. Try again."
+msgstr "The change could not be saved. Try again."
+
+msgctxt "admin.second_factor_intro"
+msgid "Which staff members sign in with a code from an authenticator app as well as their password. No one, administrators included, can see a member's secret."
+msgstr "Which staff members sign in with a code from an authenticator app as well as their password. No one, administrators included, can see a member's secret."
+
+msgctxt "admin.second_factor_no_staff"
+msgid "No member holds a staff role."
+msgstr "No member holds a staff role."
+
+msgctxt "admin.second_factor_policy"
+msgid "Requirement for staff"
+msgstr "Requirement for staff"
+
+msgctxt "admin.second_factor_policy_save"
+msgid "Save requirement"
+msgstr "Save requirement"
+
+msgctxt "admin.second_factor_policy_set"
+msgid "The requirement for staff was saved."
+msgstr "The requirement for staff was saved."
+
+msgctxt "admin.second_factor_policy_unenrolled"
+msgid "Turn on two-step sign-in for your own account before requiring it of staff."
+msgstr "Turn on two-step sign-in for your own account before requiring it of staff."
+
+#, python-brace-format
+msgctxt "admin.second_factor_policy_updated"
+msgid "Last changed by {username}"
+msgstr "Last changed by {username}"
+
+msgctxt "admin.second_factor_recovery_left"
+msgid "Recovery codes left"
+msgstr "Recovery codes left"
+
+msgctxt "admin.second_factor_reset"
+msgid "Turn off two-step sign-in"
+msgstr "Turn off two-step sign-in"
+
+msgctxt "admin.second_factor_reset_consequence"
+msgid "The member signs in with their password alone until they set up two-step sign-in again. They are told by email."
+msgstr "The member signs in with their password alone until they set up two-step sign-in again. They are told by email."
+
+msgctxt "admin.second_factor_reset_done"
+msgid "Two-step sign-in was turned off for this member, who was told by email."
+msgstr "Two-step sign-in was turned off for this member, who was told by email."
+
+msgctxt "admin.second_factor_reset_none"
+msgid "This member does not have two-step sign-in."
+msgstr "This member does not have two-step sign-in."
+
+msgctxt "admin.second_factor_reset_self"
+msgid "Turn off your own two-step sign-in from your security settings, with a code."
+msgstr "Turn off your own two-step sign-in from your security settings, with a code."
+
+msgctxt "admin.second_factor_staff"
+msgid "Staff members"
+msgstr "Staff members"
+
+msgctxt "admin.second_factor_staff_required"
+msgid "Require two-step sign-in for staff"
+msgstr "Require two-step sign-in for staff"
+
+msgctxt "admin.second_factor_staff_required_help"
+msgid "Staff without it are sent to set it up when they sign in, and the staff consoles refuse them until they have."
+msgstr "Staff without it are sent to set it up when they sign in, and the staff consoles refuse them until they have."
+
+msgctxt "admin.second_factor_state"
+msgid "Two-step sign-in"
+msgstr "Two-step sign-in"
+
+msgctxt "admin.second_factor_state_active"
+msgid "On"
+msgstr "On"
+
+msgctxt "admin.second_factor_state_off"
+msgid "Off"
+msgstr "Off"
+
+msgctxt "admin.second_factor_state_pending"
+msgid "Being set up"
+msgstr "Being set up"
+
+msgctxt "admin.second_factor_unchanged"
+msgid "Nothing changed."
+msgstr "Nothing changed."
+
 msgctxt "admin.send_test_mail"
 msgid "Send test message"
 msgstr "Send test message"
@@ -1192,6 +1285,256 @@ msgid ""
 "Account {username} was created. Check your email to verify before signing in."
 msgstr ""
 "Account {username} was created. Check your email to verify before signing in."
+
+msgctxt "auth.second_factor_already_on"
+msgid "Two-step sign-in is already on."
+msgstr "Two-step sign-in is already on."
+
+#, python-brace-format
+msgctxt "auth.second_factor_app_code"
+msgid "Code from your app ({digits} digits)"
+msgstr "Code from your app ({digits} digits)"
+
+msgctxt "auth.second_factor_begin"
+msgid "Set up two-step sign-in"
+msgstr "Set up two-step sign-in"
+
+msgctxt "auth.second_factor_begun"
+msgid "Add the account to your authenticator app, then enter the code it shows."
+msgstr "Add the account to your authenticator app, then enter the code it shows."
+
+msgctxt "auth.second_factor_cancel"
+msgid "Cancel setup"
+msgstr "Cancel setup"
+
+msgctxt "auth.second_factor_cancelled"
+msgid "Setup was cancelled."
+msgstr "Setup was cancelled."
+
+msgctxt "auth.second_factor_code"
+msgid "Code from your app, or a recovery code"
+msgstr "Code from your app, or a recovery code"
+
+msgctxt "auth.second_factor_codes_description"
+msgid "Each code signs you in once if you lose your authenticator app. Keep them somewhere safe, away from this device."
+msgstr "Each code signs you in once if you lose your authenticator app. Keep them somewhere safe, away from this device."
+
+msgctxt "auth.second_factor_codes_done"
+msgid "I have saved them"
+msgstr "I have saved them"
+
+msgctxt "auth.second_factor_codes_once"
+msgid "These codes are shown only now. New ones replace them all."
+msgstr "These codes are shown only now. New ones replace them all."
+
+msgctxt "auth.second_factor_codes_title"
+msgid "Your recovery codes"
+msgstr "Your recovery codes"
+
+msgctxt "auth.second_factor_confirm"
+msgid "Turn on"
+msgstr "Turn on"
+
+msgctxt "auth.second_factor_disable"
+msgid "Turn off two-step sign-in"
+msgstr "Turn off two-step sign-in"
+
+msgctxt "auth.second_factor_disable_consequence"
+msgid "Your password alone will sign you in. You are told by email."
+msgstr "Your password alone will sign you in. You are told by email."
+
+msgctxt "auth.second_factor_disable_title"
+msgid "Turn it off"
+msgstr "Turn it off"
+
+msgctxt "auth.second_factor_disabled"
+msgid "Two-step sign-in is off."
+msgstr "Two-step sign-in is off."
+
+#, python-brace-format
+msgctxt "auth.second_factor_disabled_mail_body"
+msgid "Two-step sign-in was turned off for your account. Your password alone now signs you in.\n\nIf you did not do this, change your password and turn it on again: {url}"
+msgstr "Two-step sign-in was turned off for your account. Your password alone now signs you in.\n\nIf you did not do this, change your password and turn it on again: {url}"
+
+msgctxt "auth.second_factor_disabled_mail_subject"
+msgid "Two-step sign-in was turned off"
+msgstr "Two-step sign-in was turned off"
+
+msgctxt "auth.second_factor_enabled"
+msgid "Two-step sign-in is on. Your other sessions were signed out."
+msgstr "Two-step sign-in is on. Your other sessions were signed out."
+
+#, python-brace-format
+msgctxt "auth.second_factor_enabled_mail_body"
+msgid "Two-step sign-in was turned on for your account. Signing in now takes your password and a code from your authenticator app.\n\nIf you did not do this, change your password at once: {url}"
+msgstr "Two-step sign-in was turned on for your account. Signing in now takes your password and a code from your authenticator app.\n\nIf you did not do this, change your password at once: {url}"
+
+msgctxt "auth.second_factor_enabled_mail_subject"
+msgid "Two-step sign-in was turned on"
+msgstr "Two-step sign-in was turned on"
+
+msgctxt "auth.second_factor_expired"
+msgid "The sign-in took too long or too many tries. Sign in again."
+msgstr "The sign-in took too long or too many tries. Sign in again."
+
+msgctxt "auth.second_factor_failed"
+msgid "Something went wrong. Try again."
+msgstr "Something went wrong. Try again."
+
+msgctxt "auth.second_factor_forbidden"
+msgid "This account cannot use two-step sign-in."
+msgstr "This account cannot use two-step sign-in."
+
+msgctxt "auth.second_factor_intro"
+msgid "Signing in takes your password and a code from an authenticator app on your phone, so a stolen password is not enough."
+msgstr "Signing in takes your password and a code from an authenticator app on your phone, so a stolen password is not enough."
+
+msgctxt "auth.second_factor_locked"
+msgid "Too many wrong codes. Signing in to this account is paused for an hour."
+msgstr "Too many wrong codes. Signing in to this account is paused for an hour."
+
+#, python-brace-format
+msgctxt "auth.second_factor_locked_mail_body"
+msgid "Someone entered your password and then ten wrong codes. Signing in to your account is paused for an hour.\n\nYour password is known to someone else: change it now. {url}"
+msgstr "Someone entered your password and then ten wrong codes. Signing in to your account is paused for an hour.\n\nYour password is known to someone else: change it now. {url}"
+
+msgctxt "auth.second_factor_locked_mail_subject"
+msgid "Signing in to your account is paused"
+msgstr "Signing in to your account is paused"
+
+#, python-brace-format
+msgctxt "auth.second_factor_login_help"
+msgid "Open your authenticator app and enter the {digits}-digit code, or enter one of your recovery codes."
+msgstr "Open your authenticator app and enter the {digits}-digit code, or enter one of your recovery codes."
+
+msgctxt "auth.second_factor_login_title"
+msgid "Two-step sign-in"
+msgstr "Two-step sign-in"
+
+msgctxt "auth.second_factor_not_on"
+msgid "Two-step sign-in is not set up."
+msgstr "Two-step sign-in is not set up."
+
+msgctxt "auth.second_factor_off_description"
+msgid "Enter your password to begin. You will need an authenticator app, such as one built into your phone or password manager."
+msgstr "Enter your password to begin. You will need an authenticator app, such as one built into your phone or password manager."
+
+msgctxt "auth.second_factor_on_since"
+msgid "On since"
+msgstr "On since"
+
+msgctxt "auth.second_factor_pending_title"
+msgid "Finish setting up"
+msgstr "Finish setting up"
+
+msgctxt "auth.second_factor_pending_unreadable"
+msgid "This setup can no longer be read. Cancel it and begin again."
+msgstr "This setup can no longer be read. Cancel it and begin again."
+
+msgctxt "auth.second_factor_qr_label"
+msgid "QR code to add this account to an authenticator app"
+msgstr "QR code to add this account to an authenticator app"
+
+#, python-brace-format
+msgctxt "auth.second_factor_recovery_left"
+msgid "Recovery codes left: {count}"
+msgstr "Recovery codes left: {count}"
+
+#, python-brace-format
+msgctxt "auth.second_factor_recovery_used"
+msgid "You signed in with a recovery code. Recovery codes left: {count}."
+msgstr "You signed in with a recovery code. Recovery codes left: {count}."
+
+msgctxt "auth.second_factor_renew"
+msgid "Make new recovery codes"
+msgstr "Make new recovery codes"
+
+msgctxt "auth.second_factor_renew_description"
+msgid "New codes replace every earlier one, used or not."
+msgstr "New codes replace every earlier one, used or not."
+
+msgctxt "auth.second_factor_renew_title"
+msgid "Recovery codes"
+msgstr "Recovery codes"
+
+msgctxt "auth.second_factor_renewed"
+msgid "New recovery codes were made. The earlier ones no longer work."
+msgstr "New recovery codes were made. The earlier ones no longer work."
+
+msgctxt "auth.second_factor_replayed"
+msgid "That code was already used. Wait for the next one."
+msgstr "That code was already used. Wait for the next one."
+
+#, python-brace-format
+msgctxt "auth.second_factor_reset_mail_body"
+msgid "An administrator turned off two-step sign-in for your account. Your password alone now signs you in.\n\nSet it up again here: {url}"
+msgstr "An administrator turned off two-step sign-in for your account. Your password alone now signs you in.\n\nSet it up again here: {url}"
+
+msgctxt "auth.second_factor_reset_mail_subject"
+msgid "Two-step sign-in was reset by an administrator"
+msgstr "Two-step sign-in was reset by an administrator"
+
+msgctxt "auth.second_factor_settings_description"
+msgid "Ask for a code from an authenticator app as well as your password when you sign in."
+msgstr "Ask for a code from an authenticator app as well as your password when you sign in."
+
+msgctxt "auth.second_factor_settings_open"
+msgid "Manage two-step sign-in"
+msgstr "Manage two-step sign-in"
+
+msgctxt "auth.second_factor_staff_required"
+msgid "Your role requires two-step sign-in. Set it up to use the staff consoles."
+msgstr "Your role requires two-step sign-in. Set it up to use the staff consoles."
+
+msgctxt "auth.second_factor_start_again"
+msgid "Sign in again"
+msgstr "Sign in again"
+
+msgctxt "auth.second_factor_state_active"
+msgid "Two-step sign-in is on"
+msgstr "Two-step sign-in is on"
+
+msgctxt "auth.second_factor_state_off"
+msgid "Two-step sign-in is off"
+msgstr "Two-step sign-in is off"
+
+#, python-brace-format
+msgctxt "auth.second_factor_step_confirm"
+msgid "Enter the {digits}-digit code your app shows"
+msgstr "Enter the {digits}-digit code your app shows"
+
+msgctxt "auth.second_factor_step_scan"
+msgid "Scan this code with your authenticator app."
+msgstr "Scan this code with your authenticator app."
+
+msgctxt "auth.second_factor_step_type"
+msgid "Or type this key:"
+msgstr "Or type this key:"
+
+msgctxt "auth.second_factor_title"
+msgid "Two-step sign-in"
+msgstr "Two-step sign-in"
+
+msgctxt "auth.second_factor_unavailable"
+msgid "Two-step sign-in is not available on this forum yet."
+msgstr "Two-step sign-in is not available on this forum yet."
+
+msgctxt "auth.second_factor_verify"
+msgid "Verify"
+msgstr "Verify"
+
+#, python-brace-format
+msgctxt "auth.second_factor_wrong_code"
+msgid "That code is not right. Tries left: {count}."
+msgstr "That code is not right. Tries left: {count}."
+
+msgctxt "auth.second_factor_wrong_code_settings"
+msgid "That code is not right. Check your app's clock and try the next code."
+msgstr "That code is not right. Check your app's clock and try the next code."
+
+msgctxt "auth.second_factor_wrong_password"
+msgid "That password is not right."
+msgstr "That password is not right."
 
 #, python-brace-format
 msgctxt "auth.signed_in_as"

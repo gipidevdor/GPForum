@@ -313,6 +313,7 @@ sub _helper_names {
       gp_scheduled_jobs
       gp_schema
       gp_search_service
+      gp_second_factor
       gp_security_telemetry
       gp_session_token
       gp_sitemap_builder

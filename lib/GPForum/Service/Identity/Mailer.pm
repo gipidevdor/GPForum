@@ -109,6 +109,21 @@ sub send_test_message ( $self, $input ) {
     );
 }
 
+# ADR 0142: a notice about the account's security, in the member's
+# language: transactional, so it carries no unsubscribe.
+sub send_security_notice ( $self, $input ) {
+    require Encode;
+    return $self->_send_identity_mail(
+        {
+            body    => Encode::encode( 'UTF-8', $input->{body} ),
+            kind    => 'security_notice',
+            subject => Encode::encode( 'MIME-Header', $input->{subject} ),
+            to      => $input->{to},
+            headers => [ 'Content-Transfer-Encoding' => '8bit' ],
+        }
+    );
+}
+
 # ADR 0078: a notification mail, which a member may stop. It carries the
 # one-click unsubscribe of RFC 8058 (List-Unsubscribe with an https or http
 # URL, and List-Unsubscribe-Post), which identity mail never does: that is
@@ -348,6 +363,11 @@ Sends a registration verification link.
 =head2 send_test_message
 
 Sends the admin console's test message, which carries no link.
+
+=head2 send_security_notice
+
+Takes C<to>, C<subject> and C<body>, in the member's language, and sends a
+notice about the account's security (ADR 0142), with no unsubscribe.
 
 =head2 send_notification_mail
 

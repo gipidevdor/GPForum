@@ -39,8 +39,14 @@ const my %ACTION_LIMIT_FOR => (
     'identity.password_change' => $PASSWORD_LIMIT,
     'identity.password_reset'  => $PASSWORD_LIMIT,
     'identity.register'        => $REGISTER_LIMIT,
-    'identity.settings'        => $SETTINGS_LIMIT,
-    'identity.unsubscribe'     => $SETTINGS_LIMIT,
+
+    # ADR 0142: the second step of a sign-in, per address, and the
+    # two-step settings, per member; the codes are counted in the database
+    # as well.
+    'identity.second_factor'          => $LOGIN_LIMIT,
+    'identity.second_factor_settings' => $LOGIN_LIMIT,
+    'identity.settings'               => $SETTINGS_LIMIT,
+    'identity.unsubscribe'            => $SETTINGS_LIMIT,
 );
 
 sub write_rate_input ( $self, $input ) {

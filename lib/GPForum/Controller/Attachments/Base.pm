@@ -12,12 +12,14 @@ use GPForum::Web::Access;
 use GPForum::Web::AttachmentAccess;
 use GPForum::Web::ClientAddress;
 use GPForum::Web::Guard;
+use GPForum::Web::SecurityEvent;
 
 our $VERSION = '0.001';
 
 const my $HTTP_OK        => 200;
 const my $LAST_CHARACTER => -1;
 const my $HTTP_CREATED   => 201;
+const my $HTTP_FORBIDDEN => 403;
 
 sub attachment_access {
     return GPForum::Web::AttachmentAccess->new;
@@ -29,7 +31,22 @@ sub write_user_id ($self) {
         return undef;
     }
 
-    return $self->_rate_limited_user_id;
+    my $user_id  = $self->_rate_limited_user_id or return undef;
+    my $decision = $self->gp_suspension_store->can_participate($user_id);
+    if ( !$decision->{ok} ) {
+        GPForum::Web::SecurityEvent->new->record_event(
+            $self,
+            'suspended_user_block',
+            {
+                action => 'attachment.write',
+                status => $HTTP_FORBIDDEN,
+            }
+        );
+        $self->_forbidden('user is suspended');
+        return undef;
+    }
+
+    return $user_id;
 }
 
 sub current_user_id ($self) {
@@ -323,7 +340,8 @@ L<GPForum::Web::AttachmentAccess>.
 
 =head2 write_user_id
 
-Rejects invalid CSRF tokens, anonymous uploads, and rate-limited actors.
+Rejects invalid CSRF tokens, anonymous uploads, rate-limited actors, and
+suspended members (403, recorded as C<suspended_user_block>).
 
 =head2 write_failure
 

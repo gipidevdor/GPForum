@@ -157,8 +157,8 @@ ok(
     'requires_participation ignores read markers'
 );
 ok(
-    !$access->requires_participation('report.create'),
-    'requires_participation ignores reports'
+    $access->requires_participation('report.create'),
+    'requires_participation includes reports'
 );
 
 is_deeply(

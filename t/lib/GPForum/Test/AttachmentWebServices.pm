@@ -48,6 +48,11 @@ sub check {
     return { ok => 1 };
 }
 
+# The suspension store: every member here may participate.
+sub can_participate {
+    return { ok => 1 };
+}
+
 sub find_visible_post {
     my ( $self, $post_id ) = @_;
 

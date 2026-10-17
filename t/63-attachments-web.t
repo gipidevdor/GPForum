@@ -272,6 +272,8 @@ sub _install_attachment_fakes {
     $test_object->app->helper(
         gp_rate_limiter => sub { return $fake_services; } );
     $test_object->app->helper(
+        gp_suspension_store => sub { return $fake_services; } );
+    $test_object->app->helper(
         gp_command_idempotency => sub {
             return GPForum::Test::CommandIdempotency->new;
         }

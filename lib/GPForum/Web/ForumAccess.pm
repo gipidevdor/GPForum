@@ -83,8 +83,11 @@ const my %PARTICIPATION_ACTIONS => (
     'message.send'   => 1,
     'post.delete'    => 1,
     'post.edit'      => 1,
+    'post.like'      => 1,
     'post.restore'   => 1,
+    'post.unlike'    => 1,
     'reply.create'   => 1,
+    'report.create'  => 1,
     'thread.create'  => 1,
     'thread.delete'  => 1,
     'thread.edit'    => 1,
@@ -460,9 +463,12 @@ Returns 5 for reports, 10 for bookmark/subscription churn, otherwise 20.
 
 =head2 requires_participation
 
-True for C<thread.create>, C<reply.create>, C<post.edit>, C<post.delete>,
-C<post.restore>, C<thread.edit>, C<thread.delete>, C<thread.move>, and
-C<thread.restore>.
+True for the writes a suspended member may not make: C<draft.save>,
+C<draft.preview>, C<message.send>, C<thread.create>, C<reply.create>,
+C<post.edit>, C<post.delete>, C<post.restore>, C<post.like>, C<post.unlike>,
+C<report.create>, C<thread.edit>, C<thread.delete>, C<thread.move>, and
+C<thread.restore>. Bookmarks, subscriptions and read markers stay open: they
+are the member's own and nobody else sees them.
 
 =head2 report_field_errors
 

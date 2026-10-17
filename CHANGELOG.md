@@ -302,6 +302,12 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **A suspended member could still like, report and attach files.** Only
+  posting and messaging checked the suspension. A like, an unlike, a report
+  of a post, thread, profile or message, and an attachment upload or delete
+  are now refused with 403 as well and recorded as `suspended_user_block`;
+  bookmarks, subscriptions and read markers, which nobody else sees, stay
+  open.
 - **An email change needed no password and told the old address
   nothing.** A signed-in session alone could move an account to another
   address and, from there, reset its password. The change now asks for the

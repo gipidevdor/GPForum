@@ -1140,6 +1140,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **An id costs 1.6 µs instead of 3.8.** `GPForum::Infrastructure::Id`
+  read ten random bytes with a read of its own for every id and built it as
+  a list of numbers; it reads 4 KiB at a time, dropped by a forked process
+  so no two processes hand out the same bytes, and sets the version and
+  variant in place. A signed-in thread page mints 28 (`t/143`).
 - **A function call costs a third less in Perl.**
   `GPForum::Infrastructure::SqlFunction` ran each call through DBIx::Class's
   `dbh_do`, which built a block runner, a Try::Tiny and a preserved context

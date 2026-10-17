@@ -10,7 +10,9 @@ use lib 't/lib';
 
 use GPForum::Infrastructure::Id;
 use GPForum::Test::Id;
+use Carp qw(croak);
 use Const::Fast;
+use English qw(-no_match_vars);
 use Test::More;
 
 our $VERSION = '0.001';
@@ -18,6 +20,9 @@ our $VERSION = '0.001';
 # The fullwidth digit one, which [[:xdigit:]] matches without the /a flag.
 const my $FULLWIDTH_ONE    => chr 0xFF_11;
 const my $UUID_DIGIT_COUNT => 32;
+const my $MILLISECONDS     => 1_000;
+const my $MANY             => 5_000;
+const my $FEW              => 50;
 
 ok( !exists $INC{'Crypt/URandom.pm'},
     'Crypt::URandom stays unloaded when Id compiles' );
@@ -86,6 +91,42 @@ for my $other (
     ok( !GPForum::Infrastructure::Id->is_uuid_spelling($other),
         ( $other // 'undef' ) . ' is not' );
 }
+
+# Version 7: the time in milliseconds in the first twelve digits, then the
+# version digit 7 and the variant 8 to b; never the same id twice, the
+# random bytes read a page at a time.
+my $ids    = GPForum::Infrastructure::Id->new;
+my $before = sprintf '%012x', int( time * $MILLISECONDS );
+my %minted = map { $ids->uuid => 1 } 1 .. $MANY;
+my $after  = sprintf '%012x', int( time * $MILLISECONDS );
+is( scalar keys %minted, $MANY, 'every id minted is new' );
+my @shaped = grep {
+         /\A [[:xdigit:]]{8} - [[:xdigit:]]{4} - 7 [[:xdigit:]]{3} - [89ab]/msx
+      && join( q{}, ( split /-/msx )[ 0, 1 ] ) ge $before
+      && join( q{}, ( split /-/msx )[ 0, 1 ] ) le $after
+} keys %minted;
+is( scalar @shaped, $MANY, 'each with the time, the version and the variant' );
+
+# A process forked from one that read its page of random bytes reads its
+# own: the two never hand out the same id.
+my ( $reader, $writer );
+pipe $reader, $writer or croak "pipe: $OS_ERROR";
+my $child = fork // croak "fork: $OS_ERROR";
+if ( !$child ) {
+    close $reader                                                     or exit 1;
+    print {$writer} join( "\n", map { $ids->uuid } 1 .. $FEW ) . "\n" or exit 1;
+    close $writer                                                     or exit 1;
+    exit 0;
+}
+close $writer or croak "close: $OS_ERROR";
+my @theirs = <$reader>;
+close $reader or croak "close: $OS_ERROR";
+waitpid $child, 0;
+chomp @theirs;
+my %ours = map { $ids->uuid => 1 } 1 .. $FEW;
+is( scalar @theirs, $FEW, 'the forked process minted its ids' );
+is( scalar( grep { $ours{$_} } @theirs ),
+    0, 'and none of them is one of this process' );
 
 done_testing();
 

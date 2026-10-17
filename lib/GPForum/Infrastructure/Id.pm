@@ -7,20 +7,21 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use Const::Fast;
+use English qw(-no_match_vars);
 
 our $VERSION = '0.001';
 
 const my $UUID_RANDOM_BYTES  => 10;
 const my $MILLISECONDS       => 1_000;
-const my $BYTE_MASK          => 0xff;
+const my $BITS               => 8;
 const my $VERSION_MASK       => 0x0f;
 const my $VERSION_SEVEN      => 0x70;
 const my $VARIANT_MASK       => 0x3f;
 const my $VARIANT_RFC4122    => 0x80;
 const my $VERSION_BYTE_INDEX => 6;
 const my $VARIANT_BYTE_INDEX => 8;
-const my @TIMESTAMP_SHIFTS   => ( 40, 32, 24, 16, 8, 0 );
-const my @UUID_CHUNK_LENGTHS => ( 8,  4,  4,  4,  12 );
+const my $TIMESTAMP_SKIP     => 2;
+const my $UUID_GROUPS        => 'A8 A4 A4 A4 A12';
 
 # /a: without it [[:xdigit:]] also matches the fullwidth digits and letters
 # (U+FF10...), which PostgreSQL's uuid input rejects.
@@ -49,36 +50,43 @@ sub is_uuid_spelling ( $class, $value ) {
     return defined $value && $value =~ $UUID_SPELLING ? 1 : 0;
 }
 
+# Version 7: the time in milliseconds in the first six bytes, big-endian,
+# then ten random bytes under the version and variant bits, written as the
+# five groups of hex digits. The time is the low six bytes of a 64-bit
+# big-endian integer; the bytes are set in place rather than as a list of
+# numbers, which made an id twice as dear.
 sub uuid ($self) {
-    my $timestamp_ms = int( time * $MILLISECONDS );
-    my @bytes = map { ( $timestamp_ms >> $_ ) & $BYTE_MASK } @TIMESTAMP_SHIFTS;
+    my $bytes =
+      substr( pack( 'Q>', int( time * $MILLISECONDS ) ), $TIMESTAMP_SKIP )
+      . _random_bytes($UUID_RANDOM_BYTES);
+    vec( $bytes, $VERSION_BYTE_INDEX, $BITS ) =
+      ( vec( $bytes, $VERSION_BYTE_INDEX, $BITS ) & $VERSION_MASK ) |
+      $VERSION_SEVEN;
+    vec( $bytes, $VARIANT_BYTE_INDEX, $BITS ) =
+      ( vec( $bytes, $VARIANT_BYTE_INDEX, $BITS ) & $VARIANT_MASK ) |
+      $VARIANT_RFC4122;
 
-    push @bytes, unpack 'C*', _random_bytes($UUID_RANDOM_BYTES);
-
-    $bytes[$VERSION_BYTE_INDEX] =
-      ( $bytes[$VERSION_BYTE_INDEX] & $VERSION_MASK ) | $VERSION_SEVEN;
-    $bytes[$VARIANT_BYTE_INDEX] =
-      ( $bytes[$VARIANT_BYTE_INDEX] & $VARIANT_MASK ) | $VARIANT_RFC4122;
-
-    return $self->_format_uuid_bytes( \@bytes );
+    return join q{-}, unpack $UUID_GROUPS, unpack 'H*', $bytes;
 }
 
-sub _format_uuid_bytes ( $self, $bytes ) {
-    my $hex    = unpack 'H*', pack 'C*', @{$bytes};
-    my @chunks = ();
-    my $offset = 0;
-
-    for my $length (@UUID_CHUNK_LENGTHS) {
-        push @chunks, substr $hex, $offset, $length;
-        $offset += $length;
-    }
-
-    return join q{-}, @chunks;
-}
+# The system's random bytes, read a page at a time: each id read ten bytes
+# with a read of its own, and a signed-in thread page makes 28 ids. What is
+# read is this process's alone -- a worker forked from the manager drops
+# what the manager read and reads its own -- so no two processes hand out
+# the same bytes, and none is handed out twice.
+const my $RANDOM_PAGE => 4_096;
+my %RANDOM = ( process => 0, bytes => q{} );
 
 sub _random_bytes ($bytes) {
-    require Crypt::URandom;
-    return Crypt::URandom::urandom($bytes);
+    if ( $RANDOM{process} != $PROCESS_ID ) {
+        %RANDOM = ( process => $PROCESS_ID, bytes => q{} );
+    }
+    if ( length $RANDOM{bytes} < $bytes ) {
+        require Crypt::URandom;
+        $RANDOM{bytes} .= Crypt::URandom::urandom($RANDOM_PAGE);
+    }
+
+    return substr $RANDOM{bytes}, 0, $bytes, q{};
 }
 
 1;

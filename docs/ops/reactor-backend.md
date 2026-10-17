@@ -70,7 +70,10 @@ retain their observed reactor values.
 inherited fallback preferences, missing EV, an existing Poll singleton and an
 existing libev select loop. `t/698-reactor-entry-points.t` checks the front
 door's backend, a `Test::Mojo`-first test through it, a development start on
-an existing select loop and the production refusal. `t/58-os-runtime-evidence.t`
+an existing select loop and the production refusal. Nothing preloads the
+policy in front of a test with an explicit interpreter, so
+`HARNESS_PERL_SWITCHES` (Devel::Cover, NYTProf) reach every test
+(`t/699-harness-switches.t`). `t/58-os-runtime-evidence.t`
 checks that the wrong native backend remains visible in the evidence.
 
 Readiness still includes `/health/ready`, query plans, actual Hypnotoad

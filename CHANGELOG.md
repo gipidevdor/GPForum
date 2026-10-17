@@ -2881,6 +2881,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **HARNESS_PERL_SWITCHES reach the tests again, and coverage measures
+  `GPForum::OS::Reactor`.** `.proverc` named an explicit interpreter to
+  preload the reactor, which made prove ignore the switches that Devel::Cover
+  and NYTProf use; `script/coverage` worked around it by loading the reactor
+  ahead of Devel::Cover, which then reported the module as never run. With
+  the backend chosen by `script/gpforum-carton exec`, `.proverc` is gone and
+  `script/coverage` loads Devel::Cover through `HARNESS_PERL_SWITCHES` again
+  (`t/699`).
 - **The projection generation search double is gone.**
   `GPForum::Test::ProjectionGenerationSearch` stood in for the generation
   writes deleted with `GPForum::Service::Projection`, and only `t/451`'s

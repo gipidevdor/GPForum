@@ -14,11 +14,12 @@ if [ ! -d t ] || ! find t -type f -name '*.t' | grep -q .; then
 fi
 
 rm -rf cover_db
-# .proverc supplies an explicit interpreter to preload the native reactor.
-# An explicit exec ignores HARNESS_PERL_SWITCHES: the suite would pass with
-# no coverage database at all. Override exec with both required preloads.
-"$gpforum_carton" exec prove \
-    --exec 'perl -Ilib -MGPForum::OS::Reactor -MDevel::Cover' -lr t "$@"
+# script/gpforum-carton exec chooses the native event backend in the
+# environment, so nothing has to load ahead of Devel::Cover: an explicit
+# interpreter for prove would ignore these switches and leave no database,
+# and a module preloaded before Devel::Cover is reported as never run
+# (t/699).
+HARNESS_PERL_SWITCHES=-MDevel::Cover "$gpforum_carton" exec prove -lr t "$@"
 
 # The report covers lib/ only. It used to select ^(lib/GPForum|t)/, counting
 # the test files -- which execute almost entirely -- in its own denominator.

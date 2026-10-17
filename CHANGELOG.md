@@ -1950,6 +1950,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **The list of held posts no longer names a place its author lost.** The
+  author's `/pending` page and its JSON named the thread and category each
+  held post went to by their current title, even once the thread was
+  hidden, deleted or moved somewhere the author cannot read; and an
+  approved thread had no link, since the decision records only the post.
+  `moderation_review_mine_v3` (migration 127) reads each place as the
+  author does and finds an approved thread through its post (ADR 0134).
+
 - **One-click unsubscribes from a mail provider all land.** The
   unsubscribe link was rate limited per client address, and a mail
   provider posts every user's RFC 8058 one-click unsubscribe from a few

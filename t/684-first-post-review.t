@@ -335,7 +335,8 @@ subtest 'the store validates before it calls' => sub {
         'an unknown decision is invalid'
     );
     is( $store->take('nope'), undef, 'a malformed id takes nothing' );
-    is_deeply( $store->mine('nope'), [], 'and lists nothing' );
+    is_deeply( $store->mine( 'nope', GPForum::Service::Forum::Viewer->new ),
+        [], 'and lists nothing' );
     is( scalar @{ $functions->calls }, 0, 'none of them called a function' );
 
     is( $store->set_rule( { first_posts => '3', flagged => 'on' } )->{status},

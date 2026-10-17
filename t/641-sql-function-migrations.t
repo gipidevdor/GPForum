@@ -86,6 +86,9 @@ const my %RETAINED_BOUNDARIES => (
 
     # Migration 126 (the feed leaves out listed members) moved this on.
     community_list_feed => [2],
+
+    # Migration 127 (held posts read as their author) moved this on.
+    moderation_review_mine => [2],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
@@ -365,6 +368,12 @@ sub _boundary_arguments ( $name, $version, $entry ) {
     }
     if ( $name eq 'notification_digest_plan' && $version == 2 ) {
         pop @names;
+    }
+
+    # The author's held posts gained the reader's scopes at v3 (migration
+    # 127).
+    if ( $name eq 'moderation_review_mine' && $version == 2 ) {
+        @names = @names[ 0, 1 ];
     }
     return @names;
 }

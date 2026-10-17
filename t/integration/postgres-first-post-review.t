@@ -419,6 +419,68 @@ subtest 'a post whose author was suspended since is not published' => sub {
     is( _posts(), $posts + 1, 'once the suspension is lifted it is' );
 };
 
+subtest 'the author\'s list reads each place as the author does' => sub {
+    $store->set_rule(
+        { actor_user_id => $admin, first_posts => '1', flagged => 0 } );
+    my $author = _user( 'review_place', 0 );
+    my $test   = _session($author);
+    my ($thread_title) =
+      $dbh->selectrow_array( q{SELECT title FROM threads WHERE thread_id = ?},
+        undef, $thread_id );
+    $test->get_ok("/t/$thread_id");
+    $test->post_ok( "/t/$thread_id/replies" => $JSON => form =>
+          { _composer_fresh($test), body_source => 'Held in a place' } )
+      ->status_is($HTTP_ACCEPTED);
+    $test->get_ok( '/pending' => $JSON )
+      ->json_is( '/held_posts/0/thread_title' => $thread_title )
+      ->json_is( '/held_posts/0/thread_id'    => $thread_id );
+
+    $dbh->do(
+        q{UPDATE threads SET moderation_state = 'hidden' WHERE thread_id = ?},
+        undef, $thread_id );
+    $test->get_ok( '/pending' => $JSON )->json_is(
+        '/held_posts/0/thread_title' => undef,
+        'a thread hidden since is not named'
+    )->json_is( '/held_posts/0/thread_id' => undef, 'nor linked' );
+    $test->get_ok('/pending')
+      ->status_is($HTTP_OK)
+      ->content_unlike( qr/\Q$thread_title\E/msx, 'on the page either' )
+      ->content_like(
+        qr/Held [ ] in [ ] a [ ] place/msx,
+        'while the author\'s words stay'
+      );
+    $dbh->do(
+        q{UPDATE threads SET moderation_state = 'visible' WHERE thread_id = ?},
+        undef, $thread_id
+    );
+
+    $test->get_ok('/new-thread')->status_is($HTTP_OK);
+    $test->post_ok(
+        '/threads' => $JSON => form => {
+            _composer_fresh($test),
+            category_id => seed_id( category => 1 ),
+            title       => 'A thread approved with a link',
+            body_source => 'Its opening post',
+        }
+    )->status_is($HTTP_ACCEPTED);
+    my $review_id = _answer($test)->{review_id};
+    my $staff     = _session($admin);
+    $staff->post_ok( "/moderation/review/$review_id/approve" => $JSON => form =>
+          { csrf_token => _csrf($staff) } )->status_is($HTTP_OK);
+    my $published = _answer($staff);
+    $test->get_ok( '/pending' => $JSON )
+      ->json_is( '/held_posts/0/review_id' => $review_id )
+      ->json_is(
+        '/held_posts/0/thread_id' => $published->{thread_id},
+        'an approved thread names the thread it became'
+      )
+      ->json_is(
+        '/held_posts/0/published_url' =>
+          "/t/$published->{thread_id}#post-$published->{post_id}",
+        'and links to its post'
+      );
+};
+
 subtest 'an erased member\'s held posts go, and an export has them' => sub {
     my $document =
       $functions->row( 'portability_export_parts', { user_id => $other } )

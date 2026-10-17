@@ -103,6 +103,10 @@ const my %RETAINED => (
     # Migration 126 (the feed leaves out listed members) moved this on.
     community_list_feed_v1 => 0,
     community_list_feed_v2 => 1,
+
+    # Migration 127 (held posts read as their author) moved this on.
+    moderation_review_mine_v1 => 0,
+    moderation_review_mine_v2 => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

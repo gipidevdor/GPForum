@@ -66,7 +66,12 @@ entry's id.
 decided in the last 30 days (approved with a link to the post, rejected
 with the reason staff gave, or withdrawn). They may withdraw a pending one
 (`POST /pending/:review_id/withdraw`). Nobody else's entries are ever read
-there.
+there. The list reads the place each entry went as the author reads it now
+(`moderation_review_mine_v3`, migration 127, an amendment of 2026-10-17): a
+thread or category the author can no longer read, because it was hidden,
+deleted or moved somewhere private, is named by neither its title nor its
+id, while the author's own words stay; an approved thread links to the
+thread it became, the post's.
 
 **Staff** review at `GET /moderation/review`, linked from the report queue
 and the automod page: the pending posts, oldest first, rendered as posts,

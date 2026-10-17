@@ -111,11 +111,20 @@ sub queue ( $self, $limit = $QUEUE_LIMIT ) {
 }
 
 # The author's own held posts: pending, and those decided lately.
-sub mine ( $self, $user_id, $limit = $QUEUE_LIMIT ) {
+sub mine ( $self, $user_id, $viewer, $limit = $QUEUE_LIMIT ) {
     return [] if !GPForum::Infrastructure::Id->is_uuid_spelling($user_id);
 
-    return $self->_functions->rows( 'moderation_review_mine',
-        { user_id => $user_id, row_limit => $limit } );
+    return $self->_functions->rows(
+        'moderation_review_mine',
+        {
+            user_id      => $user_id,
+            row_limit    => $limit,
+            member       => $viewer->member      ? 1 : 0,
+            global_read  => $viewer->global_read ? 1 : 0,
+            category_ids => $viewer->category_ids,
+            space_ids    => $viewer->space_ids,
+        }
+    );
 }
 
 # One held post, locked for the rest of the transaction; undef when there
@@ -268,7 +277,9 @@ The pending posts, oldest first, with how many are pending in all.
 
 =head2 mine
 
-The author's own held posts: pending, and decided in the last 30 days.
+The author's own held posts: pending, and decided in the last 30 days, the
+place each went to read with the viewer's scopes (a place they cannot read
+names no title or id).
 
 =head2 take
 

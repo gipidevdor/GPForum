@@ -21,7 +21,8 @@ sub list ($self) {
 
     my $rows;
     try {
-        $rows = $self->gp_review_store->mine($user_id);
+        $rows =
+          $self->gp_review_store->mine( $user_id, $self->gp_forum_viewer );
     }
     catch ($error) {
         $self->app->log->error("held posts failed: $error");

@@ -965,8 +965,15 @@ const my %FUNCTION => (
         json       => ['details']
     },
     moderation_review_mine => {
-        version    => 2,
-        parameters => [ user_id => 'uuid', row_limit => 'integer' ]
+        version    => 4,
+        parameters => [
+            user_id      => 'uuid',
+            row_limit    => 'integer',
+            member       => 'boolean',
+            global_read  => 'boolean',
+            category_ids => 'uuid[]',
+            space_ids    => 'uuid[]'
+        ]
     },
     moderation_review_take =>
       { version => 2, parameters => [ review_id => 'uuid' ] },

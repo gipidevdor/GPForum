@@ -100,8 +100,20 @@ sub withdraw ( $self, $input ) {
 
 sub _publish ( $self, $held ) {
     my $kind   = $held->{kind} // q{};
+    my $viewer = $self->viewer_resolver->resolve( $held->{author_user_id} );
+
+    # The resolver reads a suspended, closed or unreadable account as no
+    # member, and a non-member writes nothing: the posting workflow trusts
+    # the controller's participation check, which an approval never passes.
+    return {
+        ok     => 0,
+        status => 'forbidden',
+        error  => 'the author cannot post now'
+      }
+      if !$viewer->member;
+
     my %common = (
-        viewer => $self->viewer_resolver->resolve( $held->{author_user_id} ),
+        viewer         => $viewer,
         author_user_id => $held->{author_user_id},
         body_source    => $held->{body_source},
         command_id     => $held->{command_id},

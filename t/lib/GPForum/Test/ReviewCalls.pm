@@ -6,6 +6,8 @@ package GPForum::Test::ReviewCalls;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Service::Forum::Viewer;
+
 our $VERSION = '0.001';
 
 # ADR 0134: one stand-in for each collaborator of the review queue -- the
@@ -32,7 +34,13 @@ sub publish_reviewed ( $self, @arguments ) {
     return $self->_called( publish_reviewed => @arguments );
 }
 
+# The viewer the author reads as: a member, unless `answers` says otherwise.
 sub resolve ( $self, @arguments ) {
+    $self->answers->{resolve} //= GPForum::Service::Forum::Viewer->new(
+        user_id => $arguments[0],
+        member  => 1
+    );
+
     return $self->_called( resolve => @arguments );
 }
 

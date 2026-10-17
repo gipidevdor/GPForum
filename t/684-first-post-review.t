@@ -194,6 +194,18 @@ subtest 'staff approve: published as the author\'s, once' => sub {
     );
     is( scalar @{ $calls->made('decide') }, 0, 'and nothing is recorded' );
 
+    my $published_before = scalar @{ $calls->made('publish_reviewed') };
+    $calls->answers->{resolve} =
+      GPForum::Service::Forum::Viewer->new( user_id => $AUTHOR );
+    is_deeply(
+        $workflow->approve( { review_id => $REVIEW, actor_user_id => $STAFF } ),
+        { ok => 0, status => 'refused', error => 'the author cannot post now' },
+        'an author suspended since, read as no member, is refused'
+    );
+    is( scalar @{ $calls->made('publish_reviewed') },
+        $published_before, 'before anything is written' );
+    delete $calls->answers->{resolve};
+
     $calls->answers->{publish_reviewed} = {
         ok     => 1,
         status => 'ok',

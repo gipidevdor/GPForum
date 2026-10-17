@@ -1950,6 +1950,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **Approving a held post no longer publishes it for a suspended author.**
+  An approval wrote the post as its author's command, but the posting
+  workflow trusts the controller's participation check, which an approval
+  never passes: a member suspended after posting had the post published
+  on a public thread. The review queue now refuses it, as ADR 0134 says,
+  and the post stays pending until the suspension ends or staff reject it.
+
 - **Performance evidence no longer lands on `main`.** The performance
   workflow committed its history to `main`: `benchmarks/` grew by
   megabytes a day and every publication raced the pushes of the code. The

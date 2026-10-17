@@ -380,6 +380,45 @@ subtest 'the admin console sets the rule' => sub {
       ->status_is( $HTTP_FORBIDDEN, 'a member changes nothing' );
 };
 
+subtest 'a post whose author was suspended since is not published' => sub {
+    $store->set_rule(
+        { actor_user_id => $admin, first_posts => '1', flagged => 0 } );
+    my $author = _user( 'review_suspended', 0 );
+    my $test   = _session($author);
+    $test->get_ok("/t/$thread_id");
+    $test->post_ok( "/t/$thread_id/replies" => $JSON => form =>
+          { _composer_fresh($test), body_source => 'Written before' } )
+      ->status_is($HTTP_ACCEPTED);
+    my $review_id = _answer($test)->{review_id};
+    my ($suspension) = $dbh->selectrow_array(
+        q{INSERT INTO suspensions (suspension_id, user_id, actor_user_id,}
+          . q{ reason, valid_from) VALUES (gen_random_uuid(), ?, ?, 'spam',}
+          . q{ now() - interval '1 minute') RETURNING suspension_id},
+        undef, $author, $admin
+    );
+
+    my $staff = _session($admin);
+    my $posts = _posts();
+    $staff->post_ok( "/moderation/review/$review_id/approve" => $JSON => form =>
+          { csrf_token => _csrf($staff) } )
+      ->status_is($HTTP_CONFLICT)
+      ->json_is( '/status' => 'refused' );
+    is( _posts(), $posts, 'a suspended author\'s post is not published' );
+    is( _held($review_id)->{status}, 'pending',          'and stays pending' );
+    is( _notifications( $author, 'review_approved' ), 0, 'nobody is told' );
+
+    $dbh->do(
+        q{UPDATE suspensions SET revoked_at = now()}
+          . q{ WHERE suspension_id = ?},
+        undef, $suspension
+    );
+    $staff->post_ok( "/moderation/review/$review_id/approve" => $JSON => form =>
+          { csrf_token => _csrf($staff) } )
+      ->status_is($HTTP_OK)
+      ->json_is( '/status' => 'ok' );
+    is( _posts(), $posts + 1, 'once the suspension is lifted it is' );
+};
+
 subtest 'an erased member\'s held posts go, and an export has them' => sub {
     my $document =
       $functions->row( 'portability_export_parts', { user_id => $other } )

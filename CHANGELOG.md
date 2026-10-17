@@ -1903,6 +1903,20 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **Every member with the email digest on gets it, and a missed day is
+  caught up (ADR 0078, amendment of 2026-10-17).** Only the last period
+  could be due, taken in member-id order under the run's `--limit`: a run
+  missed lost that day for everyone, and on a forum with more members than
+  the hourly runs reached, the members with high ids never got one. A
+  digest now covers a window from where the member's last one ended,
+  at most 14 days back, so what was missed arrives in the next mail, once;
+  each run reads the due members in pages, the longest waiting first. A
+  switch between daily and weekly no longer re-reports posts already sent,
+  a post committed just after midnight is no longer lost at the period's
+  end (a period is due ten minutes after it ends), a suspended member no
+  longer gets a digest, and a thread the member muted no longer appears
+  through a category they follow. Migration 122.
+
 - **The email digest's HTML keeps its own styles.** The body's inline
   style quoted its font name ("Segoe UI") inside a double-quoted
   attribute, so the attribute ended at the quote and the rest of the

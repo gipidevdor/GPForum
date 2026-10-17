@@ -201,6 +201,45 @@ mean anything. Migration 118.
 - **Portability.** The digest records hold only dates and counts and go
   with the user row; they are not exported.
 
+### Amendment 2026-10-17: digest windows, reached by every member
+
+The review of 2026-10-16 found that only the last period could be due,
+taken in id order under a row limit: a missed run lost the day for
+everyone, and members beyond what the hourly runs reached never received
+one. Decided:
+
+- **Window, not period.** A digest covers a window: from the end of the
+  member's last recorded digest, of either frequency, to the end of their
+  frequency's last complete period (from the period's own start for a
+  member never sent one). A missed run, or a member a run did not reach,
+  is caught up by the next digest in one mail, never one mail per missed
+  period. Switching between daily and weekly continues from where the
+  last digest ended, so no post is reported twice.
+- **Bounded catch-up.** A window goes back at most 14 days: two weekly
+  periods, and more than any outage worth catching up mail for; a member
+  away longer (or who turns the digest back on later) starts from 14 days
+  back. The 35-day retention of the records stays above it.
+- **Settling.** A period is complete ten minutes after it ends, past any
+  write still committing a post stamped before the end (a post is
+  written in one short transaction, its statements cut off by the
+  configured statement timeout of seconds) and clock drift between hosts.
+- **Fair, paged.** `api.notification_digest_due_v4` orders the due members
+  by window start, oldest first, then member id, and is read by that key:
+  each run reads pages of `--limit` (at most 1,000) until the list drains,
+  up to 50 pages, so the members waiting longest come first, a member that
+  fails is passed over by the key rather than retried in a loop, and none
+  waits on the ids before it.
+- **Once per post.** `api.notification_digest_record_v4` serialises a
+  member's records (a transaction-scoped advisory lock) and answers
+  duplicate for a window starting before the end of one already
+  recorded, of either frequency.
+- **Who, again.** A member under an active suspension is not due, and
+  `api.notification_digest_plan_v4` stops a digest queued before the
+  suspension; the window covers the time after it, within the 14 days.
+- **What, again.** A thread of a followed category is left out when the
+  member's own subscription to the thread is muted or asks for less than
+  every post (`api.notification_digest_items_v4`).
+
 ## Consequences
 
 - Email is always sent asynchronously, so request latency is independent of
@@ -237,12 +276,15 @@ mean anything. Migration 118.
 - Migrations: `migrations/001-schema/005_notifications_subscriptions.sql`,
   `migrations/001-schema/025_identity_lifecycle_tokens.sql`,
   `migrations/003-evolution/118_notification_type_preferences.sql`,
-  `migrations/003-evolution/119_notification_digests.sql`.
+  `migrations/003-evolution/119_notification_digests.sql`,
+  `migrations/003-evolution/122_notification_digest_windows.sql`.
 - Tests: `t/06-identity-web.t`, `t/integration/postgres-identity-stores.t`,
   `t/17-notifications.t`, `t/107-notification-workflow.t`,
   `t/110-identity-account-store.t`, `t/685-notification-preferences.t`,
   `t/integration/postgres-notification-preferences.t`,
   `t/686-notification-digest.t`,
-  `t/integration/postgres-notification-digest.t`.
+  `t/integration/postgres-notification-digest.t`,
+  `t/integration/postgres-notification-digest-windows.t`,
+  `t/701-digest-message-styles.t`.
 - Docs: `docs/audit/email-lifecycle.md`,
   `docs/architecture/notification-workflow.md`.

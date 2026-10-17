@@ -123,9 +123,15 @@ _follow( $member, 'thread',   $thread );
 _follow( $member, 'category', $followed_category );
 
 subtest 'the members due a digest of the last period' => sub {
-    my $due =
-      $functions->rows( 'notification_digest_due',
-        { now => $NOW, row_limit => 100 } );
+    my $due = $functions->rows(
+        'notification_digest_due',
+        {
+            now           => $NOW,
+            after_start   => undef,
+            after_user_id => undef,
+            row_limit     => 100
+        }
+    );
     my %due = map { $_->{user_id} => $_ } @{$due};
     is_deeply(
         [ sort keys %due ],
@@ -144,8 +150,15 @@ subtest 'the members due a digest of the last period' => sub {
     );
     is(
         scalar @{
-            $functions->rows( 'notification_digest_due',
-                { now => $NOW, row_limit => 1 } )
+            $functions->rows(
+                'notification_digest_due',
+                {
+                    now           => $NOW,
+                    after_start   => undef,
+                    after_user_id => undef,
+                    row_limit     => 1
+                }
+            )
         },
         1,
         'bounded by the limit'

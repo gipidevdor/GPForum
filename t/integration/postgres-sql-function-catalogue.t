@@ -70,6 +70,16 @@ const my %RETAINED => (
     forum_resolve_viewer_v3      => 0,
     forum_resolve_viewer_v4      => 1,
 
+    # Migration 122 (digest windows) moved these on.
+    notification_digest_due_v1    => 0,
+    notification_digest_due_v2    => 1,
+    notification_digest_items_v1  => 0,
+    notification_digest_items_v2  => 1,
+    notification_digest_record_v1 => 0,
+    notification_digest_record_v2 => 1,
+    notification_digest_plan_v1   => 0,
+    notification_digest_plan_v2   => 1,
+
     # Migration 121 (bookmark folders) moved the bookmark list on.
     community_list_bookmarks_v1 => 0,
     community_list_bookmarks_v2 => 1,

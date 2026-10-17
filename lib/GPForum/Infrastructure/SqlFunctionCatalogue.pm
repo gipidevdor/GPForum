@@ -729,11 +729,16 @@ const my %FUNCTION => (
 
     # ADR 0078: the daily and weekly email digest.
     notification_digest_due => {
-        version    => 2,
-        parameters => [ now => 'timestamptz', row_limit => 'integer' ]
+        version    => 4,
+        parameters => [
+            now           => 'timestamptz',
+            after_start   => 'timestamptz',
+            after_user_id => 'uuid',
+            row_limit     => 'integer'
+        ]
     },
     notification_digest_items => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id      => 'uuid',
             period_start => 'timestamptz',
@@ -746,7 +751,7 @@ const my %FUNCTION => (
         ]
     },
     notification_digest_record => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id       => 'uuid',
             frequency     => 'text',
@@ -760,8 +765,10 @@ const my %FUNCTION => (
             explicit      => 'boolean'
         ]
     },
-    notification_digest_plan =>
-      { version => 2, parameters => [ user_id => 'uuid' ] },
+    notification_digest_plan => {
+        version    => 4,
+        parameters => [ user_id => 'uuid', now => 'timestamptz' ]
+    },
     notification_digest_unsubscribe => {
         version    => 2,
         parameters =>

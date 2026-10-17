@@ -415,13 +415,13 @@ sub unsubscribe_scopes {
 
 # ADR 0078: whether a queued digest is still to be mailed, read as it is
 # sent -- the digest and email channels on, an active account with a
-# verified address -- with the address and locale. Without the function
-# layer there is no digest.
+# verified address, not suspended -- with the address and locale. Without
+# the function layer there is no digest.
 sub digest_plan ( $self, $user_id ) {
     return { digest => 0 } if !$self->functions;
     my $row =
       $self->functions->row( 'notification_digest_plan',
-        { user_id => $user_id } );
+        { user_id => $user_id, now => $self->clock->now_iso8601 } );
     return { digest => 0 } if !$row;
 
     return {

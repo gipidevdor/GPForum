@@ -46,16 +46,20 @@ and the next run carries on.
 ## Email digests
 
 The `notification_digests` job queues the daily and weekly email digests
-(ADR 0078, amendment of 2026-10-15). Each hourly run takes at most `--limit`
-members (100 by default, capped at 1,000) whose digest of the last period
--- the UTC day, or the UTC week from Monday -- is not recorded yet, and
-records it once: queued as a `notification.digest.requested` outbox event
+(ADR 0078, amendments of 2026-10-15 and 2026-10-17). A member's digest
+covers a window: from where their last digest ended to the end of their
+last complete period -- the UTC day, or the UTC week from Monday, complete
+ten minutes after it ends -- and never more than 14 days back. Each hourly
+run reads the members due one in pages of `--limit` (100 by default,
+capped at 1,000), the longest waiting first, up to 50 pages, and records
+each window once: queued as a `notification.digest.requested` outbox event
 that the worker mails, or empty when nothing was left unread. A second run
-of the same period queues nothing; a larger backlog drains over the next
-runs. Its line says how many it queued (`✓ email digests: 12 queued`); a
-member that could not be queued fails the job and is named in its errors,
-and is taken again next run. Records of periods older than 35 days are
-removed by the same job. It can be run alone:
+queues nothing new. A run missed, or members beyond what one run reaches,
+are not lost: their next digest covers what they missed, in one mail, up
+to the 14 days. Its line says how many it queued (`✓ email digests: 12
+queued`); a member that could not be queued fails the job and is named in
+its errors, and is taken again next run. Records of periods older than 35
+days are removed by the same job. It can be run alone:
 
 ```sh
 gpforum scheduled-jobs --once --job notification_digests --limit 100

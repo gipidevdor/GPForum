@@ -15,11 +15,15 @@ use GPForum::Service::Forum::ViewerResolver;
 our $VERSION = '0.001';
 
 # ADR 0078: the mail event a digest is queued as, the threads one names
-# (the rest are counted), the members one run takes by default, and how
-# long the record of a period is kept: past any period still being queued.
+# (the rest are counted), the members one page of the due list takes by
+# default and at most (the database's own cap), the pages one run reads,
+# and how long the record of a period is kept: past the 14-day window a
+# digest catches up.
 const my $DIGEST_REQUESTED  => 'notification.digest.requested';
 const my $ITEM_LIMIT        => 20;
 const my $DEFAULT_LIMIT     => 100;
+const my $MAX_LIMIT         => 1_000;
+const my $PAGES_PER_RUN     => 50;
 const my $KEEP_SECONDS      => 35 * 24 * 60 * 60;
 const my @ITEM_FIELDS       => qw(thread_id title category_title new_posts);
 const my %COUNTED_OUTCOMES  => map { $_ => 1 } qw(queued empty);
@@ -43,36 +47,33 @@ has viewer_resolver => sub ($self) {
     );
 };
 
-# One bounded run: the members whose last period has no digest yet, each
-# read as they read and recorded once -- queued with the threads it names,
-# or empty -- then the records past keeping removed. A member that fails is
-# named in errors and taken again by the next run; the others go on.
+# One bounded run: the members due a digest, the longest waiting first,
+# page after page by the due list's key until it is drained or the run has
+# read its pages, each read as they read and recorded once -- queued with
+# the threads it names, or empty -- then the records past keeping removed.
+# A member that fails is named in errors, passed over by the key and taken
+# again by the next run; the others go on.
 sub run ( $self, $input = {} ) {
     my $functions = $self->functions;
     return { ok => 1, queued => 0, skipped => 'unavailable' } if !$functions;
 
     my $limit = $input->{limit} || $DEFAULT_LIMIT;
+    $limit = $limit > $MAX_LIMIT ? $MAX_LIMIT : $limit;
     my $now   = $self->clock->now_iso8601;
-    my %done  = ( queued => 0, empty => 0 );
+    my %done  = ( queued      => 0,     empty         => 0 );
+    my %after = ( after_start => undef, after_user_id => undef );
     my @errors;
-    my $due = $functions->rows( 'notification_digest_due',
-        { now => $now, row_limit => $limit } );
-    for my $member ( @{$due} ) {
-        try {
-            my $status = $self->_queue( $member, $now );
-            if ( $COUNTED_OUTCOMES{$status} ) {
-                $done{$status}++;
-            }
+    for ( 1 .. $PAGES_PER_RUN ) {
+        my $due = $functions->rows( 'notification_digest_due',
+            { now => $now, %after, row_limit => $limit } );
+        for my $member ( @{$due} ) {
+            push @errors, $self->_queue_counted( $member, $now, \%done );
         }
-        catch ($error) {
-            my ($line) = "$error" =~ $FIRST_LINE;
-            $line =~ s/$TRAILING_LOCATION//msx;
-            push @errors, "$member->{user_id}: $line";
-            if ( $self->logger ) {
-                $self->logger->warn(
-                    "digest not queued: $member->{user_id}: $line");
-            }
-        };
+        last if @{$due} < $limit;
+        %after = (
+            after_start   => $due->[-1]{period_start},
+            after_user_id => $due->[-1]{user_id},
+        );
     }
     my $purged = $functions->row(
         'notification_digest_purge',
@@ -89,6 +90,27 @@ sub run ( $self, $input = {} ) {
         purged => $purged ? $purged->{deleted} // 0 : 0,
         ( @errors ? ( errors => \@errors ) : () ),
     };
+}
+
+# Queues one member and counts the outcome; answers its error line, if any.
+sub _queue_counted ( $self, $member, $now, $done ) {
+    my @error;
+    try {
+        my $status = $self->_queue( $member, $now );
+        if ( $COUNTED_OUTCOMES{$status} ) {
+            $done->{$status}++;
+        }
+    }
+    catch ($error) {
+        my ($line) = "$error" =~ $FIRST_LINE;
+        $line =~ s/$TRAILING_LOCATION//msx;
+        push @error, "$member->{user_id}: $line";
+        if ( $self->logger ) {
+            $self->logger->warn("digest not queued: $member->{user_id}: $line");
+        }
+    };
+
+    return @error;
 }
 
 sub _queue ( $self, $member, $now ) {
@@ -172,25 +194,29 @@ Version 0.001.
 
 ADR 0078. The C<notification_digests> job of the scheduled-jobs runner. A
 member who turned the digest channel on, daily or weekly, with the email
-channel on and a verified address, is due once per period: the UTC day, or
-the UTC week from Monday, before the run. For each due member, at most
-C<limit> per run, the threads they follow and the threads in the
-categories they follow with posts from that period they have not read are
+channel on, a verified address and no suspension, is due a window: from
+where their last digest ended to the end of their last complete period
+(the UTC day, or the UTC week from Monday, complete ten minutes after it
+ends), at most 14 days back. The due members are read in pages of
+C<limit>, the longest waiting first, up to 50 pages a run. For each, the
+threads they follow and the threads in the categories they follow (less
+those they muted) with posts from that window they have not read are
 read as the member reads (L<GPForum::Service::Forum::ViewerResolver>), and
-the period is recorded once: with threads, as a
+the window is recorded once: with threads, as a
 C<notification.digest.requested> event in the event log and outbox (the
 twenty latest threads, and how many there were), which
 L<GPForum::Worker::Handler::NotificationDigest> mails; without, as empty.
-A second run of the same period finds nothing due; a run cut short leaves
-the rest due for the next. Records of periods that ended over 35 days ago
-are then removed, at most C<limit> of them.
+A second run finds nothing new due; a run cut short, or missed, leaves
+the rest due for the next, whose window covers what was
+missed. Records of periods that ended over 35 days ago are then removed,
+at most C<limit> of them.
 
 =head1 SUBROUTINES/METHODS
 
 =head2 run
 
-Takes an optional hash reference with C<limit> (100 by default; the
-database caps it at 1,000). Returns C<< { ok, queued, empty, purged } >>,
+Takes an optional hash reference with C<limit>, the members per page
+(100 by default, at most 1,000). Returns C<< { ok, queued, empty, purged } >>,
 with C<errors> (C<user id: reason>) and C<ok> 0 when a member could not be
 queued, or C<< { ok => 1, queued => 0, skipped => 'unavailable' } >>
 without the PostgreSQL function layer.
@@ -218,7 +244,9 @@ None known.
 
 Periods are UTC: a member far from it receives the day's digest at their
 own morning or evening. A member who switches between daily and weekly
-receives the new frequency's next complete period.
+receives the new frequency's next complete period, from where the last
+digest ended. A member who turns the digest back on within 14 days is
+caught up from their last digest.
 
 =head1 AUTHOR
 

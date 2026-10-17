@@ -126,3 +126,4 @@ Run `bin/gpforum help migrate` for the operator interface. The database tests co
 - [118_notification_type_preferences.sql](003-evolution/118_notification_type_preferences.sql)
 - [119_notification_digests.sql](003-evolution/119_notification_digests.sql)
 - [121_bookmark_folders.sql](003-evolution/121_bookmark_folders.sql)
+- [122_notification_digest_windows.sql](003-evolution/122_notification_digest_windows.sql)

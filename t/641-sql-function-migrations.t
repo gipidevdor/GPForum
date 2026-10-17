@@ -77,6 +77,12 @@ const my %RETAINED_BOUNDARIES => (
 
     # Migration 116 (first-post review) moved this on.
     moderation_automod_rules => [2],
+
+    # Migration 122 (digest windows) moved these on.
+    notification_digest_due    => [2],
+    notification_digest_items  => [2],
+    notification_digest_record => [2],
+    notification_digest_plan   => [2],
 );
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
@@ -346,6 +352,15 @@ sub _boundary_arguments ( $name, $version, $entry ) {
 
     # The bookmark list gained its folder at v3 (migration 121).
     if ( $name eq 'community_list_bookmarks' && $version == 2 ) {
+        pop @names;
+    }
+
+    # The digest's due list gained its key, and its plan the time, at v3
+    # (migration 122).
+    if ( $name eq 'notification_digest_due' && $version == 2 ) {
+        @names = grep { !/\A after_/msx } @names;
+    }
+    if ( $name eq 'notification_digest_plan' && $version == 2 ) {
         pop @names;
     }
     return @names;

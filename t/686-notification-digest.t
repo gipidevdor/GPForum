@@ -148,20 +148,23 @@ subtest 'the message says the digest in both languages' => sub {
 subtest 'the queue records each due member once, queued or empty' => sub {
     my $calls = GPForum::Test::NotificationPreferenceCalls->new(
         answers => {
-            notification_digest_due => [
-                {
-                    user_id      => $MEMBER,
-                    frequency    => 'daily',
-                    period_start => $START,
-                    period_end   => $END,
-                },
-                {
-                    user_id      => $OTHER,
-                    frequency    => 'weekly',
-                    period_start => '2026-10-05T00:00:00Z',
-                    period_end   => '2026-10-12T00:00:00Z',
-                },
-            ],
+            notification_digest_due => sub ($parameters) {
+                return [] if defined $parameters->{after_user_id};
+                return [
+                    {
+                        user_id      => $MEMBER,
+                        frequency    => 'daily',
+                        period_start => $START,
+                        period_end   => $END,
+                    },
+                    {
+                        user_id      => $OTHER,
+                        frequency    => 'weekly',
+                        period_start => '2026-10-05T00:00:00Z',
+                        period_end   => '2026-10-12T00:00:00Z',
+                    },
+                ];
+            },
             notification_digest_items => sub ($parameters) {
                 return $parameters->{user_id} eq $MEMBER
                   ? [ map { +{ %{$_}, thread_total => $TOTAL } } @ITEMS ]
@@ -185,6 +188,14 @@ subtest 'the queue records each due member once, queued or empty' => sub {
     );
     is( $calls->calls_to('notification_digest_due')->[0]{row_limit},
         2, 'bounded by the limit' );
+    is_deeply(
+        [
+            @{ $calls->calls_to('notification_digest_due')->[1] }
+              {qw(after_start after_user_id)}
+        ],
+        [ '2026-10-05T00:00:00Z', $OTHER ],
+        'a full page reads the next one after its last key'
+    );
     my ($items) = @{ $calls->calls_to('notification_digest_items') };
     is_deeply(
         [ @{$items}{qw(member global_read category_ids row_limit)} ],

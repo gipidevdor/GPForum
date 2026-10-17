@@ -328,6 +328,9 @@ q{Would make {username} ({email}) the forum's owner; nothing was written.},
     'cli.service.caddy_whole' => q{The Caddyfile is the whole of Caddy's}
       . ' configuration: if Caddy serves other sites too, add this block to'
       . ' yours instead.',
+    'cli.service.proxy_group' => 'The proxy reaches the forum through'
+      . ' {socket}, which only the gpforum group may open: add {account}, the'
+      . ' account {proxy} runs as, to the group and restart it: {join}',
     'cli.service.cannot_write' =>
       'Cannot write the files into {directory} ({reason}).',
     'cli.service.not_directory' => '{directory} is a file, not a directory:'
@@ -456,6 +459,12 @@ q{Would make {username} ({email}) the forum's owner; nothing was written.},
       . ' service manager: {start}',
     'cli.start.no_hypnotoad' => 'There is no {file}, so the dependencies are'
       . ' not installed: sudo bin/gpforum setup installs them.',
+    'cli.start.tcp_listen' => q{gpforum start --service listens only on the}
+      . q{ service's Unix socket, and GPFORUM_RUNTIME_LISTEN names {listen}:}
+      . ' the proxy reaches the forum through the socket, which only the'
+      . ' gpforum group may open. Remove GPFORUM_RUNTIME_LISTEN {where} for'
+      . ' the default, var/run/gpforum.sock under the code directory, or set'
+      . ' it to an http+unix:// address.',
 );
 
 # The secrets gpforum secret rotate writes, by the setting that holds them.

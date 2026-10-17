@@ -15,6 +15,30 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Operator action required
 
+- **Move the service and its database onto Unix sockets, install EV, and
+  copy the migrations as a whole (ADR 0137).** In this order, on a host set
+  up before them:
+  1. *Dependencies.* Install them again the way `sudo -u gpforum gpforum
+     upgrade` prints it: Carton now pins EV, and the service refuses to
+     start on anything but the native epoll or kqueue backend.
+  2. *Migrations.* They moved into `migrations/001-schema/`,
+     `002-function-api/` and `003-evolution/`. Copy the release so that
+     `migrations/` holds nothing else -- an `rsync` without `--delete` that
+     leaves the old `migrations/NNN_*.sql` beside them stops `gpforum
+     migrate` with "duplicate migration version". Applied versions and
+     checksums are unchanged; nothing is re-run.
+  3. *The listener.* Hypnotoad listens on `var/run/gpforum.sock` under the
+     code directory, and `gpforum start --service` refuses a TCP address:
+     remove `GPFORUM_RUNTIME_LISTEN=http://127.0.0.1:8080` from the
+     environment file (or set an `http+unix://` one), print the proxy's
+     site again with `gpforum service print nginx` or `caddy`, and add the
+     proxy's account to the `gpforum` group with the command that prints
+     beside the site (`sudo usermod -aG gpforum www-data` on Debian's
+     nginx), then restart the proxy.
+  4. *The database.* For PostgreSQL on this host, take `host=127.0.0.1;
+     port=5432` out of `GPFORUM_DATABASE_DSN` (or set `host=` to the socket
+     directory): `gpforum doctor` says when it is still there.
+
 - **Install `gpforum.service` and `gpforum.conf` in place of the
   `gpforum-unix-socket` ones.** `deploy/systemd/gpforum-unix-socket.service`
   and `deploy/nginx/gpforum-unix-socket.conf` were links to the single

@@ -233,8 +233,8 @@ subtest 'nginx: the forum, the listen address and the attachment store' => sub {
     );
     _line(
         $text,
-        '    server 127.0.0.1:9000;',
-        'forwards to where the application listens'
+        '    server unix:/srv/forum/var/run/gpforum.sock;',
+        'forwards to the socket the service will listen on, not TCP (ADR 0137)'
     );
     _line( $text, '        alias /data/attachments/;', 'serves the store' );
     _line( $text, '        root /srv/forum;',          'and the assets' );
@@ -281,8 +281,8 @@ subtest 'Caddy: the forum and the listen address' => sub {
     _line( $caddy->{text}, 'forum.walk.org {', 'answers the name' );
     _line(
         $caddy->{text},
-        '    reverse_proxy 127.0.0.1:9000 {',
-        'forwards to the application'
+        '    reverse_proxy unix//opt/gpforum/var/run/gpforum.sock {',
+        q{forwards to the service's socket, whatever the old setting said}
     );
     _line(
         $caddy->{text},

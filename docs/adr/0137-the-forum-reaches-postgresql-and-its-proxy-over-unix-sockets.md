@@ -111,8 +111,14 @@ does.
 ## Consequences
 
 - A host whose DSN still names `127.0.0.1` for a local server pays the TCP
-  costs above and needs a password; doctor says so.
+  costs above and needs a password. In staging and production doctor says
+  so (`database_socket`, degraded), with the `host=` to remove or set.
 - The proxy's account must be in the `gpforum` group to reach the socket.
+  `gpforum service print nginx` and `caddy` say so beside the site, with
+  the command for this operating system (`usermod -aG` on Linux, `pw
+  groupmod -m` on FreeBSD, `dseditgroup` on macOS); the site always
+  forwards to the socket, since the service refuses any other listener.
+  The TCP upstream that `ServiceFiles` derived from a TCP listener is gone.
 
 ## Verification
 
@@ -123,6 +129,8 @@ does.
 - `t/694-database-socket-names.t`: the socket a server is named by, in
   setup, doctor and the failure sentences, and a missing socket in both
   languages.
+- `t/695-socket-upgrade-path.t`: the TCP refusal in both languages, the
+  sites written for the socket, the group note, and the doctor finding.
 - `t/692-unix-listener.t`, `t/integration/postgres-unix-socket-clients.t`:
   the listener, its modes and the client addresses behind the proxy.
 

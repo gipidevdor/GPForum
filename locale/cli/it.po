@@ -1314,6 +1314,17 @@ msgstr ""
 "poi stampalo di nuovo."
 
 #, python-brace-format
+msgctxt "cli.service.proxy_group"
+msgid ""
+"The proxy reaches the forum through {socket}, which only the gpforum group "
+"may open: add {account}, the account {proxy} runs as, to the group and "
+"restart it: {join}"
+msgstr ""
+"Il proxy raggiunge il forum attraverso {socket}, che solo il gruppo gpforum "
+"può aprire: aggiungi {account}, l'account con cui gira {proxy}, al gruppo e "
+"riavvialo: {join}"
+
+#, python-brace-format
 msgctxt "cli.service.unknown_file"
 msgid ""
 "'{name}' is not one of {target}'s files ({names}), nor something gpforum "
@@ -1367,6 +1378,22 @@ msgid ""
 msgstr ""
 "Non c'è {file}, quindi le dipendenze non sono installate: le installa sudo "
 "bin/gpforum setup."
+
+#, python-brace-format
+msgctxt "cli.start.tcp_listen"
+msgid ""
+"gpforum start --service listens only on the service's Unix socket, and "
+"GPFORUM_RUNTIME_LISTEN names {listen}: the proxy reaches the forum through "
+"the socket, which only the gpforum group may open. Remove "
+"GPFORUM_RUNTIME_LISTEN {where} for the default, var/run/gpforum.sock under "
+"the code directory, or set it to an http+unix:// address."
+msgstr ""
+"gpforum start --service ascolta solo sul socket Unix del servizio, e "
+"GPFORUM_RUNTIME_LISTEN indica {listen}: il proxy raggiunge il forum "
+"attraverso il socket, che solo il gruppo gpforum può aprire. Togli "
+"GPFORUM_RUNTIME_LISTEN {where} per il valore predefinito, "
+"var/run/gpforum.sock sotto la directory del codice, oppure impostalo su un "
+"indirizzo http+unix://."
 
 msgctxt "cli.start_service"
 msgid "start GPForum's web service and its outbox worker"
@@ -1917,6 +1944,15 @@ msgctxt "doctor.database_problem"
 msgid "database: {problem}"
 msgstr "database: {problem}"
 
+#, python-brace-format
+msgctxt "doctor.database_tcp"
+msgid ""
+"database: reached over TCP at {server}, on this host: its Unix socket "
+"answers each statement in less time and needs no password (ADR 0137)"
+msgstr ""
+"database: raggiunto via TCP su {server}, su questo host: il suo socket Unix "
+"risponde a ogni istruzione in meno tempo e non chiede password (ADR 0137)"
+
 msgctxt "doctor.day"
 msgid "1 day"
 msgstr "1 giorno"
@@ -1975,6 +2011,15 @@ msgid ""
 msgstr ""
 "controlla GPFORUM_DATABASE_DSN, GPFORUM_DATABASE_USER e "
 "GPFORUM_DATABASE_PASSWORD {where}"
+
+#, python-brace-format
+msgctxt "doctor.fix_database_tcp"
+msgid ""
+"remove host={host} from GPFORUM_DATABASE_DSN {where}, or set it to the "
+"server's socket directory, host={directory}"
+msgstr ""
+"togli host={host} da GPFORUM_DATABASE_DSN {where}, oppure impostalo sulla "
+"directory del socket del server, host={directory}"
 
 #, python-brace-format
 msgctxt "doctor.fix_dns"

@@ -149,15 +149,18 @@ sub _hypnotoad ( $self, $words, $foreground ) {
         return $GPForum::Command::Usage::EXIT_FAILURE;
     }
 
+    # The service listens on its socket alone, which only its group opens
+    # (ADR 0137): a TCP address is refused before anything is made, in the
+    # operator's language, with the setting to change.
+    my @listen = @{ $self->app->config->{hypnotoad}{listen} // [] };
+    my ($tcp) =
+      grep { ( Mojo::URL->new($_)->scheme // q{} ) ne 'http+unix' } @listen;
+    return _refuse_tcp( $words, $tcp ) if defined $tcp;
+
     # A relative socket lives under the service's code directory. Only its
     # parent is made here; GPForum::OS::UnixListener binds the socket.
-    for my $listen ( @{ $self->app->config->{hypnotoad}{listen} // [] } ) {
-        my $url = Mojo::URL->new($listen);
-        croak
-          'Internal Hypnotoad listeners require Unix sockets (http+unix://);'
-          . ' set GPFORUM_RUNTIME_LISTEN to a Unix socket URL'
-          if ( $url->scheme // q{} ) ne 'http+unix';
-        path( url_unescape( $url->host ) )
+    for my $listen (@listen) {
+        path( url_unescape( Mojo::URL->new($listen)->host ) )
           ->dirname->make_path( { mode => $SOCKET_DIRECTORY_MODE } );
     }
 
@@ -187,6 +190,23 @@ sub _hypnotoad ( $self, $words, $foreground ) {
     umask $previous_umask;
 
     return 0;
+}
+
+# A TCP address for the service, said with what to set instead, and status
+# 1. It stopped with an English croak, a file and a line.
+sub _refuse_tcp ( $words, $listen ) {
+    my $file = GPForum::Command::Support::ServiceEnvironment->loaded;
+    my $where =
+      defined $file
+      ? $words->text( 'database.where_file', { path => $file } )
+      : $words->text('database.where_shell');
+    my $sentence =
+      $words->text( 'cli.start.tcp_listen',
+        { listen => $listen, where => $where } );
+    print {*STDERR} encode( 'UTF-8', "$sentence\n" )
+      or croak 'failed to write start failure';
+
+    return $GPForum::Command::Usage::EXIT_FAILURE;
 }
 
 # An address the daemon could not listen on -- one another process holds,

@@ -155,6 +155,9 @@ const my @TARGETS => qw(systemd rc launchd nginx caddy);
 const my %PROXY => (
     nginx => {
         linux => {
+            account => q{www-data},
+            join    =>
+q{sudo usermod -aG gpforum www-data && sudo systemctl restart nginx},
             directory => '/etc/nginx/sites-enabled',
             name      => 'gpforum',
             needs     => [qw(nginx certbot)],
@@ -163,6 +166,9 @@ const my %PROXY => (
             after       => ['sudo nginx -t && sudo systemctl reload nginx'],
         },
         freebsd => {
+            account => q{www},
+            join    =>
+              q{sudo pw groupmod gpforum -m www && sudo service nginx restart},
             directory   => '/usr/local/etc/nginx/conf.d',
             name        => 'gpforum.conf',
             needs       => [qw(nginx certbot)],
@@ -175,6 +181,9 @@ const my %PROXY => (
             make_parent => 1,
         },
         darwin => {
+            account => q{nobody},
+            join    =>
+q{sudo dseditgroup -o edit -a nobody -t user gpforum && sudo brew services restart nginx},
             directory   => '{prefix}/etc/nginx/servers',
             name        => 'gpforum.conf',
             needs       => [qw(nginx certbot)],
@@ -190,6 +199,9 @@ const my %PROXY => (
     },
     caddy => {
         linux => {
+            account => q{caddy},
+            join    =>
+              q{sudo usermod -aG gpforum caddy && sudo systemctl restart caddy},
             directory => '/etc/caddy',
             name      => 'Caddyfile',
             needs     => ['caddy'],
@@ -198,6 +210,9 @@ const my %PROXY => (
             notes     => ['cli.service.caddy_whole'],
         },
         freebsd => {
+            account => q{www},
+            join    =>
+              q{sudo pw groupmod gpforum -m www && sudo service caddy restart},
             directory => '/usr/local/etc/caddy',
             name      => 'Caddyfile',
             needs     => ['caddy'],
@@ -206,6 +221,9 @@ const my %PROXY => (
             notes     => ['cli.service.caddy_whole'],
         },
         darwin => {
+            account => q{"$USER"},
+            join    =>
+q{sudo dseditgroup -o edit -a "$USER" -t user gpforum && brew services restart caddy},
             directory => '{prefix}/etc',
             name      => 'Caddyfile',
             needs     => ['caddy'],
@@ -264,11 +282,6 @@ const my %WRITTEN => (
 const my @EXAMPLE_NAMES =>
   qw(example example.com example.net example.org invalid test localhost);
 const my $LOOPBACK => qr{\A (?: 127[.] | \[? ::1 \]? \z )}msx;
-
-# An address the application listens on every interface of, which the proxy
-# on this host reaches on the loopback.
-const my %ANY_ADDRESS =>
-  ( q{*} => '127.0.0.1', '0.0.0.0' => '127.0.0.1', q{[::]} => '[::1]' );
 
 # A file name a shell takes bare; any other is single-quoted.
 const my $SHELL_SAFE => qr{\A [\w/.,:@%+=-]+ \z}msx;
@@ -387,7 +400,7 @@ sub render ( $self, $target, $names = [], $directory = undef ) {
     return \@rendered;
 }
 
-# The canonical template for both Unix sockets and explicit TCP listeners.
+# The template a file is rendered from.
 sub template_of ( $self, $target, $file ) {
     return $file->{template};
 }
@@ -439,6 +452,21 @@ sub notes ( $self, $target ) {
     my $place = $self->_proxy_place($proxy);
     for my $key ( @{ $place->{notes} // [] } ) {
         push @notes, [ $key, { host => $host // $WRITTEN{$target}{host} } ];
+    }
+
+    # The socket is the gpforum group's alone (GPForum::OS::UnixListener):
+    # a proxy outside the group answers 502 for every page.
+    if ( defined $place->{join} ) {
+        push @notes,
+          [
+            'cli.service.proxy_group',
+            {
+                socket  => $self->service_socket,
+                account => $place->{account},
+                proxy   => $proxy,
+                join    => $place->{join},
+            }
+          ];
     }
 
     return \@notes;
@@ -624,11 +652,8 @@ sub _values ( $self, $target ) {
         $value{host}        = $self->_public_host;
         $value{attachments} = $self->_attachments;
         $value{letsencrypt} = $self->_letsencrypt;
-        my $socket = $self->_socket;
-        $value{upstream} =
-          defined $socket
-          ? ( $target eq 'caddy' ? "unix/$socket" : "unix:$socket" )
-          : $self->_upstream;
+        my $socket = $self->service_socket;
+        $value{upstream} = $target eq 'caddy' ? "unix/$socket" : "unix:$socket";
     }
 
     return %value;
@@ -699,25 +724,15 @@ sub _public_host ($self) {
       ->ihost;
 }
 
-# The first address GPFORUM_RUNTIME_LISTEN names over TCP, as the proxy on
-# this host reaches it; the template's when it names no port.
-sub _upstream ($self) {
-    my ($first) = split /\s*,\s*/msx,
-      $self->_setting('GPFORUM_RUNTIME_LISTEN') =~ s/\A\s+//rmsx;
-    my $url  = Mojo::URL->new( $first // q{} );
-    my $host = $url->host;
-    my $port = $url->port;
-    return '127.0.0.1:8080' if !defined $host || !defined $port;
-
-    return ( exists $ANY_ADDRESS{$host} ? $ANY_ADDRESS{$host} : $host )
-      . ":$port";
-}
-
-# The socket GPFORUM_RUNTIME_LISTEN names, or undef when it listens on TCP.
-sub _socket ($self) {
-    my ($encoded) = $self->_setting('GPFORUM_RUNTIME_LISTEN') =~
-      m{\A \s* http[+]unix:// ([^,?\s]+)}msx;
-    return undef if !defined $encoded;
+# The socket the proxy forwards to: the one GPFORUM_RUNTIME_LISTEN names, or
+# the default's when it names a TCP address, which the service refuses (ADR
+# 0137): the proxy is written for the socket the service will listen on.
+sub service_socket ($self) {
+    my $unix = qr{\A \s* http[+]unix:// ([^,?\s]+)}msx;
+    my ($encoded) = $self->_setting('GPFORUM_RUNTIME_LISTEN') =~ $unix;
+    if ( !defined $encoded ) {
+        ($encoded) = _default('GPFORUM_RUNTIME_LISTEN') =~ $unix;
+    }
 
     my $socket = url_unescape($encoded);
     return $socket =~ m{\A /}msx
@@ -742,6 +757,11 @@ sub _setting ( $self, $variable ) {
     my $value = $self->environment->{$variable};
     return $value if defined $value && length $value;
 
+    return _default($variable);
+}
+
+# GPForum's default for a setting.
+sub _default ($variable) {
     my $setting =
       first { $_->{env} eq $variable } @{ GPForum::Config->settings };
     return $setting ? $setting->{default} // q{} : q{};
@@ -955,7 +975,15 @@ A template's text with this host's values in place of the template's own.
 =head2 notes
 
 What to read beside a target's files, as C<[ key, parameters ]> pairs of the
-command-line catalog.
+command-line catalog. For a proxy, one says that its account joins the
+C<gpforum> group, which alone may open the service's socket, and the command
+that adds it on this operating system.
+
+=head2 service_socket
+
+The socket the proxy forwards to: the one C<GPFORUM_RUNTIME_LISTEN> names, under
+the code directory when it is relative, or the default's when the setting
+names a TCP address, which C<gpforum start --service> refuses.
 
 =head2 steps
 

@@ -242,13 +242,20 @@ sub _unix_sockets {
     is( umask, $original_umask, 'a mocked exec does not leak the umask' );
 
     $start->app->config( hypnotoad => { listen => ['http://127.0.0.1:8080'] } );
-    my $error;
-    try { $start->run('--service'); }
-    catch ($caught) { $error = $caught; };
+    my $said = q{};
+    my $status;
+    {
+        local $ENV{LC_ALL} = 'en_US.UTF-8';
+        open my $errors, '>', \$said or croak "capture: $OS_ERROR";
+        local *STDERR = $errors;
+        $status = $start->run('--service');
+        close $errors or croak "capture: $OS_ERROR";
+    }
+    is( $status, 1, 'a service cannot reopen an internal TCP listener' );
     like(
-        "$error",
-qr/Internal [ ] Hypnotoad [ ] listeners [ ] require [ ] Unix [ ] sockets/msx,
-        'a service cannot reopen an internal TCP listener'
+        $said,
+        qr/listens [ ] only [ ] on [ ] the [ ] service's/msx,
+        'and says why (t/695 has the rest)'
     );
 
     my $files = _files( 'linux', '/srv/forum' );

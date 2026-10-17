@@ -683,7 +683,10 @@ connect to and closed to other users. The service itself runs under umask
 proxy's account, which joins the group, reads them and cannot replace them.
 nginx and Caddy configurations printed with
 `gpforum service print` resolve the same path under the deployed code
-directory. There is one unit and one site: the `gpforum-unix-socket`
+directory, and say the command that adds the proxy's account (`www-data`,
+`caddy` or `www`) to the group. `gpforum start --service` refuses a TCP
+`GPFORUM_RUNTIME_LISTEN` and says what to set; the printed sites forward
+to the socket whatever that setting says. There is one unit and one site: the `gpforum-unix-socket`
 variants are gone, so a host that installed one installs `gpforum.service`
 and `gpforum.conf` in its place (ADR 0137).
 

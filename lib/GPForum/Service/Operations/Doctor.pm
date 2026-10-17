@@ -123,6 +123,11 @@ const my @UPGRADE_CHECKS => qw(dependencies database services);
 # The account the service files run GPForum as.
 const my $ACCOUNT => 'gpforum';
 
+# The environments a host serves members in, and the names a DSN gives this
+# host's PostgreSQL over TCP.
+const my %DEPLOYED => map { $_ => 1 } qw(staging production);
+const my %LOOPBACK => map { $_ => 1 } qw(127.0.0.1 localhost ::1);
+
 # Memory in the units an operator reads it in: tenths of a gigabyte below
 # ten, whole ones above, megabytes below one.
 const my $MEGABYTE        => 1_024**2;
@@ -515,8 +520,41 @@ sub _database ( $self, $state ) {
             }
         ],
     );
+    $self->_over_tcp( $state, $source );
     $self->_schema($state);
     $self->_budgets($state);
+
+    return;
+}
+
+# A deployed DSN that names the loopback, as the environment file had it
+# before the socket was the default: the server on this host is reached
+# over TCP, where each statement costs more and peer authentication cannot
+# tell the service from any other local account (ADR 0137).
+sub _over_tcp ( $self, $state, $source ) {
+    return if !exists $DEPLOYED{ $state->{config}->environment };
+    return if !exists $LOOPBACK{ lc $source->{host} };
+
+    my $os = $self->os // GPForum::OS->detect;
+    $state->{findings}->add(
+        name    => 'database_socket',
+        status  => 'degraded',
+        message =>
+          [ 'doctor.database_tcp', { server => $self->_server_name($source) } ],
+        fixes => [
+            [
+                'doctor.fix_database_tcp',
+                {
+                    host      => $source->{host},
+                    directory => $os->postgresql_socket_directory,
+                    where     => $self->_where(
+                        $self->_host_of($state),
+                        'GPFORUM_DATABASE_DSN'
+                    ),
+                }
+            ]
+        ],
+    );
 
     return;
 }

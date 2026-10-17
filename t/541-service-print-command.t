@@ -53,6 +53,11 @@ subtest 'one file prints alone, its steps beside it' => sub {
     is(
         $run->{errors},
         join( "\n",
+            q{! The proxy reaches the forum through}
+              . ' /opt/gpforum/var/run/gpforum.sock, which only the gpforum'
+              . ' group may open: add www-data, the account nginx runs as, to the'
+              . ' group and restart it: sudo usermod -aG gpforum www-data'
+              . ' && sudo systemctl restart nginx',
             'Next: put it in place:',
             '  sudo certbot certonly --nginx -d forum.walk.org',
             '  sudo gpforum service print nginx --to /etc/nginx/sites-enabled',

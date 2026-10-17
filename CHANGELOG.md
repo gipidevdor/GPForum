@@ -1940,6 +1940,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **The proxy closes an idle connection to the service before the service
+  does.** nginx kept an idle upstream connection for its default 60
+  seconds and Caddy for 2 minutes, and the service closes one after 5
+  (`GPFORUM_RUNTIME_KEEP_ALIVE_TIMEOUT`): a request sent down a connection
+  the service was closing failed, and nginx does not send a POST again.
+  The shipped site sets `keepalive_timeout 4s` in its upstream and the
+  Caddyfile `keepalive 4s` in its transport; print the site again with
+  `gpforum service print nginx` (or `caddy`) to take it.
 - **A burst of connections through the proxy no longer lands on one
   worker.** Since the listener moved to a Unix socket, connections the
   proxy opened at once were all queued when the first worker woke, and that

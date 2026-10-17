@@ -64,7 +64,12 @@ forum.example.com {
     }
     respond @metrics_remote 403
 
+    # The idle connection is Caddy's to close, before the service's
+    # GPFORUM_RUNTIME_KEEP_ALIVE_TIMEOUT (5 s) closes it under a request.
     reverse_proxy unix//opt/gpforum/var/run/gpforum.sock {
         header_up X-Forwarded-Proto {scheme}
+        transport http {
+            keepalive 4s
+        }
     }
 }

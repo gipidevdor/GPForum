@@ -188,13 +188,44 @@ sub _configure_compression ($application) {
             return if $headers->content_encoding;
 
             $headers->content_encoding('gzip');
-            ${$output} = _gzip( ${$output} );
+            ${$output} =
+              $headers->header('X-GPForum-Source')
+              ? _gzip_shared( $headers->etag, ${$output} )
+              : _gzip( ${$output} );
 
             return;
         }
     );
 
     return;
+}
+
+# A page the public cache answers is the same bytes for every guest until
+# it changes, and was gzipped again for each: 0.12 ms of the 0.87 a cached
+# thread page took. Its gzipped bytes are kept by its ETag beside the bytes
+# they were made from, and given again only for those same bytes; at most
+# twice $GZIPPED_PAGES pages, in two generations, as Web::PostFragments
+# keeps its entries. Only a public cache's page comes here: its bytes are
+# the same for whoever asks, and so are these.
+const my $GZIPPED_PAGES => 32;
+my %GZIPPED = ( current => {}, older => {} );
+
+sub _gzip_shared ( $etag, $plain ) {
+    return _gzip($plain) if !defined $etag;
+
+    my $kept = $GZIPPED{current}{$etag} // $GZIPPED{older}{$etag};
+    if ( $kept && $kept->[0] eq $plain ) {
+        $GZIPPED{current}{$etag} = $kept;
+        return $kept->[1];
+    }
+    if ( keys %{ $GZIPPED{current} } >= $GZIPPED_PAGES ) {
+        $GZIPPED{older}   = $GZIPPED{current};
+        $GZIPPED{current} = {};
+    }
+    my $gzipped = _gzip($plain);
+    $GZIPPED{current}{$etag} = [ $plain, $gzipped ];
+
+    return $gzipped;
 }
 
 my $DEFLATE;

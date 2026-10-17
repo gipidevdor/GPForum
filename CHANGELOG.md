@@ -1140,6 +1140,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **A page from the public cache is gzipped once, not for every guest.**
+  Each hit gzipped the same bytes again: 0.12 ms of the 0.87 a cached
+  thread page took. The gzipped bytes are kept by the page's ETag beside
+  the bytes they came from, and given again only for those bytes; at most
+  64 pages a process, in two generations (`GPForum::Bootstrap::Core`,
+  `t/704`). Gzip stays in the application, so every proxy, and none, gets
+  the same response (docs/PERFORMANCE.md).
 - **A thread page walks its posts once for the reader's forms.** The five
   command id maps of a member's own posts (edit, upload, delete, report,
   restore) each walked the page's posts again for them, and the likes, the

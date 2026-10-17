@@ -577,6 +577,8 @@ sub thread_page_payload ( $self, $page, $user_id ) {
 
 sub _thread_page_payload ( $self, $page, $user_id ) {
     my $posts            = $page->{posts}{items};
+    my $post_ids         = [ $self->_post_ids($posts) ];
+    my $own              = $self->_own_post_ids( $page, $user_id );
     my $attachments      = $self->attachments_for_posts($posts);
     my $move_command_id  = $self->_thread_edit_command_id( $page, $user_id );
     my $reply_command_id = $user_id ? $self->_new_command_id : q{};
@@ -588,10 +590,9 @@ sub _thread_page_payload ( $self, $page, $user_id ) {
     return $self->gp_forum_view_model->thread_page(
         attachment_delete_command_ids =>
           $self->_attachment_delete_command_ids( $attachments, $user_id ),
-        attachment_upload_command_ids =>
-          $self->_edit_command_ids( $page, $user_id ),
-        attachments_by_post => $attachments,
-        engagement          => $self->gp_forum_view_model->engagement_summary(
+        attachment_upload_command_ids => $self->_command_ids_for($own),
+        attachments_by_post           => $attachments,
+        engagement => $self->gp_forum_view_model->engagement_summary(
             %{ $self->_community_command_ids($user_id) },
             bookmark_store     => $self->gp_bookmark_store,
             logger             => $self->app->log,
@@ -602,14 +603,14 @@ sub _thread_page_payload ( $self, $page, $user_id ) {
         metadata_builder => $self->gp_metadata_builder,
         page             => $page,
         reply_command_id => $reply_command_id,
-        edit_command_ids => $self->_edit_command_ids( $page, $user_id ),
-        likes            => $self->_post_likes( $posts, $user_id ),
-        reply_targets    => $self->_reply_targets($posts),
+        edit_command_ids => $self->_command_ids_for($own),
+        likes            => $self->_post_likes( $post_ids, $user_id ),
+        reply_targets    => $self->_reply_targets($post_ids),
         thread_tags      => $self->gp_tags_for_threads( [ $page->{thread} ] ),
-        like_command_ids => $self->_post_command_ids( $posts, $user_id ),
-        delete_command_ids     => $self->_edit_command_ids( $page, $user_id ),
-        report_command_ids     => $self->_edit_command_ids( $page, $user_id ),
-        restore_command_ids    => $self->_edit_command_ids( $page, $user_id ),
+        like_command_ids => $user_id ? $self->_command_ids_for($post_ids) : {},
+        delete_command_ids     => $self->_command_ids_for($own),
+        report_command_ids     => $self->_command_ids_for($own),
+        restore_command_ids    => $self->_command_ids_for($own),
         edit_thread_command_id =>
           $self->_thread_edit_command_id( $page, $user_id ),
         delete_thread_command_id =>
@@ -640,19 +641,17 @@ sub _thread_page_payload ( $self, $page, $user_id ) {
 }
 
 # The likes on the page's posts, counted for every reader, with whether the
-# viewer gave one; and, for a signed-in reader, a command id per post for
-# the like they may give or take back.
-sub _post_likes ( $self, $posts, $user_id ) {
-    my @ids = $self->_post_ids($posts);
-    return {} if !@ids;
-    return $self->gp_like_store->summary_for_posts( \@ids, $user_id );
+# viewer gave one. A signed-in reader's like form under each post has a
+# command id of its own (like_command_ids).
+sub _post_likes ( $self, $post_ids, $user_id ) {
+    return {} if !@{$post_ids};
+    return $self->gp_like_store->summary_for_posts( $post_ids, $user_id );
 }
 
 # Which post each post on the page answers (ADR 0132), for every reader.
-sub _reply_targets ( $self, $posts ) {
-    my @ids = $self->_post_ids($posts);
-    return {} if !@ids;
-    return $self->gp_reply_links->targets_for_posts( \@ids );
+sub _reply_targets ( $self, $post_ids ) {
+    return {} if !@{$post_ids};
+    return $self->gp_reply_links->targets_for_posts($post_ids);
 }
 
 # "Reply" under a post asks for the page with ?reply_to=POST_ID ("Quote"
@@ -674,11 +673,6 @@ sub _reply_into_composer ( $self, $posts ) {
         post_id  => $wanted,
     };
     return;
-}
-
-sub _post_command_ids ( $self, $posts, $user_id ) {
-    return {} if !$user_id;
-    return { map { $_ => $self->_new_command_id } $self->_post_ids($posts) };
 }
 
 sub _post_ids ( $self, $posts ) {
@@ -749,13 +743,14 @@ sub fresh_composer_draft ( $self, $kind, $command_id, %context ) {
     return;
 }
 
-# A command id for each post the reader wrote.
-sub _edit_command_ids ( $self, $page, $user_id ) {
-    if ( !$user_id ) {
-        return {};
-    }
+# The ids of the posts on the page the reader wrote, read once: each of the
+# five forms a post of theirs carries (edit, upload, delete, report,
+# restore) has a command id of its own, and each used to walk the page's
+# posts again for them.
+sub _own_post_ids ( $self, $page, $user_id ) {
+    return [] if !$user_id;
 
-    my %ids;
+    my @ids;
     for my $row ( @{ $page->{posts}{items} || [] } ) {
         my $author = $self->_column( $row, 'author_user_id' );
         next if !$author || $author ne $user_id;
@@ -763,10 +758,15 @@ sub _edit_command_ids ( $self, $page, $user_id ) {
         my $post_id = $self->_column( $row, 'post_id' );
         next if !$post_id;
 
-        $ids{$post_id} = $self->_new_command_id;
+        push @ids, $post_id;
     }
 
-    return \%ids;
+    return \@ids;
+}
+
+# A fresh command id for each of the ids.
+sub _command_ids_for ( $self, $ids ) {
+    return { map { $_ => $self->_new_command_id } @{$ids} };
 }
 
 sub _attachment_delete_command_ids ( $self, $by_post, $user_id ) {

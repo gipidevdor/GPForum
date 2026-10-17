@@ -1140,6 +1140,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Changed
 
+- **A thread page walks its posts once for the reader's forms.** The five
+  command id maps of a member's own posts (edit, upload, delete, report,
+  restore) each walked the page's posts again for them, and the likes, the
+  reply targets and the like forms each read the posts' ids again; the
+  page now reads them once each.
 - **An id costs 1.6 µs instead of 3.8.** `GPForum::Infrastructure::Id`
   read ten random bytes with a read of its own for every id and built it as
   a list of numbers; it reads 4 KiB at a time, dropped by a forked process

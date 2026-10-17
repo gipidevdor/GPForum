@@ -205,7 +205,7 @@ jobs:
           perl script/performance-evidence init --output "$PERF_OUTPUT/connections-5000" --mode pr
           script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT/connections-5000" \
             --mode pr --generator wrk --disposable-database --concurrency 1000,5000 --allow-5000 \
-            --scenario health_live --workers 4 --wrk-timeout 3 --duration 10 --repetitions 3 --deadline 180
+            --scenario health_live --workers 4 --wrk-timeout 3 --duration 10 --repetitions 3 --deadline 300
 
       - name: Fetch historical baseline data
         if: ${{ !cancelled() && github.event_name != 'pull_request' }}
@@ -278,7 +278,8 @@ jobs:
 
       - name: Keep deterministic and infrastructure failures visible
         if: always()
-        run: perl script/performance-workflow-status --output "$PERF_OUTPUT" --check
+        # The connection gate is all or nothing: its own summary must be ok.
+        run: perl script/performance-workflow-status --output "$PERF_OUTPUT" --check --gate "$PERF_OUTPUT/connections-5000"
 
   publish:
     name: Publish immutable performance history

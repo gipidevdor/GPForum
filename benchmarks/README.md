@@ -35,7 +35,9 @@ measurement and participates in its compatibility fingerprint.
 
 The job has a 40-minute limit. The HTTP harness has separate wall-clock
 limits of 4/10/20 minutes for PR/main/deep, stops higher concurrency after
-errors or saturation, and reports unfinished cells as skipped. SQL/outbox/
+errors or saturation, and reports unfinished cells as skipped. The
+1,000/5,000-connection gate below is the exception: it measures every level
+it plans, and an unmeasured cell fails it. SQL/outbox/
 profiling collection has a separate total deadline of 3/5/10 minutes for
 PR/main/deep; command timeouts are capped by remaining time and remaining
 tests are explicitly skipped after exhaustion. The
@@ -200,13 +202,41 @@ raw generator logs are included in the candidate artifact and Job Summary.
 The runner raises its file limit to 32,768; the harness requires at least
 16,384 and permits 5,000 clients per worker for this explicit stress test.
 The stress listener backlog and the runner's accept/SYN queue limits are
-8,192, so the initial 5,000-connection burst is queued. This stress comparison
-uses an explicit three-second response timeout at both connection levels;
-the ordinary HTTP sweep retains its three-second default. Zero HTTP and
-transport errors are required. The timeout is recorded in the report and
+8,192, so the initial 5,000-connection burst is queued. The gate refuses to
+measure when `net.core.somaxconn` is below the burst, and records the
+kernel's `ListenOverflows` and `ListenDrops` across each sample. This stress
+comparison uses an explicit three-second response timeout at both connection
+levels; the ordinary HTTP sweep retains its three-second default. Zero HTTP
+and transport errors are required. The timeout is recorded in the report and
 configuration, and failed samples remain available in history.
 `wrk` connection counts are configured connections, not measured in-flight
 requests or virtual users.
+
+The gate is all or nothing (ADR 0063). It does not apply the sweep's
+saturation stop: a slow 1,000 is evidence, not a reason to leave 5,000
+unmeasured, and a planned cell or repetition that was not measured fails the
+suite. The final CI step reads the gate's own summary
+(`performance-workflow-status --check --gate DIR`), which must be `ok`, not
+`partial`. Before each sample, a three-second pass at the same concurrency,
+not counted in the sample, warms the workers; its own figures stay in the
+row, and the sample still opens all its connections at once. On Linux the
+row also carries each worker's connections halfway through the sample.
+
+Each 5,000 sample records its margin to the budget and whether the runner
+could meet the bar at all. A closed loop of N connections served at R
+requests/s waits N/R on average; a Mojolicious worker serves the requests
+ready in one event-loop turn and writes their responses in the next, so a
+request that just missed a turn waits two, 2N/R. Three seconds hold that
+from 3,334 requests/s at 5,000 connections. The hosted four-CPU runners do
+not all reach it: in 60 samples from 20 runs on 2026-10-16/17,
+`/health/live` served 5,970-6,560 requests/s on AMD EPYC 9V45 hosts and
+3,240-4,470 on EPYC 9V74, with no timeouts, but 2,790-3,190 on EPYC 7763 and
+Xeon 8370C/8573C hosts, where the p99 reached 2.9 s and 23 of 42 samples
+timed out; none above 3,110 requests/s did.
+Timeouts on a sample below 3,334 requests/s are reported as
+`runner_below_bar`: the gate fails, and the report says the runner cannot
+hold 5,000 connections within three seconds rather than passing. Raising
+what a worker serves per second is what moves that line.
 
 Use a disposable PostgreSQL cluster/database named `gpforum_perf_*`, never
 the application database. The database role needs CREATE DATABASE for the

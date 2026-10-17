@@ -2965,6 +2965,19 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **The 5,000-connection gate can no longer pass without measuring 5,000
+  connections, and says when the runner cannot meet its bar (ADR 0063).**
+  A p95 over two seconds at 1,000 used to skip every 5,000 sample as
+  saturation, leave the suite `partial` and exit 0, and the final check read
+  only the main summary. Now the gate measures every cell it plans, an
+  unmeasured one fails it, and the check also requires the gate's own
+  summary to be `ok`. It refuses a `somaxconn` shorter than the burst,
+  records the listen-queue drops, warms the workers at the measured
+  concurrency and records each worker's connections. Each sample records its
+  margin to the three-second budget and the throughput two event-loop turns
+  need to fit it, 3,334 requests/s at 5,000 connections: the EPYC 7763 and
+  Xeon hosts serve 2,790-3,190 and timed out in 23 of 42 samples, so a
+  timeout there is reported as `runner_below_bar` and still fails.
 - **`script/bench-socket` measures the hot pages through the listener the
   service runs, under concurrent clients.** Each side is a checkout with
   its own database, migrated and seeded with the medium profile by its own

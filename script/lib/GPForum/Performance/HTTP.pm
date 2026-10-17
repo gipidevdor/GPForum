@@ -13,12 +13,13 @@ use File::Path qw(make_path);
 use File::Spec;
 use Digest::SHA  qw(sha256_hex);
 use Scalar::Util qw(looks_like_number);
-use POSIX        qw(isfinite sysconf _SC_CLK_TCK _SC_OPEN_MAX uname);
+use POSIX        qw(isfinite sysconf _SC_CLK_TCK _SC_OPEN_MAX uname _exit);
+use Time::HiRes  qw(sleep);
 use List::Util   qw(min max sum any);
 use GPForum::Performance::Support
   qw(root_dir read_json write_json redact monotonic run_bounded);
 our @EXPORT_OK =
-  qw(scenarios free_port probe_url probe_reactor native_backend_flags wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes);
+  qw(scenarios free_port probe_url probe_reactor native_backend_flags wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes listen_queue_limit parse_listen_counters connection_spread);
 my @ORDER =
   qw(health_live home categories category thread search cache_hit cache_miss);
 ## no critic (ValuesAndExpressions::ProhibitConstantPragma) -- Core-only bootstrap cannot load Readonly before Carton dependencies.
@@ -69,6 +70,9 @@ use constant {
     HTTP_OK                  => 200,
     HTTP_ERROR_MIN           => 400,
     REQUEST_TIMEOUT          => 3,
+    WORST_CASE_TURNS         => 2,
+    STRESS_WARMUP_SECONDS    => 3,
+    MS_PER_SECOND            => 1000,
 };
 ## use critic
 my %SCENARIOS = (
@@ -171,6 +175,56 @@ sub memory_bytes {
         return 0 + $1 if defined $value && $value =~ /\A\s*(\d+)\s*\z/msx;
     }
     return 0;
+}
+
+# The kernel's cap on any listen backlog (Linux), or undef where unknown.
+sub listen_queue_limit {
+    my $path = '/proc/sys/net/core/somaxconn';
+    return undef if !-r $path;
+    my ($limit) = bytes($path) =~ /(\d+)/msx;
+    return defined $limit ? 0 + $limit : undef;
+}
+
+# ListenOverflows and ListenDrops from /proc/net/netstat text: connects the
+# accept queue had no room for, which the client retries a second later.
+sub parse_listen_counters ($text) {
+    my @lines = grep { /\ATcpExt:/msx } split /\n/msx, $text;
+    return undef if @lines < 2;
+    my %row;
+    @row{ split /\s+/msx, $lines[0] } = split /\s+/msx, $lines[1];
+    return undef
+      if !defined $row{ListenOverflows} || !defined $row{ListenDrops};
+    return {
+        listen_overflows => 0 + $row{ListenOverflows},
+        listen_drops     => 0 + $row{ListenDrops},
+    };
+}
+
+sub listen_counters {
+    return -r '/proc/net/netstat'
+      ? parse_listen_counters( bytes('/proc/net/netstat') )
+      : undef;
+}
+
+# Open sockets per worker (Linux), or undef when a worker cannot be read.
+sub worker_sockets ($pids) {
+    my %count;
+    for my $pid ( $pids->@* ) {
+        opendir my $fds, "/proc/$pid/fd" or return undef;
+        $count{$pid} =
+          grep { ( readlink("/proc/$pid/fd/$_") // q{} ) =~ /\Asocket:/msx }
+          readdir $fds;
+        closedir $fds or return undef;
+    }
+    return \%count;
+}
+
+# Client connections per worker, largest first: busy sockets less idle ones.
+sub connection_spread ( $idle, $busy ) {
+    return [
+        reverse sort { $a <=> $b }
+          map { max( 0, $busy->{$_} - ( $idle->{$_} // 0 ) ) } keys $busy->%*
+    ];
 }
 
 sub free_port {
@@ -555,9 +609,11 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
         read_rate_limit   => RATE_LIMIT,
         database_settings => $pg->{database_settings},
         backlog => $args->{allow_5000} ? STRESS_BACKLOG : DEFAULT_BACKLOG,
-        clients_per_worker => $args->{allow_5000}
-        ? CONCURRENCY_STRESS
+        clients_per_worker => $args->{allow_5000} ? CONCURRENCY_STRESS
         : DEFAULT_CLIENTS,
+        listen_queue_limit    => listen_queue_limit(),
+        stress_warmup_seconds => $args->{allow_5000} ? STRESS_WARMUP_SECONDS
+        : undef,
         http_scenarios => $args->{scenarios} // [@ORDER],
         fixed_workers  => $args->{workers},
         mojo_requests  => 'at least 100 total; at least 10 per client'
@@ -578,48 +634,26 @@ sub wrk_measure ( $server, $cell, $args, $log, $deadline ) {
         $cell->{cache_mode} eq 'miss'    ? 'miss'
       : $cell->{scenario} eq 'cache_hit' ? 'hit'
       :                                    undef;
-    my $warmed = 0;
-    for ( 1 .. MOJO_MIN_REQUESTS ) {
-        if ( monotonic() + $args->{duration} + GENERATOR_MARGIN > $deadline ) {
-            croak 'suite deadline during cache warmup';
-        }
-        my ( undef, $state ) = probe_url($canonical);
-        $warmed =
-          !$expected || ( $state // q{} ) eq $expected ? $warmed + 1 : 0;
-        if ( $warmed >=
-            max( MIN_WARMUP, $server->{workers} * WARMUP_PER_WORKER ) )
-        {
-            last;
-        }
-    }
-    if (   $expected
-        && $warmed < max( MIN_WARMUP, $server->{workers} * WARMUP_PER_WORKER ) )
-    {
-        croak "cache policy $expected could not be verified";
-    }
+    _warm_cache( $server, $canonical, $expected, $args, $deadline );
+    my $stress =
+      $args->{allow_5000}
+      ? _stress_start( $server, $canonical, $cell, $args, $log, $deadline )
+      : undef;
     my $telemetry = $server->telemetry;
     my $before    = linux_cpu_ticks( $server->{master} );
     my $started   = monotonic();
-    my $raw       = run_bounded(
-        [
-            'wrk', '--latency',
-            '-t',  min( 2, $cell->{concurrency} ),
-            '-c',  $cell->{concurrency},
-            '-d',  "$args->{duration}s",
-            '--timeout', ( $args->{wrk_timeout} // REQUEST_TIMEOUT ) . 's',
-            '-s', root_dir() . '/benchmarks/wrk-metrics.lua',
-            $canonical
-        ],
-        {
-            timeout =>
-              min( $args->{duration} + GENERATOR_MARGIN, $deadline - $started ),
-            log => $log
+    my $run       = _attempt(
+        sub {
+            _wrk( $canonical, $cell->{concurrency}, $args->{duration}, $args,
+                $log, $deadline );
         }
     );
-    my $elapsed  = monotonic() - $started;
+    my $elapsed = monotonic() - $started;
+    my $extra   = $stress ? _stress_finish($stress) : {};
+    croak $run->{error} if !$run->{ok};
     my $after    = linux_cpu_ticks( $server->{master} );
     my $snapshot = process_snapshot( $server->{master} );
-    my $metrics  = parse_wrk($raw);
+    my $metrics  = $run->{value};
     $metrics->{concurrency_effective} = undef;
     my ( $resources, $source ) =
       resources_between( $before, $after, $elapsed, $snapshot );
@@ -644,9 +678,132 @@ sub wrk_measure ( $server, $cell, $args, $log, $deadline ) {
             cpu_source         => $source,
             rss_source => 'ps manager+workers resident memory at end; not peak',
             validation_error       => $validation,
-            generator_wall_seconds => $elapsed
+            generator_wall_seconds => $elapsed,
+            $extra->%*,
         }
     );
+}
+
+sub _warm_cache ( $server, $canonical, $expected, $args, $deadline ) {
+    my $needed = max( MIN_WARMUP, $server->{workers} * WARMUP_PER_WORKER );
+    my $warmed = 0;
+    for ( 1 .. MOJO_MIN_REQUESTS ) {
+        if ( monotonic() + _cell_seconds($args) > $deadline ) {
+            croak 'suite deadline during cache warmup';
+        }
+        my ( undef, $state ) = probe_url($canonical);
+        $warmed =
+          !$expected || ( $state // q{} ) eq $expected ? $warmed + 1 : 0;
+        last if $warmed >= $needed;
+    }
+    if ( $expected && $warmed < $needed ) {
+        croak "cache policy $expected could not be verified";
+    }
+    return undef;
+}
+
+# Before a gate sample: the warm-up pass, the listen queue's counters and the
+# sampler of each worker's connections.
+sub _stress_start ( $server, $canonical, $cell, $args, $log, $deadline ) {
+    my $warmup = _warmup( $canonical, $cell, $args, "$log.warmup", $deadline );
+    return {
+        warmup  => $warmup,
+        listen  => listen_counters(),
+        path    => "$log.spread.json",
+        sampler =>
+          _spread_sampler( $server, $args->{duration} / 2, "$log.spread.json" ),
+    };
+}
+
+# After it, even a failed one: the sampler reaped and what the run cost.
+sub _stress_finish ($stress) {
+    my $spread = _spread_result( $stress->@{qw(sampler path)} );
+    my $queue  = _listen_delta( $stress->{listen}, listen_counters() );
+    return {
+        warmup => $stress->{warmup},
+        ( $queue  ? $queue->%*                            : () ),
+        ( $spread ? ( connections_per_worker => $spread ) : () ),
+    };
+}
+
+# Wall-clock seconds one wrk cell needs, its stress warm-up included.
+sub _cell_seconds ($args) {
+    return $args->{duration} + GENERATOR_MARGIN +
+      ( $args->{allow_5000} ? STRESS_WARMUP_SECONDS + GENERATOR_MARGIN : 0 );
+}
+
+sub _wrk ( $url, $concurrency, $seconds, $args, $log, $deadline ) {
+    return parse_wrk(
+        run_bounded(
+            [
+                'wrk',
+                '--latency',
+                '-t',
+                min( 2, $concurrency ),
+                '-c',
+                $concurrency,
+                '-d',
+                "${seconds}s",
+                '--timeout',
+                ( $args->{wrk_timeout} // REQUEST_TIMEOUT ) . 's',
+                '-s',
+                root_dir() . '/benchmarks/wrk-metrics.lua',
+                $url
+            ],
+            {
+                timeout =>
+                  min( $seconds + GENERATOR_MARGIN, $deadline - monotonic() ),
+                log => $log
+            }
+        )
+    );
+}
+
+# A short unrecorded pass at the measured concurrency grows every worker's
+# buffers for that many connections before the sample. Its own figures stay
+# in the row; the measured run still opens all its connections from cold.
+sub _warmup ( $url, $cell, $args, $log, $deadline ) {
+    my $metrics =
+      _wrk( $url, $cell->{concurrency}, STRESS_WARMUP_SECONDS, $args, $log,
+        $deadline );
+    return {
+        seconds => STRESS_WARMUP_SECONDS,
+        map { $_ => $metrics->{$_} }
+          qw(completed http_errors transport_errors p99_ms)
+    };
+}
+
+sub _listen_delta ( $before, $after ) {
+    return undef if !$before || !$after;
+    return { map { $_ => $after->{$_} - $before->{$_} } keys $after->%* };
+}
+
+# Counts each worker's sockets halfway through the run from a child, since
+# the generator blocks this process; Linux only.
+sub _spread_sampler ( $server, $delay, $path ) {
+    return undef if $OS ne 'Linux';
+    my $pids = process_snapshot( $server->{master} )->{worker_pids};
+    my $idle = worker_sockets($pids);
+    return undef if !$idle;
+    my $pid = fork;
+    return undef if !defined $pid;
+    if ( !$pid ) {
+        sleep $delay;
+        my $busy = worker_sockets($pids);
+        my $ok   = _attempt(
+            sub {
+                $busy && write_json( $path, connection_spread( $idle, $busy ) );
+            }
+        );
+        _exit( $ok->{ok} ? 0 : 1 );
+    }
+    return $pid;
+}
+
+sub _spread_result ( $pid, $path ) {
+    return undef if !$pid;
+    waitpid $pid, 0;
+    return -f $path ? read_json($path) : undef;
 }
 
 sub mojo_measure ( $server, $cell, $args, $log, $deadline ) {
@@ -999,9 +1156,14 @@ sub _cell ( $state, $group, $cell ) {
     my $args   = $state->{args};
     my $stop   = join q{:}, $cell->{scenario}, $group->{reactor},
       $group->{workers};
-    if ( $cell->{concurrency} > ( $state->{saturation}{$stop} // UNBOUNDED_CAP )
-        || $state->{deadline} - monotonic() <
-        $args->{duration} + GENERATOR_MARGIN )
+
+    # The 5000-connection gate measures every level it plans: a slow 1000
+    # is evidence, not a reason to leave 5000 unmeasured.
+    my $saturated = !$args->{allow_5000}
+      && $cell->{concurrency} >
+      ( $state->{saturation}{$stop} // UNBOUNDED_CAP );
+    if (   $saturated
+        || $state->{deadline} - monotonic() < _cell_seconds($args) )
     {
         push $state->{skips}->@*,
           {
@@ -1035,6 +1197,7 @@ sub _cell ( $state, $group, $cell ) {
             my $context =
 "$cell->{scenario} $group->{reactor}/$group->{workers}/$cell->{concurrency}";
             my $errors = _mark_errors( $state, $row, $context );
+            if ( $args->{allow_5000} ) { _budget( $row, $args, $errors ); }
             if (
                 $errors > max( 1,
                     ( $metrics->{completed} + $metrics->{transport_errors} ) *
@@ -1069,6 +1232,39 @@ sub _cell ( $state, $group, $cell ) {
     }
     return undef;
 }
+
+# Where a gate sample sits against the wrk timeout. A closed loop of N
+# connections served at R requests/s waits N/R on average (Little's law).
+# A Mojolicious worker serves the requests ready in one event-loop turn and
+# writes their responses in the next, so the loop runs in turns about N/R
+# long, and a request that just missed one waits that turn and its own: the
+# worst case is two turns. Above the budget, the runner cannot meet the bar
+# and its timeouts are capacity, not noise (ADR 0063).
+sub _budget ( $row, $args, $errors ) {
+    my $metrics = $row->{metrics};
+    my $seconds = $args->{wrk_timeout} // REQUEST_TIMEOUT;
+    my $budget  = $seconds * MS_PER_SECOND;
+    my $floor =
+      $row->{concurrency} * MS_PER_SECOND / $metrics->{requests_per_second};
+    my $worst = $floor * WORST_CASE_TURNS;
+    $row->{budget} = {
+        budget_ms            => $budget,
+        p99_ms               => $metrics->{p99_ms},
+        margin_ms            => _whole( $budget - $metrics->{p99_ms} ),
+        closed_loop_floor_ms => _whole($floor),
+        worst_case_ms        => _whole($worst),
+        required_rps         => int(
+            ( WORST_CASE_TURNS * $row->{concurrency} + $seconds - 1 ) /
+              $seconds
+        ),
+    };
+    if ( $errors && $worst > $budget ) {
+        $row->{failure_kind} = 'runner_below_bar';
+    }
+    return undef;
+}
+
+sub _whole ($value) { return 0 + sprintf '%.0f', $value }
 
 sub _mojo_comparisons ( $state, $group ) {
     if (   $state->{generator} ne 'wrk'
@@ -1197,11 +1393,69 @@ sub _matrix ($state) {
     return undef;
 }
 
+# Every planned cell and repetition of the gate the run did not measure.
+sub _missing_cells ($state) {
+    return () if !$state->{args}{allow_5000};
+    my %measured =
+      map {
+        join( q{/}, $_->@{qw(scenario workers concurrency repetition)} ) => 1
+      } $state->{measurements}->@*;
+    my @missing;
+    for my $repetition ( 1 .. $state->{args}{repetitions} ) {
+        for my $cell ( $state->{cells}->@* ) {
+            my $name = join q{/}, $cell->@{qw(scenario workers concurrency)};
+            if ( !$measured{"$name/$repetition"} ) {
+                push @missing, "$name repetition $repetition was not measured";
+            }
+        }
+    }
+    return @missing;
+}
+
+sub _gate_limitations ($state) {
+    return () if !$state->{args}{allow_5000};
+    my %levels;
+    for my $row ( grep { $_->{budget} } $state->{measurements}->@* ) {
+        push $levels{ $row->{concurrency} }->@*, $row;
+    }
+    my @lines;
+    for my $concurrency ( sort { $a <=> $b } keys %levels ) {
+        my @rows    = $levels{$concurrency}->@*;
+        my $limits  = $rows[0]{budget};
+        my $p99     = max map { $_->{budget}{p99_ms} } @rows;
+        my $rps     = min map { $_->{metrics}{requests_per_second} } @rows;
+        my $worst   = max map { $_->{budget}{worst_case_ms} } @rows;
+        my $busiest = max map {
+            $_->{connections_per_worker} ? $_->{connections_per_worker}[0] : 0
+        } @rows;
+        push @lines,
+          sprintf
+'%d connections: p99 up to %.0f ms in %d samples against the %d ms budget (margin %.0f ms); at the slowest %.0f requests/s a request can wait two %.0f ms event-loop turns, %.0f ms, and the budget holds that from %d requests/s%s.',
+          $concurrency, $p99, scalar @rows, $limits->{budget_ms},
+          $limits->{budget_ms} - $p99, $rps, $worst / WORST_CASE_TURNS,
+          $worst, $limits->{required_rps},
+          $busiest ? "; the busiest worker held $busiest connections" : q{};
+        if ( any { ( $_->{failure_kind} // q{} ) eq 'runner_below_bar' } @rows )
+        {
+            push @lines,
+              sprintf
+'This runner cannot hold %d connections within %d ms: it served %.0f requests/s, below the %d the budget needs; its timeouts are its capacity.',
+              $concurrency, $limits->{budget_ms}, $rps,
+              $limits->{required_rps};
+        }
+    }
+    return @lines;
+}
+
 sub _finish ($state) {
+    my @missing = _missing_cells($state);
+    push $state->{failures}->@*, @missing;
     my $incomplete = $state->{failures}->@*
       || any { $_->{reason} =~ /deadline/msx } $state->{skips}->@*;
     my $status =
-      !$state->{measurements}->@* ? 'failed' : $incomplete ? 'partial' : 'ok';
+       !$state->{measurements}->@* || @missing ? 'failed'
+      : $incomplete                            ? 'partial'
+      :                                          'ok';
     my @limitations = (
         'Configured wrk latency budget: '
           . ( $state->{args}{wrk_timeout} // REQUEST_TIMEOUT )
@@ -1211,6 +1465,7 @@ sub _finish ($state) {
 'RSS is end-of-sample manager+workers residency, not peak; PostgreSQL and generator resources are separate.',
 'Cache hits/misses verified by probes; warmed worker-local SSR cache; cache miss uses harness-only expiry policy.',
 'Only anonymous GETs; migrations, seed and rate-limit accounting write only the dedicated disposable database.',
+        _gate_limitations($state),
     );
     if ( $state->{generator} ne 'wrk' ) {
         push @limitations,
@@ -1239,6 +1494,18 @@ sub _finish ($state) {
         $state->{skips}
     );
     return $state->{failures}->@* || !$state->{measurements}->@* ? 1 : 0;
+}
+
+# The gate measures a burst the listen queue can hold, or nothing: a shorter
+# kernel cap would turn queued connects into retries a second later.
+sub _listen_queue ($state) {
+    my $limit = listen_queue_limit();
+    my $burst = max( 0, map { $_->{concurrency} } $state->{cells}->@* );
+    if ( defined $limit && $limit < $burst ) {
+        croak
+"net.core.somaxconn is $limit, below the $burst-connection burst the gate measures";
+    }
+    return undef;
 }
 
 sub _selected_plan ( $args, $skips ) {
@@ -1316,6 +1583,7 @@ sub main (@argv) {
             my $environment = runtime_environment( $pg, $dataset, $args );
             write_json( "$args->{output}/http-environment.json", $environment );
             _wrk_environment( $state, $environment );
+            if ( $args->{allow_5000} ) { _listen_queue($state); }
             _matrix($state);
             return 1;
         }

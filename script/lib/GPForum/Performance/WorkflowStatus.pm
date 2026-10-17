@@ -59,9 +59,27 @@ sub statuses ($environment) {
     return \%result;
 }
 
+# A gate is all or nothing: its own summary must say ok. Partial is the main
+# suite's tolerance for timing noise; a gate that measured less than it plans
+# did not pass, whatever its step's exit status said.
+sub _gates ($directories) {
+    for my $directory ( @{ $directories // [] } ) {
+        my $status =
+          read_json( File::Spec->catfile( $directory, 'summary.json' ) )
+          ->{status} // 'missing';
+        if ( $status ne 'ok' ) {
+            print {*STDERR}
+"Performance gate $directory: $status; every planned cell must pass.\n"
+              or die "Cannot write collection diagnostic\n";
+            return 1;
+        }
+    }
+    return 0;
+}
+
 sub main (@arguments) {
     my %options;
-    GetOptionsFromArray( \@arguments, \%options, qw(output=s check) )
+    GetOptionsFromArray( \@arguments, \%options, qw(output=s check gate=s@) )
       or die "Invalid workflow-status arguments\n";
     die "--output required\n" if !$options{output} || @arguments;
     if ( $options{check} ) {
@@ -79,7 +97,7 @@ sub main (@arguments) {
                   or die "Cannot write collection diagnostic\n";
                 return 1;
             }
-            return 0;
+            return _gates( $options{gate} );
         }
         catch ($error) {
             print {*STDERR}

@@ -168,6 +168,10 @@ ok(
       >= 0,
     'connection test failure reaches the existing CI gate'
 );
+ok(
+    index( $ordinary, '--check --gate "$PERF_OUTPUT/connections-5000"' ) >= 0,
+    'the final check requires the connection gate to be complete, not partial'
+);
 like(
     $ordinary,
     qr/cp[ ]-a[ ]script\/lib\/GPForum\/Performance/msx,

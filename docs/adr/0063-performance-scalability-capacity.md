@@ -236,6 +236,47 @@ rendering and benchmarking across all bounded contexts.
 - The system SHOULD retain comparable profiling artifacts between releases.
 - Performance assumptions MUST remain measurable and reproducible.
 
+### The 5,000-connection gate (2026-10-17)
+
+Every performance run holds 1,000 and 5,000 keep-alive connections against
+`/health/live` on four workers, three 10-second samples each, and requires
+zero errors within a three-second response timeout. That is the bar, and
+the gate does not lower it to pass:
+
+- It is all or nothing. The sweep's saturation stop (a p95 over two seconds
+  at 1,000 skipped 5,000) does not apply to it, and a planned cell or
+  repetition that was not measured fails the suite instead of leaving it
+  `partial` with exit status 0. The final CI step checks the gate's own
+  summary (`performance-workflow-status --check --gate DIR`), which must be
+  `ok`; the main suite keeps its tolerance for `partial` timing data.
+- It measures what it claims. It refuses a kernel listen queue
+  (`net.core.somaxconn`) shorter than the burst, records `ListenOverflows`
+  and `ListenDrops` across each sample, warms the workers with a
+  three-second pass at the same concurrency (recorded in the row, not
+  counted in the sample, which still opens every connection at once) and,
+  on Linux, records each worker's connections halfway through the sample.
+  The workers stay four, the runner's CPUs, and each may hold all 5,000
+  connections: the workload is not capped per worker.
+- It records why a sample passed or failed. A closed loop of N connections
+  served at R requests/s waits N/R on average. A Mojolicious worker serves
+  the requests ready in one event-loop turn and writes their responses in
+  the next, so the loop runs in turns about N/R long and a request that
+  just missed one waits two: 2N/R. Each sample records its p99 margin to the
+  budget, N/R, 2N/R and the R at which two turns fit, 3,334 requests/s at
+  5,000 connections. Timeouts on a sample below that are classified
+  `runner_below_bar`, and the report says the runner cannot hold 5,000
+  connections within three seconds.
+- The runners do not all reach it, and the evidence says so. In 60 samples
+  from 20 runs on 2026-10-16/17, the hosted four-CPU runner served
+  5,970-6,560 requests/s on AMD EPYC 9V45 hosts and 3,240-4,470 on EPYC 9V74,
+  with no timeouts, but 2,790-3,190 on EPYC 7763 and Xeon 8370C/8573C hosts,
+  where the p99 reached 2.9 s and 23 of 42 samples timed out; none above
+  3,110 requests/s did. The p99 (of the requests that completed) reached
+  1.06-2.09 times N/R. Capping each worker at 5% over its even share
+  (66f859f) still timed out on a Xeon 8370C, and taking one connection at a
+  time from the TCP listener (26c849b) timed out at 1,000 as well. On the slower hosts the gate fails; what moves the
+  line is what a worker serves per second.
+
 ### Operational Sustainability
 
 - The platform MUST remain operable by small teams, understandable under load
@@ -287,6 +328,10 @@ rendering and benchmarking across all bounded contexts.
   `bin/gpforum query-plan-evidence`, `script/benchmark-http`,
   `bin/gpforum hypnotoad-benchmark`, `bin/gpforum hypnotoad-scaling`,
   `script/profile-nytprof`, `bin/gpforum performance-seed`.
+- The 5,000-connection gate: `script/lib/GPForum/Performance/HTTP.pm`,
+  `script/lib/GPForum/Performance/WorkflowStatus.pm`,
+  `.github/workflows/performance.yml`, `benchmarks/README.md`,
+  `t/705-performance-stress-gate.t`.
 - `docs/PERFORMANCE.md`, `docs/PERFORMANCE.md#evidence-and-how-to-reproduce-it`,
   `docs/PERFORMANCE.md#database`, `docs/PERFORMANCE.md#query-budgets`,
   `docs/PERFORMANCE.md#profiling`, `docs/PERFORMANCE.md#os-tuning`,

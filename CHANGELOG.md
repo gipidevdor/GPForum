@@ -302,6 +302,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **An email change needed no password and told the old address
+  nothing.** A signed-in session alone could move an account to another
+  address and, from there, reset its password. The change now asks for the
+  current password, checked before the address is looked up and limited as
+  a password change; the address it leaves is mailed a notice in the
+  member's language (English and Italian) saying how to stop it, and a
+  password reset or change now withdraws an email change still waiting
+  (ADR 0143).
 - **A cached page published one visitor's CSRF token, and sign-in kept
   it.** A public page was stored with the first visitor's token in its
   language and theme forms, so those forms failed for everyone else, and a

@@ -244,7 +244,8 @@ sub change_password ( $self, $input ) {
 }
 
 sub request_email_change ( $self, $input ) {
-    my $invalid = $self->_missing_fields( $input, ['command_id'] );
+    my $invalid =
+      $self->_missing_fields( $input, [qw(command_id current_password)] );
     if ($invalid) {
         return $invalid;
     }
@@ -939,8 +940,10 @@ Command hashes include C<user_id> only, never the current or new password.
 
 =head2 request_email_change
 
-Starts an email change for an authenticated member. Requires C<command_id>.
-A request for the member's already-verified address does not issue a token.
+Starts an email change for an authenticated member. Requires C<command_id>
+and C<current_password>, which the store checks; command hashes include the
+address and C<user_id>, never the password. A request for the member's
+already-verified address does not issue a token.
 
 =head2 confirm_email_change
 

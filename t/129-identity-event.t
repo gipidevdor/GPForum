@@ -183,8 +183,8 @@ is( $mail->{timestamp}, $CREATED_AT, 'mail event uses the injected clock' );
 is( $mail->{aggregate_type}, 'user', 'mail_envelope uses the user aggregate' );
 is(
     $mail->{idempotency_key},
-    'identity.mail.requested:tok-1',
-    'mail_envelope keys idempotency on the token id'
+    'identity.mail.requested:password_reset:tok-1',
+    'mail_envelope keys idempotency on the kind and the token id'
 );
 is_deeply(
     $mail->{payload},

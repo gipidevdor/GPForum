@@ -324,9 +324,10 @@ subtest 'authenticated password and email changes require csrf' => sub {
     my $email_token = _csrf_token($settings_test);
     $settings_test->post_ok(
         '/settings/email' => form => {
-            command_id => 'email-change-1',
-            csrf_token => $email_token,
-            email      => 'new@example.test',
+            command_id       => 'email-change-1',
+            csrf_token       => $email_token,
+            current_password => 'correct horse battery staple',
+            email            => 'new@example.test',
         }
     );
     $settings_test->status_is($HTTP_FOUND);

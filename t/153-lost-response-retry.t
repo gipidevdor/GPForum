@@ -375,9 +375,10 @@ is( _identity_method_count( $identity, 'request_email_verification' ),
     $ONCE, 'lost verification-resend response does not issue a second token' );
 
 my $email_form = {
-    command_id => 'email-change-lost-1',
-    csrf_token => $verify_form->{csrf_token},
-    email      => 'new@example.test',
+    command_id       => 'email-change-lost-1',
+    current_password => 'correct horse battery staple',
+    csrf_token       => $verify_form->{csrf_token},
+    email            => 'new@example.test',
 };
 $test->post_ok( '/settings/email' => form => $email_form );
 $test->status_is($HTTP_FOUND);

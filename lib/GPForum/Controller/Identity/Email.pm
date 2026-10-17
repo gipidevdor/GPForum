@@ -22,12 +22,15 @@ sub request_email_change ($self) {
         return $self->settings_unauthorized;
     }
 
+    # The current password, as for a password change: a session alone, one
+    # left open or stolen, must not move the account to another address.
     my $result = $self->gp_identity_workflow->request_email_change(
         {
-            command_id      => $self->command_id_param,
-            email           => $self->param('email'),
-            request_address => $self->request_address,
-            user_id         => $user_id,
+            command_id       => $self->command_id_param,
+            current_password => $self->param('current_password'),
+            email            => $self->param('email'),
+            request_address  => $self->request_address,
+            user_id          => $user_id,
         }
     );
     if ( !$result->{ok} ) {
@@ -96,7 +99,9 @@ Handles authenticated email-change requests and token confirmation.
 
 =head2 request_email_change
 
-Starts an email change for the signed-in member.
+Starts an email change for the signed-in member, who gives their current
+password with the new address. A missing or wrong password is a 400, as for
+a password change, and the change is rate-limited as one.
 
 =head2 email_confirm_form
 

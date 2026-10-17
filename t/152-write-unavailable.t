@@ -410,9 +410,10 @@ _post_json(
     $test,
     '/settings/email',
     {
-        command_id => 'email-change-unavailable-1',
-        csrf_token => $verify_form->{csrf_token},
-        email      => 'new@example.test',
+        command_id       => 'email-change-unavailable-1',
+        current_password => 'correct horse battery staple',
+        csrf_token       => $verify_form->{csrf_token},
+        email            => 'new@example.test',
     }
 );
 _assert_unavailable($test);

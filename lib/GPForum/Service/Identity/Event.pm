@@ -65,6 +65,9 @@ sub action ( $self, $input ) {
     };
 }
 
+# One message is one kind of mail about one token: the confirmation of an
+# email change and the notice to the address it leaves are two messages
+# about the same token.
 sub mail_envelope ( $self, $input ) {
     return {
         actor_id          => $input->{user_id},
@@ -72,8 +75,9 @@ sub mail_envelope ( $self, $input ) {
         aggregate_type    => $USER_AGGREGATE,
         aggregate_version => $SCHEMA_VERSION,
         event_type        => $MAIL_REQUESTED,
-        idempotency_key   => join( q{:}, $MAIL_REQUESTED, $input->{token_id} ),
-        payload           => {
+        idempotency_key   =>
+          join( q{:}, $MAIL_REQUESTED, $input->{kind}, $input->{token_id} ),
+        payload => {
             kind     => $input->{kind},
             token_id => $input->{token_id},
         },
@@ -83,13 +87,16 @@ sub mail_envelope ( $self, $input ) {
 }
 
 sub mail_outbox_payload ( $, $input ) {
-    return {
-        mail => {
-            kind  => $input->{kind},
-            to    => $input->{to},
-            token => $input->{token},
-        },
-    };
+    my %mail = (
+        kind  => $input->{kind},
+        to    => $input->{to},
+        token => $input->{token},
+    );
+    if ( defined $input->{locale} ) {
+        $mail{locale} = $input->{locale};
+    }
+
+    return { mail => \%mail };
 }
 
 sub login_request_audit ( $, $input ) {
@@ -180,11 +187,13 @@ Returns AuditLog arguments for a typed identity action.
 =head2 mail_envelope
 
 Returns EventLog arguments for C<identity.mail.requested>. The payload
-is C<kind> and C<token_id> only.
+is C<kind> and C<token_id> only; the idempotency key names both, so two
+kinds of mail about one token are two messages.
 
 =head2 mail_outbox_payload
 
-Returns the outbox-only C<mail> hash with recipient and raw token.
+Returns the outbox-only C<mail> hash with recipient and raw token, and the
+member's C<locale> when the input names one.
 
 =head2 login_request_audit
 

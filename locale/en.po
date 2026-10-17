@@ -1120,6 +1120,15 @@ msgctxt "auth.email"
 msgid "Email"
 msgstr "Email"
 
+#, python-brace-format
+msgctxt "auth.email_change_notice_mail_body"
+msgid "Someone asked to change the email address of your GPForum account to another one.\n\nIf it was you, confirm the change from the message sent to the new address; there is nothing else to do.\n\nIf it was not you, someone knows your password. Reset it now: {url}\nUntil the new address is confirmed, the reset comes to this address; a reset signs every device out and stops the change."
+msgstr "Someone asked to change the email address of your GPForum account to another one.\n\nIf it was you, confirm the change from the message sent to the new address; there is nothing else to do.\n\nIf it was not you, someone knows your password. Reset it now: {url}\nUntil the new address is confirmed, the reset comes to this address; a reset signs every device out and stops the change."
+
+msgctxt "auth.email_change_notice_mail_subject"
+msgid "A change of your GPForum email address was requested"
+msgstr "A change of your GPForum email address was requested"
+
 msgctxt "auth.email_confirm_submit"
 msgid "Confirm email"
 msgstr "Confirm email"

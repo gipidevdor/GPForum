@@ -139,6 +139,8 @@
       <input type="hidden" name="command_id" value="<%= $email_command_id || q{} %>">
       <label for="settings-email"><%= t('auth.email') %></label>
       <input id="settings-email" name="email" type="email" autocomplete="email">
+      <label for="settings-email-current-password"><%= t('auth.current_password') %></label>
+      <input id="settings-email-current-password" name="current_password" type="password" autocomplete="current-password">
       <button type="submit"><%= t('settings.change_email') %></button>
     </form>
   </section>

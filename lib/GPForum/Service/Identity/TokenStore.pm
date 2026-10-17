@@ -106,6 +106,37 @@ sub create_token ( $self, $input ) {
     GPForum::Infrastructure::UniqueConflict->rethrow($retry_error);
 }
 
+# The member's open token of this type, if there is one, no longer does
+# anything: it is rotated to a secret nobody was given, so the link mailed
+# for it is dead, and to expire a second from now, the least the table
+# allows after a token made this second. It stays the member's open token,
+# which the next request rotates as it would any. True when there was one.
+sub withdraw_open_token ( $self, $user_id, $token_type ) {
+    my $open = $self->_unused_token(
+        {
+            token_type => $token_type,
+            user_id    => $user_id,
+        }
+    );
+    if ( !$open ) {
+        return 0;
+    }
+
+    my $dead = $self->new_token_issue(
+        {
+            email_normalized =>
+              $self->support->column( $open, 'email_normalized' ),
+            metadata    => { withdrawn => 1 },
+            token_type  => $token_type,
+            ttl_seconds => 1,
+            user_id     => $user_id,
+        }
+    );
+    $self->_rotate_token( $open, $dead );
+
+    return 1;
+}
+
 sub _insert_issued ( $self, $issued ) {
     my $row =
       $self->functions
@@ -362,6 +393,13 @@ inserting another. A unique C<token_hash> collision remints the hash once
 and does not return another user's token. A unique C<token_id> collision
 remints the id once and does not return another user's token. A leftover
 unique C<token_id> with this user and hash reuses the token.
+
+=head2 withdraw_open_token
+
+Takes a user id and a token type. When the member holds an open token of
+that type, rotates it to a secret nobody was given, expiring a second from
+now, with C<withdrawn> as its metadata, and returns 1: the link mailed for
+it no longer works. Returns 0 when there is none.
 
 =head2 consume_token
 

@@ -78,8 +78,12 @@ sub change_password ( $self, $input ) {
     );
 }
 
-# An address the member already confirmed is skipped; one another member
-# holds is refused before any token is issued.
+# The member's current password is checked first, as a change of password
+# checks it: a session alone, one left open or stolen, moved the account to
+# an address of its holder's, and from there a password reset took the rest.
+# It is checked before the address is looked up, so a wrong one does not
+# learn whose address is whose. An address the member already confirmed is
+# skipped; one another member holds is refused before any token is issued.
 sub request_email_change ( $self, $input ) {
     my $email       = $self->support->normalize_identifier( $input->{email} );
     my $email_error = $self->_email_error($email);
@@ -89,6 +93,12 @@ sub request_email_change ( $self, $input ) {
     my $user = $self->_find_user_by_id( $input->{user_id} );
     if ( !$user ) {
         return { error => 'not_found', ok => 0 };
+    }
+    my $verified = $self->credential_store->active_password_credential(
+        $self->support->column( $user, 'id' ) );
+    if ( !$self->_credential_matches( $verified, $input->{current_password} ) )
+    {
+        return { error => 'invalid_current_password', ok => 0 };
     }
     if ( $self->_email_already_confirmed( $user, $email ) ) {
         return {
@@ -213,7 +223,10 @@ sub _reset_password_in_txn ( $self, $input ) {
     $self->_record_user_action(
         $user,
         'identity.password_reset.completed',
-        { token_id => $token->{token_id} }
+        {
+            email_change_withdrawn => $self->_withdraw_email_change($user),
+            token_id               => $token->{token_id},
+        }
     );
 
     return {
@@ -263,8 +276,14 @@ sub _change_password_in_txn ( $self, $user, $input, $verified ) {
         $self->clock->now_iso8601,
         $input->{keep_session_id}
     );
-    $self->_record_user_action( $user, 'identity.password.changed',
-        { revoked_sessions => $revoked } );
+    $self->_record_user_action(
+        $user,
+        'identity.password.changed',
+        {
+            email_change_withdrawn => $self->_withdraw_email_change($user),
+            revoked_sessions       => $revoked,
+        }
+    );
 
     return { ok => 1, revoked_sessions => $revoked, user => $user };
 }
@@ -318,12 +337,46 @@ sub _request_email_change_in_txn ( $self, $user, $email, $input ) {
             token => $token,
         }
     );
+    $self->_queue_change_notice( $user, $email, $token );
 
     return {
         email_normalized => $email,
         ok               => 1,
         token            => $token,
     };
+}
+
+# The address the account is leaving is told, in the member's language, and
+# how to stop it: a password reset, which comes to that address for as long
+# as the change is not confirmed, signs every device out and withdraws the
+# change (ADR 0143). The notice carries no token: one left in a mailbox the
+# member may be leaving would outlive the change.
+sub _queue_change_notice ( $self, $user, $email, $token ) {
+    my $current = $self->support->column( $user, 'email_normalized' );
+    if ( !$self->support->has_text($current) || $current eq $email ) {
+        return;
+    }
+
+    $self->audit->record_mail(
+        {
+            kind     => 'email_change_notice',
+            locale   => $self->support->column( $user, 'preferred_locale' ),
+            to       => $current,
+            token_id => $token->{token_id},
+            user_id  => $self->support->column( $user, 'id' ),
+        }
+    );
+
+    return;
+}
+
+# A pending email change stops with the password that asked for it: a reset
+# or a change of password withdraws it, so the address it named cannot take
+# the account after the member took the password back.
+sub _withdraw_email_change ( $self, $user ) {
+    return $self->token_store->withdraw_open_token(
+        $self->support->column( $user, 'id' ),
+        'email_change' );
 }
 
 sub request_email_verification ( $self, $input ) {
@@ -768,7 +821,9 @@ Consumes a reset token and rotates the password credential. A reset to
 the same secret still consumes the token and revokes sessions, but does
 not rotate the credential. The member's active credential is locked
 before it is compared, so a reset that waited for a concurrent change
-replaces the password that change set.
+replaces the password that change set. It withdraws the member's pending
+email change, as a change of password does, and its audit says whether
+there was one (C<email_change_withdrawn>).
 
 =head2 change_password
 
@@ -777,13 +832,18 @@ same secret returns C<skipped> and does not rotate the credential. The
 current password is verified before the transaction, against the active
 credential; the transaction locks the active credential and answers
 C<invalid_current_password> when it is no longer the one verified, because
-a reset or another change replaced it in between.
+a reset or another change replaced it in between. A change withdraws the
+member's pending email change, as a reset does.
 
 =head2 request_email_change
 
-Issues an email-change token when the address is available. A request
-for the member's already-verified address returns C<skipped> and does
-not issue a token.
+Takes C<current_password> with the address and the member, and answers
+C<invalid_current_password> when it is not the member's, before the address
+is looked up. Issues an email-change token when the address is available,
+mailed to that address, and queues C<email_change_notice> to the address
+the member has, in their C<preferred_locale>, about the same token and
+carrying none (ADR 0143). A request for the member's already-verified
+address returns C<skipped> and does not issue a token.
 
 =head2 confirm_email_change
 

@@ -44,9 +44,10 @@ is( $services->lifecycle_calls->[-1]{method},
 
 my $email = $workflow->request_email_change(
     {
-        command_id => 'email-cmd-1',
-        email      => 'new@example.test',
-        user_id    => 'user-1',
+        command_id       => 'email-cmd-1',
+        current_password => 'correct horse battery staple',
+        email            => 'new@example.test',
+        user_id          => 'user-1',
     }
 );
 ok( $email->{ok}, 'workflow still accepts an email change' );

@@ -202,6 +202,7 @@ _email_change($identity);
 _email_change_refusals($identity);
 _email_change_race($identity);
 _email_change_unaudited($identity);
+_email_change_withdrawn($identity);
 _email_verification($identity);
 _credential_rows($identity);
 _credential_race($identity);
@@ -1300,15 +1301,28 @@ sub _email_change {
     my $user = _member( $ctx, 'mover', { verified_at => $EARLY } );
     _member( $ctx, 'neighbour' );
     my $request = sub {
-        my ($email) = @_;
+        my ( $email, $password ) = @_;
         return _identity($ctx)->request_email_change(
             {
-                email           => $email,
-                request_address => $ADDRESS,
-                user_id         => $user,
+                current_password => $password // $PASSWORD,
+                email            => $email,
+                request_address  => $ADDRESS,
+                user_id          => $user,
             }
         );
     };
+
+    # A session alone, without the password, moved the account away.
+    my $unproven = $request->( 'thief@example.test', 'not the password' );
+    is( $unproven->{error}, 'invalid_current_password',
+        'an email change without the current password is refused' );
+    is( _value( $ctx, $USER_TOKENS_SQL, $user ),
+        0, 'before any token is issued' );
+    is(
+        $request->( 'neighbour@example.test', 'not the password' )->{error},
+        'invalid_current_password',
+        'and before it learns whose address is taken'
+    );
 
     my $duplicate = $request->('neighbour@example.test');
     ok( !$duplicate->{ok}, 'duplicate email change is rejected' );
@@ -1327,9 +1341,26 @@ sub _email_change {
         'email confirmation stores token hash' );
     is( _audits( $ctx, $user, 'identity.email_change.requested' ),
         1, 'email change request is audited' );
-    is( _mails( $ctx, $user )->[-1]{outbox}{mail}{to},
+    my %mail =
+      map { $_->{outbox}{mail}{kind} => $_ } @{ _mails( $ctx, $user ) };
+    is( $mail{email_change}{outbox}{mail}{to},
         'moved@example.test',
         'email change mail is addressed to the pending address' );
+    is_deeply(
+        $mail{email_change_notice}{outbox}{mail},
+        {
+            kind   => 'email_change_notice',
+            locale => 'en',
+            to     => 'mover@example.test',
+            token  => undef,
+        },
+        'the address it leaves is told, in the member language, with no token'
+    );
+    is(
+        $mail{email_change_notice}{event}{token_id},
+        $requested->{token}{token_id},
+        'about the change it names'
+    );
 
     my $confirmed = _identity($ctx)->confirm_email_change( { token => $raw } );
     ok( $confirmed->{ok}, 'email confirmation succeeds' );
@@ -1451,9 +1482,10 @@ sub _email_change_unaudited {
     my $user      = _member( $ctx, q{unaudited}, { verified_at => $EARLY } );
     my $requested = _identity($ctx)->request_email_change(
         {
-            email           => q{unaudited-new@example.test},
-            request_address => $ADDRESS,
-            user_id         => $user,
+            current_password => $PASSWORD,
+            email            => q{unaudited-new@example.test},
+            request_address  => $ADDRESS,
+            user_id          => $user,
         }
     );
     my $unaudited = _identity(
@@ -1490,6 +1522,79 @@ sub _email_change_unaudited {
 # time its UPDATE reaches PostgreSQL: the unique constraint refuses it, the
 # savepoint keeps the transaction usable, and the member keeps the address
 # they had.
+# The notice's way to stop a change: a password reset, or a change of
+# password, withdraws the change still waiting, so the address it named
+# cannot take the account once the member has taken the password back.
+sub _email_change_withdrawn {
+    my ($ctx) = @_;
+
+    my $user    = _member( $ctx, 'robbed', { verified_at => $EARLY } );
+    my $request = sub {
+        return _identity($ctx)->request_email_change(
+            {
+                current_password => $PASSWORD,
+                email            => 'robber@example.test',
+                request_address  => $ADDRESS,
+                user_id          => $user,
+            }
+        )->{token}{raw_token};
+    };
+
+    my $by_reset = $request->();
+    my $reset    = _identity($ctx)->request_password_reset(
+        {
+            identifier      => 'robbed@example.test',
+            request_address => $ADDRESS,
+        }
+    );
+    ok(
+        _identity($ctx)->reset_password(
+            {
+                password => $NEW_PASSWORD,
+                token    => $reset->{token}{raw_token},
+            }
+        )->{ok},
+        'the member resets the password from the old address'
+    );
+    is(
+        _identity($ctx)->confirm_email_change( { token => $by_reset } )
+          ->{error},
+        'invalid_token',
+        'and the change it was told of can no longer be confirmed'
+    );
+    is( _audits( $ctx, $user, 'identity.email_change.confirmed' ),
+        0, 'so the address stays the member\'s' );
+
+    my $by_change = _identity($ctx)->request_email_change(
+        {
+            current_password => $NEW_PASSWORD,
+            email            => 'robber@example.test',
+            request_address  => $ADDRESS,
+            user_id          => $user,
+        }
+    )->{token}{raw_token};
+    ok(
+        _identity($ctx)->change_password(
+            {
+                current_password => $NEW_PASSWORD,
+                new_password     => $OTHER_PASSWORD,
+                user_id          => $user,
+            }
+        )->{ok},
+        'a change of password'
+    );
+    is(
+        _identity($ctx)->confirm_email_change( { token => $by_change } )
+          ->{error},
+        'invalid_token',
+        'withdraws it too'
+    );
+    is( _row( $ctx, $USER_ROW_SQL, $user )->{email_normalized},
+        'robbed@example.test', 'and the member keeps the address' );
+
+    return;
+}
+
 sub _email_change_race {
     my ($ctx) = @_;
 

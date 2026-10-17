@@ -16,16 +16,24 @@ const my %SEND_METHOD => (
     password_reset     => 'send_password_reset',
 );
 
-# ADR 0142: notices that carry no token, in the member's language: two-step
-# sign-in was turned on or off, an administrator reset it, or ten wrong
-# codes locked it for an hour.
-const my %NOTICE => map { $_ => 1 } qw(
+const my $SECURITY_PATH => '/settings/security';
+const my $RESET_PATH    => '/password/reset';
+
+# Notices that carry no token, in the member's language, each with the page
+# it links to. ADR 0142: two-step sign-in was turned on or off, an
+# administrator reset it, or ten wrong codes locked it for an hour. ADR
+# 0143: an email change was asked for, told to the address it leaves, with
+# the password reset that stops it.
+const my @SECOND_FACTOR_NOTICES => qw(
   second_factor_enabled
   second_factor_disabled
   second_factor_reset
   second_factor_locked
 );
-const my $SECURITY_PATH => '/settings/security';
+const my %NOTICE => (
+    ( map { $_ => $SECURITY_PATH } @SECOND_FACTOR_NOTICES ),
+    email_change_notice => $RESET_PATH,
+);
 
 has mailer => undef;    # optional: task is only captured
 has i18n   => sub {
@@ -121,7 +129,7 @@ sub _send_notice ( $self, $mail, $task ) {
               $self->i18n->translate( $locale, "auth.${kind}_mail_subject" ),
             body => $self->i18n->translate(
                 $locale, "auth.${kind}_mail_body",
-                { url => $base . $SECURITY_PATH }
+                { url => $base . $NOTICE{$kind} }
             ),
         }
     );
@@ -179,7 +187,8 @@ Version 0.001.
 
 Sends password-reset, email-change, and verification mail for
 C<identity.mail.requested> outbox payloads, and the two-step sign-in
-notices (ADR 0142) in the member's language. The raw token lives on the
+notices (ADR 0142) and the notice to the address an email change leaves
+(C<email_change_notice>, ADR 0143) in the member's language. The raw token lives on the
 outbox C<mail> hash, not on EventLog. Delivery is at-least-once: an
 outbox retry after send and before C<mark_done> resends from that
 payload. Delivery exceptions propagate so the dispatcher can retry.

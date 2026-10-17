@@ -55,6 +55,9 @@ subtest 'settings persist locale theme and notification preferences' => sub {
         'form[action="/settings/password"] input[name="command_id"]');
     $test->element_exists(
         'form[action="/settings/email"] input[name="command_id"]');
+    $test->element_exists( 'form[action="/settings/email"]'
+          . ' input[name="current_password"][autocomplete="current-password"]'
+    );
     $test->element_exists('select[name="locale"] option[value="it"]');
     $test->element_exists('select[name="theme"] option[value="high_contrast"]');
     $test->element_exists('input[name="notification_in_app_enabled"][checked]');

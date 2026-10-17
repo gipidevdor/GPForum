@@ -229,9 +229,10 @@ is( $missing_password_command->{status},
 
 my $email = $workflow->request_email_change(
     {
-        command_id => 'email-cmd-1',
-        email      => 'new@example.test',
-        user_id    => 'user-1',
+        command_id       => 'email-cmd-1',
+        current_password => 'correct horse battery staple',
+        email            => 'new@example.test',
+        user_id          => 'user-1',
     }
 );
 ok( $email->{ok}, 'request_email_change succeeds for a known user' );
@@ -244,6 +245,17 @@ my $missing_email_command = $workflow->request_email_change(
 );
 is( $missing_email_command->{status},
     'invalid', 'request_email_change rejects a missing command_id' );
+is(
+    $workflow->request_email_change(
+        {
+            command_id => 'email-cmd-2',
+            email      => 'new@example.test',
+            user_id    => 'user-1',
+        }
+    )->{status},
+    'invalid',
+    'request_email_change rejects a missing current password'
+);
 
 my $confirmed = $workflow->confirm_email_change(
     {

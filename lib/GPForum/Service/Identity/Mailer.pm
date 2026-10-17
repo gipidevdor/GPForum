@@ -111,13 +111,20 @@ sub send_test_message ( $self, $input ) {
 
 # ADR 0142: a notice about the account's security, in the member's
 # language: transactional, so it carries no unsubscribe.
+#
+# MIME-Header folds a subject longer than a line, which Email::Simple warns
+# of in a header value and will refuse; the encoded words read the same on
+# one line, and Email::Simple folds the header itself.
 sub send_security_notice ( $self, $input ) {
     require Encode;
+    my $subject = Encode::encode( 'MIME-Header', $input->{subject} );
+    $subject =~ s{ \r?\n [ \t]+ }{ }gmsx;
+
     return $self->_send_identity_mail(
         {
             body    => Encode::encode( 'UTF-8', $input->{body} ),
             kind    => 'security_notice',
-            subject => Encode::encode( 'MIME-Header', $input->{subject} ),
+            subject => $subject,
             to      => $input->{to},
             headers => [ 'Content-Transfer-Encoding' => '8bit' ],
         }

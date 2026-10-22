@@ -9,6 +9,7 @@ use v5.40;
 use Const::Fast;
 
 use GPForum::Service::Community::BookmarkFolders;
+use GPForum::Service::Community::ReactionStore;
 use GPForum::Service::Forum::ThreadTags;
 
 our $VERSION = '0.001';
@@ -31,6 +32,7 @@ const my %MODERATION_ID => (
 has bookmark_removes => sub { return []; };
 has bookmark_saves   => sub { return []; };
 has like_calls       => sub { return []; };
+has reaction_calls   => sub { return []; };
 has announcements    => sub { return []; };
 has reply_links      => sub { return []; };
 has thread_tag_sets  => sub { return []; };
@@ -1258,6 +1260,67 @@ sub normalise {
     my ( $self, $text ) = @_;
 
     return GPForum::Service::Community::BookmarkFolders->normalise($text);
+}
+
+# Reactions (ADR 0145): post-1 has two hearts, one of them the viewer's
+# when the viewer is user-2; the writes answer as the function would.
+sub reactions {
+    return [qw(heart laugh celebrate think)];
+}
+
+sub is_reaction {
+    my ( $self, $reaction ) = @_;
+
+    return GPForum::Service::Community::ReactionStore->is_reaction($reaction);
+}
+
+sub reactions_for_posts {
+    my ( $self, $post_ids, $viewer_user_id ) = @_;
+
+    return {
+        map {
+            $_ => {
+                heart => {
+                    count   => 2,
+                    reacted => ( $viewer_user_id // q{} ) eq 'user-2' ? 1 : 0,
+                }
+            }
+        } grep { $_ eq 'post-1' } @{$post_ids}
+    };
+}
+
+sub react {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->reaction_calls }, [ react => $input ];
+    return if $input->{post_id} ne 'post-1';
+
+    return {
+        ok             => 1,
+        post_id        => $input->{post_id},
+        reacted        => 1,
+        reaction       => $input->{reaction},
+        reaction_count => 3,
+        thread_id      => 'thread-1',
+        user_id        => $input->{user_id},
+    };
+}
+
+sub unreact {
+    my ( $self, $input ) = @_;
+
+    push @{ $self->reaction_calls }, [ unreact => $input ];
+    return if $input->{post_id} ne 'post-1';
+
+    return {
+        ok             => 1,
+        post_id        => $input->{post_id},
+        reacted        => 0,
+        reaction       => $input->{reaction},
+        reaction_count => 1,
+        thread_id      => 'thread-1',
+        user_id        => $input->{user_id},
+    };
 }
 
 sub active_announcements {

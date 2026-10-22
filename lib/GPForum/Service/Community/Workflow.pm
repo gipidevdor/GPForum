@@ -19,7 +19,9 @@ const my %PUBLIC_FIELDS => (
     bookmark => [
         qw(bookmark_id created_at deleted_at note ok target_id target_type user_id)
     ],
-    like   => [qw(like_count liked ok post_id thread_id user_id)],
+    like     => [qw(like_count liked ok post_id thread_id user_id)],
+    reaction =>
+      [qw(ok post_id reacted reaction reaction_count thread_id user_id)],
     report => [
         qw(created_at details reason report_id reporter_user_id status target_id
           target_type)
@@ -33,6 +35,7 @@ const my %PUBLIC_FIELDS => (
 __PACKAGE__->requires(
     qw(bookmark_store like_store report_store subscription_store));
 has command_idempotency => undef;    # optional: writes run unlogged without one
+has reaction_store      => undef;    # optional: without it reactions throw
 has logger              => undef;    # optional: errors are dropped without one
 
 # The stores' call layer (Infrastructure::SqlFunction) on PostgreSQL, undef
@@ -121,6 +124,37 @@ sub _like_request ($input) {
         post_id => $input->{post_id},
         user_id => $input->{user_id},
     };
+}
+
+# A reaction is one command around api.community_react_post_v1; taking it
+# back, one around api.community_unreact_post_v1 (ADR 0145).
+sub react_post ( $self, $input ) {
+    return $self->_reaction_op( 'community.react', 'community_react_command',
+        'react', $input );
+}
+
+sub unreact_post ( $self, $input ) {
+    return $self->_reaction_op( 'community.unreact',
+        'community_unreact_command', 'unreact', $input );
+}
+
+sub _reaction_op ( $self, $command_type, $function, $method, $input ) {
+    my $store = $self->reaction_store // GPForum::X::Argument->throw(
+        message => 'reactions need a reaction store' );
+    return $self->_commanded_op(
+        {
+            command_type => $command_type,
+            function     => $function,
+            input        => $input,
+            kind         => 'reaction',
+            not_found    => 'post not found',
+            request      => {
+                %{ _like_request($input) }, reaction => $input->{reaction},
+            },
+            row => sub { return $store->new_reaction_row($input); },
+            run => sub { return $store->$method($input); },
+        }
+    );
 }
 
 sub save_subscription ( $self, $input ) {
@@ -507,6 +541,14 @@ for the member's own post.
 
 Takes a like back; the same answer, with C<liked> 0.
 
+
+=head2 react_post
+
+Gives one of the four reactions to a post, as one command (ADR 0145).
+
+=head2 unreact_post
+
+Takes a reaction back, as one command.
 =head2 save_subscription
 
 Saves or restores a thread subscription for the member.

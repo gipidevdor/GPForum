@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 18,
+        version    => 20,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -230,7 +230,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 20,
+        version    => 22,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -626,6 +626,30 @@ const my %FUNCTION => (
     community_post_likes => {
         version    => 2,
         parameters => [ post_ids => 'uuid[]', viewer_user_id => 'uuid' ]
+    },
+    community_post_reactions => {
+        version    => 2,
+        parameters => [ post_ids => 'uuid[]', viewer_user_id => 'uuid' ]
+    },
+    community_react_post => {
+        version    => 2,
+        parameters => [ row => 'jsonb' ],
+        json       => ['result']
+    },
+    community_unreact_post => {
+        version    => 2,
+        parameters => [ row => 'jsonb' ],
+        json       => ['result']
+    },
+    community_react_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
+    },
+    community_unreact_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
     },
     community_subscribe_command => {
         version    => 2,
@@ -1684,7 +1708,7 @@ const my %FUNCTION => (
     # Migration 124: the seven reads a thread page makes once it has its
     # posts, in one call (GPForum::Service::Forum::ThreadPageReads).
     forum_thread_page_reads => {
-        version    => 2,
+        version    => 4,
         parameters => [
             thread_id              => 'uuid',
             post_ids               => 'uuid[]',

@@ -74,6 +74,7 @@
           % } elsif ($like_count) {
             <span class="post__likes"><%= tc('forum.like_count', $like_count) %></span>
           % }
+          <%= include 'forum/_reactions', post => $post %>
           % if ($post->{can_edit}) {
             <%= $static->{edit_sheet} %>
               <form method="post" action="<%= $paths->{post_edit} %>" hx-post="<%= $paths->{post_edit} %>">

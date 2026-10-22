@@ -48,12 +48,14 @@ const my $STATUS_POST_DELETED       => 'post_deleted';
 const my $STATUS_POST_RESTORED      => 'post_restored';
 const my $STATUS_POST_LIKED         => 'post_liked';
 const my $STATUS_POST_UNLIKED       => 'post_unliked';
+const my $STATUS_POST_REACTED       => 'post_reacted';
+const my $STATUS_POST_UNREACTED     => 'post_unreacted';
 
 # What a member may do and undo at will, and so may churn: capped at 10 a
 # minute (ADR 0129 adds the like).
 const my $THREAD_CHURN =>
   qr/\A thread[.](?:bookmark|subscribe|subscription|unsubscribe)/msx;
-const my $POST_CHURN         => qr/\A post[.](?:like|unlike)/msx;
+const my $POST_CHURN         => qr/\A post[.](?:like|unlike|react|unreact)/msx;
 const my $STATUS_READ_MARKED => 'read_marked';
 const my $STATUS_REPORTED    => 'reported';
 const my %WRITE_FLASH => (
@@ -65,6 +67,8 @@ const my %WRITE_FLASH => (
     $STATUS_POST_LIKED         => 'forum.post_liked',
     $STATUS_POST_RESTORED      => 'forum.post_restored',
     $STATUS_POST_UNLIKED       => 'forum.post_unliked',
+    $STATUS_POST_REACTED       => 'forum.post_reacted',
+    $STATUS_POST_UNREACTED     => 'forum.post_unreacted',
     $STATUS_POST_UPDATED       => 'forum.post_updated',
     $STATUS_READ_MARKED        => 'forum.posts_marked_read',
     $STATUS_REPORTED           => 'forum.reported',
@@ -272,6 +276,14 @@ sub post_liked_status {
 
 sub post_unliked_status {
     return $STATUS_POST_UNLIKED;
+}
+
+sub post_reacted_status {
+    return $STATUS_POST_REACTED;
+}
+
+sub post_unreacted_status {
+    return $STATUS_POST_UNREACTED;
 }
 
 sub subscribed_status {
@@ -554,6 +566,14 @@ Returns C<post_liked>.
 =head2 post_unliked_status
 
 Returns C<post_unliked>.
+
+=head2 post_reacted_status
+
+Returns C<post_reacted> (ADR 0145).
+
+=head2 post_unreacted_status
+
+Returns C<post_unreacted>.
 
 =head2 subscribed_status
 

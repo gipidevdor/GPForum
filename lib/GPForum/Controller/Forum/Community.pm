@@ -251,6 +251,52 @@ sub unlike_post ($self) {
         $self->forum_access->post_unliked_status );
 }
 
+# A reaction (ADR 0145): one of the four, on a post the member may read,
+# not their own; the function refuses all three again.
+sub react_post ($self) {
+    return $self->_reaction_write( 'post.react', 'react_post',
+        $self->forum_access->post_reacted_status );
+}
+
+sub unreact_post ($self) {
+    return $self->_reaction_write( 'post.unreact', 'unreact_post',
+        $self->forum_access->post_unreacted_status );
+}
+
+sub _reaction_write ( $self, $action, $method, $status ) {
+    my $user_id = $self->write_user_id($action);
+    if ( !$user_id ) {
+        return;
+    }
+    my $reaction = $self->param('reaction');
+    if ( !$self->gp_reaction_store->is_reaction($reaction) ) {
+        return $self->_bad_request( { reaction => 'unknown reaction' } );
+    }
+    my $post = $self->_visible_post;
+    if ( !$post ) {
+        return;
+    }
+    if ( $method eq 'react_post'
+        && ( $self->_column( $post, 'author_user_id' ) // q{} ) eq $user_id )
+    {
+        return $self->_bad_request(
+            { post_id => 'a post is not reacted to by its author' } );
+    }
+
+    return $self->_community_write_response(
+        'reaction',
+        $status,
+        $self->gp_community_workflow->$method(
+            {
+                command_id => $self->command_id_param,
+                post_id    => $self->param('post_id'),
+                reaction   => $reaction,
+                user_id    => $user_id,
+            }
+        ),
+    );
+}
+
 # A like goes to a post the member may read, and not to their own; the
 # function refuses both again under its lock (ADR 0129).
 sub _like_write ( $self, $action, $method, $status ) {
@@ -321,6 +367,9 @@ sub _community_write_response ( $self, $kind, $status, $result ) {
     }
     if ( $kind eq 'like' ) {
         return $self->like_action_response( $status, $result->{stored} );
+    }
+    if ( $kind eq 'reaction' ) {
+        return $self->reaction_action_response( $status, $result->{stored} );
     }
 
     return $self->subscription_action_response( $status, $result->{stored} );
@@ -483,6 +532,15 @@ Likes the post for the signed-in member (C<POST /p/:post_id/like>).
 =head2 unlike_post
 
 Takes the member's like back (C<POST /p/:post_id/like/remove>).
+
+=head2 react_post
+
+Gives one of the four reactions to a visible post, never the member's own
+(ADR 0145); 400 for a reaction that is not one.
+
+=head2 unreact_post
+
+Takes a reaction back.
 
 =head2 report_thread
 

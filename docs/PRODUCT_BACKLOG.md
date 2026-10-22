@@ -51,7 +51,7 @@ claim. No competitor source code or assets were imported for this review.
 
 | ID | Feature | Verified status and scope | Package |
 | --- | --- | --- | --- |
-| A01 | Emoji reactions | Not found in posting schema/routes/UI. [routes], [post-model] | PB-01 |
+| A01 | Emoji reactions | Done 2026-10-22 (ADR 0145): four reactions (heart, laugh, celebrate, think) beside the like, one row each (`post_reactions`, migration 133), never on one's own post, counted from rows, erased and exported with the account; read with the thread page's one statement. No custom emoji. [routes], [post-model] | PB-01 |
 | A02 | Likes / upvotes / downvotes | Done 2026-10-15 for the reversible like (ADR 0129): one per member and post, not on one's own, counted from rows, erased and exported with the account; votes remain a product decision. [routes] | PB-01 |
 | A03 | Polls | Not found in schema, posting workflows or composer. [routes], [composer] | PB-03 |
 | A04 | Reply to a particular post | Done 2026-10-15 (ADR 0132): "Reply" and "Quote" under a post open the composer naming it; the link is written after the reply (`post_replies`, migration 114) and shown as "In reply to #N" under the byline. Notifications and feeds do not follow it yet. [post-model], [markup] | PB-10 |

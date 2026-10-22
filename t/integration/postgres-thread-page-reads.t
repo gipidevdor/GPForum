@@ -16,6 +16,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Attachment::Store;
 use GPForum::Service::Community::BookmarkStore;
 use GPForum::Service::Community::LikeStore;
+use GPForum::Service::Community::ReactionStore;
 use GPForum::Service::Forum::ReadState;
 use GPForum::Service::Forum::ReplyLinks;
 use GPForum::Service::Forum::ThreadDetailReader;
@@ -30,17 +31,17 @@ use GPForum::Test::PgDatabase;
 our $VERSION = '0.001';
 
 # Migration 124: the seven reads a thread page makes once it has its posts
-# are one statement, and each read gets from it exactly the rows its own
-# call returns -- for a guest and for a member with something to read in
-# every part. The page they build is the same whether they come from the one
-# statement or from seven, and costs six statements fewer for the member,
-# three for the guest.
+# are one statement (eight since the reactions of migration 133), and each
+# read gets from it exactly the rows its own call returns -- for a guest and
+# for a member with something to read in every part. The page they build is
+# the same whether they come from the one statement or from eight, and
+# costs seven statements fewer for the member, four for the guest.
 
 const my $HTTP_OK      => 200;
 const my $PASSWORD     => 'thread page reads correct horse';
 const my $PAGE_SIZE    => 25;
-const my $MEMBER_FEWER => 6;
-const my $GUEST_FEWER  => 3;
+const my $MEMBER_FEWER => 7;
+const my $GUEST_FEWER  => 4;
 const my $JSON         => { Accept => 'application/json' };
 const my $THREAD_SQL => join q{ },
   'SELECT t.thread_id FROM threads t JOIN posts p ON p.thread_id = t.thread_id',
@@ -76,6 +77,8 @@ my %store = (
       GPForum::Service::Community::BookmarkStore->new( schema => $schema ),
     like_store =>
       GPForum::Service::Community::LikeStore->new( schema => $schema ),
+    reaction_store =>
+      GPForum::Service::Community::ReactionStore->new( schema => $schema ),
     read_state  => GPForum::Service::Forum::ReadState->new( schema => $schema ),
     reply_links =>
       GPForum::Service::Forum::ReplyLinks->new( schema => $schema ),
@@ -97,6 +100,7 @@ for my $viewer ( undef, $member ) {
         my @ids  = map { $_->get_column('post_id') } @{ $page->{posts}{items} };
         my @calls = (
             $store{like_store}->summary_call( \@ids, $viewer ),
+            $store{reaction_store}->reactions_call( \@ids, $viewer ),
             $store{reply_links}->targets_call( \@ids ),
             $store{thread_tags}->tags_call( [$thread_id] ),
             $store{attachment_store}->post_links_call( \@ids ),
@@ -128,7 +132,7 @@ for my $viewer ( undef, $member ) {
     };
 }
 
-subtest 'the page is the same, for six statements fewer' => sub {
+subtest 'the page is the same, for seven statements fewer' => sub {
     my %executed;
     my $guest     = _client( \%executed, 'guest' );
     my $signed_in = _client( \%executed, 'member' );
@@ -159,15 +163,17 @@ subtest 'the page is the same, for six statements fewer' => sub {
         [
             $shown->{posts}[0]{like_count},
             $shown->{posts}[0]{liked},
+            $shown->{posts}[0]{reactions}[0]{count},
+            $shown->{posts}[0]{reactions}[0]{reacted},
             $shown->{posts}[2]{reply_to}{post_id},
             [ map { $_->{slug} } @{ $shown->{thread}{tags} } ],
             $shown->{engagement}{bookmark}{bookmarked},
             $shown->{engagement}{subscription}{subscribed},
             $shown->{reading}{last_read_position},
         ],
-        [ 1, 1, $first, [qw(sockets latency)], 1, 1, 1 ],
-        'the likes, the reply, the tags, the bookmark, the subscription'
-          . ' and the read state'
+        [ 1, 1, 1, 1, $first, [qw(sockets latency)], 1, 1, 1 ],
+        'the likes, the reactions, the reply, the tags, the bookmark, the'
+          . ' subscription and the read state'
     );
     for my $client ( $guest, $signed_in ) {
         _storage($client)->disconnect;
@@ -196,6 +202,10 @@ sub _something_in_every_part {
     my $author = $posts->[0]{author_user_id};
     $dbh->do( 'INSERT INTO post_likes (post_id, user_id) VALUES (?, ?), (?, ?)',
         undef, $first, $member, $liked, $author );
+    $dbh->do(
+'INSERT INTO post_reactions (post_id, user_id, reaction) VALUES (?, ?, ?)',
+        undef, $first, $member, 'heart'
+    );
     GPForum::Service::Forum::ReplyLinks->new( schema => $schema )
       ->link_reply( $answering, $first );
     GPForum::Service::Forum::ThreadTags->new( schema => $schema )

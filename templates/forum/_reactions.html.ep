@@ -1,0 +1,31 @@
+%# The reactions on a post (ADR 0145): four, each a small form for a
+%# reader who may react (pressed when they gave it) or a count for one who
+%# may not; a reaction nobody gave shows only to a reader who may give it.
+%# Takes "post".
+% my $post = stash('post');
+% my @reactions = @{ $post->{reactions} || [] };
+% my %label = (
+%   heart     => t('forum.reaction_heart'),
+%   laugh     => t('forum.reaction_laugh'),
+%   celebrate => t('forum.reaction_celebrate'),
+%   think     => t('forum.reaction_think'),
+% );
+% my %emoji = ( heart => "\x{2764}\x{FE0F}", laugh => "\x{1F604}", celebrate => "\x{1F389}", think => "\x{1F914}" );
+% my @shown = grep { $post->{can_react} || $_->{count} } @reactions;
+% if (@shown) {
+  <div class="post__reactions" role="group" aria-label="<%= t('forum.reactions') %>">
+    % for my $reaction (@shown) {
+    %   my $name = $reaction->{reaction};
+    %   my $route = $reaction->{reacted} ? 'post_unreact' : 'post_react';
+      % if ($post->{can_react}) {
+        <form method="post" action="<%= ui_path($route, post_id => $post->{post_id}, reaction => $name) %>" hx-post="<%= ui_path($route, post_id => $post->{post_id}, reaction => $name) %>">
+          <%= csrf_field %>
+          <input type="hidden" name="command_id" value="<%= $reaction->{command_id} || q{} %>">
+          <button type="submit" class="post__reaction" aria-pressed="<%= $reaction->{reacted} ? 'true' : 'false' %>" aria-label="<%= $reaction->{reacted} ? t('forum.remove_reaction', { reaction => $label{$name} }) : t('forum.react_with', { reaction => $label{$name} }) %>"><span aria-hidden="true"><%= $emoji{$name} %></span><span class="post__reaction-count"><%= $reaction->{count} %></span></button>
+        </form>
+      % } else {
+        <span class="post__reaction post__reaction--static"><span aria-hidden="true"><%= $emoji{$name} %></span><span class="visually-hidden"><%= $label{$name} %></span><span class="post__reaction-count"><%= $reaction->{count} %></span></span>
+      % }
+    % }
+  </div>
+% }

@@ -652,6 +652,15 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Added
 
+- **Reactions on posts.** Beside the like, a member gives a post one of four
+  reactions (heart, laugh, celebrate, think), each once and never on their
+  own post, and takes it back (ADR 0145, migration 133). Each is one row in
+  `post_reactions`, counted when the page is read; the thread page's one
+  read (`api.forum_thread_page_reads_v3`) answers them with the likes, the
+  writes are commands (`api.community_react_command_v1`,
+  `api.community_unreact_command_v1`) with their events, and erasure and
+  export carry them (`api.privacy_revoke_user_v19`,
+  `api.portability_export_parts_v21`).
 - **Profile pictures.** On the new `/settings/avatar` a member uploads a
   PNG, JPEG, GIF or WebP of up to 5 MB and 8,000 pixels a side; it goes
   through the attachment validation and the malware scan, and the system's

@@ -363,6 +363,23 @@ sub bookmark_action_response ( $self, $status, $bookmark ) {
 
 # A like answers with the post as the list now lists it (the fragment),
 # or with the thread page at the post.
+sub reaction_action_response ( $self, $status, $reaction ) {
+    if ( $self->_wants_json ) {
+        return $self->render(
+            json => $self->gp_community_view_model->reaction_response(
+                $status, $reaction
+            ),
+            status => $HTTP_OK,
+        );
+    }
+
+    return $self->_html_success(
+        $status,
+        $self->url_for( 'thread', thread_id => $reaction->{thread_id} )
+          ->fragment( 'post-' . $self->param('post_id') ),
+    );
+}
+
 sub like_action_response ( $self, $status, $like ) {
     if ( $self->_wants_json ) {
         return $self->render(
@@ -601,11 +618,15 @@ sub _thread_page_payload ( $self, $page, $user_id ) {
             thread             => $page->{thread},
             user_id            => $user_id,
         ),
-        metadata_builder => $self->gp_metadata_builder,
-        page             => $page,
-        reply_command_id => $reply_command_id,
-        edit_command_ids => $self->_command_ids_for($own),
-        likes            => $self->_post_likes( $post_ids, $user_id ),
+        metadata_builder     => $self->gp_metadata_builder,
+        page                 => $page,
+        reply_command_id     => $reply_command_id,
+        edit_command_ids     => $self->_command_ids_for($own),
+        likes                => $self->_post_likes( $post_ids, $user_id ),
+        reactions            => $self->_post_reactions( $post_ids, $user_id ),
+        reaction_command_ids => $user_id
+        ? $self->_reaction_command_ids($post_ids)
+        : {},
         reply_targets    => $self->_reply_targets($post_ids),
         thread_tags      => $self->gp_tags_for_threads( [ $page->{thread} ] ),
         like_command_ids => $user_id ? $self->_command_ids_for($post_ids) : {},
@@ -647,6 +668,24 @@ sub _thread_page_payload ( $self, $page, $user_id ) {
 sub _post_likes ( $self, $post_ids, $user_id ) {
     return {} if !@{$post_ids};
     return $self->gp_like_store->summary_for_posts( $post_ids, $user_id );
+}
+
+# The reactions on the page's posts (ADR 0145), counted for every reader,
+# with those the viewer gave; a signed-in reader's forms under each post
+# have a command id per reaction (reaction_command_ids).
+sub _post_reactions ( $self, $post_ids, $user_id ) {
+    return {} if !@{$post_ids};
+    return $self->gp_reaction_store->reactions_for_posts( $post_ids, $user_id );
+}
+
+sub _reaction_command_ids ( $self, $post_ids ) {
+    my $reactions = $self->gp_reaction_store->reactions;
+    return { map { $_ => $self->_command_ids_by_reaction($reactions) }
+          @{$post_ids} };
+}
+
+sub _command_ids_by_reaction ( $self, $reactions ) {
+    return { map { $_ => $self->_new_command_id } @{$reactions} };
 }
 
 # Which post each post on the page answers (ADR 0132), for every reader.

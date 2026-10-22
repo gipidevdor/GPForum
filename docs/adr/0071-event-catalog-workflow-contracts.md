@@ -99,6 +99,9 @@ plus every asynchronous consumer.
 - `post.liked`, `post.unliked`
   - producer: community workflow (ADR 0129)
   - consumers: cache invalidation
+- `post.reacted`, `post.unreacted`
+  - producer: community workflow (ADR 0145)
+  - consumers: cache invalidation
   - payload: `post_id`, `thread_id`, `user_id`, `author_user_id`
 - `direct_message.sent`
   - producer: direct messages (ADR 0139)

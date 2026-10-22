@@ -134,7 +134,7 @@ subtest 'the reader is told in their language' => sub {
     for my $helper (
         qw(gp_category_reader gp_thread_reader gp_thread_detail_reader
         gp_post_reader gp_thread_read_state gp_attachment_store gp_rate_limiter
-        gp_suspension_store gp_bookmark_store gp_like_store gp_reply_links
+        gp_suspension_store gp_bookmark_store gp_like_store gp_reaction_store gp_reply_links
         gp_subscription_store)
       )
     {

@@ -236,7 +236,7 @@ sub _helper_names {
       gp_avatars
       gp_bookmark_store
       gp_bookmark_folders
-      gp_like_store
+      gp_like_store gp_reaction_store
       gp_reply_links
       gp_thread_tags
       gp_tags_for_threads

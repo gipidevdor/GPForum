@@ -4,10 +4,14 @@
 package GPForum::ViewModel::Forum::Page;
 
 use English qw(-no_match_vars);
+use Const::Fast;
 use Mojo::Base 'GPForum::ViewModel::Forum::Rows', -signatures;
 use v5.40;
 
 our $VERSION = '0.001';
+
+# The reactions a post may get, in the order the page shows them (ADR 0145).
+const my @REACTIONS => qw(heart laugh celebrate think);
 
 sub categories_page ( $self, %input ) {
     return {
@@ -230,7 +234,10 @@ sub _thread_page_parts ( $self, $input ) {
               $self->hash_or_empty( $input->{edit_command_ids} ),
             like_command_ids =>
               $self->hash_or_empty( $input->{like_command_ids} ),
-            likes         => $self->hash_or_empty( $input->{likes} ),
+            likes                => $self->hash_or_empty( $input->{likes} ),
+            reactions            => $self->hash_or_empty( $input->{reactions} ),
+            reaction_command_ids =>
+              $self->hash_or_empty( $input->{reaction_command_ids} ),
             reply_targets => $self->hash_or_empty( $input->{reply_targets} ),
             restore_command_ids =>
               $self->hash_or_empty( $input->{restore_command_ids} ),
@@ -273,6 +280,7 @@ sub _post_with_attachments ( $self, $row, $context ) {
     $self->_apply_restore_state( $post, $context );
     $self->_apply_report_state( $post, $context );
     $self->_apply_like_state( $post, $context );
+    $self->_apply_reaction_state( $post, $context );
     $self->_apply_reply_state( $post, $context );
     $self->_apply_relation_state( $post, $context );
 
@@ -290,6 +298,27 @@ sub _apply_reply_state ( $self, $post, $context ) {
         position        => $target->{position},
         post_id         => $target->{post_id},
     };
+    return;
+}
+
+# The four reactions on a post (ADR 0145), each with its count, whether the
+# viewer gave it, and the command id of the viewer's form; a reader who
+# may like may react.
+sub _apply_reaction_state ( $self, $post, $context ) {
+    my $given = $context->{reactions}{ $post->{post_id} }            || {};
+    my $ids   = $context->{reaction_command_ids}{ $post->{post_id} } || {};
+    $post->{reactions} = [
+        map {
+            +{
+                command_id => $self->string_or_empty( $ids->{$_} ),
+                count      => $given->{$_}{count} || 0,
+                reacted    => $given->{$_}{reacted} ? 1 : 0,
+                reaction   => $_,
+            }
+        } @REACTIONS
+    ];
+    $post->{can_react} = $post->{can_like} ? 1 : 0;
+
     return;
 }
 

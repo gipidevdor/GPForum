@@ -158,6 +158,10 @@ for quota, expiry, publication and privacy behavior.
 * `POST /p/:post_id/like` and `/p/:post_id/like/remove` give and take back a
   member's like on a post through `LikeStore` (ADR 0129): one row per member
   and post, counted when the page is read, never on one's own post.
+* `POST /p/:post_id/react/:reaction` and `/react/:reaction/remove` give and
+  take back one of four reactions (heart, laugh, celebrate, think) through
+  `ReactionStore` (ADR 0145): one row per member, post and reaction, never
+  on one's own post, counted when the page is read.
 * `POST /moderation/threads/:thread_id/pin` and `/unpin` pin a thread to the top
   of its category, or release it, through `ActionStore`; the thread's own tools
   offer them, with lock and hide, to a reader who moderates threads.

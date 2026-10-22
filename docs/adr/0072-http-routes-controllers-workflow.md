@@ -95,6 +95,9 @@ Every mutating HTTP request MUST follow this order:
 - `POST /p/:post_id/like` and `/p/:post_id/like/remove`: a member's like on
   the post, given and taken back, never on their own; emit `post.liked` or
   `post.unliked` (ADR 0129).
+- `POST /p/:post_id/react/:reaction` and `/react/:reaction/remove`: one of
+  four reactions on the post, given and taken back, never on their own; emit
+  `post.reacted` or `post.unreacted` (ADR 0145).
 
 ### Subscription routes
 

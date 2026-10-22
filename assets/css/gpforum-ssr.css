@@ -2108,6 +2108,44 @@ button[popovertarget] {
   padding-inline: var(--space-3);
 }
 
+/* The reactions under a post (ADR 0145): four small pills on one line,
+   each its emoji and its count; the one the reader gave reads as pressed,
+   and a reader who cannot react sees the counts alone. */
+.post__reactions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.post__reactions form {
+  display: contents;
+}
+
+.post__reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-block-size: 1.75rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
+  color: var(--color-subtle);
+  padding-inline: 0.55rem;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+}
+
+.post__reaction[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.post__reaction-count {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Where to search: one short row of choices under the query, read as a
    group by its legend. */
 .search-form__scope {

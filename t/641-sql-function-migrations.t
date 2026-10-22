@@ -67,8 +67,9 @@ const my %RETAINED_BOUNDARIES => (
     forum_write_command      => [2],
     forum_create_reply       => [2],
     identity_update_user     => [2],
-    portability_export_parts => [ 2, 4, 6, 8, 10, 12, 14, 16, 18 ],
-    privacy_revoke_user      => [ 2, 4, 6, 8, 10, 12, 14, 16 ],
+    portability_export_parts => [ 2, 4, 6, 8, 10, 12, 14, 16, 18, 20 ],
+    privacy_revoke_user      => [ 2, 4, 6, 8, 10, 12, 14, 16, 18 ],
+    forum_thread_page_reads  => [2],
     privacy_update           => [2],
 
     # Migration 112 (member relations) moved these on.

@@ -17,7 +17,7 @@ our $VERSION = '0.001';
 # GPForum::ViewModel::Forum::Page asks the bookmark and subscription stores.
 const my $THREAD_TARGET => 'thread';
 
-# Each part api.forum_thread_page_reads_v2 answers (migration 124): the
+# Each part api.forum_thread_page_reads_v4 answers (migration 124, the reactions since 133): the
 # store method that says the call it answers, the function and version that
 # call names -- the version whose implementation the migration calls -- and
 # the call's own columns, which the part's rows carry under those names.
@@ -26,6 +26,11 @@ const my %PART => (
         function => 'community_post_likes',
         version  => 2,
         columns  => [qw(post_id like_count liked)],
+    },
+    reaction => {
+        function => 'community_post_reactions',
+        version  => 2,
+        columns  => [qw(post_id reaction reaction_count reacted)],
     },
     reply_target => {
         function => 'forum_reply_targets',
@@ -74,6 +79,7 @@ const my %PART => (
 # Each store, and the method that says its call.
 const my %CALLER => (
     like            => [ like_store         => 'summary_call' ],
+    reaction        => [ reaction_store     => 'reactions_call' ],
     reply_target    => [ reply_links        => 'targets_call' ],
     tag             => [ thread_tags        => 'tags_call' ],
     attachment_link => [ attachment_store   => 'post_links_call' ],
@@ -83,8 +89,8 @@ const my %CALLER => (
 );
 
 __PACKAGE__->requires(
-    qw(schema like_store reply_links thread_tags attachment_store
-      bookmark_store subscription_store read_state)
+    qw(schema like_store reaction_store reply_links thread_tags
+      attachment_store bookmark_store subscription_store read_state)
 );
 has logger    => undef;       # optional: without it a failed read is not logged
 has functions => sub ($self) {
@@ -146,6 +152,8 @@ sub _calls ( $self, $read ) {
     my %call;
     if ( @{$posts} ) {
         $call{like} = $self->like_store->summary_call( $posts, $viewer );
+        $call{reaction} =
+          $self->reaction_store->reactions_call( $posts, $viewer );
         $call{reply_target} = $self->reply_links->targets_call($posts);
         $call{attachment_link} =
           $self->attachment_store->post_links_call($posts);
@@ -266,8 +274,9 @@ Version 0.001.
 Once a thread page has its thread and its posts, it reads the posts'
 likes, the posts they answer, the thread's tags and the posts' attachment
 links, and for a member their bookmark, their subscription and their read
-state: seven calls, each a round trip. C<api.forum_thread_page_reads_v2>
-(migration 124) runs the seven calls' queries and answers their rows in
+state: eight calls (the reactions since migration 133), each a round trip.
+C<api.forum_thread_page_reads_v4> (migration 124, then 133) runs the eight
+calls' queries and answers their rows in
 one statement; this service makes that statement and hands each read's
 rows to the call that would have read them, through
 L<GPForum::Infrastructure::SqlFunction/answering>. The stores, their
@@ -284,7 +293,7 @@ version other than the one the statement read.
 
 =head2 new
 
-Constructor (L<GPForum::Base>). C<schema> and the seven stores are
+Constructor (L<GPForum::Base>). C<schema> and the eight stores are
 required; C<logger> is optional.
 
 =head2 reading

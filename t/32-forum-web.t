@@ -20,7 +20,7 @@ use GPForum::Test::SuspendedParticipation;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 290;
+const my $EXPECTED_TESTS       => 307;
 const my $HTTP_OK              => 200;
 const my $HTTP_CREATED         => 201;
 const my $HTTP_BAD_REQUEST     => 400;
@@ -597,6 +597,42 @@ $test->post_ok(
 $test->status_is($HTTP_OK);
 $test->json_is( '/status'     => 'post_unliked' );
 $test->json_is( '/like/liked' => 0 );
+
+# A reaction (ADR 0145): one of four, never on one's own post, given and
+# taken back with the post's count of it.
+_get_json_ok( $test, '/t/thread-1' );
+$test->json_is( '/posts/0/can_react'            => 1 );
+$test->json_is( '/posts/0/reactions/0/reaction' => 'heart' );
+$test->json_is( '/posts/0/reactions/0/count'    => 2 );
+$test->json_is( '/posts/0/reactions/0/reacted'  => 1 );
+$test->post_ok(
+    '/p/post-1/react/heart' => { Accept => 'application/json' } => form => {
+        command_id => 'react-1',
+        csrf_token => $session_csrf,
+    }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/status'                  => 'post_reacted' );
+$test->json_is( '/reaction/reaction'       => 'heart' );
+$test->json_is( '/reaction/reaction_count' => 3 );
+$test->post_ok(
+    '/p/post-1/react/heart/remove' => { Accept => 'application/json' } =>
+      form => {
+        command_id => 'unreact-1',
+        csrf_token => $session_csrf,
+      }
+);
+$test->status_is($HTTP_OK);
+$test->json_is( '/status'           => 'post_unreacted' );
+$test->json_is( '/reaction/reacted' => 0 );
+$test->post_ok(
+    '/p/post-1/react/frown' => { Accept => 'application/json' } => form => {
+        command_id => 'react-2',
+        csrf_token => $session_csrf,
+    }
+);
+$test->status_is($HTTP_BAD_REQUEST);
+$test->json_is( '/errors/reaction' => 'unknown reaction' );
 $test->post_ok(
     '/p/post-missing/like' => { Accept => 'application/json' } => form => {
         command_id => 'like-missing-1',
@@ -740,7 +776,7 @@ sub _install_forum_fakes {
         gp_category_reader gp_thread_reader gp_thread_detail_reader
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_bookmark_folders gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_bookmark_folders gp_like_store gp_reaction_store gp_reply_links gp_thread_tags gp_subscription_store
         gp_notification_dispatcher gp_report_store gp_search_service
         gp_rate_limiter gp_suspension_store gp_attachment_store
         )

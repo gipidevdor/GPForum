@@ -151,6 +151,14 @@ const my %RETAINED => (
     forum_thread_page_posts_v2        => 1,
     forum_thread_page_posts_scoped_v1 => 0,
     forum_thread_page_posts_scoped_v2 => 1,
+
+    # Migration 133 (post reactions) moved these on.
+    privacy_revoke_user_v17      => 0,
+    privacy_revoke_user_v18      => 1,
+    portability_export_parts_v19 => 0,
+    portability_export_parts_v20 => 1,
+    forum_thread_page_reads_v1   => 0,
+    forum_thread_page_reads_v2   => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

@@ -211,6 +211,12 @@ sub register ( $, %input ) {
     $routes->post('/p/:post_id/like/remove')
       ->to('Forum::Community#unlike_post')
       ->name('post_unlike');
+    $routes->post('/p/:post_id/react/:reaction')
+      ->to('Forum::Community#react_post')
+      ->name('post_react');
+    $routes->post('/p/:post_id/react/:reaction/remove')
+      ->to('Forum::Community#unreact_post')
+      ->name('post_unreact');
     $routes->post('/p/:post_id/attachments')
       ->to('Attachments::Upload#upload_post')
       ->name('post_attachment_upload');

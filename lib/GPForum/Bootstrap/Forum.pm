@@ -19,6 +19,7 @@ use GPForum::Service::Community::Avatars;
 use GPForum::Service::Community::BookmarkStore;
 use GPForum::Service::Community::BookmarkFolders;
 use GPForum::Service::Community::LikeStore;
+use GPForum::Service::Community::ReactionStore;
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::ReplyLinks;
 use GPForum::Service::Forum::ThreadTags;
@@ -468,6 +469,14 @@ sub _register_community_helpers {
         }
     );
     $application->helper(
+        gp_reaction_store => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Community::ReactionStore->new(
+                schema => $controller->gp_schema );
+        }
+    );
+    $application->helper(
         gp_like_store => sub {
             my ($controller) = @_;
 
@@ -483,6 +492,7 @@ sub _register_community_helpers {
                 bookmark_store      => $controller->gp_bookmark_store,
                 command_idempotency => $controller->gp_command_idempotency,
                 like_store          => $controller->gp_like_store,
+                reaction_store      => $controller->gp_reaction_store,
                 logger              => $controller->app->log,
                 report_store        => $controller->gp_report_store,
                 subscription_store  => $controller->gp_subscription_store,
@@ -500,6 +510,7 @@ sub _register_community_helpers {
                 attachment_store   => $controller->gp_attachment_store,
                 bookmark_store     => $controller->gp_bookmark_store,
                 like_store         => $controller->gp_like_store,
+                reaction_store     => $controller->gp_reaction_store,
                 logger             => $controller->app->log,
                 read_state         => $controller->gp_thread_read_state,
                 reply_links        => $controller->gp_reply_links,

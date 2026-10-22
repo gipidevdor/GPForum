@@ -309,6 +309,12 @@ is( $access->post_unliked_status,
     'post_unliked', 'post_unliked_status keeps the unlike write status' );
 is( $access->write_flash_key('post_liked'),
     'forum.post_liked', 'a like flashes its own message' );
+is( $access->post_reacted_status,
+    'post_reacted', 'post_reacted_status keeps the reaction write status' );
+is( $access->post_unreacted_status,
+    'post_unreacted', 'post_unreacted_status keeps the removal status' );
+is( $access->write_flash_key('post_reacted'),
+    'forum.post_reacted', 'a reaction flashes its own message' );
 is( $access->write_flash_key('post_unliked'),
     'forum.post_unliked', 'and so does taking it back' );
 is( $access->subscribed_status,

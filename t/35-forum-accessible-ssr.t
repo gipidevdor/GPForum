@@ -18,7 +18,7 @@ use GPForum::Test::ForumWebServices;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 364;
+const my $EXPECTED_TESTS   => 366;
 const my $FORM_SNIPPET     => 800;
 const my $HTTP_BAD_REQUEST => 400;
 const my $HTTP_FOUND       => 302;
@@ -295,6 +295,10 @@ $test->element_exists(
     'form[action="/t/thread-1/bookmark"] input[name="command_id"]');
 $test->element_exists('label[for="bookmark-note"]');
 $test->element_exists('label[for="bookmark-folder"]');
+$test->element_exists(
+    'div.post__reactions span.post__reaction--static span.post__reaction-count'
+);
+$test->element_exists_not('form[action="/p/post-1/react/heart"]');
 $test->element_exists('form[action="/t/thread-1/subscribe"]');
 $test->element_exists(
     'form[action="/t/thread-1/subscribe"] input[name="command_id"]');
@@ -709,7 +713,7 @@ sub _install_forum_fakes {
         gp_thread_composer gp_thread_store gp_post_reader gp_post_composer
         gp_post_store
         gp_post_position gp_thread_read_state gp_mention_store
-        gp_mention_reader gp_bookmark_store gp_bookmark_folders gp_like_store gp_reply_links gp_thread_tags gp_subscription_store
+        gp_mention_reader gp_bookmark_store gp_bookmark_folders gp_like_store gp_reaction_store gp_reply_links gp_thread_tags gp_subscription_store
         gp_notification_dispatcher gp_search_service gp_rate_limiter
         gp_suspension_store gp_attachment_store
         )

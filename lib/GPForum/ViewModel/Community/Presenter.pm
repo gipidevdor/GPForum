@@ -61,6 +61,13 @@ sub like_response ( $self, $status, $like ) {
     };
 }
 
+sub reaction_response ( $self, $status, $reaction ) {
+    return {
+        reaction => $reaction,
+        status   => $status,
+    };
+}
+
 sub subscription_response ( $self, $status, $subscription ) {
     return {
         status       => $status,

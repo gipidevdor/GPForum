@@ -26,6 +26,8 @@ const my $POST_HIDDEN            => 'post.hidden';
 const my $POST_RESTORED          => 'post.restored';
 const my $POST_LIKED             => 'post.liked';
 const my $POST_UNLIKED           => 'post.unliked';
+const my $POST_REACTED           => 'post.reacted';
+const my $POST_UNREACTED         => 'post.unreacted';
 const my $THREAD_LOCKED          => 'thread.locked';
 const my $THREAD_UNLOCKED        => 'thread.unlocked';
 const my $THREAD_PINNED          => 'thread.pinned';
@@ -53,6 +55,8 @@ const my %SUPPORTED => (
     $POST_RESTORED          => 1,
     $POST_UNDELETED         => 1,
     $POST_UNLIKED           => 1,
+    $POST_REACTED           => 1,
+    $POST_UNREACTED         => 1,
     $POST_UPDATED           => 1,
     $THREAD_CREATED         => 1,
     $THREAD_DELETED         => 1,
@@ -111,6 +115,8 @@ const my %POST_CONTENT => (
     $POST_RESTORED  => 1,
     $POST_UNDELETED => 1,
     $POST_UNLIKED   => 1,
+    $POST_REACTED   => 1,
+    $POST_UNREACTED => 1,
     $POST_UPDATED   => 1,
 );
 

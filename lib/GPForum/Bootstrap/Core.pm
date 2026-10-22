@@ -7,6 +7,7 @@ use v5.40;
 
 use Compress::Raw::Zlib qw(WANT_GZIP Z_OK);
 use Const::Fast;
+use Mojo::IOLoop;
 
 use GPForum::Service::Attachment::Validator;
 use GPForum::Service::Clock;
@@ -85,6 +86,10 @@ sub register {
                   ),
                 badge_counter => _badge_counter($controller),
                 readability   => $readability,
+
+                # ADR 0148: a socket ends with the session it was opened in.
+                ioloop        => Mojo::IOLoop->singleton,
+                session_store => $controller->gp_identity_store,
             );
             return $realtime_hub;
         }

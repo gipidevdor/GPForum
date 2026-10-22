@@ -241,6 +241,10 @@ sub revoke_session ( $self, $input ) {
     return $self->session_store->revoke_session($input);
 }
 
+sub live_session_ids ( $self, $session_ids ) {
+    return $self->session_store->live_session_ids($session_ids);
+}
+
 sub validate_session ( $self, $input ) {
     return $self->session_store->validate_session($input);
 }
@@ -360,6 +364,10 @@ Delegates registration verification completion to the account store.
 =head2 revoke_session
 
 Revokes one server session.
+
+=head2 live_session_ids
+
+The sessions of those given that are still live, as a set (ADR 0148).
 
 =head2 validate_session
 

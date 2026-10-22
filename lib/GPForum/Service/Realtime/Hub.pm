@@ -4,7 +4,8 @@
 package GPForum::Service::Realtime::Hub;
 
 use Const::Fast;
-use List::Util qw(uniq);
+use List::Util   qw(uniq);
+use Scalar::Util qw(weaken);
 use Mojo::Base -base, -signatures;
 use v5.40;
 
@@ -15,6 +16,9 @@ use GPForum::Service::Realtime::EventEnvelope;
 our $VERSION = '0.001';
 
 const my $FALLBACK_POLL_SECONDS => 30;
+const my $SESSION_CHECK_SECONDS => 30;
+const my $SESSION_ENDED         => 1008;
+const my $SESSION_ENDED_REASON  => 'session ended';
 const my $THREAD_UPDATE         => 'thread.update';
 const my $NOTIFICATION_BADGE    => 'notification.badge';
 const my $NOTIFICATIONS         => 'notifications';
@@ -46,23 +50,134 @@ has registry =>
 has readability => undef;    # optional: readers go unfiltered without it
 has stats       => sub {
     return {
-        badge_snapshots    => 0,
-        broadcast          => 0,
-        broadcast_failures => 0,
-        broadcasts         => 0,
-        delivered          => 0,
-        failed             => 0,
-        malformed          => 0,
-        malformed_events   => 0,
+        badge_snapshots        => 0,
+        broadcast              => 0,
+        broadcast_failures     => 0,
+        broadcasts             => 0,
+        delivered              => 0,
+        failed                 => 0,
+        malformed              => 0,
+        malformed_events       => 0,
+        session_check_failures => 0,
+        sessions_closed        => 0,
     };
 };
 
+# ADR 0148: a socket ends with the session it was opened in. Every
+# session_check_seconds, while this process holds a socket, the hub asks the
+# session store (live_session_ids) which of its sockets' sessions are still
+# live, in one call, and closes the others. Without a store nothing is
+# checked; without a loop the check runs only when called.
+has session_store         => undef;  # optional: no session check without it
+has ioloop                => undef;  # optional: the check runs only when called
+has session_check_seconds => $SESSION_CHECK_SECONDS;
+has session_timer_id      => undef;    # optional: set while a check runs
+
 sub register_connection ( $self, $connection_id, $actor, $connection ) {
-    return $self->registry->register( $connection_id, $actor, $connection );
+    my $row = $self->registry->register( $connection_id, $actor, $connection );
+    if ($row) {
+        $self->_watch_sessions;
+    }
+
+    return $row;
 }
 
 sub disconnect ( $self, $connection_id ) {
-    return $self->registry->unregister($connection_id);
+    my $row = $self->registry->unregister($connection_id);
+    if ( !$self->registry->count ) {
+        $self->_unwatch_sessions;
+    }
+
+    return $row;
+}
+
+# Closes the sockets whose session has ended -- signed out, revoked,
+# expired -- and those opened with none; returns how many. A store that
+# cannot answer is no evidence that a session ended: nothing is closed.
+sub close_ended_sessions ($self) {
+    return 0 if !$self->session_store;
+
+    my @rows = values %{ $self->registry->connections };
+    my @ids  = uniq grep { defined } map { _session_id( $_->{actor} ) } @rows;
+    my $live = {};
+    if (@ids) {
+        try {
+            $live = $self->session_store->live_session_ids( \@ids );
+        }
+        catch ($error) {
+            $self->stats->{session_check_failures} += 1;
+            return 0;
+        };
+    }
+
+    return $self->_close_sessions(
+        grep { !$live->{ _session_id( $_->{actor} ) // q{} } } @rows );
+}
+
+# Closes this process's sockets of one session, at once: the sign-out made
+# here. Returns how many.
+sub close_session ( $self, $session_id ) {
+    return 0 if !defined $session_id;
+
+    return $self->_close_sessions(
+        grep { ( _session_id( $_->{actor} ) // q{} ) eq $session_id }
+          values %{ $self->registry->connections } );
+}
+
+sub _close_sessions ( $self, @rows ) {
+    for my $row (@rows) {
+        $self->disconnect( $row->{connection_id} );
+        _finish( $row->{connection} );
+    }
+    $self->stats->{sessions_closed} += scalar @rows;
+
+    return scalar @rows;
+}
+
+sub _watch_sessions ($self) {
+    return if !$self->session_store || !$self->ioloop;
+    return if defined $self->session_timer_id;
+
+    my $hub = $self;
+    weaken $hub;
+    $self->session_timer_id(
+        $self->ioloop->recurring(
+            $self->session_check_seconds => sub (@) {
+                if ($hub) {
+                    $hub->close_ended_sessions;
+                }
+            }
+        )
+    );
+
+    return;
+}
+
+sub _unwatch_sessions ($self) {
+    my $timer_id = $self->session_timer_id;
+    return if !defined $timer_id;
+
+    $self->ioloop->remove($timer_id);
+    $self->session_timer_id(undef);
+
+    return;
+}
+
+sub _session_id ($actor) {
+    return ref $actor eq 'HASH' ? $actor->{session_id} : undef;
+}
+
+sub _finish ($connection) {
+    return if !$connection || !$connection->can('finish');
+
+    try {
+        $connection->finish( $SESSION_ENDED, $SESSION_ENDED_REASON );
+    }
+    catch ($error) {
+        return;
+    };
+
+    return;
 }
 
 sub subscribe ( $self, $request ) {
@@ -394,7 +509,24 @@ registry's per-process maximum of sockets.
 =head2 disconnect
 
 Takes a connection id. Removes it and its subscriptions; returns the
-removed row, or undef when there was none.
+removed row, or undef when there was none. The session check stops with the
+last socket.
+
+=head2 close_ended_sessions
+
+Asks C<session_store> (C<live_session_ids>, one call for every socket's
+session id) which sessions are live, and closes every other socket -- one
+whose session was signed out, revoked or has expired, and one whose actor
+names no C<session_id> -- with WebSocket code 1008, C<session ended>.
+Returns how many it closed: 0 without a store, and 0 when the store dies,
+which is counted in C<session_check_failures>. While the process holds a
+socket and the hub has an C<ioloop>, it runs every
+C<session_check_seconds> (30) (ADR 0148).
+
+=head2 close_session
+
+Takes a session id and closes this process's sockets of that session at
+once, as C<close_ended_sessions> closes them. Returns how many.
 
 =head2 subscribe
 

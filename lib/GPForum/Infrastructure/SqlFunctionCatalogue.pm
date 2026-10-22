@@ -1559,6 +1559,13 @@ const my %FUNCTION => (
             revoked_at => 'timestamptz',
         ],
     },
+    session_live => {
+        version    => 2,
+        parameters => [
+            session_ids => 'uuid[]',
+            now         => 'timestamptz',
+        ],
+    },
     session_revoke_user => {
         version    => 2,
         parameters => [

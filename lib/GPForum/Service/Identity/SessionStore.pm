@@ -141,6 +141,38 @@ sub validate_session ( $self, $input ) {
     return { ok => 1, session => $session };
 }
 
+# ADR 0148: which of these sessions are live -- not revoked, not past their
+# expiry -- as a set, in one call. An id that is not a uuid names no
+# session.
+sub live_session_ids ( $self, $session_ids ) {
+    my @ids =
+      grep { GPForum::Infrastructure::Id->is_uuid($_) } @{ $session_ids || [] };
+    return {} if !@ids;
+
+    my $now = $self->clock->now_iso8601;
+    my @live;
+    if ( $self->functions ) {
+        @live = map { $_->{session_id} } @{
+            $self->functions->rows( 'session_live',
+                { session_ids => \@ids, now => $now } )
+        };
+    }
+    else {
+        @live =
+          map { $_->get_column('session_id') } $self->_sessions->search_rs(
+            {
+                expires_at => { q{>} => $now },
+                revoked_at => undef,
+                session_id => { -in => \@ids },
+            }
+          )->all;
+    }
+
+    my %live_id = map { ( lc $_ => 1 ) } @live;
+
+    return \%live_id;
+}
+
 # $keep_session_id lets a password CHANGE evict every other device while
 # leaving the browser the user is currently typing in signed in. A password
 # RESET passes nothing, because there is no session to keep. One UPDATE: a
@@ -497,6 +529,12 @@ every call and only read the row. C<last_seen_at> is written only when the
 stored value is at least C<session_touch_interval_seconds> old (default
 300), so an authenticated request does not turn into a session UPDATE every
 time. Unparseable C<last_seen_at> values are refreshed.
+
+=head2 live_session_ids
+
+Takes an array reference of session ids and returns a hash reference whose
+keys are those still live: not revoked and not past their expiry (ADR 0148).
+One call, through C<api.session_live_v2>; it revokes nothing.
 
 =head2 revoke_user_sessions
 

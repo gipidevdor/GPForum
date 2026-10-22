@@ -302,6 +302,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **A realtime socket outlived the session it was opened in.** Signing
+  out, a password change or a sign-out everywhere ended the session, and
+  its open socket kept receiving the member's badges and followed threads.
+  Each worker now asks every 30 seconds, in one call for all its sockets,
+  which of their sessions are still live and closes the others with code
+  1008; signing out closes that session's sockets on its own worker at once
+  (ADR 0148, migration 135, `session_live_v2`).
 - **Password-reset, email-change and verification tokens waited in the
   outbox in clear.** Whoever could read the outbox table, its backups or a
   dead letter could follow the link. The outbox now holds each token sealed

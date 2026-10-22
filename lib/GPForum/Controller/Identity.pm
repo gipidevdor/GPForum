@@ -350,16 +350,21 @@ sub logout ($self) {
         return $blocked;
     }
 
-    my $result = $self->gp_identity_workflow->logout(
+    my $session_id = $self->session('session_id');
+    my $result     = $self->gp_identity_workflow->logout(
         {
             command_id => $self->command_id_param,
-            session_id => $self->session('session_id'),
+            session_id => $session_id,
             user_id    => $self->current_user_id,
         }
     );
     if ( !$result->{ok} ) {
         return $self->identity_write_failure($result);
     }
+
+    # ADR 0148: this worker's sockets of the session close now; every other
+    # worker's at its next session check.
+    $self->gp_realtime_hub->close_session($session_id);
 
     $self->_record_identity_audit(
         'record_logout_request',

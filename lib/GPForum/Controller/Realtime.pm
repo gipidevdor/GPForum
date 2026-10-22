@@ -44,7 +44,12 @@ sub stream ($self) {
 
 sub _accept_stream ( $self, $user_id ) {
     my $connection_id = $self->gp_id->uuid;
-    my $actor         = { user_id => $user_id };
+
+    # ADR 0148: the session the socket is opened in, which it ends with.
+    my $actor = {
+        session_id => $self->session('session_id'),
+        user_id    => $user_id,
+    };
     my $registered =
       $self->gp_realtime_hub->register_connection( $connection_id, $actor,
         $self );

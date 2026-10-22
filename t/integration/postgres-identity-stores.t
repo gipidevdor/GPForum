@@ -689,6 +689,18 @@ sub _session_validation {
         );
     };
 
+    # ADR 0148: the realtime hub asks, in one call, which of its sockets'
+    # sessions are live, and closes the others; asking revokes nothing.
+    is_deeply(
+        $identity_store->live_session_ids(
+            [ $valid, $expired, $revoked, 'not-a-session-id' ]
+        ),
+        { $valid => 1 },
+        'of a live, an expired, a revoked and a malformed id, one is live'
+    );
+    is( _row( $ctx, $SESSION_ROW_SQL, $expired )->{revoked_at},
+        undef, 'and asking revokes nothing' );
+
     ok(
         $validate->( $valid, $token{valid} )->{ok},
         'server-side session validation accepts live row'

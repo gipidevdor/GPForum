@@ -4,6 +4,7 @@
 package GPForum::Web::IdentityAccess;
 
 use Const::Fast;
+use Digest::SHA qw(sha256_hex);
 use Mojo::Base -base, -signatures;
 use v5.40;
 
@@ -30,6 +31,9 @@ const my $PROFILE_THREADS           => 10;
 const my $LOCALE_COOKIE             => 'gpforum_locale';
 const my $THEME_COOKIE              => 'gpforum_theme';
 const my $COOKIE_AGE                => 31_536_000;
+const my $DEVICE_COOKIE             => 'gpforum_device';
+const my $DEVICE_MARKS              => 5;
+const my $DEVICE_MARK_PREFIX        => 'gpforum-device:';
 const my %ACTION_LIMIT_FOR => (
     'identity.login_account'   => $ACCOUNT_LOGIN_LIMIT,
     'identity.email_change'    => $PASSWORD_LIMIT,
@@ -88,6 +92,42 @@ sub locale_cookie_name {
 
 sub theme_cookie_name {
     return $THEME_COOKIE;
+}
+
+# ADR 0147: the accounts a browser has signed in to, as a mark of each, the
+# newest first and at most five. The cookie is signed; a mark is a digest
+# of the identifier as it signs in, so the cookie does not carry it.
+sub device_cookie_name {
+    return $DEVICE_COOKIE;
+}
+
+sub device_mark ( $, $identifier ) {
+    return sha256_hex( $DEVICE_MARK_PREFIX . $identifier );
+}
+
+sub device_knows ( $self, $marks, $identifier ) {
+    my $mark = $self->device_mark($identifier);
+
+    return scalar grep { $_ eq $mark } _marks($marks);
+}
+
+sub device_marks_with ( $self, $marks, $identifier ) {
+    my $mark = $self->device_mark($identifier);
+    my @kept = ( $mark, grep { $_ ne $mark } _marks($marks) );
+    if ( @kept > $DEVICE_MARKS ) {
+        splice @kept, $DEVICE_MARKS;
+    }
+
+    return join q{.}, @kept;
+}
+
+sub device_cookie_options ( $self, $now, $secure ) {
+    return { %{ $self->preference_cookie_options($now) },
+        secure => $secure ? 1 : 0 };
+}
+
+sub _marks ($marks) {
+    return grep { /\A [[:xdigit:]]{64} \z/msx } split /[.]/msx, $marks // q{};
 }
 
 sub preference_cookie_options ( $, $now ) {
@@ -221,6 +261,29 @@ Returns C<gpforum_locale>.
 =head2 theme_cookie_name
 
 Returns C<gpforum_theme>.
+
+=head2 device_cookie_name
+
+Returns C<gpforum_device>, the signed cookie of the accounts a browser has
+signed in to (ADR 0147).
+
+=head2 device_mark
+
+Returns the mark of an identifier, as it signs in: a SHA-256 digest, so the
+cookie does not carry the identifier.
+
+=head2 device_knows
+
+True when the marks of a device cookie value hold the identifier's.
+
+=head2 device_marks_with
+
+Returns a device cookie value with the identifier's mark first and at most
+five marks.
+
+=head2 device_cookie_options
+
+Returns the preference cookie options, C<secure> as given.
 
 =head2 preference_cookie_options
 

@@ -105,9 +105,11 @@ sub login ($self) {
         );
     }
     if ( $result->{ok} ) {
+        $self->_remember_device;
         return $self->_accept_login( $result->{stored} );
     }
     if ( $result->{status} eq 'second_factor' ) {
+        $self->_remember_device;
         return $self->_ask_second_step( $result->{stored} );
     }
     if ( $result->{status} eq 'second_factor_locked' ) {
@@ -122,9 +124,22 @@ sub login ($self) {
 
 # Logins are limited per address, and per account too: from many addresses,
 # each under its own limit, one account could take thousands of guesses.
+# ADR 0147: the account's limit does not apply to a browser that has signed
+# in to it, so nobody can lock a member out of the browsers they use by
+# guessing from elsewhere; only its address's limit does.
 sub _account_login_guard ($self) {
-    my $identifier = lc $self->_trim( $self->param('identifier') );
+    my $identifier = $self->_login_identifier;
     if ( !length $identifier ) {
+        return;
+    }
+    my $access = $self->identity_access;
+    if (
+        $access->device_knows(
+            scalar $self->signed_cookie( $access->device_cookie_name ),
+            $identifier
+        )
+      )
+    {
         return;
     }
 
@@ -141,6 +156,29 @@ sub _account_login_guard ($self) {
     }
 
     return $self->_rate_limited;
+}
+
+sub _login_identifier ($self) {
+    return lc $self->_trim( $self->param(q{identifier}) );
+}
+
+# ADR 0147: the password was right, so this browser is one the member signs
+# in from.
+sub _remember_device ($self) {
+    my $identifier = $self->_login_identifier;
+    if ( !length $identifier ) {
+        return;
+    }
+    my $access = $self->identity_access;
+    $self->signed_cookie(
+        $access->device_cookie_name => $access->device_marks_with(
+            scalar $self->signed_cookie( $access->device_cookie_name ),
+            $identifier
+        ),
+        $access->device_cookie_options( time, $self->app->sessions->secure ),
+    );
+
+    return;
 }
 
 # ADR 0142: the second step of a sign-in, for a member with two-step

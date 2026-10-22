@@ -302,6 +302,14 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **Anyone could lock a member out of signing in.** The limit on the
+  sign-ins one account receives, from every address together, counted
+  anyone's attempts, so twenty wrong passwords every five minutes from
+  anywhere refused the member's own right password too. A browser that has
+  signed in to an account now carries a signed mark of it
+  (`gpforum_device`, no identifier in it), and the account's limit does not
+  apply there, only its address's; every other browser still meets the
+  account's limit (ADR 0147).
 - **Search showed hidden and deleted content until the outbox caught up.**
   A hide or a delete leaves the index through the outbox, a while after it
   is made, and until then search and its suggestions answered from the

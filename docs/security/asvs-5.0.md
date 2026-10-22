@@ -8,6 +8,8 @@ scope, its level, its state, and what shows it.
 
 Verified: 2026-10-22, against main as of that day, by reading the code and
 the tests named in each row. Nobody outside the project has verified it.
+The suspension timestamp and Unicode-password rows were checked again on
+2026-10-23 against PostgreSQL integration tests; their evidence is updated below.
 
 ## Where it stands
 
@@ -22,22 +24,22 @@ orders them, the Level 3 areas first.
 | V3 Web Frontend Security | 19 | 9 | 6 | 4 |
 | V4 API and Web Service | 10 | 4 | 2 | 4 |
 | V5 File Handling | 9 | 5 | 3 | 1 |
-| V6 Authentication | 47 | 21 | 14 | 12 |
+| V6 Authentication | 47 | 22 | 13 | 12 |
 | V7 Session Management | 19 | 7 | 9 | 3 |
-| V8 Authorization | 13 | 5 | 7 | 1 |
+| V8 Authorization | 13 | 6 | 6 | 1 |
 | V9 Self-contained Tokens | 7 | 7 | 0 | 0 |
 | V11 Cryptography | 21 | 10 | 11 | 0 |
 | V12 Secure Communication | 9 | 4 | 4 | 1 |
 | V13 Configuration | 13 | 6 | 7 | 0 |
 | V14 Data Protection | 9 | 4 | 5 | 0 |
-| V15 Secure Coding and Architecture | 13 | 7 | 6 | 0 |
+| V15 Secure Coding and Architecture | 13 | 8 | 5 | 0 |
 | V16 Security Logging and Error Handling | 17 | 2 | 15 | 0 |
-| All chapters | 246 | 109 | 101 | 36 |
+| All chapters | 246 | 112 | 98 | 36 |
 
 | Level | In scope | Met | Not met | N/A |
 | --- | --: | --: | --: | --: |
-| Level 1 | 65 | 45 | 17 | 3 |
-| Level 2 | 152 | 54 | 70 | 28 |
+| Level 1 | 65 | 47 | 15 | 3 |
+| Level 2 | 152 | 55 | 69 | 28 |
 | Level 3 | 29 | 10 | 14 | 5 |
 
 The review also found four places where another document says otherwise.
@@ -154,9 +156,9 @@ ADR 0149 sets and are not assessed.
 | v5.0.0-2.2.2 | 1 | Validation enforced on the server, not the client | met | `t/710-forum-body-length.t:68`, `lib/GPForum/Service/Forum/PostComposer.pm:218`, `lib/GPForum/Service/Identity/Registration.pm:89`: composers, registration and the attachment validator decide in the service layer, with database CHECK constraints behind them, and no client-side check is relied on. |
 | v5.0.0-2.2.3 | 2 | Related data combinations checked against defined rules | not met | A role binding takes any resource type, resource id and space id without checking that they agree or exist (`lib/GPForum/Service/Admin/Workflow.pm:146`), and the permission check ignores the binding's resource type and treats a binding with neither id as global (`api.admin_permission_allowed_v4`). |
 | v5.0.0-2.3.1 | 1 | Multi-step flows run in order without skipping steps | met | `t/integration/postgres-second-factor.t:167`, `lib/GPForum/Controller/Identity.pm:201`, `lib/GPForum/Service/Moderation/ReviewWorkflow.pm:42`: a password alone signs nobody in until the challenge it issued is answered, and a held post is published or rejected only while it is still pending. |
-| v5.0.0-2.3.2 | 2 | Business limits enforced as the application defines them | not met | A suspension sets the member's status to suspended and only a revocation sets it back (`lib/GPForum/Service/Moderation/SuspensionStore.pm:124`), and participation is refused on that status before the end is read (`api.moderation_can_participate_v2`), so a timed suspension never ends by itself; its end is also compared as text (`lib/GPForum/Service/Moderation/SuspensionStore.pm:348`, `api.moderation_active_suspension_v2`), so on its last day suspending again inserts a second suspension (a TODO in `t/integration/postgres-moderation-review.t:980`). |
-| v5.0.0-2.3.3 | 2 | Business operations commit wholly or roll back | met | `t/integration/postgres-command-failure.t:65`, `lib/GPForum/Service/Operations/CommandIdempotency.pm:96`, `lib/GPForum/Service/Moderation/SuspensionStore.pm:51`: every workflow command runs in one transaction that is abandoned when it fails, and the moderation stores write row, status, event and audit inside txn_do. |
-| v5.0.0-2.3.4 | 2 | Locking prevents double use of limited resources | not met | Drafts, DMs, reports, held posts, bans and role-binding revocation lock their rows, but a suspension is created check-then-insert with no lock or unique index (`lib/GPForum/Service/Moderation/SuspensionStore.pm:67`) and revoked from an unlocked read (`api.moderation_suspension_find_v2`), so concurrent requests can create two active suspensions or audit one revocation twice. |
+| v5.0.0-2.3.2 | 2 | Business limits enforced as the application defines them | not met | A suspension sets the member status to suspended and only revocation restores it (`lib/GPForum/Service/Moderation/SuspensionStore.pm:121`); participation refuses that status before consulting the end (`api.moderation_can_participate_v4`), so a timed suspension still needs revocation. Migration 1024 fixes the separate text-comparison and ten-row-window defects: `t/integration/postgres-moderation-review.t:1024` and `t/integration/postgres-moderation-review.t:1062` cover the same-day end, exact expiry, older open-ended rows and three time zones, through both SQL and ORM. |
+| v5.0.0-2.3.3 | 2 | Business operations commit wholly or roll back | met | `t/integration/postgres-command-failure.t:65`, `lib/GPForum/Service/Operations/CommandIdempotency.pm:96`, `lib/GPForum/Service/Moderation/SuspensionStore.pm:52`: every workflow command runs in one transaction that is abandoned when it fails, and the moderation stores write row, status, event and audit inside txn_do. |
+| v5.0.0-2.3.4 | 2 | Locking prevents double use of limited resources | not met | Drafts, DMs, reports, held posts, bans and role-binding revocation lock their rows, but a suspension is created check-then-insert with no lock or unique index (`lib/GPForum/Service/Moderation/SuspensionStore.pm:63`) and revoked from an unlocked read (`api.moderation_suspension_find_v2`), so concurrent requests can create two active suspensions or audit one revocation twice. |
 | v5.0.0-2.3.5 | 3 | High-value actions need approval by several staff | not met | One staff member alone suspends (`lib/GPForum/Controller/Moderation/Suspensions.pm:26`), grants roles (`lib/GPForum/Controller/Admin/Bindings.pm:20`) and places address bans; the danger confirmation is the same person confirming, not a second approver. |
 | v5.0.0-2.4.1 | 2 | Anti-automation limits excessive calls to functions | not met | Every HTTP read and write is rate limited (`t/32-forum-web.t:762`), but socket frames other than subscribe are answered with no limit (`lib/GPForum/Controller/Realtime.pm:110`) and nothing caps a member's stored bytes beyond 20 uploads of 25 MiB a minute (`lib/GPForum/Web/AttachmentAccess.pm:13`). |
 | v5.0.0-2.4.2 | 3 | Submissions require realistic human pacing | not met | No flow checks the time between a form and its submission; moderation and admin writes are bounded only by 20 a minute (`lib/GPForum/Web/ModerationAccess.pm:13`, `lib/GPForum/Web/AdminAccess.pm:14`), which a script can spend in one burst. |
@@ -219,17 +221,17 @@ ADR 0149 sets and are not assessed.
 | ID | L | Requirement | State | Evidence |
 | --- | :-: | --- | --- | --- |
 | v5.0.0-6.1.1 | 1 | Documented brute-force and stuffing defences, no malicious lockout | met | `docs/adr/0147-a-browser-a-member-signs-in-from-is-not-locked-out.md:16`, `docs/adr/0147-a-browser-a-member-signs-in-from-is-not-locked-out.md:43`, `docs/adr/0142-two-step-sign-in-with-a-time-based-code.md:79`: sign-in is limited per address (10 / 5 min) and per account across addresses (20 / 5 min), a browser that already signed in skips the account limit so nobody can lock a member out, and the second step has its own per-challenge, per-account and per-address caps. |
-| v5.0.0-6.1.2 | 2 | Documented list of context-specific banned password words | not met | No document lists organisation, product or role words to refuse; `lib/GPForum/Service/Password.pm:50` checks only presence and minimum length. |
+| v5.0.0-6.1.2 | 2 | Documented list of context-specific banned password words | not met | No document lists organisation, product or role words to refuse; `lib/GPForum/Service/Password.pm:81` checks only presence and minimum length. |
 | v5.0.0-6.1.3 | 2 | All authentication pathways documented together with strength | not met | No single document lists the pathways (password, password plus TOTP or recovery code, emailed reset, CLI owner creation, administrator two-step reset) with their controls and strength; they are scattered over `docs/adr/0142-two-step-sign-in-with-a-time-based-code.md`, `docs/adr/0147-a-browser-a-member-signs-in-from-is-not-locked-out.md` and `docs/PRODUCT_FLOWS.md:21`, which is stale (it still says a lost login replays from command_log). |
-| v5.0.0-6.2.1 | 1 | Minimum password length of at least 8 | met | `t/110-identity-account-store.t:35`, `t/07-registration-service.t:48`, `lib/GPForum/Service/Password.pm:55`: registration, change and reset refuse fewer than 12 characters (a 9-character password is asserted refused). |
+| v5.0.0-6.2.1 | 1 | Minimum password length of at least 8 | met | `t/110-identity-account-store.t:35`, `t/07-registration-service.t:48`, `lib/GPForum/Service/Password.pm:81`: registration, change and reset refuse fewer than 12 characters (a 9-character password is asserted refused). |
 | v5.0.0-6.2.2 | 1 | Members can change their password | met | `t/integration/postgres-identity-stores.t:1226`, `lib/GPForum/Controller/Identity/Password.pm:123`, `templates/identity/settings.html.ep:112`: POST /settings/password rotates the credential and revokes the member's other sessions. |
 | v5.0.0-6.2.3 | 1 | Password change needs current and new password | met | `t/integration/postgres-identity-stores.t:1201`, `lib/GPForum/Service/Identity/Workflow.pm:227`, `lib/GPForum/Service/Identity/AccountStore.pm:69`: both fields are required and the current password is verified against the active credential before any write. |
-| v5.0.0-6.2.4 | 1 | Refuse the top 3000 common passwords | not met | No common-password list is consulted at registration, change or reset; `lib/GPForum/Service/Password.pm:55` and `lib/GPForum/Service/Identity/Registration.pm:105` check length only, so common passwords of 12 or more characters are accepted. |
-| v5.0.0-6.2.5 | 1 | Any character composition allowed, no composition rules | not met | There are no composition rules, but any character above U+00FF (Cyrillic, Greek, CJK, emoji) makes Crypt::Argon2 die with Wide character at `lib/GPForum/Service/Password.pm:24` (and `lib/GPForum/Service/Password.pm:33` at sign-in), so registration, change and reset answer 503; confirmed by posting /register through the app. |
+| v5.0.0-6.2.4 | 1 | Refuse the top 3000 common passwords | not met | No common-password list is consulted at registration, change or reset; `lib/GPForum/Service/Password.pm:81` and `lib/GPForum/Service/Identity/Registration.pm:105` check length only, so common passwords of 12 or more characters are accepted. |
+| v5.0.0-6.2.5 | 1 | Any character composition allowed, no composition rules | met | `lib/GPForum/Service/Password.pm:29` hashes exact UTF-8 octets; a public salt marker distinguishes the encoding from the original Latin-1 hashes without weakening Argon2id or trying alternative passwords. `t/725-password-unicode.t:26` covers Cyrillic, CJK, emoji, spaces and legacy hashes, including ambiguous byte sequences; `t/integration/postgres-front-door.t:185` creates an owner through UTF-8 stdin, signs in over HTTP and registers another Unicode password. |
 | v5.0.0-6.2.6 | 1 | Password inputs masked with type=password | met | `templates/identity/login.html.ep:23`, `templates/identity/register.html.ep:22`, `templates/identity/settings.html.ep:112`: every password field (sign-in, registration, reset, change, email change, two-step settings) is type=password. |
 | v5.0.0-6.2.7 | 1 | Paste and password managers not blocked | met | `t/80-settings-web.t:59`, `lib/GPForum/ViewModel/Identity/Presenter.pm:43`, `templates/identity/settings.html.ep:110`: password fields carry current-password or new-password autocomplete hints and no template or script blocks paste or autofill. |
-| v5.0.0-6.2.8 | 1 | Password verified exactly as typed, unmodified | met | `lib/GPForum/Controller/Identity.pm:93`, `lib/GPForum/Service/Identity/Registration.pm:32`, `lib/GPForum/Service/Password.pm:33`: the password goes to Argon2id as received, never trimmed, truncated, normalised or case-folded (the failure on wide characters is recorded under 6.2.5). |
-| v5.0.0-6.2.9 | 2 | Passwords of 64+ characters allowed | met | `lib/GPForum/Service/Password.pm:55`, `lib/GPForum/Service/Identity/Registration.pm:105`, `templates/identity/register.html.ep:22`: only a minimum is enforced and no field has a maxlength, so a 200-character password hashes and verifies. |
+| v5.0.0-6.2.8 | 1 | Password verified exactly as typed, unmodified | met | `lib/GPForum/Controller/Identity.pm:93`, `lib/GPForum/Service/Identity/Registration.pm:32`, `lib/GPForum/Service/Password.pm:39`: verification uses the exact character sequence, encoded according to the hash salt marker, without trimming, truncation, normalisation, case folding or encoding fallback. `t/725-password-unicode.t:26` also asserts that hashing does not mutate its input and distinct character sequences do not match legacy hashes. |
+| v5.0.0-6.2.9 | 2 | Passwords of 64+ characters allowed | met | `lib/GPForum/Service/Password.pm:81`, `lib/GPForum/Service/Identity/Registration.pm:105`, `templates/identity/register.html.ep:22`: only a minimum is enforced and no field has a maxlength, so a 200-character password hashes and verifies. |
 | v5.0.0-6.2.10 | 2 | No forced periodic password rotation | met | `lib/GPForum/Service/Identity/CredentialStore.pm:135`: a credential (the `credentials` table has no expiry column) stays active until the member changes or resets it. |
 | v5.0.0-6.2.11 | 2 | Context-specific word list enforced on new passwords | not met | No such list exists (see 6.1.2), so none is checked; `lib/GPForum/Service/Identity/Registration.pm:105` checks length only. |
 | v5.0.0-6.2.12 | 2 | Check new passwords against breached-password sets | not met | No breached-password lookup (local corpus or k-anonymity range query) runs at registration, change or reset; `lib/GPForum/Service/Identity/AccountStore.pm:777` checks length only. |
@@ -298,7 +300,7 @@ ADR 0149 sets and are not assessed.
 | v5.0.0-8.1.2 | 2 | Docs define field-level read and write rules | not met | No document defines which fields each kind of consumer may read or write; field exposure is decided only in code, such as the public profile's field list (`lib/GPForum/Service/Identity/ProfileReader.pm:289`). |
 | v5.0.0-8.1.3 | 3 | Docs define contextual attributes used in security decisions | met | `docs/adr/0146-address-and-range-bans.md:41`, `docs/adr/0147-a-browser-a-member-signs-in-from-is-not-locked-out.md:30`, `docs/THREAT_MODEL.md:76`: the attributes the code uses are each defined (client address for rate limits and bans, the signed known-device mark, the websocket Origin, trusted proxies); time of day and location are not used. |
 | v5.0.0-8.1.4 | 3 | Docs define how context drives decisions, thresholds, actions | not met | ADRs 0146 and 0147 and `docs/THREAT_MODEL.md:76` give the address and account limits and their refusals, but no document sets risk thresholds with challenge or step-up actions, and the field-level rules it must sit beside are missing (8.1.2). |
-| v5.0.0-8.2.1 | 1 | Functions restricted to explicitly permitted consumers | not met | Consoles check the permission gate per action and deny by default, but the suspension that bars participation compares its end as text (`lib/GPForum/Service/Moderation/SuspensionStore.pm:348`, `api.moderation_active_suspension_v2`), so on its last day it reads as over wherever the member's status is no longer suspended (one of two overlapping suspensions revoked); a TODO in `t/integration/postgres-moderation-review.t:980`. |
+| v5.0.0-8.2.1 | 1 | Functions restricted to explicitly permitted consumers | met | Console actions check the permission gate and deny by default (`api.admin_permission_allowed_v4`). The suspension participation gate now compares typed instants and considers every unrevoked suspension (`api.moderation_active_suspension_v4`, `lib/GPForum/Service/Moderation/SuspensionStore.pm:349`); `t/integration/postgres-moderation-review.t:1024` and `t/integration/postgres-moderation-review.t:1062` assert that a same-day end and older open-ended suspension still bar participation. Revocation preserves deleted and pending accounts and keeps the member suspended while another active suspension remains (`t/integration/postgres-moderation-review.t:849`). |
 | v5.0.0-8.2.2 | 1 | Object access limited to permitted consumers (IDOR/BOLA) | met | `t/199-effective-visibility.t:106`, `lib/GPForum/Service/Forum/Visibility.pm:48`, `api.core_forum_write_post_v1`: reads go through the effective-visibility rule on every surface, and edits, deletes, attachments, drafts and sessions are matched to their owner in the store. |
 | v5.0.0-8.2.3 | 2 | Field access limited to permitted consumers (BOPLA) | met | `t/42-profile-reader.t:204`, `lib/GPForum/Service/Identity/ProfileReader.pm:289`: no controller binds a request wholesale (each field is read by name), and readers answer a fixed field list per audience, such as a public profile without the address. |
 | v5.0.0-8.2.4 | 3 | Adaptive contextual controls at sign-in and during sessions | not met | Context feeds only static rate limits and staff-placed address bans; nothing adapts to risk or steps authentication up, and a session's address and browser are hashed into its row and never compared again (`lib/GPForum/Service/Identity/SessionStore.pm:283`). |
@@ -329,9 +331,9 @@ ADR 0149 sets and are not assessed.
 | v5.0.0-11.1.3 | 3 | Automated discovery of every cryptographic use | not met | Nothing discovers cryptographic use. `.github/workflows/security.yml` scans dependency advisories, licenses, leaked secrets and workflows only, and no CBOM, SAST or test lists the hashing, MAC and encryption call sites behind passwords, the TOTP code and mail tokens. |
 | v5.0.0-11.1.4 | 3 | Inventory with a migration plan, post-quantum included | not met | There is no inventory and no documented plan for moving Argon2id, the HMAC-SHA-1 TOTP or the sealed-secret format to new standards, post-quantum included. The only forward-looking note is a POD line saying a later format can move to AES-GCM (`lib/GPForum/Service/Identity/SecretBox.pm:225`). |
 | v5.0.0-11.2.1 | 2 | Vetted crypto implementations, not home-made constructions | not met | Hashing, HMAC, Argon2id and randomness come from Digest::SHA, Crypt::Argon2 and Crypt::URandom, but the encryption of TOTP secrets and queued mail tokens is a cipher written in the project: an HMAC-SHA-256 counter-mode keystream with encrypt-then-MAC (`lib/GPForum/Service/Identity/SecretBox.pm:121`). This breaks the project's own ban on custom cryptography (`docs/adr/0053-security-architecture.md:203`), and the SCRAM verifier's PBKDF2 is hand-written too (`lib/GPForum/Service/Operations/DatabaseProvisioning.pm:159`). |
-| v5.0.0-11.2.2 | 2 | Algorithms, parameters and keys replaceable without rework | not met | Keys can rotate: session secrets through gpforum secret rotate, and sealed secrets carry key ids and are sealed again under the new key at sign-in (`lib/GPForum/Service/Identity/SecondFactor.pm:270`). But the Argon2id parameters are code constants (`lib/GPForum/Service/Password.pm:15`), and a successful sign-in never rehashes an old hash (`lib/GPForum/Service/Identity/AuthStore.pm:181`); verification also accepts only argon2id, and the TOTP algorithm is fixed with no per-secret algorithm field. |
+| v5.0.0-11.2.2 | 2 | Algorithms, parameters and keys replaceable without rework | not met | Keys can rotate: session secrets through gpforum secret rotate, and sealed secrets carry key ids and are sealed again under the new key at sign-in (`lib/GPForum/Service/Identity/SecondFactor.pm:270`). But the Argon2id parameters are code constants (`lib/GPForum/Service/Password.pm:16`), and a successful sign-in never rehashes an old hash (`lib/GPForum/Service/Identity/AuthStore.pm:181`); verification also accepts only argon2id, and the TOTP algorithm is fixed with no per-secret algorithm field. |
 | v5.0.0-11.2.3 | 2 | Every primitive gives at least 128 bits of security | not met | The algorithms and every key the application generates reach 128 bits, and production refuses a current secret or second-factor key shorter than 32 characters (`lib/GPForum/Config.pm:1628`). The still-accepted previous keys have no length rule, though: GPFORUM_SESSION_SECRETS is checked only against the development value (`lib/GPForum/Config.pm:1639`) and GPFORUM_SECOND_FACTOR_KEYS is not checked at all (`lib/GPForum/Config.pm:831`). |
-| v5.0.0-11.2.4 | 3 | Secret comparisons and crypto operations run in constant time | met | `lib/GPForum/Service/Identity/SecondFactorCodes.pm:106`, `lib/GPForum/Service/Identity/SecretBox.pm:93`, `lib/GPForum/Service/Password.pm:33`: a TOTP check computes all three candidate codes and compares each without an early exit, sealed secrets and mail tokens check their tags the same way, and Argon2id compares inside the library. An unknown account verifies against a decoy hash, and mail tokens are looked up by their SHA-256, so timing reveals only bits of the hash (no test asserts timing). |
+| v5.0.0-11.2.4 | 3 | Secret comparisons and crypto operations run in constant time | met | `lib/GPForum/Service/Identity/SecondFactorCodes.pm:106`, `lib/GPForum/Service/Identity/SecretBox.pm:93`, `lib/GPForum/Service/Password.pm:39`: a TOTP check computes all three candidate codes and compares each without an early exit, sealed secrets and mail tokens check their tags the same way, and Argon2id compares inside the library. An unknown account verifies against a decoy hash, and mail tokens are looked up by their SHA-256, so timing reveals only bits of the hash (no test asserts timing). |
 | v5.0.0-11.2.5 | 3 | Crypto failures fail closed and give no oracle | met | `t/712-second-factor.t:158`, `t/718-identity-mail-token-sealed.t:67`, `lib/GPForum/Service/Identity/SecretBox.pm:99`: unseal returns the same undef for a wrong format, an unknown key, a bad tag or another member's value, checks the MAC before decrypting and uses no padding. A TOTP check treats an unopenable secret as a wrong code, the outbox worker mails nothing it cannot open, and password verification returns false for a missing or non-Argon2id hash. |
 | v5.0.0-11.3.1 | 1 | No ECB mode or weak padding | met | `lib/GPForum/Service/Identity/SecretBox.pm:70`: the application's only encryption XORs a counter-mode keystream, so no block mode or padding is involved, and no RSA or other public-key padding is used anywhere in the code. |
 | v5.0.0-11.3.2 | 1 | Only approved ciphers and modes | not met | The application's only cipher is a project-built keystream of HMAC-SHA-256 in counter mode (`lib/GPForum/Service/Identity/SecretBox.pm:125`), which is not on the approved list (AES-GCM, ChaCha20-Poly1305 and the like). ADR 0142 chose it to avoid adding CryptX (`docs/adr/0142-two-step-sign-in-with-a-time-based-code.md:131`). |
@@ -339,11 +341,11 @@ ADR 0149 sets and are not assessed.
 | v5.0.0-11.3.4 | 3 | A nonce is never reused under the same key | met | `t/712-second-factor.t:153`, `lib/GPForum/Service/Identity/SecretBox.pm:68`: each sealing of a TOTP secret or mail token draws a fresh 128-bit nonce from the OS CSPRNG, which suits the counter-mode keystream and makes a repeat under one key negligibly likely. |
 | v5.0.0-11.3.5 | 3 | MAC computed over the ciphertext (encrypt-then-MAC) | met | `t/712-second-factor.t:158`, `lib/GPForum/Service/Identity/SecretBox.pm:71`: the tag is computed over the ciphertext after encryption, and unseal verifies it before applying the keystream, for TOTP secrets and mail tokens alike. |
 | v5.0.0-11.4.1 | 1 | Only approved hash functions for crypto; no MD5 | not met | TOTP codes use HMAC-SHA-1 (`lib/GPForum/Service/Identity/SecondFactorCodes.pm:83`), which appendix C rates legacy, not approved, for HMAC; it is kept so standard authenticator apps work. The other SHA-1 and MD5 uses are not cryptographic: an ETag (`lib/GPForum/Web/PublicHttpCache.pm:207`), a sandbox package name (`lib/GPForum/Web/Partials.pm:41`), UUIDv5 ids and a MIME boundary. |
-| v5.0.0-11.4.2 | 2 | Passwords stored with a tuned slow hash | met | `t/04-services.t:57`, `lib/GPForum/Service/Password.pm:24`: member passwords are hashed with Argon2id (t=3, m=32 MiB, p=1, a 16-byte random salt and a 32-byte tag), above appendix C's floor of 12 MiB at t>=3; a fresh hash encodes m=32768,t=3,p=1. |
+| v5.0.0-11.4.2 | 2 | Passwords stored with a tuned slow hash | met | `t/04-services.t:57`, `lib/GPForum/Service/Password.pm:29`: member passwords are hashed with Argon2id (t=3, m=32 MiB, p=1, a public encoding marker plus 16 random salt bytes and a 32-byte tag), above appendix C's floor of 12 MiB at t>=3; a fresh hash encodes m=32768,t=3,p=1. |
 | v5.0.0-11.4.3 | 2 | Integrity hashes collision-resistant and at least 256 bits | met | `t/116-infrastructure-audit-record.t:119`, `lib/GPForum/Infrastructure/AuditRecord.pm:81`: the audit chain, session and token digests, and migration, backup and attachment checksums use SHA-256, while cookies, unsubscribe links and sealed values use HMAC-SHA-256. SHA-1 appears only in identifiers that protect nothing (ETag, UUIDv5). |
 | v5.0.0-11.4.4 | 2 | Keys derived from passwords use a stretched approved KDF | not met | The only key derived from a password is the SCRAM-SHA-256 verifier setup writes for the database role: PBKDF2-HMAC-SHA-256 at 4,096 iterations (`lib/GPForum/Service/Operations/DatabaseProvisioning.pm:35`, asserted at `t/532-setup-database-provisioning.t:72`), far below appendix C's 600,000. Setup normally generates a 256-bit random password, but one the operator supplies gets the same 4,096 iterations. |
 | v5.0.0-11.5.1 | 2 | Unguessable values from a CSPRNG, at least 128 bits | not met | Session and mail tokens, salts, nonces, CSRF tokens and TOTP secrets come from the OS CSPRNG at 128 to 256 bits (`lib/GPForum/Service/SessionToken.pm:13`). Two-step recovery codes, however, carry only 80 random bits (`lib/GPForum/Service/Identity/SecondFactorCodes.pm:33`) and are stored as a plain SHA-256 (`lib/GPForum/Service/Identity/SecondFactorCodes.pm:151`). |
-| v5.0.0-11.5.2 | 3 | Random source stays secure under heavy demand | met | `cpanfile:16`, `lib/GPForum/Service/Password.pm:65`, `lib/GPForum/Service/SessionToken.pm:25`: salts, TOTP secrets, nonces and mail tokens come from Crypt::URandom 0.55, which calls getrandom(2), or reopens /dev/urandom after a fork. It never blocks or degrades under load, and it throws an error rather than fall back to a weaker source (no test exercises load). |
+| v5.0.0-11.5.2 | 3 | Random source stays secure under heavy demand | met | `cpanfile:16`, `lib/GPForum/Service/Password.pm:94`, `lib/GPForum/Service/SessionToken.pm:25`: salts, TOTP secrets, nonces and mail tokens come from Crypt::URandom 0.55, which calls getrandom(2), or reopens /dev/urandom after a fork. It never blocks or degrades under load, and it throws an error rather than fall back to a weaker source (no test exercises load). |
 | v5.0.0-11.6.1 | 2 | Approved key generation, no weak asymmetric keys | met | `lib/GPForum/Command/Secret.pm:126`, `lib/GPForum/Service/Identity/SecretBox.pm:121`: secrets are generated as 32 bytes from the OS CSPRNG, and sub-keys are derived with HMAC-SHA-256 under separate labels. The application generates no asymmetric keys and makes no digital signatures; TLS keys belong to nginx or Caddy. |
 
 ## V12 Secure Communication
@@ -406,7 +408,7 @@ ADR 0149 sets and are not assessed.
 | v5.0.0-15.3.2 | 2 | Outbound HTTP does not follow redirects | met | `lib/GPForum/Service/Operations/HttpProbe.pm:76`: the only outbound HTTP client, the operator's status and doctor probe, sets max_redirects(0), and its curl fallback (`lib/GPForum/Service/Operations/HttpProbe.pm:147`) passes no --location. |
 | v5.0.0-15.3.3 | 2 | Allow-list writable fields per action | met | `lib/GPForum/Controller/Admin/Categories.pm:42`, `lib/GPForum/Service/Admin/CategoryStore.pm:198`, `lib/GPForum/Controller/Forum/Write.pm:26`: no code copies request parameters wholesale (no every_param or params->to_hash in lib/); each action names its fields, owner ids come from the session, and stores build updates from fixed column sets. |
 | v5.0.0-15.3.4 | 2 | Client IP taken from trusted proxy data only | met | `t/691-client-address.t:46`, `lib/GPForum/Web/ClientAddress.pm:67`: on the proxy socket only the X-Forwarded-For entry the proxy appended is believed (over TCP only from the trusted proxy list), and that one value feeds rate limits, address bans and audit rows. |
-| v5.0.0-15.3.5 | 2 | Strict typing and comparisons, no type confusion | not met | A suspension's end is compared as a string, PostgreSQL's timestamp text against an ISO-8601 clock string with `ge` (`lib/GPForum/Service/Moderation/SuspensionStore.pm:348`), so a suspension ending later the same day reads as over; pinned as a TODO in `t/integration/postgres-moderation-review.t:980`. |
+| v5.0.0-15.3.5 | 2 | Strict typing and comparisons, no type confusion | met | `api.moderation_active_suspension_v4` takes a timestamptz clock; the ORM path converts both ends to epoch seconds (`lib/GPForum/Service/Moderation/SuspensionStore.pm:349`). `t/integration/postgres-moderation-review.t:1024` and `t/integration/postgres-moderation-review.t:1062` check later-today, exact-end and expired values under UTC, Europe/Rome and Pacific/Honolulu in both paths. |
 | v5.0.0-15.3.6 | 2 | Frontend JavaScript resists prototype pollution | met | `assets/js/composer.js:6`, `assets/js/similar.js:15`: first-party scripts keep per-form state in a WeakMap, read input through FormData and URLSearchParams, and never assign object keys taken from input or server JSON; templates load no inline script. |
 | v5.0.0-15.3.7 | 2 | Defend against HTTP parameter pollution | not met | No defense exists: controllers read every field with Mojolicious `param` (e.g. `lib/GPForum/Controller/Forum/Write.pm:26`), which merges route captures, body and query string and returns the last duplicate, so a query-string value overrides the POST body; duplicates are neither rejected nor confined to the body. |
 
@@ -440,71 +442,65 @@ staff meet today come before missing documents.
 
 ### Level 3 areas: authentication, sessions, access control, moderation
 
-1. **A timed suspension never ends by itself, and its end is compared as
-   text.** A suspension sets the member's status to `suspended`, only a
-   revocation sets it back, and participation is refused on that status
-   before the end is read. Where the status no longer says suspended, the
-   end is compared as a string, so on its last day the suspension reads as
-   over and a second one can be created; creation is check-then-insert
-   without a lock. `v5.0.0-2.3.2`, `v5.0.0-8.2.1`, `v5.0.0-15.3.5`,
-   `v5.0.0-2.3.4`.
-2. **A password with a character beyond U+00FF cannot be set.** Argon2
-   dies with "Wide character", so registration, a change or a reset with a
-   Cyrillic, Greek, CJK or emoji password answers 503, and a member using
-   one cannot sign in. `v5.0.0-6.2.5`.
-3. **Failed sign-ins, refused permissions and refused requests leave no
+1. **A timed suspension still needs revocation, and concurrent moderation
+   writes are not serialized.** The member status stays `suspended` until
+   revocation, even after the end. Creation is check-then-insert without a
+   lock, and revocation reads without a lock. Timestamp comparison and the
+   ten-row lookup window were fixed in migration 1024; these lifecycle and
+   concurrency gaps remain. `v5.0.0-2.3.2`, `v5.0.0-2.3.4`.
+2. **Failed sign-ins, refused permissions and refused requests leave no
    log.** A wrong password or code, a second-step lockout, a 403 outside
    the consoles, a suspended member's write, a CSRF failure, a rate-limit
    hit and an address-ban refusal only bump an in-memory counter; a
    failing session or rate-limit store is swallowed. `v5.0.0-16.3.1`,
    `v5.0.0-16.3.2`, `v5.0.0-16.3.3`, `v5.0.0-16.3.4`.
-4. **Two-step sign-in is optional, and there is no phishing-resistant
+3. **Two-step sign-in is optional, and there is no phishing-resistant
    factor.** Members choose, staff need it only if an administrator turns
    the policy on, and there is no WebAuthn (ADR 0053 asks for it); nothing
    beyond the role binding and that policy guards the consoles.
    `v5.0.0-6.3.3`, `v5.0.0-8.4.2`.
-5. **Registration tells anyone whether an address has an account.** A
+4. **Registration tells anyone whether an address has an account.** A
    taken username or address is refused, a free one accepted.
    `v5.0.0-6.3.8`.
-6. **Sessions outlive what should end them, and members cannot see them.**
+5. **Sessions outlive what should end them, and members cannot see them.**
    Signing in again leaves the earlier session live; re-entering the
    password rotates nothing; turning two-step sign-in off, renewing
    recovery codes or an administrator's reset leave other sessions open;
    administrators cannot end a member's sessions, a suspended member's
    included; members have no list of their sessions. `v5.0.0-7.2.4`,
    `v5.0.0-7.4.3`, `v5.0.0-7.4.5`, `v5.0.0-7.5.2`.
-7. **The idle timeout is an accident and the timeouts are undecided.**
+6. **The idle timeout is an accident and the timeouts are undecided.**
    Nothing sets the session cookie's expiry, so Mojolicious's one-hour
    default signs out a member idle for an hour, against the 30 days ADR
    0018 records; no document justifies either timeout or limits concurrent
    sessions. `v5.0.0-7.3.1`, `v5.0.0-7.1.1`, `v5.0.0-7.1.2`.
-8. **Sensitive changes ask too little.** An email change asks for the
+7. **Sensitive changes ask too little.** An email change asks for the
    password but not the second step, new recovery codes need no password,
    and account erasure or a staff role grant asks for nothing again.
    `v5.0.0-7.5.1`, `v5.0.0-7.5.3`.
-9. **Weak passwords are accepted.** No common-password list, no
+8. **Weak passwords are accepted.** No common-password list, no
    breached-password check, no context-specific words. `v5.0.0-6.2.4`,
    `v5.0.0-6.2.12`, `v5.0.0-6.1.2`, `v5.0.0-6.2.11`.
-10. **Members are not told.** A password change or reset sends no mail; a
+9. **Members are not told.** A password change or reset sends no mail; a
     sign-in from a new browser or repeated wrong passwords notify nobody.
     `v5.0.0-6.3.7`, `v5.0.0-6.3.5`.
-11. **Moderation acts on one person's word, and some of its inputs are
+10. **Moderation acts on one person's word, and some of its inputs are
     unchecked.** One staff member suspends, grants roles and bans
     addresses; no pacing slows a scripted burst; a role binding accepts any
     combination of resource type, resource and space; an address-ban lookup
     that fails lets the write through. `v5.0.0-2.3.5`, `v5.0.0-2.4.2`,
     `v5.0.0-2.2.3`, `v5.0.0-16.5.3`.
-12. **Authorization changes do not reach open sockets.** A moderator whose
+11. **Authorization changes do not reach open sockets.** A moderator whose
     role is revoked keeps receiving the moderation and admin channels; an
     ended session's sockets on other workers live up to 30 seconds.
     `v5.0.0-8.3.2`.
-13. **Second-factor recovery is weak.** An administrator resets a member's
+12. **Second-factor recovery is weak.** An administrator resets a member's
     two-step sign-in with no identity proofing, and cannot start a password
     reset for a member; recovery codes carry 80 bits under a fast hash; a
     TOTP code is accepted one step either side, up to 90 seconds.
     `v5.0.0-6.4.4`, `v5.0.0-6.4.6`, `v5.0.0-6.5.2`, `v5.0.0-11.5.1`,
     `v5.0.0-6.5.5`.
-14. **The cryptography behind sign-in is partly home-made.** TOTP secrets
+13. **The cryptography behind sign-in is partly home-made.** TOTP secrets
     and queued mail tokens are sealed with a project-built HMAC-SHA-256
     counter-mode cipher rather than an approved AEAD; TOTP uses HMAC-SHA-1;
     Argon2id's parameters are code constants and old hashes are never
@@ -512,13 +508,13 @@ staff meet today come before missing documents.
     verifier uses 4,096 PBKDF2 iterations. `v5.0.0-11.2.1`,
     `v5.0.0-11.3.2`, `v5.0.0-11.4.1`, `v5.0.0-11.2.2`, `v5.0.0-11.2.3`,
     `v5.0.0-11.4.4`.
-15. **No last-resort handler outside requests.** Exceptions in websocket
+14. **No last-resort handler outside requests.** Exceptions in websocket
     frame handlers and the realtime session timer go to STDERR, which a
     daemonized Hypnotoad discards. `v5.0.0-16.5.4`.
-16. **Nothing adapts to risk.** Session address and browser hashes are
+15. **Nothing adapts to risk.** Session address and browser hashes are
     stored and never compared again; no step-up on unusual context.
     `v5.0.0-8.2.4`.
-17. **Missing documents in the Level 3 areas.** All sign-in pathways with
+16. **Missing documents in the Level 3 areas.** All sign-in pathways with
     their strength in one place; the permission matrix of ADR 0070 replaced
     by the catalogue the code uses, mapped to routes; field-level rules;
     contextual thresholds and actions; a key-management policy, a
@@ -529,60 +525,60 @@ staff meet today come before missing documents.
 
 ### Level 1, elsewhere
 
-18. **Uploads keep any name.** The extension is never matched with the
+17. **Uploads keep any name.** The extension is never matched with the
     sniffed type (a text file named `page.html` is stored as such) and
     attachment images are not re-encoded. `v5.0.0-5.2.2`.
-19. **Signed-in pages stay in the browser after sign-out.** No
+18. **Signed-in pages stay in the browser after sign-out.** No
     `Clear-Site-Data`. `v5.0.0-14.3.1`.
-20. **Headers the proxy sends alone.** Static files and X-Accel-Redirect
+19. **Headers the proxy sends alone.** Static files and X-Accel-Redirect
     downloads carry no HSTS; the session cookie has no `__Host-` prefix and
     the locale and theme cookies are never `Secure`; a text download goes
     out without a charset. `v5.0.0-3.4.1`, `v5.0.0-3.3.1`, `v5.0.0-4.1.1`.
-21. **Input limits not everywhere.** A suspension's end arrives as free
+20. **Input limits not everywhere.** A suspension's end arrives as free
     text, moderation reasons and display names have no maximum, and the
     validation rules exist only in code. `v5.0.0-2.2.1`, `v5.0.0-2.1.1`.
-22. **The code directory is a git clone.** `.git` is readable by the
+21. **The code directory is a git clone.** `.git` is readable by the
     service account, though not served. `v5.0.0-13.4.1`.
-23. **No remediation time frames for dependencies.** `v5.0.0-15.1.1`,
+22. **No remediation time frames for dependencies.** `v5.0.0-15.1.1`,
     `v5.0.0-15.2.1`.
 
 ### Level 2, elsewhere
 
-24. **Logs are free text and stay on the host.** No inventory, no request
+23. **Logs are free text and stay on the host.** No inventory, no request
     id or actor, local time without an offset, no encoding against
     injection, reset tokens in the proxy's access log and bind values in
     DBI errors, no protection from the service user, no shipping.
     `v5.0.0-16.1.1`, `v5.0.0-16.2.1`, `v5.0.0-16.2.2`, `v5.0.0-16.2.3`,
     `v5.0.0-16.2.4`, `v5.0.0-16.2.5`, `v5.0.0-16.4.1`, `v5.0.0-16.4.2`,
     `v5.0.0-16.4.3`.
-25. **Secrets and the database role.** The web service runs as the
+24. **Secrets and the database role.** The web service runs as the
     schema's owner; every secret sits in one environment file the proxy's
     account can read; backends without credentials; no egress allowlist.
     `v5.0.0-13.2.2`, `v5.0.0-13.3.2`, `v5.0.0-13.3.1`, `v5.0.0-13.2.1`,
     `v5.0.0-13.2.4`, `v5.0.0-13.2.5`.
-26. **Personal pages without `no-store`, and no data classification.**
+25. **Personal pages without `no-store`, and no data classification.**
     Settings, the privacy dashboard and export, and notifications are sent
     without `no-store`; no protection levels are defined.
     `v5.0.0-14.3.2`, `v5.0.0-14.1.1`, `v5.0.0-14.1.2`, `v5.0.0-14.2.4`.
-27. **Backend transport.** A remote database gets no `sslmode` and no
+26. **Backend transport.** A remote database gets no `sslmode` and no
     certificate check, a shared GlifiStore is plain TCP, SMTP TLS can be
     switched off in production, and nginx keeps its default TLS 1.2
     ciphers. `v5.0.0-12.3.1`, `v5.0.0-12.3.2`, `v5.0.0-12.3.4`,
     `v5.0.0-12.1.2`.
-28. **Browser hardening.** `base-uri 'self'` instead of `'none'`; proxy-sent
+27. **Browser hardening.** `base-uri 'self'` instead of `'none'`; proxy-sent
     files without `nosniff` or `frame-ancestors`; no `__Host-` cookies;
     plain HTTP redirected for the JSON and health endpoints too.
     `v5.0.0-3.4.3`, `v5.0.0-3.4.4`, `v5.0.0-3.4.6`, `v5.0.0-3.3.3`,
     `v5.0.0-4.1.2`.
-29. **Encoding at the last step.** Held posts are shown from HTML stored
+28. **Encoding at the last step.** Held posts are shown from HTML stored
     when they were written; download filenames are cleaned by a denylist
     and lack the RFC 6266 form. `v5.0.0-1.1.2`, `v5.0.0-1.3.3`,
     `v5.0.0-5.4.2`.
-30. **Anti-automation and documented limits.** Socket frames other than
+29. **Anti-automation and documented limits.** Socket frames other than
     subscribe have no rate limit; business limits, combined-data rules
     and permitted upload types are not documented. `v5.0.0-2.4.1`,
     `v5.0.0-2.1.2`, `v5.0.0-2.1.3`, `v5.0.0-5.1.1`.
-31. **Supply chain and request parsing.** No SBOM (htmx and the fonts are
+30. **Supply chain and request parsing.** No SBOM (htmx and the fonts are
     in no inventory), the release archive ships tests and benchmarks, and
     a query-string parameter overrides the same one in a POST body.
     `v5.0.0-15.1.2`, `v5.0.0-15.2.3`, `v5.0.0-15.3.7`.

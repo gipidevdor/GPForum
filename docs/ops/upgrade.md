@@ -72,6 +72,32 @@ the forum is fixed forward, by a new migration in the next release: an
 applied one is never edited, and the runner refuses a file whose checksum
 differs from the one the database recorded.
 
+## Suspension timestamp and Unicode-password fixes
+
+For a database already on the 1.0 baseline, the normal upgrade above applies
+migration 1024 and restarts the application and outbox. It adds API function
+versions; it rewrites no table and changes no PostgreSQL setting. The
+preceding function boundaries stay installed for workers from the previous
+release. A PostgreSQL restart or database rebuild is unnecessary. If the
+service uses the restricted API runtime role, stop the old workers and
+reprovision the current function grants before starting the new ones, using
+the operator credentials as shown in the [role guide](sql-api-role.md).
+`gpforum migrate` alone does not grant new signatures to that role.
+
+New password hashes remain standard Argon2id PHC strings. Their salt has a
+public UTF-8 encoding marker followed by 16 random bytes; existing 16-byte
+salts keep their original Latin-1 interpretation. Existing passwords do not
+need resetting. A candidate is checked using one encoding only, so two
+different character sequences whose bytes happen to overlap cannot both
+satisfy the same hash. Rolling back to code before this fix will not verify
+new non-ASCII passwords correctly; deploy the hashing and verification
+change together on every worker, and retain a backup for a full rollback.
+
+The [ASVS record](../security/asvs-5.0.md) still lists automatic expiration
+of a suspended member status and serialization of concurrent suspension
+writes as open gaps. Correct timestamp comparisons do not close those
+separate lifecycle issues.
+
 ## From a forum built before 1.0
 
 GPForum 1.0 starts its schema from a baseline (ADR 0150) and does not upgrade

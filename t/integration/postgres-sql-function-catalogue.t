@@ -19,6 +19,11 @@ our $VERSION = '0.001';
 # What a function body calls of api, to follow from the entry points.
 const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 
+# Migration 1024 retains these shipped entry points for the previous workers.
+const my @RETAINED => qw(
+  moderation_active_suspension_v2 moderation_can_participate_v2
+);
+
 const my $FUNCTIONS_SQL => join q{ },
   'SELECT p.proname AS name,',
   'pg_get_function_identity_arguments(p.oid) AS arguments,',
@@ -67,6 +72,16 @@ for my $name ( @{ $catalogue->names } ) {
 
 _check_live_invariants( $catalogue, \%function );
 
+for my $retained (@RETAINED) {
+    ok( $function{$retained},
+        "api.$retained remains callable by older workers" );
+    is(
+        $function{$retained}{arguments},
+        'p_user_id uuid, p_now text',
+        "api.$retained retains its shipped argument types"
+    );
+}
+
 is(
     scalar $dbh->selectrow_array(
             q{SELECT count(*) FROM pg_class c JOIN pg_namespace n}
@@ -93,6 +108,7 @@ sub _check_live_invariants ( $catalogue, $functions ) {
         ( $catalogue->function($_)->{function} =~ /\A api [.] (\w+)/msx )[0] =>
           1
       } @{ $catalogue->names };
+    @called{@RETAINED} = (1) x @RETAINED;
     my %reached;
     my @next = grep { $functions->{$_} } sort keys %called;
     while ( my $name = shift @next ) {

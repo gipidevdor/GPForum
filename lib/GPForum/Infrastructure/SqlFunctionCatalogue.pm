@@ -1601,17 +1601,17 @@ const my %FUNCTION => (
         ],
     },
     moderation_active_suspension => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id => 'uuid',
-            now     => 'text',
+            now     => 'timestamptz',
         ],
     },
     moderation_can_participate => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id => 'uuid',
-            now     => 'text',
+            now     => 'timestamptz',
         ],
     },
     admin_permission_allowed => {

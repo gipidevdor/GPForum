@@ -4,6 +4,7 @@
 package main;
 
 use v5.40;
+use utf8;
 
 use Carp qw(croak);
 use Const::Fast;
@@ -12,8 +13,10 @@ use File::Temp    qw(tempdir);
 use IPC::Open3    qw(open3);
 use JSON::MaybeXS qw(decode_json);
 use Mojo::File    qw(path);
+use Mojo::Util    qw(encode);
 use Symbol        qw(gensym);
 use Test::More;
+use Test::Mojo;
 
 use lib 'lib';
 use lib 't/lib';
@@ -28,9 +31,13 @@ use GPForum::Test::PostgresHarness;
 
 our $VERSION = '0.001';
 
-const my $EXIT_FAILURE => 1;
-const my $STATUS_SHIFT => 8;
-const my $PASSWORD     => 'correct horse battery staple';
+const my $EXIT_FAILURE     => 1;
+const my $STATUS_SHIFT     => 8;
+const my $PASSWORD         => 'correct horse battery staple';
+const my $UNICODE_PASSWORD => 'пароль 🔒 propriétaire';
+const my $HTTP_OK          => 200;
+const my $HTTP_ACCEPTED    => 202;
+const my $HTTP_FOUND       => 302;
 
 if ( !$ENV{GPFORUM_DATABASE_DSN} ) {
     plan skip_all => 'set GPFORUM_DATABASE_DSN to run the front door test';
@@ -175,6 +182,54 @@ subtest 'gpforum admin create makes an owner who can sign in' => sub {
     );
 };
 
+subtest 'UTF-8 owner passwords and registration passwords work over HTTP' =>
+  sub {
+    my $created = _run(
+        _admin( input => _input( encode( 'UTF-8', "$UNICODE_PASSWORD\n" ) ) ),
+        'create',
+        '--email',
+        'unicode@example.org',
+        '--username',
+        'unicode_owner',
+        '--password-stdin'
+    );
+    is( $created->{status}, 0, 'the CLI accepts a UTF-8 owner password' );
+    my $client = Test::Mojo->new('GPForum');
+    $client->get_ok('/login')->status_is($HTTP_OK);
+    $client->post_ok(
+        '/login' => form => {
+            %{ _form_tokens($client) },
+            identifier => 'unicode_owner',
+            password   => $UNICODE_PASSWORD,
+        }
+    )->status_is($HTTP_FOUND);
+    $client->get_ok('/settings')->status_is($HTTP_OK);
+    my $controller = $client->app->build_controller;
+    $controller->gp_schema->storage->disconnect;
+
+    my $registered = Test::Mojo->new('GPForum');
+    $registered->get_ok('/register')->status_is($HTTP_OK);
+    $registered->post_ok(
+        '/register' => form => {
+            %{ _form_tokens($registered) },
+            username     => 'unicode_member',
+            email        => 'unicode-member@example.org',
+            display_name => 'Unicode member',
+            password     => $UNICODE_PASSWORD,
+        }
+    )->status_is($HTTP_ACCEPTED);
+    my ($hash) = $database->{dbh}->selectrow_array(
+        q{SELECT password_hash FROM users WHERE username = 'unicode_member'});
+    ok(
+        GPForum::Service::Password->new->verify_password(
+            $UNICODE_PASSWORD, $hash
+        ),
+        'the HTTP registration preserves its password'
+    );
+    $controller = $registered->app->build_controller;
+    $controller->gp_schema->storage->disconnect;
+  };
+
 subtest 'gpforum admin grant finds the member by address or name' => sub {
     my $member = GPForum::Service::Admin::Bootstrapper->new(
         schema => GPForum::Test::PostgresHarness::connect_schema() )
@@ -281,6 +336,13 @@ sub _input ($text) {
     open my $handle, '<', \$text or croak 'open input';
 
     return $handle;
+}
+
+sub _form_tokens ($client) {
+    my $dom = $client->tx->res->dom;
+
+    return { map { $_ => $dom->at("input[name=$_]")->attr('value') }
+          qw(csrf_token command_id) };
 }
 
 sub _run ( $command, @arguments ) {

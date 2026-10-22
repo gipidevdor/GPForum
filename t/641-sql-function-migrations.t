@@ -64,10 +64,12 @@ const my $RETURNS  => qr/RETURNS \s+ (?:SETOF \s+)? $RETURNED/imsx;
 const my $SEARCH_VERSION => 10;
 
 # The boundaries a release keeps for the previous one's workers until a
-# contract migration drops them (ADR 0126, section 2): each forwards the
-# arguments the current version does. The 1.0 baseline keeps none, as no
-# release came before it.
-const my %RETAINED_BOUNDARIES => ();
+# contract migration drops them (ADR 0126, section 2). Migration 1024 keeps
+# the 1.0 suspension boundaries for workers that have not restarted yet.
+const my %RETAINED_BOUNDARIES => (
+    moderation_active_suspension => [2],
+    moderation_can_participate   => [2],
+);
 
 my $catalogue = GPForum::Infrastructure::SqlFunctionCatalogue->new;
 my %catalogued =

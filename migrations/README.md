@@ -18,6 +18,14 @@ Partitions are not named by a migration: `gpforum migrate --apply` makes the
 window of months after the migrations (ADR 0113), and the daily timer keeps it
 ahead.
 
+## After the baseline
+
+[1024_suspension_timestamptz.sql](1024_suspension_timestamptz.sql) adds typed
+suspension lookups and participation gates. They compare timestamptz values
+and consider every unrevoked suspension before choosing the newest active
+one. The preceding entry points remain available during the application
+restart. Apply it with `gpforum migrate`; no PostgreSQL restart is needed.
+
 ## Writing a migration
 
 - A new file goes here, `NNNN_what_it_does.sql`, with the next number after

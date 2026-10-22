@@ -24,7 +24,6 @@ use GPForum::Test::RacedSchema;
 use GPForum::Test::ScriptedId;
 
 our $VERSION = '0.001';
-our $TODO;
 
 const my $NOW          => '2026-05-23T12:00:00Z';
 const my $AN_HOUR_ON   => '2026-05-23T13:00:00Z';
@@ -40,14 +39,15 @@ const my $EIGHT        => '2026-05-23T08:00:00Z';
 const my $YESTERDAY    => '2026-05-22T10:00:00Z';
 const my $YESTERDAY_TO => '2026-05-22T12:00:00Z';
 
-const my $QUEUE_LIMIT    => 25;
-const my $AUDIT_LIMIT    => 3;
-const my $HISTORY_LIMIT  => 10;
-const my $MAX_PAGES      => 100;
-const my $REPORT_EVENTS  => 4;
-const my $TARGET_ACTIONS => 4;
-const my $REVOKE_EVENTS  => 2;
-const my $TIED_STARTS    => 3;
+const my $QUEUE_LIMIT     => 25;
+const my $AUDIT_LIMIT     => 3;
+const my $HISTORY_LIMIT   => 10;
+const my $MAX_PAGES       => 100;
+const my $REPORT_EVENTS   => 4;
+const my $TARGET_ACTIONS  => 4;
+const my $REVOKE_EVENTS   => 2;
+const my $TIED_STARTS     => 3;
+const my $EXPIRED_HISTORY => 11;
 
 # Fixed ids, so the history's ties on created_at are broken in a known order.
 const my $NEWEST     => '018f1000-0000-7000-8000-00000000a00a';
@@ -181,8 +181,10 @@ _command_replay($moderation);
 _command_race($moderation);
 _audit_review($moderation);
 _suspension_lifecycle($moderation);
+_revocation_states($moderation);
 _suspension_id_collision($moderation);
 _participation($moderation);
+_suspension_instants($moderation);
 _action_history($moderation);
 _suspension_history($moderation);
 _suspension_ties($moderation);
@@ -844,6 +846,61 @@ sub _revocation {
     return;
 }
 
+sub _revocation_states {
+    my ($ctx) = @_;
+
+    for my $orm ( 0, 1 ) {
+        my $store =
+          _store( $ctx, 'GPForum::Service::Moderation::SuspensionStore' );
+        if ($orm) {
+            $store->functions(undef);
+        }
+        for my $status (qw(deleted pending)) {
+            my $user = _user( $ctx, "revoke_${status}_$orm", $status );
+            my $id   = _suspend( $ctx, $user, { valid_from => $BEFORE } );
+            for my $attempt ( 1, 2 ) {
+                $store->revoke_suspension(
+                    $id,
+                    $ctx->{users}{moderator},
+                    'appeal accepted'
+                );
+                is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
+                    $status,
+                    "revocation $attempt preserves $status, ORM=$orm" );
+            }
+        }
+        my $user  = _user( $ctx, "revoke_overlapping_$orm", 'suspended' );
+        my $first = _suspend( $ctx, $user, { valid_from => $BEFORE } );
+        my $other =
+          _suspend( $ctx, $user, { valid_from => $TEN, valid_to => $TONIGHT } );
+        $store->revoke_suspension( $first, $ctx->{users}{moderator}, 'first' );
+        is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
+            'suspended',
+            "another active suspension keeps the user suspended, ORM=$orm" );
+        $store->revoke_suspension( $other, $ctx->{users}{moderator}, 'last' );
+        is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
+            'active',
+            "revoking the last active suspension restores the user, ORM=$orm" );
+
+        my $deleted = _user( $ctx, "suspend_deleted_$orm", 'deleted' );
+        is(
+            $store->create_suspension(
+                {
+                    user_id       => $deleted,
+                    actor_user_id => $ctx->{users}{moderator},
+                    reason        => 'deleted account',
+                }
+            ),
+            undef,
+            "a deleted account cannot be suspended, ORM=$orm"
+        );
+        is( _row( $ctx, $USER_ROW_SQL, $deleted )->{status},
+            'deleted', "a refused suspension preserves deletion, ORM=$orm" );
+    }
+
+    return;
+}
+
 sub _missing_suspension_targets {
     my ( $ctx, $store ) = @_;
 
@@ -956,12 +1013,14 @@ sub _participation {
     return;
 }
 
-# SuspensionStore decides in Perl whether valid_to has passed, comparing the
-# column with the clock as strings. PostgreSQL returns '2026-05-23
-# 18:00:00+00' (in the server's zone), the clock writes
-# '2026-05-23T12:00:00Z', and a space sorts before a T: on its last day a
-# suspension reads as expired, and a second create_suspension inserts
-# another. ReviewReader asks PostgreSQL, and lists it as active.
+# A suspension ending later today is active until it ends. Until migration
+# 1024 the store compared the column with the clock as text: PostgreSQL
+# returns '2026-05-23 18:00:00+00' (in the server's zone), the clock writes
+# '2026-05-23T12:00:00Z', and a space sorts before a T, so on its last day a
+# suspension read as expired, the member could post, and a second
+# create_suspension inserted another. The review list always asked
+# PostgreSQL to compare the instants; now the store, on both its paths,
+# agrees with it.
 sub _suspension_ending_today {
     my ( $ctx, $store ) = @_;
 
@@ -977,13 +1036,12 @@ sub _suspension_ending_today {
         'the review list shows a suspension ending later today as active'
     );
 
-    local $TODO = 'SuspensionStore compares PostgreSQL timestamps as strings';
     my $active = $store->active_for_user($user);
     is( $active && $active->get_column('suspension_id'),
         $id, 'a suspension ending later today is active' );
     ok( !$store->can_participate($user)->{ok}, 'and blocks participation' );
 
-    # Last: under the defect this suspends the user a second time.
+    # Last: compared as text, this suspended the user a second time.
     my $again = $store->create_suspension(
         {
             actor_user_id => $ctx->{users}{moderator},
@@ -995,6 +1053,45 @@ sub _suspension_ending_today {
         $id, 'and suspending the user again returns it' );
     is( _value( $ctx, $USER_SUSPENSIONS_SQL, $user ),
         1, 'without a second suspension' );
+
+    return;
+}
+
+# Both store paths must compare instants in any server time zone, including
+# an active row older than the ten expired rows the original read inspected.
+sub _suspension_instants {
+    my ($ctx) = @_;
+    my $user  = _user( $ctx, 'suspension_history_active' );
+    my $open  = _suspend( $ctx, $user, { valid_from => $YESTERDAY } );
+    for ( 1 .. $EXPIRED_HISTORY ) {
+        _suspend( $ctx, $user, { valid_from => $TEN, valid_to => $BEFORE } );
+    }
+    my $ending = _user( $ctx, 'suspension_exact_end' );
+    my $at_end =
+      _suspend( $ctx, $ending, { valid_from => $TEN, valid_to => $NOW } );
+    my $expired = _user( $ctx, 'suspension_past_end' );
+    _suspend( $ctx, $expired, { valid_from => $TEN, valid_to => $BEFORE } );
+    my ($original_zone) = $ctx->{dbh}->selectrow_array('SHOW TimeZone');
+    for my $zone (qw(UTC Europe/Rome Pacific/Honolulu)) {
+        $ctx->{dbh}
+          ->selectrow_array( q{SELECT set_config('TimeZone', ?, false)},
+            undef, $zone );
+        for my $mode (qw(functions orm)) {
+            my $store =
+              _store( $ctx, 'GPForum::Service::Moderation::SuspensionStore' );
+            if ( $mode eq 'orm' ) {
+                $store->functions(undef);
+            }
+            is( $store->active_for_user($user)->get_column('suspension_id'),
+                $open, "$mode/$zone finds an older active suspension" );
+            is( $store->active_for_user($ending)->get_column('suspension_id'),
+                $at_end, "$mode/$zone includes the exact end instant" );
+            is( $store->active_for_user($expired),
+                undef, "$mode/$zone excludes a genuinely expired suspension" );
+        }
+    }
+    $ctx->{dbh}->selectrow_array( q{SELECT set_config('TimeZone', ?, false)},
+        undef, $original_zone );
 
     return;
 }

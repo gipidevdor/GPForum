@@ -14,7 +14,9 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
+use GPForum::Service::Identity::Support;
 use GPForum::Service::Moderation::Event;
+use GPForum::X::Argument;
 use GPForum::X::Conflict;
 
 our $VERSION = '0.001';
@@ -60,7 +62,7 @@ sub create_suspension ( $self, $input ) {
 # member meanwhile.
 sub _create_or_reuse ( $self, $input ) {
     my $user = $self->_user( $input->{user_id} );
-    if ( !$user ) {
+    if ( !$user || ( _column( $user, 'status' ) // q{} ) eq $STATUS_DELETED ) {
         return undef;
     }
 
@@ -262,6 +264,10 @@ sub active_for_user ( $self, $user_id ) {
         );
     }
 
+    # Every unrevoked suspension, newest first, as
+    # api.moderation_active_suspension_v3 reads them: the newest one still
+    # valid is the active one. The ten-row window the first versions kept
+    # could hide an open-ended suspension behind ten newer expired ones.
     my $search = $self->schema->resultset('Suspension')->search_rs(
         {
             user_id    => $user_id,
@@ -270,7 +276,6 @@ sub active_for_user ( $self, $user_id ) {
         {
             order_by =>
               [ { -desc => 'valid_from' }, { -desc => 'suspension_id' } ],
-            rows => 10,
         }
     );
 
@@ -320,9 +325,10 @@ sub _restore_user_if_needed ( $self, $user_id, $timestamp ) {
         return;
     }
     my $user = $self->_user($user_id);
-    if ( !$user || ( _column( $user, 'status' ) || q{} ) eq $STATUS_ACTIVE ) {
+    if ( !$user || ( _column( $user, 'status' ) || q{} ) ne $STATUS_SUSPEND ) {
         return;
     }
+    return if $self->active_for_user($user_id);
 
     $user->update(
         {
@@ -334,7 +340,12 @@ sub _restore_user_if_needed ( $self, $user_id, $timestamp ) {
     return;
 }
 
-# Unrevoked, and open-ended or not yet past its end.
+# Unrevoked, and open-ended or not yet past its end. The end and the clock
+# are compared as the instants they name: PostgreSQL hands valid_to back as
+# '2026-05-23 20:00:00+02', in its own zone, while the clock writes
+# '2026-05-23T12:00:00Z', and compared as strings a space sorts before a T,
+# so a suspension ending later today read as expired, the member could post
+# and suspending them again inserted a second suspension.
 sub _suspension_is_active ( $self, $row ) {
     if ( !$row || defined _column( $row, 'revoked_at' ) ) {
         return 0;
@@ -345,7 +356,24 @@ sub _suspension_is_active ( $self, $row ) {
         return 1;
     }
 
-    return $valid_to ge $self->clock->now_iso8601 ? 1 : 0;
+    return _instant($valid_to) >= _instant( $self->clock->now_iso8601 )
+      ? 1
+      : 0;
+}
+
+# The epoch second a PostgreSQL timestamptz or an ISO-8601 text names. The
+# column and the clock only ever hold those, so anything else is a double
+# handing the store a value PostgreSQL never would, and is refused rather
+# than compared as text again.
+sub _instant ($value) {
+    my $epoch =
+      GPForum::Service::Identity::Support->epoch_from_timestamp($value);
+    if ( !defined $epoch ) {
+        GPForum::X::Argument->throw(
+            message => "suspension instant is not a timestamp: $value" );
+    }
+
+    return $epoch;
 }
 
 sub _record_event_and_audit ( $self, $input ) {
@@ -409,16 +437,19 @@ Version 0.001.
 Owns the C<suspensions> table and the user status that mirrors it. A
 suspension sets the user's status to C<suspended> and records a
 C<user.suspended> event and audit entry; a revocation stamps C<revoked_at>,
-sets the user back to C<active> and records C<user.suspension_revoked>.
+sets a still-suspended user back to C<active> only when no active suspension
+remains, and records C<user.suspension_revoked>. A revocation never changes
+an account that is now deleted or pending.
 Each runs in one transaction with its event and audit rows, written through
 L<GPForum::Infrastructure::EventRecorder> from the envelopes of
 L<GPForum::Service::Moderation::Event>.
 
 Suspending is idempotent: a user who already has an active suspension gets
 that one back instead of a second row. A suspension is active while it is
-not revoked and its C<valid_to> is empty or not yet past. An insert that
-loses a race on the suspension id checks again for an active suspension and
-otherwise retries once with a new id.
+not revoked and its C<valid_to> is empty or not before the clock's now, the
+two compared as instants whatever text form the column and the clock use.
+An insert that loses a race on the suspension id checks again for an active
+suspension and otherwise retries once with a new id.
 
 =head1 SUBROUTINES/METHODS
 
@@ -430,21 +461,21 @@ the row's metadata, default C<moderation>) and C<correlation_id> (a new
 uuid when absent). In a transaction, returns
 C<< { ok => 1, suspension => \%suspension } >> with the new row, whose
 metadata also keeps the user's previous status, or the user's active one.
-Returns undef when the user does not exist.
+Returns undef when the user does not exist or is deleted.
 
 =head2 revoke_suspension
 
 Takes a suspension id, the acting user's id and a reason. In a transaction,
 returns C<< { suspension_id, revoked_at } >>, or undef when there is no such
 suspension. Revoking one that is already revoked records nothing new and
-returns its original C<revoked_at>, but still sets the user back to
-C<active> if they are not.
+returns its original C<revoked_at>. It restores a still-suspended user only
+when no other active suspension remains; other account states stay as they are.
 
 =head2 active_for_user
 
-Takes a user id. Returns the newest active suspension row, looked for among
-the user's ten most recent unrevoked suspensions by C<valid_from>; undef
-when there is none or the id is empty.
+Takes a user id. Returns the user's newest unrevoked suspension, by
+C<valid_from>, whose C<valid_to> is empty or not before the clock's now;
+undef when there is none or the id is empty.
 
 =head2 can_participate
 
@@ -459,7 +490,8 @@ exists while the status says otherwise.
 A missing user or suspension is returned as undef, not thrown. An error
 from the insert other than a collision on the suspension id, or a second
 collision, is rethrown with C<croak>; other database errors propagate.
-Either rolls the transaction back.
+Either rolls the transaction back. A C<valid_to> or clock value that is not
+a timestamp throws L<GPForum::X::Argument>.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -468,9 +500,10 @@ None.
 =head1 DEPENDENCIES
 
 L<GPForum::Infrastructure::Row>, L<GPForum::Infrastructure::EventRecorder>,
-L<GPForum::Infrastructure::UniqueConflict>, L<GPForum::X::Conflict>,
-L<GPForum::Infrastructure::Id>, L<GPForum::Service::Clock>,
-L<GPForum::Service::Moderation::Event>.
+L<GPForum::Infrastructure::UniqueConflict>, L<GPForum::X::Argument>,
+L<GPForum::X::Conflict>, L<GPForum::Infrastructure::Id>,
+L<GPForum::Service::Clock>, L<GPForum::Service::Identity::Support> (its
+timestamp parser), L<GPForum::Service::Moderation::Event>.
 
 Extends L<GPForum::Base>: built without C<schema> it throws
 L<GPForum::X::Argument>.

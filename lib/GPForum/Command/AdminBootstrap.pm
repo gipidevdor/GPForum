@@ -8,7 +8,7 @@ use Const::Fast;
 use English qw(-no_match_vars);
 use Mojo::Base -base, -signatures;
 use v5.40;
-use Mojo::Util qw(encode);
+use Mojo::Util qw(decode encode);
 
 use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Command::Support::Terminal;
@@ -350,6 +350,7 @@ sub _password ( $self, $request ) {
             return $self->_failed( $request, 'cli.admin.no_password' );
         }
         chomp $line;
+        $line = _password_text($line);
         return \$line;
     }
     if ( !GPForum::Command::Support::Terminal->new( input => $self->input )
@@ -365,7 +366,16 @@ sub _password ( $self, $request ) {
         return $self->_failed( $request, 'cli.admin.password_mismatch' );
     }
 
-    return \$first;
+    my $text = _password_text($first);
+    return \$text;
+}
+
+# Terminal/stdin passwords arrive as octets; the password boundary expects
+# the same character string the HTTP form supplies. Keep decoded handles.
+sub _password_text ($value) {
+    return $value if utf8::is_utf8($value);
+
+    return decode( 'UTF-8', $value ) // $value;
 }
 
 # One line from the terminal with its echo off.

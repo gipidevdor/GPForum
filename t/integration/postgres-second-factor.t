@@ -178,7 +178,7 @@ subtest 'a sign-in asks for a code, and takes each once' => sub {
       ->status_is($HTTP_UNAUTHORIZED)
       ->content_like( qr/4/msx, 'a wrong code says the tries left' );
     $client->post_ok( '/login/second-factor' => form =>
-          { csrf_token => $csrf, code => _code( $secret, 0 ) } )
+          { csrf_token => $csrf, code => _spent_code() } )
       ->status_is( $HTTP_UNAUTHORIZED, 'the code that turned it on is spent' );
     $client->post_ok( '/login/second-factor' => form =>
           { csrf_token => $csrf, code => _code( $secret, $NEXT ) } )
@@ -187,7 +187,7 @@ subtest 'a sign-in asks for a code, and takes each once' => sub {
     is( _audits('identity.second_factor.passed'), 1, 'the pass is audited' );
 
     my $again = _login('tsf_member');
-    _answer( $again, _code( $secret, $NEXT ) )
+    _answer( $again, _spent_code() )
       ->status_is( $HTTP_UNAUTHORIZED, 'a code is never taken twice' );
 
     my $recovered = _login('tsf_member');
@@ -257,7 +257,7 @@ subtest 'ten wrong codes in an hour lock sign-in and tell the member' => sub {
 subtest 'the recovery codes are renewed with a fresh code' => sub {
     my $csrf = _csrf($browser);
     $browser->post_ok( '/settings/security/renew' => form =>
-          { csrf_token => $csrf, code => _code( $secret, $NEXT ) } )
+          { csrf_token => $csrf, code => _spent_code() } )
       ->status_is( $HTTP_FOUND, 'a spent code renews nothing' );
     _rewind($member);
     $browser->post_ok( '/settings/security/renew' => form =>
@@ -472,6 +472,13 @@ done_testing();
 # A code from the secret, $offset steps from now.
 sub _code ( $key, $offset ) {
     return $codes->code_at( $key, $codes->step_at(time) + $offset );
+}
+
+# Replay the step actually consumed, even when the runner crossed a 30-second
+# boundary since it was used. A newly generated code would test a fresh step.
+sub _spent_code {
+    return $codes->code_at( $secret,
+        _row( 'second_factors', $member )->{last_step} );
 }
 
 # A code that is none of the three a check takes now.

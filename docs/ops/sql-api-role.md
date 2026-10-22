@@ -93,18 +93,32 @@ partition-maintenance, restore and other administrative commands with the
 operator environment. Provisioning does not rewrite service credentials or
 restart services.
 
-Migrations 100 and 101 introduce optimized search and the combined post
-context. Migration 102 adds search v6 using static PL/pgSQL so the custom
-search plan policy also takes effect on PostgreSQL 16/17. The catalogue
-contains 195 operations. Apply these new migrations; never edit or reapply
-a changed copy of an old migration.
+The 1.0 baseline is migrations 1000–1023. Migration 1024 adds typed
+suspension lookups and participation gates; the current catalogue calls
+`api.moderation_active_suspension_v4(uuid, timestamptz)` and
+`api.moderation_can_participate_v4(uuid, timestamptz)`. Applying the migration
+alone does not grant these new signatures to an existing application role.
+
 Drain and stop the previous web and worker processes before reprovisioning
 the runtime role with the updated release, then start the updated processes.
-Provisioning grants search v6 and revokes the historical search v2/v4 grants,
-so workers from the previous release must not keep serving during that step.
-The old function definitions remain installed. To roll back application code,
-stop the new processes and provision with the previous release's catalogue
-before restarting it; the additive migrations need no rollback.
+For an existing systemd installation with the separate files above:
+
+```sh
+sudo systemctl stop gpforum gpforum-outbox
+bin/gpforum --env-file /etc/gpforum/admin.env migrate
+bin/gpforum --env-file /etc/gpforum/admin.env api-role --role gpforum_runtime --plan
+bin/gpforum --env-file /etc/gpforum/admin.env api-role --role gpforum_runtime --apply
+sudo systemctl start gpforum gpforum-outbox
+```
+
+Run the two `api-role` commands as the operator account authenticated as the
+migration role. Provisioning grants only the current catalogue and revokes
+historical signatures; old workers must not serve during that step. Old
+function definitions remain installed. To roll back application code, stop
+the new processes and provision with the previous release catalogue before
+restarting it. These additive SQL migrations need no rollback. The Unicode
+password encoding change has its own application rollback constraint in the
+[upgrade guide](upgrade.md#suspension-timestamp-and-unicode-password-fixes).
 
 The optional Minion PostgreSQL backend is disabled by default. When enabled,
 it connects through `GPFORUM_MINION_PG_URL` and runs its own queue SQL and

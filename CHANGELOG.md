@@ -24,6 +24,15 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migration 1024, then restart the application workers.** On an
+  existing 1.0 database, `gpforum migrate` installs typed suspension
+  lookups; no database rebuild or PostgreSQL restart is needed. The old
+  SQL entry points remain for workers from the preceding release. With a
+  separate API runtime role, drain the old workers and reprovision its
+  grants before starting the new ones: [runtime role upgrade](docs/ops/sql-api-role.md).
+  Password hashes remain standard Argon2id: new salts identify UTF-8 encoding and
+  existing 16-byte salts keep their original encoding.
+
 - **Rebuild a database the 0.x migrations built (ADR 0150).** The schema
   starts from the 1.0 baseline, `migrations/1000_foundation.sql` to
   `1023_api_entry_points.sql`, and `gpforum migrate` refuses a database that
@@ -2144,6 +2153,28 @@ a host set up from an earlier `main`, newest first.
 
 ### Fixed
 
+- **Suspension ends are compared as instants in PostgreSQL and Perl.** A
+  suspension ending later today could read as expired because the database
+  timestamp and ISO-8601 clock were compared as text. Migration 1024 adds
+  typed API versions, and the ORM fallback compares epoch seconds. Both
+  paths now find an open-ended suspension behind more than ten newer
+  expired ones. Tests exercise three database time zones and the exact end.
+  Automatic expiry of the member status and concurrent moderation writes
+  remain open in the ASVS record.
+- **Revoking a suspension preserves the current account state.** Deleted
+  and pending accounts are no longer reactivated by revocation or its retry;
+  a member with another active suspension stays suspended. Suspending a
+  deleted account is refused. Both SQL and ORM paths have regression tests.
+- **Passwords accept Unicode through both HTTP and owner creation.** New
+  hashes use exact UTF-8 octets and retain 128 random salt bits. The public
+  salt marker preserves existing Latin-1 hashes without accepting a second
+  encoding of a different password. Tests cover Cyrillic, CJK, emoji,
+  spaces, old hashes and the CLI-to-HTTP boundary.
+- **Second-factor replay tests use the code actually consumed.** Recomputing
+  a code from the current clock could choose the next 30-second window and
+  mistake its valid code for a replay. The tests now read the recorded
+  consumed step; the production replay checks are unchanged.
+
 - **Rows written in the same second list in the order they were written.**
   An id carried its time in whole seconds: the builtin `time` left the
   milliseconds of every UUIDv7 at zero, so the ids of one second sorted on
@@ -3309,6 +3340,12 @@ a host set up from an earlier `main`, newest first.
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- Stabilization checks and remaining limits are recorded in
+  [the 2026-10-23 verification](docs/architecture/maintenance-2026-10-23.md),
+  including the complete unit and PostgreSQL tiers and the existing CI
+  capacity failure. The ASVS record closes three requirements on the
+  suspension timestamp and Unicode-password paths, retaining the other gaps.
 
 - **`script/schema-fingerprint` prints a database's schema as sorted facts**,
   so two databases compare with `diff`: the baseline's proof (ADR 0150). t/641

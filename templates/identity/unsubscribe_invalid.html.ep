@@ -1,7 +1,7 @@
 % layout 'default';
 % title t('notifications.unsubscribe.invalid_title') . ' - ' . t('app.name');
 
-<section aria-labelledby="<%= $ui->{heading_id} %>">
+<section class="account-panel" aria-labelledby="<%= $ui->{heading_id} %>">
   <%= include 'components/page_header',
     heading_id => $ui->{heading_id},
     component_title => t('notifications.unsubscribe.invalid_title'),

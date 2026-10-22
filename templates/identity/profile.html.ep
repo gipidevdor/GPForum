@@ -1,7 +1,7 @@
 % layout 'default';
 % title $profile->{user}{display_name} . ' - ' . t('app.name');
 
-<section aria-labelledby="profile-heading">
+<section class="member-profile" aria-labelledby="profile-heading">
   % my $user = $profile->{user};
   % my $counts = $profile->{counts} || {};
   % my $is_own = ($user->{user_id} // q{}) eq (session('user_id') // q{});

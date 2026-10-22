@@ -96,7 +96,8 @@ const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
   const form = makeForm(revision, body);
   const document = {
     forms: [form],
-    querySelectorAll() { return this.forms; },
+    documentElement: { lang: "en" },
+    querySelectorAll(selector) { return selector.includes("textarea") ? [] : this.forms; },
     addEventListener(name, callback) { listeners.set(name, callback); },
   };
   vm.runInNewContext(source, {

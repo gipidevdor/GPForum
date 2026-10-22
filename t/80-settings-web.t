@@ -49,6 +49,13 @@ subtest 'settings persist locale theme and notification preferences' => sub {
     $test->get_ok('/settings');
     $test->status_is($HTTP_OK);
     $test->text_is( 'h1' => 'Settings' );
+    my $settings_dom = $test->tx->res->dom;
+    for my $link ( @{ $settings_dom->find('.settings-jump-nav a')->to_array } )
+    {
+        my $target = $link->attr('href');
+        ok( $settings_dom->at($target), "settings shortcut resolves: $target" );
+    }
+
     $test->element_exists('form[action="/settings"]');
     $test->element_exists('form[action="/settings"] input[name="command_id"]');
     $test->element_exists('form.identity-form a[href="/settings"]');

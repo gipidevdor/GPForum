@@ -4,7 +4,7 @@
 %# pending with the QR code and the key to type, on with the way to renew
 %# the recovery codes and to turn it off.
 
-<section aria-labelledby="security-heading">
+<section class="account-panel" aria-labelledby="security-heading">
   <%= include 'components/page_header',
     heading_id => 'security-heading',
     component_title => t('auth.second_factor_title'),

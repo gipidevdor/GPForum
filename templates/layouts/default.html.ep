@@ -1,4 +1,5 @@
 <!doctype html>
+% stash forum_layout => 1;
 %# Each value the page states more than once is read once.
 % my $locale_metadata = ui_locale_metadata;
 % my $page_locale = ui_locale;
@@ -21,6 +22,8 @@
     <script src="<%= ui_asset_url('htmx.min.js') %>" defer></script>
     <script src="<%= ui_asset_url('composer.js') %>" defer></script>
     <script src="<%= ui_asset_url('similar.js') %>" defer></script>
+    <script src="<%= ui_asset_url('thread-navigation.js') %>" defer></script>
+    <script src="<%= ui_asset_url('thread-actions.js') %>" defer></script>
     % my $page_metadata = stash('page_metadata') || {};
     % if ($page_metadata->{description}) {
       <meta name="description" content="<%= $page_metadata->{description} %>">
@@ -41,7 +44,7 @@
       % }
     % }
   </head>
-  <body class="app-shell <%= $locale_metadata->{typography_class} %><%= (stash('shell') // q{}) eq 'wide' ? ' app-shell--wide' : q{} %>">
+  <body class="app-shell<%= stash('forum_layout') ? ' app-shell--forum' : q{} %> <%= $locale_metadata->{typography_class} %><%= (stash('shell') // q{}) eq 'wide' ? ' app-shell--wide' : q{} %>">
     <a class="skip-link" href="#content"><%= t('nav.skip_to_content') %></a>
     <%= include 'components/site_header' %>
     <%= include 'components/site_announcements' %>

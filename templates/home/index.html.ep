@@ -13,7 +13,8 @@
 </section>
 % my %category_title = map { $_->{category_id} => $_->{title} } @{ $home->{categories} };
 
-<section aria-labelledby="home-categories-heading">
+<div class="forum-home-grid">
+<section class="forum-home-categories" aria-labelledby="home-categories-heading">
   <%= include 'components/section_header',
     heading_id => 'home-categories-heading',
     component_title => t('nav.categories') %>
@@ -40,12 +41,12 @@
   % }
 </section>
 
-<section aria-labelledby="home-latest-heading">
+<section class="forum-home-latest" aria-labelledby="home-latest-heading">
   <%= include 'components/section_header',
     heading_id => 'home-latest-heading',
     component_title => t('forum.latest_public_discussions') %>
   % if (@{ $home->{latest_threads}{items} }) {
-    <ol class="ui-card-list" aria-label="<%= t('forum.latest_public_discussions') %>">
+    <ol class="ui-card-list topic-list" aria-label="<%= t('forum.latest_public_discussions') %>">
       % for my $thread (@{ $home->{latest_threads}{items} }) {
         <li class="ui-card-list__item ui-row">
           <article aria-labelledby="home-thread-<%= $thread->{thread_id} %>-heading">
@@ -97,3 +98,5 @@
       component_title => t('forum.no_public_discussions') %>
   % }
 </section>
+
+</div>

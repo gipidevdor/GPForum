@@ -1,7 +1,7 @@
 % layout 'default';
 % title t('auth.email_verified_title') . ' - ' . t('app.name');
 
-<section aria-labelledby="email-verified-heading">
+<section class="account-panel" aria-labelledby="email-verified-heading">
   <%= include 'components/page_header',
     heading_id => 'email-verified-heading',
     component_title => t('auth.email_verified_title'),

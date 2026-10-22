@@ -24,7 +24,7 @@
 %   my $static = $fragments->render($self, $post);
 %   my $paths = $static->{paths};
   <li class="ui-card-list__item" hx-target="this" hx-swap="outerHTML">
-    <article class="post" id="<%= $dom_id %>" aria-labelledby="<%= $dom_id %>-heading">
+    <article class="post" id="<%= $dom_id %>" data-page-url="<%= $self->req->url->to_string %>" aria-labelledby="<%= $dom_id %>-heading">
       <%= $static->{header} %>
           % if ($post->{created_at}) {
             <span><%= ui_timestamp($post->{created_at}) %></span>

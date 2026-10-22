@@ -3,7 +3,7 @@
 %# ADR 0142: the recovery codes, shown once and never again; the page is
 %# not stored by any cache.
 
-<section aria-labelledby="security-codes-heading">
+<section class="account-panel" aria-labelledby="security-codes-heading">
   <%= include 'components/page_header',
     heading_id => 'security-codes-heading',
     component_title => t('auth.second_factor_codes_title'),

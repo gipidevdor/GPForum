@@ -186,6 +186,70 @@
     });
   };
 
+  // Formatting uses the same input event as typing, including draft persistence.
+  const initializeFormatting = () => {
+    const italian = document.documentElement.lang.startsWith("it");
+    document.querySelectorAll('form[data-composer] textarea[name="body_source"]').forEach((field) => {
+      if (field.dataset.formattingReady) return;
+      field.dataset.formattingReady = "true";
+      const bar = document.createElement("div");
+      bar.className = "composer-formatting";
+      bar.setAttribute("role", "group");
+      bar.setAttribute("aria-label", italian ? "Formattazione del testo" : "Text formatting");
+      const actions = [
+        [italian ? "Grassetto" : "Bold", "**", "**"],
+        [italian ? "Corsivo" : "Italic", "*", "*"],
+        [italian ? "Codice" : "Code", "`", "`"],
+        [italian ? "Citazione" : "Quote", "\n> ", "\n"],
+        [italian ? "Blocco di codice" : "Code block", "\n```\n", "\n```\n"],
+        [italian ? "Elenco puntato" : "Bulleted list", "\n- ", "\n"],
+        [italian ? "Elenco numerato" : "Numbered list", "\n1. ", "\n"],
+      ];
+      actions.forEach(([label, before, after]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "button--quiet";
+        button.textContent = label;
+        button.addEventListener("click", () => {
+          const start = field.selectionStart;
+          const end = field.selectionEnd;
+          const selected = field.value.slice(start, end);
+          let content = selected;
+          if (before === "\n> ") content = selected.replace(/\n/g, "\n> ");
+          if (before === "\n- ") content = selected.replace(/\n/g, "\n- ");
+          if (before === "\n1. ") content = selected.split("\n").map((line, index) =>
+            index ? `${index + 1}. ${line}` : line).join("\n");
+          field.setRangeText(before + content + after, start, end, "select");
+          field.focus();
+          field.setSelectionRange(start + before.length, start + before.length + content.length);
+          field.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        bar.append(button);
+      });
+      field.before(bar);
+      const count = document.createElement("output");
+      count.className = "ui-hint";
+      const updateCount = () => {
+        const characters = Array.from(field.value).length;
+        const words = field.value.trim() ? field.value.trim().split(/\s+/u).length : 0;
+        count.textContent = italian ? `${characters} caratteri · ${words} parole` : `${characters} characters · ${words} words`;
+      };
+      field.after(count);
+      field.addEventListener("input", updateCount);
+      updateCount();
+      field.addEventListener("keydown", (event) => {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+        const index = { b: 0, i: 1 }[event.key.toLowerCase()];
+        if (index === undefined) return;
+        event.preventDefault();
+        bar.children[index].click();
+      });
+    });
+  };
+  initializeFormatting();
+  document.addEventListener("htmx:afterSwap", initializeFormatting);
+  document.addEventListener("htmx:oobAfterSwap", initializeFormatting);
+
   initialize();
   document.addEventListener("htmx:afterSwap", initialize);
   document.addEventListener("htmx:oobAfterSwap", initialize);

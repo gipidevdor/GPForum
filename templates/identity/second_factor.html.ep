@@ -3,7 +3,7 @@
 %# ADR 0142: the second step of a sign-in, once the password verified.
 % my $described_by = $error ? 'second-factor-code-help second-factor-error' : 'second-factor-code-help';
 
-<section aria-labelledby="second-factor-heading">
+<section class="account-panel" aria-labelledby="second-factor-heading">
   <%= include 'components/page_header',
     heading_id => 'second-factor-heading',
     component_title => t('auth.second_factor_login_title') %>

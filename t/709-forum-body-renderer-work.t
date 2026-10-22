@@ -62,6 +62,8 @@ my @adversaries = (
     [ 'backticks',                q{`} x $RUN ],
     [ 'unclosed code spans',      "`a\n" x $LINES ],
     [ 'quoted lines',             "> x\n" x $LINES ],
+    [ 'bulleted lines',           "- x\n" x $LINES ],
+    [ 'numbered lines',           "1. x\n" x $LINES ],
 );
 
 for my $adversary (@adversaries) {

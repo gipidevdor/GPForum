@@ -5,7 +5,7 @@
 %# ADR 0139: one conversation, its newest messages oldest first and the form
 %# that answers. Only its two members read it; it is never cached. Each of
 %# the other member's messages can be reported to the staff, in a sheet.
-<section aria-labelledby="conversation-heading">
+<section class="conversation-page" aria-labelledby="conversation-heading">
   <%= include 'components/page_header',
     heading_id => 'conversation-heading',
     component_title => t('messages.conversation_with', { name => $with }),
@@ -20,7 +20,7 @@
       % for my $message (@{$messages}) {
         % my $author = $message->{author};
         % my $anchor = $message->{ui}{anchor};
-        <li class="ui-card-list__item">
+        <li class="ui-card-list__item<%= $message->{own} ? ' message--own' : q{} %>">
           <article class="post" id="<%= $anchor %>" aria-labelledby="<%= $anchor %>-heading">
             <h3 class="visually-hidden" id="<%= $anchor %>-heading"><%= $message->{own} ? t('messages.you') : ($author->{gone} ? t('messages.member_gone') : $author->{display_name}) %></h3>
             <span class="avatar avatar--<%= $author->{tint} %> post__avatar" aria-hidden="true"><%= $author->{initial} %></span>
@@ -59,7 +59,7 @@
   % }
 </section>
 
-<section aria-labelledby="conversation-reply-heading">
+<section class="conversation-reply editor-panel" aria-labelledby="conversation-reply-heading">
   <%= include 'components/section_header', heading_id => 'conversation-reply-heading', component_title => t('messages.reply') %>
   % if ($other->{gone}) {
     <p class="ui-meta" role="status"><%= t('messages.member_gone_notice') %></p>

@@ -2,7 +2,7 @@
 % title t('community.relation_page_title') . ' - ' . t('app.name');
 %# ADR 0130: the members the reader ignores or blocks, each with the way to
 %# take them off. Only the reader sees this list.
-<section aria-labelledby="relations-heading">
+<section class="member-list-page" aria-labelledby="relations-heading">
   <%= include 'components/page_header', heading_id => 'relations-heading', component_title => t('community.relation_page_title') %>
   <p><%= t('community.relation_page_intro') %></p>
   <p class="ui-meta"><%= t('community.relation_page_bound', { limit => $maximum_relations }) %></p>

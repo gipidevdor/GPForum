@@ -1,7 +1,7 @@
 % layout 'default';
 % title t('profile.not_found_title') . ' - ' . t('app.name');
 
-<section aria-labelledby="profile-not-found-heading">
+<section class="account-panel" aria-labelledby="profile-not-found-heading">
   <%= include 'components/page_header',
     heading_id => 'profile-not-found-heading',
     component_title => t('profile.not_found_title') %>

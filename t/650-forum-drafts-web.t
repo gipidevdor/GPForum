@@ -90,6 +90,21 @@ $test->element_exists('[data-composer-preview]:not([hidden])');
 $test->element_exists_not('[data-preview-body] script');
 $test->text_is( '#thread-body' => $source );
 
+# Lists use the same renderer in JSON and native previews; previewing does
+# not persist source or trust embedded HTML.
+$input{body_source} = "- **first**\n- <script>x</script>\n\n3. third";
+$test->post_ok( '/composer/preview' => $json => form => \%input )
+  ->status_is($HTTP_OK);
+$test->json_is( '/html' =>
+'<ul><li><strong>first</strong></li><li>&lt;script&gt;x&lt;/script&gt;</li></ul>'
+      . "\n"
+      . '<ol start="3"><li>third</li></ol>' );
+$test->post_ok( '/composer/preview' => form => \%input )->status_is($HTTP_OK);
+$test->element_exists('[data-preview-body] ul li strong');
+$test->element_exists('[data-preview-body] ol[start="3"]');
+$test->element_exists_not('[data-preview-body] script');
+is( scalar @{ $drafts->saves }, $before, 'list previews never save the draft' );
+
 $drafts->refusal('conflict');
 $input{body_source} = 'keep this newer text';
 $test->post_ok( '/drafts' => form => \%input )->status_is($HTTP_CONFLICT);

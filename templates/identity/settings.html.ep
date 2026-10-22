@@ -1,11 +1,24 @@
 % layout 'default';
 % title t('settings.title') . ' - ' . t('app.name');
 
-<section aria-labelledby="<%= $ui->{heading_id} %>">
+<section class="settings-page" aria-labelledby="<%= $ui->{heading_id} %>">
   <%= include 'components/page_header',
     heading_id => $ui->{heading_id},
     component_title => t('settings.title'),
     description => t('settings.description') %>
+  <nav class="settings-jump-nav" aria-label="<%= t('settings.title') %>">
+    % for my $jump (
+    %   [$ui->{profile_heading_id}, 'settings.profile'],
+    %   [$ui->{appearance_heading_id}, 'settings.appearance'],
+    %   [$ui->{notifications_heading_id}, 'settings.notifications'],
+    %   [$ui->{credentials_heading_id}, 'settings.credentials'],
+    %   ['settings-second-factor-heading', 'auth.second_factor_title'],
+    %   ['settings-data-heading', 'nav.your_data'],
+    %   [$ui->{email_heading_id}, 'settings.email'],
+    % ) {
+      <a href="#<%= $jump->[0] %>"><%= t($jump->[1]) %></a>
+    % }
+  </nav>
 
   <section class="settings-group" aria-labelledby="<%= $ui->{profile_heading_id} %>">
     <h2 id="<%= $ui->{profile_heading_id} %>"><%= t('settings.profile') %></h2>

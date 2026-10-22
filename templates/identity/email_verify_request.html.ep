@@ -2,7 +2,7 @@
 % title t('auth.email_verify_request_title') . ' - ' . t('app.name');
 % my $form_described_by = $ui->{described_by} || q{};
 
-<section aria-labelledby="<%= $ui->{heading_id} %>">
+<section class="account-panel" aria-labelledby="<%= $ui->{heading_id} %>">
   <h1 id="<%= $ui->{heading_id} %>"><%= t('auth.email_verify_request_title') %></h1>
   <%= include 'components/error_summary',
     summary_id => 'email-verify-request-error-summary',

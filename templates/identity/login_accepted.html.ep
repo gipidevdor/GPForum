@@ -2,7 +2,7 @@
 % title t('auth.login_accepted_title') . ' - ' . t('app.name');
 
 %# The answer to signing in is what happened, in the title, and where to go.
-<section aria-labelledby="login-accepted-heading">
+<section class="account-panel" aria-labelledby="login-accepted-heading">
   <%= include 'components/page_header',
     heading_id => 'login-accepted-heading',
     component_title => t('auth.login_accepted_title'),

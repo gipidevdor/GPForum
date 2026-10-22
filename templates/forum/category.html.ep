@@ -24,7 +24,7 @@
       },
     ) %>
   % if (@{$threads}) {
-    <ol class="ui-card-list" aria-label="<%= $category->{title} %>">
+    <ol class="ui-card-list topic-list" aria-label="<%= $category->{title} %>">
       % for my $thread (@{$threads}) {
         <li class="ui-card-list__item ui-row">
           <h2 class="ui-row__title">

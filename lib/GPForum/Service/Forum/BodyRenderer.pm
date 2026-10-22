@@ -144,8 +144,9 @@ sub _closes ($line) {
     return $line =~ $CLOSE_FENCE;
 }
 
-# Prose is paragraphs and block quotes: a run of quoted lines is one quote, a
-# run of other lines one paragraph block, and a blank line ends either.
+# Prose is paragraphs, block quotes and flat lists. Each line is classified
+# once; changing block kind or a blank line ends the current block. Quoted
+# markers remain quote content rather than becoming nested lists.
 sub _prose_html ($text) {
     if ( $text !~ /\S/msx ) {
         return q{};
@@ -163,23 +164,55 @@ sub _prose_html ($text) {
             next;
         }
 
-        my $type = defined $quoted ? 'quote' : 'paragraph';
+        my ( $type, $item, $start ) =
+          defined $quoted
+          ? ( 'quote', $quoted, undef )
+          : _list_line($line);
         if ( !$current || $current->{type} ne $type ) {
-            $current = { lines => [], type => $type };
+            $current = { lines => [], type => $type, start => $start };
             push @blocks, $current;
         }
-        push @{ $current->{lines} }, $quoted // $line;
+        push @{ $current->{lines} }, $item;
     }
 
     return _joined(
         map {
-            $_->{type} eq 'quote'
-              ? '<blockquote>'
+                $_->{type} eq 'ul' || $_->{type} eq 'ol' ? _list_html($_)
+              : $_->{type} eq 'quote'                    ? '<blockquote>'
               . _paragraphs_html( $_->{lines} )
               . '</blockquote>'
               : _paragraphs_html( $_->{lines} )
         } @blocks
     );
+}
+
+sub _list_line ($line) {
+    if ( $line =~ /\A [ ]{0,3} [-+*] [ \t]+ (\S.*) \z/msx ) {
+        return ( 'ul', $1, undef );
+    }
+    if ( $line =~ /\A [ ]{0,3} (\d{1,9}) [.)] [ \t]+ (\S.*) \z/amsx ) {
+        return ( 'ol', $2, 0 + $1 );
+    }
+
+    return ( 'paragraph', $line, undef );
+}
+
+# Tags are selected by the classifier; only a bounded numeric start enters
+# an attribute. List content follows exactly the same escaping as paragraphs.
+sub _list_html ($block) {
+    my $tag = $block->{type};
+    my $start =
+      $tag eq 'ol' && $block->{start} != 1
+      ? q{ start="} . $block->{start} . q{"}
+      : q{};
+
+    return
+        '<'
+      . $tag
+      . $start . '>'
+      . join( q{}, map { '<li>' . _inline($_) . '</li>' } @{ $block->{lines} } )
+      . '</'
+      . $tag . '>';
 }
 
 # One paragraph for each run of non-blank lines, its lines joined by <br>.
@@ -393,7 +426,7 @@ Version 0.001.
 Turns post C<body_source> into sanitized HTML for
 C<post_bodies.body_rendered_safe> and forum post presenters. Input is escaped
 before any markup is introduced. The allowed subset is emphasis, http/https/mailto
-links, block quotes, fenced code, and code spans between backticks on one
+links, block quotes, flat bulleted and numbered lists, fenced code, and code spans between backticks on one
 line. Raw HTML, inline images, and @mentions are not interpreted.
 
 =head1 SUBROUTINES/METHODS
@@ -432,7 +465,8 @@ None known.
 =head1 BUGS AND LIMITATIONS
 
 Inline images and @mention highlighting are intentionally left as literal
-text. Heading, list, and raw-HTML markdown are not implemented. A code span is
+text. Lists are flat, with one item per marked line; nesting, continuation lines,
+headings and raw-HTML markdown are not implemented. A code span is
 read before links and emphasis, so neither can reach across one.
 
 =head1 AUTHOR

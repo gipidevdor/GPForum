@@ -2,7 +2,7 @@
 % title t('notifications.unsubscribe.title') . ' - ' . t('app.name');
 %# ADR 0078: what a notification mail's unsubscribe link stops. Opening it
 %# changes nothing; the button does.
-<section aria-labelledby="<%= $ui->{heading_id} %>">
+<section class="account-panel" aria-labelledby="<%= $ui->{heading_id} %>">
   <%= include 'components/page_header',
     heading_id => $ui->{heading_id},
     component_title => t('notifications.unsubscribe.title'),

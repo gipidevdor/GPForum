@@ -4,6 +4,13 @@
       <img class="brand__mark" src="<%= url_for('/gpforum-mark.svg') %>" alt="" aria-hidden="true">
       <span class="brand__name"><%= t('app.name') %></span>
     </a>
+    % if (stash('forum_layout')) {
+      <form class="header-search" method="get" action="<%= ui_path('forum_search') %>" role="search">
+        <label class="visually-hidden" for="header-search-query"><%= t('search.query') %></label>
+        <input id="header-search-query" type="search" name="q" placeholder="<%= t('search.query') %>">
+        <button type="submit"><%= t('nav.search') %></button>
+      </form>
+    % }
     <%= include 'components/primary_nav' %>
     <%= include 'components/identity_nav' %>
   </div>

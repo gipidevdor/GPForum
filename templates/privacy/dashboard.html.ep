@@ -1,7 +1,7 @@
 % layout 'default';
 % title t('nav.your_data') . ' - ' . t('app.name');
 
-<section aria-labelledby="privacy-dashboard-heading">
+<section class="privacy-page" aria-labelledby="privacy-dashboard-heading">
   <%= include 'components/page_header',
     heading_id => 'privacy-dashboard-heading',
     component_title => t('nav.your_data') %>

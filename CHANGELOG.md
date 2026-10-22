@@ -2084,6 +2084,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **A column added to a table no longer breaks the workers that call its
+  functions.** 158 functions return a table's row, so a migration adding a
+  column changed their result type under the running workers: a prepared
+  call was refused with `cached plan must not change result type` once its
+  plan was invalidated, and a call DBD::Pg had run once unnamed crashed the
+  worker when it ran again. The call layer now prepares each call on the
+  server at once, and on that refusal forgets the statement and, outside a
+  transaction, calls once more; `t/641` refuses a table's row as the result
+  of a function from migration 136 on. ADR 0126, amended.
+
 - **A migration and the row that says it ran commit together.** The runner
   wrote a migration's `schema_versions` row after the file had committed
   itself, so a crash or a lost connection between the two left it applied

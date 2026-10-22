@@ -32,7 +32,7 @@ sub dbh_do ( $self, $code ) {
     return $code->( $self, $self );
 }
 
-sub prepare_cached ( $self, $sql ) {
+sub prepare_cached ( $self, $sql, $attributes = undef ) {
     push @{ $self->prepared }, $sql;
 
     return $self;

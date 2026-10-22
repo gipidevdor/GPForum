@@ -80,6 +80,10 @@ done_testing();
 
 sub _route_names {
     return qw(
+      admin_address_ban_create
+      admin_address_ban_lift
+      admin_address_ban_update
+      admin_address_bans
       admin_antivirus_check
       admin_audit
       admin_automod
@@ -217,6 +221,7 @@ sub _route_names {
 
 sub _helper_names {
     return qw(
+      gp_address_bans
       gp_admin_audit_review
       gp_admin_console_reader
       gp_admin_diagnostics

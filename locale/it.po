@@ -21,6 +21,246 @@ msgctxt "admin.action"
 msgid "Action"
 msgstr "Azione"
 
+msgctxt "admin.address_ban_check"
+msgid "Check an address"
+msgstr "Verifica un indirizzo"
+
+msgctxt "admin.address_ban_check_address"
+msgid "Address"
+msgstr "Indirizzo"
+
+#, python-brace-format
+msgctxt "admin.address_ban_check_clear"
+msgid "No live ban covers {address}."
+msgstr "Nessun blocco attivo copre {address}."
+
+#, python-brace-format
+msgctxt "admin.address_ban_check_covered"
+msgid "{address} is covered by the ban on {range}: {scope}."
+msgstr "{address} è coperto dal blocco su {range}: {scope}."
+
+msgctxt "admin.address_ban_check_invalid"
+msgid "That is not an IPv4 or IPv6 address."
+msgstr "Non è un indirizzo IPv4 o IPv6."
+
+msgctxt "admin.address_ban_check_submit"
+msgid "Check"
+msgstr "Verifica"
+
+#, python-brace-format
+msgctxt "admin.address_ban_client"
+msgid "You are writing from {address}."
+msgstr "Stai scrivendo da {address}."
+
+msgctxt "admin.address_ban_conflict"
+msgid "That form was already used for another ban. Reload the page and try again."
+msgstr "Il modulo è già stato usato per un altro blocco. Ricarica la pagina e riprova."
+
+msgctxt "admin.address_ban_covers_self"
+msgid "That ban would cover the address you are writing from. Choose a narrower range, or refuse new accounts only."
+msgstr "Il blocco coprirebbe l'indirizzo da cui stai scrivendo. Scegli un intervallo più ristretto, o rifiuta solo i nuovi account."
+
+msgctxt "admin.address_ban_create"
+msgid "Ban an address or a range"
+msgstr "Blocca un indirizzo o un intervallo"
+
+msgctxt "admin.address_ban_duplicate"
+msgid "A live ban already covers exactly that range: edit it instead."
+msgstr "Un blocco attivo copre già esattamente quell'intervallo: modifica quello."
+
+msgctxt "admin.address_ban_duration"
+msgid "For"
+msgstr "Per"
+
+msgctxt "admin.address_ban_duration_1d"
+msgid "1 day"
+msgstr "1 giorno"
+
+msgctxt "admin.address_ban_duration_1h"
+msgid "1 hour"
+msgstr "1 ora"
+
+msgctxt "admin.address_ban_duration_30d"
+msgid "30 days"
+msgstr "30 giorni"
+
+msgctxt "admin.address_ban_duration_365d"
+msgid "1 year"
+msgstr "1 anno"
+
+msgctxt "admin.address_ban_duration_7d"
+msgid "7 days"
+msgstr "7 giorni"
+
+msgctxt "admin.address_ban_duration_90d"
+msgid "90 days"
+msgstr "90 giorni"
+
+msgctxt "admin.address_ban_duration_edit"
+msgid "New length, from now"
+msgstr "Nuova durata, da adesso"
+
+msgctxt "admin.address_ban_duration_keep"
+msgid "Keep the current expiry"
+msgstr "Mantieni la scadenza attuale"
+
+msgctxt "admin.address_ban_edit"
+msgid "Edit"
+msgstr "Modifica"
+
+msgctxt "admin.address_ban_edited"
+msgid "The ban was changed."
+msgstr "Il blocco è stato modificato."
+
+msgctxt "admin.address_ban_edited_by"
+msgid "Last edited by"
+msgstr "Ultima modifica di"
+
+msgctxt "admin.address_ban_ended"
+msgid "That ban has already ended."
+msgstr "Questo blocco è già terminato."
+
+msgctxt "admin.address_ban_expired_at"
+msgid "Expired on"
+msgstr "Scaduto il"
+
+msgctxt "admin.address_ban_expires_at"
+msgid "Expires"
+msgstr "Scade"
+
+msgctxt "admin.address_ban_invalid"
+msgid "The ban could not be saved. Check the fields and try again."
+msgstr "Impossibile salvare il blocco. Controlla i campi e riprova."
+
+msgctxt "admin.address_ban_invalid_duration"
+msgid "Choose how long the ban lasts."
+msgstr "Scegli quanto dura il blocco."
+
+msgctxt "admin.address_ban_invalid_range"
+msgid "Write one IPv4 or IPv6 address, or a CIDR range such as 203.0.113.0/24."
+msgstr "Scrivi un indirizzo IPv4 o IPv6, o un intervallo CIDR come 203.0.113.0/24."
+
+msgctxt "admin.address_ban_invalid_reason"
+msgid "Write a reason of up to 500 characters."
+msgstr "Scrivi un motivo di massimo 500 caratteri."
+
+msgctxt "admin.address_ban_invalid_scope"
+msgid "Choose what the ban refuses."
+msgstr "Scegli cosa rifiuta il blocco."
+
+msgctxt "admin.address_ban_lift"
+msgid "Lift the ban"
+msgstr "Revoca il blocco"
+
+msgctxt "admin.address_ban_lifted"
+msgid "The ban was lifted."
+msgstr "Il blocco è stato revocato."
+
+msgctxt "admin.address_ban_lifted_by"
+msgid "Lifted by"
+msgstr "Revocato da"
+
+msgctxt "admin.address_ban_list"
+msgid "Bans"
+msgstr "Blocchi"
+
+#, python-brace-format
+msgctxt "admin.address_ban_live_total"
+msgid "Live bans: {count}"
+msgstr "Blocchi attivi: {count}"
+
+msgctxt "admin.address_ban_none"
+msgid "No bans yet"
+msgstr "Ancora nessun blocco"
+
+msgctxt "admin.address_ban_not_found"
+msgid "That ban does not exist."
+msgstr "Questo blocco non esiste."
+
+msgctxt "admin.address_ban_place"
+msgid "Ban"
+msgstr "Blocca"
+
+msgctxt "admin.address_ban_placed"
+msgid "The ban is in place."
+msgstr "Il blocco è attivo."
+
+msgctxt "admin.address_ban_placed_by"
+msgid "Placed by"
+msgstr "Inserito da"
+
+msgctxt "admin.address_ban_range"
+msgid "Address or range"
+msgstr "Indirizzo o intervallo"
+
+msgctxt "admin.address_ban_range_help"
+msgid "One address, such as 203.0.113.7 or 2001:db8::7, or a CIDR range, such as 203.0.113.0/24. A range is at most /16 for IPv4 and /32 for IPv6."
+msgstr "Un indirizzo, come 203.0.113.7 o 2001:db8::7, o un intervallo CIDR, come 203.0.113.0/24. Un intervallo è al massimo /16 per IPv4 e /32 per IPv6."
+
+msgctxt "admin.address_ban_reason"
+msgid "Reason"
+msgstr "Motivo"
+
+msgctxt "admin.address_ban_reason_help"
+msgid "For staff only: the visitor is never shown it. Up to 500 characters."
+msgstr "Solo per lo staff: il visitatore non lo vede mai. Fino a 500 caratteri."
+
+msgctxt "admin.address_ban_save"
+msgid "Save"
+msgstr "Salva"
+
+msgctxt "admin.address_ban_scope"
+msgid "What it refuses"
+msgstr "Cosa rifiuta"
+
+msgctxt "admin.address_ban_scope_help"
+msgid "Every write also covers sign-in and new accounts; sign-in also covers new accounts. Signing out and privacy requests always work."
+msgstr "Ogni scrittura comprende anche l'accesso e i nuovi account; l'accesso comprende anche i nuovi account. L'uscita e le richieste sulla privacy funzionano sempre."
+
+msgctxt "admin.address_ban_scope_registration"
+msgid "New accounts"
+msgstr "Nuovi account"
+
+msgctxt "admin.address_ban_scope_sign_in"
+msgid "Sign-in and new accounts"
+msgstr "Accesso e nuovi account"
+
+msgctxt "admin.address_ban_scope_writes"
+msgid "Every write"
+msgstr "Ogni scrittura"
+
+msgctxt "admin.address_ban_state_active"
+msgid "Active"
+msgstr "Attivo"
+
+msgctxt "admin.address_ban_state_expired"
+msgid "Expired"
+msgstr "Scaduto"
+
+msgctxt "admin.address_ban_state_lifted"
+msgid "Lifted"
+msgstr "Revocato"
+
+msgctxt "admin.address_ban_too_broad"
+msgid "That range is too wide: at most /16 for IPv4 and /32 for IPv6."
+msgstr "L'intervallo è troppo ampio: al massimo /16 per IPv4 e /32 per IPv6."
+
+msgctxt "admin.address_ban_unchanged"
+msgid "Nothing changed."
+msgstr "Nessuna modifica."
+
+msgctxt "admin.address_ban_until"
+msgid "Until"
+msgstr "Fino a"
+
+msgctxt "admin.address_bans"
+msgid "Address bans"
+msgstr "Blocchi di indirizzi"
+
+msgctxt "admin.address_bans_description"
+msgid "Refuse new accounts, sign-ins or every write from one address or a range of addresses, for a while."
+msgstr "Rifiuta i nuovi account, gli accessi o ogni scrittura da un indirizzo o da un intervallo di indirizzi, per un periodo."
+
 # Same as English.
 msgctxt "admin.admin"
 msgid "Admin"
@@ -2319,6 +2559,14 @@ msgstr "Modifica post"
 msgctxt "forum.edit_title"
 msgid "Edit title"
 msgstr "Modifica titolo"
+
+msgctxt "forum.error_address_banned_message"
+msgid "This forum is not accepting this request from your network at the moment. You can still read it."
+msgstr "Al momento il forum non accetta questa richiesta dalla tua rete. Puoi comunque leggerlo."
+
+msgctxt "forum.error_address_banned_title"
+msgid "Not accepted from your network"
+msgstr "Non accettato dalla tua rete"
 
 msgctxt "forum.error_conflict_message"
 msgid ""

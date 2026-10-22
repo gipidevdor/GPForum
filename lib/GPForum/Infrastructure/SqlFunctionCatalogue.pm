@@ -220,7 +220,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 20,
+        version    => 22,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -347,6 +347,52 @@ const my %FUNCTION => (
     admin_retire_announcement => {
         version    => 2,
         parameters => [ announcement_id => 'uuid', values => 'jsonb' ]
+    },
+
+    # ADR 0145: address and range bans.
+    admin_address_ban_place => {
+        version    => 2,
+        parameters => [
+            ban_id        => 'uuid',
+            range         => 'cidr',
+            scope         => 'text',
+            reason        => 'text',
+            expires_at    => 'timestamptz',
+            actor_user_id => 'uuid',
+            actor_address => 'inet',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+        ],
+    },
+    admin_address_ban_edit => {
+        version    => 2,
+        parameters => [
+            ban_id        => 'uuid',
+            scope         => 'text',
+            reason        => 'text',
+            expires_at    => 'timestamptz',
+            actor_user_id => 'uuid',
+            actor_address => 'inet',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+        ],
+    },
+    admin_address_ban_lift => {
+        version    => 2,
+        parameters => [
+            ban_id        => 'uuid',
+            actor_user_id => 'uuid',
+            now           => 'timestamptz',
+            audit         => 'jsonb',
+        ],
+    },
+    admin_address_bans => {
+        version    => 2,
+        parameters => [ now => 'timestamptz', row_limit => 'integer' ]
+    },
+    admin_address_ban_covering => {
+        version    => 2,
+        parameters => [ address => 'inet', now => 'timestamptz' ]
     },
     admin_announcement_by_id =>
       { version => 2, parameters => [ announcement_id => 'uuid' ] },

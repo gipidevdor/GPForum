@@ -16,15 +16,16 @@ const my $CSRF_TEXT => 'Bad CSRF token';
 # required", "Bad CSRF token" -- so the page shows these catalog texts
 # instead; the JSON payload keeps its stable strings for API clients.
 const my %PAGE_TEXT => (
-    conflict     => 'forum.error_conflict',
-    csrf         => 'forum.error_csrf',
-    error        => 'forum.error_internal',
-    forbidden    => 'forum.error_forbidden',
-    invalid      => 'forum.error_invalid',
-    not_found    => 'forum.error_not_found',
-    rate_limited => 'forum.error_rate_limited',
-    unauthorized => 'forum.error_unauthorized',
-    unavailable  => 'forum.error_unavailable',
+    address_banned => 'forum.error_address_banned',
+    conflict       => 'forum.error_conflict',
+    csrf           => 'forum.error_csrf',
+    error          => 'forum.error_internal',
+    forbidden      => 'forum.error_forbidden',
+    invalid        => 'forum.error_invalid',
+    not_found      => 'forum.error_not_found',
+    rate_limited   => 'forum.error_rate_limited',
+    unauthorized   => 'forum.error_unauthorized',
+    unavailable    => 'forum.error_unavailable',
 );
 
 # The payloads' own default messages, which the page texts above already
@@ -32,6 +33,7 @@ const my %PAGE_TEXT => (
 # as outbox ..." -- and the page keeps it as detail.
 const my %GENERIC_ERROR => map { $_ => 1 } (
     $CSRF_TEXT,
+    'address banned',
     'authentication required',
     'conflict',
     'idempotency conflict',
@@ -111,6 +113,16 @@ sub not_found ( $self, %input ) {
         error  => $input{error} || 'not found',
         status => 'not_found',
         title  => 'Not found',
+    };
+}
+
+# ADR 0146: a request from an address a ban covers. The page says no more
+# than that: neither the ban's reason nor its range.
+sub address_banned ($self) {
+    return {
+        error  => 'address banned',
+        status => 'address_banned',
+        title  => 'Forbidden',
     };
 }
 
@@ -264,6 +276,10 @@ C<not_found>, title C<Not found>.
 
 Takes optional named C<error> (default C<too many requests>) and C<title>
 (default C<Too many requests>). Returns status C<rate_limited>.
+
+=head2 address_banned
+
+The refusal of a request from a banned address (ADR 0146).
 
 =head2 rate_limited_text
 

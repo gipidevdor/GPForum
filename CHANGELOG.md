@@ -661,6 +661,22 @@ CI, evidence and internal refactors with no change in behaviour.
   `api.community_unreact_command_v1`) with their events, and erasure and
   export carry them (`api.privacy_revoke_user_v19`,
   `api.portability_export_parts_v21`).
+
+- **Address and range bans.** Staff with the admin console ban one IPv4
+  or IPv6 address, or a CIDR range of at most /16 (IPv4) or /32 (IPv6),
+  from `/admin/address-bans`: from registering, from signing in (and
+  registering), or from every write, with a reason for staff and a length
+  of an hour to a year. They edit and lift bans, see who placed, edited
+  and lifted each, check which ban covers an address, and see the address
+  they write from; a ban that would cover it, for sign-in or writes, is
+  refused. Every write request asks, in one place around the action, for
+  the live ban covering its client -- one GiST lookup in PostgreSQL --
+  and a covered one gets a plain refusal naming neither reason nor range;
+  reads ask nothing, and signing out, language and theme, one-click
+  unsubscribe, privacy requests and the ban forms are never refused. Every
+  change is audited without the reason; bans are left out of the export
+  and an erased staff member's name leaves them. Migration 134, ADR 0146.
+
 - **Profile pictures.** On the new `/settings/avatar` a member uploads a
   PNG, JPEG, GIF or WebP of up to 5 MB and 8,000 pixels a side; it goes
   through the attachment validation and the malware scan, and the system's

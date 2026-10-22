@@ -76,6 +76,20 @@ sub register ( $, %input ) {
     $routes->post('/admin/users/:user_id/second-factor/reset')
       ->to('Admin::SecondFactor#reset_member')
       ->name('admin_second_factor_reset');
+
+    # ADR 0146: address and range bans.
+    $routes->get('/admin/address-bans')
+      ->to('Admin::AddressBans#show')
+      ->name('admin_address_bans');
+    $routes->post('/admin/address-bans')
+      ->to('Admin::AddressBans#create')
+      ->name('admin_address_ban_create');
+    $routes->post('/admin/address-bans/:ban_id')
+      ->to('Admin::AddressBans#update')
+      ->name('admin_address_ban_update');
+    $routes->post('/admin/address-bans/:ban_id/lift')
+      ->to('Admin::AddressBans#lift')
+      ->name('admin_address_ban_lift');
     $routes->post('/admin/role-bindings/:binding_id/revoke')
       ->to('Admin::Bindings#revoke_binding')
       ->name('admin_role_binding_revoke');

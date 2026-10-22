@@ -159,6 +159,10 @@ const my %RETAINED => (
     portability_export_parts_v20 => 1,
     forum_thread_page_reads_v1   => 0,
     forum_thread_page_reads_v2   => 1,
+
+    # Migration 134 (address bans) moved this on.
+    privacy_revoke_user_v19 => 0,
+    privacy_revoke_user_v20 => 1,
 );
 
 const my $FUNCTIONS_SQL => join q{ },

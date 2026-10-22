@@ -114,6 +114,17 @@ sub conflict ( $self, $controller, $input ) {
     );
 }
 
+# ADR 0146: a plain refusal for a request from a banned address.
+sub address_banned ( $self, $controller ) {
+    return $self->_error(
+        $controller,
+        {
+            payload => GPForum::Web::ErrorPayload->address_banned,
+            status  => $HTTP_FORBIDDEN,
+        }
+    );
+}
+
 sub rate_limited ( $self, $controller, $input = undef ) {
     return $self->_error(
         $controller,
@@ -195,6 +206,10 @@ Logs, at info, the permission a user was refused and its scope.
 
 Renders a permission-denied error. An optional payload hash may override the
 error message.
+
+=head2 address_banned
+
+Renders the 403 refusal of a request from a banned address.
 
 =head2 rate_limited
 

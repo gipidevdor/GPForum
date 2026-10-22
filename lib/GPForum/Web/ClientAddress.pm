@@ -9,6 +9,8 @@ use v5.40;
 use Const::Fast;
 use English qw(-no_match_vars);
 
+use GPForum::Web::AddressBans;
+
 our $VERSION = '0.001';
 
 # An address as nginx's $remote_addr and Caddy's {remote_host} write it:
@@ -22,11 +24,23 @@ const my $LONGEST_ADDRESS => 45;
 my $unconnected = 0;
 
 # Every request learns its client here, before anything is dispatched, so
-# the rate limits, the audit rows and the sessions read one answer.
+# the rate limits, the audit rows and the sessions read one answer. And here,
+# around the action that answers it, a write from an address a live ban
+# covers is refused (ADR 0146): the one place bans are enforced.
 sub register ( $class, $application ) {
     $application->hook(
         before_dispatch => sub ($controller) {
             $class->of( $controller->tx );
+        }
+    );
+    my $bans = GPForum::Web::AddressBans->new;
+    $application->hook(
+        around_action => sub ( $next, $controller, $action, $last ) {
+            return $next->()
+              if !$last
+              || $bans->admits( $controller, $class->of( $controller->tx ) );
+
+            return 0;
         }
     );
 
@@ -93,7 +107,8 @@ or the connection's own key when there is none.
 =head2 register
 
 Takes the application. Adds the C<before_dispatch> hook that sets every
-request's client.
+request's client, and the C<around_action> hook that refuses a write from a
+banned address (L<GPForum::Web::AddressBans>, ADR 0146).
 
 =head2 of
 
@@ -111,7 +126,7 @@ TCP case through Hypnotoad; the Unix socket needs neither.
 
 =head1 DEPENDENCIES
 
-L<Mojo::Base>, L<Const::Fast>, L<English>.
+L<Mojo::Base>, L<Const::Fast>, L<English>, L<GPForum::Web::AddressBans>.
 
 =head1 INCOMPATIBILITIES
 

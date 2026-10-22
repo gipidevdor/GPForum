@@ -5,6 +5,7 @@ package GPForum::Bootstrap::Admin;
 
 use v5.40;
 
+use GPForum::Service::Admin::AddressBans;
 use GPForum::Service::Admin::AuditReview;
 use GPForum::Service::Admin::AnnouncementStore;
 use GPForum::Service::Admin::CategoryStore;
@@ -57,6 +58,16 @@ sub register {
                 cache  => $controller->gp_local_cache,
                 schema => $controller->gp_schema,
             );
+        }
+    );
+
+    # ADR 0146: address and range bans, read on every write request.
+    $application->helper(
+        gp_address_bans => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Admin::AddressBans->new(
+                schema => $controller->gp_schema );
         }
     );
     $application->helper(

@@ -734,6 +734,10 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
             $self->avatars->erase_files($user_id);
         }
         $self->_revoke_user_rows( 'Avatar', $user_id, $timestamp );
+
+        # ADR 0146: and their name from the address bans they placed,
+        # edited or lifted.
+        $self->_revoke_user_rows( 'AddressBan', $user_id, $timestamp );
     }
 
     return $self->erasure->result( $user_id, $already );

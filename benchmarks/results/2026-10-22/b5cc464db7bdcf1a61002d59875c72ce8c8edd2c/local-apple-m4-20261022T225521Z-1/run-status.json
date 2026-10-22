@@ -1,0 +1,140 @@
+{
+  "status": "complete_with_recovered_output_capture",
+  "phases": [
+    {
+      "phase": "migrate-http",
+      "started_at": "2026-10-22T23:00:17.805783+00:00",
+      "finished_at": "2026-10-22T23:00:18.688083+00:00",
+      "duration_seconds": 0.88232775,
+      "exit_code": 0,
+      "output": null
+    },
+    {
+      "phase": "evidence-init",
+      "started_at": "2026-10-22T23:00:18.689026+00:00",
+      "finished_at": "2026-10-22T23:00:19.056573+00:00",
+      "duration_seconds": 0.36757820899999993,
+      "exit_code": 0,
+      "output": null
+    },
+    {
+      "phase": "anonymous-http",
+      "started_at": "2026-10-22T23:00:19.057168+00:00",
+      "finished_at": "2026-10-22T23:06:43.802496+00:00",
+      "duration_seconds": 384.744107708,
+      "exit_code": 0,
+      "output": null
+    },
+    {
+      "phase": "query-plans-and-outbox",
+      "started_at": "2026-10-22T23:06:43.833478+00:00",
+      "finished_at": "2026-10-22T23:06:57.439471+00:00",
+      "duration_seconds": 13.605956915999968,
+      "exit_code": 1,
+      "output": null
+    },
+    {
+      "phase": "authenticated-and-writes",
+      "started_at": "2026-10-22T23:06:57.440201+00:00",
+      "finished_at": "2026-10-22T23:15:43.253368+00:00",
+      "duration_seconds": 525.811057792,
+      "exit_code": 0,
+      "output": "socket-report.txt"
+    },
+    {
+      "phase": "search-100k-r1",
+      "started_at": "2026-10-22T23:15:43.285526+00:00",
+      "finished_at": "2026-10-22T23:16:26.151008+00:00",
+      "duration_seconds": 42.86534429200003,
+      "exit_code": 0,
+      "output": "service-100k-r1.json"
+    },
+    {
+      "phase": "search-100k-r2",
+      "started_at": "2026-10-22T23:16:26.151598+00:00",
+      "finished_at": "2026-10-22T23:17:09.046749+00:00",
+      "duration_seconds": 42.895028374999924,
+      "exit_code": 0,
+      "output": "service-100k-r2.json"
+    },
+    {
+      "phase": "search-100k-r3",
+      "started_at": "2026-10-22T23:17:09.047578+00:00",
+      "finished_at": "2026-10-22T23:17:51.958458+00:00",
+      "duration_seconds": 42.91076887499992,
+      "exit_code": 0,
+      "output": "service-100k-r3.json"
+    },
+    {
+      "phase": "search-1m-prepare",
+      "started_at": "2026-10-22T23:17:52.045790+00:00",
+      "finished_at": "2026-10-22T23:18:47.236154+00:00",
+      "duration_seconds": 55.19013000000018,
+      "exit_code": 0,
+      "output": "search-1m-prepare.json"
+    },
+    {
+      "phase": "search-1m-r1",
+      "started_at": "2026-10-22T23:18:47.237254+00:00",
+      "finished_at": "2026-10-22T23:20:47.733127+00:00",
+      "duration_seconds": 120.49548775000017,
+      "exit_code": 0,
+      "output": "service-1m-r1.json"
+    },
+    {
+      "phase": "search-1m-r2",
+      "started_at": "2026-10-22T23:20:47.734090+00:00",
+      "finished_at": "2026-10-22T23:22:47.112995+00:00",
+      "duration_seconds": 119.37851599999999,
+      "exit_code": 0,
+      "output": "service-1m-r2.json"
+    },
+    {
+      "phase": "search-1m-r3",
+      "started_at": "2026-10-22T23:22:47.113808+00:00",
+      "finished_at": "2026-10-22T23:24:46.132991+00:00",
+      "duration_seconds": 119.01881016699986,
+      "exit_code": 0,
+      "output": "service-1m-r3.json"
+    },
+    {
+      "phase": "evidence-finalize",
+      "started_at": "2026-10-22T23:24:46.165004+00:00",
+      "finished_at": "2026-10-22T23:24:47.338652+00:00",
+      "duration_seconds": 1.1736410000000888,
+      "exit_code": 0,
+      "output": null
+    },
+    {
+      "phase": "evidence-validate",
+      "started_at": "2026-10-22T23:24:47.339145+00:00",
+      "finished_at": "2026-10-22T23:24:48.103155+00:00",
+      "duration_seconds": 0.7640491669999392,
+      "exit_code": 0,
+      "output": null
+    }
+  ],
+  "recovery": {
+    "status": "complete_and_schema_valid",
+    "reason": "Original run_bounded diagnostic capture retains only 200000 bytes; PostgreSQL 18 outbox result is larger. Repeated the same command with separate untruncated stdout.",
+    "original_capture_bytes": 200000,
+    "full_capture_bytes": 356724,
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "script/performance-outbox.pl",
+      "--json",
+      "--messages",
+      "3000",
+      "--workers",
+      "1,2",
+      "--repetitions",
+      "3"
+    ],
+    "started_at": "2026-10-22T23:25:41.610440+00:00",
+    "capture_elapsed_seconds": 8.928241125,
+    "exit_code": 0,
+    "application_or_workload_source_changed": false,
+    "import": "existing Hotpaths collect provided-runner API; validates exact command and all six delivery outcomes"
+  }
+}

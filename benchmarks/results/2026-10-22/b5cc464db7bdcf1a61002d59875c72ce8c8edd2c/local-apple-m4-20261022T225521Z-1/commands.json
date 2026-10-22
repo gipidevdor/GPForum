@@ -1,0 +1,316 @@
+[
+  {
+    "phase": "migrate-http",
+    "argv": [
+      "bin/gpforum",
+      "migrate",
+      "--quiet"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_http;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 1200
+  },
+  {
+    "phase": "evidence-init",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/performance-evidence",
+      "init",
+      "--output",
+      "/Users/gpicchiarelli/Documents/GPForum/benchmarks/results/2026-10-22/b5cc464db7bdcf1a61002d59875c72ce8c8edd2c/local-apple-m4-20261022T225521Z-1",
+      "--mode",
+      "deep",
+      "--commit",
+      "b5cc464db7bdcf1a61002d59875c72ce8c8edd2c"
+    ],
+    "environment_override": {},
+    "timeout_seconds": 1200
+  },
+  {
+    "phase": "anonymous-http",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/performance-http",
+      "--output",
+      "/Users/gpicchiarelli/Documents/GPForum/benchmarks/results/2026-10-22/b5cc464db7bdcf1a61002d59875c72ce8c8edd2c/local-apple-m4-20261022T225521Z-1",
+      "--mode",
+      "deep",
+      "--generator",
+      "wrk",
+      "--disposable-database",
+      "--concurrency",
+      "1,10,50",
+      "--duration",
+      "3",
+      "--repetitions",
+      "3",
+      "--deadline",
+      "900"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_http;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 1000
+  },
+  {
+    "phase": "query-plans-and-outbox",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/performance-hotpaths",
+      "--output",
+      "/Users/gpicchiarelli/Documents/GPForum/benchmarks/results/2026-10-22/b5cc464db7bdcf1a61002d59875c72ce8c8edd2c/local-apple-m4-20261022T225521Z-1",
+      "--mode",
+      "main",
+      "--disposable-database",
+      "--deadline",
+      "300"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_http;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 330
+  },
+  {
+    "phase": "authenticated-and-writes",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-socket",
+      "--side",
+      "m4=/private/tmp/gpf-m4-1jkw0vg_/source",
+      "--page",
+      "thread_member",
+      "--page",
+      "thread_guest",
+      "--page",
+      "home",
+      "--page",
+      "category",
+      "--page",
+      "search",
+      "--page",
+      "reply",
+      "--page",
+      "reply_htmx",
+      "--concurrency",
+      "1",
+      "--concurrency",
+      "8",
+      "--concurrency",
+      "32",
+      "--duration",
+      "6",
+      "--warmup",
+      "2",
+      "--rounds",
+      "3",
+      "--members",
+      "400",
+      "--workers",
+      "4",
+      "--connections",
+      "--json",
+      "/Users/gpicchiarelli/Documents/GPForum/benchmarks/results/2026-10-22/b5cc464db7bdcf1a61002d59875c72ce8c8edd2c/local-apple-m4-20261022T225521Z-1/socket-samples.jsonl"
+    ],
+    "environment_override": {},
+    "timeout_seconds": 720
+  },
+  {
+    "phase": "search-100k-r1",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-postgres-configuration",
+      "--disposable-database",
+      "--iterations",
+      "50",
+      "--write-iterations",
+      "30",
+      "--warmup",
+      "5",
+      "--plans"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_search100k;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 360
+  },
+  {
+    "phase": "search-100k-r2",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-postgres-configuration",
+      "--disposable-database",
+      "--iterations",
+      "50",
+      "--write-iterations",
+      "30",
+      "--warmup",
+      "5",
+      "--plans"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_search100k;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 360
+  },
+  {
+    "phase": "search-100k-r3",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-postgres-configuration",
+      "--disposable-database",
+      "--iterations",
+      "50",
+      "--write-iterations",
+      "30",
+      "--warmup",
+      "5",
+      "--plans"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_search100k;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 360
+  },
+  {
+    "phase": "search-1m-prepare",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-postgres-configuration",
+      "--disposable-database",
+      "--prepare",
+      "--search-documents",
+      "1000000"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_search1m;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 300
+  },
+  {
+    "phase": "search-1m-r1",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-postgres-configuration",
+      "--disposable-database",
+      "--iterations",
+      "20",
+      "--write-iterations",
+      "30",
+      "--warmup",
+      "5",
+      "--plans"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_search1m;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 360
+  },
+  {
+    "phase": "search-1m-r2",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-postgres-configuration",
+      "--disposable-database",
+      "--iterations",
+      "20",
+      "--write-iterations",
+      "30",
+      "--warmup",
+      "5",
+      "--plans"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_search1m;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 360
+  },
+  {
+    "phase": "search-1m-r3",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/bench-postgres-configuration",
+      "--disposable-database",
+      "--iterations",
+      "20",
+      "--write-iterations",
+      "30",
+      "--warmup",
+      "5",
+      "--plans"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_search1m;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 360
+  },
+  {
+    "phase": "evidence-finalize",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/performance-evidence",
+      "finalize",
+      "--output",
+      "/Users/gpicchiarelli/Documents/GPForum/benchmarks/results/2026-10-22/b5cc464db7bdcf1a61002d59875c72ce8c8edd2c/local-apple-m4-20261022T225521Z-1"
+    ],
+    "environment_override": {},
+    "timeout_seconds": 60
+  },
+  {
+    "phase": "evidence-validate",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "script/performance-evidence",
+      "validate",
+      "--output",
+      "/Users/gpicchiarelli/Documents/GPForum/benchmarks/results/2026-10-22/b5cc464db7bdcf1a61002d59875c72ce8c8edd2c/local-apple-m4-20261022T225521Z-1"
+    ],
+    "environment_override": {},
+    "timeout_seconds": 60
+  },
+  {
+    "phase": "outbox-full-stdout-recovery",
+    "argv": [
+      "script/gpforum-carton",
+      "exec",
+      "script/performance-outbox.pl",
+      "--json",
+      "--messages",
+      "3000",
+      "--workers",
+      "1,2",
+      "--repetitions",
+      "3"
+    ],
+    "environment_override": {
+      "GPFORUM_DATABASE_DSN": "dbi:Pg:dbname=gpforum_perf_m4_http;host=/private/tmp/gpf-m4-1jkw0vg_/socket;port=55449"
+    },
+    "timeout_seconds": 180
+  }
+]

@@ -1,0 +1,15 @@
+Running 3s test @ http://127.0.0.1:52400/health/live
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.03ms  152.44us   5.66ms   91.37%
+    Req/Sec     1.66k    26.38     1.72k    65.00%
+  Latency Distribution
+     50%    3.05ms
+     75%    3.09ms
+     90%    3.14ms
+     99%    3.46ms
+  9916 requests in 3.01s, 6.48MB read
+Requests/sec:   3297.13
+Transfer/sec:      2.15MB
+
+GPFORUM_WRK {"completed":9916,"http_errors":0,"transport_errors":0,"duration_seconds":3.007464,"requests_per_second":3297.130074,"p50_ms":3.051000,"p95_ms":3.206000,"p99_ms":3.462000}

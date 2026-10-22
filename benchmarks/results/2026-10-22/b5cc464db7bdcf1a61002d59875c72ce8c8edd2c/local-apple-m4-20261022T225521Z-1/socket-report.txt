@@ -1,0 +1,23 @@
+socket bench: 4 workers, 3 rounds of 6 s after 2 s warm-up, medians
+page               c side           req/s   p50 ms   p95 ms   p99 ms   req/s  errors
+thread_member      1 m4             124.3     7.93     8.80     9.27     +0%       0
+thread_member      8 m4             433.3    17.92    27.50    34.12     +0%       0
+thread_member     32 m4             424.5    73.51    85.42    91.32     +0%       0
+thread_guest       1 m4            1373.7     0.71     0.77     0.90     +0%       0
+thread_guest       8 m4            5219.7     1.48     2.61     3.05     +0%       0
+thread_guest      32 m4            5325.3     5.96     8.86     9.89     +0%       0
+home               1 m4             185.5     5.29     6.03     6.47     +0%       0
+home               8 m4             664.3    11.75    13.83    15.20     +0%       0
+home              32 m4             646.0    47.25    56.07    58.91     +0%       0
+category           1 m4             231.3     4.22     4.87     5.51     +0%       0
+category           8 m4             822.5     9.76    15.65    17.46     +0%       0
+category          32 m4             799.0    39.33    49.01    57.21     +0%       0
+search             1 m4             143.8     6.78     7.76     8.43     +0%       0
+search             8 m4             488.0    11.34    26.81    28.88     +0%       0
+search            32 m4             488.0    66.34    76.52    80.44     +0%       0
+reply              1 m4             238.0     4.06     5.07     5.83     +0%       0
+reply              8 m4             742.7     8.27    17.83    20.60     +0%       0
+reply             32 m4             732.0    41.74    54.61    63.97     +0%       0
+reply_htmx         1 m4             119.7     8.07     9.91    12.08     +0%       0
+reply_htmx         8 m4             390.0    19.74    35.78    45.87     +0%       0
+reply_htmx        32 m4             368.7    87.22   114.57   122.33     +0%       0

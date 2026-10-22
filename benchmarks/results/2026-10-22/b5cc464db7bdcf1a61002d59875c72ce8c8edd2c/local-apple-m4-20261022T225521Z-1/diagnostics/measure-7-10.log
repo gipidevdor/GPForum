@@ -1,0 +1,15 @@
+Running 3s test @ http://127.0.0.1:52400/c/018f1001-0001-7000-8000-000000000001
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.70ms  758.83us   8.33ms   52.46%
+    Req/Sec     1.36k    26.94     1.40k    64.52%
+  Latency Distribution
+     50%    4.17ms
+     75%    4.46ms
+     90%    4.54ms
+     99%    4.97ms
+  8372 requests in 3.11s, 172.98MB read
+Requests/sec:   2695.86
+Transfer/sec:     55.70MB
+
+GPFORUM_WRK {"completed":8372,"http_errors":0,"transport_errors":0,"duration_seconds":3.105500,"requests_per_second":2695.862180,"p50_ms":4.168000,"p95_ms":4.596000,"p99_ms":4.975000}

@@ -1,0 +1,126 @@
+%# The posts of a thread: for each, who wrote it and when, what they wrote,
+%# and what the reader may do with it. Editing, deleting and reporting each
+%# open in a sheet, so the page stays the conversation.
+%#
+%# A page shows up to 25 posts, so whatever is done for one is done 25 times.
+%# What is static -- the author, the labels, each sheet's opening (its
+%# button, dialog and heading) -- comes from the fragment cache
+%# (GPForum::Web::PostFragments); a sheet's forms and its closing tag are
+%# written here, and the time is the ui_timestamp helper rather than the
+%# components/timestamp partial.
+%#
+%# With the page's script each post's forms post in place (hx-post), and the
+%# post comes back as the list now lists it, in its own place (hx-target on
+%# the item).
+%#
+%# Takes "posts"; reads the page's "engagement". What is the same for every
+%# post -- the reader's standing, the fragment cache -- is read once, above
+%# the loop.
+% my $signed_in = $engagement && $engagement->{authenticated};
+% my $fragments = ui_presenter->post_fragments;
+
+% for my $post (@{$posts}) {
+%   my $dom_id = 'post-' . $post->{post_id};
+%   my $static = $fragments->render($self, $post);
+%   my $paths = $static->{paths};
+  <li class="ui-card-list__item" hx-target="this" hx-swap="outerHTML">
+    <article class="post" id="<%= $dom_id %>" aria-labelledby="<%= $dom_id %>-heading">
+      <%= $static->{header} %>
+          % if ($post->{created_at}) {
+            <span><%= ui_timestamp($post->{created_at}) %></span>
+          % }
+        </p>
+        <%= $static->{permalink} %>
+      </header>
+      %# ADR 0130: the post of a member the reader ignores or blocks waits
+      %# behind a control that shows it, with or without the page's script.
+      % if ($post->{ignored}) {
+      <details class="post__ignored">
+        <summary><%= t('community.relation_collapsed_post') %></summary>
+      % }
+      <%= $static->{reply} %>
+      <div class="forum-post-body"><%== ui_trusted_html($post->{body}, 'forum.post.body') %></div>
+      <%= $static->{deleted} %>
+      % if ($post->{attachments} && @{ $post->{attachments} }) {
+        <ul class="post__attachments" aria-label="<%= t('forum.post_attachments') %>">
+          % for my $attachment (@{ $post->{attachments} }) {
+            <li>
+              <a href="<%= ui_path('attachment_download', attachment_id => $attachment->{attachment_id}) %>"><%= $attachment->{original_filename} %></a>
+              <span><%= $attachment->{media_type} %></span>
+              % if ($post->{can_edit}) {
+                <form method="post" action="<%= ui_path('post_attachment_delete', post_id => $post->{post_id}, attachment_id => $attachment->{attachment_id}) %>">
+                  <%= csrf_field %>
+                  <input type="hidden" name="command_id" value="<%= $attachment->{delete_command_id} || q{} %>">
+                  <button type="submit" class="button--quiet"><%= t('forum.delete_attachment') %></button>
+                </form>
+              % }
+            </li>
+          % }
+        </ul>
+      % }
+      % if ($post->{ignored}) {
+      </details>
+      % }
+      % my $like_count = $post->{like_count} || 0;
+      % if ($post->{can_edit} || $post->{can_delete} || $post->{can_restore} || $signed_in || $like_count) {
+        <footer class="post__actions">
+          % if ($post->{can_like}) {
+          %   my $like_route = $post->{liked} ? 'post_unlike' : 'post_like';
+            <form method="post" action="<%= $paths->{$like_route} %>" hx-post="<%= $paths->{$like_route} %>">
+              <%= csrf_field %>
+              <input type="hidden" name="command_id" value="<%= $post->{like_command_id} || q{} %>">
+              <%= $static->{like} %>
+            </form>
+          % } elsif ($like_count) {
+            <span class="post__likes"><%= tc('forum.like_count', $like_count) %></span>
+          % }
+          <%= include 'forum/_reactions', post => $post %>
+          % if ($post->{can_edit}) {
+            <%= $static->{edit_sheet} %>
+              <form method="post" action="<%= $paths->{post_edit} %>" hx-post="<%= $paths->{post_edit} %>">
+                <%= csrf_field %>
+                <input type="hidden" name="command_id" value="<%= $post->{edit_command_id} || q{} %>">
+                <label for="<%= $dom_id %>-edit-body"><%= t('forum.edit_body') %></label>
+                <textarea id="<%= $dom_id %>-edit-body" name="body_source" rows="10" required><%= $post->{body_source} %></textarea>
+                <button type="submit"><%= t('forum.save_edit') %></button>
+              </form>
+              <form method="post" enctype="multipart/form-data" action="<%= $paths->{post_attachment_upload} %>">
+                <%= csrf_field %>
+                <input type="hidden" name="command_id" value="<%= $post->{upload_command_id} || q{} %>">
+                <%= $static->{upload} %>
+              </form>
+            </div>
+          % }
+          % if ($post->{can_delete}) {
+            <%= $static->{delete_sheet} %>
+              <form method="post" action="<%= $paths->{post_delete} %>" hx-post="<%= $paths->{post_delete} %>">
+                <%= csrf_field %>
+                <input type="hidden" name="command_id" value="<%= $post->{delete_command_id} || q{} %>">
+                <%= $static->{remove} %>
+              </form>
+            </div>
+          % }
+          % if ($post->{can_restore}) {
+            <form method="post" action="<%= $paths->{post_restore} %>" hx-post="<%= $paths->{post_restore} %>">
+              <%= csrf_field %>
+              <input type="hidden" name="command_id" value="<%= $post->{restore_command_id} || q{} %>">
+              <button type="submit" class="button--quiet"><%= t('forum.restore_post') %></button>
+            </form>
+          % }
+          % if ($signed_in && !$post->{deleted_at}) {
+            <%= $static->{reply_links} %>
+          % }
+          % if ($signed_in) {
+            <%= $static->{report_sheet} %>
+              <form method="post" action="<%= $paths->{post_report} %>" hx-post="<%= $paths->{post_report} %>">
+                <%= csrf_field %>
+                <input type="hidden" name="command_id" value="<%= $post->{report_command_id} || q{} %>">
+                <%= $static->{report} %>
+              </form>
+            </div>
+          % }
+        </footer>
+      % }
+    </article>
+  </li>
+% }

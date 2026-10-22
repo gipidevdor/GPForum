@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+
+use lib 'lib';
+
+use Const::Fast;
+use GPForum::Config;
+use GPForum::Service::Operations::Profile;
+use Test::More;
+
+our $VERSION = '0.001';
+
+const my $SMALL_CACHE     => 2_048;
+const my $SMALL_WEB       => 2;
+const my $PROFILE_VERSION => 2;
+
+my $profiles = GPForum::Service::Operations::Profile->new;
+is_deeply(
+    $profiles->names,
+    [ 'development', 'production', 'staging' ],
+    'three profiles, one for each environment (ADR 0125)'
+);
+is( $profiles->name_for_environment('production-small'),
+    undef, 'an old size profile is no environment' );
+is( $profiles->name_for_environment('test'),
+    'development', 'test maps onto development' );
+is( $profiles->get('staging')->{version},
+    $PROFILE_VERSION, 'staging profile is versioned' );
+
+my $development = $profiles->evaluate( GPForum::Config->new );
+ok( $development->{ok}, 'default config meets the development profile' );
+is( $development->{profile}{name},
+    'development', 'default environment selects development' );
+
+# The web floor is the profile's, or what the host carries when that is less;
+# 64 web processes a CPU lets any host carry production's 4.
+my $too_small = $profiles->evaluate(
+    GPForum::Config->new(
+        environment             => 'production',
+        session_secret          => 'rotated-production-secret',
+        runtime_max_web_per_cpu => 64,
+        web_processes           => $SMALL_WEB,
+        local_cache_max_entries => $SMALL_CACHE,
+    )
+);
+ok( !$too_small->{ok}, 'production rejects process counts below its floor' );
+ok(
+    $too_small->{errors}{web_processes},
+    'production names the web process floor'
+);
+
+my $rotated = $profiles->evaluate(
+    GPForum::Config->new(
+        environment    => 'production',
+        session_secret => 'rotated-production-secret',
+    )
+);
+ok( $rotated->{ok},
+    q{production accepts the host's sizing with a rotated secret} );
+
+# GlifiStore is optional in production (D2).
+my $without_l2 = $profiles->evaluate(
+    GPForum::Config->new(
+        environment    => 'production',
+        glifistore_url => q{},
+        session_secret => 'rotated-production-secret',
+    )
+);
+ok( $without_l2->{ok}, 'production accepts no GlifiStore URL' );
+ok( !$without_l2->{errors}{glifistore_url}, 'and names no requirement' );
+
+my $unknown =
+  $profiles->evaluate( GPForum::Config->new( environment => 'lab' ) );
+ok( !$unknown->{ok}, 'unknown environments are rejected' );
+
+done_testing();
+
+1;

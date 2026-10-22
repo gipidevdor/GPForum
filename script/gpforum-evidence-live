@@ -1,0 +1,203 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -eu
+
+# Print (or optionally run) live staging-host-verify + stress-load evidence
+# commands. Never claims private-beta readiness. Secrets must stay out of git.
+
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+cd "$root"
+
+usage() {
+    cat <<'EOF'
+Usage: script/gpforum-evidence-live [--commands|--status|--help]
+                                    [--env-file PATH] [--out DIR]
+
+  --commands       print live verify + stress evidence commands (default)
+  --status         print whether each entrypoint answers
+  --env-file PATH  the env file the printed verify reads (never commit it;
+                   default /tmp/gpforum-evidence.env)
+  --out DIR        where the printed commands write their JSON
+                   (default /tmp/gpforum-evidence-live)
+  --help           show this help
+
+Does not start Hypnotoad, write env files, or claim private beta is ready.
+Requires an already-running app URL and (for verify) an env-file path.
+See docs/ops/staging-host.md and docs/ops/stress-load.md.
+
+Environment used by the printed commands (operator-supplied):
+  STAGING_BASE_URL       e.g. http://127.0.0.1:8080 or https://staging.example
+  GPFORUM_METRICS_TOKEN  optional metrics probe token
+EOF
+}
+
+mode=commands
+env_file=/tmp/gpforum-evidence.env
+out=/tmp/gpforum-evidence-live
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --commands)
+            mode=commands
+            ;;
+        --status)
+            mode=status
+            ;;
+        --env-file|--out)
+            if [ $# -lt 2 ]; then
+                echo "gpforum-evidence-live: $1 needs a value" >&2
+                usage >&2
+                exit 1
+            fi
+            if [ "$1" = --out ]; then out=$2; else env_file=$2; fi
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "gpforum-evidence-live: unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+# A value as one shell word, for the printed commands to paste.
+quoted() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+print_banner() {
+    printf '%s\n' \
+        'gpforum-evidence-live: print-only live evidence helpers' \
+        'PRIVATE BETA: NOT CLAIMED (archive JSON separately; TLS/SMTP send still open)' \
+        'Docs: docs/ops/staging-host.md docs/ops/stress-load.md' \
+        ''
+}
+
+print_commands() {
+    print_banner
+    printf 'evidence_env_file=%s\nevidence_dir=%s\n' \
+        "$(quoted "$env_file")" "$(quoted "$out")"
+    cat <<'EOF'
+# Prerequisites (operator): Carton local/ OK, app listening, env file ready
+# script/bootstrap-deps --postgres --rebuild-local
+# script/gpforum-carton exec perl -MConst::Fast -e 1
+
+export STAGING_BASE_URL="${STAGING_BASE_URL:-http://127.0.0.1:8080}"
+mkdir -p "$evidence_dir"
+
+# 1) Live staging-host-verify (values in env file are never printed by the tool)
+# Prefer https://… so the TLS observe phase records scheme with the health probe.
+bin/gpforum staging-host-verify --json \
+  --env-file "$evidence_env_file" \
+  --base-url "$STAGING_BASE_URL" \
+  ${GPFORUM_METRICS_TOKEN:+--metrics-token "$GPFORUM_METRICS_TOKEN"} \
+  > "$evidence_dir/staging-host-verify-live.json"
+
+# Staging TLS + systemd target (operator host with units installed):
+# export STAGING_BASE_URL='https://staging.example'
+# bin/gpforum staging-host-verify --json --env-file "$evidence_env_file" \
+#   --unit-dir /etc/systemd/system --nginx-conf /etc/nginx/sites-enabled/gpforum \
+#   --systemd --base-url "$STAGING_BASE_URL" \
+#   ${GPFORUM_METRICS_TOKEN:+--metrics-token "$GPFORUM_METRICS_TOKEN"} \
+#   > "$evidence_dir/staging-host-verify-tls-systemd.json"
+
+# 2) Stress profiles (raise GPFORUM_FORUM_READ_RATE_LIMIT for single-IP capacity windows)
+bin/gpforum stress-load --json --profile smoke --base-url "$STAGING_BASE_URL" \
+  > "$evidence_dir/stress-smoke.json"
+bin/gpforum stress-load --json --profile 100 --base-url "$STAGING_BASE_URL" \
+  > "$evidence_dir/stress-100.json"
+# Profiles 100/500 archived on Cloud Agent VM; 1000 optional (p95 residual on 4 vCPU):
+bin/gpforum stress-load --json --profile 500 --base-url "$STAGING_BASE_URL" \
+  > "$evidence_dir/stress-500.json"
+bin/gpforum stress-load --json --profile 1000 --base-url "$STAGING_BASE_URL" \
+  > "$evidence_dir/stress-1000.json"
+
+# 3) Mail (dry-run always; --send only on a mailbox you control on staging SMTP)
+bin/gpforum mail-check --json --dry-run \
+  > "$evidence_dir/mail-check-dry.json"
+# Staging SMTP/sendmail controlled send (never commit secrets; JSON is redacted):
+# bin/gpforum mail-check --json --send --to you@example.test \
+#   > "$evidence_dir/mail-check-send.json"
+# Confirm evidence: secrets_redacted=true and no password/token plaintext.
+
+# 3b) Identity mail lifecycle (test transport; not a substitute for SMTP --send)
+bin/gpforum mail-lifecycle-check --json --simulate \
+  > "$evidence_dir/mail-lifecycle-simulate.json"
+
+# 3c) Dead-letter staging check (in-memory Dispatcher path; live /admin/jobs still open)
+bin/gpforum dead-letter-check --json --simulate \
+  > "$evidence_dir/dead-letter-simulate.json"
+
+# Copy JSON into docs/ops/evidence/<date>-*/ only after redacting secrets.
+# Validate before archiving:
+# bin/gpforum evidence-validate --strict --json \
+#   "$evidence_dir"/staging-host-verify-live.json \
+#   "$evidence_dir"/stress-100.json \
+#   "$evidence_dir"/mail-check-dry.json \
+#   "$evidence_dir"/mail-lifecycle-simulate.json \
+#   "$evidence_dir"/dead-letter-simulate.json
+# PRIVATE BETA remains NOT YET until staging TLS + SMTP send + target install exist.
+EOF
+}
+
+status_line() {
+    path=$1
+    label=$2
+    if [ -x "$path" ]; then
+        printf 'ok\t%s\t%s\n' "$label" "$path"
+    elif [ -e "$path" ]; then
+        printf 'present\t%s\t%s\n' "$label" "$path"
+    else
+        printf 'missing\t%s\t%s\n' "$label" "$path"
+    fi
+}
+
+# A verb of the front door: ok when bin/gpforum VERB --help answers.
+verb_line() {
+    verb=$1
+    if [ ! -x bin/gpforum ]; then
+        printf 'missing\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    elif bin/gpforum "$verb" --help >/dev/null 2>&1; then
+        printf 'ok\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    else
+        printf 'fails\t%s\tbin/gpforum %s\n' "$verb" "$verb"
+    fi
+}
+
+print_status() {
+    print_banner
+    printf 'entrypoint\tlabel\tpath\n'
+    verb_line staging-host-verify
+    verb_line stress-load
+    verb_line mail-check
+    verb_line mail-lifecycle-check
+    verb_line dead-letter-check
+    verb_line evidence-validate
+    verb_line evidence-meta
+    status_line script/bootstrap-deps bootstrap-deps
+    status_line docs/ops/staging-host.md staging-host-doc
+    status_line docs/ops/stress-load.md stress-load-doc
+    status_line docs/ops/evidence-validate.md evidence-validate-doc
+    status_line docs/ops/dead-letters.md dead-letters-doc
+    status_line docs/ops/mail-check.md mail-check-doc
+    printf '\n%s\n' \
+        'status=print-only residual_gaps=staging-tls-smtp-send-target-install private_beta=not-claimed'
+}
+
+case "$mode" in
+    commands)
+        print_commands
+        ;;
+    status)
+        print_status
+        ;;
+esac
+
+exit 0

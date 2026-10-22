@@ -1,0 +1,1561 @@
+{
+  "date": "2026-10-17",
+  "claim": "No general performance improvement established; measured regressions are retained.",
+  "comparisons": {
+    "100k": {
+      "dataset": {
+        "document_id_digest": "aee4cd3790f725f0dec7c1f9bb62ce50",
+        "documents": 100000
+      },
+      "operations": {
+        "category_index_member": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 1176.37107133441,
+            "p50_ms": 0.836849212646484,
+            "p95_ms": 0.92005729675293,
+            "p99_ms": 1.02400779724121,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.07,
+            "postgres_backend_rss_kib": 33136,
+            "application_process": {
+              "cpu_seconds": 0.58,
+              "rss_kib": 102432
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 1513.88857808016,
+            "p50_ms": 0.679969787597656,
+            "p95_ms": 0.837802886962891,
+            "p99_ms": 0.878095626831055,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 37280,
+            "application_process": {
+              "rss_kib": 88176,
+              "cpu_seconds": 0.67
+            }
+          },
+          "p95_change_percent": -8.940139932625025
+        },
+        "category_threads_member": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 1455.22371488842,
+            "p50_ms": 0.672817230224609,
+            "p95_ms": 0.732183456420898,
+            "p99_ms": 0.936985015869141,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 34016,
+            "application_process": {
+              "rss_kib": 102512,
+              "cpu_seconds": 0.61
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 1434.36691004223,
+            "p50_ms": 0.634908676147461,
+            "p95_ms": 0.949859619140625,
+            "p99_ms": 1.10101699829102,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.04,
+            "postgres_backend_rss_kib": 38576,
+            "application_process": {
+              "rss_kib": 88208,
+              "cpu_seconds": 0.7
+            }
+          },
+          "p95_change_percent": 29.729729729729804
+        },
+        "home_page_member": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 589.911196248696,
+            "p50_ms": 1.6789436340332,
+            "p95_ms": 1.79195404052734,
+            "p99_ms": 1.90997123718262,
+            "application_cpu_seconds": 0.05,
+            "postgres_backend_cpu_seconds": 0.12,
+            "postgres_backend_rss_kib": 34304,
+            "application_process": {
+              "rss_kib": 102544,
+              "cpu_seconds": 0.67
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 597.746570403286,
+            "p50_ms": 1.59692764282227,
+            "p95_ms": 2.27499008178711,
+            "p99_ms": 2.40993499755859,
+            "application_cpu_seconds": 0.07,
+            "postgres_backend_cpu_seconds": 0.1,
+            "postgres_backend_rss_kib": 38880,
+            "application_process": {
+              "rss_kib": 88256,
+              "cpu_seconds": 0.78
+            }
+          },
+          "p95_change_percent": 26.95582756785553
+        },
+        "latest_threads_member": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 1684.81128589103,
+            "p50_ms": 0.588893890380859,
+            "p95_ms": 0.608921051025391,
+            "p99_ms": 0.616073608398438,
+            "application_cpu_seconds": 0.00999999999999988,
+            "postgres_backend_cpu_seconds": 0.04,
+            "postgres_backend_rss_kib": 34304,
+            "application_process": {
+              "cpu_seconds": 0.7,
+              "rss_kib": 102544
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 1180.217454922,
+            "p50_ms": 0.823020935058594,
+            "p95_ms": 1.2810230255127,
+            "p99_ms": 1.51395797729492,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.06,
+            "postgres_backend_rss_kib": 38880,
+            "application_process": {
+              "cpu_seconds": 0.81,
+              "rss_kib": 88256
+            }
+          },
+          "p95_change_percent": 110.3758809710265
+        },
+        "mark_read": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 4786.92535950696,
+            "p50_ms": 0.182867050170898,
+            "p95_ms": 0.360012054443359,
+            "p99_ms": 0.680923461914062,
+            "application_cpu_seconds": 0.0,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 34960,
+            "application_process": {
+              "rss_kib": 102576,
+              "cpu_seconds": 0.71
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 1838.66617958647,
+            "p50_ms": 0.460147857666016,
+            "p95_ms": 1.00588798522949,
+            "p99_ms": 2.49791145324707,
+            "application_cpu_seconds": 2.77555756156289e-17,
+            "postgres_backend_cpu_seconds": 0.01,
+            "postgres_backend_rss_kib": 39536,
+            "application_process": {
+              "rss_kib": 88320,
+              "cpu_seconds": 0.83
+            }
+          },
+          "p95_change_percent": 179.40397350993345
+        },
+        "new_thread": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 673.960610816225,
+            "p50_ms": 1.48987770080566,
+            "p95_ms": 1.69992446899414,
+            "p99_ms": 2.16913223266602,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.03,
+            "postgres_backend_rss_kib": 42560,
+            "application_process": {
+              "cpu_seconds": 0.73,
+              "rss_kib": 102576
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 444.497071519913,
+            "p50_ms": 2.2120475769043,
+            "p95_ms": 2.65192985534668,
+            "p99_ms": 3.70311737060547,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 47040,
+            "application_process": {
+              "cpu_seconds": 0.86,
+              "rss_kib": 88384
+            }
+          },
+          "p95_change_percent": 56.00280504908846
+        },
+        "notification_badge": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 681.36138939564,
+            "p50_ms": 1.45411491394043,
+            "p95_ms": 1.54209136962891,
+            "p99_ms": 1.75619125366211,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.14,
+            "postgres_backend_rss_kib": 44768,
+            "application_process": {
+              "rss_kib": 102576,
+              "cpu_seconds": 0.75
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 599.599152559334,
+            "p50_ms": 1.53398513793945,
+            "p95_ms": 2.15005874633789,
+            "p99_ms": 2.44402885437012,
+            "application_cpu_seconds": 0.0199999999999999,
+            "postgres_backend_cpu_seconds": 0.15,
+            "postgres_backend_rss_kib": 50416,
+            "application_process": {
+              "rss_kib": 88384,
+              "cpu_seconds": 0.88
+            }
+          },
+          "p95_change_percent": 39.42486085343191
+        },
+        "notification_inbox": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 632.727152044146,
+            "p50_ms": 1.56998634338379,
+            "p95_ms": 1.61600112915039,
+            "p99_ms": 1.69205665588379,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.14,
+            "postgres_backend_rss_kib": 45248,
+            "application_process": {
+              "rss_kib": 102576,
+              "cpu_seconds": 0.77
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 596.868729703807,
+            "p50_ms": 1.61004066467285,
+            "p95_ms": 2.10189819335938,
+            "p99_ms": 2.28714942932129,
+            "application_cpu_seconds": 0.00999999999999995,
+            "postgres_backend_cpu_seconds": 0.15,
+            "postgres_backend_rss_kib": 51152,
+            "application_process": {
+              "cpu_seconds": 0.91,
+              "rss_kib": 88400
+            }
+          },
+          "p95_change_percent": 30.067866627324058
+        },
+        "participation": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 10624.9468031209,
+            "p50_ms": 0.0889301300048828,
+            "p95_ms": 0.108957290649414,
+            "p99_ms": 0.128984451293945,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.01,
+            "postgres_backend_rss_kib": 45536,
+            "application_process": {
+              "cpu_seconds": 0.79,
+              "rss_kib": 102592
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 5664.15124915598,
+            "p50_ms": 0.15711784362793,
+            "p95_ms": 0.283002853393555,
+            "p99_ms": 0.375986099243164,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.01,
+            "postgres_backend_rss_kib": 51392,
+            "application_process": {
+              "cpu_seconds": 0.93,
+              "rss_kib": 88400
+            }
+          },
+          "p95_change_percent": 159.7374179431077
+        },
+        "permission_check": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 12981.8440682163,
+            "p50_ms": 0.0720024108886719,
+            "p95_ms": 0.0858306884765625,
+            "p99_ms": 0.107049942016602,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 45776,
+            "application_process": {
+              "rss_kib": 102672,
+              "cpu_seconds": 0.8
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 9853.18549144898,
+            "p50_ms": 0.0901222229003906,
+            "p95_ms": 0.123977661132812,
+            "p99_ms": 0.174045562744141,
+            "application_cpu_seconds": 0.00999999999999995,
+            "postgres_backend_cpu_seconds": 0.01,
+            "postgres_backend_rss_kib": 51744,
+            "application_process": {
+              "rss_kib": 88400,
+              "cpu_seconds": 0.95
+            }
+          },
+          "p95_change_percent": 44.44444444444387
+        },
+        "post_edit": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 649.22281557155,
+            "p50_ms": 1.49297714233398,
+            "p95_ms": 2.00915336608887,
+            "p99_ms": 2.57587432861328,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.03,
+            "postgres_backend_rss_kib": 47200,
+            "application_process": {
+              "rss_kib": 102688,
+              "cpu_seconds": 0.82
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 385.514150119641,
+            "p50_ms": 2.73299217224121,
+            "p95_ms": 2.9609203338623,
+            "p99_ms": 3.58700752258301,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.04,
+            "postgres_backend_rss_kib": 53104,
+            "application_process": {
+              "rss_kib": 88416,
+              "cpu_seconds": 0.99
+            }
+          },
+          "p95_change_percent": 47.37154384715752
+        },
+        "rate_limit": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 5139.65852463034,
+            "p50_ms": 0.177860260009766,
+            "p95_ms": 0.231027603149414,
+            "p99_ms": 0.588893890380859,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 47376,
+            "application_process": {
+              "cpu_seconds": 0.83,
+              "rss_kib": 102688
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 3730.37028252942,
+            "p50_ms": 0.226974487304688,
+            "p95_ms": 0.441074371337891,
+            "p99_ms": 0.880956649780273,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 53248,
+            "application_process": {
+              "rss_kib": 88416,
+              "cpu_seconds": 1.0
+            }
+          },
+          "p95_change_percent": 90.918472652219
+        },
+        "reply": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 354.178849888817,
+            "p50_ms": 1.51991844177246,
+            "p95_ms": 10.31494140625,
+            "p99_ms": 26.0190963745117,
+            "application_cpu_seconds": 0.0200000000000001,
+            "postgres_backend_cpu_seconds": 0.04,
+            "postgres_backend_rss_kib": 49584,
+            "application_process": {
+              "rss_kib": 102816,
+              "cpu_seconds": 0.86
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 432.531787854101,
+            "p50_ms": 2.23803520202637,
+            "p95_ms": 2.74014472961426,
+            "p99_ms": 3.31592559814453,
+            "application_cpu_seconds": 0.04,
+            "postgres_backend_cpu_seconds": 0.0399999999999999,
+            "postgres_backend_rss_kib": 55248,
+            "application_process": {
+              "cpu_seconds": 1.04,
+              "rss_kib": 88496
+            }
+          },
+          "p95_change_percent": -73.43518860946743
+        },
+        "search_autocomplete": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 185.328638445791,
+            "p50_ms": 5.30385971069336,
+            "p95_ms": 5.71513175964355,
+            "p99_ms": 6.39009475708008,
+            "application_cpu_seconds": 0.0499999999999999,
+            "postgres_backend_cpu_seconds": 0.51,
+            "postgres_backend_rss_kib": 50848,
+            "application_process": {
+              "cpu_seconds": 0.91,
+              "rss_kib": 102848
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 161.570689179632,
+            "p50_ms": 6.17599487304688,
+            "p95_ms": 7.17687606811523,
+            "p99_ms": 7.2319507598877,
+            "application_cpu_seconds": 0.0599999999999998,
+            "postgres_backend_cpu_seconds": 0.56,
+            "postgres_backend_rss_kib": 56560,
+            "application_process": {
+              "cpu_seconds": 1.1,
+              "rss_kib": 88528
+            }
+          },
+          "p95_change_percent": 25.57673855909226
+        },
+        "search_full_text_common": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 3.62133340558207,
+            "p50_ms": 276.027917861938,
+            "p95_ms": 290.107011795044,
+            "p99_ms": 309.509038925171,
+            "application_cpu_seconds": 0.13,
+            "postgres_backend_cpu_seconds": 27.46,
+            "postgres_backend_rss_kib": 123056,
+            "application_process": {
+              "rss_kib": 102800,
+              "cpu_seconds": 1.05
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 3.25884037791915,
+            "p50_ms": 303.921937942505,
+            "p95_ms": 352.513790130615,
+            "p99_ms": 378.952980041504,
+            "application_cpu_seconds": 0.14,
+            "postgres_backend_cpu_seconds": 30,
+            "postgres_backend_rss_kib": 112992,
+            "application_process": {
+              "cpu_seconds": 1.26,
+              "rss_kib": 75376
+            }
+          },
+          "p95_change_percent": 21.51164080779282
+        },
+        "search_full_text_rare": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 506.262522873103,
+            "p50_ms": 1.9080638885498,
+            "p95_ms": 2.36105918884277,
+            "p99_ms": 4.21500205993652,
+            "application_cpu_seconds": 0.0700000000000001,
+            "postgres_backend_cpu_seconds": 0.0999999999999979,
+            "postgres_backend_rss_kib": 118096,
+            "application_process": {
+              "cpu_seconds": 1.14,
+              "rss_kib": 98784
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 405.42773682552,
+            "p50_ms": 2.49099731445312,
+            "p95_ms": 2.97188758850098,
+            "p99_ms": 3.76391410827637,
+            "application_cpu_seconds": 0.1,
+            "postgres_backend_cpu_seconds": 0.129999999999995,
+            "postgres_backend_rss_kib": 113008,
+            "application_process": {
+              "rss_kib": 75376,
+              "cpu_seconds": 1.38
+            }
+          },
+          "p95_change_percent": 25.870948197516253
+        },
+        "search_ranked": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 96.6004362135558,
+            "p50_ms": 9.01198387145996,
+            "p95_ms": 10.6170177459717,
+            "p99_ms": 37.9149913787842,
+            "application_cpu_seconds": 0.11,
+            "postgres_backend_cpu_seconds": 0.800000000000001,
+            "postgres_backend_rss_kib": 118496,
+            "application_process": {
+              "rss_kib": 98800,
+              "cpu_seconds": 1.27
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 93.7168459349969,
+            "p50_ms": 10.5710029602051,
+            "p95_ms": 12.0079517364502,
+            "p99_ms": 13.401985168457,
+            "application_cpu_seconds": 0.15,
+            "postgres_backend_cpu_seconds": 0.909999999999997,
+            "postgres_backend_rss_kib": 113968,
+            "application_process": {
+              "cpu_seconds": 1.54,
+              "rss_kib": 75408
+            }
+          },
+          "p95_change_percent": 13.100985830095734
+        },
+        "search_trigram": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 3.27206606173614,
+            "p50_ms": 305.721044540405,
+            "p95_ms": 312.700033187866,
+            "p99_ms": 316.529989242554,
+            "application_cpu_seconds": 0.0899999999999998,
+            "postgres_backend_cpu_seconds": 30.43,
+            "postgres_backend_rss_kib": 119472,
+            "application_process": {
+              "cpu_seconds": 1.38,
+              "rss_kib": 98832
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 3.00188672154396,
+            "p50_ms": 329.463958740234,
+            "p95_ms": 371.708869934082,
+            "p99_ms": 400.629997253418,
+            "application_cpu_seconds": 0.12,
+            "postgres_backend_cpu_seconds": 32.07,
+            "postgres_backend_rss_kib": 67696,
+            "application_process": {
+              "rss_kib": 24992,
+              "cpu_seconds": 1.67
+            }
+          },
+          "p95_change_percent": 18.870748475669096
+        },
+        "session_validate": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 8168.70642309041,
+            "p50_ms": 0.114202499389648,
+            "p95_ms": 0.128984451293945,
+            "p99_ms": 0.201940536499023,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 119664,
+            "application_process": {
+              "rss_kib": 98864,
+              "cpu_seconds": 1.4
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 7090.72220719502,
+            "p50_ms": 0.133037567138672,
+            "p95_ms": 0.194072723388672,
+            "p99_ms": 0.222206115722656,
+            "application_cpu_seconds": 0.0100000000000001,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 69600,
+            "application_process": {
+              "cpu_seconds": 1.68,
+              "rss_kib": 27616
+            }
+          },
+          "p95_change_percent": 50.46210720887292
+        },
+        "thread_page_anonymous": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 2315.35064476241,
+            "p50_ms": 0.422954559326172,
+            "p95_ms": 0.447988510131836,
+            "p99_ms": 0.539779663085938,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.0200000000000031,
+            "postgres_backend_rss_kib": 119984,
+            "application_process": {
+              "rss_kib": 98896,
+              "cpu_seconds": 1.43
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 1463.01532322482,
+            "p50_ms": 0.707864761352539,
+            "p95_ms": 0.945091247558594,
+            "p99_ms": 1.10220909118652,
+            "application_cpu_seconds": 0.0300000000000001,
+            "postgres_backend_cpu_seconds": 0.0300000000000011,
+            "postgres_backend_rss_kib": 70624,
+            "application_process": {
+              "cpu_seconds": 1.73,
+              "rss_kib": 29056
+            }
+          },
+          "p95_change_percent": 110.96327833954231
+        },
+        "thread_page_member": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 2326.92412247366,
+            "p50_ms": 0.423192977905273,
+            "p95_ms": 0.436067581176758,
+            "p99_ms": 0.463008880615234,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.019999999999996,
+            "postgres_backend_rss_kib": 120144,
+            "application_process": {
+              "cpu_seconds": 1.47,
+              "rss_kib": 98896
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 1650.37813505835,
+            "p50_ms": 0.533103942871094,
+            "p95_ms": 0.911951065063477,
+            "p99_ms": 1.06692314147949,
+            "application_cpu_seconds": 0.0400000000000001,
+            "postgres_backend_cpu_seconds": 0.0299999999999869,
+            "postgres_backend_rss_kib": 70832,
+            "application_process": {
+              "rss_kib": 29072,
+              "cpu_seconds": 1.77
+            }
+          },
+          "p95_change_percent": 109.13067249863317
+        },
+        "thread_page_member_deep": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 2296.00937168132,
+            "p50_ms": 0.430822372436523,
+            "p95_ms": 0.439167022705078,
+            "p99_ms": 0.458002090454102,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.0200000000000031,
+            "postgres_backend_rss_kib": 120192,
+            "application_process": {
+              "cpu_seconds": 1.5,
+              "rss_kib": 98912
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 1252.85381444531,
+            "p50_ms": 0.762939453125,
+            "p95_ms": 1.42478942871094,
+            "p99_ms": 1.76405906677246,
+            "application_cpu_seconds": 0.0500000000000001,
+            "postgres_backend_cpu_seconds": 0.0300000000000011,
+            "postgres_backend_rss_kib": 71184,
+            "application_process": {
+              "cpu_seconds": 1.83,
+              "rss_kib": 29248
+            }
+          },
+          "p95_change_percent": 224.42996742671073
+        },
+        "viewer_resolve": {
+          "baseline": {
+            "samples": 100,
+            "throughput_per_second": 9357.89919903617,
+            "p50_ms": 0.102043151855469,
+            "p95_ms": 0.107049942016602,
+            "p99_ms": 0.14805793762207,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 120336,
+            "application_process": {
+              "rss_kib": 98928,
+              "cpu_seconds": 1.52
+            }
+          },
+          "profile": {
+            "samples": 100,
+            "throughput_per_second": 6741.30315985728,
+            "p50_ms": 0.114917755126953,
+            "p95_ms": 0.221014022827148,
+            "p99_ms": 0.381946563720703,
+            "application_cpu_seconds": 0.0200000000000001,
+            "postgres_backend_cpu_seconds": 0.0100000000000051,
+            "postgres_backend_rss_kib": 71904,
+            "application_process": {
+              "cpu_seconds": 1.84,
+              "rss_kib": 29536
+            }
+          },
+          "p95_change_percent": 106.45879732739294
+        }
+      },
+      "resources": {
+        "baseline": {
+          "blks_hit": 74849359,
+          "blks_read": 7587,
+          "temp_bytes": 0,
+          "tup_inserted": 917,
+          "tup_updated": 293,
+          "xact_commit": 2645,
+          "buffer_hit_ratio": 0.9998986466800288,
+          "wal_bytes_inserted": "1022216",
+          "application_cpu_seconds_sum": 0.76,
+          "postgres_backend_cpu_seconds_sum": 60.03000000000001,
+          "max_observed_backend_rss_kib": 123056,
+          "max_observed_application_rss_kib": 102848
+        },
+        "profile": {
+          "blks_hit": 74847660,
+          "blks_read": 2696,
+          "temp_bytes": 0,
+          "tup_inserted": 938,
+          "tup_updated": 334,
+          "xact_commit": 2653,
+          "buffer_hit_ratio": 0.9999639814672358,
+          "wal_bytes_inserted": "1080400",
+          "application_cpu_seconds_sum": 1.0300000000000002,
+          "postgres_backend_cpu_seconds_sum": 64.48,
+          "max_observed_backend_rss_kib": 113968,
+          "max_observed_application_rss_kib": 88528
+        }
+      }
+    },
+    "1m": {
+      "dataset": {
+        "document_id_digest": "64650f295615fbab430a5080648e7d06",
+        "documents": 1000000
+      },
+      "operations": {
+        "category_index_member": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 1149.9014859357,
+            "p50_ms": 0.845193862915039,
+            "p95_ms": 0.936985015869141,
+            "p99_ms": 1.31702423095703,
+            "application_cpu_seconds": 1.38777878078145e-17,
+            "postgres_backend_cpu_seconds": 0.03,
+            "postgres_backend_rss_kib": 150512,
+            "application_process": {
+              "rss_kib": 102960,
+              "cpu_seconds": 0.54
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 1319.37842088707,
+            "p50_ms": 0.781059265136719,
+            "p95_ms": 1.00111961364746,
+            "p99_ms": 1.31607055664062,
+            "application_cpu_seconds": -2.77555756156289e-17,
+            "postgres_backend_cpu_seconds": 0.01,
+            "postgres_backend_rss_kib": 139376,
+            "application_process": {
+              "cpu_seconds": 0.62,
+              "rss_kib": 103024
+            }
+          },
+          "p95_change_percent": 6.844783715012581
+        },
+        "category_threads_member": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 1409.96066918414,
+            "p50_ms": 0.689029693603516,
+            "p95_ms": 0.809192657470703,
+            "p99_ms": 1.0979175567627,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.02,
+            "postgres_backend_rss_kib": 151456,
+            "application_process": {
+              "cpu_seconds": 0.56,
+              "rss_kib": 103008
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 1287.16224925069,
+            "p50_ms": 0.653982162475586,
+            "p95_ms": 1.32298469543457,
+            "p99_ms": 1.8160343170166,
+            "application_cpu_seconds": 0.00999999999999998,
+            "postgres_backend_cpu_seconds": 0.01,
+            "postgres_backend_rss_kib": 140560,
+            "application_process": {
+              "cpu_seconds": 0.64,
+              "rss_kib": 103056
+            }
+          },
+          "p95_change_percent": 63.49440188568061
+        },
+        "home_page_member": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 582.830939400536,
+            "p50_ms": 1.68704986572266,
+            "p95_ms": 1.89805030822754,
+            "p99_ms": 2.18296051025391,
+            "application_cpu_seconds": 0.0299999999999999,
+            "postgres_backend_cpu_seconds": 0.04,
+            "postgres_backend_rss_kib": 151744,
+            "application_process": {
+              "cpu_seconds": 0.58,
+              "rss_kib": 103008
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 355.146513426399,
+            "p50_ms": 2.7310848236084,
+            "p95_ms": 4.06503677368164,
+            "p99_ms": 4.37808036804199,
+            "application_cpu_seconds": 0.04,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 140848,
+            "application_process": {
+              "cpu_seconds": 0.68,
+              "rss_kib": 103072
+            }
+          },
+          "p95_change_percent": 114.16907423690476
+        },
+        "latest_threads_member": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 1667.87004758559,
+            "p50_ms": 0.588178634643555,
+            "p95_ms": 0.622987747192383,
+            "p99_ms": 0.875949859619141,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.00999999999999995,
+            "postgres_backend_rss_kib": 151744,
+            "application_process": {
+              "cpu_seconds": 0.6,
+              "rss_kib": 103008
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 1261.52069297401,
+            "p50_ms": 0.748872756958008,
+            "p95_ms": 0.925064086914062,
+            "p99_ms": 1.44195556640625,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.02,
+            "postgres_backend_rss_kib": 140848,
+            "application_process": {
+              "rss_kib": 103072,
+              "cpu_seconds": 0.7
+            }
+          },
+          "p95_change_percent": 48.48832759280506
+        },
+        "mark_read": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 4853.58225650916,
+            "p50_ms": 0.179052352905273,
+            "p95_ms": 0.295162200927734,
+            "p99_ms": 0.597000122070312,
+            "application_cpu_seconds": -1.38777878078145e-17,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 152480,
+            "application_process": {
+              "cpu_seconds": 0.61,
+              "rss_kib": 103104
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 2902.49861598081,
+            "p50_ms": 0.308036804199219,
+            "p95_ms": 0.486135482788086,
+            "p99_ms": 0.892877578735352,
+            "application_cpu_seconds": 0.0199999999999999,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 141504,
+            "application_process": {
+              "rss_kib": 103104,
+              "cpu_seconds": 0.72
+            }
+          },
+          "p95_change_percent": 64.70113085621993
+        },
+        "new_thread": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 606.317737194623,
+            "p50_ms": 1.5108585357666,
+            "p95_ms": 2.55894660949707,
+            "p99_ms": 2.655029296875,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.03,
+            "postgres_backend_rss_kib": 160672,
+            "application_process": {
+              "rss_kib": 103152,
+              "cpu_seconds": 0.63
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 407.585952228247,
+            "p50_ms": 2.27499008178711,
+            "p95_ms": 3.97801399230957,
+            "p99_ms": 4.10318374633789,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 148800,
+            "application_process": {
+              "cpu_seconds": 0.76,
+              "rss_kib": 103136
+            }
+          },
+          "p95_change_percent": 55.45513835833411
+        },
+        "notification_badge": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 681.262154845696,
+            "p50_ms": 1.4350414276123,
+            "p95_ms": 1.56378746032715,
+            "p99_ms": 2.16007232666016,
+            "application_cpu_seconds": 0.0,
+            "postgres_backend_cpu_seconds": 0.04,
+            "postgres_backend_rss_kib": 162912,
+            "application_process": {
+              "cpu_seconds": 0.65,
+              "rss_kib": 103152
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 381.533908634983,
+            "p50_ms": 2.55489349365234,
+            "p95_ms": 3.29399108886719,
+            "p99_ms": 3.32093238830566,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.0700000000000001,
+            "postgres_backend_rss_kib": 152112,
+            "application_process": {
+              "rss_kib": 103152,
+              "cpu_seconds": 0.78
+            }
+          },
+          "p95_change_percent": 110.64186613813077
+        },
+        "notification_inbox": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 629.38161810679,
+            "p50_ms": 1.54685974121094,
+            "p95_ms": 1.71494483947754,
+            "p99_ms": 2.48599052429199,
+            "application_cpu_seconds": 0.0,
+            "postgres_backend_cpu_seconds": 0.0499999999999999,
+            "postgres_backend_rss_kib": 163392,
+            "application_process": {
+              "cpu_seconds": 0.66,
+              "rss_kib": 103152
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 393.509902708585,
+            "p50_ms": 2.65693664550781,
+            "p95_ms": 3.72505187988281,
+            "p99_ms": 4.19211387634277,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.0600000000000001,
+            "postgres_backend_rss_kib": 152768,
+            "application_process": {
+              "rss_kib": 103152,
+              "cpu_seconds": 0.8
+            }
+          },
+          "p95_change_percent": 117.21117753371306
+        },
+        "participation": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 9699.30779310876,
+            "p50_ms": 0.0901222229003906,
+            "p95_ms": 0.113964080810547,
+            "p99_ms": 0.392913818359375,
+            "application_cpu_seconds": 0.0,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 163712,
+            "application_process": {
+              "rss_kib": 103152,
+              "cpu_seconds": 0.67
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 3535.22097041553,
+            "p50_ms": 0.252008438110352,
+            "p95_ms": 0.436067581176758,
+            "p99_ms": 1.00398063659668,
+            "application_cpu_seconds": 5.55111512312578e-17,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 153008,
+            "application_process": {
+              "rss_kib": 103168,
+              "cpu_seconds": 0.82
+            }
+          },
+          "p95_change_percent": 282.63598326359806
+        },
+        "permission_check": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 11424.470673688,
+            "p50_ms": 0.0758171081542969,
+            "p95_ms": 0.119924545288086,
+            "p99_ms": 0.298976898193359,
+            "application_cpu_seconds": 2.77555756156289e-17,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 163984,
+            "application_process": {
+              "cpu_seconds": 0.68,
+              "rss_kib": 103152
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 5368.59458998208,
+            "p50_ms": 0.164985656738281,
+            "p95_ms": 0.285148620605469,
+            "p99_ms": 0.798940658569336,
+            "application_cpu_seconds": 0.0100000000000001,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 153360,
+            "application_process": {
+              "rss_kib": 103168,
+              "cpu_seconds": 0.84
+            }
+          },
+          "p95_change_percent": 137.77335984095438
+        },
+        "post_edit": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 696.311840095624,
+            "p50_ms": 1.41501426696777,
+            "p95_ms": 1.65605545043945,
+            "p99_ms": 2.09784507751465,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.03,
+            "postgres_backend_rss_kib": 165584,
+            "application_process": {
+              "cpu_seconds": 0.7,
+              "rss_kib": 103168
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 220.516850388181,
+            "p50_ms": 3.00192832946777,
+            "p95_ms": 24.5599746704102,
+            "p99_ms": 27.7211666107178,
+            "application_cpu_seconds": 0.0300000000000001,
+            "postgres_backend_cpu_seconds": 0.0599999999999999,
+            "postgres_backend_rss_kib": 154720,
+            "application_process": {
+              "cpu_seconds": 0.89,
+              "rss_kib": 103200
+            }
+          },
+          "p95_change_percent": 1383.0405989058504
+        },
+        "rate_limit": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 4994.20996229411,
+            "p50_ms": 0.179052352905273,
+            "p95_ms": 0.288009643554688,
+            "p99_ms": 0.557899475097656,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 165840,
+            "application_process": {
+              "rss_kib": 103168,
+              "cpu_seconds": 0.71
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 2190.73280289709,
+            "p50_ms": 0.467061996459961,
+            "p95_ms": 0.607013702392578,
+            "p99_ms": 0.900030136108398,
+            "application_cpu_seconds": -2.77555756156289e-17,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 154880,
+            "application_process": {
+              "rss_kib": 103200,
+              "cpu_seconds": 0.9
+            }
+          },
+          "p95_change_percent": 110.76158940397312
+        },
+        "reply": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 655.520465947393,
+            "p50_ms": 1.4951229095459,
+            "p95_ms": 2.21395492553711,
+            "p99_ms": 2.55084037780762,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.03,
+            "postgres_backend_rss_kib": 168000,
+            "application_process": {
+              "rss_kib": 103232,
+              "cpu_seconds": 0.73
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 390.056542009721,
+            "p50_ms": 2.71487236022949,
+            "p95_ms": 3.24082374572754,
+            "p99_ms": 3.66115570068359,
+            "application_cpu_seconds": 0.0299999999999999,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 156816,
+            "application_process": {
+              "cpu_seconds": 0.95,
+              "rss_kib": 103200
+            }
+          },
+          "p95_change_percent": 46.38164979539092
+        },
+        "search_autocomplete": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 190.49662998916,
+            "p50_ms": 5.22184371948242,
+            "p95_ms": 5.45001029968262,
+            "p99_ms": 5.76114654541016,
+            "application_cpu_seconds": 0.00999999999999995,
+            "postgres_backend_cpu_seconds": 0.14,
+            "postgres_backend_rss_kib": 169456,
+            "application_process": {
+              "cpu_seconds": 0.76,
+              "rss_kib": 103280
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 146.230293113427,
+            "p50_ms": 6.67786598205566,
+            "p95_ms": 8.37612152099609,
+            "p99_ms": 9.39106941223145,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.19,
+            "postgres_backend_rss_kib": 158000,
+            "application_process": {
+              "cpu_seconds": 0.98,
+              "rss_kib": 103200
+            }
+          },
+          "p95_change_percent": 53.69001268646909
+        },
+        "search_full_text_common": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 92.9964458155002,
+            "p50_ms": 10.65993309021,
+            "p95_ms": 11.4500522613525,
+            "p99_ms": 11.6758346557617,
+            "application_cpu_seconds": 0.03,
+            "postgres_backend_cpu_seconds": 0.29,
+            "postgres_backend_rss_kib": 183408,
+            "application_process": {
+              "rss_kib": 103344,
+              "cpu_seconds": 0.8
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 80.9734123746103,
+            "p50_ms": 11.2020969390869,
+            "p95_ms": 17.5619125366211,
+            "p99_ms": 19.0541744232178,
+            "application_cpu_seconds": 0.04,
+            "postgres_backend_cpu_seconds": 0.33,
+            "postgres_backend_rss_kib": 169648,
+            "application_process": {
+              "cpu_seconds": 1.03,
+              "rss_kib": 103280
+            }
+          },
+          "p95_change_percent": 53.37844872462318
+        },
+        "search_full_text_rare": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 377.281741450909,
+            "p50_ms": 2.61592864990234,
+            "p95_ms": 2.81381607055664,
+            "p99_ms": 3.25489044189453,
+            "application_cpu_seconds": 0.0300000000000001,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 188816,
+            "application_process": {
+              "cpu_seconds": 0.84,
+              "rss_kib": 103344
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 359.590881422484,
+            "p50_ms": 2.73299217224121,
+            "p95_ms": 2.96211242675781,
+            "p99_ms": 3.52907180786133,
+            "application_cpu_seconds": 0.04,
+            "postgres_backend_cpu_seconds": 0.05,
+            "postgres_backend_rss_kib": 173504,
+            "application_process": {
+              "rss_kib": 102304,
+              "cpu_seconds": 1.07
+            }
+          },
+          "p95_change_percent": 5.270293170648954
+        },
+        "search_ranked": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 118.835417980983,
+            "p50_ms": 8.3918571472168,
+            "p95_ms": 8.49819183349609,
+            "p99_ms": 8.97622108459473,
+            "application_cpu_seconds": 0.02,
+            "postgres_backend_cpu_seconds": 0.23,
+            "postgres_backend_rss_kib": 189136,
+            "application_process": {
+              "rss_kib": 103360,
+              "cpu_seconds": 0.88
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 108.406559749809,
+            "p50_ms": 9.02891159057617,
+            "p95_ms": 10.6410980224609,
+            "p99_ms": 12.0761394500732,
+            "application_cpu_seconds": 0.04,
+            "postgres_backend_cpu_seconds": 0.24,
+            "postgres_backend_rss_kib": 165840,
+            "application_process": {
+              "cpu_seconds": 1.12,
+              "rss_kib": 71248
+            }
+          },
+          "p95_change_percent": 25.216025137470165
+        },
+        "search_trigram": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 0.318395345467274,
+            "p50_ms": 3118.32404136658,
+            "p95_ms": 3249.26280975342,
+            "p99_ms": 3555.34601211548,
+            "application_cpu_seconds": 0.0299999999999999,
+            "postgres_backend_cpu_seconds": 93.42,
+            "postgres_backend_rss_kib": 195232,
+            "application_process": {
+              "rss_kib": 58272,
+              "cpu_seconds": 0.93
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 0.321837999153721,
+            "p50_ms": 3098.97804260254,
+            "p95_ms": 3155.20095825195,
+            "p99_ms": 3297.88899421692,
+            "application_cpu_seconds": 0.0300000000000001,
+            "postgres_backend_cpu_seconds": 92.82,
+            "postgres_backend_rss_kib": 420160,
+            "application_process": {
+              "cpu_seconds": 1.16,
+              "rss_kib": 21248
+            }
+          },
+          "p95_change_percent": -2.8948674517530915
+        },
+        "session_validate": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 7329.28238583411,
+            "p50_ms": 0.117063522338867,
+            "p95_ms": 0.186920166015625,
+            "p99_ms": 0.586032867431641,
+            "application_cpu_seconds": -2.77555756156289e-17,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 195520,
+            "application_process": {
+              "cpu_seconds": 0.94,
+              "rss_kib": 58512
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 7376.11348848115,
+            "p50_ms": 0.111818313598633,
+            "p95_ms": 0.224113464355469,
+            "p99_ms": 0.53095817565918,
+            "application_cpu_seconds": -1.11022302462516e-16,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 423232,
+            "application_process": {
+              "cpu_seconds": 1.16,
+              "rss_kib": 24160
+            }
+          },
+          "p95_change_percent": 19.897959183673606
+        },
+        "thread_page_anonymous": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 2230.97320969486,
+            "p50_ms": 0.432014465332031,
+            "p95_ms": 0.524997711181641,
+            "p99_ms": 0.806093215942383,
+            "application_cpu_seconds": 0.00999999999999998,
+            "postgres_backend_cpu_seconds": 0.0100000000000051,
+            "postgres_backend_rss_kib": 195968,
+            "application_process": {
+              "rss_kib": 58688,
+              "cpu_seconds": 0.95
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 2342.13982577619,
+            "p50_ms": 0.417947769165039,
+            "p95_ms": 0.443935394287109,
+            "p99_ms": 0.761032104492188,
+            "application_cpu_seconds": 0.0100000000000001,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 424624,
+            "application_process": {
+              "cpu_seconds": 1.18,
+              "rss_kib": 25696
+            }
+          },
+          "p95_change_percent": -15.440508628519655
+        },
+        "thread_page_member": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 2267.886019141,
+            "p50_ms": 0.424861907958984,
+            "p95_ms": 0.453948974609375,
+            "p99_ms": 0.806808471679688,
+            "application_cpu_seconds": 0.0,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 196128,
+            "application_process": {
+              "cpu_seconds": 0.97,
+              "rss_kib": 58720
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 2228.32613161437,
+            "p50_ms": 0.427961349487305,
+            "p95_ms": 0.587940216064453,
+            "p99_ms": 0.750064849853516,
+            "application_cpu_seconds": 0.0099999999999999,
+            "postgres_backend_cpu_seconds": 0.0100000000000193,
+            "postgres_backend_rss_kib": 424848,
+            "application_process": {
+              "cpu_seconds": 1.19,
+              "rss_kib": 25728
+            }
+          },
+          "p95_change_percent": 29.51680672268906
+        },
+        "thread_page_member_deep": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 2182.14661047812,
+            "p50_ms": 0.445127487182617,
+            "p95_ms": 0.477075576782227,
+            "p99_ms": 0.84686279296875,
+            "application_cpu_seconds": 0.0,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 196176,
+            "application_process": {
+              "rss_kib": 58736,
+              "cpu_seconds": 0.98
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 2174.52898989026,
+            "p50_ms": 0.446081161499023,
+            "p95_ms": 0.472068786621094,
+            "p99_ms": 0.777006149291992,
+            "application_cpu_seconds": 0.00999999999999995,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 425072,
+            "application_process": {
+              "cpu_seconds": 1.2,
+              "rss_kib": 25872
+            }
+          },
+          "p95_change_percent": -1.0494752623688486
+        },
+        "viewer_resolve": {
+          "baseline": {
+            "samples": 30,
+            "throughput_per_second": 9071.3805781847,
+            "p50_ms": 0.0970363616943359,
+            "p95_ms": 0.118017196655273,
+            "p99_ms": 0.432968139648438,
+            "application_cpu_seconds": 0.01,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 196384,
+            "application_process": {
+              "cpu_seconds": 0.99,
+              "rss_kib": 58848
+            }
+          },
+          "profile": {
+            "samples": 30,
+            "throughput_per_second": 8354.07781171159,
+            "p50_ms": 0.108957290649414,
+            "p95_ms": 0.135898590087891,
+            "p99_ms": 0.357866287231445,
+            "application_cpu_seconds": -5.55111512312578e-17,
+            "postgres_backend_cpu_seconds": 0.0,
+            "postgres_backend_rss_kib": 425984,
+            "application_process": {
+              "cpu_seconds": 1.21,
+              "rss_kib": 26192
+            }
+          },
+          "p95_change_percent": 15.151515151515916
+        }
+      },
+      "resources": {
+        "baseline": {
+          "blks_hit": 1275399,
+          "blks_read": 1694353,
+          "temp_bytes": 0,
+          "tup_inserted": 917,
+          "tup_updated": 293,
+          "xact_commit": 1107,
+          "buffer_hit_ratio": 0.42946313362193206,
+          "wal_bytes_inserted": "2026304",
+          "application_cpu_seconds_sum": 0.2699999999999998,
+          "postgres_backend_cpu_seconds_sum": 94.42000000000002,
+          "max_observed_backend_rss_kib": 196384,
+          "max_observed_application_rss_kib": 103360
+        },
+        "profile": {
+          "blks_hit": 2915757,
+          "blks_read": 49596,
+          "temp_bytes": 0,
+          "tup_inserted": 918,
+          "tup_updated": 293,
+          "xact_commit": 1107,
+          "buffer_hit_ratio": 0.9832748411403297,
+          "wal_bytes_inserted": "1298320",
+          "application_cpu_seconds_sum": 0.42999999999999994,
+          "postgres_backend_cpu_seconds_sum": 94.02000000000001,
+          "max_observed_backend_rss_kib": 425984,
+          "max_observed_application_rss_kib": 103280
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Serial service calls, not HTTP or saturation load.",
+    "Fixed A then B order, one run per configuration/corpus; uncontrolled desktop activity.",
+    "Same template cloned per arm; matching document IDs verified.",
+    "Warmup 5; 100 read samples at 100k, 30 at 1m; 30 writes per operation.",
+    "Search uses the existing service benchmark session timeout of 15 seconds, not the web search budget of 2 seconds.",
+    "Backend CPU excludes background workers; ps CPU has centisecond precision; RSS contains shared pages.",
+    "Counter deltas include warmups/setup; nested plan capture occurs after counter snapshots.",
+    "track_io_timing off in baseline means baseline I/O duration is unavailable.",
+    "Instrumentation evolved to preserve partial errors and share metric helpers; successful service operation calls and percentile calculation remained the same."
+  ],
+  "outbox": {
+    "baseline": {
+      "1": {
+        "median_messages_per_second": 1419.17033614372,
+        "median_p50_batch_ms": 67.720890045166,
+        "median_p95_batch_ms": 77.0769119262695,
+        "median_p99_batch_ms": 77.0769119262695,
+        "median_application_cpu_seconds": 0.37,
+        "median_postgres_backend_cpu_seconds": 0.28,
+        "median_wal_bytes_inserted": 1282264
+      },
+      "2": {
+        "median_messages_per_second": 2794.39562416304,
+        "median_p50_batch_ms": 66.425085067749,
+        "median_p95_batch_ms": 71.7360973358154,
+        "median_p99_batch_ms": 71.7360973358154,
+        "median_application_cpu_seconds": 0.38,
+        "median_postgres_backend_cpu_seconds": 0.24,
+        "median_wal_bytes_inserted": 1312400
+      }
+    },
+    "profile": {
+      "1": {
+        "median_messages_per_second": 1447.17204296623,
+        "median_p50_batch_ms": 65.8659934997559,
+        "median_p95_batch_ms": 75.2489566802979,
+        "median_p99_batch_ms": 75.2489566802979,
+        "median_application_cpu_seconds": 0.36,
+        "median_postgres_backend_cpu_seconds": 0.27,
+        "median_wal_bytes_inserted": 1282496
+      },
+      "2": {
+        "median_messages_per_second": 2918.91583428385,
+        "median_p50_batch_ms": 59.5829486846924,
+        "median_p95_batch_ms": 70.0089931488037,
+        "median_p99_batch_ms": 70.0089931488037,
+        "median_application_cpu_seconds": 0.37,
+        "median_postgres_backend_cpu_seconds": 0.22,
+        "median_wal_bytes_inserted": 1308064
+      }
+    }
+  }
+}

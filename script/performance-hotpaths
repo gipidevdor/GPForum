@@ -1,0 +1,30 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+use v5.40;
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use Getopt::Long                   qw(GetOptions);
+use GPForum::Performance::Hotpaths qw(collect);
+our $VERSION = '0.001';
+
+# Keep option validation available before installation of application modules.
+use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
+    MINIMUM_DEADLINE => 30,
+    MAXIMUM_DEADLINE => 900,
+};
+my %option;
+GetOptions( \%option, 'output=s', 'mode=s', 'disposable-database',
+    'deadline=i' )
+  or die "Invalid hot-path options\n";
+die
+"Usage: script/performance-hotpaths --output DIR --mode pr|main|deep [--disposable-database] [--deadline SECONDS]\n"
+  if @ARGV || !defined $option{output} || !defined $option{mode};
+die "--deadline must be 30..900 seconds\n"
+  if defined $option{deadline}
+  && ( $option{deadline} < MINIMUM_DEADLINE
+    || $option{deadline} > MAXIMUM_DEADLINE );
+exit collect( $option{output}, $option{mode}, $option{'disposable-database'},
+    undef, $option{deadline} );

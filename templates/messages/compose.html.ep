@@ -1,0 +1,22 @@
+% layout 'default';
+% title t('messages.write_to', { name => $recipient->{display_name} }) . ' - ' . t('app.name');
+%# ADR 0139: the first message to a member, from their profile. Only the
+%# writer sees this page; it is never cached.
+<section aria-labelledby="compose-heading">
+  <%= include 'components/page_header',
+    heading_id => 'compose-heading',
+    component_title => t('messages.write_to', { name => $recipient->{display_name} }),
+    description => '@' . $recipient->{username} %>
+  <p><%= t('messages.compose_intro') %></p>
+  % if ($error) {
+    <%= include 'components/alert', tone => 'error', message => $error %>
+  % }
+  <form method="post" action="<%= ui_path('message_start', username => $recipient->{username}) %>">
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $command_id %>">
+    <label for="message-compose-body"><%= t('messages.body') %></label>
+    <textarea id="message-compose-body" name="body" rows="6" maxlength="<%= $maximum_body %>" required aria-describedby="message-compose-body-help"><%= $draft %></textarea>
+    <p id="message-compose-body-help" class="ui-meta"><%= t('messages.body_help', { limit => $maximum_body }) %></p>
+    <button type="submit"><%= t('messages.send') %></button>
+  </form>
+</section>

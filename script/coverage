@@ -1,0 +1,34 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -eu
+
+gpforum_carton="$(CDPATH= cd -- "$(dirname "$0")" && pwd)/gpforum-carton"
+
+# A coverage gate that measured nothing has not passed.
+if [ ! -d t ] || ! find t -type f -name '*.t' | grep -q .; then
+    echo "coverage: no tests found; nothing was measured" >&2
+    exit 1
+fi
+
+rm -rf cover_db
+# script/gpforum-carton exec chooses the native event backend in the
+# environment, so nothing has to load ahead of Devel::Cover: an explicit
+# interpreter for prove would ignore these switches and leave no database,
+# and a module preloaded before Devel::Cover is reported as never run
+# (t/699).
+#
+# t/ and t/integration, not t/performance: those tests drive the harness of
+# script/lib/ -- which the report below does not select -- in timed child
+# processes that Devel::Cover slowed past their deadlines and whose JSON it
+# interleaved with its own output, so the first run that finished failed on
+# them. They run uninstrumented in CI's lint job.
+HARNESS_PERL_SWITCHES=-MDevel::Cover "$gpforum_carton" exec prove -l t t/integration "$@"
+
+# The report covers lib/ only: the test files execute almost entirely, and
+# counting them would inflate its denominator.
+"$gpforum_carton" exec -- cover -select_re '^lib/' -silent
+
+# The verdict: lib/ coverage against the ratchet in etc/coverage-floor.
+exec "$gpforum_carton" exec script/coverage-check cover_db

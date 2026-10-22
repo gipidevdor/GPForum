@@ -1,0 +1,83 @@
+%# Static post presentation only. Forms, CSRF, commands, permissions and times
+%# stay in _posts, and so does the text of the edit form: only an editor sees
+%# it, and leaving it out keeps the post's source out of the cache key.
+%# Each block uses the normal template escaping rules.
+% my $dom_id = 'post-' . $post->{post_id};
+% my $ordinal = '#' . $post->{position};
+% my $header = begin
+      <h3 class="visually-hidden" id="<%= $dom_id %>-heading"><%= t('forum.post_number', { position => $post->{position} }) %></h3>
+      <%= include 'components/avatar', user_id => $post->{author_user_id}, avatar_id => $post->{author_avatar_id}, initial => $post->{author_initial}, tint => $post->{author_tint}, extra => 'post__avatar' %>
+      <header class="post__header">
+        <p class="ui-meta post__byline">
+          % if ($post->{author_username}) {
+            <a class="post__author" href="<%= ui_path('profile', username => $post->{author_username}) %>"><%= $post->{author_display_name} || $post->{author_profile_label} %></a>
+            % if ($post->{author_display_name}) {
+              <span><%= $post->{author_profile_label} %></span>
+            % }
+          % }
+% end
+% $fragments->{header} = $header->();
+% my $reply = begin
+      % if ($post->{reply_to}) {
+        <p class="ui-meta post__reply-to"><a href="#post-<%= $post->{reply_to}{post_id} %>"><%= t('forum.in_reply_to', { position => '#' . $post->{reply_to}{position} }) %></a><% if ($post->{reply_to}{author_username}) { %> <span>@<%= $post->{reply_to}{author_username} %></span><% } %></p>
+      % }
+% end
+% $fragments->{reply} = $reply->();
+% my $deleted = begin
+      % if ($post->{deleted_at}) {
+        <p role="status"><%= t('forum.post_deleted_notice') %></p>
+      % }
+% end
+% $fragments->{deleted} = $deleted->();
+% my $report = begin
+    <label for="<%= $dom_id %>-report-reason"><%= t('common.reason') %></label>
+    <select id="<%= $dom_id %>-report-reason" name="reason" required>
+      <option value="spam"><%= t('moderation.reason.spam') %></option>
+      <option value="abuse"><%= t('moderation.reason.abuse') %></option>
+      <option value="privacy"><%= t('moderation.reason.privacy') %></option>
+      <option value="other"><%= t('moderation.reason.other') %></option>
+    </select>
+    <label for="<%= $dom_id %>-report-details"><%= t('common.details') %></label>
+    <textarea id="<%= $dom_id %>-report-details" name="details" rows="3"></textarea>
+    <button type="submit"><%= t('moderation.submit_report') %></button>
+% end
+% $fragments->{report} = $report->();
+% my $upload = begin
+    <label for="<%= $dom_id %>-attachment"><%= t('form.attach_file') %></label>
+    <input id="<%= $dom_id %>-attachment" name="attachment" type="file" required>
+    <button type="submit" class="button--secondary"><%= t('form.upload_attachment') %></button>
+% end
+% $fragments->{upload} = $upload->();
+% my $remove = begin
+    <p class="sheet__consequence"><%= t('forum.delete_post_consequence') %></p>
+    <button type="submit" class="button--danger"><%= t('forum.delete_post') %></button>
+% end
+% $fragments->{remove} = $remove->();
+% my $like_count = $post->{like_count} || 0;
+% my $like = begin
+    <button type="submit" class="button--quiet post__like" aria-pressed="<%= $post->{liked} ? 'true' : 'false' %>"><%= $post->{liked} ? t('forum.liked') : t('forum.like') %><% if ($like_count) { %> <span class="post__like-count" aria-label="<%= tc('forum.like_count', $like_count) %>"><%= $like_count %></span><% } %></button>
+% end
+% $fragments->{like} = $like->();
+% my $permalink = begin
+    <a class="post__permalink" href="#<%= $dom_id %>" aria-label="<%= t('forum.permalink') %> <%= $ordinal %>"><%= $ordinal %></a>
+% end
+% $fragments->{permalink} = $permalink->();
+% my $reply_links = begin
+    <a class="button--quiet post__reply" href="<%= ui_path('thread', thread_id => $post->{thread_id}) %>?reply_to=<%= $post->{post_id} %>#reply-body"><%= t('forum.reply_to_post') %></a>
+    <a class="button--quiet post__quote" href="<%= ui_path('thread', thread_id => $post->{thread_id}) %>?quote=<%= $post->{post_id} %>&amp;reply_to=<%= $post->{post_id} %>#reply-body"><%= t('forum.quote_post') %></a>
+% end
+% $fragments->{reply_links} = $reply_links->();
+% my %title = (edit => 'forum.edit_post', delete => 'forum.delete_post', report => 'moderation.report_post');
+% for my $kind (qw(edit delete report)) {
+%   my $id = "$dom_id-$kind";
+%   my $label = t($title{$kind});
+%   my $opening = begin
+    <button type="button" class="button--quiet" popovertarget="<%= $id %>"><%= $label %></button>
+    <div class="sheet" id="<%= $id %>" popover role="dialog" aria-labelledby="<%= $id %>-heading">
+      <header class="sheet__header">
+        <h2 id="<%= $id %>-heading"><%= $label %> <%= $ordinal %></h2>
+        <button type="button" class="button--quiet sheet__dismiss" popovertarget="<%= $id %>" popovertargetaction="hide" aria-label="<%= t('ui.dialog_close') %>">&times;</button>
+      </header>
+%   end
+%   $fragments->{$kind . '_sheet'} = $opening->();
+% }

@@ -1,0 +1,889 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+
+use Carp qw(croak);
+use Const::Fast;
+use Config qw(%Config);
+use DBI;
+use English      qw(-no_match_vars);
+use FindBin      qw($Bin);
+use Getopt::Long qw(GetOptionsFromArray);
+use IO::Select;
+use IO::Socket::UNIX;
+use File::Temp    qw(tempdir);
+use JSON::MaybeXS qw(encode_json);
+use MIME::Base64  qw(encode_base64url);
+use POSIX         qw(_exit clock setsid strftime);
+use Time::HiRes   qw(sleep time);
+
+use lib "$Bin/../lib";
+
+use GPForum::Benchmark::BucketProfile;
+use GPForum::Benchmark::SeedDataset qw(seed_id);
+use GPForum::Command::Migrate;
+use GPForum::Command::PerformanceSeed;
+use GPForum::Config;
+use GPForum::Infrastructure::Id;
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Schema;
+use GPForum::Service::Admin::PermissionGate;
+use GPForum::Service::Forum::ViewerResolver;
+use GPForum::Service::Identity::SessionStore;
+use GPForum::Service::Moderation::SuspensionStore;
+use GPForum::Service::Operations::RateLimiter::PostgreSQLStore;
+
+use GPForum::Service::Forum::ThreadReader;
+use GPForum::Service::Forum::HomePageReader;
+use GPForum::Service::Forum::Readability;
+use GPForum::Service::Forum::ReadState;
+use GPForum::Service::Search::Indexer;
+use GPForum::Service::Search::Searcher;
+use GPForum::Service::Search::PermissionEngine;
+use GPForum::Service::Notification::Dispatcher;
+
+use GPForum::Service::Community::MentionStore;
+use GPForum::Service::Forum::CategoryReader;
+use GPForum::Service::Forum::PostComposer;
+use GPForum::Service::Forum::PostReader;
+use GPForum::Service::Forum::PostStore;
+use GPForum::Service::Forum::PostingWorkflow;
+use GPForum::Service::Forum::ThreadComposer;
+use GPForum::Service::Forum::ThreadDetailReader;
+use GPForum::Service::Forum::ThreadStore;
+use GPForum::Service::Forum::Viewer;
+use GPForum::Service::Operations::CommandIdempotency;
+
+our $VERSION = '0.001';
+
+# ADR 0126: what an operation costs on the path DBIx::Class builds and on
+# the PostgreSQL function that replaces it, on the same seeded database. Per
+# operation and path: the Perl CPU, the share of it spent in DBIx::Class
+# (SQL::Abstract building the SQL, resultsets, storage, row inflation,
+# accessors) against the time spent waiting on DBI, the wall time's median
+# and 95th percentile with the database on this host and through a proxy
+# that delays each direction (a database on another host), and the
+# statements and round trips. A maintainer's tool: it makes a database of
+# its own, seeds it as t/integration/postgres-query-plan-depth.t does, and
+# drops it.
+const my %DEFAULT => (
+    'delay-ms'         => 0.5,
+    'read-iterations'  => 200,
+    'warmup'           => 15,
+    'write-iterations' => 100,
+);
+const my $THREAD_POSTS      => 3_000;
+const my $SEEDED_POSTS      => 8;
+const my $CATEGORY_THREADS  => 1_500;
+const my $NOTIFICATIONS     => 30;
+const my $HALFWAY           => 1_500;
+const my $MILLISECONDS      => 1_000;
+const my $CLOCKS_PER_SECOND => 1_000_000;
+const my $PERCENTILE        => 0.95;
+const my $SELECT_ONE_RUNS   => 2_000;
+const my $LISTEN_QUEUE      => 16;
+const my $CHUNK             => 65_536;
+const my @PATHS             => qw(dbic function);
+const my @MODES             => qw(direct proxy);
+const my @ROUND_TRIPS => qw(
+  begin_work commit rollback pg_savepoint pg_release pg_rollback_to
+);
+
+# The configuration benchmark explicitly loads this workload as a library.
+# Other callers (including failure-injection drills using do) still run it.
+our $LOAD_AS_LIBRARY;
+exit main(@ARGV) if !$LOAD_AS_LIBRARY;
+
+sub main (@arguments) {
+    my %option = %DEFAULT;
+    GetOptionsFromArray( \@arguments, \%option, 'delay-ms=f', 'json',
+        'read-iterations=i', 'warmup=i', 'write-iterations=i', 'help' )
+      or return _usage(2);
+    return _usage(0) if $option{help};
+    return _usage(2) if @arguments || !_valid_options( \%option );
+
+    my $admin_dsn = $ENV{GPFORUM_DATABASE_DSN}
+      // croak 'set GPFORUM_DATABASE_DSN to a database the user may CREATE in';
+    my $name  = "gpforum_bench_sqlfn_$PROCESS_ID";
+    my $admin = _connect($admin_dsn);
+    my $proxy;
+    my $report;
+    $admin->do("CREATE DATABASE $name");
+    try {
+        local $SIG{TERM} =
+          sub { die "SQL function benchmark interrupted by TERM\n"; };
+        local $SIG{INT} =
+          sub { die "SQL function benchmark interrupted by INT\n"; };
+        ( my $dsn = $admin_dsn ) =~ s/dbname=[^;]+/dbname=$name/msx;
+        _seed($dsn);
+        $proxy  = _proxy( $dsn, $option{'delay-ms'} / $MILLISECONDS );
+        $report = _measure( $dsn, $proxy, \%option );
+        $report->{benchmark} = {
+            database_name    => $name,
+            generated_at     => strftime( '%Y-%m-%dT%H:%M:%SZ', gmtime ),
+            perl_version     => "$PERL_VERSION",
+            architecture     => $Config{archname},
+            postgres_version =>
+              scalar $admin->selectrow_array('SHOW server_version'),
+            read_iterations  => $option{'read-iterations'},
+            write_iterations => $option{'write-iterations'},
+            warmup           => $option{warmup},
+            scope            =>
+'service operations; excludes HTTP dispatch and template rendering',
+            workload =>
+'small performance seed plus 3000 posts with bodies, 1500 indexed threads and 30 notifications',
+        };
+    }
+    catch ($error) {
+        _stop($proxy);
+        $admin->do("DROP DATABASE IF EXISTS $name WITH (FORCE)");
+        croak $error;
+    };
+    _stop($proxy);
+    $admin->do("DROP DATABASE IF EXISTS $name WITH (FORCE)");
+    $admin->disconnect;
+
+    print $option{json} ? encode_json($report) . "\n" : _text($report)
+      or croak 'cannot write the report';
+
+    return 0;
+}
+
+sub _valid_options ($option) {
+    return
+         $option->{'read-iterations'} >= 1
+      && $option->{'write-iterations'} >= 1
+      && $option->{warmup} >= 0
+      && $option->{'delay-ms'} >= 0;
+}
+
+sub _usage ($status) {
+    print 'Usage: script/bench-sql-functions [--read-iterations N]'
+      . " [--write-iterations N] [--warmup N] [--delay-ms MS] [--json]\n"
+      or croak 'cannot write the usage';
+
+    return $status;
+}
+
+sub _connect ($dsn) {
+    return DBI->connect(
+        $dsn,
+        $ENV{GPFORUM_DATABASE_USER},
+        $ENV{GPFORUM_DATABASE_PASSWORD},
+        { AutoCommit => 1, PrintError => 0, RaiseError => 1 },
+    );
+}
+
+# The plan tests' seed, and what t/integration/postgres-query-plan-depth.t
+# adds -- 3,000 posts in the first thread and 1,500 threads in the first
+# category -- the posts with bodies, so a page renders full posts.
+sub _seed ($dsn) {
+    local $ENV{GPFORUM_DATABASE_DSN} = $dsn;
+    my $quiet = sub ($code) {
+        my $output = q{};
+        open my $sink, '>', \$output or croak "capture: $OS_ERROR";
+        my $status;
+        {
+            local *STDOUT = $sink;
+            $status = $code->();
+        }
+        close $sink or croak "capture: $OS_ERROR";
+        return $status;
+    };
+    croak 'migrations failed'
+      if $quiet->( sub { GPForum::Command::Migrate->new->run('--apply') } );
+    croak 'seed failed'
+      if $quiet->(
+        sub {
+            GPForum::Command::PerformanceSeed->new->run( '--profile', 'small' );
+        }
+      );
+
+    my $dbh = _connect($dsn);
+    my ( $thread, $category, $author ) = (
+        seed_id( thread   => 1 ),
+        seed_id( category => 1 ),
+        seed_id( user     => 2 ),
+    );
+    $dbh->do(
+        q{INSERT INTO posts (post_id, thread_id, author_user_id, position)}
+          . q{ SELECT gen_random_uuid(), ?, ?, n}
+          . q{ FROM generate_series(?::bigint, ?::bigint) AS n},
+        undef,
+        $thread,
+        $author,
+        $SEEDED_POSTS + 1,
+        $SEEDED_POSTS + $THREAD_POSTS
+    );
+    $dbh->do(
+        q{WITH b AS (INSERT INTO post_bodies (body_id, post_id, body_format,}
+          . q{ body_source, body_rendered_safe, source_hash)}
+          . q{ SELECT gen_random_uuid(), p.post_id, 'markdown',}
+          . q{ 'Reply number ' || p.position || ' with a little text.',}
+          . q{ '<p>Reply number ' || p.position || ' with a little text.</p>',}
+          . q{ md5(p.post_id::text) FROM posts p WHERE p.thread_id = ?}
+          . q{ AND p.current_body_id IS NULL RETURNING body_id, post_id)}
+          . q{ UPDATE posts p SET current_body_id = b.body_id FROM b}
+          . q{ WHERE b.post_id = p.post_id},
+        undef, $thread
+    );
+    $dbh->do(
+        q{INSERT INTO threads (thread_id, category_id, author_user_id, title,}
+          . q{ slug, last_activity_at) SELECT gen_random_uuid(), ?, ?,}
+          . q{ 'Depth ' || n, 'depth-' || n, timestamptz '2026-01-01'}
+          . q{ + n * interval '1 minute' FROM generate_series(1, ?) AS n},
+        undef, $category, $author, $CATEGORY_THREADS
+    );
+    my $index_schema = _schema($dsn);
+    my $indexer =
+      GPForum::Service::Search::Indexer->new( schema => $index_schema );
+    for my $id (
+        @{
+            $dbh->selectcol_arrayref(
+q{SELECT thread_id FROM threads WHERE category_id = ? AND slug LIKE 'depth-%'},
+                undef, $category
+            )
+        }
+      )
+    {
+        $indexer->index_thread($id);
+    }
+    $index_schema->storage->disconnect;
+    $dbh->do('ANALYZE');
+    $dbh->disconnect;
+
+    return;
+}
+
+# A Unix socket proxy that holds each chunk for the delay before passing it on, in
+# both directions: a database on another host, as far as round trips go.
+# One process listens; one per connection forwards.
+sub _proxy ( $dsn, $delay ) {
+    my $connection = _connect($dsn);
+    my ( $host, $port ) = @{$connection}{qw(pg_host pg_port)};
+    $connection->disconnect;
+    croak 'The SQL benchmark requires PostgreSQL on a local Unix socket'
+      if !defined $host || $host !~ m{\A /}msx;
+    my $directory =
+      tempdir( 'gpforum-sql-proxy-XXXXXX', DIR => '/tmp', CLEANUP => 1 );
+    my $socket   = "$directory/.s.PGSQL.$port";
+    my $listener = IO::Socket::UNIX->new(
+        Listen => $LISTEN_QUEUE,
+        Local  => $socket,
+    ) or croak "proxy listen: $OS_ERROR";
+    my $pid = fork // croak "fork: $OS_ERROR";
+
+    if ( $pid == 0 ) {
+
+        # Only the measuring parent owns the temporary database. Proxy
+        # children must terminate directly instead of unwinding its cleanup.
+        local $SIG{TERM} = 'DEFAULT';
+        local $SIG{INT}  = 'DEFAULT';
+        local $SIG{CHLD} = 'IGNORE';
+        setsid() >= 0 or _exit(1);
+        while ( my $client = $listener->accept ) {
+            my $child = fork // croak "fork: $OS_ERROR";
+            if ( $child == 0 ) {
+                close $listener or _exit(1);
+                _forward( $client, "$host/.s.PGSQL.$port", $delay );
+                _exit(0);
+            }
+            close $client or croak "close: $OS_ERROR";
+        }
+        _exit(0);
+    }
+    close $listener or croak "close: $OS_ERROR";
+    ( my $through = $dsn ) =~ s/(?: ; )? (?: host | port ) = [^;]*//gmsx;
+    $through .= ";host=$directory;port=$port";
+
+    return {
+        dsn       => $through,
+        pid       => $pid,
+        directory => $directory,
+        socket    => $socket
+    };
+}
+
+sub _forward ( $client, $socket, $delay ) {
+    my $server = IO::Socket::UNIX->new( Peer => $socket )
+      or _exit(1);
+    my %peer   = ( $client => $server, $server => $client );
+    my $select = IO::Select->new( $client, $server );
+    while ( my @ready = $select->can_read ) {
+        for my $from (@ready) {
+            my $chunk;
+            my $read = sysread $from, $chunk, $CHUNK;
+            return if !$read;
+            sleep $delay;
+            my $to      = $peer{$from};
+            my $written = 0;
+            while ( $written < length $chunk ) {
+                my $sent = syswrite $to, $chunk, length($chunk) - $written,
+                  $written;
+                return if !$sent;
+                $written += $sent;
+            }
+        }
+    }
+
+    return;
+}
+
+sub _stop ($proxy) {
+    return if !$proxy;
+
+    kill 'TERM', -$proxy->{pid};
+    waitpid $proxy->{pid}, 0;
+    unlink $proxy->{socket}   or croak "remove proxy socket: $OS_ERROR";
+    rmdir $proxy->{directory} or croak "remove proxy directory: $OS_ERROR";
+
+    return;
+}
+
+sub _schema ($dsn) {
+    local $ENV{GPFORUM_DATABASE_DSN} = $dsn;
+
+    return GPForum::Schema->connect_from_config(
+        GPForum::Config->from_environment );
+}
+
+# Every operation on each path, at the database and through the proxy,
+# then the profile of each at the database.
+sub _measure ( $dsn, $proxy, $option ) {
+    my %report = (
+        delay_ms      => $option->{'delay-ms'},
+        round_trip_ms => {
+            direct => _select_one($dsn),
+            proxy  => _select_one( $proxy->{dsn} ),
+        },
+    );
+    for my $mode (@MODES) {
+        my $schema = _schema( $mode eq 'direct' ? $dsn : $proxy->{dsn} );
+        my $counts = _counted( $schema->storage->dbh );
+        for my $path (@PATHS) {
+            my $ops = _operations( $schema, $path );
+            for my $op ( sort keys %{$ops} ) {
+                $report{operations}{$op}{$path}{$mode} =
+                  _timed( $ops->{$op}, $counts, $option );
+            }
+        }
+        $schema->storage->disconnect;
+    }
+
+    my $schema = _schema($dsn);
+    for my $path (@PATHS) {
+        my $ops = _operations( $schema, $path );
+        for my $op ( sort keys %{$ops} ) {
+            $report{operations}{$op}{$path}{profile} =
+              _profiled( $ops->{$op}, $option );
+        }
+    }
+    $schema->storage->disconnect;
+
+    return \%report;
+}
+
+sub _select_one ($dsn) {
+    my $dbh = _connect($dsn);
+    my $one = $dbh->prepare('SELECT 1');
+    my @runs;
+    for ( 1 .. $SELECT_ONE_RUNS ) {
+        my $started = time;
+        $one->execute;
+        $one->fetchall_arrayref;
+        push @runs, time - $started;
+    }
+    $dbh->disconnect;
+
+    return _ms( _median(@runs) );
+}
+
+# The operations, each a code reference that runs one of them, built as
+# Bootstrap::Forum builds the services. The dbic path is the one a schema
+# without the function layer takes; the function path the one PostgreSQL
+# takes now.
+sub _operation_path ( $path, $context ) {
+    return ( functions => undef )                 if $path eq 'dbic';
+    return ( functions => $context->{functions} ) if $context->{functions};
+    return ();
+}
+
+sub _operations ( $schema, $path, $context = {} ) {
+    my %perl   = _operation_path( $path, $context );
+    my $thread = seed_id( thread => 1 );
+    my $member = GPForum::Service::Forum::Viewer->new(
+        member  => 1,
+        user_id => seed_id( user => 2 ),
+    );
+    my $posts =
+      GPForum::Service::Forum::PostReader->new( schema => $schema, %perl );
+    my $threads = GPForum::Service::Forum::ThreadDetailReader->new(
+        post_reader => $posts,
+        schema      => $schema,
+        %perl,
+    );
+    my $workflow = GPForum::Service::Forum::PostingWorkflow->new(
+        category_reader => GPForum::Service::Forum::CategoryReader->new(
+            schema => $schema,
+            %perl
+        ),
+        command_idempotency =>
+          GPForum::Service::Operations::CommandIdempotency->new(
+            schema => $schema
+          ),
+        mention_store =>
+          GPForum::Service::Community::MentionStore->new( schema => $schema ),
+        post_composer => GPForum::Service::Forum::PostComposer->new,
+        post_reader   => $posts,
+        post_store    =>
+          GPForum::Service::Forum::PostStore->new( schema => $schema, %perl ),
+        thread_composer      => GPForum::Service::Forum::ThreadComposer->new,
+        thread_detail_reader => $threads,
+        thread_store         =>
+          GPForum::Service::Forum::ThreadStore->new( schema => $schema, %perl ),
+        %perl,
+    );
+    my $ids = GPForum::Infrastructure::Id->new;
+    my ($halfway) =
+      $schema->storage->dbh->selectrow_array(
+        'SELECT post_id FROM posts WHERE thread_id = ? AND position = ?',
+        undef, $thread, $HALFWAY );
+    my $deep = encode_base64url("$HALFWAY|$halfway");
+
+    my $categories = GPForum::Service::Forum::CategoryReader->new(
+        schema => $schema,
+        %perl
+    );
+    my $lists = GPForum::Service::Forum::ThreadReader->new(
+        schema => $schema,
+        %perl
+    );
+    my $home = GPForum::Service::Forum::HomePageReader->new(
+        category_reader => $categories,
+        thread_reader   => $lists
+    );
+    my $category = seed_id( category => 1 );
+    my $scope    = $member->within( $category, seed_id( space => 1 ) );
+
+    my $sessions = GPForum::Service::Identity::SessionStore->new(
+        schema => $schema,
+        %perl,
+    );
+    my $session = $sessions->create_session(
+        { id => $member->user_id },
+        {
+            request_address => '198.51.100.19',
+            user_agent      => 'SQL function benchmark'
+        }
+    );
+    my $session_request = {
+        session_id    => $session->{session}->get_column('session_id'),
+        session_token => $session->{session_token},
+        user_id       => $member->user_id,
+    };
+    my $viewer_resolver = GPForum::Service::Forum::ViewerResolver->new(
+        schema => $schema,
+        %perl,
+    );
+    my $participation = GPForum::Service::Moderation::SuspensionStore->new(
+        schema => $schema,
+        %perl,
+    );
+    my $permission = GPForum::Service::Admin::PermissionGate->new(
+        schema => $schema,
+        %perl,
+    );
+    my $rate_limit =
+      GPForum::Service::Operations::RateLimiter::PostgreSQLStore->new(
+        schema => $schema,
+        %perl,
+      );
+    $schema->storage->dbh->do( 'DELETE FROM rate_limit_buckets WHERE scope = ?',
+        undef, 'sql_fn_bench' );
+    my $rate_request = {
+        scope    => 'sql_fn_bench',
+        action   => 'read',
+        actor_id => $member->user_id,
+        limit    => 100_000_000,
+    };
+
+    my $notifications = GPForum::Service::Notification::Dispatcher->new(
+        schema => $schema,
+        %perl,
+        readability =>
+          GPForum::Service::Forum::Readability->new( schema => $schema, %perl )
+    );
+    if ( !$schema->resultset('NotificationInbox')
+        ->search( { recipient_user_id => $member->user_id } )
+        ->count )
+    {
+        for my $index ( 1 .. $NOTIFICATIONS ) {
+            $notifications->create_notification(
+                {
+                    recipient_user_id => $member->user_id,
+                    notification_id   => $ids->uuid,
+                    source_type       => 'thread',
+                    source_id         => $thread,
+                    notification_type => 'reply',
+                    payload           => { index => $index }
+                }
+            );
+        }
+    }
+
+    my $searcher = GPForum::Service::Search::Searcher->new(
+        schema => $schema,
+        %perl,
+        permission_engine => GPForum::Service::Search::PermissionEngine->new,
+    );
+    my $read_state =
+      GPForum::Service::Forum::ReadState->new( schema => $schema, %perl );
+    my $operations = {
+        %{
+            _write_operations(
+                $workflow,   $read_state,
+                $rate_limit, $rate_request,
+                $member,     $thread,
+                $halfway,    $category,
+                $ids,        $context->{edit_counter}
+            )
+        },
+        search_ranked => {
+            kind => 'read',
+            run  => sub {
+                my $result = $searcher->ranked_search( { viewer => $member },
+                    'Depth', { limit => 20 } );
+                @{ $result->{results} }
+                  or croak 'benchmark search found no documents';
+                return $result;
+            }
+        },
+        search_autocomplete => {
+            kind => 'read',
+            run  => sub {
+                my $result = $searcher->autocomplete( { viewer => $member },
+                    'Dep', { limit => 10 } );
+                @{$result} or croak 'benchmark autocomplete found no documents';
+                return $result;
+            }
+        },
+        category_index_member => {
+            kind => 'read',
+            run  =>
+              sub { $categories->list_categories( { viewer => $member } ); },
+        },
+        category_threads_member => {
+            kind => 'read',
+            run  => sub {
+                $lists->list_category_threads(
+                    {
+                        category_id    => $category,
+                        viewer_scope   => $scope,
+                        viewer_user_id => $member->user_id,
+                        limit          => 25,
+                    }
+                );
+            },
+        },
+        latest_threads_member => {
+            kind => 'read',
+            run  => sub {
+                $lists->list_public_threads(
+                    { viewer => $member, limit => 25 } );
+            },
+        },
+        home_page_member => {
+            kind => 'read',
+            run  => sub { $home->home_page( { viewer => $member } ); },
+        },
+        session_validate => {
+            kind => 'read',
+            run  => sub {
+                $sessions->validate_session($session_request)->{ok}
+                  or croak 'benchmark session was refused';
+            },
+        },
+        viewer_resolve => {
+            kind => 'read',
+            run  => sub {
+                $viewer_resolver->resolve( $member->user_id )->member
+                  or croak 'benchmark viewer is not a member';
+            },
+        },
+        participation => {
+            kind => 'read',
+            run  => sub {
+                $participation->can_participate( $member->user_id )->{ok}
+                  or croak 'benchmark member cannot participate';
+            },
+        },
+        permission_check => {
+            kind => 'read',
+            run  => sub {
+                $permission->allowed( $member->user_id,
+                    { resource_type => 'category', action => 'read' } );
+            },
+        },
+        notification_inbox => {
+            kind => 'read',
+            run  => sub {
+                $notifications->list_page_for_user( $member->user_id,
+                    { limit => 25, viewer => $member } );
+            }
+        },
+        notification_badge => {
+            kind => 'read',
+            run  => sub {
+                $notifications->unread_count_for_user( $member->user_id,
+                    $member );
+            }
+        },
+        thread_page_anonymous => {
+            kind => 'read',
+            run  => sub {
+                $threads->thread_page( { thread_id => $thread } )->{ok}
+                  or croak 'no thread page';
+            },
+        },
+        thread_page_member_deep => {
+            kind => 'read',
+            run  => sub {
+                $threads->thread_page(
+                    {
+                        after          => $deep,
+                        thread_id      => $thread,
+                        viewer         => $member,
+                        viewer_user_id => $member->user_id,
+                    }
+                )->{ok} or croak 'no thread page';
+            },
+        },
+        thread_page_member => {
+            kind => 'read',
+            run  => sub {
+                $threads->thread_page(
+                    {
+                        thread_id      => $thread,
+                        viewer         => $member,
+                        viewer_user_id => $member->user_id,
+                    }
+                )->{ok} or croak 'no thread page';
+            },
+        },
+    };
+    return _with_path( $operations, $path );
+}
+
+sub _write_operations (
+    $workflow, $read_state, $rate_limit, $rate_request,
+    $member,   $thread,     $halfway,    $category,
+    $ids,      $edit_counter = undef
+  )
+{
+    my $marked_position =
+      $read_state->state_for_thread( $member->user_id, $thread )
+      ->{last_read_position};
+    my $edit_number = 0;
+    $edit_counter //= \$edit_number;
+    return {
+        mark_read => {
+            kind => 'write',
+            run  => sub {
+                my $result = $read_state->mark_thread_read(
+                    {
+                        user_id            => $member->user_id,
+                        thread_id          => $thread,
+                        last_read_position => ++$marked_position
+                    }
+                );
+                $result->{ok} or croak 'benchmark mark read failed';
+            }
+        },
+        post_edit => {
+            kind => 'write',
+            run  => sub {
+                my $result = $workflow->edit_post(
+                    {
+                        author_user_id => $member->user_id,
+                        post_id        => $halfway,
+                        command_id     => $ids->uuid,
+                        body_source    => 'Bench edit ' . ++${$edit_counter},
+                        viewer         => $member
+                    }
+                );
+                $result->{ok} or croak 'benchmark post edit failed';
+                return $result;
+            }
+        },
+        rate_limit => {
+            kind => 'write',
+            run  => sub {
+                $rate_limit->check($rate_request)->{ok}
+                  or croak 'benchmark rate limiter refused';
+            },
+        },
+        new_thread => {
+            kind => 'write',
+            run  => sub {
+                my $result = $workflow->create_thread(
+                    {
+                        author_user_id => $member->user_id,
+                        body_source    => 'An opening post from the bench.',
+                        category_id    => $category,
+                        command_id     => $ids->uuid,
+                        title          => 'A thread from the bench.',
+                        viewer         => $member
+                    }
+                );
+                croak "new thread: $result->{status}" if !$result->{ok};
+            }
+        },
+        reply => {
+            kind => 'write',
+            run  => sub {
+                my $result = $workflow->create_reply(
+                    {
+                        author_user_id => $member->user_id,
+                        body_source    => 'A reply from the bench.',
+                        command_id     => $ids->uuid,
+                        thread_id      => $thread,
+                        viewer         => $member,
+                    }
+                );
+                croak "reply: $result->{status}" if !$result->{ok};
+            },
+        },
+    };
+}
+
+sub _with_path ( $operations, $path ) {
+    if ( $path eq 'dbic' ) {
+        for my $operation ( values %{$operations} ) {
+            my $run = $operation->{run};
+            $operation->{run} = sub {
+                ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- local replacement makes all nested readers use the legacy benchmark path
+                no warnings 'redefine';
+                local *GPForum::Infrastructure::SqlFunction::for_schema =
+                  sub { return undef; };
+                return $run->();
+            };
+        }
+    }
+    return $operations;
+}
+
+# The statements and round trips a handle sends, through DBI's callbacks.
+sub _counted ($dbh) {
+    my %count;
+    $dbh->{Callbacks} = {
+        ChildCallbacks => {
+            execute => sub { $count{statements}++; return; },
+        },
+        do => sub { $count{statements}++; return; },
+        map {
+            ( $_ => sub { $count{transaction}++; return; } )
+        } @ROUND_TRIPS,
+    };
+
+    return \%count;
+}
+
+sub _iterations ( $operation, $option ) {
+    return $operation->{kind} eq 'write'
+      ? $option->{'write-iterations'}
+      : $option->{'read-iterations'};
+}
+
+sub _timed ( $operation, $counts, $option ) {
+    for ( 1 .. $option->{warmup} ) {
+        $operation->{run}->();
+    }
+    my $iterations = _iterations( $operation, $option );
+    %{$counts} = ();
+    my @runs;
+    my $processor = clock();
+    for ( 1 .. $iterations ) {
+        my $started = time;
+        $operation->{run}->();
+        push @runs, time - $started;
+    }
+    my $processed  = ( clock() - $processor ) / $CLOCKS_PER_SECOND;
+    my $statements = ( $counts->{statements} // 0 ) / $iterations;
+
+    return {
+        cpu_ms => _ms( $processed / $iterations ),
+
+        median_ms   => _ms( _median(@runs) ),
+        p95_ms      => _ms( _percentile( \@runs, $PERCENTILE ) ),
+        round_trips => $statements +
+          ( $counts->{transaction} // 0 ) / $iterations,
+        statements => $statements,
+    };
+}
+
+# Exclusive time charged to DBIx::Class, to DBI and to the rest, per call,
+# with every method of both wrapped while the operation runs.
+sub _profiled ( $operation, $option ) {
+    my $profile    = GPForum::Benchmark::BucketProfile->new->wrap;
+    my $iterations = _iterations( $operation, $option );
+    for ( 1 .. $option->{warmup} ) {
+        $operation->{run}->();
+    }
+    my %total;
+    for ( 1 .. $iterations ) {
+        my $spent = $profile->measure( $operation->{run} );
+        for my $bucket ( keys %{$spent} ) {
+            $total{$bucket} += $spent->{$bucket};
+        }
+    }
+    $profile->unwrap;
+
+    return {
+        map { ( "${_}_ms" => _ms( $total{$_} / $iterations ) ) }
+          keys %total
+    };
+}
+
+sub _median (@values) {
+    return _percentile( \@values, 1 / 2 );
+}
+
+sub _percentile ( $values, $share ) {
+    my @sorted = sort { $a <=> $b } @{$values};
+    return 0 if !@sorted;
+
+    return $sorted[ int( $share * $#sorted + 1 / 2 ) ];
+}
+
+sub _ms ($seconds) {
+    return 0 + sprintf '%.3f', $seconds * $MILLISECONDS;
+}
+
+sub _text ($report) {
+    my $text = sprintf 'SELECT 1: %.3f ms at the database, %.3f ms through'
+      . " the proxy (%.2f ms each way)\n\n",
+      @{ $report->{round_trip_ms} }{qw(direct proxy)}, $report->{delay_ms};
+    $text .= sprintf "%-22s %-9s %8s %8s %8s %8s %8s %8s %8s %6s %6s\n",
+      qw(operation path cpu dbic dbi med p95 med_px p95_px stmts rtrips);
+    for my $op ( sort keys %{ $report->{operations} } ) {
+        for my $path (@PATHS) {
+            my $row = $report->{operations}{$op}{$path};
+            $text .= sprintf
+"%-22s %-9s %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %6.1f %6.1f\n",
+              $op, $path, $row->{direct}{cpu_ms},
+              $row->{profile}{dbic_ms} // 0,
+              $row->{profile}{dbi_ms}  // 0,
+              @{ $row->{direct} }{qw(median_ms p95_ms)},
+              @{ $row->{proxy} }{qw(median_ms p95_ms)},
+              @{ $row->{direct} }{qw(statements round_trips)};
+        }
+    }
+
+    return $text;
+}
+
+1;

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GPForum isolated PostgreSQL PITR evidence version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "check", "status", "reason", "recorded_at", "duration_seconds", "recovery_seconds", "metadata", "configuration", "dataset", "checks", "phases", "cleanup", "secrets_redacted", "private_beta_claimed", "residual_gaps"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "check": {"type": "string", "const": "pitr_drill"},
+    "status": {"type": "string", "enum": ["pass", "fail"]},
+    "reason": {"type": "string", "enum": ["not_completed", "verified_target", "interrupted", "deadline_exceeded", "owned_workspace_refused", "missing_required_tool", "tool_major_mismatch", "archive_not_completed", "recovered_data_mismatch", "recovery_not_completed", "operation_failed", "cleanup_failed"]},
+    "recorded_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "duration_seconds": {"type": "number", "minimum": 0},
+    "recovery_seconds": {"type": ["number", "null"], "minimum": 0},
+    "archived_segment": {"type": "string", "pattern": "^[0-9A-F]{24}$"},
+    "metadata": {
+      "type": "object", "additionalProperties": false, "required": ["commit", "source_dirty", "postgresql", "tools"],
+      "properties": {
+        "commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+        "source_dirty": {"type": ["boolean", "null"]},
+        "postgresql": {"type": ["string", "null"]},
+        "tools": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "configuration": {
+      "type": "object", "additionalProperties": false, "required": ["port", "timeout_seconds", "isolated_cluster", "external_database_used"],
+      "properties": {
+        "port": {"type": "integer", "minimum": 1},
+        "timeout_seconds": {"type": "number", "minimum": 0},
+        "isolated_cluster": {"type": "boolean", "const": true},
+        "external_database_used": {"type": "boolean", "const": false}
+      }
+    },
+    "dataset": {
+      "type": "object", "additionalProperties": false, "required": ["name", "rows_before", "rows_after", "recovered_bodies", "target"],
+      "properties": {
+        "name": {"type": "string", "const": "pitr-three-row-fixture"},
+        "rows_before": {"type": ["integer", "null"], "minimum": 0},
+        "rows_after": {"type": ["integer", "null"], "minimum": 0},
+        "recovered_bodies": {"type": "array", "items": {"type": "string"}},
+        "target": {"type": ["string", "null"]}
+      }
+    },
+    "checks": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manifest_verified", "archive_completed", "recovery_completed", "records_exact", "counts_exact"],
+      "properties": {
+        "manifest_verified": {"type": "boolean"}, "archive_completed": {"type": "boolean"},
+        "recovery_completed": {"type": "boolean"}, "records_exact": {"type": "boolean"}, "counts_exact": {"type": "boolean"}
+      }
+    },
+    "phases": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["name", "status", "duration_seconds"],
+        "properties": {
+          "name": {"type": "string", "enum": ["tool_versions", "initialize", "base_backup", "archive_target", "recover_target"]},
+          "status": {"type": "string", "enum": ["pass", "fail"]}, "duration_seconds": {"type": "number", "minimum": 0}
+        }
+      }
+    },
+    "cleanup": {
+      "type": "object", "additionalProperties": false, "required": ["server_stopped", "workspace_removed", "kept"],
+      "properties": {"server_stopped": {"type": "boolean"}, "workspace_removed": {"type": "boolean"}, "kept": {"type": "boolean"}}
+    },
+    "secrets_redacted": {"type": "boolean", "const": true},
+    "private_beta_claimed": {"type": "integer", "const": 0},
+    "residual_gaps": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+  }
+}

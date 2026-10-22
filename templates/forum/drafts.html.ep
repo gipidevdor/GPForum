@@ -1,0 +1,29 @@
+% layout 'default';
+% title t('nav.drafts') . ' - ' . t('app.name');
+<section aria-labelledby="drafts-heading">
+  <%= include 'components/page_header', heading_id => 'drafts-heading', component_title => t('nav.drafts') %>
+  <p><%= t('forum.draft_private_hint') %></p>
+  <p class="ui-meta"><%= t('forum.draft_retention') %></p>
+  % if (@{$drafts}) {
+    <ol class="ui-card-list" aria-label="<%= t('nav.drafts') %>">
+      % for my $draft (@{$drafts}) {
+        <li class="ui-card-list__item ui-row">
+          <article>
+            <p class="ui-meta"><%= t($draft->{kind} eq 'reply' ? 'forum.draft_reply_kind' : 'forum.draft_thread_kind') %></p>
+            <h2 class="ui-row__title"><a href="<%= $draft->{resume_url} %>"><%= length($draft->{title} // q{}) ? $draft->{title} : ($draft->{thread_title} // t('forum.draft_untitled')) %></a></h2>
+            % if ($draft->{updated_at}) {
+              <p class="ui-meta"><%= t('forum.draft_updated') %>: <%= include 'components/timestamp', at => $draft->{updated_at} %></p>
+            % }
+            <form method="post" action="<%= $draft->{delete_url} %>">
+              <%= csrf_field %>
+              <input type="hidden" name="draft_revision" value="<%= $draft->{draft_revision} %>">
+              <button class="button--danger" type="submit"><%= t('forum.draft_delete') %></button>
+            </form>
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state', heading_id => 'drafts-empty-heading', component_title => t('forum.draft_empty') %>
+  % }
+</section>

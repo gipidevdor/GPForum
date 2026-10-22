@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gpicchiarelli/GPForum/benchmarks/schema-v1.json",
+  "title": "GPForum continuous performance evidence v1",
+  "anyOf": [
+    {"$ref": "#/$defs/metadata"},
+    {"$ref": "#/$defs/summary"},
+    {"$ref": "#/$defs/data"},
+    {"$ref": "#/$defs/history"},
+    {"$ref": "#/$defs/latest"}
+  ],
+  "$defs": {
+    "state": {"enum": ["ok", "partial", "failed", "skipped"]},
+    "metric": {"type": ["number", "null"], "minimum": 0},
+    "metrics": {"type": "object", "additionalProperties": {"$ref": "#/$defs/metric"}},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "measurement": {
+      "type": "object", "required": ["scenario", "status", "metrics"],
+      "properties": {
+        "scenario": {"type": "string", "maxLength": 200},
+        "endpoint": {"type": "string"},
+        "status": {"enum": ["ok", "failed", "partial"]},
+        "generator": {"type": "string"},
+        "reactor": {"type": "string"},
+        "workers": {"type": "integer", "minimum": 1},
+        "concurrency": {"type": "integer", "minimum": 1},
+        "repetition": {"type": "integer", "minimum": 1},
+        "metrics": {"$ref": "#/$defs/metrics"},
+        "evidence_quality": {"enum": ["measured-comparative", "indicative", "measured"]}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["schema_version", "kind", "commit", "date", "timestamp", "run_id", "run_attempt", "mode", "runner", "versions", "dataset", "configuration", "limitations"],
+      "properties": {
+        "schema_version": {"const": 1}, "kind": {"const": "metadata"},
+        "commit": {"$ref": "#/$defs/commit"}, "date": {"$ref": "#/$defs/date"},
+        "timestamp": {"type": "string"}, "run_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+        "run_attempt": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "mode": {"enum": ["pr", "main", "deep"]}, "runner": {"type": "object"},
+        "versions": {"type": "object"}, "dataset": {"type": "object"}, "configuration": {"type": "object"},
+        "limitations": {"type": "array", "items": {"type": "string"}},
+        "comparison_signature": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["schema_version", "kind", "commit", "date", "timestamp", "run_id", "run_attempt", "mode", "status", "comparison_signature", "measurements", "suites", "limitations", "baseline"],
+      "properties": {
+        "schema_version": {"const": 1}, "kind": {"const": "summary"},
+        "commit": {"$ref": "#/$defs/commit"}, "date": {"$ref": "#/$defs/date"},
+        "timestamp": {"type": "string"}, "run_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+        "run_attempt": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "mode": {"enum": ["pr", "main", "deep"]},
+        "status": {"$ref": "#/$defs/state"}, "comparison_signature": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "measurements": {"type": "array", "items": {"$ref": "#/$defs/measurement"}},
+        "suites": {"type": "object"}, "baseline": {"type": "object"},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "data": {
+      "type": "object", "required": ["schema_version", "kind", "status", "measurements", "limitations"],
+      "properties": {
+        "schema_version": {"const": 1}, "kind": {"enum": ["http", "reactor", "workers", "database", "outbox"]},
+        "status": {"$ref": "#/$defs/state"},
+        "measurements": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/measurement"}},
+        "limitations": {"type": "array", "items": {"type": "string"}}, "provenance": {"type": "object"}
+      }
+    },
+    "history": {
+      "type": "object", "required": ["schema_version", "kind", "runs"],
+      "properties": {"schema_version": {"const": 1}, "kind": {"const": "history"}, "runs": {"type": "array", "items": {"type": "object"}}}
+    },
+    "latest": {
+      "type": "object", "required": ["schema_version", "kind", "run"],
+      "properties": {"schema_version": {"const": 1}, "kind": {"const": "latest"}, "run": {"type": ["object", "null"]}}
+    }
+  }
+}

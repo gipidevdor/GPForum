@@ -1,0 +1,283 @@
+name: Performance and profiling
+
+# Measurements use read-only repository access. Historical evidence is kept
+# on main; new runs retain artifacts without creating or updating branches.
+on:
+  push:
+    branches: [main]
+    paths: &performance-paths
+      - 'lib/**'
+      - 'templates/**'
+      - 'assets/**'
+      - 'migrations/**'
+      - 'cpanfile*'
+      - 'deploy/**'
+      - 'etc/**'
+      - 'bin/**'
+      - 'script/**'
+      # Data/index-only commits never retrigger measurement, including manual
+      # pushes made without GITHUB_TOKEN's recursion suppression.
+      - 'benchmarks/schema-v*.json'
+      - 'benchmarks/*.lua'
+      - 'benchmarks/*.pl'
+      - 't/performance/**'
+      - 't/lib/GPForum/Test/PostgresHarness.pm'
+      - 't/lib/GPForum/Test/OutboxTransport.pm'
+      - '.github/actions/setup-gpforum-perl/**'
+      - '.github/workflows/performance.yml'
+  pull_request:
+    branches: [main]
+    paths: *performance-paths
+  schedule:
+    # Weekly, away from the top-of-hour queues.
+    - cron: '37 1 * * 1'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Measurement depth
+        type: choice
+        options: [main, deep]
+        default: deep
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-${{ github.event_name }}-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  # Preserve an advanced run; superseded pending runs are coalesced by GitHub.
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  benchmarks:
+    name: Continuous performance evidence
+    runs-on: ubuntu-26.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gpforum_test
+        volumes:
+          - /var/run/postgresql:/var/run/postgresql
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gpforum_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      PGHOST: /var/run/postgresql
+      GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_head;host=/var/run/postgresql;port=5432
+      GPFORUM_DATABASE_USER: postgres
+      GPFORUM_DATABASE_PASSWORD: postgres
+      PGPASSWORD: postgres
+      GPFORUM_PERF_RUNNER: ubuntu-26.04
+      PERF_MODE: ${{ github.event_name == 'pull_request' && 'pr' || github.event_name == 'push' && 'main' || inputs.mode || 'deep' }}
+    steps:
+      - name: Checkout measured commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Initialize evidence before dependency setup
+        id: evidence
+        run: |
+          set -euo pipefail
+          echo "PERF_OUTPUT=$RUNNER_TEMP/performance/head" >> "$GITHUB_ENV"
+          echo "PERF_BASE=$RUNNER_TEMP/performance/base" >> "$GITHUB_ENV"
+          perl script/performance-evidence init --output "$RUNNER_TEMP/performance/head" --mode "$PERF_MODE" --commit "$PERF_COMMIT"
+        env:
+          PERF_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Test evidence and harness contracts
+        id: contracts
+        run: prove -I script/lib -I t/lib -lr t/performance
+
+      - name: Set up locked GPForum dependencies
+        id: dependencies
+        uses: ./.github/actions/setup-gpforum-perl
+        with:
+          postgres: 'true'
+
+      - name: Install independent load generator
+        id: tools
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y wrk
+
+      - name: Create disposable measurement databases
+        id: databases
+        run: |
+          set -euo pipefail
+          psql 'user=postgres dbname=gpforum_test' -v ON_ERROR_STOP=1 -c 'CREATE DATABASE gpforum_perf_head'
+          psql 'user=postgres dbname=gpforum_test' -v ON_ERROR_STOP=1 -c 'CREATE DATABASE gpforum_perf_base'
+
+      - name: Migrate the candidate disposable database
+        id: migrations
+        run: bin/gpforum migrate
+
+      - name: Checkout PR base for paired measurements
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline-code
+          persist-credentials: false
+
+      - name: Resolve baseline system Perl version
+        id: perl
+        if: github.event_name == 'pull_request'
+        run: printf 'version=%s\n' "$(/usr/bin/perl -MConfig -e 'print $Config{version}')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore exact locked baseline dependencies
+        if: github.event_name == 'pull_request'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: baseline-code/local
+          key: gpforum-carton-${{ runner.os }}-${{ runner.arch }}-perl${{ steps.perl.outputs.version }}-pgtrue-${{ hashFiles('baseline-code/cpanfile', 'baseline-code/cpanfile.postgres', 'baseline-code/cpanfile.snapshot') }}
+
+      - name: Prepare the same harness against the PR base
+        id: base-setup
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          # One harness version, each revision's source and locked dependencies.
+          # No privileged job executes this checkout or consumes this cache.
+          mkdir -p baseline-code/benchmarks
+          cp script/performance-* baseline-code/script/
+          mkdir -p baseline-code/script/lib/GPForum
+          cp -a script/lib/GPForum/Performance baseline-code/script/lib/GPForum/
+          cp benchmarks/schema-v1.json benchmarks/wrk-metrics.lua benchmarks/hypnotoad-app.pl baseline-code/benchmarks/
+          # Cache versions include the path. Reuse the already checked head
+          # tree when every lock input is byte-identical, then verify it with
+          # the base revision's normal deployment install below.
+          if [ ! -d baseline-code/local ] && cmp -s cpanfile baseline-code/cpanfile && cmp -s cpanfile.postgres baseline-code/cpanfile.postgres && cmp -s cpanfile.snapshot baseline-code/cpanfile.snapshot; then
+            cp -a local baseline-code/local
+          fi
+          baseline-code/script/bootstrap-deps --postgres
+          ( cd baseline-code && bin/gpforum migrate )
+          perl script/performance-evidence init --output "$PERF_BASE" --mode pr --commit "$PERF_BASE_COMMIT"
+        env:
+          PERF_BASE_COMMIT: ${{ github.event.pull_request.base.sha }}
+          GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=/var/run/postgresql;port=5432
+
+      - name: Benchmark PR base HTTP
+        id: base-http
+        if: github.event_name == 'pull_request' && steps.base-setup.outcome == 'success'
+        continue-on-error: true
+        working-directory: baseline-code
+        run: script/gpforum-carton exec script/performance-http --output "$PERF_BASE" --mode pr --generator wrk --disposable-database
+        env:
+          GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=/var/run/postgresql;port=5432
+
+      - name: Benchmark PR base SQL and outbox
+        id: base-hotpaths
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.base-setup.outcome == 'success' }}
+        continue-on-error: true
+        working-directory: baseline-code
+        run: script/gpforum-carton exec script/performance-hotpaths --output "$PERF_BASE" --mode pr --disposable-database
+        env:
+          GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_perf_base;host=/var/run/postgresql;port=5432
+
+      - name: Benchmark candidate HTTP
+        id: http
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.tools.outcome == 'success' && steps.migrations.outcome == 'success' }}
+        continue-on-error: true
+        run: script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT" --mode "$PERF_MODE" --generator wrk --disposable-database
+
+      - name: Benchmark SQL, outbox and optional profiling
+        id: hotpaths
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.migrations.outcome == 'success' }}
+        continue-on-error: true
+        run: script/gpforum-carton exec script/performance-hotpaths --output "$PERF_OUTPUT" --mode "$PERF_MODE" --disposable-database
+
+      - name: Compare 1000 and 5000 HTTP connections
+        id: connections
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.tools.outcome == 'success' && steps.migrations.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          ulimit -n 32768
+          sudo sysctl -w net.core.somaxconn=8192 net.ipv4.tcp_max_syn_backlog=8192
+          perl script/performance-evidence init --output "$PERF_OUTPUT/connections-5000" --mode pr
+          script/gpforum-carton exec script/performance-http --output "$PERF_OUTPUT/connections-5000" \
+            --mode pr --generator wrk --disposable-database --concurrency 1000,5000 --allow-5000 \
+            --scenario health_live --workers 4 --wrk-timeout 3 --duration 10 --repetitions 3 --deadline 300
+
+      - name: Fetch historical baseline data
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          # Branch consolidation preserved the existing history on main.
+          if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+            git fetch --no-tags --depth=1 origin main
+            mkdir -p "$RUNNER_TEMP/performance-history"
+            # Read only historical evidence; no fetched program is executed.
+            git archive FETCH_HEAD benchmarks/results | tar -x -C "$RUNNER_TEMP/performance-history"
+          fi
+
+      - name: Finalize partial results, schema validation and Job Summary
+        id: report
+        if: always()
+        run: |
+          set -euo pipefail
+          perl script/performance-workflow-status --output "$PERF_OUTPUT"
+          if [ -f "$PERF_BASE/metadata.json" ]; then
+            if perl script/performance-evidence finalize --output "$PERF_BASE"; then
+              perl script/performance-evidence finalize --output "$PERF_OUTPUT" --baseline "$PERF_BASE"
+            else
+              # A broken baseline must not discard the candidate's evidence.
+              PERF_BASE_REPORT=failure perl script/performance-workflow-status --output "$PERF_OUTPUT"
+              perl script/performance-evidence finalize --output "$PERF_OUTPUT"
+            fi
+          else
+            perl script/performance-evidence finalize --output "$PERF_OUTPUT" --baseline-root "$RUNNER_TEMP/performance-history"
+          fi
+          perl script/performance-evidence validate --output "$PERF_OUTPUT"
+          cat "$PERF_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$PERF_OUTPUT/connections-5000/metadata.json" ]; then
+            perl script/performance-evidence finalize --output "$PERF_OUTPUT/connections-5000"
+            perl script/performance-evidence validate --output "$PERF_OUTPUT/connections-5000"
+            printf '\n## 1000 vs 5000 HTTP connections: transport capacity on /health/live\n\n' >> "$GITHUB_STEP_SUMMARY"
+            cat "$PERF_OUTPUT/connections-5000/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        env:
+          PERF_CONTRACTS: ${{ steps.contracts.outcome }}
+          PERF_SETUP: ${{ steps.dependencies.outcome }}
+          PERF_TOOLS: ${{ steps.tools.outcome }}
+          PERF_DATABASES: ${{ steps.databases.outcome }}
+          PERF_MIGRATIONS: ${{ steps.migrations.outcome }}
+          PERF_HTTP: ${{ steps.http.outcome }}
+          PERF_HOTPATHS: ${{ steps.hotpaths.outcome }}
+          PERF_CONNECTIONS: ${{ steps.connections.outcome }}
+          PERF_BASE_SETUP: ${{ steps.base-setup.outcome }}
+          PERF_BASE_HTTP: ${{ steps.base-http.outcome }}
+          PERF_BASE_HOTPATHS: ${{ steps.base-hotpaths.outcome }}
+          PERF_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Upload candidate performance evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gpforum-performance-head-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/performance/head/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload paired PR base evidence
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gpforum-performance-base-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/performance/base/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Keep deterministic and infrastructure failures visible
+        if: always()
+        # The connection gate is all or nothing: its own summary must be ok.
+        run: perl script/performance-workflow-status --output "$PERF_OUTPUT" --check --gate "$PERF_OUTPUT/connections-5000"

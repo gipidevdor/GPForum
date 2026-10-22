@@ -1,0 +1,46 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+
+set -- perltidy
+
+# Route through the project wrapper so the locked tree and the validated
+# interpreter are used, instead of whatever happens to be on PATH.
+if [ -d "$root/local" ]; then
+    set -- "$root/script/gpforum-carton" exec perltidy
+fi
+
+tmp_dir="${TMPDIR:-/tmp}/gpforum-perltidy-check.$$"
+mkdir -p "$tmp_dir"
+trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
+
+file_list="$tmp_dir/files"
+find bin lib t script \
+    -type f \( -path 'bin/*' -o -name '*.pm' -o -name '*.pl' -o -name '*.t' \) \
+    -print0 > "$file_list" 2>/dev/null || true
+
+# script/ holds a mix of shell and Perl. Both this gate and script/perlcritic
+# select the Perl programs by shebang, so the two agree about which files the
+# house style applies to.
+for candidate in script/*; do
+    [ -f "$candidate" ] || continue
+    if head -n 1 "$candidate" | grep -q 'perl'; then
+        printf '%s\0' "$candidate" >> "$file_list"
+    fi
+done
+
+if [ ! -s "$file_list" ]; then
+    echo "No Perl files found."
+    exit 0
+fi
+
+# The same byte comparison belongs to Perl::Tidy's --assert-tidy. Batch
+# the inputs so the validated interpreter and formatter start once per
+# argument-size batch, rather than once for every file in the repository.
+# Output stays in the owned temporary directory; no source is rewritten.
+xargs -0 "$@" --assert-tidy --standard-error-output \
+    --profile="$root/.perltidyrc" --output-path="$tmp_dir" < "$file_list"

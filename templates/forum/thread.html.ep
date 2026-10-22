@@ -1,0 +1,36 @@
+% layout 'default';
+% title $thread->{title} . ' - ' . t('app.name');
+% stash breadcrumbs => ui_thread_breadcrumbs($thread);
+% my $can_reply = !$thread->{deleted_at} && !$thread->{locked_at};
+
+<article class="thread" aria-labelledby="thread-heading">
+  <%= include 'forum/_thread_header', can_reply => $can_reply %>
+  <%= include 'forum/_thread_notices' %>
+  <section aria-labelledby="posts-heading">
+    <h2 class="visually-hidden" id="posts-heading"><%= t('forum.posts') %></h2>
+    % if (@{$posts}) {
+      <ol class="ui-card-list" id="posts">
+        <%= include 'forum/_posts', posts => $posts %>
+      </ol>
+    % } else {
+      <%= include 'components/empty_state',
+        heading_id => 'posts-empty-heading',
+        component_title => t('forum.no_visible_posts') %>
+    % }
+    <%= include 'forum/_posts_pagination' %>
+  </section>
+  % if ($can_reply && $engagement && $engagement->{authenticated}) {
+    <%= include 'forum/_composer' %>
+  % } elsif ($can_reply) {
+    <section class="reply-prompt" id="reply" aria-labelledby="reply-heading">
+      <h2 id="reply-heading"><%= t('forum.reply') %></h2>
+      <p id="reply-body"><%= t('forum.sign_in_to_reply') %></p>
+      <p class="ui-row-links">
+        <a class="button" href="<%= url_for('login')->query(return_to => url_for('current')->path->to_string) %>"><%= t('auth.login') %></a>
+        <a class="button button--secondary" href="<%= ui_path('register') %>"><%= t('auth.create_account') %></a>
+      </p>
+    </section>
+  % } else {
+    <div id="reply" hidden></div>
+  % }
+</article>

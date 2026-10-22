@@ -1,0 +1,204 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -eu
+
+# A database's schema as one sorted line per fact, so two databases compare
+# with diff or comm: schemas, relations with their options and grants, each
+# column by its position among the live ones, constraints, indexes, triggers,
+# sequences, types, comments, default privileges and settings, and every
+# function's contract, settings, grants and the MD5 of its body. Month
+# partitions are counted under their parent, so two databases made in
+# different months still compare. ADR 0150 proved the 1.0 baseline with it.
+
+usage() {
+    cat <<'USAGE'
+Usage: script/schema-fingerprint [psql connection options] DBNAME
+
+  Prints the schema of DBNAME as sorted facts on standard output. The
+  connection options are psql's (-h HOST, -p PORT, -U USER); PGHOST,
+  PGPORT and PGUSER work too. Compare two databases with:
+
+    script/schema-fingerprint a > a.txt
+    script/schema-fingerprint b > b.txt
+    diff a.txt b.txt
+USAGE
+}
+
+case "${1:-}" in
+    --help|'') usage; exit 0 ;;
+esac
+
+psql_bin=${PSQL:-psql}
+"$psql_bin" -X -q -At -v ON_ERROR_STOP=1 "$@" <<'SQL' | LC_ALL=C sort
+SET search_path = pg_catalog;
+
+WITH ns AS (
+  SELECT oid, nspname FROM pg_namespace
+  WHERE nspname !~ '^pg_' AND nspname <> 'information_schema'
+)
+SELECT kind, name, regexp_replace(detail, E'\\s*\\n\\s*', ' ', 'g'), regexp_replace(extra, E'\\s*\\n\\s*', ' ', 'g') FROM (SELECT * FROM (
+  -- schemas
+  SELECT 'schema'::text, n.nspname::text, pg_get_userbyid(n.nspowner)::text, coalesce(n.nspacl::text, '')::text
+  FROM pg_namespace n JOIN ns USING (oid)
+  UNION ALL
+  -- extensions
+  SELECT 'extension', e.extname, e.extversion, x.nspname
+  FROM pg_extension e JOIN pg_namespace x ON x.oid = e.extnamespace
+  UNION ALL
+  -- relations (not partitions)
+  SELECT 'relation', ns.nspname || '.' || c.relname,
+         c.relkind::text || ' persistence=' || c.relpersistence::text
+           || ' owner=' || pg_get_userbyid(c.relowner)
+           || ' rls=' || c.relrowsecurity || '/' || c.relforcerowsecurity
+           || ' replident=' || c.relreplident::text
+           || ' partkey=' || coalesce(pg_get_partkeydef(c.oid), ''),
+         'options=' || coalesce(c.reloptions::text, '') || ' acl=' || coalesce(c.relacl::text, '')
+  FROM pg_class c JOIN ns ON ns.oid = c.relnamespace
+  WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c') AND NOT c.relispartition
+  UNION ALL
+  -- partitions, by parent and bound kind only, counted
+  SELECT 'partition', ns.nspname || '.' || p.relname,
+         CASE WHEN pg_get_expr(c.relpartbound, c.oid) = 'DEFAULT' THEN 'default ' || c.relname
+              ELSE 'range' END,
+         'options=' || coalesce(c.reloptions::text, '') || ' count=' || count(*)
+  FROM pg_inherits i
+  JOIN pg_class c ON c.oid = i.inhrelid AND c.relkind IN ('r', 'p')
+  JOIN pg_class p ON p.oid = i.inhparent
+  JOIN ns ON ns.oid = p.relnamespace
+  GROUP BY 1, 2, 3, c.reloptions
+  UNION ALL
+  -- columns, by their position among live columns
+  SELECT 'column', ns.nspname || '.' || c.relname || '.' || lpad(
+           (row_number() OVER (PARTITION BY c.oid ORDER BY a.attnum))::text, 3, '0') || '.' || a.attname,
+         format_type(a.atttypid, a.atttypmod)
+           || CASE WHEN a.attnotnull THEN ' not null' ELSE '' END
+           || CASE WHEN a.attidentity <> '' THEN ' identity=' || a.attidentity::text ELSE '' END
+           || CASE WHEN a.attgenerated <> '' THEN ' generated=' || a.attgenerated::text ELSE '' END
+           || CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+                   THEN ' collate=' || (SELECT collname FROM pg_collation WHERE oid = a.attcollation) ELSE '' END
+           || CASE WHEN a.attstorage <> t.typstorage THEN ' storage=' || a.attstorage::text ELSE '' END
+           || CASE WHEN a.attcompression <> '' THEN ' compression=' || a.attcompression::text ELSE '' END
+           || CASE WHEN a.attstattarget IS NOT NULL THEN ' stattarget=' || a.attstattarget ELSE '' END
+           || CASE WHEN a.attoptions IS NOT NULL THEN ' options=' || a.attoptions::text ELSE '' END,
+         'default=' || coalesce(pg_get_expr(d.adbin, d.adrelid), '') || ' acl=' || coalesce(a.attacl::text, '')
+  FROM pg_attribute a
+  JOIN pg_class c ON c.oid = a.attrelid AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'c') AND NOT c.relispartition
+  JOIN ns ON ns.oid = c.relnamespace
+  JOIN pg_type t ON t.oid = a.atttypid
+  LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+  WHERE a.attnum > 0 AND NOT a.attisdropped
+  UNION ALL
+  -- constraints (table and domain), not on partitions
+  SELECT 'constraint', ns.nspname || '.' || coalesce(c.relname, ty.typname) || '.' || k.conname,
+         k.contype::text || ' ' || pg_get_constraintdef(k.oid, true),
+         'deferrable=' || k.condeferrable || '/' || k.condeferred || ' valid=' || k.convalidated
+           || ' noinherit=' || k.connoinherit
+  FROM pg_constraint k
+  LEFT JOIN pg_class c ON c.oid = k.conrelid
+  LEFT JOIN pg_type ty ON ty.oid = k.contypid
+  JOIN ns ON ns.oid = k.connamespace
+  WHERE coalesce(c.relispartition, false) = false
+  UNION ALL
+  -- indexes, not on partitions
+  SELECT 'index', ns.nspname || '.' || ic.relname,
+         pg_get_indexdef(ic.oid),
+         'options=' || coalesce(ic.reloptions::text, '') || ' clustered=' || x.indisclustered
+           || ' valid=' || x.indisvalid
+  FROM pg_index x
+  JOIN pg_class ic ON ic.oid = x.indexrelid
+  JOIN pg_class tc ON tc.oid = x.indrelid
+  JOIN ns ON ns.oid = ic.relnamespace
+  WHERE NOT tc.relispartition
+  UNION ALL
+  -- index statistics targets
+  SELECT 'index-column', ns.nspname || '.' || ic.relname || '.' || a.attnum,
+         'stattarget=' || a.attstattarget, ''
+  FROM pg_attribute a
+  JOIN pg_class ic ON ic.oid = a.attrelid AND ic.relkind IN ('i', 'I') AND NOT ic.relispartition
+  JOIN ns ON ns.oid = ic.relnamespace
+  WHERE a.attstattarget IS NOT NULL
+  UNION ALL
+  -- triggers
+  SELECT 'trigger', ns.nspname || '.' || c.relname || '.' || g.tgname,
+         pg_get_triggerdef(g.oid, true), 'enabled=' || g.tgenabled::text
+  FROM pg_trigger g JOIN pg_class c ON c.oid = g.tgrelid JOIN ns ON ns.oid = c.relnamespace
+  WHERE NOT g.tgisinternal AND NOT c.relispartition
+  UNION ALL
+  -- sequences
+  SELECT 'sequence', ns.nspname || '.' || c.relname,
+         format_type(s.seqtypid, NULL) || ' start=' || s.seqstart || ' inc=' || s.seqincrement
+           || ' min=' || s.seqmin || ' max=' || s.seqmax || ' cache=' || s.seqcache || ' cycle=' || s.seqcycle,
+         'owned_by=' || coalesce((SELECT d.refobjid::regclass || '.' || d.refobjsubid FROM pg_depend d
+                                   WHERE d.objid = c.oid AND d.classid = 'pg_class'::regclass
+                                     AND d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i')), '')
+  FROM pg_sequence s JOIN pg_class c ON c.oid = s.seqrelid JOIN ns ON ns.oid = c.relnamespace
+  UNION ALL
+  -- extended statistics
+  SELECT 'statistics', ns.nspname || '.' || s.stxname, pg_get_statisticsobjdef(s.oid),
+         'target=' || coalesce(s.stxstattarget::text, '')
+  FROM pg_statistic_ext s JOIN ns ON ns.oid = s.stxnamespace
+  UNION ALL
+  -- policies
+  SELECT 'policy', c.relname || '.' || p.polname, p.polcmd::text || ' ' || coalesce(pg_get_expr(p.polqual, p.polrelid), ''),
+         coalesce(pg_get_expr(p.polwithcheck, p.polrelid), '')
+  FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
+  UNION ALL
+  -- types that are not a table's row type
+  SELECT 'type', ns.nspname || '.' || t.typname, t.typtype::text,
+         CASE t.typtype::text
+           WHEN 'e' THEN (SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum WHERE enumtypid = t.oid)
+           WHEN 'd' THEN format_type(t.typbasetype, t.typtypmod) || ' notnull=' || t.typnotnull
+           ELSE '' END || ' acl=' || coalesce(t.typacl::text, '')
+  FROM pg_type t JOIN ns ON ns.oid = t.typnamespace
+  WHERE t.typtype IN ('e', 'd', 'r', 'm')
+     OR (t.typtype = 'c' AND (SELECT relkind FROM pg_class WHERE oid = t.typrelid) = 'c')
+  UNION ALL
+  -- functions: their contract
+  SELECT 'function', ns.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+         'returns ' || coalesce(pg_get_function_result(p.oid), '')
+           || ' kind=' || p.prokind::text || ' lang=' || l.lanname
+           || ' volatile=' || p.provolatile::text || ' parallel=' || p.proparallel::text
+           || ' strict=' || p.proisstrict || ' definer=' || p.prosecdef || ' leakproof=' || p.proleakproof
+           || ' cost=' || p.procost || ' rows=' || p.prorows
+           || ' config=' || coalesce(p.proconfig::text, '')
+           || ' owner=' || pg_get_userbyid(p.proowner),
+         'args=' || pg_get_function_arguments(p.oid) || ' acl=' || coalesce(p.proacl::text, '')
+  FROM pg_proc p JOIN ns ON ns.oid = p.pronamespace JOIN pg_language l ON l.oid = p.prolang
+  WHERE NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+  UNION ALL
+  -- functions: the hash of their body, so a changed body is one line
+  SELECT 'function-body', ns.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+         md5(coalesce(p.prosrc, '')), ''
+  FROM pg_proc p JOIN ns ON ns.oid = p.pronamespace
+  WHERE NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+  UNION ALL
+  -- default privileges
+  SELECT 'default-acl', pg_get_userbyid(a.defaclrole) || '.' || coalesce(n.nspname, '*') || '.' || a.defaclobjtype::text,
+         coalesce(a.defaclacl::text, ''), ''
+  FROM pg_default_acl a LEFT JOIN pg_namespace n ON n.oid = a.defaclnamespace
+  UNION ALL
+  -- comments
+  SELECT 'comment', d.classoid::regclass::text || ':' || coalesce(
+           CASE d.classoid
+             WHEN 'pg_class'::regclass THEN d.objoid::regclass::text
+             WHEN 'pg_proc'::regclass THEN d.objoid::regprocedure::text
+             WHEN 'pg_namespace'::regclass THEN (SELECT nspname FROM pg_namespace WHERE oid = d.objoid)
+             WHEN 'pg_type'::regclass THEN d.objoid::regtype::text
+             ELSE d.objoid::text END, '?') || '.' || d.objsubid,
+         md5(d.description), left(d.description, 60)
+  FROM pg_description d
+  WHERE d.classoid IN ('pg_class'::regclass, 'pg_proc'::regclass, 'pg_namespace'::regclass, 'pg_type'::regclass)
+    AND (d.classoid <> 'pg_namespace'::regclass OR d.objoid IN (SELECT oid FROM ns))
+    AND (d.classoid <> 'pg_class'::regclass OR d.objoid IN (SELECT c.oid FROM pg_class c JOIN ns ON ns.oid = c.relnamespace))
+    AND (d.classoid <> 'pg_proc'::regclass OR d.objoid IN (SELECT p.oid FROM pg_proc p JOIN ns ON ns.oid = p.pronamespace))
+    AND (d.classoid <> 'pg_type'::regclass OR d.objoid IN (SELECT t.oid FROM pg_type t JOIN ns ON ns.oid = t.typnamespace))
+  UNION ALL
+  -- database-level settings
+  SELECT 'db-setting', coalesce(r.rolname, '*'), array_to_string(s.setconfig, ','), ''
+  FROM pg_db_role_setting s LEFT JOIN pg_roles r ON r.oid = s.setrole
+  WHERE s.setdatabase = (SELECT oid FROM pg_database WHERE datname = current_database())
+) facts(kind, name, detail, extra)
+ORDER BY 1, 2, 3, 4) sorted;
+SQL

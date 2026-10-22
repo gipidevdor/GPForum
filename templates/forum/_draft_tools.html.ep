@@ -1,0 +1,30 @@
+%# Draft state belongs to the server. Native submit buttons also work without JS.
+% my $draft = stash('composer_draft') || {};
+% if ($draft->{draft_id}) {
+  <input type="hidden" name="kind" value="<%= $composer_kind %>">
+  <input type="hidden" name="draft_id" value="<%= $draft->{draft_id} %>">
+  <input type="hidden" name="draft_revision" value="<%= $draft->{draft_revision} // 0 %>">
+  % if ($composer_kind eq 'reply') {
+    <input type="hidden" name="thread_id" value="<%= stash('composer_thread_id') // $draft->{thread_id} // q{} %>">
+  % }
+  <div class="composer-draft-tools" data-draft-tools
+    data-conflicted="<%= stash('composer_draft_conflict') ? 'true' : 'false' %>"
+    data-save-url="<%= ui_path('draft_save') %>"
+    data-preview-url="<%= ui_path('composer_preview') %>"
+    data-saving="<%= t('forum.draft_saving') %>"
+    data-saved="<%= t('forum.draft_saved') %>"
+    data-unsaved="<%= t('forum.draft_unsaved') %>"
+    data-save-failed="<%= t('forum.draft_save_failed') %>"
+    data-conflict="<%= t('forum.draft_conflict') %>"
+    data-preview-failed="<%= t('forum.draft_preview_failed') %>">
+    <div class="composer-draft-actions">
+      <button class="button--secondary" type="submit" name="composer_action" value="save" formaction="<%= ui_path('draft_save') %>" formnovalidate hx-post="<%= ui_path('draft_save') %>" hx-target="closest .composer" hx-select=".composer" hx-swap="outerHTML" hx-validate="false"><%= t('forum.draft_save') %></button>
+      <button class="button--secondary" type="submit" name="composer_action" value="preview" formaction="<%= ui_path('composer_preview') %>" formnovalidate hx-post="<%= ui_path('composer_preview') %>" hx-target="closest .composer" hx-select=".composer" hx-swap="outerHTML" hx-validate="false"><%= t('forum.draft_preview') %></button>
+      <a href="<%= ui_path('drafts') %>"><%= t('nav.drafts') %></a>
+    </div>
+    <p class="ui-meta"><%= t('forum.draft_private_hint') %></p>
+    <p class="ui-meta"><%= t('forum.draft_retention') %></p>
+    <p class="composer-draft-status<%= stash('composer_draft_error') ? ' is-error' : q{} %>" data-draft-status role="status" aria-live="polite" aria-atomic="true"><%= stash('composer_draft_error') || stash('composer_draft_message') || (($draft->{draft_revision} // 0) > 0 ? t('forum.draft_saved') : q{}) %></p>
+    <p data-draft-conflict<%== stash('composer_draft_conflict') ? q{} : ' hidden' %>><a href="<%= ui_path('draft_resume', draft_id => $draft->{draft_id}) %>" target="_blank" rel="noopener"><%= t('forum.draft_open_saved') %></a> <%= t('forum.draft_conflict_hint') %></p>
+  </div>
+% }

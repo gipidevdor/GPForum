@@ -1,0 +1,393 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+use v5.40;
+our $VERSION = '0.001';
+use English qw(-no_match_vars);
+use lib 'script/lib';
+use Test::More;
+use File::Path qw(make_path);
+use File::Temp qw(tempdir);
+use List::Util qw(any);
+
+# Publisher tests exercise the core-only bootstrap contract.
+use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
+    SHA_LENGTH      => 40,
+    GIT_TIMEOUT     => 10,
+    ATTEMPTS        => 3,
+    CONCURRENT_RUNS => 3
+};
+use GPForum::Performance::Evidence qw(initial finalize);
+use GPForum::Performance::Publish  qw(manifest append_result publish);
+use GPForum::Performance::Support  qw(read_json write_json run_bounded);
+
+my $DATA     = 'performance-data';
+my $root     = tempdir( CLEANUP => 1 );
+my $sequence = 0;
+
+sub raw ($path) {
+    open my $file, '<:raw', $path or die "Cannot read fixture\n";
+    my $raw = do { local $INPUT_RECORD_SEPARATOR = undef; <$file> };
+    close $file or die "Cannot close raw input\n";
+    return $raw;
+}
+
+sub text ( $path, $value ) {
+    open my $file, '>:raw', $path or die "Cannot create fixture\n";
+    print {$file} $value or die "Cannot write fixture\n";
+    close $file          or die "Cannot close fixture\n";
+    return 1;
+}
+
+sub git ( $directory, @arguments ) {
+    return run_bounded( [ 'git', '-C', $directory, @arguments ],
+        { timeout => GIT_TIMEOUT } );
+}
+
+sub rejected ( $code, $pattern, $label ) {
+    my $error;
+    try { $code->(); }
+    catch ($exception) { $error = "$exception"; };
+    like( $error // q{}, $pattern, $label );
+    return undef;
+}
+
+sub remote ( $with_data = 1 ) {
+    my $directory = "$root/case-" . ++$sequence;
+    make_path( "$directory/remote.git", "$directory/application" );
+    git( "$directory/remote.git", 'init', '--quiet', '--bare' );
+    git(
+        "$directory/application", 'init',
+        '--quiet',                '--initial-branch',
+        'main'
+    );
+    text(
+        "$directory/application/application.pl",
+        "# application source must be preserved\n"
+    );
+    git( "$directory/application", 'add', 'application.pl' );
+    git(
+        "$directory/application",             '-c',
+        'user.name=Test Fixture',             '-c',
+        'user.email=fixture@example.invalid', 'commit',
+        '--quiet',                            '-m',
+        'Initial application'
+    );
+    git(
+        "$directory/application", 'push',
+        '--quiet',                "$directory/remote.git",
+        'main'
+    );
+    if ($with_data) { data_branch($directory); }
+    return ( "$directory/remote.git", $directory );
+}
+
+sub data_branch ($directory) {
+    my $data = "$directory/data";
+    make_path("$data/benchmarks");
+    git( $data, 'init', '--quiet', '--initial-branch', $DATA );
+    text( "$data/benchmarks/README.md", "# Performance evidence\n" );
+    git( $data, 'add', 'benchmarks/README.md' );
+    git(
+        $data,    '-c', 'user.name=Test Fixture',
+        '-c',     'user.email=fixture@example.invalid',
+        'commit', '--quiet', '-m', 'Initial evidence'
+    );
+    git( $data, 'push', '--quiet', "$directory/remote.git", $DATA );
+    return 1;
+}
+
+sub head ( $remote, $branch ) {
+    return git( $remote, 'rev-parse', "refs/heads/$branch" );
+}
+
+sub sample ( $directory, $run = '77', $attempt = '1' ) {
+    my $source   = "$directory/$run-$attempt";
+    my $metadata = initial( 'main', 'a' x SHA_LENGTH );
+    $metadata->{run_id}      = $run;
+    $metadata->{run_attempt} = $attempt;
+    write_json( "$source/metadata.json", $metadata );
+    write_json(
+        "$source/workflow-status.json",
+        {
+            http =>
+              { status => 'skipped', reason => 'Infrastructure test fixture' }
+        }
+    );
+    finalize($source);
+    return $source;
+}
+
+sub checkout ( $remote, $directory ) {
+    git( $directory, 'clone', '--quiet', '--branch', $DATA, $remote,
+        "$directory/results" );
+    return "$directory/results";
+}
+
+subtest 'first append, repeated attempt, allowlist and application history' =>
+  sub {
+    my ( $remote, $directory ) = remote();
+    my $main   = head( $remote, 'main' );
+    my $source = sample($directory);
+    make_path("$source/diagnostics");
+    text( "$source/diagnostics/secret.log", 'never publish raw logs' );
+    text( "$source/danger.pl",              'die "must never execute";' );
+    text( "$source/report.md", '<script>untrusted markup</script>' );
+    my $relative = publish( $source, $remote,
+        { commit => 'a' x SHA_LENGTH, run_id => '77', run_attempt => '1' } );
+    is( publish( $source, $remote ),
+        $relative, 'same immutable run is idempotent' );
+    publish( sample( $directory, '77', '2' ), $remote );
+    my $clone = checkout( $remote, $directory );
+    ok( -e "$clone/$relative/summary.json", 'canonical summary appended' );
+    unlike( raw("$clone/$relative/report.md"),
+        qr/untrusted\x20markup/msx, 'Markdown generated by trusted code' );
+    ok(
+        !-e "$clone/$relative/diagnostics" && !-e "$clone/$relative/danger.pl",
+        'only allowlisted data published'
+    );
+    is( scalar @{ read_json("$clone/benchmarks/history.json")->{runs} },
+        2, 'attempts distinct' );
+    is( read_json("$clone/benchmarks/latest.json")->{run},
+        undef, 'unexecuted runs are not latest valid' );
+    is( head( $remote, 'main' ),
+        $main, 'main is never written: the evidence has a branch of its own' );
+    ok( !-e "$clone/application.pl", 'which holds no application code' );
+    like(
+        git( $clone, 'log', '--format=%s' ),
+        qr/Initial\x20evidence/msx,
+        'evidence history preserved'
+    );
+  };
+subtest 'historical overwrite rejected' => sub {
+    my ( $remote, $directory ) = remote();
+    my $source = sample($directory);
+    publish( $source, $remote );
+    my $metadata = read_json("$source/metadata.json");
+    push @{ $metadata->{limitations} }, 'changed contents';
+    write_json( "$source/metadata.json", $metadata );
+    finalize($source);
+    rejected(
+        sub { publish( $source, $remote ) },
+        qr/refusing\x20overwrite/msx,
+        'different bytes cannot replace history'
+    );
+};
+subtest 'run provenance, traversal and artifact symlinks rejected' => sub {
+    my ( $remote, $directory ) = remote();
+    my $source = sample($directory);
+    rejected( sub { manifest( $source, { commit => 'b' x SHA_LENGTH } ) },
+        qr/triggering\x20run/msx, 'commit bound to trigger' );
+    my $metadata = read_json("$source/metadata.json");
+    $metadata->{run_id} = '../escape';
+    write_json( "$source/metadata.json", $metadata );
+    rejected(
+        sub { manifest($source) },
+        qr/schema|mismatch|Unsafe/msx,
+        'unsafe identifier rejected'
+    );
+    $source = sample( $directory, '88' );
+    unlink "$source/report.md" or die "Cannot prepare test fixture\n";
+    symlink "$source/metadata.json", "$source/report.md"
+      or die "Cannot prepare test fixture\n";
+    rejected(
+        sub { manifest($source) },
+        qr/Unsafe/msx,
+        'symlink report rejected'
+    );
+};
+subtest 'PR mode and persistent credentials excluded' => sub {
+    my ( $remote, $directory ) = remote();
+    my $source   = sample($directory);
+    my $metadata = read_json("$source/metadata.json");
+    $metadata->{mode} = 'pr';
+    write_json( "$source/metadata.json", $metadata );
+    finalize($source);
+    rejected( sub { manifest($source) },
+        qr/main\/deep/msx, 'PR cannot publish' );
+    my $token = 'fixture-token-for-environment-only';
+    publish( sample( $directory, '88' ), $remote, { token => $token } );
+    my $clone = checkout( $remote, $directory );
+    unlike(
+        raw("$clone/.git/config"),
+        qr/\Q$token\E|AUTHORIZATION/msx,
+        'token/header not persisted'
+    );
+};
+subtest 'measurement envelope bound to metadata' => sub {
+    my ( $remote, $directory ) = remote();
+    my $source = sample($directory);
+    write_json(
+        "$source/http.json",
+        {
+            schema_version => 1,
+            kind           => 'http',
+            status         => 'ok',
+            limitations    => [],
+            measurements   => [
+                {
+                    scenario    => 'health_live',
+                    endpoint    => '/health/live',
+                    generator   => 'wrk',
+                    reactor     => 'Mojo::Reactor::Poll',
+                    workers     => 2,
+                    concurrency => 1,
+                    repetition  => 1,
+                    status      => 'ok',
+                    metrics     => {
+                        requests_per_second => 100,
+                        completed           => 200,
+                        http_errors         => 0,
+                        transport_errors    => 0,
+                        duration_seconds    => 2,
+                        p50_ms              => 1,
+                        p95_ms              => 2,
+                        p99_ms              => 3
+                    }
+                }
+            ]
+        }
+    );
+    finalize($source);
+    my $payload = read_json("$source/http.json");
+    $payload->{provenance}{commit} = 'b' x SHA_LENGTH;
+    write_json( "$source/http.json", $payload );
+    rejected(
+        sub { manifest($source) },
+        qr/Measurement\x20provenance/msx,
+        'disagreeing envelope rejected'
+    );
+};
+subtest 'transient push retries without force' => sub {
+    my ( $remote, $directory ) = remote();
+    my $source   = sample($directory);
+    my $original = \&GPForum::Performance::Publish::git_command;
+    my @pushes;
+    {
+        local *GPForum::Performance::Publish::git_command =
+          sub ( $cwd, $arguments, $options ) {
+            if ( $arguments->[0] eq 'push' ) {
+                push @pushes, [ @{$arguments} ];
+                return { returncode => 1, output => q{} } if @pushes == 1;
+            }
+            return $original->( $cwd, $arguments, $options );
+          };
+        publish( $source, $remote );
+    }
+    is( scalar @pushes, 2, 'bounded transient retry' );
+    ok(
+        !(
+            any {
+                any { $_ eq '--force' }
+                  @{$_}
+            } @pushes
+        ),
+        'no force push'
+    );
+};
+subtest 'actual concurrent local Git update preserves every immutable run' =>
+  sub {
+    my ( $remote, $directory ) = remote();
+    my $first      = sample( $directory, '60' );
+    my $relative   = publish( $first, $remote );
+    my $source     = sample( $directory, '61' );
+    my $competitor = sample( $directory, '62' );
+    my $original   = \&GPForum::Performance::Publish::git_command;
+    my $raced      = 0;
+    {
+        local *GPForum::Performance::Publish::git_command =
+          sub ( $cwd, $arguments, $options ) {
+            if ( $arguments->[0] eq 'push' && !$raced ) {
+                $raced = 1;
+                publish( $competitor, $remote );
+            }
+            return $original->( $cwd, $arguments, $options );
+          };
+        publish( $source, $remote );
+    }
+    my $clone = checkout( $remote, $directory );
+    is( scalar @{ read_json("$clone/benchmarks/history.json")->{runs} },
+        CONCURRENT_RUNS, 'all concurrent results survive' );
+    my ( undef, $expected ) = manifest($first);
+    for my $name ( sort keys %{$expected} ) {
+        is( raw("$clone/$relative/$name"),
+            $expected->{$name}, "$name unchanged" );
+    }
+  };
+subtest 'destination symlink cannot escape canonical root' => sub {
+    my ( $remote, $directory ) = remote();
+    my $source = sample($directory);
+    my ( $relative, $payload ) = manifest($source);
+    make_path("$directory/checkout");
+    symlink $source, "$directory/checkout/benchmarks"
+      or die "Cannot prepare test fixture\n";
+    rejected(
+        sub { append_result( "$directory/checkout", $relative, $payload ) },
+        qr/symlink/msx, 'canonical ancestor protected' );
+};
+subtest 'denied pushes stop and preserve artifact' => sub {
+    my ( $remote, $directory ) = remote();
+    my $source   = sample($directory);
+    my $original = \&GPForum::Performance::Publish::git_command;
+    my $pushes   = 0;
+    {
+        local *GPForum::Performance::Publish::git_command =
+          sub ( $cwd, $arguments, $options ) {
+            if ( $arguments->[0] eq 'push' ) {
+                ++$pushes;
+                return { returncode => 1, output => q{} };
+            }
+            return $original->( $cwd, $arguments, $options );
+          };
+        rejected( sub { publish( $source, $remote, { attempts => 3 } ) },
+            qr/bounded\x20retries/msx, 'permission failure bounded' );
+    }
+    is( $pushes, ATTEMPTS, 'exact attempt limit' );
+    ok( -e "$source/summary.json", 'artifact remains available' );
+};
+subtest 'a missing data branch is never created' => sub {
+    my ( $remote, $directory ) = remote(0);
+    my $main = head( $remote, 'main' );
+    rejected(
+        sub { publish( sample($directory), $remote ) },
+        qr/refusing\x20to\x20initialize/msx,
+        'missing data branch refused'
+    );
+    is( git( $remote, 'for-each-ref', '--format=%(refname)' ),
+        "refs/heads/main\n", 'no branch created' );
+    is( head( $remote, 'main' ), $main, 'and main untouched' );
+};
+
+sub test_workflow_security {
+    my $workflow = raw('.github/workflows/performance.yml');
+    ok(
+        index( $workflow, 'contents: write' ) < 0,
+        'automatic measurements have no write permission'
+    );
+    for my $forbidden (
+        'pull_request_target',       'workflow_run:',
+        q{'benchmarks/**'},          q{'benchmarks/results/**'},
+        q{'benchmarks/latest.json'}, q{'benchmarks/history.json'},
+      )
+    {
+        ok( index( $workflow, $forbidden ) < 0, "$forbidden excluded" );
+    }
+    for my $required (
+        'persist-credentials: false',
+        'branches: [main]',
+        'retention-days: 14'
+      )
+    {
+        ok( index( $workflow, $required ) >= 0, "$required configured" );
+    }
+    for my $mutation ( 'performance-publish', 'git push' ) {
+        ok(
+            index( $workflow, $mutation ) < 0,
+            "automatic measurements exclude $mutation"
+        );
+    }
+    return undef;
+}
+subtest 'workflow retains artifacts without branch writes' =>
+  \&test_workflow_security;
+done_testing;

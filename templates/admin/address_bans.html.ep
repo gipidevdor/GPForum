@@ -1,0 +1,144 @@
+% layout 'default', shell => 'wide';
+% title t('admin.address_bans') . ' - ' . t('app.name');
+%# ADR 0146: bans on an address or a range, live first; the form that places
+%# one, the question "which ban covers this address?", and for each live ban
+%# the forms that edit and lift it. Every form works without JavaScript.
+
+<section aria-labelledby="admin-address-bans-heading">
+  <%= include 'components/page_header',
+    heading_id => 'admin-address-bans-heading',
+    component_title => t('admin.address_bans'),
+    description => t('admin.address_bans_description'),
+    actions_label => t('admin.address_bans'),
+    actions => ui_actions(
+      { href => ui_path('admin_dashboard'), label => t('admin.admin') },
+      { href => ui_path('admin_audit'), label => t('admin.audit') },
+    ) %>
+  % if (defined $client_address) {
+    <p class="ui-meta"><%= t('admin.address_ban_client', { address => $client_address }) %></p>
+  % }
+
+  <section aria-labelledby="address-ban-create-heading">
+    <%= include 'components/section_header',
+      heading_id => 'address-ban-create-heading',
+      component_title => t('admin.address_ban_create') %>
+    <form method="post" action="<%= ui_path('admin_address_ban_create') %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $create_command_id %>">
+      <label for="address-ban-range"><%= t('admin.address_ban_range') %></label>
+      <input id="address-ban-range" name="range" type="text" maxlength="64" required autocomplete="off" spellcheck="false" aria-describedby="address-ban-range-help">
+      <p id="address-ban-range-help" class="ui-hint"><%= t('admin.address_ban_range_help') %></p>
+      <label for="address-ban-scope"><%= t('admin.address_ban_scope') %></label>
+      <select id="address-ban-scope" name="scope" aria-describedby="address-ban-scope-help">
+        % for my $scope (@{$scopes}) {
+          <option value="<%= $scope %>"<%= $scope eq 'writes' ? ' selected' : '' %>><%= t($scope_labels->{$scope}) %></option>
+        % }
+      </select>
+      <p id="address-ban-scope-help" class="ui-hint"><%= t('admin.address_ban_scope_help') %></p>
+      <label for="address-ban-duration"><%= t('admin.address_ban_duration') %></label>
+      <select id="address-ban-duration" name="duration">
+        % for my $duration (@{$durations}) {
+          <option value="<%= $duration %>"<%= $duration eq '7d' ? ' selected' : '' %>><%= t($duration_labels->{$duration}) %></option>
+        % }
+      </select>
+      <label for="address-ban-reason"><%= t('admin.address_ban_reason') %></label>
+      <textarea id="address-ban-reason" name="reason" rows="2" maxlength="<%= $maximum_reason %>" required aria-describedby="address-ban-reason-help"></textarea>
+      <p id="address-ban-reason-help" class="ui-hint"><%= t('admin.address_ban_reason_help') %></p>
+      <button type="submit"><%= t('admin.address_ban_place') %></button>
+    </form>
+  </section>
+
+  <section aria-labelledby="address-ban-check-heading">
+    <%= include 'components/section_header',
+      heading_id => 'address-ban-check-heading',
+      component_title => t('admin.address_ban_check') %>
+    <form method="get" action="<%= ui_path('admin_address_bans') %>" role="search">
+      <label for="address-ban-check"><%= t('admin.address_ban_check_address') %></label>
+      <input id="address-ban-check" name="check" type="text" maxlength="64" autocomplete="off" spellcheck="false" value="<%= $check ? $check->{asked} : q{} %>">
+      <button type="submit" class="button--secondary"><%= t('admin.address_ban_check_submit') %></button>
+    </form>
+    % if ($check) {
+      <p role="status">
+        % if (!defined $check->{address}) {
+          <%= t('admin.address_ban_check_invalid') %>
+        % } elsif ($check->{ban}) {
+          <%= t('admin.address_ban_check_covered', { address => $check->{address}, range => $check->{ban}{address_range}, scope => t($scope_labels->{ $check->{ban}{scope} }) }) %>
+          <%= t('admin.address_ban_until') %> <%= ui_timestamp($check->{ban}{expires_at}) %>
+        % } else {
+          <%= t('admin.address_ban_check_clear', { address => $check->{address} }) %>
+        % }
+      </p>
+    % }
+  </section>
+
+  <section aria-labelledby="address-ban-list-heading">
+    <%= include 'components/section_header',
+      heading_id => 'address-ban-list-heading',
+      component_title => t('admin.address_ban_list') %>
+    <p class="ui-meta"><%= t('admin.address_ban_live_total', { count => $live_total }) %></p>
+    % if (@{$bans}) {
+      <ol class="ui-card-list" aria-label="<%= t('admin.address_ban_list') %>">
+        % for my $ban (@{$bans}) {
+          % my $id = 'address-ban-' . $ban->{ban_id};
+          % my $live = $ban->{state} eq 'active';
+          <li class="ui-card-list__item">
+            <article aria-labelledby="<%= $id %>-heading">
+              <h3 id="<%= $id %>-heading"><code><%= $ban->{address_range} %></code></h3>
+              <p class="ui-meta">
+                <%= include 'components/badge', tone => $live ? 'warning' : 'neutral', label => t($state_labels->{ $ban->{state} }) %>
+                <span><%= t($scope_labels->{ $ban->{scope} }) %></span>
+              </p>
+              <p><%= $ban->{reason} %></p>
+              <dl>
+                <dt><%= t('admin.address_ban_placed_by') %></dt>
+                <dd><%= $ban->{created_by_username} // t('common.none') %>, <%= ui_timestamp($ban->{created_at}) %></dd>
+                <dt><%= t($ban->{state} eq 'expired' ? 'admin.address_ban_expired_at' : 'admin.address_ban_expires_at') %></dt>
+                <dd><%= ui_timestamp($ban->{expires_at}) %></dd>
+                % if ($ban->{updated_at}) {
+                  <dt><%= t('admin.address_ban_edited_by') %></dt>
+                  <dd><%= $ban->{updated_by_username} // t('common.none') %>, <%= ui_timestamp($ban->{updated_at}) %></dd>
+                % }
+                % if ($ban->{lifted_at}) {
+                  <dt><%= t('admin.address_ban_lifted_by') %></dt>
+                  <dd><%= $ban->{lifted_by_username} // t('common.none') %>, <%= ui_timestamp($ban->{lifted_at}) %></dd>
+                % }
+              </dl>
+              % if ($live) {
+                <details>
+                  <summary><%= t('admin.address_ban_edit') %></summary>
+                  <form method="post" action="<%= ui_path('admin_address_ban_update', ban_id => $ban->{ban_id}) %>">
+                    <%= csrf_field %>
+                    <label for="<%= $id %>-scope"><%= t('admin.address_ban_scope') %></label>
+                    <select id="<%= $id %>-scope" name="scope">
+                      % for my $scope (@{$scopes}) {
+                        <option value="<%= $scope %>"<%= $scope eq $ban->{scope} ? ' selected' : '' %>><%= t($scope_labels->{$scope}) %></option>
+                      % }
+                    </select>
+                    <label for="<%= $id %>-duration"><%= t('admin.address_ban_duration_edit') %></label>
+                    <select id="<%= $id %>-duration" name="duration">
+                      <option value="" selected><%= t('admin.address_ban_duration_keep') %></option>
+                      % for my $duration (@{$durations}) {
+                        <option value="<%= $duration %>"><%= t($duration_labels->{$duration}) %></option>
+                      % }
+                    </select>
+                    <label for="<%= $id %>-reason"><%= t('admin.address_ban_reason') %></label>
+                    <textarea id="<%= $id %>-reason" name="reason" rows="2" maxlength="<%= $maximum_reason %>" required><%= $ban->{reason} %></textarea>
+                    <button type="submit"><%= t('admin.address_ban_save') %></button>
+                  </form>
+                </details>
+                <form method="post" action="<%= ui_path('admin_address_ban_lift', ban_id => $ban->{ban_id}) %>">
+                  <%= csrf_field %>
+                  <button type="submit" class="button--secondary"><%= t('admin.address_ban_lift') %></button>
+                </form>
+              % }
+            </article>
+          </li>
+        % }
+      </ol>
+    % } else {
+      <%= include 'components/empty_state',
+        heading_id => 'address-ban-list-empty-heading',
+        component_title => t('admin.address_ban_none') %>
+    % }
+  </section>
+</section>

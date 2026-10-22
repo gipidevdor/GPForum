@@ -1,0 +1,56 @@
+% layout 'default';
+% title t('forum.new_thread_title') . ' - ' . t('app.name');
+% my %field = map { $_->{name} => $_ } @{$form_fields};
+% my $category_field = $field{category_id};
+% my $title_field = $field{title};
+% my $tags_field = $field{tags};
+% my $body_field = $field{body_source};
+% my $visibility_field = $field{visibility};
+% my $form_described_by = $ui->{described_by} || q{};
+
+<section class="composer" aria-labelledby="new-thread-heading">
+  <p><a href="<%= ui_path('categories') %>"><%= t('nav.categories') %></a></p>
+  <h1 id="<%= $ui->{heading_id} %>"><%= t('forum.new_thread_title') %></h1>
+  <%= include 'components/error_summary',
+    summary_id => $ui->{summary_id},
+    summary => t('forum.new_thread_error_summary'),
+    errors => $errors,
+    fields => $error_fields %>
+  <form data-composer method="post" action="<%= ui_path('thread_create') %>"<%== length $form_described_by ? ' aria-describedby="' . $form_described_by . '"' : q{} %>>
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $command_id || q{} %>">
+    <label for="<%= $category_field->{id} %>"><%= t($category_field->{label_key}) %></label>
+    <select id="<%= $category_field->{id} %>" name="<%= $category_field->{name} %>" required<%== $category_field->{error_attrs} %>>
+      % for my $category (@{$categories}) {
+        <option value="<%= $category->{category_id} %>"<%= $category->{category_id} eq $category_field->{value} ? ' selected' : '' %>><%= $category->{title} %></option>
+      % }
+    </select>
+    <%= include 'components/field_error', field_id => $category_field->{error_id}, message => $category_field->{error} %>
+    <label for="<%= $title_field->{id} %>"><%= t($title_field->{label_key}) %></label>
+    <input id="<%= $title_field->{id} %>" name="<%= $title_field->{name} %>" value="<%= $title_field->{value} %>" required<%== $title_field->{error_attrs} %>>
+    <%= include 'components/field_error', field_id => $title_field->{error_id}, message => $title_field->{error} %>
+    <section class="composer__similar" data-similar-threads data-field="<%= $title_field->{name} %>" data-url="<%= ui_path('search_autocomplete') %>" data-thread-base="<%= ui_path('thread', thread_id => 'THREAD_ID') %>" aria-labelledby="similar-threads-heading" aria-live="polite" hidden>
+      <h2 id="similar-threads-heading"><%= t('forum.similar_threads') %></h2>
+      <p class="ui-hint"><%= t('forum.similar_threads_hint') %></p>
+      <ul data-similar-list></ul>
+    </section>
+    <label for="<%= $tags_field->{id} %>"><%= t($tags_field->{label_key}) %></label>
+    <input id="<%= $tags_field->{id} %>" name="<%= $tags_field->{name} %>" value="<%= $tags_field->{value} %>" autocomplete="off" aria-describedby="thread-tags-hint"<%== $tags_field->{error_attrs} %>>
+    <p class="ui-hint" id="thread-tags-hint"><%= t('forum.tags_hint') %></p>
+    <%= include 'components/field_error', field_id => $tags_field->{error_id}, message => $tags_field->{error} %>
+    <label for="<%= $body_field->{id} %>"><%= t($body_field->{label_key}) %></label>
+    <textarea id="<%= $body_field->{id} %>" name="<%= $body_field->{name} %>" rows="<%= $body_field->{rows} %>" required<%== $body_field->{error_attrs} %>><%= $body_field->{value} %></textarea>
+    <%= include 'components/field_error', field_id => $body_field->{error_id}, message => $body_field->{error} %>
+    <label for="<%= $visibility_field->{id} %>"><%= t($visibility_field->{label_key}) %></label>
+    <select id="<%= $visibility_field->{id} %>" name="<%= $visibility_field->{name} %>"<%== $visibility_field->{error_attrs} %>>
+      <option value=""<%= $visibility_field->{value} eq '' ? ' selected' : '' %>><%= t('forum.visibility_inherit') %></option>
+      <option value="public"<%= $visibility_field->{value} eq 'public' ? ' selected' : '' %>><%= t('forum.visibility_public') %></option>
+      <option value="members"<%= $visibility_field->{value} eq 'members' ? ' selected' : '' %>><%= t('forum.visibility_members') %></option>
+      <option value="private"<%= $visibility_field->{value} eq 'private' ? ' selected' : '' %>><%= t('forum.visibility_private') %></option>
+    </select>
+    <%= include 'components/field_error', field_id => $visibility_field->{error_id}, message => $visibility_field->{error} %>
+    <%= include 'forum/_draft_tools', composer_kind => 'thread' %>
+    <button type="submit"><%= t('forum.create_thread') %></button>
+  </form>
+  <%= include 'forum/_preview' %>
+</section>

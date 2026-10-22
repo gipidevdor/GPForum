@@ -1,0 +1,51 @@
+% layout 'default';
+% title t('community.bookmarks') . ' - ' . t('app.name');
+% my $in_folder = length($folder // q{}) ? 1 : 0;
+
+<section aria-labelledby="bookmarks-heading">
+  <%= include 'components/page_header',
+    heading_id => 'bookmarks-heading',
+    component_title => $in_folder ? t('community.bookmarks_in_folder', { folder => $folder }) : t('community.bookmarks'),
+    eyebrow => $in_folder ? t('community.bookmarks') : q{} %>
+  % if (@{$folders}) {
+    <nav class="ui-action-list bookmark-folders" aria-label="<%= t('community.bookmark_folders') %>">
+      <a class="button button--secondary" href="<%= ui_path('bookmarks') %>"<%== $in_folder ? q{} : ' aria-current="page"' %>><%= t('community.all_bookmarks') %></a>
+      % for my $entry (@{$folders}) {
+        <a class="button button--secondary" href="<%= url_for('bookmarks')->query(folder => $entry->{folder}) %>"<%== $in_folder && $entry->{folder} eq $folder ? ' aria-current="page"' : q{} %>><%= $entry->{folder} %> <span class="ui-count"><%= tc('community.folder_count', $entry->{bookmark_count}) %></span></a>
+      % }
+    </nav>
+  % }
+  % if (@{$bookmarks}) {
+    <ol class="ui-card-list" aria-label="<%= t('community.bookmarks') %>">
+      % for my $bookmark (@{$bookmarks}) {
+        <li class="ui-card-list__item ui-row">
+          <article aria-labelledby="bookmark-<%= $bookmark->{bookmark_id} %>-heading">
+            <h2 class="ui-row__title" id="bookmark-<%= $bookmark->{bookmark_id} %>-heading">
+              <a href="<%= ui_path('thread', thread_id => $bookmark->{target_id}) %>"><%= $bookmark->{thread_title} // t('forum.thread') . q{ } . $bookmark->{target_id} %></a>
+              % if (length($bookmark->{folder} // q{})) {
+                <%= include 'components/badge', label => $bookmark->{folder} %>
+              % }
+            </h2>
+            % if (length($bookmark->{note} // q{})) {
+              <p><%= $bookmark->{note} %></p>
+            % }
+            <p class="ui-meta">
+              <span><%= t('community.saved') %>: <%= include 'components/timestamp', at => $bookmark->{created_at} %></span>
+            </p>
+            <form class="bookmark__folder" method="post" action="<%= ui_path('bookmark_folder', bookmark_id => $bookmark->{bookmark_id}) %>">
+              <%= csrf_field %>
+              <label for="bookmark-<%= $bookmark->{bookmark_id} %>-folder"><%= t('community.bookmark_folder') %></label>
+              <input id="bookmark-<%= $bookmark->{bookmark_id} %>-folder" name="folder" type="text" value="<%= $bookmark->{folder} // q{} %>" autocomplete="off">
+              <button type="submit" class="button--secondary"><%= t('community.move_bookmark') %></button>
+            </form>
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state', heading_id => 'bookmarks-empty-heading', component_title => $in_folder ? t('community.folder_empty') : t('community.bookmarks_empty') %>
+  % }
+  % if ($next_cursor) {
+    <%= include 'components/pagination', label => t('community.bookmark_pagination'), items => ui_next_page(href => url_for('bookmarks')->query(after => $next_cursor, ($in_folder ? (folder => $folder) : ())), label => t('community.older_bookmarks')) %>
+  % }
+</section>

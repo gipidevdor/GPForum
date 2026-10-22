@@ -1,0 +1,99 @@
+% layout 'default';
+% title t('app.name');
+
+<section aria-labelledby="home-heading">
+  <%= include 'components/page_header',
+    heading_id => 'home-heading',
+    component_title => t('app.name'),
+    description => t('forum.index_tagline'),
+    actions_label => t('forum.forum_actions'),
+    actions => ui_actions(
+      { class => 'button', href => ui_path('new_thread'), label => t('nav.start_thread') },
+    ) %>
+</section>
+% my %category_title = map { $_->{category_id} => $_->{title} } @{ $home->{categories} };
+
+<section aria-labelledby="home-categories-heading">
+  <%= include 'components/section_header',
+    heading_id => 'home-categories-heading',
+    component_title => t('nav.categories') %>
+  % if (@{ $home->{categories} }) {
+    <ol class="ui-card-list" aria-label="<%= t('forum.forum_categories') %>">
+      % for my $category (@{ $home->{categories} }) {
+        <li class="ui-card-list__item ui-row">
+          <article aria-labelledby="home-category-<%= $category->{category_id} %>-heading">
+            <h3 class="ui-row__title" id="home-category-<%= $category->{category_id} %>-heading">
+              <a href="<%= ui_path('category', category_id => $category->{category_id}) %>"><%= $category->{title} %></a>
+            </h3>
+            % if ($category->{description}) {
+              <p><%= $category->{description} %></p>
+            % }
+            <%= include 'forum/_category_activity', category => $category %>
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state',
+      heading_id => 'home-categories-empty-heading',
+      component_title => t('forum.categories_empty') %>
+  % }
+</section>
+
+<section aria-labelledby="home-latest-heading">
+  <%= include 'components/section_header',
+    heading_id => 'home-latest-heading',
+    component_title => t('forum.latest_public_discussions') %>
+  % if (@{ $home->{latest_threads}{items} }) {
+    <ol class="ui-card-list" aria-label="<%= t('forum.latest_public_discussions') %>">
+      % for my $thread (@{ $home->{latest_threads}{items} }) {
+        <li class="ui-card-list__item ui-row">
+          <article aria-labelledby="home-thread-<%= $thread->{thread_id} %>-heading">
+            <h3 class="ui-row__title" id="home-thread-<%= $thread->{thread_id} %>-heading">
+              <a href="<%= ui_path('thread', thread_id => $thread->{thread_id}) %>"><%= $thread->{title} %></a>
+              % if ($thread->{pinned}) {
+                <%= include 'components/badge', label => t('forum.pinned') %>
+              % }
+            </h3>
+            <%= include 'forum/_tag_list', tags => $thread->{tags} %>
+            % if ($thread->{safe_excerpt}) {
+              <p><%= $thread->{safe_excerpt} %></p>
+            % }
+            <p class="ui-meta">
+              % if ($category_title{ $thread->{category_id} // q{} }) {
+                <span><a href="<%= ui_path('category', category_id => $thread->{category_id}) %>"><%= $category_title{ $thread->{category_id} } %></a></span>
+              % }
+              % if ($thread->{author_username}) {
+                <span>
+                  <%= t('forum.started_by') %>
+                  <a href="<%= ui_path('profile', username => $thread->{author_username}) %>"><%= $thread->{author_display_name} || '@' . $thread->{author_username} %></a>
+                </span>
+              % }
+              % if (defined $thread->{reply_count}) {
+                <span class="ui-count"><%= tc('forum.reply_count', $thread->{reply_count}) %></span>
+              % }
+              % if ($thread->{last_activity_at}) {
+                <span>
+                  <%= t('forum.last_activity') %>
+                  <%= include 'components/timestamp', at => $thread->{last_activity_at} %>
+                </span>
+              % }
+            </p>
+          </article>
+        </li>
+      % }
+    </ol>
+    % if ($home->{latest_threads}{next_cursor}) {
+      <%= include 'components/pagination',
+        label => t('forum.latest_discussion_pagination'),
+        items => ui_next_page(
+          href => url_for('home')->query(after => $home->{latest_threads}{next_cursor}),
+          label => t('forum.older_discussions'),
+        ) %>
+    % }
+  % } else {
+    <%= include 'components/empty_state',
+      heading_id => 'home-latest-empty-heading',
+      component_title => t('forum.no_public_discussions') %>
+  % }
+</section>

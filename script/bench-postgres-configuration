@@ -1,0 +1,269 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+use v5.40;
+use English       qw(-no_match_vars);
+use Getopt::Long  qw(GetOptions);
+use JSON::MaybeXS qw(encode_json);
+use Const::Fast;
+use Time::HiRes qw(time);
+use lib 'lib';
+use GPForum::Benchmark::PostgresMetrics
+  qw(snapshot process_snapshot local_backend_pid);
+use GPForum::Command::QueryPlanEvidence;
+use GPForum::Infrastructure::PostgresPerformance;
+use GPForum::Service::Search::Searcher;
+use GPForum::Service::Search::PermissionEngine;
+use GPForum::Service::Forum::Viewer;
+
+# Reuse the existing service workload and fixture, rather than maintain a
+# second implementation of posting, thread pages, home and category reads.
+{
+    our $LOAD_AS_LIBRARY;
+    local $LOAD_AS_LIBRARY = 1;                ## no critic (Variables::ProhibitLocalVars) -- scope executable-library mode to this require
+    require './script/bench-sql-functions';    ## no critic (Modules::RequireBarewordIncludes) -- the reused executable benchmark has no module name
+}
+our $VERSION = '0.001';
+const my $MAX_DOCUMENTS       => 1_000_000;
+const my $CONFIG_MILLISECONDS => 1_000;
+const my $CONFIG_P95          => 0.95;
+const my $P50                 => 0.50;
+const my $P99                 => 0.99;
+const my $SECONDS_PER_MINUTE  => 60;
+
+const my $CORPUS_POSTS_SQL => <<'SQL';
+INSERT INTO posts (post_id, thread_id, author_user_id, position)
+      SELECT md5('configuration-corpus-' || n)::uuid, ?, ?, n + 10000 FROM generate_series(1, ?) n
+SQL
+
+const my $CORPUS_SEARCH_SQL => <<'SQL';
+INSERT INTO search_documents
+      (search_document_id, entity_type, entity_id, category_id, author_user_id, space_id,
+       visibility, permission_scope, visibility_version, permission_version, language,
+       title, body, search_vector, source_version, source_created_at)
+      SELECT md5('configuration-document-' || p.position)::uuid, 'post', p.post_id,
+       c.category_id, p.author_user_id, c.space_id, 'public', 'public', 1, 1, 'simple',
+       'Performance configuration ' || p.position, d.body,
+       to_tsvector('simple', 'Performance configuration ' || d.body), 1,
+       timestamptz '2026-01-01' - p.position * interval '1 second'
+      FROM posts p JOIN threads t ON t.thread_id = p.thread_id
+      JOIN categories c ON c.category_id = t.category_id
+      CROSS JOIN LATERAL (SELECT 'the benchmark body topic' || (p.position % 97)
+        || CASE WHEN p.position % 7000 = 1 THEN ' zymurgy' ELSE '' END AS body) d
+      WHERE p.thread_id = ? AND p.position > 10000
+SQL
+
+my %configuration_option = (
+    iterations         => 100,
+    'write-iterations' => 30,
+    warmup             => 5,
+    'search-documents' => 100_000,
+);
+GetOptions(
+    \%configuration_option, 'prepare',
+    'disposable-database',  'search-documents=i',
+    'iterations=i',         'write-iterations=i',
+    'warmup=i',             'plans',
+    'help'
+) or die "Invalid options\n";
+
+if ( $configuration_option{help} ) {
+    print
+"Usage: script/bench-postgres-configuration --disposable-database [--prepare --search-documents 100000|1000000] [--iterations 100] [--write-iterations 30] [--warmup 5] [--plans]\n",
+"Uses only an existing gpforum_perf_* database. Prepare migrates/seeds; measure calls existing service benchmarks. Configuration/restarts are operator actions. Clone one prepared template for each A/B arm.\n"
+      or die "cannot write usage\n";
+    exit 0;
+}
+const my $DISPOSABLE_NAME => qr/gpforum_perf_[[:lower:][:digit:]_]+/msx;
+my $configuration_dsn = $ENV{GPFORUM_DATABASE_DSN} // q{};
+die "An explicitly disposable gpforum_perf_* database is required\n"
+  if !$configuration_option{'disposable-database'}
+  || $configuration_dsn !~ /(?:\A|[;:])dbname=$DISPOSABLE_NAME(?:;|\z)/msx;
+die "Invalid sample/corpus sizes\n"
+  if $configuration_option{iterations} < 1
+  || $configuration_option{'write-iterations'} < 1
+  || $configuration_option{warmup} < 0
+  || $configuration_option{'search-documents'} < 1
+  || $configuration_option{'search-documents'} > $MAX_DOCUMENTS;
+if ( $configuration_option{prepare} ) {
+    _seed($configuration_dsn);
+    _configuration_corpus( $configuration_dsn,
+        $configuration_option{'search-documents'} );
+    exit 0;
+}
+exit _configuration_measure( $configuration_dsn, \%configuration_option );
+
+sub _configuration_corpus ( $dsn, $target ) {
+    my $dbh = _connect($dsn);
+    my $existing =
+      $dbh->selectrow_array('SELECT count(*) FROM search_documents');
+    my $extra = $target - $existing;
+    die "corpus target smaller than fixture\n" if $extra < 1;
+    my ( $thread, $author ) = ( seed_id( thread => 1 ), seed_id( user => 2 ) );
+    $dbh->do( $CORPUS_POSTS_SQL, undef, $thread, $author, $extra );
+    $dbh->do( $CORPUS_SEARCH_SQL, undef, $thread );
+    $dbh->do('VACUUM ANALYZE');
+    print encode_json(
+        {
+            status    => 'prepared',
+            documents =>
+              $dbh->selectrow_array('SELECT count(*) FROM search_documents')
+        }
+      ),
+      "\n"
+      or die "cannot write preparation result\n";
+    $dbh->disconnect;
+    return;
+}
+
+sub _configuration_measure ( $dsn, $options ) {
+    my $schema  = _schema($dsn);
+    my $dbh     = $schema->storage->dbh;
+    my $backend = local_backend_pid($dbh);
+    my $report  = {
+        scope =>
+          'serial service operations; no HTTP or concurrency load; warm cache',
+        version       => $dbh->selectrow_array('SELECT version()'),
+        configuration => GPForum::Infrastructure::PostgresPerformance->new(
+            config => GPForum::Config->from_environment,
+            dbh    => $dbh
+        )->inspect,
+        dataset => $dbh->selectrow_hashref(
+q{SELECT count(*) AS documents, md5(string_agg(search_document_id::text, ',' ORDER BY search_document_id)) AS document_id_digest FROM search_documents}
+        ),
+        before         => snapshot($dbh),
+        process_before => process_snapshot($backend),
+        options        => $options,
+        limitations    => [
+'PostgreSQL CPU measures the benchmark backend only; RSS includes shared mappings and cannot be summed across processes.',
+'pg_stat_io and WAL counters are cluster-wide. Use an isolated server; checkpoints and autovacuum are included.',
+'track_io_timing off in the baseline makes baseline I/O duration unavailable; block counts remain comparable.'
+        ]
+    };
+    my $ops    = _operations( $schema, 'function' );
+    my $search = GPForum::Service::Search::Searcher->new(
+        schema            => $schema,
+        permission_engine => GPForum::Service::Search::PermissionEngine->new
+    );
+    my $actor = { viewer => GPForum::Service::Forum::Viewer->anonymous };
+    for my $case (
+        [ search_full_text_common => 'the' ],
+        [ search_full_text_rare   => 'zymurgy' ],
+        [ search_trigram          => 'perf thrd' ]
+      )
+    {
+        my ( $name, $query ) = @{$case};
+        $ops->{$name} = {
+            kind => 'read',
+            run  => sub {
+                return $search->ranked_search( $actor, $query,
+                    { limit => 20 } );
+            }
+        };
+    }
+    for my $name ( sort keys %{$ops} ) {
+        try {
+            $report->{operations}{$name} =
+              _configuration_operation( $ops->{$name}, $options, $backend );
+        }
+        catch ($error) {
+            $report->{operations}{$name} =
+              { status => 'failed', error => "$error", samples => 0 };
+        };
+    }
+    $dbh->do('SELECT pg_stat_force_next_flush()');
+    $report->{after}              = snapshot($dbh);
+    $report->{wal_bytes_inserted} = $dbh->selectrow_array(
+        'SELECT pg_wal_lsn_diff(?::pg_lsn, ?::pg_lsn)',
+        undef,
+        $report->{after}{lsn},
+        $report->{before}{lsn}
+    );
+    if ( $options->{plans} ) {
+        for my $query ( 'the', 'zymurgy', 'perf thrd' ) {
+            my $call = $search->ranked_call( $actor, $query, { limit => 20 } );
+            $report->{plans}{$query} = _configuration_plan(
+                $dbh,
+                $search->functions->statement( @{$call} ),
+                { analyze => 1 }
+            );
+        }
+        my $call = $search->autocomplete_call( $actor, 'Per', { limit => 10 } );
+        $report->{plans}{autocomplete} = _configuration_plan(
+            $dbh,
+            $search->functions->statement( @{$call} ),
+            { analyze => 1 }
+        );
+        $report->{indexes} = $dbh->selectall_arrayref(
+q{SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'search_documents'},
+            { Slice => {} }
+        );
+        $report->{statistics} = $dbh->selectall_arrayref(
+q{SELECT relname, n_live_tup, last_analyze, last_autoanalyze FROM pg_stat_user_tables WHERE relname IN ('search_documents', 'posts', 'threads', 'categories', 'spaces')},
+            { Slice => {} }
+        );
+        $report->{functions} = $dbh->selectall_arrayref(
+q{SELECT proname, proconfig FROM pg_proc WHERE pronamespace = 'api'::regnamespace AND proname ~ '^search_(ranked|autocomplete)_v' ORDER BY proname},
+            { Slice => {} }
+        );
+    }
+    $report->{status} =
+      ( scalar grep { $_->{status} ne 'ok' } values %{ $report->{operations} } )
+      ? 'partial'
+      : 'ok';
+    print encode_json($report), "\n" or die "cannot write report\n";
+    $schema->storage->disconnect;
+    return $report->{status} eq 'ok' ? 0 : 1;
+}
+
+sub _configuration_operation ( $operation, $options, $backend ) {
+    for ( 1 .. $options->{warmup} ) { $operation->{run}->(); }
+    my $n =
+        $operation->{kind} eq 'write'
+      ? $options->{'write-iterations'}
+      : $options->{iterations};
+    my ( @samples, @cpu_start, @cpu_end );
+    @cpu_start = times;
+    my $pg_before = process_snapshot($backend);
+    my $started   = time;
+    for ( 1 .. $n ) {
+        my $start = time;
+        $operation->{run}->();
+        push @samples, $CONFIG_MILLISECONDS * ( time - $start );
+    }
+    my $elapsed = time - $started;
+    @cpu_end = times;
+    my $pg_after = process_snapshot($backend);
+    return {
+        status                  => 'ok',
+        samples                 => $n,
+        throughput_per_second   => $n / $elapsed,
+        p50_ms                  => _percentile( \@samples, $P50 ),
+        p95_ms                  => _percentile( \@samples, $CONFIG_P95 ),
+        p99_ms                  => _percentile( \@samples, $P99 ),
+        application_cpu_seconds => $cpu_end[0] +
+          $cpu_end[1] -
+          $cpu_start[0] -
+          $cpu_start[1],
+        postgres_backend_cpu_seconds => $pg_before
+          && $pg_after ? $pg_after->{cpu_seconds} - $pg_before->{cpu_seconds}
+        : undef,
+        postgres_backend_rss_kib => $pg_after ? $pg_after->{rss_kib}
+        : undef,
+        application_process => process_snapshot($PROCESS_ID),
+        latency_samples_ms  => \@samples
+    };
+}
+
+sub _configuration_plan ( $dbh, $statement, $options ) {
+    try {
+        return GPForum::Command::QueryPlanEvidence::_explain_nested(    ## no critic (Subroutines::ProtectPrivateSubs) -- reuse internal ANALYZE/BUFFERS/WAL capture
+            $dbh,
+            $statement, $options
+        );
+    }
+    catch ($error) { return { status => 'unavailable', reason => "$error" }; };
+    return undef;
+}

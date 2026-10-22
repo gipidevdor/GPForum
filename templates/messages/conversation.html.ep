@@ -1,0 +1,81 @@
+% layout 'default';
+% my $other = $conversation->{other};
+% my $with = $other->{gone} ? t('messages.member_gone') : $other->{display_name};
+% title t('messages.conversation_with', { name => $with }) . ' - ' . t('app.name');
+%# ADR 0139: one conversation, its newest messages oldest first and the form
+%# that answers. Only its two members read it; it is never cached. Each of
+%# the other member's messages can be reported to the staff, in a sheet.
+<section aria-labelledby="conversation-heading">
+  <%= include 'components/page_header',
+    heading_id => 'conversation-heading',
+    component_title => t('messages.conversation_with', { name => $with }),
+    description => $other->{gone} ? t('messages.member_gone_notice') : '@' . $other->{username},
+    actions_label => t('messages.inbox'),
+    actions => ui_actions({ href => ui_path('messages'), label => t('messages.back_to_inbox') }) %>
+  % if ($older_cursor) {
+    <%= include 'components/pagination', label => t('messages.pagination'), items => ui_next_page(href => url_for('message_conversation', conversation_id => $conversation->{conversation_id})->query(before => $older_cursor), label => t('messages.older_messages')) %>
+  % }
+  % if (@{$messages}) {
+    <ol class="ui-card-list" aria-label="<%= t('messages.messages_label') %>">
+      % for my $message (@{$messages}) {
+        % my $author = $message->{author};
+        % my $anchor = $message->{ui}{anchor};
+        <li class="ui-card-list__item">
+          <article class="post" id="<%= $anchor %>" aria-labelledby="<%= $anchor %>-heading">
+            <h3 class="visually-hidden" id="<%= $anchor %>-heading"><%= $message->{own} ? t('messages.you') : ($author->{gone} ? t('messages.member_gone') : $author->{display_name}) %></h3>
+            <span class="avatar avatar--<%= $author->{tint} %> post__avatar" aria-hidden="true"><%= $author->{initial} %></span>
+            <header class="post__header">
+              <p class="ui-meta post__byline">
+                % if ($message->{own}) {
+                  <span class="post__author"><%= t('messages.you') %></span>
+                % } elsif ($author->{gone}) {
+                  <span class="post__author"><%= t('messages.member_gone') %></span>
+                % } else {
+                  <a class="post__author" href="<%= ui_path('profile', username => $author->{username}) %>"><%= $author->{display_name} %></a>
+                % }
+                <span><%= include 'components/timestamp', at => $message->{created_at} %></span>
+              </p>
+            </header>
+            % my @lines = @{ $message->{body_lines} };
+            <div class="forum-post-body"><p><% for my $index (0 .. $#lines) { %><%= $lines[$index] %><% if ($index < $#lines) { %><br><% } %><% } %></p></div>
+            % if (!$message->{own}) {
+              <footer class="post__actions">
+                <button type="button" class="button--quiet" popovertarget="<%= $message->{ui}{report_sheet} %>"><%= t('messages.report') %></button>
+                <%= include 'components/sheet', sheet_id => $message->{ui}{report_sheet}, component_title => t('messages.report'), sheet_body => begin %>
+                  <p class="sheet__consequence"><%= t('messages.report_consequence') %></p>
+                  <%= include 'forum/_report_form',
+                    post_to => ui_path('message_report', conversation_id => $conversation->{conversation_id}, message_id => $message->{message_id}),
+                    command_id => $message->{report_command_id},
+                    field_id => $message->{ui}{report_sheet} %>
+                <% end %>
+              </footer>
+            % }
+          </article>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <%= include 'components/empty_state', heading_id => 'conversation-empty-heading', component_title => t('messages.no_messages') %>
+  % }
+</section>
+
+<section aria-labelledby="conversation-reply-heading">
+  <%= include 'components/section_header', heading_id => 'conversation-reply-heading', component_title => t('messages.reply') %>
+  % if ($other->{gone}) {
+    <p class="ui-meta" role="status"><%= t('messages.member_gone_notice') %></p>
+  % } elsif ($conversation->{reader_blocks}) {
+    <p class="ui-meta" role="status"><%= t('messages.reader_blocks_notice') %> <a href="<%= ui_path('profile', username => $other->{username}) %>"><%= t('messages.open_profile') %></a></p>
+  % } else {
+    % if ($error) {
+      <%= include 'components/alert', tone => 'error', message => $error %>
+    % }
+    <form method="post" action="<%= ui_path('message_reply', conversation_id => $conversation->{conversation_id}) %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $reply_command_id %>">
+      <label for="message-reply-body"><%= t('messages.body') %></label>
+      <textarea id="message-reply-body" name="body" rows="5" maxlength="<%= $maximum_body %>" required aria-describedby="message-reply-body-help"><%= $draft %></textarea>
+      <p id="message-reply-body-help" class="ui-meta"><%= t('messages.body_help', { limit => $maximum_body }) %></p>
+      <button type="submit"><%= t('messages.send') %></button>
+    </form>
+  % }
+</section>

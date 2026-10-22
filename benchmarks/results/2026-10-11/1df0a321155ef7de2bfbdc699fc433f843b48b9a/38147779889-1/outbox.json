@@ -1,0 +1,320 @@
+{
+  "kind": "outbox",
+  "limitations": [],
+  "measurements": [
+    {
+      "configuration": {
+        "batch_size": 100,
+        "messages": 3000,
+        "transport": "no-op"
+      },
+      "evidence": {
+        "acknowledged": 3000,
+        "delivered": 3000,
+        "done": 3000,
+        "duplicates": 0,
+        "duration_seconds": 5.37462186813354,
+        "errors": [],
+        "lost": 0,
+        "messages": 3000,
+        "messages_per_second": 558.178802826517,
+        "p50_batch_ms": 172.868967056274,
+        "p95_batch_ms": 210.131883621216,
+        "p99_batch_ms": 380.0950050354,
+        "repetition": 1,
+        "status": "ok",
+        "workers": 1
+      },
+      "limitations": [
+        "Actual PostgreSQL claim/renew/ack; no-op handler excludes real delivery cost; batch percentiles are not message latency"
+      ],
+      "metrics": {
+        "acknowledged": 3000,
+        "completed": 3000,
+        "duplicates": 0,
+        "duration_seconds": 5.37462186813354,
+        "lost": 0,
+        "messages_per_second": 558.178802826517,
+        "p50_ms": 172.868967056274,
+        "p95_ms": 210.131883621216,
+        "p99_ms": 380.0950050354
+      },
+      "repetition": 1,
+      "scenario": "postgres-dispatch-noop",
+      "status": "ok",
+      "workers": 1
+    },
+    {
+      "configuration": {
+        "batch_size": 100,
+        "messages": 3000,
+        "transport": "no-op"
+      },
+      "evidence": {
+        "acknowledged": 3000,
+        "delivered": 3000,
+        "done": 3000,
+        "duplicates": 0,
+        "duration_seconds": 3.74746108055115,
+        "errors": [],
+        "lost": 0,
+        "messages": 3000,
+        "messages_per_second": 800.542003109685,
+        "p50_batch_ms": 209.408044815063,
+        "p95_batch_ms": 701.243877410889,
+        "p99_batch_ms": 702.111005783081,
+        "repetition": 1,
+        "status": "ok",
+        "workers": 2
+      },
+      "limitations": [
+        "Actual PostgreSQL claim/renew/ack; no-op handler excludes real delivery cost; batch percentiles are not message latency"
+      ],
+      "metrics": {
+        "acknowledged": 3000,
+        "completed": 3000,
+        "duplicates": 0,
+        "duration_seconds": 3.74746108055115,
+        "lost": 0,
+        "messages_per_second": 800.542003109685,
+        "p50_ms": 209.408044815063,
+        "p95_ms": 701.243877410889,
+        "p99_ms": 702.111005783081
+      },
+      "repetition": 1,
+      "scenario": "postgres-dispatch-noop",
+      "status": "ok",
+      "workers": 2
+    },
+    {
+      "configuration": {
+        "batch_size": 100,
+        "messages": 3000,
+        "transport": "no-op"
+      },
+      "evidence": {
+        "acknowledged": 3000,
+        "delivered": 3000,
+        "done": 3000,
+        "duplicates": 0,
+        "duration_seconds": 3.21162295341492,
+        "errors": [],
+        "lost": 0,
+        "messages": 3000,
+        "messages_per_second": 934.107161243851,
+        "p50_batch_ms": 211.194038391113,
+        "p95_batch_ms": 238.545894622803,
+        "p99_batch_ms": 239.645957946777,
+        "repetition": 2,
+        "status": "ok",
+        "workers": 2
+      },
+      "limitations": [
+        "Actual PostgreSQL claim/renew/ack; no-op handler excludes real delivery cost; batch percentiles are not message latency"
+      ],
+      "metrics": {
+        "acknowledged": 3000,
+        "completed": 3000,
+        "duplicates": 0,
+        "duration_seconds": 3.21162295341492,
+        "lost": 0,
+        "messages_per_second": 934.107161243851,
+        "p50_ms": 211.194038391113,
+        "p95_ms": 238.545894622803,
+        "p99_ms": 239.645957946777
+      },
+      "repetition": 2,
+      "scenario": "postgres-dispatch-noop",
+      "status": "ok",
+      "workers": 2
+    },
+    {
+      "configuration": {
+        "batch_size": 100,
+        "messages": 3000,
+        "transport": "no-op"
+      },
+      "evidence": {
+        "acknowledged": 3000,
+        "delivered": 3000,
+        "done": 3000,
+        "duplicates": 0,
+        "duration_seconds": 5.75411987304688,
+        "errors": [],
+        "lost": 0,
+        "messages": 3000,
+        "messages_per_second": 521.36557217941,
+        "p50_batch_ms": 165.983915328979,
+        "p95_batch_ms": 429.187059402466,
+        "p99_batch_ms": 447.55482673645,
+        "repetition": 2,
+        "status": "ok",
+        "workers": 1
+      },
+      "limitations": [
+        "Actual PostgreSQL claim/renew/ack; no-op handler excludes real delivery cost; batch percentiles are not message latency"
+      ],
+      "metrics": {
+        "acknowledged": 3000,
+        "completed": 3000,
+        "duplicates": 0,
+        "duration_seconds": 5.75411987304688,
+        "lost": 0,
+        "messages_per_second": 521.36557217941,
+        "p50_ms": 165.983915328979,
+        "p95_ms": 429.187059402466,
+        "p99_ms": 447.55482673645
+      },
+      "repetition": 2,
+      "scenario": "postgres-dispatch-noop",
+      "status": "ok",
+      "workers": 1
+    },
+    {
+      "configuration": {
+        "batch_size": 100,
+        "messages": 3000,
+        "transport": "no-op"
+      },
+      "evidence": {
+        "acknowledged": 3000,
+        "delivered": 3000,
+        "done": 3000,
+        "duplicates": 0,
+        "duration_seconds": 4.95253300666809,
+        "errors": [],
+        "lost": 0,
+        "messages": 3000,
+        "messages_per_second": 605.750632244308,
+        "p50_batch_ms": 164.592027664185,
+        "p95_batch_ms": 190.853118896484,
+        "p99_batch_ms": 192.955017089844,
+        "repetition": 3,
+        "status": "ok",
+        "workers": 1
+      },
+      "limitations": [
+        "Actual PostgreSQL claim/renew/ack; no-op handler excludes real delivery cost; batch percentiles are not message latency"
+      ],
+      "metrics": {
+        "acknowledged": 3000,
+        "completed": 3000,
+        "duplicates": 0,
+        "duration_seconds": 4.95253300666809,
+        "lost": 0,
+        "messages_per_second": 605.750632244308,
+        "p50_ms": 164.592027664185,
+        "p95_ms": 190.853118896484,
+        "p99_ms": 192.955017089844
+      },
+      "repetition": 3,
+      "scenario": "postgres-dispatch-noop",
+      "status": "ok",
+      "workers": 1
+    },
+    {
+      "configuration": {
+        "batch_size": 100,
+        "messages": 3000,
+        "transport": "no-op"
+      },
+      "evidence": {
+        "acknowledged": 3000,
+        "delivered": 3000,
+        "done": 3000,
+        "duplicates": 0,
+        "duration_seconds": 3.1927318572998,
+        "errors": [],
+        "lost": 0,
+        "messages": 3000,
+        "messages_per_second": 939.634186046928,
+        "p50_batch_ms": 210.340023040771,
+        "p95_batch_ms": 228.687047958374,
+        "p99_batch_ms": 228.931188583374,
+        "repetition": 3,
+        "status": "ok",
+        "workers": 2
+      },
+      "limitations": [
+        "Actual PostgreSQL claim/renew/ack; no-op handler excludes real delivery cost; batch percentiles are not message latency"
+      ],
+      "metrics": {
+        "acknowledged": 3000,
+        "completed": 3000,
+        "duplicates": 0,
+        "duration_seconds": 3.1927318572998,
+        "lost": 0,
+        "messages_per_second": 939.634186046928,
+        "p50_ms": 210.340023040771,
+        "p95_ms": 228.687047958374,
+        "p99_ms": 228.931188583374
+      },
+      "repetition": 3,
+      "scenario": "postgres-dispatch-noop",
+      "status": "ok",
+      "workers": 2
+    }
+  ],
+  "provenance": {
+    "commit": "1df0a321155ef7de2bfbdc699fc433f843b48b9a",
+    "configuration": {
+      "harness_sha256": {
+        "benchmarks/hypnotoad-app.pl": "076b27d9062ce65ac88113864181b27bcededead02f49d136a0bf00f47727f12",
+        "benchmarks/wrk-metrics.lua": "c66846fe8ad3a8c2b8d6b45816a8ff52cfd3267bb678b9b25e6e82d6b231af03",
+        "script/performance-evidence.py": "336a1802de6c38692f01817339faac41ab67e0faa0e1ef8fdf720df2ee48eba7",
+        "script/performance-hotpaths.py": "0bd37e25119d3c375c035308fab7c9e2d1cc96e279d558d4b33d6ba846909168",
+        "script/performance-http.py": "784246f7f1f1a57ec2b3c712818d4d6668d816be1dc1849259d6e78847e0ceec",
+        "script/performance-outbox.pl": "c1c23e449488e67b2248fbf0fa34b3b56b67ccb00e71b3d33bf0cfe1d5c41755"
+      },
+      "hotpaths": {
+        "analyze": true,
+        "deadline_seconds": 300,
+        "outbox": {
+          "batch_size": 100,
+          "database": "fresh owned",
+          "messages": 3000,
+          "repetitions": 3,
+          "transport": "recording no-op",
+          "workers": [
+            1,
+            2
+          ]
+        },
+        "plan_cli_profile_label": "medium",
+        "plan_repetitions": 3,
+        "plans": [
+          "readers",
+          "functions"
+        ],
+        "profiling": "configured NYTProf deep only",
+        "sql_service_comparison": {
+          "enabled": false,
+          "proxy_delay_ms": 0.5,
+          "read_iterations": 30,
+          "warmup": 5,
+          "write_iterations": 10
+        }
+      }
+    },
+    "dataset": {},
+    "date": "2026-10-11",
+    "run_attempt": "1",
+    "run_id": "38147779889",
+    "runner": {
+      "arch": "x86_64",
+      "cpu_count": 4,
+      "cpu_model": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "image": "ubuntu26",
+      "image_version": "20260927.149.1",
+      "kernel": "7.0.0-1012-azure",
+      "label": "ubuntu-26.04",
+      "memory_bytes": 16758468608,
+      "name": "GitHub Actions 1000066969",
+      "os": "Linux"
+    },
+    "timestamp": "2026-10-11T14:35:36.487519+00:00",
+    "versions": {}
+  },
+  "schema_version": 1,
+  "status": "ok"
+}

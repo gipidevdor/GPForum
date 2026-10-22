@@ -1,0 +1,60 @@
+% layout 'default', shell => 'wide';
+% title t('admin.second_factor') . ' - ' . t('app.name');
+%# ADR 0142: whether staff must use two-step sign-in, and who among them
+%# has it on. Nobody is shown a secret.
+
+<section aria-labelledby="admin-second-factor-heading">
+  <%= include 'components/page_header',
+    heading_id => 'admin-second-factor-heading',
+    component_title => t('admin.second_factor'),
+    actions_label => t('admin.second_factor'),
+    actions => ui_actions(
+      { href => ui_path('admin_dashboard'), label => t('admin.admin') },
+      { href => ui_path('admin_users'), label => t('admin.users') },
+    ) %>
+  <p><%= t('admin.second_factor_intro') %></p>
+
+  <section aria-labelledby="admin-second-factor-policy-heading">
+    <%= include 'components/section_header',
+      heading_id => 'admin-second-factor-policy-heading',
+      component_title => t('admin.second_factor_policy') %>
+    <form method="post" action="<%= ui_path('admin_second_factor_policy') %>">
+      <%= csrf_field %>
+      <div class="checkbox-field">
+        <input id="second-factor-staff-required" name="staff_required" type="checkbox" value="1" aria-describedby="second-factor-staff-required-help"<%= $staff_required ? ' checked' : '' %>>
+        <label for="second-factor-staff-required"><%= t('admin.second_factor_staff_required') %></label>
+      </div>
+      <p id="second-factor-staff-required-help" class="ui-hint"><%= t('admin.second_factor_staff_required_help') %></p>
+      <button type="submit"><%= t('admin.second_factor_policy_save') %></button>
+    </form>
+    % if ($updated_at) {
+      <p class="ui-meta"><%= t('admin.second_factor_policy_updated', { username => $updated_by_username // q{-} }) %> <%= include 'components/timestamp', at => $updated_at %></p>
+    % }
+  </section>
+
+  <section aria-labelledby="admin-second-factor-staff-heading">
+    <%= include 'components/section_header',
+      heading_id => 'admin-second-factor-staff-heading',
+      component_title => t('admin.second_factor_staff') %>
+    % if (@{$staff}) {
+      <ol class="ui-card-list" aria-label="<%= t('admin.second_factor_staff') %>">
+        % for my $member (@{$staff}) {
+          <li class="ui-card-list__item ui-row">
+            <h3 class="ui-row__title"><a href="<%= ui_path('admin_user_roles', user_id => $member->{user_id}) %>"><%= $member->{display_name} || $member->{username} %></a></h3>
+            <p class="ui-meta">
+              <span>@<%= $member->{username} %></span>
+              <span class="ui-badge"><%= t($member->{enabled} ? 'admin.second_factor_state_active' : 'admin.second_factor_state_off') %></span>
+              % if ($member->{enabled}) {
+                <span><%= t('auth.second_factor_on_since') %> <%= include 'components/timestamp', at => $member->{confirmed_at} %></span>
+              % }
+            </p>
+          </li>
+        % }
+      </ol>
+    % } else {
+      <%= include 'components/empty_state',
+        heading_id => 'admin-second-factor-staff-empty-heading',
+        component_title => t('admin.second_factor_no_staff') %>
+    % }
+  </section>
+</section>

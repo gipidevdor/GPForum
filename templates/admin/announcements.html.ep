@@ -1,0 +1,65 @@
+% layout 'default', shell => 'wide';
+% title t('admin.announcements') . ' - ' . t('app.name');
+<section aria-labelledby="admin-announcements-heading">
+  <%= include 'components/page_header',
+    heading_id => 'admin-announcements-heading',
+    component_title => t('admin.announcements'),
+    description => t('admin.announcements_description'),
+    actions_label => t('admin.announcements'),
+    actions => ui_actions(
+      { href => ui_path('admin_dashboard'), label => t('admin.admin') },
+      { href => ui_path('admin_categories'), label => t('admin.categories') },
+    ) %>
+  <section aria-labelledby="create-announcement-heading">
+    <%= include 'components/section_header',
+      heading_id => 'create-announcement-heading',
+      component_title => t('admin.create_announcement') %>
+    <form method="post" action="<%= ui_path('admin_announcement_create') %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $create_command_id || q{} %>">
+      <label for="announcement-message"><%= t('admin.announcement_message') %></label>
+      <textarea id="announcement-message" name="message" rows="3" maxlength="500" required aria-describedby="announcement-message-help"></textarea>
+      <p id="announcement-message-help" class="ui-hint"><%= t('admin.announcement_message_hint') %></p>
+      <label for="announcement-tone"><%= t('admin.announcement_tone') %></label>
+      <select id="announcement-tone" name="tone">
+        <option value="notice"><%= t('admin.tone_notice') %></option>
+        <option value="warning"><%= t('admin.tone_warning') %></option>
+      </select>
+      <button type="submit"><%= t('admin.create_announcement') %></button>
+    </form>
+  </section>
+  <section aria-labelledby="announcement-list-heading">
+    <%= include 'components/section_header',
+      heading_id => 'announcement-list-heading',
+      component_title => t('admin.announcement_list') %>
+    % if (@{$announcements}) {
+      <ol class="ui-card-list" aria-label="<%= t('admin.announcement_list') %>">
+      % for my $announcement (@{$announcements}) {
+        <li class="ui-card-list__item">
+          <article aria-labelledby="<%= $announcement->{ui}{heading_id} %>">
+            <h3 id="<%= $announcement->{ui}{heading_id} %>"><%= $announcement->{message} %></h3>
+            <p class="ui-meta">
+              <span><%= include 'components/badge', tone => $announcement->{tone} eq 'warning' ? 'warning' : 'neutral', label => $announcement->{tone} eq 'warning' ? t('admin.tone_warning') : t('admin.tone_notice') %></span>
+              <span><%= t('common.created') %> <%= ui_timestamp($announcement->{created_at}) %></span>
+              % if ($announcement->{retired_at}) {
+                <span><%= t('admin.announcement_retired_at') %> <%= ui_timestamp($announcement->{retired_at}) %></span>
+              % }
+            </p>
+            % if (!$announcement->{retired_at}) {
+              <form method="post" action="<%= ui_path('admin_announcement_retire', announcement_id => $announcement->{announcement_id}) %>">
+                <%= csrf_field %>
+                <input type="hidden" name="command_id" value="<%= $announcement->{retire_command_id} || q{} %>">
+                <button type="submit" class="button--secondary"><%= t('admin.retire_announcement') %></button>
+              </form>
+            % }
+          </article>
+        </li>
+      % }
+      </ol>
+    % } else {
+      <%= include 'components/empty_state',
+        heading_id => 'announcements-empty-heading',
+        component_title => t('admin.no_announcements') %>
+    % }
+  </section>
+</section>

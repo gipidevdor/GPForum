@@ -1,0 +1,140 @@
+name: PostgreSQL recovery
+
+# A physical restore needs its own cluster and server tools. Reuse the operator
+# drill once a week instead of multiplying the PR integration matrix.
+on:
+  schedule:
+    - cron: '47 3 * * 2'
+  workflow_dispatch:
+    inputs:
+      postgres:
+        description: PostgreSQL major for the disposable recovery drill
+        type: choice
+        options: ['18', '17', '16']
+        default: '18'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgres-recovery-${{ github.ref }}-pg${{ inputs.postgres || '18' }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  recovery:
+    name: PostgreSQL ${{ inputs.postgres || '18' }} PITR
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    env:
+      POSTGRES_MAJOR: ${{ inputs.postgres || '18' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare recovery evidence
+        run: |
+          mkdir -p artifacts/pitr-logs
+          printf 'PITR_WORKDIR=%s/gpforum-pitr-%s-%s\n' \
+            "$RUNNER_TEMP" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+
+      - name: Set up GPForum
+        timeout-minutes: 6
+        uses: ./.github/actions/setup-gpforum-perl
+        with:
+          postgres: 'true'
+          postgres-client-version: ${{ inputs.postgres || '18' }}
+
+      - name: Install matching PostgreSQL server tools
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y "postgresql-${POSTGRES_MAJOR}"
+          echo "/usr/lib/postgresql/${POSTGRES_MAJOR}/bin" >> "$GITHUB_PATH"
+          for tool in postgres initdb pg_ctl pg_basebackup pg_verifybackup psql; do
+            "/usr/lib/postgresql/${POSTGRES_MAJOR}/bin/$tool" --version
+          done
+
+      # The drill ignores application DSNs, owns its cluster and stops it on
+      # success, failure and timeout. --keep retains diagnostics for upload.
+      - name: Rehearse verified point-in-time recovery
+        id: drill
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          # Set PATH after the launcher has prepended its system-Perl directory;
+          # /usr/bin/psql is otherwise a wrapper for the newest installed major.
+          script/gpforum-carton exec env "PATH=/usr/lib/postgresql/${POSTGRES_MAJOR}/bin:$PATH" \
+            script/pitr-drill --json --timeout 180 \
+            --dir "$PITR_WORKDIR" --keep > artifacts/postgres-recovery.json
+
+      - name: Collect recovery diagnostic logs
+        if: always()
+        run: |
+          perl -MFile::Copy=copy -e '
+            for my $file (glob "$ENV{PITR_WORKDIR}/*.log") {
+              next unless -f $file;
+              copy($file, "artifacts/pitr-logs/") or die "Cannot retain recovery log: $!";
+            }
+          '
+
+      - name: Validate recovery evidence
+        id: validate
+        if: always() && steps.drill.outcome != 'skipped'
+        run: |
+          script/gpforum-carton exec script/pitr-drill --validate artifacts/postgres-recovery.json
+          bin/gpforum evidence-validate --strict --human artifacts/postgres-recovery.json
+
+      # Never upload the cluster, physical backup or WAL archive: only the
+      # structured report and the drill's sanitised diagnostic logs.
+      - name: Upload recovery evidence
+        id: artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gpforum-postgres-recovery-pg${{ inputs.postgres || '18' }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/postgres-recovery.json
+            artifacts/pitr-logs/*.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Summarize recovery evidence
+        if: always()
+        env:
+          ANALYZED_COMMIT: ${{ github.sha }}
+          DRILL_OUTCOME: ${{ steps.drill.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          ARTIFACT_URL: ${{ steps.artifact.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          perl -MJSON::PP -e '
+            use v5.40;
+            print "## PostgreSQL recovery\n\nCommit: `$ENV{ANALYZED_COMMIT}`\n\n";
+            print "PostgreSQL: $ENV{POSTGRES_MAJOR}; runner: $ENV{RUNNER_NAME} / $ENV{RUNNER_OS}.\n\n";
+            print "| Check | Outcome |\n| --- | --- |\n";
+            print "| Disposable PITR drill | $ENV{DRILL_OUTCOME} |\n";
+            print "| Schema and evidence validation | $ENV{VALIDATE_OUTCOME} |\n\n";
+            my $report;
+            try {
+              open my $file, "<", "artifacts/postgres-recovery.json" or die "missing report";
+              local $/;
+              $report = decode_json(<$file>);
+              close $file or die "unreadable report";
+            }
+            catch ($error) { $report = undef; };
+            if (ref($report) eq "HASH") {
+              print "Measured recovery status: **", $report->{status} // "unmeasured", "**.\n\n";
+            } else {
+              print "No valid measurement was produced; inspect setup or drill diagnostics.\n\n";
+            }
+            my $link = $ENV{ARTIFACT_URL} || "$ENV{RUN_URL}#artifacts";
+            print "[Recovery evidence artifact]($link).\n\n";
+            print "This isolated drill does not establish production RPO/RTO or attachment consistency.\n";
+          ' >> "$GITHUB_STEP_SUMMARY"

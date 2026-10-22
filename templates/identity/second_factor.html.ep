@@ -1,0 +1,23 @@
+% layout 'default';
+% title t('auth.second_factor_login_title') . ' - ' . t('app.name');
+%# ADR 0142: the second step of a sign-in, once the password verified.
+% my $described_by = $error ? 'second-factor-code-help second-factor-error' : 'second-factor-code-help';
+
+<section aria-labelledby="second-factor-heading">
+  <%= include 'components/page_header',
+    heading_id => 'second-factor-heading',
+    component_title => t('auth.second_factor_login_title') %>
+  % if ($error) {
+    <%= include 'components/field_error', field_id => 'second-factor-error', message => $error, role => 'alert' %>
+  % }
+  <form method="post" action="<%= ui_path('login_second_factor_submit') %>">
+    <%= csrf_field %>
+    <label for="second-factor-code"><%= t('auth.second_factor_code') %></label>
+    <input id="second-factor-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="64" required autofocus aria-describedby="<%= $described_by %>"<%== $error ? ' aria-invalid="true"' : q{} %>>
+    <p id="second-factor-code-help" class="ui-hint"><%= t('auth.second_factor_login_help', { digits => $digits }) %></p>
+    <button type="submit"><%= t('auth.second_factor_verify') %></button>
+  </form>
+  <p class="ui-row-links">
+    <a href="<%= ui_path('login') %>"><%= t('auth.second_factor_start_again') %></a>
+  </p>
+</section>

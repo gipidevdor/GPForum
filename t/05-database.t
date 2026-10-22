@@ -21,7 +21,7 @@ use GPForum::Test::MigrationSchema;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 446;
+const my $EXPECTED_TESTS => 444;
 
 # Derived from the directory instead of hardcoded: a literal turns every new
 # migration into a spurious failure, which trains people to bump the number
@@ -30,11 +30,13 @@ const my $EXPECTED_TESTS => 446;
 const my $EXPECTED_MIGRATIONS =>
   scalar @{ GPForum::Migration::Plan->new->files };
 
-# The runner issues three statements per migration (the migration SQL, the
-# schema_versions insert and the safety metadata write), less the three the
-# bootstrap migration does not repeat. Derived so it stays exact without
-# breaking every time a migration is added.
-const my $EXPECTED_RUNNER_EXECUTIONS   => 3 * $EXPECTED_MIGRATIONS - 3;
+# The runner sends each migration once, its schema_versions row and safety
+# metadata inside its transaction; 049 and 051, of several transactions
+# each, are recorded after them in two statements more. Derived so it stays
+# exact without breaking every time a migration is added.
+const my $SEVERAL_TRANSACTIONS => 2;
+const my $EXPECTED_RUNNER_EXECUTIONS => $EXPECTED_MIGRATIONS +
+  2 * $SEVERAL_TRANSACTIONS;
 const my $FORUM_MIGRATION_INDEX        => 2;
 const my $GOVERNANCE_MIGRATION_INDEX   => 3;
 const my $NOTIFICATION_MIGRATION_INDEX => 4;
@@ -1813,13 +1815,12 @@ like(
     qr/CREATE [ ] TABLE [ ] IF [ ] NOT [ ] EXISTS [ ] schema_versions/msx,
     'runner executes first migration SQL'
 );
+my $first_record = qr/INSERT [ ] INTO [ ] schema_versions [^;]* [(]'001',/msx;
 like(
-    $dbh->executed->[1]->{statement},
-    qr/INSERT [ ] INTO [ ] schema_versions/msx,
-    'runner records schema version after migration'
+    $dbh->executed->[0]->{statement},
+    qr/$first_record [^;]* ; \s* COMMIT; \s* \z/msx,
+    'runner records the schema version inside the migration transaction'
 );
-is( $dbh->executed->[1]->{bind}->[0],
-    '001', 'runner records first migration version' );
 like(
     $applied->[0]->{checksum},
     qr/\A [[:xdigit:]]{64} \z/msx,
@@ -1827,11 +1828,9 @@ like(
 );
 like(
     $dbh->executed->[-1]->{statement},
-    qr/INSERT [ ] INTO [ ] migration_safety/msx,
-    'runner records migration safety metadata once available'
+    qr/INSERT [ ] INTO [ ] migration_safety [^;]* 'test-runner'/msx,
+    'runner records migration safety metadata and applied-by identity'
 );
-is( $dbh->executed->[-1]->{bind}->[2],
-    'test-runner', 'runner records applied-by identity' );
 
 throws_ok(
     sub {

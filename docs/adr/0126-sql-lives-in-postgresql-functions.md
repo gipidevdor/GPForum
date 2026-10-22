@@ -656,6 +656,25 @@ email, preferences, logout), the community commands other than the
 bookmark and the subscription, moderation, admin and privacy. The same
 fold applies to each.
 
+### Amended 2026-10-22: a migration and its record commit together
+
+Section 11's transactional migration committed itself, and the runner wrote
+its `schema_versions` row after, in a statement of its own: a crash, a lost
+connection or a failed insert between the two left the migration applied
+and unrecorded, and the next deploy ran it again. `Migration::Runner` now
+sends each file with its `schema_versions` and `migration_safety` rows
+written before its closing `COMMIT` (or in a transaction it opens around a
+file with no transaction control), so the two commit together or not at
+all, and a failure is rolled back before the migration lock is let go of. A
+file is one transaction or a `gpforum:no-transaction` migration of
+statements safe to repeat, recorded after its last; a new file of several
+transactions is refused (049 and 051 predate the rule and are idempotent).
+A migration numbered below one already applied is refused, by
+`migrate --apply` and `migrate --check` alike, unless its number is a gap
+the history lists for it (120).
+`t/720-migration-runner-atomic.t` and
+`t/integration/postgres-migration-atomic.t` hold it.
+
 ## Alignment
 
 - ADR 0005 and ADR 0110 (amended), ADR 0118 (extended), ADR 0102, ADR 0111,

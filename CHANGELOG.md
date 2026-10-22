@@ -2084,6 +2084,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **A migration and the row that says it ran commit together.** The runner
+  wrote a migration's `schema_versions` row after the file had committed
+  itself, so a crash or a lost connection between the two left it applied
+  and unrecorded, and the next deploy ran it again. The rows are now written
+  inside the file's own transaction, a failure is rolled back before the
+  migration lock is let go of, a new file of several transactions is
+  refused, and a migration numbered below one already applied is refused by
+  `migrate --apply` and `migrate --check` unless it is a listed gap (120).
+  ADR 0126, amended.
+
 - **The coverage gate can pass.** Its first run to finish failed outside
   `lib/`: `script/coverage` instrumented `t/performance/`, whose tests drive
   the harness of `script/lib/` in timed child processes that Devel::Cover

@@ -437,6 +437,7 @@ sub _check ( $self, $options ) {
     try {
         my $runner = $self->_runner(0);
         $runner->verify_applied;
+        $runner->verify_order;
         $pending = $runner->pending;
     }
     catch ($error) {

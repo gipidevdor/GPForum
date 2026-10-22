@@ -9,11 +9,16 @@ use v5.40;
 our $VERSION = '0.001';
 
 # A migration runner for migrate --check: every applied file as it was
-# recorded, and the migrations given still to apply.
+# recorded, in order, and the migrations given still to apply.
 has pending => sub { return [] };
 
 sub verify_applied ($self) {
     return 1;
+}
+
+# None of the pending numbered below an applied one.
+sub verify_order ($self) {
+    return [];
 }
 
 1;

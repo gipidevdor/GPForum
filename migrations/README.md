@@ -17,6 +17,8 @@ SQL files form an append-only history. Directory names organize that history; on
 - Add new work to `003-evolution/` with a globally unique version greater than every existing version. Coordinate version allocation across concurrent branches.
 - Each change is a new migration. Keep released API signatures and return contracts compatible with workers from the previous release.
 - Preserve the existing transaction markers and the `gpforum:no-transaction` protocol for concurrent indexes.
+- Write a migration as one transaction, `BEGIN;` on its first line and `COMMIT;` on its last, or as a `gpforum:no-transaction` file of statements safe to repeat. The runner writes the `schema_versions` row before that `COMMIT`, so a migration and its record commit together; it refuses a new file of several transactions (ADR 0126, amended 2026-10-22).
+- The runner refuses a pending migration numbered below one already applied, except a listed gap (120).
 - Use `GPForum::Migration::Plan` for discovery: it reads nested directories, orders globally by numeric version, and refuses duplicate versions. Flat directories remain supported for fixtures and custom plans.
 - Directory moves preserve version, description and checksum; existing databases do not reapply moved migrations.
 

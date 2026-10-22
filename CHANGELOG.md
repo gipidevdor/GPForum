@@ -3193,6 +3193,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **GPForum measured against OWASP ASVS 5.0.0, requirement by requirement
+  (ADR 0149).** `docs/security/asvs-5.0.md` lists the 246 requirements in
+  scope, each met, not met or not applicable with its evidence, and ends
+  with the gaps in priority order, the Level 3 areas first. No level is
+  met yet: some Level 1 requirements are not. `t/721-asvs-record.t` fails
+  when a cited file or line no longer exists, a tally disagrees with the
+  rows, or the gap list misses a requirement not met.
 - **The hot pages through the socket, end to end, before and after.**
   `docs/PERFORMANCE.md` ("Through the socket") records f377541, main
   before the socket work's statement and accept changes and main after

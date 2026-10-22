@@ -103,6 +103,8 @@ reverting this ADR and its amendment of ADR 0053.
   (two-step sign-in), ADR 0146 (address bans) and ADR 0147 (sign-in
   lockout).
 - `t/integration/postgres-moderation-review.t` (the suspension finding).
+- `docs/security/asvs-5.0.md`, the verification record decision 5 asks
+  for, and `t/721-asvs-record.t`, which keeps it checkable.
 - OWASP ASVS 5.0.0:
   <https://github.com/OWASP/ASVS/tree/v5.0.0/5.0/en>; project page
   <https://owasp.org/www-project-application-security-verification-standard/>.

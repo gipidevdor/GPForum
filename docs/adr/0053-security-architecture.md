@@ -3,7 +3,10 @@
 ## Status
 
 Accepted. Its upload antivirus MUST is implemented by ADR 0108, which
-scans uploads with the operating system's free antivirus.
+scans uploads with the operating system's free antivirus. Amended by ADR
+0149 (2026-10-22): its requirements are verified against OWASP ASVS 5.0,
+Level 2 for the whole application and Level 3 for authentication,
+sessions, access control and moderation.
 
 ## Date
 

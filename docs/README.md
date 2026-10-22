@@ -83,6 +83,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | Document | What it covers |
 | --- | --- |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, actors, trust boundaries, and the mitigation and test at each |
+| [security/asvs-5.0.md](security/asvs-5.0.md) | OWASP ASVS 5.0.0 verification record (ADR 0149): every requirement in scope, its state and evidence, and the prioritised gaps |
 | [ENGINEERING_CORRECTNESS.md](ENGINEERING_CORRECTNESS.md) | Engineering correctness freeze |
 | [audit/](audit) | Audits of transactional correctness, failure modes, and the email lifecycle |
 | [CPAN_LICENSE_REVIEW.md](CPAN_LICENSE_REVIEW.md) | Dependency license gate |

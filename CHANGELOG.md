@@ -2100,6 +2100,16 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Fixed
 
+- **A column added to a table no longer breaks the workers that call its
+  functions.** 158 functions return a table's row, so a migration adding a
+  column changed their result type under the running workers: a prepared
+  call was refused with `cached plan must not change result type` once its
+  plan was invalidated, and a call DBD::Pg had run once unnamed crashed the
+  worker when it ran again. The call layer now prepares each call on the
+  server at once, and on that refusal forgets the statement and, outside a
+  transaction, calls once more; `t/641` refuses a table's row as the result
+  of a function from migration 136 on. ADR 0126, amended.
+
 - **A migration and the row that says it ran commit together.** The runner
   wrote a migration's `schema_versions` row after the file had committed
   itself, so a crash or a lost connection between the two left it applied
@@ -3199,6 +3209,13 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Development
 
+- **GPForum measured against OWASP ASVS 5.0.0, requirement by requirement
+  (ADR 0149).** `docs/security/asvs-5.0.md` lists the 246 requirements in
+  scope, each met, not met or not applicable with its evidence, and ends
+  with the gaps in priority order, the Level 3 areas first. No level is
+  met yet: some Level 1 requirements are not. `t/721-asvs-record.t` fails
+  when a cited file or line no longer exists, a tally disagrees with the
+  rows, or the gap list misses a requirement not met.
 - **The hot pages through the socket, end to end, before and after.**
   `docs/PERFORMANCE.md` ("Through the socket") records f377541, main
   before the socket work's statement and accept changes and main after

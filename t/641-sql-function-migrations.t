@@ -52,6 +52,16 @@ const my $PLAN_MODE =>
   qr/SET \s+ plan_cache_mode \s* = \s* force_(?:generic|custom)_plan/imsx;
 const my $DROP =>
   qr/DROP \s+ FUNCTION \s+ (?:IF \s+ EXISTS \s+)? (?<dropped>api [.] \w+)/imsx;
+
+# ADR 0126, section 2, amended 2026-10-22: a shipped version never changes
+# its result type, and a function that RETURNS SETOF public.<table> changes
+# it whenever the table gains a column -- a prepared call of it on a live
+# worker is then refused, "cached plan must not change result type". The
+# functions of the migrations up to this one are kept as they shipped; one
+# created after it names its columns (RETURNS TABLE, or a row type of api).
+const my $LAST_TABLE_ROW_RESULT => 135;
+const my $RETURNED => qr/(?:public [.])? (?<returned>\w+) \b (?! \s* [.])/msx;
+const my $RETURNS  => qr/RETURNS \s+ (?:SETOF \s+)? $RETURNED/imsx;
 const my @RETAINED_SEARCH_VERSIONS  => ( 2, 4, 6, 8 );
 const my @RETAINED_SUGGEST_VERSIONS => ( 2, 4, 6 );
 const my $CURRENT_SEARCH_VERSION    => 10;
@@ -147,7 +157,8 @@ for my $name ( @{ $catalogue->names } ) {
         };
     }
 }
-my @tables = _tables();
+my @tables   = _tables();
+my %is_table = map { $_ => 1 } @tables;
 
 # A boundary the catalogue called when it shipped and a later migration
 # drops (migration 105 drops the unwired subsystems'): the catalogue no
@@ -179,6 +190,33 @@ subtest 'the rules see what they are written for' => sub {
         'each rule, once'
     );
     is_deeply( $created, ['api.forum_lookup'], 'and the function is seen' );
+
+    for my $returns ( 'SETOF public.posts', 'SETOF posts', 'public.users' ) {
+        my $rows = join "\n", 'BEGIN;', q{SET LOCAL lock_timeout = '1s';},
+          "CREATE FUNCTION api.forum_rows_v1() RETURNS $returns",
+          'LANGUAGE sql AS $$ SELECT * FROM public.posts $$;', 'COMMIT;';
+        my ($late) = _problems( 'late.sql', $rows, $LAST_TABLE_ROW_RESULT + 1 );
+        ok(
+            ( grep { /a [ ] table's [ ] row/msx } @{$late} ),
+            "RETURNS $returns is refused in a new migration"
+        );
+        my ($shipped) =
+          _problems( 'shipped.sql', $rows, $LAST_TABLE_ROW_RESULT );
+        ok( !( grep { /a [ ] table's [ ] row/msx } @{$shipped} ),
+            'and kept in one that shipped' );
+    }
+    for my $returns ( 'SETOF api.forum_row_v1', 'TABLE (a integer)', 'integer' )
+    {
+        my $rows = join "\n", 'BEGIN;',
+          "CREATE FUNCTION api.forum_rows_v1() RETURNS $returns",
+          'LANGUAGE sql AS $$ SELECT 1 $$;', 'COMMIT;';
+        my ($named) =
+          _problems( 'named.sql', $rows, $LAST_TABLE_ROW_RESULT + 1 );
+        ok(
+            !( grep { /a [ ] table's [ ] row/msx } @{$named} ),
+            "RETURNS $returns names its own columns"
+        );
+    }
 };
 
 subtest 'only registered typed boundaries gain owner rights' => sub {
@@ -298,9 +336,10 @@ sub _function_problems ( $label, $function, $code, $version = undef ) {
         'SECURITY DEFINER' => ( $head =~ /SECURITY \s+ DEFINER/imsx )
           && !$boundary ? 1 : 0,
         'dynamic SQL' => ( $body =~ /\b EXECUTE \b/imsx ) ? 1 : 0,
-        'no version suffix or area'  => $name !~ $NAME,
-        'plan_cache_mode not pinned' => $head !~ $PLAN_MODE,
-        'search_path not pinned'     => $head !~ $SEARCH_PATH,
+        'no version suffix or area'    => $name !~ $NAME,
+        'plan_cache_mode not pinned'   => $head !~ $PLAN_MODE,
+        'search_path not pinned'       => $head !~ $SEARCH_PATH,
+        q{a table's row as its result} => _returns_table_row( $head, $version ),
     );
     for my $table (@tables) {
         $rule{"$table without its schema"} =
@@ -311,6 +350,15 @@ sub _function_problems ( $label, $function, $code, $version = undef ) {
     }
 
     return map { "$label: $_" } sort grep { $rule{$_} } keys %rule;
+}
+
+# A function created after the last migration that may return a table's row:
+# RETURNS SETOF public.<table>, RETURNS <table>.
+sub _returns_table_row ( $head, $version ) {
+    return 0 if !defined $version || $version <= $LAST_TABLE_ROW_RESULT;
+    return 0 if $head !~ $RETURNS;
+
+    return $is_table{ lc $LAST_PAREN_MATCH{returned} } ? 1 : 0;
 }
 
 # ADR 0127 allows only a typed, versioned forwarding boundary to acquire

@@ -18,7 +18,23 @@ our $VERSION = '0.001';
 
 const my $INVALID_PARAMETER => '22023';
 const my $UNIQUE_VIOLATION  => '23505';
-const my $POSTGRESQL_DSN    => qr/\A dbi:Pg:/imsx;
+
+# What PostgreSQL answers a prepared statement whose result columns changed
+# under it: a table a function RETURNS SETOF gained a column, and the plan
+# was then invalidated (ADR 0126, section 2, amended 2026-10-22).
+const my $FEATURE_NOT_SUPPORTED => '0A000';
+const my $RESULT_TYPE_CHANGED =>
+  qr/cached [ ] plan [ ] must [ ] not [ ] change [ ] result [ ] type/msx;
+
+# A statement is prepared on the server when it is prepared, not at its
+# second execution, as DBD::Pg does by default: its first execution was then
+# unnamed, and a second one after such a migration came back with more
+# columns than the handle had read the first time, and DBD::Pg 3.21 read
+# past them and crashed the worker. Named from the start, it keeps the
+# columns it was prepared with, or is refused as above. A plain hash, not a
+# constant: DBD::Pg reads keys it does not hold.
+my $PREPARED_NOW = { pg_prepare_now => 1 };
+const my $POSTGRESQL_DSN => qr/\A dbi:Pg:/imsx;
 
 # A uuid as PostgreSQL writes one and GPForum::Infrastructure::Id makes one.
 const my $WRITTEN_UUID => GPForum::Infrastructure::Id->uuid_pattern;
@@ -254,18 +270,58 @@ sub _handle ($storage) {
     return $storage->_get_dbh;
 }
 
+# A statement prepared before a migration changed the columns its function
+# returns -- one of the functions that RETURNS SETOF public.<table>, whose
+# table gained a column -- is refused once its plan is invalidated. The
+# statement is forgotten, so the next call prepares it afresh, and outside a
+# transaction this call is made once more. Inside one it is not: the error
+# has ended the transaction, and the caller's retry begins a new one.
 sub _fetch ( $self, $dbh, $entry, $bound ) {
-    my $handle = $dbh->prepare_cached( $entry->{sql} );
-    my $rows;
+    my ( $rows, $state, $error ) = _run( $dbh, $entry, $bound );
+    if ( defined $error && _result_type_changed( $state, $error ) ) {
+        _forget( $dbh, $entry->{sql} );
+        if ( $dbh->{AutoCommit} ) {
+            ( $rows, $state, $error ) = _run( $dbh, $entry, $bound );
+        }
+    }
+    if ( defined $error ) {
+        $self->_raise( $state, $error );
+    }
+
+    return $rows;
+}
+
+# The rows, or the SQLSTATE and the error.
+sub _run ( $dbh, $entry, $bound ) {
+    my $handle = $dbh->prepare_cached( $entry->{sql}, $PREPARED_NOW );
+    my ( $rows, $failure );
     try {
         $handle->execute( @{$bound} );
         $rows = $handle->fetchall_arrayref( {} );
     }
     catch ($error) {
-        $self->_raise( $handle->state, $error );
+        $failure = $error;
     };
 
-    return $rows;
+    return ( $rows, $handle->state, $failure );
+}
+
+sub _result_type_changed ( $state, $error ) {
+    return ( $state // q{} ) eq $FEATURE_NOT_SUPPORTED
+      && "$error" =~ $RESULT_TYPE_CHANGED;
+}
+
+# Drops the handle's cached statement for this SQL, so the next
+# prepare_cached prepares it again.
+sub _forget ( $dbh, $sql ) {
+    my $cached = $dbh->{CachedKids} // {};
+    for my $key ( keys %{$cached} ) {
+        my $statement = $cached->{$key};
+        next if !$statement || ( $statement->{Statement} // q{} ) ne $sql;
+        delete $cached->{$key};
+    }
+
+    return;
 }
 
 # ADR 0126, section 6: a function's own contract violation (22023) is the
@@ -335,8 +391,9 @@ release calls a function by (L<GPForum::Infrastructure::SqlFunctionCatalogue>
 gives its version and its parameters) and the parameters by name, and
 returns plain rows: hashes keyed by the function's columns, with its json
 columns decoded. The statement is the catalogue's,
-C<SELECT * FROM api.NAME_vN(?::type, ...)>, prepared once per handle and
-executed with the values. No SQL is built per call, no row object is made.
+C<SELECT * FROM api.NAME_vN(?::type, ...)>, prepared once per handle, on the
+server at once (C<pg_prepare_now>), and executed with the values. No SQL is
+built per call, no row object is made.
 
 Until the last area has moved, a call runs on the DBIx::Class schema's own
 handle (C<dbh_do>): inside a C<txn_do> it joins that transaction, outside one
@@ -404,6 +461,13 @@ contract violation (SQLSTATE 22023, C<invalid_parameter_value>) is thrown as
 L<GPForum::X::Argument> with the server's message; a unique violation
 (23505) as a L<GPForum::X::Conflict>, whose C<on> knows the partitions'
 indexes. Every other error is DBI's, as it was raised.
+
+A prepared call whose function's result columns changed under it (SQLSTATE
+0A000, C<cached plan must not change result type>: a table a function
+C<RETURNS SETOF> gained a column) is not a failure of the call: the cached
+statement is dropped, and outside a transaction the call is made once more
+on a statement prepared afresh. Inside a transaction, which the error has
+ended, the error propagates and the next call prepares the statement again.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

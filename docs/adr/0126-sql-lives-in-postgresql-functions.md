@@ -675,6 +675,27 @@ the history lists for it (120).
 `t/720-migration-runner-atomic.t` and
 `t/integration/postgres-migration-atomic.t` hold it.
 
+### Amended 2026-10-22: a new function's result type is its own
+
+Section 2 says a shipped version never changes its result type, yet 158
+functions of migrations 052 to 135 `RETURNS SETOF public.<table>` (or a
+table's row): a migration that adds a column to the table changes all of
+them under their names. A worker that prepared a call before reads the old
+columns until anything invalidates the plan -- a function altered, a cache
+reset -- and is then refused, `cached plan must not change result type`
+(SQLSTATE 0A000); and a statement DBD::Pg had run once unnamed, run again
+after the column came, returned more columns than the handle had read and
+crashed the worker in DBD::Pg 3.21. From migration 136 on, a function
+names its columns (`RETURNS TABLE (...)` or a row type of `api`);
+`t/641-sql-function-migrations.t` refuses a table's row as a result, and
+the shipped functions stay as they are. The call layer prepares each
+statement on the server when it prepares it (`pg_prepare_now`), so it keeps
+the columns it was prepared with; on that one refusal it forgets the cached
+statement and, outside a transaction, calls once more on a statement
+prepared afresh; inside one, which the error has ended, it lets the error
+go and the next call prepares the statement again.
+`t/integration/postgres-sql-function-result-type.t` holds it.
+
 ## Alignment
 
 - ADR 0005 and ADR 0110 (amended), ADR 0118 (extended), ADR 0102, ADR 0111,

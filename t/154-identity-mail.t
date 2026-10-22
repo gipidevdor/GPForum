@@ -9,6 +9,7 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Service::Identity::Audit;
+use GPForum::Service::Identity::MailToken;
 use GPForum::Infrastructure::OutboxMessageBuilder;
 use GPForum::Test::Id;
 use GPForum::Test::IdentityMailer;
@@ -18,10 +19,13 @@ use Test::More;
 
 our $VERSION = '0.001';
 
-my $events_id = GPForum::Test::Id->new;
-my $schema    = GPForum::Test::Schema->new;
-my $audit     = GPForum::Service::Identity::Audit->new(
+my $events_id  = GPForum::Test::Id->new;
+my $schema     = GPForum::Test::Schema->new;
+my $mail_token = GPForum::Service::Identity::MailToken->new(
+    secrets => ['identity mail test secret'] );
+my $audit = GPForum::Service::Identity::Audit->new(
     id_service => $events_id,
+    mail_token => $mail_token,
     schema     => $schema,
 );
 $audit->record_mail(
@@ -44,8 +48,18 @@ is_deeply(
 );
 
 my $outbox = $schema->created_for('OutboxMessage')->[0];
-is( $outbox->{payload}{mail}{token},
-    'secret-reset', 'outbox payload keeps the raw token until delivery' );
+ok(
+    !exists $outbox->{payload}{mail}{token},
+    'outbox payload holds no raw token'
+);
+is(
+    $mail_token->unseal(
+        $outbox->{payload}{mail}{sealed_token},
+        $outbox->{payload}{mail}{token_id}
+    ),
+    'secret-reset',
+    'it keeps the token sealed to its id until delivery'
+);
 is( $outbox->{payload}{mail}{to},
     'member@example.test', 'outbox payload keeps the recipient' );
 is( $outbox->{payload}{event_type},
@@ -81,7 +95,10 @@ is( $merged->{payload}{payload}{token_id},
     'tok-1', 'message builder keeps the EventLog payload beside mail extras' );
 
 my $mailer  = GPForum::Test::IdentityMailer->new;
-my $handler = GPForum::Worker::Handler::IdentityMail->new( mailer => $mailer );
+my $handler = GPForum::Worker::Handler::IdentityMail->new(
+    mail_token => $mail_token,
+    mailer     => $mailer,
+);
 ok( $handler->supports( { event_type => 'identity.mail.requested' } ),
     'handler supports identity mail events' );
 ok( !$handler->supports( { event_type => 'post.created' } ),
@@ -92,9 +109,10 @@ my $delivered = $handler->handle(
         event_id   => 'event-mail-1',
         event_type => 'identity.mail.requested',
         mail       => {
-            kind  => 'email_verification',
-            to    => 'member@example.test',
-            token => 'verify-secret',
+            kind         => 'email_verification',
+            sealed_token => $mail_token->seal( 'verify-secret', 'tok-2' ),
+            to           => 'member@example.test',
+            token_id     => 'tok-2',
         },
     }
 );

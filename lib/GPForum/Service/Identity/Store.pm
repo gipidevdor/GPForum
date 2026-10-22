@@ -64,7 +64,8 @@ has second_factor => sub ($self) {
     return GPForum::Service::Identity::SecondFactor->new(
         schema => $self->schema );
 };
-has audit => sub {
+has mail_token => undef;    # optional: Audit seals with the configured secrets
+has audit      => sub {
     my ($self) = @_;
 
     return GPForum::Service::Identity::Audit->new(
@@ -72,6 +73,7 @@ has audit => sub {
         id_service => $self->id_service,
         recorder   => $self->recorder,
         schema     => $self->schema,
+        ( $self->mail_token ? ( mail_token => $self->mail_token ) : () ),
     );
 };
 has credential_store => sub {

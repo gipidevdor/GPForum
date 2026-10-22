@@ -8,6 +8,7 @@ use v5.40;
 use Const::Fast;
 
 use GPForum::Service::Identity::CredentialStore;
+use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Identity::Mailer;
 use GPForum::Service::Identity::ProfileReader;
 use GPForum::Service::Identity::Registration;
@@ -83,6 +84,9 @@ sub _register_identity_helpers {
             my ($controller) = @_;
 
             return GPForum::Service::Identity::Store->new(
+                mail_token => GPForum::Service::Identity::MailToken->new(
+                    secrets => $controller->app->secrets
+                ),
                 schema                         => $controller->gp_schema,
                 session_touch_interval_seconds => $touch_interval,
                 second_factor                  => $controller->gp_second_factor,

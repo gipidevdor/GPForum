@@ -12,6 +12,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
+use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Identity::Registration;
 use GPForum::Service::Identity::Store;
 use GPForum::Service::Identity::Workflow;
@@ -168,6 +169,16 @@ sub snapshot ( $dbh, $table ) {
             if ( defined $row->{$column} ) {
                 $row->{$column} = $json->decode( $row->{$column} );
             }
+        }
+
+        # A mail's token is sealed under a fresh nonce on each path: the
+        # token it opens to is what the two must agree on.
+        my $mail =
+          ref $row->{payload} eq 'HASH' ? $row->{payload}{mail} : undef;
+        if ( ref $mail eq 'HASH' && defined $mail->{sealed_token} ) {
+            $mail->{sealed_token} =
+              GPForum::Service::Identity::MailToken->new->unseal(
+                $mail->{sealed_token}, $mail->{token_id} );
         }
     }
     return [ sort { $json->encode($a) cmp $json->encode($b) } @{$rows} ];

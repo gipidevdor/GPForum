@@ -196,19 +196,22 @@ ok( !exists $mail->{payload}{token},
 is_deeply(
     $events->mail_outbox_payload(
         {
-            kind  => 'password_reset',
-            to    => 'member@example.test',
-            token => 'raw-token',
+            kind         => 'password_reset',
+            sealed_token => 'v1.sealed',
+            to           => 'member@example.test',
+            token        => 'raw-token',
+            token_id     => 'tok-1',
         }
     ),
     {
         mail => {
-            kind  => 'password_reset',
-            to    => 'member@example.test',
-            token => 'raw-token',
+            kind         => 'password_reset',
+            sealed_token => 'v1.sealed',
+            to           => 'member@example.test',
+            token_id     => 'tok-1',
         },
     },
-    'mail_outbox_payload keeps the recipient and raw token'
+'mail_outbox_payload keeps the recipient and the sealed token, never the raw one'
 );
 
 done_testing();

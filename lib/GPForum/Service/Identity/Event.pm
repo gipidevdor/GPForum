@@ -86,14 +86,17 @@ sub mail_envelope ( $self, $input ) {
     };
 }
 
+# The token travels sealed (Identity::MailToken), never in clear: the
+# outbox, its backups and a dead letter keep the payload.
 sub mail_outbox_payload ( $, $input ) {
     my %mail = (
-        kind  => $input->{kind},
-        to    => $input->{to},
-        token => $input->{token},
+        kind => $input->{kind},
+        to   => $input->{to},
     );
-    if ( defined $input->{locale} ) {
-        $mail{locale} = $input->{locale};
+    for my $name (qw(locale sealed_token token_id)) {
+        if ( defined $input->{$name} ) {
+            $mail{$name} = $input->{$name};
+        }
     }
 
     return { mail => \%mail };
@@ -192,8 +195,9 @@ kinds of mail about one token are two messages.
 
 =head2 mail_outbox_payload
 
-Returns the outbox-only C<mail> hash with recipient and raw token, and the
-member's C<locale> when the input names one.
+Returns the outbox-only C<mail> hash: kind and recipient, and the
+C<sealed_token>, its C<token_id> and the member's C<locale> when the input
+names them. It never holds the raw token.
 
 =head2 login_request_audit
 

@@ -10,6 +10,7 @@ use Sys::Hostname qw(hostname);
 
 use GPForum::Service::Community::FeedProjector;
 use GPForum::Service::Community::ReputationLedger;
+use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Outbox::Dispatcher;
 use GPForum::Service::Outbox::DomainEventTransport;
 use GPForum::Service::Search::Indexer;
@@ -122,6 +123,9 @@ sub _event_handlers ($controller) {
             subscription_store => $controller->gp_subscription_store,
         ),
         GPForum::Worker::Handler::IdentityMail->new(
+            mail_token => GPForum::Service::Identity::MailToken->new(
+                secrets => $controller->app->secrets
+            ),
             mailer => $controller->gp_identity_mailer,
         ),
         GPForum::Worker::Handler::NotificationMail->new(

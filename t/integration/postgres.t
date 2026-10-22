@@ -18,6 +18,7 @@ use lib 'lib';
 use GPForum::Command::AdminBootstrap;
 use GPForum::Command::Migrate;
 use GPForum::Command::PerformanceSeed;
+use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Identity::ProfileReader;
 
 our $VERSION = '0.001';
@@ -273,16 +274,21 @@ sub _verify_registered_email {
 sub _verification_token {
     my ( $database_info, $username ) = @_;
 
+    # The token waits sealed in the outbox, opened as the worker opens it,
+    # with the configured signing secrets.
     my $email = "$username\@example.test";
-    my ($token) = $database_info->{dbh}->selectrow_array(
+    my ( $sealed, $token_id ) = $database_info->{dbh}->selectrow_array(
         join( q{ },
-            q{SELECT payload->'mail'->>'token'},
+            q{SELECT payload->'mail'->>'sealed_token',},
+            q{payload->'mail'->>'token_id'},
             'FROM outbox_messages',
             q{WHERE payload->'mail'->>'kind' = 'email_verification'},
             q{AND payload->'mail'->>'to' = ?},
             'ORDER BY created_at DESC LIMIT 1' ),
         undef, $email
     );
+    my $token =
+      GPForum::Service::Identity::MailToken->new->unseal( $sealed, $token_id );
 
     return defined $token ? $token : q{};
 }

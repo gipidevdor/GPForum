@@ -20,6 +20,7 @@ use GPForum::Infrastructure::Id;
 use GPForum::Schema;
 use GPForum::Service::Identity::AuthStore;
 use GPForum::Service::Identity::CredentialStore;
+use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Identity::SessionStore;
 use GPForum::Service::Identity::Store;
 use GPForum::Service::Identity::Support;
@@ -1153,7 +1154,7 @@ sub _password_reset_rotation {
     my $mails = _mails( $ctx, $user );
     is( scalar @{$mails}, 2, 'each request queues its mail' );
     is(
-        $mails->[-1]{outbox}{mail}{token},
+        _opened( $mails->[-1]{outbox}{mail} ),
         $rotated->{token}{raw_token},
         'the latest with the rotated token'
     );
@@ -1349,10 +1350,10 @@ sub _email_change {
     is_deeply(
         $mail{email_change_notice}{outbox}{mail},
         {
-            kind   => 'email_change_notice',
-            locale => 'en',
-            to     => 'mover@example.test',
-            token  => undef,
+            kind     => 'email_change_notice',
+            locale   => 'en',
+            to       => 'mover@example.test',
+            token_id => $requested->{token}{token_id},
         },
         'the address it leaves is told, in the member language, with no token'
     );
@@ -2348,6 +2349,14 @@ sub _audits {
     return _value( $ctx, $USER_AUDITS_SQL, $user, $action );
 }
 
+# The token of a queued mail, opened as the worker opens it.
+sub _opened {
+    my ($mail) = @_;
+
+    return GPForum::Service::Identity::MailToken->new->unseal(
+        $mail->{sealed_token}, $mail->{token_id} );
+}
+
 # The identity mails queued for $user, oldest first: each event's payload
 # and its outbox message's, decoded.
 sub _mails {
@@ -2367,7 +2376,8 @@ sub _mails {
 }
 
 # The mail event keeps the kind and the token id; only its outbox message,
-# which the worker delivers and retention purges, carries the raw token.
+# which the worker delivers and retention purges, carries the token, and
+# that sealed (Identity::MailToken).
 sub _assert_mail {
     my ( $ctx, $user, $mail ) = @_;
 
@@ -2377,9 +2387,12 @@ sub _assert_mail {
         { kind => $mail->{kind}, token_id => $mail->{token_id} },
         'mail event payload keeps kind and token id only'
     );
-    is( $queued->{outbox}{mail}{token},
-        $mail->{token},
-        'mail outbox payload keeps the raw token until delivery' );
+    ok(
+        !exists $queued->{outbox}{mail}{token},
+        'mail outbox payload holds no raw token'
+    );
+    is( _opened( $queued->{outbox}{mail} ),
+        $mail->{token}, 'it keeps the token sealed until delivery' );
     is( $queued->{outbox}{mail}{to},
         $mail->{to}, 'reset mail uses the member address' );
 

@@ -9,6 +9,7 @@ use v5.40;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Service::Clock;
 use GPForum::Service::Identity::Event;
+use GPForum::Service::Identity::MailToken;
 
 our $VERSION = '0.001';
 
@@ -29,6 +30,10 @@ has schema => undef;          # optional: only the default recorder reads it
 has events => sub ($self) {
     return GPForum::Service::Identity::Event->new( clock => $self->clock );
 };
+
+# Seals a mail's token for the outbox; the configured signing secrets unless
+# given.
+has mail_token => sub { return GPForum::Service::Identity::MailToken->new; };
 
 sub record_registration ( $self, $user, $correlation_id ) {
     $self->recorder->record_event(
@@ -57,9 +62,11 @@ sub action_call ( $self, $input ) {
 
 # The call record_mail makes, prepared and not sent.
 sub mail_call ( $self, $input ) {
+    my $mail = $self->_sealed($input);
+
     return $self->recorder->event_call(
-        %{ $self->events->mail_envelope($input) },
-        outbox_payload => $self->events->mail_outbox_payload($input), );
+        %{ $self->events->mail_envelope($mail) },
+        outbox_payload => $self->events->mail_outbox_payload($mail), );
 }
 
 sub record_action ( $self, $input ) {
@@ -69,10 +76,23 @@ sub record_action ( $self, $input ) {
 }
 
 sub record_mail ( $self, $input ) {
-    $self->recorder->record_event( %{ $self->events->mail_envelope($input) },
-        outbox_payload => $self->events->mail_outbox_payload($input), );
+    my $mail = $self->_sealed($input);
+    $self->recorder->record_event( %{ $self->events->mail_envelope($mail) },
+        outbox_payload => $self->events->mail_outbox_payload($mail), );
 
     return;
+}
+
+# The mail with its raw token replaced by the token sealed to its id.
+sub _sealed ( $self, $input ) {
+    if ( !defined $input->{token} ) {
+        return $input;
+    }
+    my %mail  = %{$input};
+    my $token = delete $mail{token};
+    $mail{sealed_token} = $self->mail_token->seal( $token, $mail{token_id} );
+
+    return \%mail;
 }
 
 1;

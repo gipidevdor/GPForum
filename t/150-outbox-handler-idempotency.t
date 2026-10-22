@@ -12,6 +12,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
+use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Outbox::DomainEventTransport;
 use GPForum::Service::Outbox::Dispatcher;
 use GPForum::Test::CountingNotifier;
@@ -264,9 +265,12 @@ my $mail_message = _payload_row(
         event_id   => 'event-mail-1',
         event_type => 'identity.mail.requested',
         mail       => {
-            kind  => 'password_reset',
-            to    => 'member@example.test',
-            token => 'raw-reset',
+            kind         => 'password_reset',
+            to           => 'member@example.test',
+            sealed_token => GPForum::Service::Identity::MailToken->new->seal(
+                'raw-reset', 'tok-raw-reset'
+            ),
+            token_id => 'tok-raw-reset',
         },
     }
 );
@@ -347,9 +351,13 @@ my $mail_crash_row    = GPForum::Test::OutboxCrashRow->new(
             event_id   => 'event-mail-crash-1',
             event_type => 'identity.mail.requested',
             mail       => {
-                kind  => 'password_reset',
-                to    => 'member@example.test',
-                token => 'crash-token',
+                kind         => 'password_reset',
+                to           => 'member@example.test',
+                sealed_token =>
+                  GPForum::Service::Identity::MailToken->new->seal(
+                    'crash-token', 'tok-crash-token'
+                  ),
+                token_id => 'tok-crash-token',
             },
         },
     },

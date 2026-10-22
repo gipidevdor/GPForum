@@ -302,6 +302,12 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **Password-reset, email-change and verification tokens waited in the
+  outbox in clear.** Whoever could read the outbox table, its backups or a
+  dead letter could follow the link. The outbox now holds each token sealed
+  with a key derived from the signing secrets and bound to its token id;
+  the mail worker opens it only to send, and a token it cannot open is not
+  mailed.
 - **Anyone could lock a member out of signing in.** The limit on the
   sign-ins one account receives, from every address together, counted
   anyone's attempts, so twenty wrong passwords every five minutes from

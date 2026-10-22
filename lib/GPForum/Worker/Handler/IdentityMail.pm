@@ -36,11 +36,18 @@ const my %NOTICE => (
 );
 
 has mailer => undef;    # optional: task is only captured
-has i18n   => sub {
+
+# Opens the sealed token of a mail (Identity::MailToken); the configured
+# signing secrets unless given.
+has mail_token => sub {
+    require GPForum::Service::Identity::MailToken;
+    return GPForum::Service::Identity::MailToken->new;
+};
+has i18n => sub {
     require GPForum::Service::I18N;
     return GPForum::Service::I18N->new;
 };
-has sink => undef;      # optional: tests capture tasks
+has sink => undef;    # optional: tests capture tasks
 
 sub supports ( $, $event ) {
     return ( $event->{event_type} || q{} ) eq $MAIL_REQUESTED;
@@ -74,18 +81,27 @@ sub _mail ( $self, $event ) {
     return $self->_complete_mail($mail);
 }
 
-sub _complete_mail ( $, $mail ) {
+sub _complete_mail ( $self, $mail ) {
     if ( !_has_text( $mail->{kind} ) ) {
         return undef;
     }
     if ( !_has_text( $mail->{to} ) ) {
         return undef;
     }
-    if ( !_has_text( $mail->{token} ) && !exists $NOTICE{ $mail->{kind} } ) {
+    if ( exists $NOTICE{ $mail->{kind} } ) {
+        return $mail;
+    }
+
+    # The token waits sealed to its id; one this worker cannot open --
+    # sealed under a secret it no longer holds, for another token, or
+    # altered -- is not mailed.
+    my $token =
+      $self->mail_token->unseal( $mail->{sealed_token}, $mail->{token_id} );
+    if ( !_has_text($token) ) {
         return undef;
     }
 
-    return $mail;
+    return { %{$mail}, token => $token };
 }
 
 sub _send ( $self, $mail, $task ) {
@@ -188,8 +204,11 @@ Version 0.001.
 Sends password-reset, email-change, and verification mail for
 C<identity.mail.requested> outbox payloads, and the two-step sign-in
 notices (ADR 0142) and the notice to the address an email change leaves
-(C<email_change_notice>, ADR 0143) in the member's language. The raw token lives on the
-outbox C<mail> hash, not on EventLog. Delivery is at-least-once: an
+(C<email_change_notice>, ADR 0143) in the member's language. The token
+waits on the outbox C<mail> hash sealed to its id
+(L<GPForum::Service::Identity::MailToken>), never in clear and never on
+EventLog; the handler opens it to send, and does not mail one it cannot
+open. Delivery is at-least-once: an
 outbox retry after send and before C<mark_done> resends from that
 payload. Delivery exceptions propagate so the dispatcher can retry.
 

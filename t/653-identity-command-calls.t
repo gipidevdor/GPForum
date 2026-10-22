@@ -13,6 +13,7 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Infrastructure::SqlFunction;
+use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Identity::Registration;
 use GPForum::Service::Identity::Store;
 use GPForum::Service::Identity::Workflow;
@@ -213,16 +214,22 @@ subtest 'a registration is one call' => sub {
         'identity.mail.requested', 'the mail event' );
     is( $sent->{mail_event}{event_id}, $mail_event_id, 'with its id' );
     is( $sent->{mail_outbox_id}, $mail_outbox_id, 'and its outbox row id' );
+    my %mail = %{ $sent->{mail_outbox_extras}{mail} };
+    is(
+        GPForum::Service::Identity::MailToken->new->unseal(
+            delete $mail{sealed_token}, $token_id
+        ),
+        'token-1',
+        'the mail with the token sealed to its id, for the outbox alone'
+    );
     is_deeply(
-        $sent->{mail_outbox_extras},
+        \%mail,
         {
-            mail => {
-                kind  => 'email_verification',
-                to    => 'unit@example.invalid',
-                token => 'token-1',
-            }
+            kind     => 'email_verification',
+            to       => 'unit@example.invalid',
+            token_id => $token_id,
         },
-        'the mail with the raw token, for the outbox alone'
+        'and never in clear'
     );
     is( $sent->{accepted}{stored}{user_id},
         $user_id, 'the accepted answer names the user' );

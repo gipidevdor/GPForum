@@ -302,6 +302,22 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ### Security
 
+- **The lock kept CPAN releases with security fixes the advisory database
+  did not list yet.** `script/cpan-audit` passed, locally and in CI with
+  CPANSA-DB 20261018.001, while these were already fixed upstream. The lock
+  and the `cpanfile` floors now take them:
+  - **Cpanel::JSON::XS 4.80** (was 4.53), the backend the service decodes
+    database JSON and encodes events and audit records with: leaks, a stack
+    overflow, a use-after-free, malformed key handling and quadratic CPU in
+    decode, encode and `incr_parse` (CVE-2026-110672 to CVE-2026-110688).
+  - **Mojolicious 9.51** (was 9.49): `Mojo::DOM` left the content of
+    `title` and `textarea` unescaped when rendering (9.50), and WebSocket
+    frames sent with the handshake were read as a new request (9.51).
+  - **DBI 1.656** (was 1.655): CVE-2026-108518 and CVE-2026-111879.
+  - **Clone 0.51** and **Package::Stash::XS 0.32**, loaded by the service
+    through DateTime and DBIx::Class: C stack growth and leaks on deep
+    structures, and a crash on Perl 5.40 and later.
+  - **URI 5.40** and **HTML::Parser 3.86**, maintainer tools only.
 - **A realtime socket outlived the session it was opened in.** Signing
   out, a password change or a sign-out everywhere ended the session, and
   its open socket kept receiving the member's badges and followed threads.

@@ -1,6 +1,6 @@
 requires 'perl', '5.040.0';
 
-requires 'Mojolicious', '9.49';
+requires 'Mojolicious', '9.51';
 # The supported OS profiles require libev's native epoll/kqueue backend.
 requires 'EV', '4.37';
 requires 'DBIx::Class', '0.082844';
@@ -8,7 +8,7 @@ requires 'Minion', '12.0';
 requires 'JSON::MaybeXS', '1.004008';
 # Never loaded by name: it is the XS backend JSON::MaybeXS selects at runtime,
 # and the floor is what keeps it from falling back to the pure-Perl one.
-requires 'Cpanel::JSON::XS', '4.53';
+requires 'Cpanel::JSON::XS', '4.80';
 requires 'DateTime', '1.67';
 # Named directly by the date formatter and the time zone preference (9.3).
 requires 'DateTime::TimeZone', '2.71';
@@ -28,8 +28,11 @@ requires 'Authen::SASL', '2.2100';
 requires 'IO::Socket::SSL', '2.099';
 requires 'Const::Fast', '0.014';
 
-# Security floors for transitive dependencies with published CPANSA advisories.
-requires 'DBI', '1.655';
+# Security floors for transitive dependencies the service loads: releases that
+# fix a published advisory or CVE, or a memory-safety defect in XS code.
+requires 'DBI', '1.656';
+requires 'Clone', '0.51';
+requires 'Package::Stash::XS', '0.32';
 
 # What the suite loads. Carton cannot install without the test phase (and
 # Menlo installs a cpanfile's direct test requirements even under --notest),
@@ -52,7 +55,8 @@ on develop => sub {
     requires 'Devel::NYTProf', '6.15';
 
     # Security floors for transitive test-tool dependencies.
-    requires 'URI', '5.37';
+    requires 'URI', '5.40';
+    requires 'HTML::Parser', '3.86';
     requires 'HTTP::Date', '6.08';
     requires 'List::SomeUtils::XS', '0.59';
 };

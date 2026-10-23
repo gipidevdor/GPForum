@@ -1,0 +1,109 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+package main;
+use v5.40;
+use Carp qw(croak);
+use Const::Fast;
+use FindBin;
+use File::Spec;
+use Getopt::Long qw(GetOptions);
+use List::Util   qw(max);
+use lib "$FindBin::Bin/lib", "$FindBin::Bin/../lib";
+use GPForum::Performance::HTTPComplete;
+use GPForum::Performance::HTTPCatalog qw(reads journeys);
+our $VERSION = '0.001';
+const my $KEEP_EMPTY  => -1;
+const my $MAX_CLIENTS => 100;
+const my $MAX_WORKERS => 8;
+
+sub options {
+    my %o = (
+        profile          => 'full',
+        workers          => 2,
+        iterations       => 20,
+        repetitions      => 3,
+        warmup           => 3,
+        duration         => 3,
+        deadline         => 1800,
+        write_clients    => 10,
+        write_iterations => 2,
+        scenario         => [],
+    );
+    GetOptions( \%o,
+        qw(output=s profile=s workers=i iterations=i repetitions=i warmup=i duration=i deadline=i write-clients=i write-iterations=i scenario=s@ concurrency=s help list)
+    ) or exit 2;
+    return \%o;
+}
+
+sub validate ( $o, $names ) {
+    croak
+'use a new --output directory, profile full|smoke and no positional arguments'
+      if @ARGV
+      || !$o->{output}
+      || ( $o->{profile} ne 'full' && $o->{profile} ne 'smoke' );
+    if ( $o->{profile} eq 'smoke' ) {
+        @{$o}{
+            qw(iterations repetitions warmup duration write_clients write_iterations)
+        } = ( 1, 1, 0, 1, 1, 1 );
+    }
+    for my $key (qw(write-clients write-iterations)) {
+        if ( defined $o->{$key} ) {
+            my $normal = $key;
+            $normal =~ tr/-/_/;
+            $o->{$normal} = delete $o->{$key};
+        }
+    }
+    _concurrency($o);
+    _bounds($o);
+    my %known = map { $_ => 1 } @{$names};
+    for my $name ( @{ $o->{scenario} } ) {
+        croak "unknown scenario $name" if !$known{$name};
+    }
+    $o->{output} = File::Spec->rel2abs( $o->{output} );
+    return undef;
+}
+
+sub _concurrency ($o) {
+    $o->{concurrency} //= $o->{profile} eq 'smoke' ? '1' : '1,10,50,100';
+    my @levels = split /,/msx, $o->{concurrency}, $KEEP_EMPTY;
+    for my $level (@levels) {
+        croak 'concurrency levels must be integers 1..100'
+          if $level !~ /\A[[:digit:]]+\z/msx
+          || $level < 1
+          || $level > $MAX_CLIENTS;
+    }
+    $o->{concurrency}     = [@levels];
+    $o->{max_concurrency} = max( $o->{write_clients}, @levels );
+    return undef;
+}
+
+sub _bounds ($o) {
+    for my $key (
+        qw(workers iterations repetitions duration deadline write_clients write_iterations)
+      )
+    {
+        croak "$key must be positive" if $o->{$key} < 1;
+    }
+    croak 'warmup must be nonnegative' if $o->{warmup} < 0;
+    croak 'worker/client limits exceeded'
+      if $o->{workers} > $MAX_WORKERS || $o->{max_concurrency} > $MAX_CLIENTS;
+    return undef;
+}
+
+my $o = options();
+if ( $o->{help} ) {
+    print
+"Usage: script/gpforum-carton exec script/benchmark-http-complete --output DIR [--profile full|smoke] [--workers 2] [--concurrency 1,10,50,100] [--scenario NAME]\nOwns temporary PostgreSQL, real Hypnotoad and real HTTP sessions. Writes stay in its temporary database.\n"
+      or croak 'cannot write help';
+    exit 0;
+}
+my @names = ( map { $_->{name} } @{ reads() } );
+push @names, ( map { 'journey.' . $_->{name} } @{ journeys() } ), 'mixed',
+  'authentication';
+if ( $o->{list} ) {
+    print join( "\n", @names ), "\n" or croak 'cannot list scenarios';
+    exit 0;
+}
+validate( $o, \@names );
+exit GPForum::Performance::HTTPComplete->new( options => $o )->run;

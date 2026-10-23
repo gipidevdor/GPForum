@@ -16,6 +16,82 @@ implemented in Perl. Bootstrap and failure reporting use only core modules;
 application/database commands use the existing locked Carton tree. The separate
 [Sunday extreme workload](EXTREME.md) adds bounded mixed/soak evidence as artifacts.
 
+## Complete HTTP workload
+
+[Local HTTP results, 23 October 2026](http-complete/2026-10-23/README.md)
+preserve the full two-worker run, the focused four-worker comparison and
+the excluded startup failure, with raw JSON, reports and checksums.
+
+`script/benchmark-http-complete` runs a real Hypnotoad server over loopback TCP,
+with a private migrated PostgreSQL cluster and real cookie jars, login, CSRF
+tokens and command IDs. It discards the inherited database DSN. Both the server
+and the temporary cluster stop when the run completes; PostgreSQL keeps
+`fsync`, `full_page_writes` and `synchronous_commit` enabled.
+
+```sh
+make benchmark-http-complete HTTP_BENCHMARK_OUTPUT=artifacts/http-complete-001
+script/gpforum-carton exec script/benchmark-http-complete --list
+script/gpforum-carton exec script/benchmark-http-complete \
+  --output artifacts/http-smoke-001 --profile smoke
+script/gpforum-carton exec script/benchmark-http-complete \
+  --output artifacts/http-search-001 --workers 4 \
+  --scenario member.search --scenario mixed
+```
+
+The full profile seeds 240 threads and 4,800 posts in eight categories. It
+measures 67 read scenarios across guest, member, moderator and administrator,
+with 20 requests after three warmups, repeated three times. Large mbox exports
+use one fifth of the read iterations. Member home, thread, search and
+notifications also run three-second cells at 10/50/100 concurrent independent
+member sessions; `--concurrency` changes those levels. The single-client
+read cells always run. The normal SSR cache is enabled, and private pages
+retain the application's normal cache policy.
+
+Seven journeys exercise publishing/edit/delete/restore, bookmarks,
+subscriptions, likes/reactions, drafts/preview, moderation/admin creation,
+profile/locale/theme/relations/notifications, private messages, polls and
+privacy exports. Each journey runs twice per client, with ten concurrent
+clients and three repetitions. A mixed cell uses 80% reads and 20% writes,
+including a newly persisted reply per cycle. Authentication cells measure
+the login form, password verification, authenticated settings and logout.
+Members have distinct identities; administrator clients have distinct sessions
+for the same owner, so admin results include that contention. Background
+delivery and realtime listeners are disabled. Admission quotas are raised
+only in the benchmark entrypoint, retaining real PostgreSQL rate-counter
+calls, authorization and CSRF checks. These are admitted-work measurements,
+not tests of throttling capacity.
+
+Every measured response must have its expected HTTP status, domain status
+and required created ID. Form redirects check their destination where
+applicable. A replayed created ID fails the run; final thread and post counts
+must match all created identities, including untimed setup writes. The smoke
+profile covers the same scenario catalogue with one request/round/client.
+`--deadline` bounds admission of new cells; an active request or journey
+may finish after the deadline. Incomplete runs return nonzero and retain
+checkpoints. Scenario selections and every missing named route are explicit
+in the report: successful collection does not mean all routes were exercised.
+Attachment scanning/transfers, external SMTP/WebSub, email token completion,
+MFA ceremonies and long-lived realtime connections need separate fixtures;
+they are not capacity evidence from this run.
+
+`http-complete.json` records configuration, machine/runtime metadata,
+durability settings, correctness checks, actual route coverage, status codes
+and per-operation/per-cell p50/p95/p99/max distributions. `report.html` shows
+the tables, including failed cells and unmeasured routes. Fewer than 20 samples
+are flagged; small samples do not establish reliable tails. Throughput is
+computed only per cell from its wall time. Operation aggregates combine
+different concurrency levels and are diagnostic, not capacity comparisons.
+Client latency includes the real socket exchange; `Server-Timing` supplies
+application and database duration. Their difference also includes client,
+transport and response delivery, so it is not pure server queue time.
+
+The asynchronous Mojo client shares this host with Hypnotoad and PostgreSQL;
+its throughput is not interchangeable with the independent `wrk` baseline
+below. No TLS, proxy, WAN, browser rendering or JavaScript execution is measured.
+There is no production-sized dataset claim or performance gate from one local
+run. Use the fixed-seed and SQL/NYTProf diagnostics below to investigate a path
+identified by these HTTP measurements.
+
 ## Operation diagnostics
 
 `script/benchmark-operations` adds the complete PostgreSQL integration tier as

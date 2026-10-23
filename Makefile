@@ -44,6 +44,11 @@ BENCHMARK_OUTPUT ?= artifacts/operations
 benchmark-operations: ## Diagnose HTTP and SQL operations across all PostgreSQL integration workflows
 	script/gpforum-carton exec script/benchmark-operations --output "$(BENCHMARK_OUTPUT)"
 
+.PHONY: benchmark-http-complete
+HTTP_BENCHMARK_OUTPUT ?= artifacts/http-complete
+benchmark-http-complete: ## Benchmark real HTTP reads, authenticated writes and mixed load on disposable PostgreSQL
+	script/gpforum-carton exec script/benchmark-http-complete --output "$(HTTP_BENCHMARK_OUTPUT)"
+
 # No --severity override. The profile declares `severity = brutal` and the
 # baseline in etc/ was recorded at that level, so passing --severity 5 here
 # meant `make check` compared a severity-5 run against a severity-1 baseline:

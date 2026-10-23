@@ -262,6 +262,7 @@ sub _helper_names {
       gp_discovery_view_model
       gp_draft_store
       gp_export_bundle_builder
+      gp_archive gp_websub gp_post_signer gp_mail_reply_tokens gp_mail_in gp_reputation_rate
       gp_feed_builder
       gp_feed_reader
       gp_forum_view_model

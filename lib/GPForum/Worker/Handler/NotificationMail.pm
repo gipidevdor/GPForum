@@ -18,6 +18,11 @@ has preference_store => undef;    # optional: task is only captured
 has renderer         => undef;    # optional: task is only captured
 has sink             => undef;    # optional: tests capture tasks
 has tokens           => undef;    # optional: task is only captured
+has reply_tokens =>
+  undef;    # optional: mail reply links are omitted without a token signer
+has reply_address => q{};
+has reply_content =>
+  undef;    # optional: reply context is omitted without a content reader
 
 sub supports ( $, $event ) {
     return ( $event->{event_type} || q{} ) eq $EMAIL_REQUESTED;
@@ -109,6 +114,24 @@ sub _message ( $self, $mail, $plan ) {
             $base . $target,
             q{--}, $footer ),
         unsubscribe_url => $unsubscribe,
+        (
+            $self->reply_tokens
+              && length $self->reply_address
+              && GPForum::Infrastructure::Id->is_uuid_spelling(
+                $mail->{thread_id}
+              )
+            ? (
+                reply_message_id => $self->reply_tokens->issue(
+                    $mail->{thread_id}, $mail->{recipient_user_id},
+                    $mail->{post_id}
+                ),
+                reply_to   => $self->reply_address,
+                reply_body => $self->reply_content
+                ? $self->reply_content->($mail)
+                : undef
+              )
+            : ()
+        ),
     };
 }
 

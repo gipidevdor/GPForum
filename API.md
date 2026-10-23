@@ -105,3 +105,31 @@ invitation secret is returned only on its first successful creation response;
 replay returns its id. Staff-only pages and poll responses use no-store.
 See [ADR 0151](docs/adr/0151-admission-polls-category-follows-and-thread-organization.md)
 for bounds, audiences, rollback and privacy semantics.
+
+## Portable archives and protocol discovery
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/t/:thread_id/archive.mbox` | Complete authorized thread as a downloadable mboxrd archive. |
+| GET | `/c/:category_id/archive.mbox` | Complete authorized category archive, with a stable category List-ID. |
+| GET | `/p/:post_id/signature` | Detached Ed25519 envelope for the currently readable post revision; null for an unsigned legacy revision. |
+| GET | `/.well-known/gpforum-signing-keys` | Current and archived trusted public JWKs, retained independently of the database. |
+| POST | `/websub` | Subscription form gateway to the configured trusted HTTPS hub for the fixed public Atom topic. |
+
+Archives and post attestations apply the existing space, category, thread and
+post permissions. Private responses use `Cache-Control: private, no-store`.
+Exports verify all persisted attestations before delivery; a mismatch fails
+the response rather than returning a newly signed altered copy. Archive
+messages contain pseudonymous sender addresses and do not expose account
+email addresses. Legacy revisions can be attested with `gpforum sign-posts`.
+
+With `GPFORUM_WEBSUB_HUB_URL` set, `/feed.atom` advertises the hub in its Atom
+and HTTP Link metadata; the outbox publishes updates. The hub handles callback
+verification, subscription leases and signed deliveries. The local gateway
+accepts URL-encoded WebSub subscription parameters and answers 202 only after
+the hub accepts them. It answers 404 when disabled, 400 for invalid forms,
+413 for oversized requests, 415 for another media type, 429 for a rate limit
+and 502 for upstream failure. GPForum never contacts subscriber callback URLs.
+
+See [community protocol operations](docs/ops/community-protocols.md) for mail
+reply capabilities, Gemini TLS, key retention and verified backup setup.

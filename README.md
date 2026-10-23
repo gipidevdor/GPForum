@@ -228,3 +228,13 @@ network lights. [Editable artwork and variants](assets/source/README.md).
 ## License
 
 [BSD-3-Clause](LICENSE).
+
+### Portable community protocols
+
+Download a complete thread or category as mbox from its page. New post
+revisions carry persisted Ed25519 attestations, with trusted keys at
+`/.well-known/gpforum-signing-keys`. `gpforum sign-posts` attests existing
+revisions. `gpforum mail-in` accepts authenticated MIME replies; a configured
+WebSub hub receives updates from the outbox; `gpforum gemini` serves public
+Gemtext over TLS. `gpforum backup --verify` restores a consistent snapshot
+and checks its row counts. See [configuration and protocol operations](docs/ops/community-protocols.md).

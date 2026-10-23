@@ -3,6 +3,12 @@
 
 package GPForum::Bootstrap::Forum;
 
+use GPForum::Service::Operations::ReputationRate;
+use GPForum::Service::Forum::PostSigner;
+use GPForum::Service::Identity::MailReplyToken;
+use GPForum::Service::Identity::MailIn;
+use Mojo::URL;
+
 use v5.40;
 
 use GPForum::Infrastructure::Antivirus;
@@ -66,6 +72,40 @@ use GPForum::Web::PublicHttpCache;
 our $VERSION = '0.001';
 
 sub register ( $, %input ) {
+    my $protocol_config = $input{config};
+    $input{application}->helper(
+        gp_reputation_rate => sub ($controller) {
+            return GPForum::Service::Operations::ReputationRate->new(
+                schema => $controller->gp_schema );
+        }
+    );
+    my $signer = GPForum::Service::Forum::PostSigner->new(
+        key_file => $input{config}->post_signing_key );
+    $input{application}->helper( gp_post_signer => sub { return $signer; } );
+    $input{application}->helper(
+        gp_mail_reply_tokens => sub ($controller) {
+            return GPForum::Service::Identity::MailReplyToken->new(
+                secrets => $controller->app->secrets,
+                domain  =>
+                  Mojo::URL->new( $protocol_config->public_base_url )->host
+            );
+        }
+    );
+    $input{application}->helper(
+        gp_mail_in => sub ($controller) {
+            return GPForum::Service::Identity::MailIn->new(
+                schema          => $controller->gp_schema,
+                tokens          => $controller->gp_mail_reply_tokens,
+                viewer_resolver => GPForum::Service::Forum::ViewerResolver->new(
+                    schema => $controller->gp_schema
+                ),
+                suspension_store => $controller->gp_suspension_store,
+                rate_limiter     => $controller->gp_rate_limiter,
+                reputation_rate  => $controller->gp_reputation_rate,
+                workflow         => $controller->gp_posting_workflow
+            );
+        }
+    );
     my $application = $input{application};
     my $config      = $input{config};
 
@@ -180,7 +220,9 @@ sub _register_forum_helpers {
             my ($controller) = @_;
 
             return GPForum::Service::Forum::ThreadComposer->new(
-                id_service => $controller->gp_id );
+                post_signer => $controller->gp_post_signer,
+                id_service  => $controller->gp_id
+            );
         }
     );
     $application->helper(
@@ -199,7 +241,9 @@ sub _register_forum_helpers {
             my ($controller) = @_;
 
             return GPForum::Service::Forum::PostComposer->new(
-                id_service => $controller->gp_id );
+                post_signer => $controller->gp_post_signer,
+                id_service  => $controller->gp_id
+            );
         }
     );
     $application->helper(

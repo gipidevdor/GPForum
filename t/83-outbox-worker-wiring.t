@@ -18,6 +18,7 @@ use GPForum::Command::OutboxDispatch;
 use GPForum::Config;
 use GPForum::Service::Outbox::Dispatcher;
 use GPForum::Service::Outbox::DomainEventTransport;
+use GPForum::Service::Discovery::WebSub;
 use GPForum::Test::OutboxCommandDispatcher;
 use GPForum::Test::UnreachableMinion;
 use GPForum::Worker::MinionGuard;
@@ -219,6 +220,17 @@ sub _install_worker_helper_dependencies {
     my ($worker_application) = @_;
 
     $worker_application->helper( gp_schema => sub { return {}; } );
+    $worker_application->helper(
+        gp_config => sub { return GPForum::Config->new; } );
+    $worker_application->helper( gp_mail_reply_tokens => sub { return {}; } );
+    $worker_application->helper(
+        gp_websub => sub {
+            return GPForum::Service::Discovery::WebSub->new(
+                hub_url => q{},
+                topic   => 'https://forum.example/feed.atom'
+            );
+        }
+    );
     $worker_application->helper(
         gp_realtime_pg_notifier => sub { return {}; } );
     $worker_application->helper(

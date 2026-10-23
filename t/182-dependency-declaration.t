@@ -48,10 +48,10 @@ like(
     qr/requires [ ] 'Email::Simple'/msx,
     'the module the identity mailer requires is declared'
 );
-unlike(
+like(
     $cpanfile,
     qr/requires [ ] 'Email::MIME'/msx,
-    'the module nothing loads is no longer declared'
+    'the inbound MIME parser is declared'
 );
 unlike(
     $cpanfile,

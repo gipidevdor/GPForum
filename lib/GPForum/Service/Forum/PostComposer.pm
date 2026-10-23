@@ -23,6 +23,7 @@ const my %ALLOWED_VISIBILITY => (
 
 has body_renderer => sub { return GPForum::Service::Forum::BodyRenderer->new; };
 has id_service    => sub { return GPForum::Infrastructure::Id->new; };
+has post_signer   => undef; # optional: posts are unsigned without a signing key
 
 sub prepare ( $self, $input ) {
     my $values = _normalized_values($input);
@@ -104,7 +105,7 @@ sub _post_record ( $values, $ids ) {
 }
 
 sub _body_record ( $self, $values, $ids ) {
-    return {
+    my $body = {
         body_id            => $ids->{body_id},
         post_id            => $ids->{post_id} || $values->{post_id},
         body_format        => 'markdown',
@@ -113,6 +114,10 @@ sub _body_record ( $self, $values, $ids ) {
           $self->body_renderer->render_safe( $values->{body_source} ),
         source_hash => $values->{body_hash},
     };
+    if ( $self->post_signer ) {
+        $body->{post_signature} = $self->post_signer->sign($body);
+    }
+    return $body;
 }
 
 sub _revision_record ( $values, $ids ) {

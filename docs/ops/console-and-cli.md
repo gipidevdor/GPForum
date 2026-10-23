@@ -50,6 +50,9 @@ the verb, or says `none`.
 | `gpforum dead-letters` | `admin_jobs` `admin_dead_letter_replay` | The **Replay** button per dead letter on `/admin/jobs`, over the same service (`Service::Outbox::DeadLetterReplay`), audited with the actor. |
 | `gpforum partitions` | none | DDL on the partitioned tables, run by its daily timer or crontab and, through its lifecycle, by `gpforum migrate` (ADR 0113). It needs locks and time a web request does not have. |
 | `gpforum budgets` | `admin_status` | `/admin/status` shows the query budgets and their drift (`--print`, `--check`). `--sync` makes the `endpoint_query_budgets` table match the catalog in the code -- it inserts, updates, and deletes the rows of endpoints the catalog dropped -- and stays on the shell. |
+| `gpforum mail-in` | none | Reads one authenticated MIME reply from the local MTA; [protocol runbook](community-protocols.md). |
+| `gpforum gemini` | none | Runs the separate public Gemini TLS listener; [protocol runbook](community-protocols.md). |
+| `gpforum sign-posts` | none | Attests existing unsigned revisions in bounded batches; new posts and edits are signed automatically. |
 | `gpforum backup` | none | Dumps the database and the uploads; it needs the database owner and the host's disk, not a web request. |
 | `gpforum restore` | none | Checks that a backup restores, into a database of its own. |
 | `gpforum upgrade` | none | Prints the commands that upgrade this forum, which run on the host. |
@@ -153,3 +156,5 @@ secret shown only as set or not set. It does not change them: configuration
 lives in the service's environment, `/etc/gpforum/gpforum.env`
 (`/usr/local/etc/gpforum/gpforum.env` on FreeBSD), and takes effect on
 `systemctl restart gpforum` (see `reload-and-restart.md`).
+
+`gpforum help VERB` renders the command module’s POD with `Pod::Usage`; `make man` generates matching man pages under `artifacts/man` with `Pod::Man` (the `pod2man` renderer). Options come from executable usage, so there is no separate manual option list.

@@ -50,6 +50,8 @@ q{{variable} must be an IANA time zone such as Europe/Rome, not '{value}'.},
       . q{ https:// and a host, not '{value}'.},
     'config.https' =>
       q{{variable} must use https:// in {environment}, not '{value}'.},
+    'config.mailbox' =>
+      '{variable} must be a single email address, without a display name.',
     'config.mail_from_local' => q{{variable} is '{value}': mail servers}
       . ' refuse a sender at localhost, so {environment} needs an address'
       . q{ at the forum's own domain.},

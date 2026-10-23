@@ -121,7 +121,15 @@ sub send_notification_mail ( $self, $input ) {
     require Encode;
     return $self->_send_identity_mail(
         {
-            body    => Encode::encode( 'UTF-8', $input->{body} ),
+            body => Encode::encode(
+                'UTF-8',
+                (
+                    length( $input->{reply_body} // q{} )
+                    ? "$input->{reply_body}\n\n"
+                    : q{}
+                  )
+                  . $input->{body}
+            ),
             kind    => 'notification',
             subject => Encode::encode( 'MIME-Header', $input->{subject} ),
             to      => $input->{to},
@@ -129,6 +137,15 @@ sub send_notification_mail ( $self, $input ) {
                 'Content-Transfer-Encoding' => '8bit',
                 'List-Unsubscribe'          => "<$input->{unsubscribe_url}>",
                 'List-Unsubscribe-Post'     => 'List-Unsubscribe=One-Click',
+                (
+                    defined $input->{reply_message_id}
+                      && length( $input->{reply_to} // q{} )
+                    ? (
+                        'Message-ID' => $input->{reply_message_id},
+                        'Reply-To'   => $input->{reply_to}
+                      )
+                    : ()
+                ),
             ],
         }
     );

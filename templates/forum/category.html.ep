@@ -14,6 +14,10 @@
     actions_label => t('forum.category_actions'),
     actions => ui_actions(
       {
+        href => ui_path('category_mbox', category_id => $category->{category_id}),
+        label => t('forum.download_mbox'),
+      },
+      {
         href => url_for('forum_search')->query(category_id => $category->{category_id}),
         label => t('nav.search'),
       },

@@ -67,7 +67,10 @@ sub run ( $self, @arguments ) {
           // $self->backup->make_room($into);
         return $self->_refused( $request, $refused ) if $refused;
 
-        $taken = $self->backup->take($into);
+        $taken =
+            $request->{verify}
+          ? $self->backup->take( $into, { verify => 1 } )
+          : $self->backup->take($into);
     }
     catch ($error) {
         return GPForum::Command::Usage->failure( $error,
@@ -87,7 +90,7 @@ sub usage_text ($class) {
 
 sub _usage {
     return <<'USAGE';
-Usage: gpforum backup [--to DIR] [--json]
+Usage: gpforum backup [--to DIR] [--verify] [--json]
 
 Backs the forum up into a new directory, named for the time it was taken
 (gpforum-20261009T221530Z, in UTC), readable by this account alone:
@@ -106,6 +109,8 @@ it: keep the environment file apart.
              without it, the directory the command is typed in. Never the
              code directory, which an upgrade replaces
   --json     one JSON object on stdout instead of the lines
+  --verify   restore the dump in a temporary database, compare counts from
+             the dump's source snapshot, then drop it (requires CREATEDB)
   --help     show this help
 
 Exit status: 0 backed up, 1 it could not be, 2 usage error, 78 settings
@@ -117,6 +122,10 @@ sub _request (@arguments) {
     my %request;
     while (@arguments) {
         my $argument = shift @arguments;
+        if ( $argument eq '--verify' ) {
+            $request{verify} = 1;
+            next;
+        }
         if ( $argument eq '--json' ) {
             $request{json} = 1;
             next;
@@ -213,6 +222,20 @@ sub _taken ( $self, $request, $taken ) {
     $self->_line( $self->output,
             $CHECK_MARK
           . $self->_said( 'cli.backup.done', { directory => $directory } ) );
+    if ( $manifest->{verification} ) {
+        $self->_line(
+            $self->output,
+            $CHECK_MARK
+              . $self->_said(
+                'cli.backup.verified',
+                {
+                    posts => $manifest->{verification}{restored_counts}{posts},
+                    threads =>
+                      $manifest->{verification}{restored_counts}{threads},
+                }
+              )
+        );
+    }
     $self->_line(
         $self->output,
         $self->_said(

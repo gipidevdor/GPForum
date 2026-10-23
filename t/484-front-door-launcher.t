@@ -110,8 +110,8 @@ subtest 'a verb explains itself as the operator typed it' => sub {
     my $migrate = _in_process( { LC_ALL => 'en_US.UTF-8' }, 'help', 'migrate' );
     like(
         $migrate->{output},
-        qr/\A Usage: [ ] gpforum [ ] migrate/msx,
-        'gpforum help migrate is its usage'
+qr/\A NAME .* SYNOPSIS .* Usage: [ ] gpforum [ ] migrate .* DESCRIPTION/msx,
+        'gpforum help migrate renders usage and embedded POD'
     );
     my $partitions =
       _in_process( { LC_ALL => 'en_US.UTF-8' }, 'help', 'partitions' );

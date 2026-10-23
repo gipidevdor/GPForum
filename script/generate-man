@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+use lib 'lib';
+use Mojo::File qw(path);
+use GPForum::Command::Support::Manual;
+use GPForum::Command::Support::Verbs;
+use GPForum::CLI::FrontDoor::Launcher;
+
+our $VERSION = '0.001';
+my $destination = path( shift @ARGV // 'artifacts/man' );
+$destination->make_path;
+my $launcher = GPForum::CLI::FrontDoor::Launcher->new;
+my $manual   = GPForum::Command::Support::Manual->new;
+for my $verb ( @{ GPForum::Command::Support::Verbs->verbs } ) {
+    my $resolved = $launcher->resolve( $verb->{verb} );
+    next if !$resolved;
+    $manual->man( $verb->{verb}, $resolved->{class},
+        $destination->child("gpforum-$verb->{verb}.1")->to_string );
+}

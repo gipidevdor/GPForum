@@ -3,6 +3,8 @@
 
 package GPForum::CLI::FrontDoor::Launcher;
 
+use GPForum::Command::Support::Manual;
+
 use Carp qw(croak);
 use Const::Fast;
 use Cwd        qw(getcwd);
@@ -88,7 +90,8 @@ sub run ( $self, @arguments ) {
     if ( $verb->{needs_application}
         && GPForum::Command::Usage->wants_help(@arguments) )
     {
-        return $self->help( $options, $typed );
+        return $self->_print(
+            $verb->{class}->new->usage =~ s/\bAPPLICATION\b/$FRONT_DOOR/grmsx );
     }
 
     # A verb that reads no setting reads no settings file either, the one
@@ -152,6 +155,9 @@ sub help ( $self, $options, @arguments ) {
     my $usage =
       $verb->{class}->new->usage =~ s/\b APPLICATION \b/$FRONT_DOOR/grmsx;
 
+    return $self->_print(
+        GPForum::Command::Support::Manual->new->text( $typed, $verb->{class} ) )
+      if $verb->{class} =~ /\A GPForum::CLI::/msx;
     return $self->_print($usage);
 }
 
@@ -361,7 +367,7 @@ sub _is_command ($class) {
 }
 
 sub _print ( $self, $text ) {
-    print encode( 'UTF-8', $text ) or croak 'failed to write help';
+    print {*STDOUT} encode( 'UTF-8', $text ) or croak 'failed to write help';
 
     return $GPForum::Command::Usage::EXIT_OK;
 }

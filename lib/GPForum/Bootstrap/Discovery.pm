@@ -10,6 +10,8 @@ use GPForum::Service::Discovery::FeedBuilder;
 use GPForum::Service::Discovery::MetadataBuilder;
 use GPForum::Service::Discovery::RobotsPolicy;
 use GPForum::Service::Discovery::SitemapBuilder;
+use GPForum::Service::Discovery::Archive;
+use GPForum::Service::Discovery::WebSub;
 
 our $VERSION = '0.001';
 
@@ -18,6 +20,28 @@ sub register {
 
     my $application = $input{application};
     my $config      = $input{config};
+    $application->helper(
+        gp_websub => sub {
+            return GPForum::Service::Discovery::WebSub->new(
+                hub_url => $config->websub_hub_url,
+                topic   => $config->public_base_url . '/feed.atom'
+            );
+        }
+    );
+
+    $application->helper(
+        gp_archive => sub ($controller) {
+            return GPForum::Service::Discovery::Archive->new(
+                schema               => $controller->gp_schema,
+                category_reader      => $controller->gp_category_reader,
+                thread_reader        => $controller->gp_thread_reader,
+                thread_detail_reader => $controller->gp_thread_detail_reader,
+                post_reader          => $controller->gp_post_reader,
+                signer               => $controller->gp_post_signer,
+                base_url             => $config->public_base_url,
+            );
+        }
+    );
 
     $application->helper(
         gp_canonical_url => sub {
@@ -30,7 +54,9 @@ sub register {
             my ($controller) = @_;
 
             return GPForum::Service::Discovery::FeedBuilder->new(
-                canonical_url => $controller->gp_canonical_url );
+                hub_url       => $config->websub_hub_url,
+                canonical_url => $controller->gp_canonical_url
+            );
         }
     );
     $application->helper(

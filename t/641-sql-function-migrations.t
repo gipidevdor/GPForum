@@ -67,6 +67,9 @@ const my $SEARCH_VERSION => 10;
 # contract migration drops them (ADR 0126, section 2). Migration 1024 keeps
 # the 1.0 suspension boundaries for workers that have not restarted yet.
 const my %RETAINED_BOUNDARIES => (
+    forum_create_reply           => [4],
+    forum_store_write            => [2],
+    forum_write_command          => [4],
     ops_retention_purge          => [2],
     notification_subscribers     => [2],
     privacy_revoke_user          => [22],
@@ -87,6 +90,7 @@ for my $name ( @{ $catalogue->names } ) {
       exists $RETAINED_BOUNDARIES{$name} ? $RETAINED_BOUNDARIES{$name} : [];
     for my $version ( $entry->{version}, @{$retained} ) {
         my @parameters = @{ $entry->{names} };
+        pop @parameters if $name eq 'forum_create_reply' && $version == 4;
         if ( $name eq 'identity_register_command' && $version == 2 ) {
             pop @parameters;
         }

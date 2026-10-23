@@ -155,6 +155,7 @@ sub create_post ( $self, $command ) {
 # row with. Every key of the composer's command is taken.
 sub reply_parameters ( $self, $command ) {
     my %parameter = (
+        post_signature  => $command->{body}{post_signature},
         idempotency_key => $command->{idempotency_key},
         map { $_ => $command->{post}{$_} } @REPLY_POST,
     );
@@ -181,7 +182,7 @@ sub reply_parameter_names ($self) {
         @REPLY_POST,
         ( map { values %{ $REPLY_PART{$_} } } sort keys %REPLY_PART ),
         qw(idempotency_key correlation_id event_id outbox_id audit_id
-          recorded_at),
+          recorded_at post_signature),
     );
 
     return @names;

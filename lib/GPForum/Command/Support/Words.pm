@@ -19,6 +19,9 @@ our $VERSION = '0.001';
 # has the Italian, and t/483 holds en.po to these words. The English is here,
 # beside the code that says it, as gettext keeps a msgid in the source.
 const my %ENGLISH => (
+    'cli.verb.mail_in' => 'Accept a verified email reply from standard input',
+    'cli.verb.gemini'  => 'Serve public discussions over Gemini with TLS',
+    'cli.verb.sign_posts' => 'Attest existing unsigned post revisions',
     'cli.next'            => 'Next: {step}',
     'cli.then'            => 'Then: {step}',
     'cli.restart_service' =>
@@ -399,7 +402,9 @@ q{Would make {username} ({email}) the forum's owner; nothing was written.},
     'cli.backup.attachments_none' => 'attachments: none yet, in {root}',
     'cli.backup.no_attachments' => 'attachments: {root} does not exist, so the'
       . ' backup holds no uploads',
-    'cli.backup.done'       => 'Backed up into {directory}',
+    'cli.backup.done'     => 'Backed up into {directory}',
+    'cli.backup.verified' =>
+'Restored and verified: {threads} threads, {posts} posts; temporary database removed.',
     'cli.backup.next_check' => 'check that it can be restored, with {command}',
 
     'cli.restore.needs_check' => 'gpforum restore checks a backup and restores'

@@ -27,6 +27,9 @@ use GPForum::Worker::Handler::NotificationMail;
 use GPForum::Worker::Handler::ReputationUpdate;
 use GPForum::Worker::Handler::SearchIndexing;
 use GPForum::Worker::Handler::ThreadActivity;
+use GPForum::Worker::Handler::WebSub;
+use GPForum::Service::Forum::ViewerResolver;
+use GPForum::Infrastructure::Id;
 use GPForum::Worker::IdempotentJobRunner;
 use GPForum::Worker::MinionGuard;
 use GPForum::Worker::MinionRegistrar;
@@ -97,6 +100,9 @@ sub _job_runner ($controller) {
 
 sub _event_handlers ($controller) {
     return [
+        GPForum::Worker::Handler::WebSub->new(
+            publisher => $controller->gp_websub
+        ),
         _search_handler($controller),
         GPForum::Worker::Handler::NotificationDispatch->new(
             dispatcher => $controller->gp_notification_dispatcher,
@@ -129,6 +135,18 @@ sub _event_handlers ($controller) {
             mailer => $controller->gp_identity_mailer,
         ),
         GPForum::Worker::Handler::NotificationMail->new(
+            reply_tokens  => $controller->gp_mail_reply_tokens,
+            reply_address => $controller->gp_config->mail_reply_address,
+            reply_content => sub ($mail) {
+                return undef
+                  if !GPForum::Infrastructure::Id->is_uuid( $mail->{post_id} );
+                my $viewer = GPForum::Service::Forum::ViewerResolver->new(
+                    schema => $controller->gp_schema )
+                  ->resolve( $mail->{recipient_user_id} );
+                my $post =
+                  $controller->gp_archive->post( $mail->{post_id}, $viewer );
+                return $post ? $post->get_column('body_source') : undef;
+            },
             mailer           => $controller->gp_identity_mailer,
             preference_store => $controller->gp_notification_preference_store,
             renderer         => $controller->gp_notification_renderer,

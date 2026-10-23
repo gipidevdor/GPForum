@@ -970,8 +970,9 @@ sub _allowed ( $self, $user_id, $action ) {
     my $decision = $self->gp_rate_limiter->check(
         $self->forum_access->write_rate_input(
             {
-                action   => $action,
-                actor_id => $user_id,
+                action      => $action,
+                actor_id    => $user_id,
+                trust_level => $self->gp_reputation_rate->level($user_id),
             }
         )
     );
@@ -980,13 +981,14 @@ sub _allowed ( $self, $user_id, $action ) {
 }
 
 sub read_allowed ( $self, $action ) {
-    my $actor_id =
-      $self->_current_user_id || GPForum::Web::ClientAddress->of( $self->tx );
+    my $user_id  = $self->_current_user_id;
+    my $actor_id = $user_id || GPForum::Web::ClientAddress->of( $self->tx );
     my $decision = $self->gp_rate_limiter->check(
         $self->forum_access->read_rate_input(
             {
-                action   => $action,
-                actor_id => $actor_id,
+                action      => $action,
+                actor_id    => $actor_id,
+                trust_level => $self->gp_reputation_rate->level($user_id),
             }
         )
     );

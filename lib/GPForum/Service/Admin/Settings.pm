@@ -36,6 +36,7 @@ const my @SECTIONS => (
         name     => 'application',
         settings => [
             [ GPFORUM_ENV              => 'environment' ],
+            [ GPFORUM_WEBSUB_HUB_URL   => 'websub_hub_url' ],
             [ GPFORUM_PUBLIC_BASE_URL  => 'public_base_url' ],
             [ GPFORUM_DEFAULT_LOCALE   => 'default_locale' ],
             [ GPFORUM_DEFAULT_THEME    => 'default_theme' ],
@@ -52,8 +53,9 @@ const my @SECTIONS => (
     {
         name     => 'security',
         settings => [
-            [ GPFORUM_SESSION_SECRET  => 'session_secret' ],
-            [ GPFORUM_SESSION_SECRETS => 'previous_session_secrets' ],
+            [ GPFORUM_POST_SIGNING_KEY => 'post_signing_key' ],
+            [ GPFORUM_SESSION_SECRET   => 'session_secret' ],
+            [ GPFORUM_SESSION_SECRETS  => 'previous_session_secrets' ],
             [
                 GPFORUM_SESSION_TOUCH_INTERVAL_SECONDS =>
                   'session_touch_interval_seconds'
@@ -105,13 +107,14 @@ const my @SECTIONS => (
     {
         name     => 'mail',
         settings => [
-            [ GPFORUM_MAIL_TRANSPORT => 'mail_transport' ],
-            [ GPFORUM_MAIL_FROM      => 'mail_from' ],
-            [ GPFORUM_SMTP_HOST      => 'smtp_host' ],
-            [ GPFORUM_SMTP_PORT      => 'smtp_port' ],
-            [ GPFORUM_SMTP_TLS       => 'smtp_tls' ],
-            [ GPFORUM_SMTP_USERNAME  => 'smtp_username' ],
-            [ GPFORUM_SMTP_PASSWORD  => 'smtp_password' ],
+            [ GPFORUM_MAIL_TRANSPORT     => 'mail_transport' ],
+            [ GPFORUM_MAIL_REPLY_ADDRESS => 'mail_reply_address' ],
+            [ GPFORUM_MAIL_FROM          => 'mail_from' ],
+            [ GPFORUM_SMTP_HOST          => 'smtp_host' ],
+            [ GPFORUM_SMTP_PORT          => 'smtp_port' ],
+            [ GPFORUM_SMTP_TLS           => 'smtp_tls' ],
+            [ GPFORUM_SMTP_USERNAME      => 'smtp_username' ],
+            [ GPFORUM_SMTP_PASSWORD      => 'smtp_password' ],
         ],
     },
     {

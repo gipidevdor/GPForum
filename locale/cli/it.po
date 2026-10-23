@@ -3369,3 +3369,25 @@ msgstr "Verifica e applica il profilo prestazionale PostgreSQL"
 msgctxt "status.label_postgres_performance"
 msgid "PostgreSQL performance"
 msgstr "prestazioni PostgreSQL"
+
+#, python-brace-format
+msgctxt "cli.backup.verified"
+msgid "Restored and verified: {threads} threads, {posts} posts; temporary database removed."
+msgstr "Ripristino verificato: {threads} discussioni, {posts} messaggi; database temporaneo eliminato."
+
+#, python-brace-format
+msgctxt "config.mailbox"
+msgid "{variable} must be a single email address, without a display name."
+msgstr "{variable} deve essere un solo indirizzo email, senza nome visualizzato."
+
+msgctxt "cli.verb.mail_in"
+msgid "Accept a verified email reply from standard input"
+msgstr "Accetta una risposta email verificata dallo standard input"
+
+msgctxt "cli.verb.gemini"
+msgid "Serve public discussions over Gemini with TLS"
+msgstr "Pubblica le discussioni pubbliche via Gemini con TLS"
+
+msgctxt "cli.verb.sign_posts"
+msgid "Attest existing unsigned post revisions"
+msgstr "Attesta le revisioni dei messaggi ancora prive di firma"

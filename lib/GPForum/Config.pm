@@ -7,6 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use DateTime::TimeZone;
+use Email::Address::XS;
 use English    qw(-no_match_vars);
 use List::Util qw(any first max min pairmap);
 use Mojo::File qw(path);
@@ -303,6 +304,32 @@ const my @SETTINGS => map {
           . ' link GPForum mails; https in production.',
         operator => 1,
         example  => 'https://forum.example.com',
+    },
+    {
+        name    => 'post_signing_key',
+        env     => 'GPFORUM_POST_SIGNING_KEY',
+        default => 'var/keys/post-signing.pem',
+        section => 'security',
+        summary =>
+'Private Ed25519 PEM path, shared by workers and preserved across upgrades.',
+    },
+    {
+        name    => 'mail_reply_address',
+        env     => 'GPFORUM_MAIL_REPLY_ADDRESS',
+        default => q{},
+        check   => 'optional_mail_reply',
+        section => 'mail',
+        summary =>
+'Local MTA address delivered to gpforum mail-in; empty disables replies by email.',
+    },
+    {
+        name    => 'websub_hub_url',
+        env     => 'GPFORUM_WEBSUB_HUB_URL',
+        default => q{},
+        check   => 'optional_websub_hub',
+        section => 'application',
+        summary =>
+'Trusted HTTPS WebSub hub managing callback verification, leases and delivery.',
     },
     {
         name    => 'session_secret',
@@ -1006,6 +1033,8 @@ const my %POSITION      => map { $SETTINGS[$_]{name} => $_ } 0 .. $#SETTINGS;
 # returns a problem (see _problem_of), or undef when the value is fine.
 # Const::Fast cannot copy code references, so the table is a plain hash.
 my %RULE = (
+    optional_mail_reply   => \&_rule_optional_mail_reply,
+    optional_websub_hub   => \&_rule_optional_websub_hub,
     required              => \&_rule_required,
     positive              => \&_rule_positive,
     non_negative          => \&_rule_non_negative,
@@ -1578,6 +1607,26 @@ sub _rule_locale ( $self, $setting, $value ) {
     }
 
     return $problem;
+}
+
+sub _rule_optional_mail_reply ( $self, $setting, $value ) {
+    return undef if !length $value;
+    my @addresses = Email::Address::XS->parse($value);
+    return _problem_of( $setting, 'config.mailbox', $value )
+      if $value =~ /[\r\n]/msx
+      || @addresses != 1
+      || !$addresses[0]->is_valid
+      || $addresses[0]->address ne $value;
+    return undef;
+}
+
+sub _rule_optional_websub_hub ( $self, $setting, $value ) {
+    return undef if !length $value;
+    return _problem_of( $setting, 'config.url', $value )
+      if $value !~ $PUBLIC_URL
+      || $value !~ /\A https:\/\//msx
+      || $value =~ /[\x00-\x20\x7f#]/msx;
+    return undef;
 }
 
 sub _rule_public_url ( $self, $setting, $value ) {

@@ -28,4 +28,5 @@
   % }
   <%= include 'forum/_tag_list', tags => $thread->{tags} %>
   <%= include 'forum/_thread_tools', can_reply => $can_reply %>
+  <a class="button--quiet" href="<%= ui_path('thread_mbox', thread_id => $thread->{thread_id}) %>" download><%= t('forum.download_mbox') %></a>
 </header>

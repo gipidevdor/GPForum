@@ -16,6 +16,21 @@ sub register ( $, %input ) {
     $routes->get('/robots.txt')->to('Discovery#robots')->name('robots');
     $routes->get('/sitemap.xml')->to('Discovery#sitemap')->name('sitemap');
     $routes->get('/feed.atom')->to('Discovery#feed')->name('public_feed');
+    $routes->post('/websub')
+      ->to('Discovery#subscribe')
+      ->name('websub_subscribe');
+    $routes->get('/.well-known/gpforum-signing-keys')
+      ->to('Forum::Archive#signing_keys')
+      ->name('signing_keys');
+    $routes->get('/t/:thread_id/archive.mbox')
+      ->to('Forum::Archive#thread')
+      ->name('thread_mbox');
+    $routes->get('/c/:category_id/archive.mbox')
+      ->to('Forum::Archive#category')
+      ->name('category_mbox');
+    $routes->get('/p/:post_id/signature')
+      ->to('Forum::Archive#signature')
+      ->name('post_signature');
     $routes->get('/legal/cookies')->to('Legal#cookies')->name('legal_cookies');
     $routes->get('/legal/privacy')->to('Legal#privacy')->name('legal_privacy');
     $routes->get('/legal/terms')->to('Legal#terms')->name('legal_terms');

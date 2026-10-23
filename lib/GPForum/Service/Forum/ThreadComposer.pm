@@ -25,6 +25,7 @@ const my %ALLOWED_VISIBILITY => (
 
 has body_renderer => sub { return GPForum::Service::Forum::BodyRenderer->new; };
 has id_service    => sub { return GPForum::Infrastructure::Id->new; };
+has post_signer   => undef; # optional: posts are unsigned without a signing key
 
 sub prepare ( $self, $input ) {
     my $floor      = _trim( $input->{visibility_floor} );
@@ -60,10 +61,12 @@ sub prepare ( $self, $input ) {
     return { ok => 0, errors => $errors, values => $values }
       if keys %{$errors};
 
-    return {
-        ok      => 1,
-        command => $self->_command($values),
-    };
+    my $command = $self->_command($values);
+    if ( $self->post_signer ) {
+        $command->{body}{post_signature} =
+          $self->post_signer->sign( $command->{body} );
+    }
+    return { ok => 1, command => $command };
 }
 
 sub prepare_title ( $self, $input ) {

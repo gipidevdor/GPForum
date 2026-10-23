@@ -114,9 +114,10 @@ my $dump = $log->child('drill.dump')->to_string;
     is_deeply(
         _arguments('pg_restore'),
         [
-            '--no-owner',       '--no-acl',
-            '--dbname=target',  '--host=db.test',
-            '--username=drill', $dump,
+            '--no-owner',     '--exit-on-error',
+            '--no-acl',       '--dbname=target',
+            '--host=db.test', '--username=drill',
+            $dump,
         ],
         'pg_restore loads it into the target, without owners or grants'
     );

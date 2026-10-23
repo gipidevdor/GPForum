@@ -62,12 +62,15 @@ sub find ($class) {
     return $class->new( pg_dump => $pg_dump, pg_restore => $pg_restore );
 }
 
-sub dump_database ( $self, $dsn, $dump_path ) {
+sub dump_database ( $self, $dsn, $dump_path, $snapshot = undef ) {
     my $parts = $self->parse_dsn($dsn);
     _run(
         [
-            $self->pg_dump,      '--format=custom',
-            "--file=$dump_path", _connection_args($parts),
+            $self->pg_dump,
+            '--format=custom',
+            "--file=$dump_path",
+            _connection_args($parts),
+            ( defined $snapshot ? "--snapshot=$snapshot" : () ),
             $parts->{dbname},
         ],
         $parts->{password}
@@ -80,9 +83,10 @@ sub restore_database ( $self, $dsn, $dump_path ) {
     my $parts = $self->parse_dsn($dsn);
     _run(
         [
-            $self->pg_restore,        '--no-owner',
-            '--no-acl',               "--dbname=$parts->{dbname}",
-            _connection_args($parts), $dump_path,
+            $self->pg_restore,           '--no-owner',
+            '--exit-on-error',           '--no-acl',
+            "--dbname=$parts->{dbname}", _connection_args($parts),
+            $dump_path,
         ],
         $parts->{password}
     );

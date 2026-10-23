@@ -9,6 +9,8 @@ use v5.40;
 
 our $VERSION = '0.001';
 
+const my $TRUST_READ_MULTIPLIER => 4;
+
 const my $READ_RATE_LIMIT           => 60;
 const my $READ_RATE_WINDOW          => 60;
 const my $WRITE_RATE_LIMIT          => 20;
@@ -121,9 +123,10 @@ has read_rate_limit => sub ($self) {
 
 sub read_rate_input ( $self, $input ) {
     return {
-        action         => $input->{action},
-        actor_id       => $input->{actor_id},
-        limit          => $self->read_rate_limit,
+        action   => $input->{action},
+        actor_id => $input->{actor_id},
+        limit    => $self->read_rate_limit *
+          ( $TRUST_READ_MULTIPLIER**_trust($input) ),
         scope          => 'forum_retrieval',
         window_seconds => $READ_RATE_WINDOW,
     };
@@ -131,9 +134,10 @@ sub read_rate_input ( $self, $input ) {
 
 sub write_rate_input ( $self, $input ) {
     return {
-        action         => $input->{action},
-        actor_id       => $input->{actor_id},
-        limit          => $self->write_limit_for( $input->{action} ),
+        action   => $input->{action},
+        actor_id => $input->{actor_id},
+        limit    => $self->write_limit_for( $input->{action} ) *
+          ( $input->{action} eq 'report.create' ? 1 : 2**_trust($input) ),
         scope          => 'forum_http',
         window_seconds => $WRITE_RATE_WINDOW,
     };
@@ -150,6 +154,11 @@ sub write_limit_for ( $, $action ) {
     }
 
     return $WRITE_RATE_LIMIT;
+}
+
+sub _trust ($input) {
+    my $level = $input->{trust_level} // 0;
+    return $level =~ /\A [0-4] \z/msx ? $level : 0;
 }
 
 sub requires_participation ( $, $action ) {

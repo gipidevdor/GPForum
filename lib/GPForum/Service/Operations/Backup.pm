@@ -26,6 +26,7 @@ use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::StagingDrill::PgTools;
+use GPForum::Service::Operations::BackupVerifier;
 use GPForum::X::Unavailable;
 
 our $VERSION = '0.001';
@@ -175,7 +176,7 @@ sub attachment_root ($self) {
 # Takes the backup into a new directory under $into and returns
 # { directory, manifest }. A backup that fails half-way is removed: a
 # directory that holds a manifest holds a whole backup.
-sub take ( $self, $into ) {
+sub take ( $self, $into, $options = {} ) {
     my $room = $self->make_room($into);
     if ($room) {
         GPForum::X::Unavailable->throw(
@@ -189,7 +190,16 @@ sub take ( $self, $into ) {
     my $old = umask $PRIVATE;
     my $manifest;
     try {
-        $self->_dump( $tools, $place, $database );
+        my $verification;
+        if ( $options->{verify} ) {
+            $verification = GPForum::Service::Operations::BackupVerifier->new(
+                config => $self->config,
+                tools  => $tools,
+            )->run( $place->child($DUMP)->to_string );
+        }
+        else {
+            $self->_dump( $tools, $place, $database );
+        }
         my $attachments = $self->_archive( $place, $into );
 
         $manifest = {
@@ -212,6 +222,7 @@ sub take ( $self, $into ) {
                     : ()
                 ),
             ],
+            ( $verification ? ( verification => $verification ) : () ),
         };
         $place->child($MANIFEST)
           ->spew( JSON::MaybeXS->new(%JSON_SETTINGS)->encode($manifest) );

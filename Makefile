@@ -17,6 +17,10 @@ help:
 	  | awk 'BEGIN {FS = ":.*?## "} {printf "  \033[1m%-26s\033[0m %s\n", $$1, $$2}'
 	@printf '\nOperational commands live in bin/; run `bin/gpforum` for those.\n'
 
+.PHONY: man
+man: ## Generate command man pages from their embedded POD and live usage
+	script/gpforum-carton exec perl script/generate-man artifacts/man
+
 system-perl: ## Verify the OS system Perl satisfies the floor
 	script/gpforum-system-perl --preflight
 

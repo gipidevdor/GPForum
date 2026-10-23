@@ -14,6 +14,7 @@ our $VERSION = '0.001';
 const my $MAX_SUMMARY_LENGTH => 240;
 
 __PACKAGE__->requires(qw(canonical_url));
+has hub_url => q{};
 has visibility_policy =>
   sub { return GPForum::Service::Discovery::VisibilityPolicy->new; };
 
@@ -41,6 +42,11 @@ sub render_atom ( $self, $feed ) {
       '  <id>' . _xml_escape( $feed->{id} ) . '</id>',
       '  <title>' . _xml_escape( $feed->{title} ) . '</title>',
       '  <link href="' . _xml_escape( $feed->{url} ) . '" rel="self" />',
+      (
+        length $self->hub_url
+        ? '  <link href="' . _xml_escape( $self->hub_url ) . '" rel="hub" />'
+        : ()
+      ),
       '  <updated>' . _xml_escape( $feed->{updated} ) . '</updated>',
       @entries,
       '</feed>',

@@ -12,6 +12,7 @@ our $VERSION = '0.001';
 const my $REALTIME_PREFIX => 'worker.realtime';
 
 const my %PREFIX => (
+    'GPForum::Worker::Handler::WebSub'               => 'worker.websub',
     'GPForum::Worker::Handler::AttachmentScanning'   => 'worker.attachment',
     'GPForum::Worker::Handler::CacheInvalidation'    => 'worker.cache',
     'GPForum::Worker::Handler::FeedProjection'       => 'worker.feed',

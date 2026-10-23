@@ -59,6 +59,24 @@ const my @REPLY_RECORD => (
 );
 
 const my %FUNCTION => (
+    forum_protocol_unsigned_bodies =>
+      { version => 2, parameters => [ after => 'uuid' ] },
+    forum_protocol_attest_body => {
+        version    => 2,
+        parameters => [
+            body_id  => 'uuid',
+            post_id  => 'uuid',
+            source   => 'text',
+            envelope => 'jsonb'
+        ]
+    },
+    forum_protocol_signature => {
+        version    => 2,
+        parameters => [ body_id => 'uuid' ],
+        json       => ['envelope']
+    },
+    forum_protocol_member =>
+      { version => 2, parameters => [ user_id => 'uuid', email => 'text' ] },
     moderation_thread_transfer => {
         version    => 2,
         parameters => [
@@ -1715,13 +1733,13 @@ const my %FUNCTION => (
         ]
     },
     forum_store_write => {
-        version    => 2,
+        version    => 4,
         parameters =>
           [ store_type => 'text', command => 'jsonb', record => 'jsonb' ],
         json => ['stored'],
     },
     forum_write_command => {
-        version    => 4,
+        version    => 6,
         parameters => [
             log            => 'jsonb',
             answer         => 'jsonb',
@@ -1836,7 +1854,7 @@ const my %FUNCTION => (
         ],
     },
     forum_create_reply => {
-        version    => 4,
+        version    => 6,
         parameters => [
             idempotency_key        => 'text',
             command_type           => 'text',
@@ -1851,6 +1869,7 @@ const my %FUNCTION => (
             @REPLY_RECORD,
             draft_id       => 'uuid',
             draft_revision => 'bigint',
+            post_signature => 'jsonb',
         ],
         json => ['response'],
     },

@@ -53,6 +53,38 @@ of the internal option/own-ballot statements: p50 0.180 ms, p95 0.232 ms,
 p99 0.288 ms on this machine. This is a single integration smoke measurement,
 not sustained HTTP capacity or a before/after improvement claim.
 
-PostgreSQL 16/17 and target deployment evidence remain the CI/staging tier's
-responsibility; only PostgreSQL 18.6 was executed locally. Existing production
-readiness and the previously observed broad trigram-search cost are unchanged.
+### CI and development activation follow-up
+
+The [PostgreSQL target run for `6bc1850`](https://github.com/gpicchiarelli/GPForum/actions/runs/39977006913)
+passed on PostgreSQL 16, 17 and 18. The main CI's lint and PostgreSQL integration
+jobs also passed. Its unit job and the Debian target exposed one stale assertion:
+the sign-in guidance now includes staff approval as well as email verification.
+`t/379-controller-collapsed-branches.t` checks the current explanation in English
+and Italian, the error element and HTTP 401.
+
+The local development database on the Unix socket `/tmp/gpfv`, port 55433,
+was advanced from migration 1023 through 1029 using `gpforum migrate --apply`.
+The published release's `migrate --check` reports no pending migrations. All 26
+users, 120 threads and 1,800 posts were preserved; registration remains open,
+without required approval. The updated development server on port 3100 answers
+200 for liveness, readiness, home, categories, registration and a visible
+thread's poll page. Anonymous admission/transfer administration answers 401.
+This instance uses its existing development owner login; it has no separate
+restricted runtime role or running outbox worker. This check does not establish
+production role provisioning or delivery readiness. The runtime role guide
+remains required for production activation.
+
+The [performance run for `6bc1850`](https://github.com/gpicchiarelli/GPForum/actions/runs/39977006751)
+completed its ordinary HTTP, SQL and outbox collection steps, but failed the
+separate 5,000-connection gate on the shared four-CPU GitHub runner. With four
+workers, colocated wrk, three ten-second repetitions and a three-second timeout,
+the 5,000-connection cells recorded 8,097, 7,476 and 2,857 transport timeouts.
+The 1,000-connection cells passed. The gate remains failing; thresholds and error
+handling were not relaxed. This is evidence of a capacity limit for this run,
+not a paired before/after result or proof that these features caused a regression.
+Raw results and configuration are retained in that run's
+[performance artifact](https://github.com/gpicchiarelli/GPForum/actions/runs/39977006751/artifacts/12512835233).
+
+Existing production readiness and the previously observed broad trigram-search
+cost remain open. Local PostgreSQL validation used 18.6; the other major versions
+were exercised in CI.

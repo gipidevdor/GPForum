@@ -4,6 +4,7 @@
 package main;
 
 use v5.40;
+use utf8;
 
 use Const::Fast;
 use Test::Mojo;
@@ -28,6 +29,12 @@ const my $HTTP_CONFLICT     => 409;
 const my $HTTP_UNAVAILABLE  => 503;
 const my $JSON              => { Accept => 'application/json' };
 const my $COMMAND_ID        => '018f1000-0000-7000-8000-0000000000c1';
+const my %PENDING_LOGIN_MESSAGE => (
+    en =>
+'Your account awaits email verification or staff approval before sign-in.',
+    it =>
+'Prima dell’accesso, l’account attende la verifica email o l’approvazione dello staff.',
+);
 
 # Branches the controller collapses folded into their actions, each answered
 # as before: a login refused as unverified or failed, and a bookmark write
@@ -38,14 +45,17 @@ my $test     = Test::Mojo->new('GPForum');
 $test->app->log->level('fatal');
 _install_fakes( $test->app );
 
-subtest 'an unverified member is told to verify, with 401' => sub {
+subtest 'a pending member receives localized admission guidance, with 401' =>
+  sub {
     $identity->unverified_login(1);
-    _login_ok();
-    $test->status_is($HTTP_UNAUTHORIZED);
-    $test->content_like(
-        qr/Verify [ ] your [ ] email [ ] before [ ] signing/msx);
+    for my $locale (qw(en it)) {
+        _login_ok( { 'Accept-Language' => $locale } );
+        $test->status_is($HTTP_UNAUTHORIZED);
+        $test->text_is(
+            '#login-form-error' => $PENDING_LOGIN_MESSAGE{$locale} );
+    }
     $identity->unverified_login(0);
-};
+  };
 
 subtest 'a login the identity store cannot answer is unavailable' => sub {
     my $failed = GPForum::Test::ScriptedWorkflow->new(

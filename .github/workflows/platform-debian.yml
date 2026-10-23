@@ -78,8 +78,8 @@ jobs:
           # the process and localized CLI tests. Keep their diagnostics real.
           localedef -i en_US -f UTF-8 en_US.UTF-8
           localedef -i it_IT -f UTF-8 it_IT.UTF-8
-          # Carton is a host tool for the OS system Perl, not a Carton-local binary.
-          /usr/bin/perl /usr/bin/cpanm --notest Carton
+          # cpm installs in parallel; Carton supplies snapshot parsing, checks and bundles.
+          /usr/bin/perl /usr/bin/cpanm -M https://cpan.metacpan.org/ --notest App::cpm Carton
 
       - name: Install matching PostgreSQL 18 client
         run: |

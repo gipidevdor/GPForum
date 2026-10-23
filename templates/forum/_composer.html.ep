@@ -11,7 +11,7 @@
 % my $standalone = stash('composer_standalone');
 <section class="composer" id="reply" aria-labelledby="reply-heading"<%== stash('swap_oob') ? ' hx-swap-oob="true"' : q{} %>>
   <h2 id="reply-heading"><%= t('forum.reply') %></h2>
-  <form data-composer method="post" action="<%= ui_path('reply_create', thread_id => $thread_id) %>"<% if (!$standalone) { %> hx-post="<%= ui_path('reply_create', thread_id => $thread_id) %>" hx-target="#posts" hx-swap="beforeend"<% } %>>
+  <form data-composer data-suggest-url="<%= ui_path('search_autocomplete') %>" data-thread-base="<%= ui_path('thread', thread_id => 'THREAD_ID') %>" method="post" action="<%= ui_path('reply_create', thread_id => $thread_id) %>"<% if (!$standalone) { %> hx-post="<%= ui_path('reply_create', thread_id => $thread_id) %>" hx-target="#posts" hx-swap="beforeend"<% } %>>
     <%= csrf_field %>
     <input type="hidden" name="command_id" value="<%= $draft->{command_id} || $reply_command_id || q{} %>">
     % if ($draft->{reply_to}) {

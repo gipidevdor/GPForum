@@ -16,6 +16,7 @@ on:
       - 'script/gpforum-system-perl'
       - 'script/gpforum-homebrew-env'
       - 'script/gpforum-carton'
+      - 'script/gpforum-cpm'
       - 'script/bootstrap-deps'
       - '.github/parameters/Brewfile'
       - '.github/workflows/platform-macos.yml'
@@ -99,11 +100,11 @@ jobs:
           printf 'GPFORUM_PERL=%s\n' "$perl_bin" >> "$GITHUB_ENV"
           script/gpforum-homebrew-env --print-path >> "$GITHUB_PATH"
 
-      - name: Bootstrap Carton for the Homebrew Perl
+      - name: Bootstrap cpm and Carton for the Homebrew Perl
         run: |
           set -euo pipefail
           "$GPFORUM_PERL" "$(brew --prefix cpanminus)/bin/cpanm" \
-            -M https://cpan.metacpan.org/ --notest Carton
+            -M https://cpan.metacpan.org/ --notest App::cpm Carton
 
       - name: Install locked CPAN distributions
         run: script/bootstrap-deps --postgres

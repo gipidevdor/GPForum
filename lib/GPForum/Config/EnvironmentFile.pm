@@ -105,11 +105,12 @@ sub render_reference ( $class, $settings = GPForum::Config->settings ) {
     my @decisions = grep { $_->{operator} } @{$settings};
     my @advanced  = grep { !$_->{operator} } @{$settings};
 
-    return join "\n", $REFERENCE_HEADER,
+    my $reference = join "\n", $REFERENCE_HEADER,
       _banner('Decide these'),
       ( map { _decision( $_, generate => 1 ) } @decisions ),
       _banner('Advanced: the defaults suit most installations'),
       _sections( \@advanced );
+    return trim($reference) . "\n";
 }
 
 sub _last_with ( $settings, $on, $value ) {

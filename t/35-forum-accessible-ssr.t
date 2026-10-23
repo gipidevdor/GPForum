@@ -222,7 +222,8 @@ $test->element_exists('input[name="scope"][value="threads"][checked]');
 # A post the search finds is reached through its thread.
 $test->get_ok('/search?q=reply');
 $test->element_exists(
-    'ol[aria-label="Search results"] a[href="/t/thread-1#post-post-1"]');
+'ol[aria-label="Search results"] a[href="/t/thread-1?post=post-1#post-post-1"]'
+);
 
 $test->get_ok('/search?q=missing');
 $test->status_is($HTTP_OK);

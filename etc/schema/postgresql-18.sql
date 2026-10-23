@@ -5986,6 +5986,30 @@ END $$;
 
 
 --
+-- Name: core_forum_sitemap_resources_v1(); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.core_forum_sitemap_resources_v1() RETURNS TABLE(kind text, resource_id uuid, slug text, changed_at timestamp with time zone)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+    SELECT 'category'::text, c.category_id, c.slug, c.updated_at
+    FROM public.categories c JOIN public.spaces s USING(space_id)
+    WHERE c.visibility = 'public' AND s.visibility = 'public'
+      AND c.deleted_at IS NULL AND s.deleted_at IS NULL
+    UNION ALL
+    SELECT 'thread'::text, t.thread_id, t.slug, greatest(t.updated_at, t.last_activity_at)
+    FROM public.threads t JOIN public.categories c USING(category_id)
+    JOIN public.spaces s ON s.space_id = c.space_id
+    WHERE t.visibility = 'public' AND c.visibility = 'public'
+      AND s.visibility = 'public' AND t.deleted_at IS NULL
+      AND c.deleted_at IS NULL AND s.deleted_at IS NULL
+      AND t.moderation_state IN ('visible', 'locked')
+$$;
+
+
+--
 -- Name: core_forum_store_body_v1(jsonb); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -9272,6 +9296,54 @@ CREATE FUNCTION api.forum_set_thread_tags_v2(p_thread_id uuid, p_slugs text[], p
     AS $$
 SELECT * FROM api.forum_set_thread_tags_v1(p_thread_id, p_slugs, p_names);
 $$;
+
+
+--
+-- Name: forum_sitemap_count_v1(); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_sitemap_count_v1() RETURNS TABLE(total bigint)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$ SELECT count(*) FROM api.core_forum_sitemap_resources_v1() $$;
+
+
+--
+-- Name: forum_sitemap_count_v2(); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_sitemap_count_v2() RETURNS TABLE(total bigint)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$ SELECT * FROM api.forum_sitemap_count_v1(); $$;
+
+
+--
+-- Name: forum_sitemap_page_v1(integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_sitemap_page_v1(p_page integer) RETURNS TABLE(kind text, resource_id uuid, slug text, changed_at timestamp with time zone)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+    SELECT * FROM api.core_forum_sitemap_resources_v1()
+    ORDER BY kind, resource_id
+    LIMIT 1000 OFFSET ((greatest(1, least(p_page, 50000)) - 1)::bigint * 1000)
+$$;
+
+
+--
+-- Name: forum_sitemap_page_v2(integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_sitemap_page_v2(p_page integer) RETURNS TABLE(kind text, resource_id uuid, slug text, changed_at timestamp with time zone)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$ SELECT * FROM api.forum_sitemap_page_v1(p_page); $$;
 
 
 --
@@ -17181,6 +17253,80 @@ $$;
 
 
 --
+-- Name: search_thread_ranked_v1(text, text[], boolean, boolean, uuid, uuid[], uuid[], text, text, text, integer, uuid, uuid, timestamp with time zone, timestamp with time zone, boolean, integer, text, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.search_thread_ranked_v1(p_permission_mode text, p_visibility_values text[], p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_query text, p_like_pattern text, p_config text, p_candidate_limit integer, p_category_filter uuid, p_author_filter uuid, p_from_at timestamp with time zone, p_to_at timestamp with time zone, p_to_exclusive boolean, p_row_limit integer, p_entity_type text, p_thread_filter uuid) RETURNS TABLE(entity_type text, entity_id uuid, category_id uuid, author_user_id uuid, space_id uuid, visibility text, title text, body text, source_created_at timestamp with time zone, indexed_at timestamp with time zone, rank_score double precision, author_username text, author_display_name text, category_visibility text, space_visibility text, candidate_count bigint)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_custom_plan'
+    AS $$
+BEGIN
+RETURN QUERY
+WITH ranked_page AS MATERIALIZED (
+    SELECT candidate.search_document_id,
+           candidate.entity_type, candidate.entity_id,
+           candidate.source_created_at, candidate.indexed_at,
+           candidate.category_visibility, candidate.space_visibility,
+           greatest(
+               ts_rank_cd(candidate.search_vector,
+                   websearch_to_tsquery(p_config::regconfig, p_query), 32),
+               public.similarity(candidate.title_normalized, lower(p_query)) * 0.2
+           )::double precision AS rank_score,
+           count(*) OVER () AS candidate_count
+    FROM (
+        SELECT me.search_document_id, me.entity_type, me.entity_id,
+               me.source_created_at, me.indexed_at,
+               me.search_vector, me.title_normalized,
+               c.visibility AS category_visibility,
+               s.visibility AS space_visibility
+        FROM public.search_documents me
+        JOIN public.categories c ON c.category_id = me.category_id
+        JOIN public.spaces s ON s.space_id = me.space_id
+        WHERE (CASE WHEN p_permission_mode = 'full' THEN c.deleted_at IS NULL AND (s.visibility IN ('public','members','private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (c.visibility IN ('public','members','private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (false)))))) AND (me.visibility IN ('public','members','private') AND (p_global_read OR me.visibility = 'public' OR (p_member AND me.visibility = 'members') OR (me.visibility = 'private' AND ((me.category_id = ANY(p_category_ids) OR me.space_id = ANY(p_space_ids)) OR (p_member AND (me.author_user_id = p_viewer_user_id)))))) ELSE me.visibility = ANY(p_visibility_values) END) AND me.category_id = (CASE me.entity_type WHEN 'thread' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = me.entity_id AND t.deleted_at IS NULL AND t.moderation_state IN ('visible','locked')) WHEN 'post' THEN (SELECT t.category_id FROM public.threads t WHERE t.thread_id = (SELECT p.thread_id FROM public.posts p WHERE p.post_id = me.entity_id AND p.deleted_at IS NULL AND p.moderation_state = 'visible') AND t.deleted_at IS NULL AND t.moderation_state IN ('visible','locked')) END) AND c.space_id = me.space_id AND (me.search_vector @@ websearch_to_tsquery(p_config::regconfig, p_query) OR me.title_normalized OPERATOR(public.%) lower(p_query) OR me.title_normalized LIKE lower(p_like_pattern) ESCAPE '\')
+    AND (CASE me.entity_type WHEN 'thread' THEN me.entity_id = p_thread_filter WHEN 'post' THEN EXISTS (SELECT 1 FROM public.posts scoped_post WHERE scoped_post.post_id = me.entity_id AND scoped_post.thread_id = p_thread_filter) ELSE false END)
+    AND (p_category_filter IS NULL OR me.category_id = p_category_filter) AND (p_author_filter IS NULL OR me.author_user_id = p_author_filter)
+    AND (p_entity_type IS NULL OR me.entity_type = p_entity_type)
+    AND (p_from_at IS NULL OR me.source_created_at >= p_from_at)
+    AND (p_to_at IS NULL OR (p_to_exclusive AND me.source_created_at < p_to_at) OR (NOT p_to_exclusive AND me.source_created_at <= p_to_at))
+        ORDER BY me.source_created_at DESC, me.entity_id DESC
+        LIMIT p_candidate_limit
+    ) candidate
+    ORDER BY rank_score DESC, candidate.source_created_at DESC,
+             candidate.indexed_at DESC, candidate.entity_type ASC,
+             candidate.entity_id DESC
+    LIMIT p_row_limit
+)
+SELECT page.entity_type, page.entity_id,
+       document.category_id, document.author_user_id, document.space_id,
+       document.visibility, document.title, document.body,
+       page.source_created_at, page.indexed_at, page.rank_score,
+       author.username, author.display_name,
+       page.category_visibility, page.space_visibility, page.candidate_count
+FROM ranked_page page
+JOIN public.search_documents document
+  ON document.search_document_id = page.search_document_id
+LEFT JOIN public.users author ON author.id = document.author_user_id
+ORDER BY page.rank_score DESC, page.source_created_at DESC,
+         page.indexed_at DESC, page.entity_type ASC, page.entity_id DESC;
+END;
+$$;
+
+
+--
+-- Name: search_thread_ranked_v2(text, text[], boolean, boolean, uuid, uuid[], uuid[], text, text, text, integer, uuid, uuid, timestamp with time zone, timestamp with time zone, boolean, integer, text, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.search_thread_ranked_v2(p_permission_mode text, p_visibility_values text[], p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_query text, p_like_pattern text, p_config text, p_candidate_limit integer, p_category_filter uuid, p_author_filter uuid, p_from_at timestamp with time zone, p_to_at timestamp with time zone, p_to_exclusive boolean, p_row_limit integer, p_entity_type text, p_thread_filter uuid) RETURNS TABLE(entity_type text, entity_id uuid, category_id uuid, author_user_id uuid, space_id uuid, visibility text, title text, body text, source_created_at timestamp with time zone, indexed_at timestamp with time zone, rank_score double precision, author_username text, author_display_name text, category_visibility text, space_visibility text, candidate_count bigint)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.search_thread_ranked_v1(p_permission_mode, p_visibility_values, p_member, p_global_read, p_viewer_user_id, p_category_ids, p_space_ids, p_query, p_like_pattern, p_config, p_candidate_limit, p_category_filter, p_author_filter, p_from_at, p_to_at, p_to_exclusive, p_row_limit, p_entity_type, p_thread_filter);
+$$;
+
+
+--
 -- Name: session_create_v1(uuid, uuid, text, timestamp with time zone, timestamp with time zone, timestamp with time zone, timestamp with time zone, text, text, boolean); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -24066,6 +24212,13 @@ REVOKE ALL ON FUNCTION api.core_forum_record_write_v1(p_type text, p_command jso
 
 
 --
+-- Name: FUNCTION core_forum_sitemap_resources_v1(); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.core_forum_sitemap_resources_v1() FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION core_forum_store_body_v1(p_command jsonb); Type: ACL; Schema: api; Owner: -
 --
 
@@ -24819,6 +24972,34 @@ REVOKE ALL ON FUNCTION api.forum_set_thread_tags_v1(p_thread_id uuid, p_slugs te
 --
 
 REVOKE ALL ON FUNCTION api.forum_set_thread_tags_v2(p_thread_id uuid, p_slugs text[], p_names text[]) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_sitemap_count_v1(); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_sitemap_count_v1() FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_sitemap_count_v2(); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_sitemap_count_v2() FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_sitemap_page_v1(p_page integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_sitemap_page_v1(p_page integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_sitemap_page_v2(p_page integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_sitemap_page_v2(p_page integer) FROM PUBLIC;
 
 
 --
@@ -27241,6 +27422,20 @@ REVOKE ALL ON FUNCTION api.search_thread_post_batch_v1(p_thread_id uuid, p_after
 --
 
 REVOKE ALL ON FUNCTION api.search_thread_post_batch_v2(p_thread_id uuid, p_after_position bigint, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION search_thread_ranked_v1(p_permission_mode text, p_visibility_values text[], p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_query text, p_like_pattern text, p_config text, p_candidate_limit integer, p_category_filter uuid, p_author_filter uuid, p_from_at timestamp with time zone, p_to_at timestamp with time zone, p_to_exclusive boolean, p_row_limit integer, p_entity_type text, p_thread_filter uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.search_thread_ranked_v1(p_permission_mode text, p_visibility_values text[], p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_query text, p_like_pattern text, p_config text, p_candidate_limit integer, p_category_filter uuid, p_author_filter uuid, p_from_at timestamp with time zone, p_to_at timestamp with time zone, p_to_exclusive boolean, p_row_limit integer, p_entity_type text, p_thread_filter uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION search_thread_ranked_v2(p_permission_mode text, p_visibility_values text[], p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_query text, p_like_pattern text, p_config text, p_candidate_limit integer, p_category_filter uuid, p_author_filter uuid, p_from_at timestamp with time zone, p_to_at timestamp with time zone, p_to_exclusive boolean, p_row_limit integer, p_entity_type text, p_thread_filter uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.search_thread_ranked_v2(p_permission_mode text, p_visibility_values text[], p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_query text, p_like_pattern text, p_config text, p_candidate_limit integer, p_category_filter uuid, p_author_filter uuid, p_from_at timestamp with time zone, p_to_at timestamp with time zone, p_to_exclusive boolean, p_row_limit integer, p_entity_type text, p_thread_filter uuid) FROM PUBLIC;
 
 
 --

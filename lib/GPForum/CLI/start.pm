@@ -44,9 +44,8 @@ const my $CANNOT_LISTEN =>
 #
 # `gpforum start --service` is what the service manager runs: Hypnotoad, the
 # production server, on bin/gpforum, from the dependencies this checkout
-# installed -- detached, as systemd's Type=forking waits for, or with
-# --foreground in the foreground, as launchd and FreeBSD's daemon(8)
-# supervise it. The units then run bin/gpforum alone, which finds its Perl
+# installed -- with --foreground under systemd, launchd and FreeBSD's
+# daemon(8), which supervise its manager directly. The units then run bin/gpforum alone, which finds its Perl
 # and its dependencies itself, and script/ stays the maintainers' (owner
 # decision D9).
 has description => 'Run the forum in this terminal, for development';

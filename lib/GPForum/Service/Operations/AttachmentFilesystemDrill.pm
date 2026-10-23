@@ -104,17 +104,17 @@ sub _execute ( $self, $evidence, $options ) {
     }
 
     $evidence->{attachments} = {
-        covered              => \1,
+        covered              => true,
         mode                 => 'populated_var_attachments',
         storage_backend      => 'filesystem',
         storage_root         => $DEFAULT_ROOT,
         workspace_layout     => $DEFAULT_ROOT,
         files                => scalar keys %{$after},
-        sha256_match         => \1,
+        sha256_match         => true,
         sample_object_keys   => [ $SAMPLE_KEY_A, $SAMPLE_KEY_B ],
         backup_path          => $backup_root,
         restore_path         => $source_root,
-        wiped_before_restore => \1,
+        wiped_before_restore => true,
     };
 
     return;
@@ -223,7 +223,7 @@ sub _base_evidence ($options) {
         status         => undef,
         drill          => 'attachment_filesystem',
         residual_gaps  => [ $RESIDUAL_LIVE, $RESIDUAL_BETA ],
-        keep_workspace => $options->{keep_workspace} ? \1 : \0,
+        keep_workspace => $options->{keep_workspace} ? true : false,
     };
 }
 

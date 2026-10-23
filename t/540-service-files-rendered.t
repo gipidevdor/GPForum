@@ -85,7 +85,7 @@ subtest 'systemd: the code directory and the environment file of this host' =>
     }
     _line(
         $unit{'gpforum.service'}{text},
-        'ExecStart=/srv/forum/bin/gpforum start --service',
+        'ExecStart=/srv/forum/bin/gpforum start --service --foreground',
         'the web service runs this checkout'
     );
     for my $check ( grep { $unit{ $_->{name} } } deploy_unit_checks() ) {

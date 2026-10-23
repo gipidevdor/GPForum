@@ -16,11 +16,13 @@ use GPForum::Test::DenyLimiter;
 use GPForum::Test::CommandIdempotency;
 use GPForum::Test::FailReadiness;
 use GPForum::Test::ForumWebServices;
+use GPForum::Test::SitemapFunctions;
+use GPForum::Service::Discovery::SitemapPages;
 use GPForum::Test::SuspendedParticipation;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 307;
+const my $EXPECTED_TESTS       => 310;
 const my $HTTP_OK              => 200;
 const my $HTTP_CREATED         => 201;
 const my $HTTP_BAD_REQUEST     => 400;
@@ -63,7 +65,10 @@ $test->content_like(qr/Disallow: [ ] \/search/msx);
 
 $test->get_ok('/sitemap.xml');
 $test->status_is($HTTP_OK);
-$test->content_like(qr/<urlset/msx);
+$test->content_like(qr/<sitemapindex/msx);
+$test->content_like(qr{/sitemap-1[.]xml}msx);
+$test->get_ok('/sitemap-1.xml');
+$test->status_is($HTTP_OK);
 $test->content_like(qr/\/t\/thread-1\/welcome/msx);
 $test->content_like(qr/\/legal\/terms/msx);
 
@@ -771,6 +776,15 @@ sub _install_forum_fakes {
     my ($test_object) = @_;
 
     my $services = GPForum::Test::ForumWebServices->new;
+    $test_object->app->helper(
+        gp_sitemap_pages => sub ($controller) {
+            return GPForum::Service::Discovery::SitemapPages->new(
+                schema    => 'unused',
+                builder   => $controller->gp_sitemap_builder,
+                functions => GPForum::Test::SitemapFunctions->new
+            );
+        }
+    );
     for my $helper (
         qw(
         gp_category_reader gp_thread_reader gp_thread_detail_reader

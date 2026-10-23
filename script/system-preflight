@@ -15,7 +15,7 @@ usage() {
 Usage: script/system-preflight
 
 Say whether this host can install and run GPForum: the Perl it runs on,
-Carton, PostgreSQL's pg_config (which DBD::Pg needs to build), whether the
+App::cpm, Carton, PostgreSQL's pg_config (which DBD::Pg needs to build), whether the
 dependencies are installed, and, once they are, what os-preflight finds.
 Each problem comes with what to do; the last line says how many there are.
 
@@ -62,9 +62,17 @@ else
     perl_bin=
 fi
 
-# Carton, for this Perl.
+# cpm installs; Carton provides snapshot parsing, checks and lock maintenance.
 installed=0
 if [ -n "$perl_bin" ]; then
+    if cpm_version=$(script/gpforum-cpm --version 2>/dev/null); then
+        cpm_version=$(printf '%s\n' "$cpm_version" | head -n 1)
+        words_mark ok "$(words_say system.cpm_ok 'App::cpm: {version}' "version=$cpm_version")"
+    else
+        words_mark fail "$(words_say system.cpm_missing 'App::cpm is not installed for {perl}' "perl=$perl_bin")"
+        words_fixes "$perl_bin -S cpanm -M https://cpan.metacpan.org/ App::cpm Carton"
+        problem fail
+    fi
     if carton_version=$(script/gpforum-carton version 2>/dev/null); then
         carton_version=${carton_version#carton }
         words_mark ok "$(words_say system.carton_ok 'Carton {version}' "version=${carton_version#v}")"

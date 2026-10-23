@@ -12,6 +12,7 @@ use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Infrastructure::Antivirus;
 use GPForum::Infrastructure::PgNotifications;
 use GPForum::Log;
+use GPForum::OS::SystemdNotify;
 use GPForum::Schema;
 use GPForum::Service::Operations::DbQueryStats;
 use GPForum::Service::Operations::CommandIdempotency;
@@ -26,6 +27,7 @@ use GPForum::Service::Operations::RateLimiter::DegradationPolicy;
 use GPForum::Service::Operations::RateLimiter::PostgreSQLStore;
 use GPForum::Service::Operations::Readiness;
 use GPForum::Service::Operations::ScheduledJobs;
+use GPForum::Service::Attachment::Scanner;
 use GPForum::Service::Operations::SecurityTelemetry;
 use GPForum::Service::I18N::CliCatalog;
 use GPForum::X::Check;
@@ -129,6 +131,15 @@ sub register ( $, %input ) {
             }
         );
     }
+    if ( $ENV{NOTIFY_SOCKET} ) {
+        my $notify = GPForum::OS::SystemdNotify->new;
+        $application->hook(
+            before_server_start => sub ( $server, $ ) {
+                $notify->attach( $server,
+                    $application->config->{hypnotoad}{listen}[0] );
+            }
+        );
+    }
     if ( $runtime_policy->outdated_unit ) {
         $application->log->warn(
             GPForum::Service::I18N::CliCatalog->new->text(
@@ -138,6 +149,23 @@ sub register ( $, %input ) {
     _configure_db_query_observer( $application, $config );
 
     return;
+}
+
+sub scheduled_jobs ( $class, $controller ) {
+    my $config = $controller->gp_config;
+    return GPForum::Service::Operations::ScheduledJobs->new(
+        attachment_scanner => GPForum::Service::Attachment::Scanner->new(
+            antivirus => $controller->gp_antivirus,
+            storage   => $controller->gp_attachment_storage,
+            store     => $controller->gp_attachment_store
+        ),
+        attachment_store => $controller->gp_attachment_store,
+        clock            => $controller->gp_clock,
+        profile          => $config
+        ? { event_retention_days => $config->event_retention_days }
+        : undef,
+        schema => $controller->gp_schema,
+    );
 }
 
 sub _register_schema_helpers ( $application, $config ) {
@@ -300,9 +328,7 @@ sub _register_operational_helpers {
         gp_scheduled_jobs => sub {
             my ($controller) = @_;
 
-            return
-              GPForum::Service::Operations::ScheduledJobs->from_controller(
-                $controller);
+            return __PACKAGE__->scheduled_jobs($controller);
         }
     );
 

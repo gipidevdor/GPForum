@@ -84,8 +84,11 @@ sub _assert_bootstrap_security {
     my $bootstrap = path($BOOTSTRAP)->slurp;
     my $locator   = path($CARTON)->slurp;
 
-    like( $bootstrap, qr/--deployment/msx,
-        'bootstrap uses carton install --deployment by default' );
+    like(
+        $bootstrap,
+        qr/--resolver [ ] snapshot [ ] --no-default-resolvers/msx,
+        'bootstrap resolves only from the committed snapshot'
+    );
     like(
         $bootstrap,
         qr/https:\/\/cpan[.]metacpan[.]org\//msx,
@@ -212,13 +215,13 @@ sub _assert_operator_surface {
     );
     like(
         $readme,
-        qr/carton [ ] install [ ] --deployment/msx,
-        'README documents carton --deployment'
+        qr/cpm [ ] installs [ ] from [ ] cpanfile[.]snapshot/msx,
+        'README documents locked parallel installation'
     );
     like(
         $deployment,
-        qr/carton [ ] install [ ] --deployment/msx,
-        'DEPLOYMENT documents carton --deployment'
+        qr/--resolver [ ] snapshot [ ] --no-default-resolvers/msx,
+        'DEPLOYMENT documents exclusive snapshot resolution'
     );
     like(
         $deployment,
@@ -237,8 +240,9 @@ qr/live [ ] next [ ] to [ ] `perl` [ ] [(]perlbrew[)]|plenv [ ]install/msx,
         qr/script\/bootstrap-deps [ ] --postgres/msx,
         'CI still installs through bootstrap-deps --postgres'
     );
-    ok( -x $BOOTSTRAP, 'bootstrap-deps is executable' );
-    ok( -x $CARTON,    'gpforum-carton is executable' );
+    ok( -x $BOOTSTRAP,           'bootstrap-deps is executable' );
+    ok( -x $CARTON,              'gpforum-carton is executable' );
+    ok( -x 'script/gpforum-cpm', 'gpforum-cpm is executable' );
 
     my $carton = path($CARTON)->slurp;
     like(
@@ -257,12 +261,7 @@ qr/live [ ] next [ ] to [ ] `perl` [ ] [(]perlbrew[)]|plenv [ ]install/msx,
     return;
 }
 
-# ADR 0109, 10.8: a production host installs what the application runs and
-# what its suite needs, not the maintainer's tools. Carton cannot leave out
-# the test phase -- Carton::Builder has a TODO for it, and Menlo installs a
-# cpanfile's direct test requirements even under --notest -- but it can leave
-# out develop, where Perl::Critic, Perl::Tidy, Devel::Cover and Devel::NYTProf
-# and their dependencies live.
+# Production keeps runtime and test, while develop remains a maintainer phase.
 sub _assert_dependency_phases {
     my $cpanfile  = path($CPANFILE)->slurp;
     my $bootstrap = path($BOOTSTRAP)->slurp;
@@ -297,8 +296,8 @@ sub _assert_dependency_phases {
         'bootstrap-deps accepts --production' );
     like(
         $bootstrap,
-        qr/--without [ ] develop/msx,
-        'which installs without the develop phase'
+        qr/phases=configure,build,test,runtime \n/msx,
+        'which selects runtime and test without the develop phase'
     );
     my $recipe =
       qr{\t script/bootstrap-deps [ ] --postgres [ ] --production}msx;

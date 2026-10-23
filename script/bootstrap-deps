@@ -4,9 +4,9 @@
 
 set -eu
 
-# Install locked CPAN distributions through Carton under the OS system Perl.
-# Production and CI use `carton install --deployment` against
-# cpanfile.snapshot. This script does not install or switch to a non-system
+# Install locked CPAN distributions in parallel through cpm under system Perl.
+# Carton maintains and checks cpanfile.snapshot; cpm may resolve only from it.
+# This script does not install or switch to a non-system
 # Perl; does not download from unsigned URLs; does not sideload application
 # dists with cpanm; and does not delete local/.
 
@@ -48,7 +48,8 @@ Usage: script/bootstrap-deps [--postgres] [--production] [--update] [--cached] [
   --dry-run        with --for-setup, say what it would install, install
                    nothing, and exit 1
 
-Default production/CI path: carton install --deployment
+Default production/CI path: cpm install --resolver snapshot --no-default-resolvers
+Parallel workers: GPFORUM_CPM_WORKERS=5 (lower it on memory-constrained hosts)
 HTTPS mirror: PERL_CARTON_MIRROR=https://cpan.metacpan.org/
 EOF
 }
@@ -102,7 +103,7 @@ fi
 
 if [ ! -f cpanfile.snapshot ]; then
     if [ "$update" -eq 0 ]; then
-        echo "bootstrap-deps: cpanfile.snapshot is required for --deployment." >&2
+        echo "bootstrap-deps: cpanfile.snapshot is required for a locked install." >&2
         echo "Refresh the lock on a development host with: script/bootstrap-deps --update" >&2
         exit 1
     fi
@@ -198,18 +199,47 @@ case "$PERL_CARTON_MIRROR" in
         ;;
 esac
 
-set -- install
-if [ "$update" -eq 0 ]; then
-    set -- "$@" --deployment
-fi
-if [ "$cached" -eq 1 ]; then
-    set -- "$@" --cached
-fi
-if [ "$with_postgres" -eq 0 ]; then
-    set -- "$@" --without postgres
-fi
-if [ "$production" -eq 1 ]; then
-    set -- "$@" --without develop
+if [ "$update" -eq 1 ]; then
+    installer=carton
+    set -- install
+    if [ "$cached" -eq 1 ]; then
+        set -- "$@" --cached
+    fi
+    if [ "$with_postgres" -eq 0 ]; then
+        set -- "$@" --without postgres
+    fi
+else
+    installer=cpm
+    workers=${GPFORUM_CPM_WORKERS:-5}
+    case "$workers" in
+        ''|*[!0-9]*|0*)
+            echo "bootstrap-deps: GPFORUM_CPM_WORKERS must be a positive integer" >&2
+            exit 2
+            ;;
+    esac
+    mirror=$PERL_CARTON_MIRROR
+    if [ "$cached" -eq 1 ]; then
+        mirror="$root/vendor/cache"
+        if [ ! -d "$mirror/authors/id" ]; then
+            echo "bootstrap-deps: --cached requires vendor/cache from carton bundle" >&2
+            exit 1
+        fi
+    fi
+    phases=configure,build,test,runtime,develop
+    if [ "$production" -eq 1 ]; then
+        phases=configure,build,test,runtime
+    fi
+    # Reading a snapshot alone still allows cpm's default CPAN resolvers.
+    # Disable them so missing or incompatible pins fail closed. Keep the
+    # existing Carton policy: skip upstream tests, retain our test phase.
+    set -- install --cpanfile cpanfile --snapshot cpanfile.snapshot \
+        --resolver snapshot --no-default-resolvers --mirror "$mirror" \
+        --local-lib-contained local --home local --workers "$workers" --no-test \
+        --final-install all \
+        --top-level-phase "$phases"
+    if [ "$with_postgres" -eq 1 ]; then
+        set -- "$@" --feature postgres
+    fi
 fi
 
 snapshot_count() {
@@ -231,8 +261,8 @@ if [ "$for_setup" -eq 1 ] && [ -r "$root/script/lib/words.sh" ]; then
     else
         make_target=install-deps-postgres
     fi
-    words_say system.deps_for_setup 'gpforum setup installs the dependencies into {local} first, as make {target} does: carton {command}' \
-        "local=$root/local" "target=$make_target" "command=$*"
+    words_say system.deps_for_setup 'gpforum setup installs the dependencies into {local} first, as make {target} does: {installer} {command}' \
+        "local=$root/local" "target=$make_target" "installer=$installer" "command=$*"
     if [ "$dry_run" -eq 1 ]; then
         words_say system.deps_dry_run 'Nothing was installed: --dry-run says what setup would do.'
         exit 1
@@ -245,8 +275,8 @@ if [ "$update" -eq 1 ] && [ -f cpanfile.snapshot ]; then
 fi
 
 echo "bootstrap-deps: PERL_CARTON_MIRROR=$PERL_CARTON_MIRROR"
-echo "bootstrap-deps: running carton $*"
-script/gpforum-carton "$@"
+echo "bootstrap-deps: running $installer $*"
+"script/gpforum-$installer" "$@"
 
 after_count=$(snapshot_count)
 if [ "$update" -eq 1 ] && [ "$before_count" -gt 20 ] && [ "$after_count" -lt "$before_count" ]; then

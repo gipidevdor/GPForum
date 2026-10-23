@@ -23,7 +23,7 @@ our @EXPORT_OK = qw(
 # decision D9: the units run no script/).
 const my $FRONT_DOOR => qr{/bin/gpforum (?: \s+ --env-file \s+ \S+ )?}msx;
 const my $EXEC_START_WEB =>
-  qr{^ExecStart= \S* $FRONT_DOOR \s+ start \s+ --service \s* $}msx;
+qr{^ExecStart= \S* $FRONT_DOOR \s+ start \s+ --service \s+ --foreground \s* $}msx;
 const my $EXEC_START_COMMAND =>
   qr{^ExecStart= \S* $FRONT_DOOR \s+ [[:lower:]]}msx;
 const my $THROUGH_THE_FRONT_DOOR => 'ExecStart through bin/gpforum';

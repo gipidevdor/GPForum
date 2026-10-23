@@ -84,6 +84,15 @@
     });
     reading.append(previous, position, progress, next);
     navigation.append(reading);
+    if (document.getElementById("thread-explore")) {
+      const explore = document.createElement("button");
+      explore.type = "button";
+      explore.className = "button--quiet";
+      explore.textContent = label("Explore", "Esplora");
+      explore.setAttribute("aria-label", label("Explore discussion", "Esplora discussione"));
+      explore.setAttribute("popovertarget", "thread-explore");
+      reading.before(explore);
+    }
     update(current);
     // One observer per discussion; no scroll loop or history writes while reading.
     if (typeof IntersectionObserver !== "undefined") {

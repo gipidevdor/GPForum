@@ -58,7 +58,7 @@ sub run ( $self, $options ) {
         status       => undef,
         seed_profile => $options->{seed_profile},
         attachments  => {
-            covered         => \0,
+            covered         => false,
             storage_backend => 'filesystem',
             storage_root    => $ATTACHMENTS_ROOT,
             limitation      => $ATTACHMENTS_LIMITATION,

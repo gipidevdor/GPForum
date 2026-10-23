@@ -8,7 +8,6 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Row;
-use GPForum::Service::Attachment::Scanner;
 use GPForum::Service::Clock;
 use GPForum::Service::Forum::DraftStore;
 use GPForum::Service::Notification::DigestQueue;
@@ -83,20 +82,6 @@ has draft_store => sub ($self) {
         clock  => $self->clock
     );
 };
-
-sub from_controller ( $class, $controller ) {
-    return $class->new(
-        attachment_scanner => GPForum::Service::Attachment::Scanner->new(
-            antivirus => $controller->gp_antivirus,
-            storage   => $controller->gp_attachment_storage,
-            store     => $controller->gp_attachment_store,
-        ),
-        attachment_store => $controller->gp_attachment_store,
-        clock            => $controller->gp_clock,
-        profile          => $class->_profile_for($controller),
-        schema           => $controller->gp_schema,
-    );
-}
 
 sub job_names {
     return [@JOB_NAMES];
@@ -288,14 +273,6 @@ sub _registry_rows ($self) {
 
 # The event retention GPFORUM_EVENT_RETENTION_DAYS sets; the horizon is the
 # lookahead the partition timer keeps (ADR 0125).
-sub _profile_for ( $, $controller ) {
-    my $config = $controller->gp_config;
-    if ( !$config ) {
-        return undef;
-    }
-
-    return { event_retention_days => $config->event_retention_days };
-}
 
 sub _first_line ($error) {
     my ($line) = split /\n/msx, defined $error ? "$error" : q{};
@@ -336,10 +313,6 @@ policy/evidence. It executes no partition DDL and does not persist
 partition registry rows; C<gpforum partitions> does both.
 
 =head1 SUBROUTINES/METHODS
-
-=head2 from_controller
-
-Builds a runner from a Mojolicious controller's existing helpers.
 
 =head2 job_names
 

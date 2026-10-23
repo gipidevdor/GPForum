@@ -12,6 +12,7 @@ use GPForum::Service::Discovery::RobotsPolicy;
 use GPForum::Service::Discovery::SitemapBuilder;
 use GPForum::Service::Discovery::Archive;
 use GPForum::Service::Discovery::WebSub;
+use GPForum::Service::Discovery::SitemapPages;
 
 our $VERSION = '0.001';
 
@@ -73,6 +74,14 @@ sub register {
 
             return GPForum::Service::Discovery::SitemapBuilder->new(
                 canonical_url => $controller->gp_canonical_url );
+        }
+    );
+    $application->helper(
+        gp_sitemap_pages => sub ($controller) {
+            return GPForum::Service::Discovery::SitemapPages->new(
+                schema  => $controller->gp_schema,
+                builder => $controller->gp_sitemap_builder
+            );
         }
     );
     $application->helper(

@@ -32,7 +32,8 @@ sub _has_public_visibility ($resource) {
 }
 
 sub _has_visible_moderation ($resource) {
-    return ( $resource->{moderation_state} || 'visible' ) eq 'visible';
+    my $state = $resource->{moderation_state} || 'visible';
+    return $state eq 'visible'                || $state eq 'locked';
 }
 
 sub _is_not_removed ($resource) {

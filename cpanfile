@@ -18,6 +18,8 @@ requires 'Email::Sender', '2.603';
 requires 'Email::Address::XS', '1.05';
 requires 'Email::Simple', '2.218';
 requires 'Email::MIME', '1.954';
+requires 'Mail::DKIM', '1.20240923';
+requires 'Net::DNS', '1.53';
 requires 'Crypt::PK::Ed25519', '0.091';
 # Net::SMTP loads Authen::SASL only when the server asks for AUTH, so
 # nothing names it in a use line -- and without it every SMTP setup with
@@ -36,9 +38,8 @@ requires 'DBI', '1.656';
 requires 'Clone', '0.51';
 requires 'Package::Stash::XS', '0.32';
 
-# What the suite loads. Carton cannot install without the test phase (and
-# Menlo installs a cpanfile's direct test requirements even under --notest),
-# so these reach every host; they are small and pure Perl.
+# What the suite loads. Production keeps these small, pure-Perl requirements
+# as before the switch to cpm; only the develop phase is omitted.
 on test => sub {
     requires 'Test::More', '1.302225';
     requires 'Test::Exception', '0.43';
@@ -64,9 +65,8 @@ on develop => sub {
 };
 
 # PostgreSQL driver, Minion Pg backend, and DB-backed test helper.
-# Kept in cpanfile.postgres so the declared set stays split. Carton
-# installs this feature unless `script/bootstrap-deps` passes
-# `--without postgres`.
+# Kept in cpanfile.postgres so the declared set stays split.
+# `script/bootstrap-deps --postgres` enables this feature in cpm.
 feature 'postgres', sub {
     do './cpanfile.postgres';
 };

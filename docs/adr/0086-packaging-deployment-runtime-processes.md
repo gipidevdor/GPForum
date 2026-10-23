@@ -121,6 +121,9 @@ unpinned critical dependencies; process layouts nobody can explain.
 - Deployment MAY use systemd, containers or another supervised runtime.
 - The runtime MUST provide: restart policy; environment injection; log
   routing; health integration; resource limits where feasible.
+- The systemd web service runs in the foreground with `Type=notify`, HTTP
+  readiness and manager watchdog notifications (ADR 0155). `restart` is the
+  supported code/configuration update; hot manager replacement is unsupported.
 
 ### Migrations during deploy
 
@@ -175,3 +178,10 @@ path.
 - File modes: `lib/GPForum/OS/UnixListener.pm`, `lib/GPForum/CLI/start.pm`,
   `t/590-units-run-the-front-door.t`, `t/692-unix-listener.t`.
 - Docs: `docs/DEPLOYMENT.md`, `docs/DEPLOYMENT_EVIDENCE.md`.
+
+## Installation amendment (2026-10-23)
+
+[ADR 0152](0152-parallel-locked-dependency-installation.md) replaces the
+Carton-only installation requirement with App::cpm resolving exclusively from
+`cpanfile.snapshot`. Carton retains lock updates, checks and vendor bundles;
+the system Perl requirement and committed dependency pins still apply.

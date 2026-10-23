@@ -143,10 +143,11 @@ sub _drop {
 # whose subroutines name their $database. END runs before that, with every
 # handle still open.
 END {
-    local $CHILD_ERROR = $CHILD_ERROR;
+    my $test_status = $CHILD_ERROR;
     for my $database ( grep { defined } values %UNDROPPED ) {
         $database->_drop;
     }
+    $CHILD_ERROR = $test_status;    ## no critic (Variables::RequireLocalizedPunctuationVars) -- END must retain a failing test status
 }
 
 sub _template {

@@ -14,6 +14,9 @@ sub register ( $, %input ) {
 
     $routes->get($root_path)->to('Home#show')->name('home');
     $routes->get('/robots.txt')->to('Discovery#robots')->name('robots');
+    $routes->get('/sitemap-<page>.xml')
+      ->to('Discovery#sitemap_page')
+      ->name('sitemap_page');
     $routes->get('/sitemap.xml')->to('Discovery#sitemap')->name('sitemap');
     $routes->get('/feed.atom')->to('Discovery#feed')->name('public_feed');
     $routes->post('/websub')

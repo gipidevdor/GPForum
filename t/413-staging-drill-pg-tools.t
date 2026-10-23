@@ -177,7 +177,7 @@ my $evidence = GPForum::Service::Operations::StagingDrill->new->run(
 is_deeply(
     [
         $evidence->{check},
-        ${ $evidence->{attachments}{covered} },
+        $evidence->{attachments}{covered} ? 1 : 0,
         $evidence->{attachments}{storage_root},
     ],
     [ 'staging_drill', 0, 'var/attachments' ],

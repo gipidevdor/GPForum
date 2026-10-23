@@ -83,15 +83,23 @@ subtest 'a checkout without them: setup says what it installs' => sub {
         [
             'en_US.UTF-8',
             "gpforum setup installs the dependencies into $clone/local first,"
-              . ' as make install-deps-production does: carton install'
-              . ' --deployment --without develop',
+              . ' as make install-deps-production does: cpm install'
+              . ' --cpanfile cpanfile --snapshot cpanfile.snapshot'
+              . ' --resolver snapshot --no-default-resolvers'
+              . ' --mirror https://cpan.metacpan.org/'
+              . ' --local-lib-contained local --home local --workers 5 --no-test'
+              . ' --final-install all --top-level-phase configure,build,test,runtime --feature postgres',
             'Nothing was installed: --dry-run says what setup would do.',
         ],
         [
             'it_IT.UTF-8',
             "gpforum setup installa prima le dipendenze in $clone/local, come"
-              . ' fa make install-deps-production: carton install'
-              . ' --deployment --without develop',
+              . ' fa make install-deps-production: cpm install'
+              . ' --cpanfile cpanfile --snapshot cpanfile.snapshot'
+              . ' --resolver snapshot --no-default-resolvers'
+              . ' --mirror https://cpan.metacpan.org/'
+              . ' --local-lib-contained local --home local --workers 5 --no-test'
+              . ' --final-install all --top-level-phase configure,build,test,runtime --feature postgres',
             "Non \N{LATIN SMALL LETTER E WITH GRAVE} stato installato nulla:"
               . ' --dry-run dice cosa farebbe setup.',
         ],

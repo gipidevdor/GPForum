@@ -144,3 +144,10 @@ Profiling readiness is an operational requirement, not a luxury.
 - Tests: `t/42-profile-reader.t`, `t/56-db-query-stats.t`,
   `t/144-cpan-install.t`.
 - Docs: `docs/PERFORMANCE.md#profiling`, `docs/DEPLOYMENT.md`.
+
+## Installation amendment (2026-10-23)
+
+[ADR 0152](0152-parallel-locked-dependency-installation.md) replaces the
+Carton-only installation requirement with App::cpm resolving exclusively from
+`cpanfile.snapshot`. Carton retains lock updates, checks and vendor bundles;
+the system Perl requirement and committed dependency pins still apply.

@@ -124,7 +124,7 @@ like(
 # deploy, so there is nothing correct to put in ExecReload at all.
 for my $unit (qw(gpforum.service)) {
     my $text = path("deploy/systemd/$unit")->slurp;
-    like( $text, qr/^Type=forking$/msx, "$unit still forks" );
+    like( $text, qr/^Type=notify$/msx, "$unit reports readiness" );
     unlike( $text, qr/^ExecReload=/msx,
         "$unit declares no ExecReload, so reload cannot kill it" );
 }

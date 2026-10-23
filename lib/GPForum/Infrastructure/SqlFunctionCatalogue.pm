@@ -70,6 +70,8 @@ const my %FUNCTION => (
             envelope => 'jsonb'
         ]
     },
+    forum_sitemap_count => { version => 2, parameters => [] },
+    forum_sitemap_page => { version => 2, parameters => [ page => 'integer' ] },
     forum_protocol_signature => {
         version    => 2,
         parameters => [ body_id => 'uuid' ],
@@ -207,6 +209,30 @@ const my %FUNCTION => (
             to_exclusive      => 'boolean',
             row_limit         => 'integer',
             entity_type       => 'text'
+        ]
+    },
+    search_thread_ranked => {
+        version    => 2,
+        parameters => [
+            permission_mode   => 'text',
+            visibility_values => 'text[]',
+            member            => 'boolean',
+            global_read       => 'boolean',
+            viewer_user_id    => 'uuid',
+            category_ids      => 'uuid[]',
+            space_ids         => 'uuid[]',
+            query             => 'text',
+            like_pattern      => 'text',
+            config            => 'text',
+            candidate_limit   => 'integer',
+            category_filter   => 'uuid',
+            author_filter     => 'uuid',
+            from_at           => 'timestamp with time zone',
+            to_at             => 'timestamp with time zone',
+            to_exclusive      => 'boolean',
+            row_limit         => 'integer',
+            entity_type       => 'text',
+            thread_filter     => 'uuid'
         ]
     },
     search_autocomplete => {

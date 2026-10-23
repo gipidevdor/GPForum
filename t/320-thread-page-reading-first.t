@@ -109,8 +109,9 @@ _install_forum_fakes($anonymous);
 $anonymous->get_ok('/t/thread-1');
 $anonymous->status_is($HTTP_OK);
 $anonymous->element_exists($POST);
-$anonymous->element_exists_not('.sheet');
-$anonymous->element_exists_not('[popovertarget]');
+$anonymous->element_exists_not('.sheet:not(#thread-explore)');
+$anonymous->element_exists_not(
+    '[popovertarget]:not([popovertarget="thread-explore"])');
 
 done_testing();
 

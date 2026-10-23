@@ -49,16 +49,28 @@ sub render_xml ( $self, $entries ) {
       @urls, '</urlset>', q{};
 }
 
+sub render_index ( $self, $entries ) {
+    return join "\n", '<?xml version="1.0" encoding="UTF-8"?>',
+      '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      (
+        map { '<sitemap><loc>' . _xml_escape( $_->{loc} ) . '</loc></sitemap>' }
+          @{$entries}
+      ),
+      '</sitemapindex>', q{};
+}
+
 sub _url_xml ($entry) {
     my $loc     = _xml_escape( $entry->{loc} );
-    my $lastmod = _xml_escape( $entry->{lastmod} || q{} );
-
-    return
-        '  <url><loc>'
-      . $loc
-      . '</loc><lastmod>'
-      . $lastmod
-      . '</lastmod></url>';
+    my $lastmod = q{};
+    if ( defined $entry->{lastmod} && length $entry->{lastmod} ) {
+        my $date = "$entry->{lastmod}";
+        $date =~ s/[ ]/T/msx;
+        if ( index( $date, 'T' ) >= 0 ) {
+            $date =~ s/([+-][[:digit:]]{2})\z/$1:00/amsx;
+        }
+        $lastmod = '<lastmod>' . _xml_escape($date) . '</lastmod>';
+    }
+    return '  <url><loc>' . $loc . '</loc>' . $lastmod . '</url>';
 }
 
 sub _xml_escape ($value) {
@@ -126,7 +138,12 @@ C<last_activity_at>, or C<created_at>.
 
 Takes an array reference of entries. Returns the sitemap XML as a string, a
 C<urlset> with one C<url> element per entry; C<loc> and C<lastmod> are
-escaped, and a missing C<lastmod> renders empty.
+escaped. A missing C<lastmod> is omitted; PostgreSQL timestamps are written
+as W3C datetimes.
+
+=head2 render_index
+
+Takes sitemap locations and returns a sitemapindex document with escaped URLs.
 
 =head1 DIAGNOSTICS
 

@@ -14,6 +14,7 @@ use GPForum::Service::Admin::RoleBindingStore;
 use GPForum::Service::Admin::RoleCatalog;
 use GPForum::Service::Clock;
 use GPForum::Service::Identity::Registration;
+use GPForum::Service::Password;
 use GPForum::Service::Identity::Store;
 use GPForum::Infrastructure::Id;
 use GPForum::X::Argument;
@@ -38,6 +39,8 @@ const my @PERMISSION_COLUMNS =>
   qw(permission_id name resource_type action created_at);
 const my @BINDING_COLUMNS => qw(binding_id user_id role_id resource_type
   resource_id space_id created_by_user_id created_at revoked_at);
+
+has password_service => sub { return GPForum::Service::Password->new; };
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
@@ -386,16 +389,17 @@ sub _single_row ( $self, $resultset_name, $query ) {
 # password hashed as a sign-up does, then the account active and verified.
 sub _prepared ( $self, $input ) {
     my $username = $input->{username};
-    my $prepared =
-      GPForum::Service::Identity::Registration->new(
-        id_service => $self->id_service )->prepare(
+    my $prepared = GPForum::Service::Identity::Registration->new(
+        id_service       => $self->id_service,
+        password_service => $self->password_service
+    )->prepare(
         {
             display_name => $input->{display_name} // $username,
             email        => $input->{email},
             password     => $input->{password},
             username     => $username,
         }
-        );
+    );
     if ( !$prepared->{ok} ) {
         return {
             errors => $prepared->{errors},

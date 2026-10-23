@@ -340,3 +340,10 @@ platform architecture.
   `docs/release/readiness-review.md`, `docs/UI_ACCESSIBILITY.md`.
 - `t/09-architecture-documentation.t`, `t/10-migrate-command.t`, `t/144-cpan-install.t`,
   `t/18-github-project.t`, `t/integration/postgres.t`.
+
+## Installation amendment (2026-10-23)
+
+[ADR 0152](0152-parallel-locked-dependency-installation.md) replaces the
+Carton-only installation requirement with App::cpm resolving exclusively from
+`cpanfile.snapshot`. Carton retains lock updates, checks and vendor bundles;
+the system Perl requirement and committed dependency pins still apply.

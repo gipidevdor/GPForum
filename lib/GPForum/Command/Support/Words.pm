@@ -95,6 +95,7 @@ const my %ENGLISH => (
     'cli.verb.dead_letters'   => 'Review and replay messages that kept failing',
     'cli.verb.partitions'     => 'Create the next monthly log partitions',
     'cli.verb.budgets'        => 'Check or sync the query budgets',
+    'cli.verb.anonymize'      => 'Create a scrubbed staging database copy',
     'cli.verb.backup'         => 'Back up the database and the uploads',
     'cli.verb.restore'        => 'Check that a backup can be restored',
     'cli.verb.upgrade'        => 'Print the commands that upgrade this forum',

@@ -32,14 +32,14 @@ commands below use it:
 site=forum.example.com
 ```
 
-1. **Packages and Carton.** PostgreSQL, nginx with certbot, ClamAV for the
-   upload scan, and Carton for the system Perl.
+1. **Packages and CPAN tools.** PostgreSQL, nginx with certbot, ClamAV for the
+   upload scan, and App::cpm (v1.1 or newer) plus Carton for the system Perl.
 
    ```sh
    sudo apt install git perl build-essential cpanminus libpq-dev libssl-dev zlib1g-dev \
      postgresql postgresql-client nginx certbot python3-certbot-nginx \
      clamav-daemon clamav-freshclam
-   sudo cpanm -M https://cpan.metacpan.org/ Carton
+   sudo cpanm -M https://cpan.metacpan.org/ App::cpm Carton
    ```
 
 2. **The code.** The code belongs to root, so the service cannot rewrite it.
@@ -60,7 +60,7 @@ site=forum.example.com
    ```
 
    ```text
-   gpforum setup installs the dependencies into /opt/gpforum/local first, as make install-deps-production does: carton install --deployment --without develop
+   gpforum setup installs the dependencies into /opt/gpforum/local first, as make install-deps-production does: cpm install ... --workers 5 --no-test --final-install all --top-level-phase configure,build,test,runtime --feature postgres
    ...
    ✓ dependencies: installed into /opt/gpforum/local, for Perl 5.40.1
    GPForum setup. Three questions; Enter accepts the suggestion.
@@ -282,8 +282,8 @@ os-preflight: degraded recommended_worker_count: recommended worker count below 
 
 The service files run `bin/gpforum` alone, which finds the Perl and the
 dependencies the checkout installed: `gpforum os-preflight --strict --json`
-before the start, `gpforum start --service` for Hypnotoad (`--service
---foreground` under launchd and daemon(8)), and `gpforum outbox`, `gpforum
+before the start, `gpforum start --service --foreground` for Hypnotoad under
+systemd, launchd and daemon(8), and `gpforum outbox`, `gpforum
 scheduled-jobs` and `gpforum partitions` for the others. `script/` is the
 maintainers' (owner decision D9). A unit copied before that ran
 `script/os-preflight` and a `bin/gpforum-*` command through
@@ -299,6 +299,13 @@ mail: `gpforum mail-check --dry-run --human` checks it without sending
 there), and `gpforum mail-check --send --to ADDRESS --human` delivers a
 real verification probe to an address you read.
 [ops/mail-check.md](ops/mail-check.md) explains each transport.
+
+To sign in the forum before delivery, set `GPFORUM_DKIM_DOMAIN` to the From
+domain, `GPFORUM_DKIM_SELECTOR` to the published selector and
+`GPFORUM_DKIM_KEY_FILE` to a regular, readable private key with mode `0600`.
+Publish its public key at `SELECTOR._domainkey.DOMAIN`. `gpforum doctor`
+signs a probe and verifies it against DNS without sending it. A signing
+failure makes the outbox retry. Leave the key path empty to keep MTA signing.
 
 ## Upload antivirus
 
@@ -348,7 +355,7 @@ perl -v
 make system-perl   # script/gpforum-system-perl --preflight
 ```
 
-Host packages (before Carton):
+Host packages (before cpm):
 
 - Debian/Ubuntu: `perl`, `build-essential`, `cpanminus`, `libpq-dev`,
   `libssl-dev`, `zlib1g-dev`, `postgresql-client`
@@ -367,7 +374,7 @@ Host packages (before Carton):
   no-ops on Linux CI. After `brew upgrade perl`, rebuild `local/`
   (`script/bootstrap-deps --postgres --rebuild-local`): its XS modules are
   built for one Perl.
-- Then: `cpanm -M https://cpan.metacpan.org/ Carton` for that system Perl
+- Then: `cpanm -M https://cpan.metacpan.org/ App::cpm Carton` for that system Perl
 
 IO::Socket::SSL, for mail over TLS, builds Net::SSLeay against the host's
 OpenSSL headers: `libssl-dev` on Debian and Ubuntu (`libpq-dev` does not
@@ -376,33 +383,42 @@ bring them), FreeBSD's base, and on macOS Homebrew's `openssl@3`, which
 `OPENSSL_PREFIX`).
 
 GPForum recognizes runtime modules from `cpanfile`, PostgreSQL modules from
-`cpanfile.postgres` (Carton feature `postgres`), and exact distribution pins
-from `cpanfile.snapshot`. Install only through Carton under system Perl:
+`cpanfile.postgres` (feature `postgres`), and exact distribution pins
+from `cpanfile.snapshot`. Install through cpm under system Perl:
 
 ```sh
 make install-deps-production
 # equivalent: script/bootstrap-deps --postgres --production
 ```
 
-That runs `carton install --deployment --without develop` against the
-committed snapshot: the runtime and test requirements and the postgres
-feature, without the maintainer's tools (Perl::Critic, Perl::Tidy,
-Devel::Cover, Devel::NYTProf and what they pull in; ADR 0109). A
-development or CI host uses `make install-deps-postgres`, which keeps them.
-Either way the install uses
-`PERL_CARTON_MIRROR=https://cpan.metacpan.org/` unless the operator sets
-another **HTTPS** official PAUSE/MetaCPAN mirror or a local `carton bundle`
-cache (`--cached`). Carton itself runs module tests as `--notest` (Carton
-1.0.35 built-in). GPForum does not sideload CPAN distributions with
-`cpanm --notest` and does not fetch GitHub tarballs.
+That runs App::cpm (v1.1 or newer) through `script/gpforum-cpm`, with five
+parallel workers, into `local/`. It reads the committed `cpanfile.snapshot`
+using `--resolver snapshot --no-default-resolvers`: a missing or incompatible
+pin fails instead of falling back to current CPAN releases. The lock is not
+rewritten. Runtime and test requirements and the postgres feature are selected;
+the develop tools (Perl::Critic, Perl::Tidy, Devel::Cover, Devel::NYTProf and
+their dependencies) are omitted, per ADR 0109. Development and CI keep them
+with `make install-deps-postgres`.
 
-`carton install --deployment` populates `local/lib/perl5` and scripts such as
-`local/bin/hypnotoad`. It does **not** install `local/bin/carton`: Carton is a
-host tool for system Perl, and only installing needs it -- the `make
-install-deps-*` targets find it next to that Perl. Running needs no Carton:
-`gpforum` and the provided systemd, rc.d and launchd units put `local/` on
-`@INC` themselves, under the Perl that installed it,
-so nothing about Carton goes in the environment file.
+Set `GPFORUM_CPM_WORKERS=2 make install-deps-production` to limit concurrent
+builds on a host with little memory. The default is five; the value must be a
+positive integer. `PERL_CARTON_MIRROR=https://cpan.metacpan.org/` remains the
+mirror setting; another HTTPS mirror or a local path is accepted.
+`--home local` keeps source archives in `local/cache`, where Carton bundling
+expects them. `--final-install all` retains build dependencies as
+before. `--cached` uses only the `vendor/cache` mirror produced by
+`script/gpforum-carton bundle`.
+Upstream module tests remain disabled (`--no-test`), matching the previous
+Carton install policy.
+
+App::cpm and Carton are host tools for system Perl. Carton supplies
+`Carton::Snapshot` to cpm and still handles `--update`, `check` and `bundle`.
+`GPFORUM_CPM=/path/to/cpm` locates a cpm executable outside the PATH; the
+wrapper still runs it with the validated system Perl.
+`script/bootstrap-deps --postgres --update` refreshes the lock on a development
+host; production cannot combine `--production` with `--update`. Running
+GPForum needs neither installer: the front door and service units put `local/`
+on `@INC` under the Perl that installed it.
 
 Reproduce an install:
 
@@ -427,9 +443,17 @@ gracefully with `systemctl stop`. Restart after changing the environment
 file; `systemctl reload` is refused on purpose
 ([ops/reload-and-restart.md](ops/reload-and-restart.md)).
 
+The web unit uses `Type=notify` and supervises the foreground manager directly.
+`systemctl start` waits for a healthy worker to answer `/health/ready`.
+The manager then probes `/health/live` every ten seconds and sends watchdog
+notifications; systemd restarts it if notifications stop for 30 seconds.
+Graceful stop sends `QUIT` to the manager and allows 150 seconds to drain.
+See [ADR 0155](adr/0155-host-readiness-mail-and-reproducible-data.md), including
+the Linux validation requirement.
+
 The systemd units create `/run/gpforum` with `RuntimeDirectory=gpforum`, and
-Hypnotoad keeps its pid file there (`PIDFile=/run/gpforum/hypnotoad.pid`). The
-units set only `GPFORUM_ENV=production` and the log path; every other
+Hypnotoad keeps its internal pid file there. systemd does not read that file.
+The units set only `GPFORUM_ENV=production` and the log path; every other
 setting takes its default unless
 `/etc/gpforum/gpforum.env` sets it, so an override belongs in that file, not
 in a copy of the unit.
@@ -530,12 +554,12 @@ closed to other accounts.
 
 From a Mac with Homebrew to a signed-in owner behind TLS, this section is
 the one document. First the packages -- PostgreSQL, nginx with certbot --
-and Carton for Homebrew's Perl:
+and App::cpm plus Carton for Homebrew's Perl:
 
 ```sh
 brew install perl cpanminus postgresql@18 nginx certbot
 brew services start postgresql@18
-"$(brew --prefix)/bin/perl" "$(brew --prefix cpanminus)/bin/cpanm" -M https://cpan.metacpan.org/ Carton
+"$(brew --prefix)/bin/perl" "$(brew --prefix cpanminus)/bin/cpanm" -M https://cpan.metacpan.org/ App::cpm Carton
 ```
 
 Then eight commands, with your forum's name for `forum.example.org`:

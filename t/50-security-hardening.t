@@ -20,6 +20,8 @@ use GPForum::Test::AllowPermissionGate;
 use GPForum::Test::DenyPermissionGate;
 use GPForum::Test::FixedClock;
 use GPForum::Test::ForumWebServices;
+use GPForum::Test::SitemapFunctions;
+use GPForum::Service::Discovery::SitemapPages;
 use GPForum::Test::Id;
 use GPForum::Test::IdentitySecurityAudit;
 use GPForum::Test::Schema;
@@ -290,6 +292,15 @@ sub _install_forum_fakes {
     my ($test) = @_;
 
     my $services = GPForum::Test::ForumWebServices->new;
+    $test->app->helper(
+        gp_sitemap_pages => sub ($controller) {
+            return GPForum::Service::Discovery::SitemapPages->new(
+                schema    => 'unused',
+                builder   => $controller->gp_sitemap_builder,
+                functions => GPForum::Test::SitemapFunctions->new
+            );
+        }
+    );
     for my $helper (
         qw(
         gp_category_reader gp_thread_reader gp_thread_detail_reader

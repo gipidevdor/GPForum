@@ -1,7 +1,7 @@
 name: Set up GPForum on the OS system Perl
 description: >-
-  Install the Debian/Ubuntu system Perl toolchain, restore the Carton local/
-  tree from the dependency cache, and install the locked CPAN distributions.
+  Install the Debian/Ubuntu system Perl toolchain, restore the locked local/
+  tree from the dependency cache, and install the locked CPAN distributions in parallel with cpm.
   Mirrors the setup steps that .github/workflows/ci.yml keeps inline as the
   contract-pinned canonical gate.
 
@@ -34,8 +34,8 @@ runs:
         set -euo pipefail
         sudo apt-get update
         sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client
-        # Carton is a host tool for the OS system Perl, not a Carton-local binary.
-        sudo /usr/bin/perl /usr/bin/cpanm --notest Carton
+        # cpm installs in parallel; Carton supplies snapshot parsing, checks and bundles.
+        sudo /usr/bin/perl /usr/bin/cpanm -M https://cpan.metacpan.org/ --notest App::cpm Carton
 
     - name: Install versioned PostgreSQL client
       if: inputs.postgres-client-version != ''

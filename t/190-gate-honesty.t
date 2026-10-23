@@ -102,20 +102,34 @@ my $root = getcwd();
     );
 }
 
-# The PostgreSQL integration tier: without a DSN every test in it skips, so
-# the make target must refuse rather than report an empty success, and no
-# workflow may run it as a list of files, which is how the search-plan and
-# retention tests went unrun on PostgreSQL 17 and 18.
+# The integration tier boots a cluster in each test process without a DSN.
+# A startup failure must fail the file, never turn the tier into skipped tests.
 {
     local $ENV{GPFORUM_DATABASE_DSN} = undef;
+    local $ENV{GPFORUM_TEST_DSN}     = undef;
     delete $ENV{GPFORUM_DATABASE_DSN};
-
-    my ( $status, $output ) = _run( 'make', '-s', 'integration' );
-    isnt( $status, 0, 'make integration fails without a DSN' );
+    delete $ENV{GPFORUM_TEST_DSN};
+    my $fixture = tempdir( CLEANUP => 1 );
+    make_path("$fixture/Test");
+    open my $module, '>', "$fixture/Test/PostgreSQL.pm"
+      or croak 'cannot write startup fixture';
+    print {$module} 'package Test::PostgreSQL; sub new { return undef; } 1;'
+      or croak 'cannot write startup fixture';
+    close $module or croak 'cannot close startup fixture';
+    my ( $status, $output ) =
+      _run( $EXECUTABLE_NAME, "-I$fixture", '-It/lib',
+        '-MGPForum::Test::TemporaryPostgres',
+        '-e', 'exit 0' );
+    isnt( $status, 0, 'cluster startup failure fails the test process' );
     like(
         $output,
-        qr/nothing \s was \s tested/msx,
-        'and says that nothing was tested'
+        qr/cannot[ ]start[ ]integration[ ]PostgreSQL/msx,
+        'startup failure is explicit'
+    );
+    like(
+        _slurp('Makefile'),
+        qr/--exec.*-MGPForum::Test::TemporaryPostgres/msx,
+        'the cluster boots in each test process'
     );
 
     for my $workflow (qw(ci postgres-matrix)) {

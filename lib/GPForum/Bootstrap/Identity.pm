@@ -43,13 +43,17 @@ sub _register_identity_helpers {
     my $touch_interval =
       $config ? $config->session_touch_interval_seconds : undef;
 
-    $application->helper(
-        gp_password => sub { return GPForum::Service::Password->new; } );
+    $application->helper( gp_password =>
+          sub { return GPForum::Service::Password->from_config($config); } );
     $application->helper(
         gp_session_token => sub { return GPForum::Service::SessionToken->new; }
     );
-    $application->helper( gp_registration =>
-          sub { return GPForum::Service::Identity::Registration->new; } );
+    $application->helper(
+        gp_registration => sub ($controller) {
+            return GPForum::Service::Identity::Registration->new(
+                password_service => $controller->gp_password );
+        }
+    );
     $application->helper(
         gp_identity_security_audit => sub {
             my ($controller) = @_;
@@ -68,8 +72,9 @@ sub _register_identity_helpers {
             my $schema = $controller->gp_schema;
 
             return GPForum::Service::Identity::SecondFactor->new(
-                schema => $schema,
-                box    => GPForum::Service::Identity::SecretBox->new(
+                schema   => $schema,
+                password => $controller->gp_password,
+                box      => GPForum::Service::Identity::SecretBox->new(
                     keys => $second_factor_keys
                 ),
                 credential_store =>
@@ -87,6 +92,7 @@ sub _register_identity_helpers {
                 mail_token => GPForum::Service::Identity::MailToken->new(
                     secrets => $controller->app->secrets
                 ),
+                password                       => $controller->gp_password,
                 schema                         => $controller->gp_schema,
                 session_touch_interval_seconds => $touch_interval,
                 second_factor                  => $controller->gp_second_factor,

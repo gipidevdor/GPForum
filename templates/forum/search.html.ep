@@ -7,7 +7,7 @@
   % my $current_limit = $limit || 20;
   % my $result_count = scalar @{$results};
   % my $dated = grep { length($active_filters->{$_} // q{}) } qw(from to);
-  % my @scoped = grep { length($active_filters->{$_} // q{}) } qw(category_id author_user_id);
+  % my @scoped = grep { length($active_filters->{$_} // q{}) } qw(category_id author_user_id thread_id);
   <form class="search-form" method="get" action="<%= ui_path('forum_search') %>" role="search" aria-describedby="search-help">
     <div class="search-form__bar">
       <label class="visually-hidden" for="search-query"><%= t('search.query') %></label>
@@ -31,6 +31,9 @@
       <p class="ui-meta">
         % if (length($active_filters->{category_id} // q{})) {
           <span><%= t('search.within_category') %></span>
+        % }
+        % if (length($active_filters->{thread_id} // q{})) {
+          <span><%= t('search.within_thread') %></span>
         % }
         % if (length($active_filters->{author_user_id} // q{})) {
           <span><%= t('search.by_one_author') %></span>
@@ -66,7 +69,7 @@
         <li class="ui-card-list__item ui-row">
           <h2 class="ui-row__title">
             % if ($thread_id) {
-              <a href="<%= ui_path('thread', thread_id => $thread_id) %><%= $is_thread ? q{} : '#post-' . $result->{entity_id} %>"><%= $result->{title} %></a>
+              <a href="<%= $is_thread ? ui_path('thread', thread_id => $thread_id) : url_for('thread', thread_id => $thread_id)->query(post => $result->{entity_id})->fragment('post-' . $result->{entity_id}) %>"><%= $result->{title} %></a>
             % } else {
               <%= $result->{title} %>
             % }

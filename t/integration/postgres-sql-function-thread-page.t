@@ -23,6 +23,7 @@ use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
 our $VERSION = '0.001';
 
+const my $SEEK_POSITION    => 25;
 const my $ADDED_POSTS      => 60;
 const my @LIMITS           => ( 1, 7, 25, 100 );
 const my $DELETE_EVERY     => 7;
@@ -198,7 +199,84 @@ for my $name ( sort keys %path ) {
         2, "$name: the head and the posts are two statements" );
 }
 
+_seek_pages();
+
 done_testing();
+
+sub _seek_pages {
+
+    # Ordinal and post-id navigation reuse the same permission-scoped keyset.
+    for my $name ( sort keys %path ) {
+        for my $standing (qw(anonymous member moderator)) {
+            my $reader = $path{$name}{threads};
+            my $all    = $reader->thread_page(
+                {
+                    thread_id => $thread{long},
+                    viewer    => $viewer{$standing},
+                    limit     => 100
+                }
+            );
+            my @expected =
+              grep { $_->get_column('position') >= $SEEK_POSITION }
+              @{ $all->{posts}{items} };
+            my $jump = $reader->thread_page(
+                {
+                    thread_id => $thread{long},
+                    viewer    => $viewer{$standing},
+                    at        => $SEEK_POSITION,
+                    limit     => 100
+                }
+            );
+            is_deeply(
+                [
+                    map { $_->get_column('post_id') } @{ $jump->{posts}{items} }
+                ],
+                [ map { $_->get_column('post_id') } @expected ],
+                "$name/$standing seeks without exposing skipped private posts"
+            );
+            if (@expected) {
+                my $target = $expected[0]->get_column('post_id');
+                my $linked = $reader->thread_page(
+                    {
+                        thread_id => $thread{long},
+                        viewer    => $viewer{$standing},
+                        post      => $target
+                    }
+                );
+                is( $linked->{posts}{items}[0]->get_column('post_id'),
+                    $target, "$name/$standing opens a deep post link" );
+            }
+        }
+        my $hidden_id = $dbh->selectrow_array(
+q{SELECT post_id FROM posts WHERE thread_id = ? AND moderation_state = 'hidden' LIMIT 1},
+            undef, $thread{long}
+        );
+        is(
+            $path{$name}{threads}->thread_page(
+                {
+                    thread_id => $thread{long},
+                    viewer    => $viewer{anonymous},
+                    post      => $hidden_id
+                }
+            )->{ok},
+            0,
+            "$name: a hidden post link is not found"
+        );
+        is(
+            $path{$name}{threads}->thread_page(
+                {
+                    thread_id => $thread{private},
+                    viewer    => $viewer{anonymous},
+                    at        => $SEEK_POSITION
+                }
+            )->{ok},
+            0,
+            "$name: ordinal navigation does not open a private thread"
+        );
+    }
+
+    return;
+}
 
 sub _readers (%options) {
     my $posts =

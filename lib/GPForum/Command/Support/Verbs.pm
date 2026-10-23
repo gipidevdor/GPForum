@@ -45,6 +45,7 @@ const my @VERBS => (
     [qw(budgets maintain query_budget)],
     [qw(backup maintain backup)],
     [qw(sign-posts maintain sign_posts application)],
+    [qw(anonymize maintain anonymize)],
     [qw(restore maintain restore)],
     [qw(upgrade maintain upgrade)],
     [qw(benchmark more benchmark)],

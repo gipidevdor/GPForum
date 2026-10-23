@@ -74,6 +74,8 @@ sub category ($self) {
             category_id    => $category_id,
             limit          => $self->list_page_limit,
             after          => $self->param('after'),
+            at             => $self->param('at'),
+            post           => $self->param('post'),
             viewer_user_id => $user_id,
             viewer_scope   => $viewer->within(
                 $self->_column( $category, 'category_id' ),
@@ -118,6 +120,8 @@ sub thread ($self) {
             thread_id      => $thread_id,
             limit          => $self->list_page_limit,
             after          => $self->param('after'),
+            at             => $self->param('at'),
+            post           => $self->param('post'),
             viewer         => $self->gp_forum_viewer,
             viewer_user_id => $user_id,
         }
@@ -140,7 +144,10 @@ sub thread ($self) {
         $cache->{canonical_path} = $canonical;
     }
 
-    my $payload = $self->thread_page_payload( $page, $user_id );
+    my $payload = $self->thread_page_payload( $page, $user_id,
+        $self->wants_fragment
+        ? ( fragment => { pagination => 1, posts => 1 } )
+        : () );
     if ( $self->wants_fragment ) {
         return $self->render_payload(
             {
@@ -168,6 +175,9 @@ sub thread ($self) {
 # Keyed by the thread's id path whatever slug the request names. A request
 # that names one asks the cache to check it against the cached page's own.
 sub _thread_cache_options ( $self, $thread_id ) {
+    return undef
+      if length( $self->param('at')   // q{} )
+      || length( $self->param('post') // q{} );
     my $cache = $self->public_cache_options(
         'thread',
         ["forum:thread:$thread_id"],

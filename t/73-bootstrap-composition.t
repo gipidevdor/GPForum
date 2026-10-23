@@ -331,6 +331,7 @@ sub _helper_names {
       gp_security_telemetry
       gp_session_token
       gp_sitemap_builder
+      gp_sitemap_pages
       gp_category_subscriptions
       gp_subscription_store
       gp_suspension_store

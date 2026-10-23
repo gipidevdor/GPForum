@@ -9,13 +9,13 @@ PostgreSQL-authoritative, operable, and explicit.
    Homebrew's `perl` on macOS). Version managers and custom PREFIX builds are
    unsupported. On Debian/Ubuntu install `perl`, `build-essential`,
    `cpanminus`, and `libpq-dev`; then
-   `cpanm -M https://cpan.metacpan.org/ Carton`. On macOS,
-   `brew install perl cpanminus postgresql@18`, install Carton for that perl,
-   and `eval "$(script/gpforum-homebrew-env)"` before client-tool checks.
+   `cpanm -M https://cpan.metacpan.org/ App::cpm Carton`. On macOS,
+   `brew install perl cpanminus postgresql@18`, install App::cpm and Carton
+   for that perl, and `eval "$(script/gpforum-homebrew-env)"` before client-tool checks.
    Confirm with `make system-perl` (`which perl`, `perl -v`, `perl -V`).
 2. Install dependencies with `make install-deps-postgres`
    (`script/bootstrap-deps --postgres`), as the README quick start does.
-   That runs `carton install --deployment` from `cpanfile.snapshot` over
+   That runs cpm with exclusive snapshot resolution from `cpanfile.snapshot` over
    HTTPS MetaCPAN under system Perl, PostgreSQL driver included. Use
    `script/bootstrap-deps --update --postgres` only when refreshing the lock
    after a `cpanfile` change, as the README says (without `--postgres` the
@@ -60,7 +60,7 @@ script/profile-nytprof -- -Ilib -It/lib t/17-notifications.t
 - Keep boundaries narrow; do not introduce god classes.
 - Prefer domain services, stores, command handlers, and projections.
 - PostgreSQL is authoritative. Search, inboxes, feeds, and counters are rebuildable projections.
-- Carton, Perl::Critic, tests, coverage, and profiling are mandatory project surfaces.
+- cpm, Carton, Perl::Critic, tests, coverage, and profiling are mandatory project surfaces.
 - Any deviation from Perl-first, PostgreSQL-native, Redis-optional, required GlifiStore L2, or SSR-first needs an ADR.
 - Durable event writes should use `GPForum::Infrastructure::EventRecorder`.
 - Raw SSR HTML must pass through `GPForum::Web::RenderPolicy`.
@@ -93,3 +93,17 @@ Every pull request should include:
 - documentation and ADR updates when contracts change;
 - migration and rollback notes when database shape changes;
 - profiling notes when hot paths change.
+
+For isolated PostgreSQL integration tests, install the postgres dependency
+feature and PostgreSQL client/server programs, then run `make integration`
+(`JOBS=8` by default). Each test file owns its temporary socket-only cluster;
+an explicit database DSN still selects an existing server.
+
+Generate a service and its SQL contract from the repository root:
+
+```sh
+script/gpforum-carton exec perl -Ilib local/bin/mojo generate gpforum-service Forum::Name
+```
+
+Review the generated migration, add authorization and behavior, then run its
+integration test and `make check`. The generator refuses existing files.

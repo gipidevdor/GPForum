@@ -4,8 +4,8 @@
 
 set -eu
 
-# Locate Carton for the OS system Perl and exec it. Carton is the only
-# supported installer for GPForum CPAN distributions. Non-system Perl
+# Locate Carton for lock updates, checks and bundles, or run from local/.
+# Locked installation uses script/gpforum-cpm. Non-system Perl
 # installs are rejected by script/gpforum-system-perl.
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
@@ -46,8 +46,8 @@ export PATH
 # it is reproduced here whether or not Carton is installed. Real `carton exec`
 # parses the options that follow the command as its own: `exec prove -v`
 # printed Carton's version instead of running the tests. Reproducing it also
-# pins every Perl tool to the validated interpreter. Carton itself is the only
-# supported INSTALLER, so `install` and `check` still need it (below).
+# pins every Perl tool to the validated interpreter. Lock updates and checks
+# still need Carton itself (below).
 if [ "${1:-}" = "exec" ] && [ -d "$root/local/lib/perl5" ]; then
     shift
     PERL5LIB="$root/local/lib/perl5${PERL5LIB:+:$PERL5LIB}"

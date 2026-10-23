@@ -150,9 +150,9 @@ sub _public_surfaces {
     _page_has( $client, '/search?q=performance', $ENTITY_SELECTOR );
     _json_has_items( $client, '/search/autocomplete?q=per' );
     _page_has( $client, "/u/$thread->{username}", 'h1' );
-    _text_has( $client, '/robots.txt',  qr/Sitemap:/msx );
-    _text_has( $client, '/sitemap.xml', qr{<loc>[^<]+/t/}msx );
-    _text_has( $client, '/feed.atom',   qr/<entry>/msx );
+    _text_has( $client, '/robots.txt',    qr/Sitemap:/msx );
+    _text_has( $client, '/sitemap-1.xml', qr{<loc>[^<]+/t/}msx );
+    _text_has( $client, '/feed.atom',     qr/<entry>/msx );
 
     return;
 }

@@ -53,6 +53,7 @@ the verb, or says `none`.
 | `gpforum mail-in` | none | Reads one authenticated MIME reply from the local MTA; [protocol runbook](community-protocols.md). |
 | `gpforum gemini` | none | Runs the separate public Gemini TLS listener; [protocol runbook](community-protocols.md). |
 | `gpforum sign-posts` | none | Attests existing unsigned revisions in bounded batches; new posts and edits are signed automatically. |
+| `gpforum anonymize` | none | Creates a scrubbed copy in a new staging database; requires administrative PostgreSQL credentials. |
 | `gpforum backup` | none | Dumps the database and the uploads; it needs the database owner and the host's disk, not a web request. |
 | `gpforum restore` | none | Checks that a backup restores, into a database of its own. |
 | `gpforum upgrade` | none | Prints the commands that upgrade this forum, which run on the host. |
@@ -156,5 +157,12 @@ secret shown only as set or not set. It does not change them: configuration
 lives in the service's environment, `/etc/gpforum/gpforum.env`
 (`/usr/local/etc/gpforum/gpforum.env` on FreeBSD), and takes effect on
 `systemctl restart gpforum` (see `reload-and-restart.md`).
+
+`gpforum anonymize --copy-to gpforum_anon_NAME` creates a scrubbed staging
+database copy through administrative PostgreSQL credentials. It never
+overwrites a database. See ADR 0155 for what it retains and removes.
+
+`gpforum doctor --calibrate-password` measures this host and prints Argon2id
+memory and iteration settings for the 250 ms budget without changing them.
 
 `gpforum help VERB` renders the command module’s POD with `Pod::Usage`; `make man` generates matching man pages under `artifacts/man` with `Pod::Man` (the `pod2man` renderer). Options come from executable usage, so there is no separate manual option list.

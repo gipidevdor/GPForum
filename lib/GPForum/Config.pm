@@ -18,6 +18,9 @@ use GPForum::OS::Memory;
 use GPForum::X::Config;
 
 our $VERSION = '0.001';
+const my $MINIMUM_ARGON_MEMORY_MIB => 19;
+const my $MAXIMUM_ARGON_MEMORY_MIB => 256;
+const my $MAXIMUM_ARGON_ITERATIONS => 10;
 
 const my $DEVELOPMENT_SESSION_SECRET => 'gpforum-development-secret-change-me';
 const my $DEVELOPMENT_SECOND_FACTOR_KEY =>
@@ -900,6 +903,26 @@ const my @SETTINGS => map {
           . ' for a load test from one address.',
     },
 
+    {
+        name    => 'password_memory_mib',
+        env     => 'GPFORUM_PASSWORD_MEMORY_MIB',
+        default => 32,
+        type    => 'integer',
+        check   => 'password_cost',
+        section => 'security',
+        summary =>
+'Argon2id memory in MiB (19..256); doctor --calibrate-password measures this host.',
+    },
+    {
+        name    => 'password_iterations',
+        env     => 'GPFORUM_PASSWORD_ITERATIONS',
+        default => 3,
+        type    => 'integer',
+        check   => 'password_cost',
+        section => 'security',
+        summary => 'Argon2id iterations (2..10).',
+    },
+
     # log writes each message, link included, to the log: development's
     # default, so a laptop without a mail server can still verify an account.
     # test keeps messages in memory for the test suite.
@@ -929,6 +952,28 @@ const my @SETTINGS => map {
           . q{'s own domain.},
         operator => 1,
         example  => 'forum@forum.example.com',
+    },
+    {
+        name    => 'dkim_domain',
+        env     => 'GPFORUM_DKIM_DOMAIN',
+        default => q{},
+        section => 'mail',
+        summary => 'DKIM signing domain, matching the sender domain.',
+    },
+    {
+        name    => 'dkim_selector',
+        env     => 'GPFORUM_DKIM_SELECTOR',
+        default => 'forum',
+        section => 'mail',
+        summary => 'DKIM DNS selector.',
+    },
+    {
+        name    => 'dkim_key_file',
+        env     => 'GPFORUM_DKIM_KEY_FILE',
+        default => q{},
+        section => 'mail',
+        summary =>
+          'Private RSA key file (0600); empty leaves signing to the MTA.',
     },
     {
         name          => 'smtp_host',
@@ -1035,6 +1080,7 @@ const my %POSITION      => map { $SETTINGS[$_]{name} => $_ } 0 .. $#SETTINGS;
 my %RULE = (
     optional_mail_reply   => \&_rule_optional_mail_reply,
     optional_websub_hub   => \&_rule_optional_websub_hub,
+    password_cost         => \&_rule_password_cost,
     required              => \&_rule_required,
     positive              => \&_rule_positive,
     non_negative          => \&_rule_non_negative,
@@ -1544,6 +1590,17 @@ sub _rule_required_in ( $self, $setting, $value ) {
       ? undef
       : _problem_of( $setting, 'config.required_in', $value,
         environment => $self->environment );
+}
+
+sub _rule_password_cost ( $self, $setting, $value ) {
+    my ( $minimum, $maximum ) =
+      $setting->{name} eq 'password_memory_mib'
+      ? ( $MINIMUM_ARGON_MEMORY_MIB, $MAXIMUM_ARGON_MEMORY_MIB )
+      : ( 2, $MAXIMUM_ARGON_ITERATIONS );
+    return _at_least( $setting, $value, $minimum ) if $value < $minimum;
+    return $value > $maximum
+      ? _problem_of( $setting, 'config.at_most', $value, maximum => $maximum )
+      : undef;
 }
 
 sub _rule_positive ( $self, $setting, $value ) {

@@ -90,6 +90,7 @@ jobs:
           for required in \
             bin/gpforum \
             script/gpforum-carton \
+            script/gpforum-cpm \
             script/gpforum-system-perl \
             cpanfile \
             cpanfile.snapshot \
@@ -105,6 +106,7 @@ jobs:
             }
           done
           test -x "${tree}/script/gpforum-carton"
+          test -x "${tree}/script/gpforum-cpm"
           test -x "${tree}/script/gpforum-system-perl"
           ( cd "$tree" && script/gpforum-system-perl --require )
           echo 'ok: release artifact carries the documented deployment surface'

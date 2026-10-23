@@ -29,7 +29,7 @@ one a new command belongs in. It is enforced by `check_entrypoint_layout` in
   dependencies itself; neither `bin/` nor `script/` holds a file that only
   runs one. The `gpforum-` prefix inside `script/` is reserved for standalone
   tools:
-  `gpforum-carton`, `gpforum-system-perl`, `gpforum-homebrew-env`,
+  `gpforum-carton`, `gpforum-cpm`, `gpforum-system-perl`, `gpforum-homebrew-env`,
   `gpforum-private-beta-checklist`, `gpforum-evidence-live`.
 
 - **Invariant.** No basename appears in both `bin/` and `script/`.
@@ -37,7 +37,11 @@ one a new command belongs in. It is enforced by `check_entrypoint_layout` in
 - A `bin/` path a `script/` file names must exist, and every file in both
   directories must be executable.
 
-## Carton
+## CPAN tools
+
+`script/bootstrap-deps` installs the locked distributions in parallel through
+`script/gpforum-cpm`, which runs App::cpm with the validated system Perl.
+Carton still supplies snapshot parsing, lock updates, checks and bundles.
 
 The only script that invokes `carton` directly is `script/gpforum-carton`
 itself. Bare `carton` would bypass the system-Perl gate in

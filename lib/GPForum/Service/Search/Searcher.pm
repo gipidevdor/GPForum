@@ -374,9 +374,15 @@ sub ranked_call ( $self, $actor, $query, $options = undef ) {
     my $from       = _date_bounds( $options->{from} );
     my $to         = _date_bounds( $options->{to} );
     return [
-        'search_ranked',
+        _is_uuid( $options->{thread_id} ) ? 'search_thread_ranked'
+        : 'search_ranked',
         {
             %{ $self->_permission_parameters($actor) },
+            (
+                _is_uuid( $options->{thread_id} )
+                ? ( thread_filter => $options->{thread_id} )
+                : ()
+            ),
             query           => $normalized,
             like_pattern    => q{%} . _like_pattern($normalized) . q{%},
             config          => _search_config(),
@@ -485,6 +491,14 @@ sub _search_query ( $permission, $query, $options ) {
     # read, so dropping it widens nothing the permission condition allows.
     if ( _is_uuid( $options->{category_id} ) ) {
         $where->{'me.category_id'} = $options->{category_id};
+    }
+    if ( _is_uuid( $options->{thread_id} ) ) {
+        my $thread = $options->{thread_id};
+        push @{ $where->{-and} },
+          \[
+q{(CASE me.entity_type WHEN 'thread' THEN me.entity_id = ?::uuid WHEN 'post' THEN EXISTS (SELECT 1 FROM posts scoped_post WHERE scoped_post.post_id = me.entity_id AND scoped_post.thread_id = ?::uuid) ELSE false END)},
+            $thread, $thread
+          ];
     }
     if ( _is_uuid( $options->{author_user_id} ) ) {
         $where->{'me.author_user_id'} = $options->{author_user_id};

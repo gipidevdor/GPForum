@@ -106,6 +106,29 @@ replay returns its id. Staff-only pages and poll responses use no-store.
 See [ADR 0151](docs/adr/0151-admission-polls-category-follows-and-thread-organization.md)
 for bounds, audiences, rollback and privacy semantics.
 
+### Discussion navigation and scoped search
+
+`GET /t/:thread_id?at=N` opens the first readable message at or after the
+positive ordinal `N`, using the existing indexed keyset and bounded page size.
+An ordinal is not a count of messages visible to the reader. Hidden or private
+messages remain subject to the ordinary thread and post permissions.
+
+`GET /t/:thread_id?post=UUID` resolves a readable post in that thread and opens
+its page. Missing, inaccessible and mismatched posts return the same not-found
+response. Both navigation modes bypass the first-page public response cache.
+
+`GET /search?q=TEXT&thread_id=UUID` restricts search to an accessible discussion.
+The thread filter is applied before candidate and result limits. Malformed or
+inaccessible discussion identifiers return not found instead of broadening the
+search. Apply migration 1030 and refresh runtime function grants before deploying
+the updated search catalogue.
+
+The reply editor suggests participants already visible on the page after `@`.
+Typing `[[` followed by at least three characters requests up to five discussion
+titles from the existing permission-aware, rate-limited autocomplete endpoint.
+Selection inserts ordinary source text and follows the normal draft and publish
+paths. Both navigation forms and scoped search work without JavaScript.
+
 ## Portable archives and protocol discovery
 
 | Method | Path | Result |

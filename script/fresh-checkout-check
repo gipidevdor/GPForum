@@ -14,7 +14,7 @@
 # prerequisite of `make check`, timing each one.
 #
 # It writes nothing to this checkout or to its local/: the clone installs its
-# own local/, cpanm builds inside the temporary directory, and the directory is
+# own local/, cpm builds inside that local/, and the directory is
 # removed afterwards unless --keep is given. Uncommitted changes are not part
 # of the run, because a fresh checkout does not have them either.
 
@@ -67,7 +67,7 @@ database.
 
 The steps install every dependency from MetaCPAN into the clone's own local/,
 so the run needs the network and takes a while. The host prerequisites the
-README lists first (system Perl, Carton, the PostgreSQL client files) must
+README lists first (system Perl, cpm, Carton, the PostgreSQL client files) must
 already be installed.
 
 Exit status: 0 every step passed, 1 a step failed, 2 usage error.
@@ -350,10 +350,10 @@ trap 'exit 143' TERM
 
 # A working shell carries state a fresh one does not. PERL5LIB or a
 # local::lib can hand the clone this checkout's modules, and PERL_CARTON_PATH
-# would make Carton install into another local/ altogether, so the clone
+# would make Carton maintain another local/ altogether, so the clone
 # would pass on dependencies it never installed. A leftover GPFORUM_* setting
 # would make it pass or fail on configuration the README never mentions; only
-# GPFORUM_CARTON, which the README names for locating Carton, is kept. The
+# GPFORUM_CARTON and GPFORUM_CPM, which locate the host tools, are kept. The
 # database settings were read above, and PGPASSWORD goes only to the steps
 # that sign in as the DSN's role.
 #
@@ -368,7 +368,10 @@ unset PERL5LIB PERL5OPT PERL_LOCAL_LIB_ROOT PERL_MB_OPT PERL_MM_OPT \
     MAKEFLAGS MFLAGS MAKELEVEL MAKEOVERRIDES GNUMAKEFLAGS \
     HARNESS_PERL_SWITCHES
 for variable in $(env | sed -n 's/^\(GPFORUM_[A-Za-z0-9_]*\)=.*/\1/p'); do
-    [ "$variable" = GPFORUM_CARTON ] || unset "$variable"
+    case "$variable" in
+        GPFORUM_CARTON|GPFORUM_CPM) ;;
+        *) unset "$variable" ;;
+    esac
 done
 PERL_CPANM_HOME="$workdir/cpanm"
 export PERL_CPANM_HOME

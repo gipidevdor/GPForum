@@ -47,17 +47,17 @@ sudo systemctl kill --kill-whom=main --signal=TTIN gpforum   # one more worker
 sudo systemctl kill --kill-whom=main --signal=TTOU gpforum   # one fewer
 ```
 
-systemd sends the signal to the manager it tracks through
-`/run/gpforum/hypnotoad.pid`, so there is no pid file to look up.
+The current `Type=notify` unit tracks the foreground manager directly, so
+there is no pid file to look up. Its readiness and watchdog behavior is
+specified in [ADR 0155](../adr/0155-host-readiness-mail-and-reproducible-data.md).
 
 ## Zero-downtime deploys
 
-Hypnotoad's hot deploy works; what does not work is systemd tracking it. If you
-need zero-downtime upgrades, run hypnotoad in the foreground under
-`Type=notify` with `HYPNOTOAD_FOREGROUND=1` so systemd supervises the manager
-directly, and drive the upgrade from outside the unit. That restructuring is
-not shipped here: it is the same change `docs/QUALITY_PROGRAM.md` 3.1 leaves
-open, and it cannot be exercised on a development host without systemd.
+The foreground `Type=notify` unit now reports readiness and feeds a watchdog.
+It still does not transfer systemd's `MAINPID` to a replacement manager, so
+Hypnotoad hot deploy remains unsupported. Use multiple application nodes and
+drain them at the proxy around each restart when upgrades must keep serving
+requests. Actual systemd restart behavior requires validation on Linux.
 
 ## Related
 

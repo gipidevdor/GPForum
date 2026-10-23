@@ -33,17 +33,11 @@ syntax: ## Compile every Perl file
 test: ## Run the test suite
 	script/gpforum-carton exec prove -lr t
 
-# Without a DSN every integration test skips, and a tier where everything
-# skipped has not passed. This target refuses instead. JOBS=N runs N tests at
-# once (each owns its databases); one at a time it stays verbose.
-JOBS ?= 1
-integration: ## Run the PostgreSQL integration tier (needs GPFORUM_DATABASE_DSN; JOBS=N in parallel)
-	@if [ -z "$$GPFORUM_DATABASE_DSN" ]; then \
-	  echo 'integration: GPFORUM_DATABASE_DSN is not set; nothing was tested' >&2; \
-	  echo 'integration: point it at a server where the user may CREATE DATABASE' >&2; \
-	  exit 1; \
-	fi
-	script/gpforum-carton exec prove -l $(if $(filter 1,$(JOBS)),-v,-j $(JOBS)) -It/lib -r t/integration
+# Each integration file starts its own socket-only cluster unless an explicit
+# DSN is supplied. The module runs in the test process, never in the harness.
+JOBS ?= 8
+integration: ## Run PostgreSQL integration tests on temporary clusters (JOBS=8)
+	script/gpforum-carton exec prove -l -j $(JOBS) -It/lib --exec 'perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres' -r t/integration
 
 # No --severity override. The profile declares `severity = brutal` and the
 # baseline in etc/ was recorded at that level, so passing --severity 5 here
@@ -58,6 +52,7 @@ tidy: ## Check every file is perltidy-clean
 
 architecture: ## Run the architecture invariants
 	script/architecture-check
+	script/gpforum-carton exec script/architecture-policies
 
 check: system-perl syntax test critic tidy architecture ## system-perl, syntax, test, critic, tidy, architecture
 
@@ -70,13 +65,13 @@ check: system-perl syntax test critic tidy architecture ## system-perl, syntax, 
 fresh-checkout: ## Prove a clean clone of HEAD passes make check from the README quick start (slow)
 	script/fresh-checkout-check
 
-install-deps: ## Install runtime, test and develop dependencies
+install-deps: ## Install locked runtime, test and develop dependencies in parallel with cpm
 	script/bootstrap-deps
 
-install-deps-postgres: ## Install dependencies including the postgres feature
+install-deps-postgres: ## Install locked dependencies with cpm, including the postgres feature
 	script/bootstrap-deps --postgres
 
-install-deps-production: ## Install what a production host runs, without the develop tools
+install-deps-production: ## Install production dependencies in parallel with cpm, without develop tools
 	script/bootstrap-deps --postgres --production
 
 bootstrap: install-deps ## Install dependencies and prepare the checkout

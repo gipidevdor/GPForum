@@ -1,0 +1,76 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+package main;
+use v5.40;
+use lib 'lib';
+use Carp        qw(croak);
+use Digest::SHA qw(sha256_hex);
+use JSON::MaybeXS;
+use Mojo::File qw(path);
+use Perl::Critic;
+use PPI::Document;
+our $VERSION = '0.001';
+
+sub _observe_file ( $critic, $file, $inventory ) {
+
+    # Every policy requires one of these literal tokens. Avoid parsing the
+    # many value objects that cannot trigger one; PPI decides all matches.
+    my $file_source = $file->slurp;
+    return
+         if index( $file_source, 'resultset' ) < 0
+      && index( $file_source, 'DBIx::Class' ) < 0
+      && index( $file_source, 'GPForum::Schema' ) < 0
+      && $file_source !~ /\$(?:c|controller)\b/msx;
+    my $document;
+    for my $violation ( $critic->critique("$file") ) {
+        $document //= PPI::Document->new("$file");
+        my $location = $violation->location;
+        my $node     = $document->find_first(
+            sub {
+                $_[1]->isa('PPI::Token')
+                  && $_[1]->line_number == $location->[0]
+                  && $_[1]->column_number == $location->[1];
+            }
+        );
+        $node //= $document;
+        while ( $node->parent && !$node->isa('PPI::Statement::Sub') ) {
+            $node = $node->parent;
+        }
+        my $subroutine_source = $node->content;
+        $subroutine_source =~ s/\s+/ /gmsx;
+        my $key = join q{|}, $violation->policy, $file,
+          sha256_hex($subroutine_source);
+        $inventory->{$key}++;
+    }
+    return;
+}
+
+my $critic = Perl::Critic->new(
+    -profile => q{},
+    -only    => 1,
+    -include => [
+        qw(GPForum::ControllerPersistence GPForum::ServiceContext GPForum::ResultsetBoundary)
+    ]
+);
+my %observed;
+
+for my $file ( sort grep { /[.]pm\z/msx } @{ path('lib/GPForum')->list_tree } )
+{
+    _observe_file( $critic, $file, \%observed );
+}
+
+my $json = JSON::MaybeXS->new( canonical => 1, pretty => 1 );
+if ( @ARGV && $ARGV[0] eq '--inventory' ) {
+    print $json->encode( \%observed ) or croak 'cannot print inventory';
+    exit 0;
+}
+my $baseline =
+  $json->decode( path('etc/architecture-policy-baseline.json')->slurp );
+my @new = grep { $observed{$_} > ( $baseline->{$_} // 0 ) } sort keys %observed;
+croak 'architecture policy violations outside the reviewed legacy inventory: '
+  . ( join "\n", @new )
+  if @new;
+print "architecture policies: no new violations\n"
+  or croak 'cannot print result';
+exit 0;

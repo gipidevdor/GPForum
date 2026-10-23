@@ -3248,6 +3248,16 @@ msgctxt "system.carton_ok"
 msgid "Carton {version}"
 msgstr "Carton {version}"
 
+#, python-brace-format
+msgctxt "system.cpm_missing"
+msgid "App::cpm is not installed for {perl}"
+msgstr "App::cpm non è installato per {perl}"
+
+#, python-brace-format
+msgctxt "system.cpm_ok"
+msgid "App::cpm: {version}"
+msgstr "App::cpm: {version}"
+
 msgctxt "system.deps_dry_run"
 msgid "Nothing was installed: --dry-run says what setup would do."
 msgstr "Non è stato installato nulla: --dry-run dice cosa farebbe setup."
@@ -3256,10 +3266,10 @@ msgstr "Non è stato installato nulla: --dry-run dice cosa farebbe setup."
 msgctxt "system.deps_for_setup"
 msgid ""
 "gpforum setup installs the dependencies into {local} first, as make {target} "
-"does: carton {command}"
+"does: {installer} {command}"
 msgstr ""
 "gpforum setup installa prima le dipendenze in {local}, come fa make "
-"{target}: carton {command}"
+"{target}: {installer} {command}"
 
 #, python-brace-format
 msgctxt "system.deps_installed"
@@ -3369,6 +3379,10 @@ msgstr "Verifica e applica il profilo prestazionale PostgreSQL"
 msgctxt "status.label_postgres_performance"
 msgid "PostgreSQL performance"
 msgstr "prestazioni PostgreSQL"
+
+msgctxt "cli.verb.anonymize"
+msgid "Create a scrubbed staging database copy"
+msgstr "Crea una copia del database ripulita per staging"
 
 #, python-brace-format
 msgctxt "cli.backup.verified"

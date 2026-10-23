@@ -504,16 +504,22 @@ sub thread_fragment ( $self, $status, %option ) {
         posts  => { items => [ $post // () ], next_cursor => undef },
     };
 
+    my $fragment =
+      $option{header}
+      ? { breadcrumbs => 1, composer => 1, header => 1, notices => 1 }
+      : defined $option{post_id} ? { composer => 1, posts => $post ? 1 : 0 }
+      :                            { toolbar => 1 };
+
     return $self->render(
         template => 'forum/thread_fragment',
-        %{ $self->thread_page_payload( $page, $self->_current_user_id ) },
+        %{
+            $self->thread_page_payload( $page, $self->_current_user_id,
+                fragment => $fragment )
+        },
         flash_message =>
           $self->i18n( $self->forum_access->write_flash_key($status) ),
-        fragment => $option{header}
-        ? { breadcrumbs => 1, composer => 1, header => 1, notices => 1 }
-        : defined $option{post_id} ? { composer => 1, posts => $post ? 1 : 0 }
-        : { toolbar => 1 },
-        status => $HTTP_OK,
+        fragment => $fragment,
+        status   => $HTTP_OK,
     );
 }
 
@@ -557,7 +563,10 @@ sub post_fragment ( $self, $status ) {
 
     return $self->render(
         template => 'forum/thread_fragment',
-        %{ $self->thread_page_payload( $page, $self->_current_user_id ) },
+        %{
+            $self->thread_page_payload( $page, $self->_current_user_id,
+                fragment => { posts => 1 } )
+        },
         flash_message =>
           $self->i18n( $self->forum_access->write_flash_key($status) ),
         fragment => { posts => 1 },
@@ -573,8 +582,13 @@ sub post_fragment ( $self, $status ) {
 #
 # A store that cannot even be made leaves the reads to themselves: each then
 # meets it as it did, and degrades or fails the page as it did.
-sub thread_page_payload ( $self, $page, $user_id ) {
-    my $payload = sub { return $self->_thread_page_payload( $page, $user_id ) };
+#
+# Optional fragment parts are selected by server code. They suppress unused
+# page metadata, move-category choices and composer setup; they never suppress
+# authentication, thread/post visibility or per-post action permissions.
+sub thread_page_payload ( $self, $page, $user_id, %option ) {
+    my $payload =
+      sub { return $self->_thread_page_payload( $page, $user_id, %option ) };
     my $reads;
     try {
         $reads = $self->gp_thread_page_reads;
@@ -593,17 +607,27 @@ sub thread_page_payload ( $self, $page, $user_id ) {
     );
 }
 
-sub _thread_page_payload ( $self, $page, $user_id ) {
-    my $posts            = $page->{posts}{items};
-    my $post_ids         = [ $self->_post_ids($posts) ];
-    my $own              = $self->_own_post_ids( $page, $user_id );
-    my $attachments      = $self->attachments_for_posts($posts);
-    my $move_command_id  = $self->_thread_edit_command_id( $page, $user_id );
+sub _thread_page_payload ( $self, $page, $user_id, %option ) {
+
+    # Parts are chosen by the controller, never by client-supplied fields.
+    # Post visibility and per-post action permissions are always calculated.
+    my $parts        = $option{fragment};
+    my $thread_tools = !$parts || $parts->{header} || $parts->{toolbar};
+    my $composer     = !$parts || $parts->{composer};
+    my $posts        = $page->{posts}{items};
+    my $post_ids     = [ $self->_post_ids($posts) ];
+    my $own          = $self->_own_post_ids( $page, $user_id );
+    my $attachments  = $self->attachments_for_posts($posts);
+    my $move_command_id =
+      $thread_tools ? $self->_thread_edit_command_id( $page, $user_id ) : q{};
     my $reply_command_id = $user_id ? $self->_new_command_id : q{};
-    $self->fresh_composer_draft( 'reply', $reply_command_id,
-        thread_id => $self->param('thread_id') );
-    $self->_quote_into_composer($posts);
-    $self->_reply_into_composer($posts);
+
+    if ($composer) {
+        $self->fresh_composer_draft( 'reply', $reply_command_id,
+            thread_id => $self->param('thread_id') );
+        $self->_quote_into_composer($posts);
+        $self->_reply_into_composer($posts);
+    }
 
     return $self->gp_forum_view_model->thread_page(
         attachment_delete_command_ids =>
@@ -618,6 +642,7 @@ sub _thread_page_payload ( $self, $page, $user_id ) {
             thread             => $page->{thread},
             user_id            => $user_id,
         ),
+        omit_metadata        => $parts ? 1 : 0,
         metadata_builder     => $self->gp_metadata_builder,
         page                 => $page,
         reply_command_id     => $reply_command_id,

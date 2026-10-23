@@ -10,6 +10,7 @@ use Mojo::File qw(path);
 use Test::More;
 
 our $VERSION = '0.001';
+const my $WEB_SERVICE_START => qr{start[ ]--service[ ]--foreground}msx;
 
 const my $EXPECTED_TESTS => 149;
 const my $CURLY_CLASS    => '[{]';
@@ -230,7 +231,7 @@ like(
 );
 like(
     $systemd_web,
-    qr{^ExecStart=/opt/gpforum/bin/gpforum [ ] start [ ] --service$}msx,
+    qr{^ExecStart=/opt/gpforum/bin/gpforum[ ]$WEB_SERVICE_START$}msx,
     'systemd web unit starts Hypnotoad through bin/gpforum'
 );
 unlike( _commands($systemd_web), qr{/script/}msx,

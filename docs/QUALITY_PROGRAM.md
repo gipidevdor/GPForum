@@ -769,12 +769,11 @@ deploy contract requires the line, so a unit that drops it fails
 Leaving `log_path` empty keeps the logger on STDERR, which is right for a
 foreground process under a supervisor that captures it.
 
-Not done, and deliberately: the units still use `Type=forking` with Hypnotoad
-daemonizing. Running in the foreground under `Type=notify` would route logs to
-journald and fix 3.3 at the same time, but systemd cannot be exercised on the
-development host, so restructuring the process model on untested reasoning was
-not worth the risk. Structured output with the correlation id is also still
-open.
+Update, 2026-10-23: [ADR 0155](adr/0155-host-readiness-mail-and-reproducible-data.md)
+ships a foreground `Type=notify` web unit with HTTP readiness and a manager
+watchdog. Protocol and Prefork behavior are tested; actual systemd restart
+behavior still requires a Linux host. Hot deploy remains unsupported because
+the notification protocol does not transfer `MAINPID`.
 
 **3.2 Ship a reverse-proxy sample that terminates TLS. — DONE, and the finding
 was overstated.** The Caddyfile was always fine: Caddy provisions TLS
@@ -815,8 +814,9 @@ workers without moving the pid. `docs/ops/reload-and-restart.md` says all of
 this, the units carry the reasoning inline, and `t/166` fails if an
 `ExecReload` reappears.
 
-The durable fix remains `HYPNOTOAD_FOREGROUND=1` under `Type=notify`, which is
-the same restructuring 3.1 left open and still cannot be exercised here.
+Update, 2026-10-23: the foreground `Type=notify` unit is shipped (ADR 0155).
+It supervises the original manager directly; transferring `MAINPID` for hot
+deploy is still outside the supported restart protocol.
 
 **3.4 Make the FreeBSD unit able to start. — DONE in the script; not yet run on FreeBSD.** The rc script exports only
 `GPFORUM_ENV` and `MOJO_MODE`; rc.conf variables are never exported, so there

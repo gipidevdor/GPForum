@@ -12,13 +12,25 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 our $VERSION = '0.001';
+const my $MINIMUM_ARGON_MEMORY_MIB => 19;
+const my $MAXIMUM_ARGON_MEMORY_MIB => 256;
+const my $MAXIMUM_ARGON_ITERATIONS => 10;
 
 const my $SALT_BYTES     => 16;
-const my $TIME_COST      => 3;
-const my $MEMORY_COST    => '32M';
 const my $PARALLELISM    => 1;
 const my $TAG_BYTES      => 32;
 const my $MINIMUM_LENGTH => 12;
+
+has memory_mib => 32;
+has iterations => 3;
+
+sub from_config ( $class, $config ) {
+    return $class->new if !defined $config;
+    return $class->new(
+        memory_mib => $config->password_memory_mib,
+        iterations => $config->password_iterations,
+    );
+}
 
 # The random suffix retains its 128 bits. This public salt prefix identifies
 # UTF-8 password octets without changing the standard Argon2id PHC format.
@@ -28,11 +40,24 @@ const my $SALT_FIELD_FROM_END => 2;
 
 sub hash_password ( $self, $password ) {
     _require_password($password);
+    if (   $self->memory_mib !~ /\A\d+\z/msx
+        || $self->memory_mib < $MINIMUM_ARGON_MEMORY_MIB
+        || $self->memory_mib > $MAXIMUM_ARGON_MEMORY_MIB
+        || $self->iterations !~ /\A\d+\z/msx
+        || $self->iterations < 2
+        || $self->iterations > $MAXIMUM_ARGON_ITERATIONS )
+    {
+        GPForum::X::Argument->throw(
+            message => 'Argon2 requires 19..256 MiB and 2..10 iterations' );
+    }
 
     return argon2id_pass(
         _octets( $password, 'UTF-8' ),
         $UTF8_SALT_PREFIX . _random_bytes($SALT_BYTES),
-        $TIME_COST, $MEMORY_COST, $PARALLELISM, $TAG_BYTES
+        $self->iterations,
+        $self->memory_mib . 'M',
+        $PARALLELISM,
+        $TAG_BYTES
     );
 }
 
@@ -72,10 +97,10 @@ sub _uses_utf8 ($encoded_hash) {
 # password costs: answering at once told anyone timing the reply which
 # usernames and addresses have an account.
 sub decoy_hash ($self) {
-    state $decoy =
+    state %decoy;
+    my $cost = join q{:}, $self->memory_mib, $self->iterations;
+    return $decoy{$cost} //=
       $self->hash_password( unpack 'H*', _random_bytes($SALT_BYTES) );
-
-    return $decoy;
 }
 
 sub _require_password ($password) {
@@ -140,6 +165,10 @@ An Argon2id hash of a random password, made once per process, to verify
 against when there is no account: an unknown login then takes as long as a
 wrong password.
 
+=head2 from_config
+
+Builds the hasher with the validated memory and iteration costs; without configuration uses defaults.
+
 =head1 DIAGNOSTICS
 
 Throws exceptions for missing or too-short passwords.
@@ -159,7 +188,8 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Argon2 parameters are fixed until calibration tooling is added.
+New hashes use the configured memory and iteration costs. Verification reads
+the costs from each existing hash, so changing the settings preserves logins.
 
 =head1 AUTHOR
 

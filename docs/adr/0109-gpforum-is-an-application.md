@@ -12,8 +12,8 @@ Perl projects usually ship as CPAN distributions: a build file, a `META`
 file, module versions that CPAN indexes, and `make test` for whoever
 installs them. GPForum has none of that and was never meant to. It runs as
 a service on a host its operator controls, from a git checkout or a release
-tarball, with its dependencies installed next to it by Carton
-(`script/gpforum-carton`) from a pinned `cpanfile.snapshot` (ADR 0059).
+tarball, with its dependencies installed next to it by cpm
+(`script/gpforum-cpm`; ADR 0152) from a pinned `cpanfile.snapshot` (ADR 0059).
 Nobody installs GPForum with `cpanm`, and no other program imports
 `GPForum::*` modules.
 
@@ -27,13 +27,13 @@ missing build files, and all 413 modules frozen at `our $VERSION = '0.001'`.
   `Makefile.PL`, `Build.PL`, `dist.ini` or `META.json` to imitate a
   distribution.
 - **Dependencies** are declared in `cpanfile` and pinned in
-  `cpanfile.snapshot`. They are installed with Carton, never into the
+  `cpanfile.snapshot`. They are installed with cpm, never into the
   system Perl, and a release ships them as the Carton vendor bundle for
   offline installs. The `cpanfile` phases carry meaning for an application
   too: `runtime` is what the application loads, `test` what its suite loads,
   `develop` what only a maintainer's tools need. A production host installs
-  without `develop` (`make install-deps-production`); Carton cannot leave
-  out `test`.
+  without `develop` (`make install-deps-production`); the existing `test`
+  phase remains selected (ADR 0152).
 - **The release version is the git tag.** A release is a `vMAJOR.MINOR.PATCH`
   tag; `.github/workflows/release.yml` derives the version from it and builds
   the source tarball (`git archive`), the vendor bundle, checksums and
@@ -54,8 +54,9 @@ missing build files, and all 413 modules frozen at `our $VERSION = '0.001'`.
 
 - An operator installs GPForum by checking out a tag or unpacking its
   tarball and running `make install-deps-production`, which runs
-  `carton install --deployment --without develop` against the committed
-  snapshot (`docs/DEPLOYMENT.md`); there is no other supported path.
+  `cpm install --resolver snapshot --no-default-resolvers` against the
+  committed snapshot, selecting the runtime and test phases
+  (`docs/DEPLOYMENT.md`); there is no other supported path.
 - Tooling that assumes a distribution -- `dzil`, `cpanm .`, CPANTS kwalitee,
   `Module::Build` -- does not apply, and its absence is not a finding.
 - Nothing may depend on a module's `$VERSION` to detect features or

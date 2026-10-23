@@ -16,6 +16,7 @@ use GPForum::Config;
 use GPForum::Service::Admin::Settings;
 use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::ScheduledJobs;
+use GPForum::Bootstrap::Operations;
 use GPForum::Test::FixedClock;
 use GPForum::Test::RetentionController;
 
@@ -64,7 +65,7 @@ subtest 'a plain setting, the same in every environment' => sub {
 };
 
 subtest 'the partitions job reads it, and the timer horizon' => sub {
-    my $runner = GPForum::Service::Operations::ScheduledJobs->from_controller(
+    my $runner = GPForum::Bootstrap::Operations->scheduled_jobs(
         _controller(
             GPForum::Config->new( event_retention_days => $LONGER_DAYS )
         )

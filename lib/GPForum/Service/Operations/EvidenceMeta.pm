@@ -34,7 +34,7 @@ sub evidence_finalize ( $evidence, %options ) {
         push @gaps, $DEFAULT_BETA_GAP;
     }
 
-    $evidence->{secrets_redacted}     = \1;
+    $evidence->{secrets_redacted}     = true;
     $evidence->{private_beta_claimed} = 0;
     $evidence->{residual_gaps}        = evidence_unique_gaps( \@gaps );
 
@@ -131,7 +131,7 @@ secrets, else a shallow copy, with C<residual_gaps> set to its own gaps
 followed by the extra ones, the default private-beta gap appended when no
 gap mentions private-beta readiness, duplicates and empty entries
 dropped; C<private_beta_claimed> set to 0; and C<secrets_redacted> set to
-a JSON true (C<\1>), whether or not anything was scrubbed.
+a native JSON true, whether or not anything was scrubbed.
 
 =head2 evidence_unique_gaps
 

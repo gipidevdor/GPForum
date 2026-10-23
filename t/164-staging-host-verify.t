@@ -147,7 +147,7 @@ sub _test_unit_files_observe {
 User=gpforum
 EnvironmentFile=/etc/gpforum/gpforum.env
 Environment=GPFORUM_LOG_PATH=/var/log/gpforum/gpforum.log
-ExecStart=/srv/gpforum/bin/gpforum start --service
+ExecStart=/srv/gpforum/bin/gpforum start --service --foreground
 UNIT
     path( $dir, 'gpforum-outbox.service' )->spew(<<'UNIT');
 [Service]

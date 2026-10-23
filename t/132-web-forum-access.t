@@ -243,7 +243,7 @@ is(
 
 is_deeply(
     [ $access->search_filter_fields ],
-    [qw(category_id author_user_id from to scope)],
+    [qw(category_id author_user_id thread_id from to scope)],
     'search_filter_fields lists the allowed query fields'
 );
 

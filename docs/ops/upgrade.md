@@ -72,6 +72,31 @@ the forum is fixed forward, by a new migration in the next release: an
 applied one is never edited, and the runner refuses a file whose checksum
 differs from the one the database recorded.
 
+## Discussion search and navigation
+
+Migration 1030 adds the thread-scoped search implementation and its typed API
+entry point. It changes no table data and keeps the previous search signatures
+available. Numbered navigation and deep post links use the existing readable-post
+queries; the browser suggestions use the existing autocomplete endpoint.
+
+For an installation using the restricted runtime role, apply the schema with
+the operator environment and reprovision that role before starting the updated
+services. Follow the service drain/restart procedure in the
+[role guide](sql-api-role.md); do not give the web service operator credentials.
+Using the separate operator file from that guide:
+
+```sh
+bin/gpforum --env-file /etc/gpforum/admin.env migrate --plan
+bin/gpforum --env-file /etc/gpforum/admin.env migrate
+bin/gpforum --env-file /etc/gpforum/admin.env api-role --role gpforum_runtime --plan
+bin/gpforum --env-file /etc/gpforum/admin.env api-role --role gpforum_runtime --apply
+```
+
+After starting the updated services with their runtime environment, verify a
+thread-scoped search and a deep link with a member account. An inaccessible
+thread or post must still return not found. Check the schema again with
+`migrate --check`; repeating the migration must leave no pending work.
+
 ## Suspension timestamp and Unicode-password fixes
 
 For a database already on the 1.0 baseline, the normal upgrade above applies

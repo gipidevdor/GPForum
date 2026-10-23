@@ -48,7 +48,7 @@ to activate the database permission boundary.
 Perl 5.40 or newer as the operating system ships it: the system Perl at
 `/usr/bin/perl` on Debian and Ubuntu, `perl5` on FreeBSD, Homebrew's `perl` on
 macOS. Version managers and custom builds are not supported. Install the
-packages and Carton for that perl.
+packages, App::cpm (v1.1 or newer) and Carton for that perl.
 
 PostgreSQL 16, 17 or 18. See [deployment](docs/DEPLOYMENT.md) for production.
 
@@ -59,14 +59,14 @@ Debian 13 or Ubuntu 26.04, which also starts a PostgreSQL server:
 
 ```sh
 sudo apt install perl build-essential cpanminus libpq-dev libssl-dev zlib1g-dev postgresql postgresql-client
-sudo cpanm -M https://cpan.metacpan.org/ Carton
+sudo cpanm -M https://cpan.metacpan.org/ App::cpm Carton
 ```
 
 FreeBSD, client only:
 
 ```sh
 sudo pkg install perl5 p5-App-cpanminus postgresql16-client
-sudo cpanm -M https://cpan.metacpan.org/ Carton
+sudo cpanm -M https://cpan.metacpan.org/ App::cpm Carton
 ```
 
 macOS with Homebrew:
@@ -75,7 +75,7 @@ macOS with Homebrew:
 brew install perl cpanminus postgresql@18
 brew services start postgresql@18
 export PATH="$(brew --prefix postgresql@18)/bin:$PATH"
-"$(brew --prefix)/bin/perl" "$(brew --prefix cpanminus)/bin/cpanm" -M https://cpan.metacpan.org/ Carton
+"$(brew --prefix)/bin/perl" "$(brew --prefix cpanminus)/bin/cpanm" -M https://cpan.metacpan.org/ App::cpm Carton
 ```
 
 </details>
@@ -85,7 +85,7 @@ export PATH="$(brew --prefix postgresql@18)/bin:$PATH"
 From a clone of the repository:
 
 ```sh
-make install-deps-postgres                        # carton install --deployment, into local/
+make install-deps-postgres                        # cpm installs from cpanfile.snapshot into local/, in parallel
 sudo bin/gpforum setup --environment development  # three questions; macOS: without sudo
 gpforum admin create --email you@example.com --username you
 gpforum start --foreground                        # then open http://127.0.0.1:3000
@@ -132,7 +132,8 @@ To deliver real mail, set `GPFORUM_MAIL_TRANSPORT` to `sendmail` or `smtp`,
 as [docs/ops/mail-check.md](docs/ops/mail-check.md) describes.
 
 For development: `make check` runs the quality checks; `make integration`
-runs the PostgreSQL tests with `GPFORUM_DATABASE_DSN` set. `make fresh-checkout`
+runs PostgreSQL tests on temporary clusters (eight files in parallel by default).
+Set `GPFORUM_DATABASE_DSN` to use an existing server instead. `make fresh-checkout`
 verifies a clean clone. Use `script/coverage`, `script/benchmark-http` and
 `script/profile-nytprof` for measurement, and `make help` for the other tasks.
 
@@ -140,12 +141,12 @@ verifies a clean clone. Use `script/coverage`, `script/benchmark-http` and
 
 From a bare Debian 13 or Ubuntu 26.04 host to a signed-in owner behind TLS.
 First the packages -- PostgreSQL, nginx with certbot, ClamAV for the upload
-scan -- and Carton for the system Perl:
+scan -- and App::cpm plus Carton for the system Perl:
 
 ```sh
 sudo apt install git perl build-essential cpanminus libpq-dev libssl-dev zlib1g-dev \
   postgresql nginx certbot python3-certbot-nginx clamav-daemon clamav-freshclam
-sudo cpanm -M https://cpan.metacpan.org/ Carton
+sudo cpanm -M https://cpan.metacpan.org/ App::cpm Carton
 ```
 
 Then eight commands, with your forum's name for `forum.example.org`:

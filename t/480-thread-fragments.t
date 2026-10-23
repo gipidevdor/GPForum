@@ -8,6 +8,8 @@ use v5.40;
 use Const::Fast;
 use Test::Mojo;
 use Test::More;
+use Mojo::Util qw(monkey_patch);
+use GPForum::Service::Discovery::MetadataBuilder;
 
 use lib 'lib';
 use lib 't/lib';
@@ -25,6 +27,21 @@ const my $FRAGMENT       => { 'HX-Request' => 'true' };
 # The thread page's script (htmx) asks for the part of the page an action
 # changed, with HX-Request: true, and swaps it in place; a browser without
 # the script sends no header and gets the page, or the redirect, as before.
+my $category_reads  = 0;
+my $metadata_builds = 0;
+my $category_list   = GPForum::Test::ForumWebServices->can('list_categories');
+my $metadata =
+  GPForum::Service::Discovery::MetadataBuilder->can('thread_metadata');
+monkey_patch 'GPForum::Test::ForumWebServices', 'list_categories', sub (@args) {
+    $category_reads++;
+    return $category_list->(@args);
+};
+monkey_patch 'GPForum::Service::Discovery::MetadataBuilder', 'thread_metadata',
+  sub (@args) {
+    $metadata_builds++;
+    return $metadata->(@args);
+  };
+
 my $test = Test::Mojo->new('GPForum');
 _install_forum_fakes($test);
 _install_session_route($test);
@@ -39,16 +56,23 @@ $test->element_exists('#posts-pagination a[hx-get][hx-target="#posts"]');
 $test->element_exists('#thread-toolbar[hx-target="#thread-toolbar"]');
 $test->element_exists('#reply form[hx-post="/t/thread-1/replies"]');
 $test->element_exists('#flash');
+cmp_ok( $category_reads, '>', 0,
+    'full page prepares the authorized category choices' );
+cmp_ok( $metadata_builds, '>', 0, 'full page builds its metadata' );
 $test->element_exists('meta[name="htmx-config"]');
 
 # The next posts, asked for by the script: the posts alone, and the way on
 # sent to its own place. No layout, and never from the public cache.
+$category_reads  = 0;
+$metadata_builds = 0;
 $test->get_ok( '/t/thread-1' => $FRAGMENT )->status_is($HTTP_OK);
 $test->content_unlike( qr/<html/msx, 'a fragment has no layout' );
 $test->element_exists('li.ui-card-list__item article.post#post-post-1');
 $test->element_exists('#posts-pagination[hx-swap-oob="true"]');
 $test->element_exists_not('#thread-toolbar');
 $test->header_isnt( 'X-GPForum-Cache' => 'hit' );
+is( $category_reads,  0, 'post pagination does not read thread move choices' );
+is( $metadata_builds, 0, 'post pagination does not build page metadata' );
 
 # Signed in: following the thread from the script gives back the bar, with
 # the message the redirect would have flashed; without the script, the
@@ -183,6 +207,8 @@ $test->element_exists('#thread-notices[hx-swap-oob="true"]');
 
 # A reply from the script: the new post, for the list, and a composer with a
 # fresh command id in place of the one that was spent.
+$category_reads  = 0;
+$metadata_builds = 0;
 $test->post_ok(
     '/t/thread-1/replies' => $FRAGMENT => form => {
         body_source => 'A reply',
@@ -193,6 +219,8 @@ $test->post_ok(
 $test->content_unlike( qr/<html/msx, 'the reply comes back without a layout' );
 $test->element_exists('li.ui-card-list__item article.post#post-post-created');
 $test->element_exists('#reply[hx-swap-oob="true"] form[hx-post]');
+is( $category_reads,  0, 'reply fragment does not read thread move choices' );
+is( $metadata_builds, 0, 'reply fragment does not build page metadata' );
 my $fresh_id = _command_id( $test, '/t/thread-1/replies' );
 ok(
     length $fresh_id && $fresh_id ne $reply_id,

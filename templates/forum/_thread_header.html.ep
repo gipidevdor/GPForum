@@ -29,4 +29,26 @@
   <%= include 'forum/_tag_list', tags => $thread->{tags} %>
   <%= include 'forum/_thread_tools', can_reply => $can_reply %>
   <a class="button--quiet" href="<%= ui_path('thread_mbox', thread_id => $thread->{thread_id}) %>" download><%= t('forum.download_mbox') %></a>
+  <button type="button" class="button--quiet" popovertarget="thread-explore"><%= t('forum.explore_thread') %></button>
+  <%= include 'components/sheet', sheet_id => 'thread-explore', component_title => t('forum.explore_thread'), sheet_body => begin %>
+    <p class="ui-row-links">
+      <a href="<%= ui_path('thread', thread_id => $thread->{thread_id}) %>"><%= t('forum.first_message') %></a>
+      % if ($reading && $reading->{authenticated} && ($reading->{last_read_position} // 0) > 0) {
+        <a href="<%= url_for('thread', thread_id => $thread->{thread_id})->query(at => $reading->{last_read_position}) %>"><%= t('forum.resume_reading') %></a>
+      % }
+    </p>
+    <form method="get" action="<%= ui_path('thread', thread_id => $thread->{thread_id}) %>">
+      <label for="thread-position"><%= t('forum.jump_position') %></label>
+      <input id="thread-position" name="at" type="number" min="1" max="999999999999999999" step="1" required inputmode="numeric" aria-describedby="thread-position-hint">
+      <p class="ui-hint" id="thread-position-hint"><%= t('forum.jump_position_hint') %></p>
+      <button type="submit"><%= t('forum.jump_submit') %></button>
+    </form>
+    <form method="get" action="<%= ui_path('forum_search') %>" role="search">
+      <input type="hidden" name="thread_id" value="<%= $thread->{thread_id} %>">
+      <input type="hidden" name="scope" value="posts">
+      <label for="thread-search"><%= t('search.within_thread') %></label>
+      <input id="thread-search" name="q" type="search" required maxlength="500">
+      <button type="submit"><%= t('search.submit') %></button>
+    </form>
+  <% end %>
 </header>

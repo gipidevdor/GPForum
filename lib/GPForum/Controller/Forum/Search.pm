@@ -4,6 +4,7 @@
 package GPForum::Controller::Forum::Search;
 
 use Const::Fast;
+use GPForum::Infrastructure::Id;
 use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
 use v5.40;
 
@@ -18,6 +19,12 @@ sub search ($self) {
 
     my $query   = $self->_trim( $self->param('q') );
     my $filters = $self->search_filters;
+    if ( length( $filters->{thread_id} // q{} ) ) {
+        return $self->_not_found('thread not found')
+          if !GPForum::Infrastructure::Id->is_uuid( $filters->{thread_id} )
+          || !$self->gp_thread_detail_reader->find_thread(
+            $filters->{thread_id}, $self->gp_forum_viewer );
+    }
     my $limit = $self->forum_access->search_page_limit( $self->param('limit') );
 
     if ( !length $query ) {
@@ -72,9 +79,16 @@ sub _search_results ( $self, $query, $filters, $limit ) {
 }
 
 sub _search_success ( $self, $input ) {
-    my $limit    = $input->{limit};
-    my $found    = $input->{found};
-    my @results  = @{ $found->{results} };
+    my $limit   = $input->{limit};
+    my $found   = $input->{found};
+    my @results = @{ $found->{results} };
+    if ( my $thread_id = $input->{filters}{thread_id} ) {
+        for my $result (@results) {
+            if ( ( $result->{entity_type} // q{} ) eq 'post' ) {
+                $result->{source_thread_id} = $thread_id;
+            }
+        }
+    }
     my $has_more = 0;
     if ( @results > $limit ) {
         $has_more = 1;

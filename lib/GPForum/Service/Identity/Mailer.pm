@@ -223,6 +223,12 @@ sub _send_identity_mail ( $self, $input ) {
             @{ $input->{headers} || [] },
         ],
     );
+    if ( $self->config && length( $self->config->dkim_key_file ) ) {
+        require GPForum::Service::Identity::Dkim;
+        $email =
+          GPForum::Service::Identity::Dkim->new( config => $self->config )
+          ->sign($email);
+    }
     $self->transport->send(
         $email,
         {
@@ -403,8 +409,7 @@ Takes C<to>, C<subject>, C<body> (text, encoded here) and
 C<unsubscribe_url>, and sends a notification mail with the RFC 8058
 C<List-Unsubscribe> and C<List-Unsubscribe-Post> headers. Logged as
 C<identity mail delivered: notification>. The headers are only one-click
-to a receiver that sees them under a DKIM signature, which the sending MTA
-adds.
+to a receiver that sees them under a DKIM signature, which GPForum adds when DKIM is configured.
 
 =head2 send_digest_mail
 

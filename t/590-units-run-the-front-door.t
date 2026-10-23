@@ -30,6 +30,7 @@ use GPForum::Service::Operations::ServiceFiles;
 use GPForum::Service::Operations::ServiceUnits;
 
 our $VERSION = '0.001';
+const my $WEB_SERVICE_START => qr{start[ ]--service[ ]--foreground}msx;
 
 # Walkthrough 3, friction 11: the printed units still ran
 # script/gpforum-carton exec and script/os-preflight, where owner decision D9
@@ -84,7 +85,7 @@ subtest 'systemd: os-preflight, then Hypnotoad, through bin/gpforum' => sub {
     );
     _line(
         $web,
-        'ExecStart=/srv/forum/bin/gpforum start --service',
+        'ExecStart=/srv/forum/bin/gpforum start --service --foreground',
         'and Hypnotoad started by it'
     );
     _line(
@@ -102,7 +103,7 @@ subtest 'systemd: os-preflight, then Hypnotoad, through bin/gpforum' => sub {
           ->render( 'systemd', ['gpforum.service'] ) };
     _line(
         $other->{text},
-        "ExecStart=/srv/forum/bin/gpforum --env-file $OTHER start --service",
+"ExecStart=/srv/forum/bin/gpforum --env-file $OTHER start --service --foreground",
         'printed for another environment file, bin/gpforum reads that one'
     );
     my ($check) = grep { $_->{name} eq 'gpforum.service' } deploy_unit_checks();
@@ -326,7 +327,7 @@ done_testing();
 sub _as_before ($text) {
     $text =~ s{^ExecStartPre=(\S+)/bin/gpforum[ ]os-preflight[ ]}
               {ExecStartPre=$1/script/os-preflight }gmsx;
-    $text =~ s{^ExecStart=(\S+)/bin/gpforum[ ]start[ ]--service$}
+    $text =~ s{^ExecStart=(\S+)/bin/gpforum[ ]$WEB_SERVICE_START$}
               {ExecStart=$1/script/gpforum-carton exec hypnotoad $1/bin/gpforum}gmsx;
     $text =~ s{^ExecStart=(\S+)/bin/gpforum[ ]outbox[ ]}
               {ExecStart=$1/script/gpforum-carton exec $1/bin/gpforum-outbox-dispatch }gmsx;

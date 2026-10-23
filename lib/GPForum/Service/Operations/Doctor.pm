@@ -875,6 +875,31 @@ sub _mail ( $self, $state ) {
         host   => $self->_host_of($state),
     )->findings( $evidence, $state->{findings} );
 
+    if ( length( $state->{config}->dkim_key_file ) ) {
+        require GPForum::Service::Identity::Dkim;
+        my $checked;
+        try {
+            $checked = GPForum::Service::Identity::Dkim->new(
+                config => $state->{config} )->check;
+        }
+        catch ($error) {
+            $checked = {
+                status  => 'fail',
+                message => 'DKIM signing or DNS verification failed'
+            };
+        };
+        $state->{findings}->add(
+            name    => 'dkim',
+            status  => $checked->{status},
+            message => 'DKIM: ' . $checked->{message},
+            fixes   => $checked->{status} eq 'ok'
+            ? []
+            : [
+'Check GPFORUM_DKIM_KEY_FILE, GPFORUM_DKIM_DOMAIN and the selector DNS TXT record.'
+            ]
+        );
+    }
+
     return;
 }
 

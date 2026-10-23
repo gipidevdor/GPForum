@@ -21,6 +21,9 @@ use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::Infrastructure::Id;
 use GPForum::Schema;
 use GPForum::Service::Password;
+use GPForum::Service::Search::Searcher;
+use GPForum::Service::Search::PermissionEngine;
+use GPForum::Service::Forum::Viewer;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::Operations::MetricsSnapshot;
@@ -130,6 +133,36 @@ is(
     $thread,
     'a real application function reads through the restricted login'
 );
+my $scoped_search = GPForum::Service::Search::Searcher->new(
+    schema            => $role_schema,
+    permission_engine => GPForum::Service::Search::PermissionEngine->new,
+)->ranked_search(
+    {
+        viewer => GPForum::Service::Forum::Viewer->new(
+            member      => 1,
+            global_read => 1,
+            user_id     => $user
+        )
+    },
+    'benchmark',
+    { thread_id => $thread, scope => 'posts', limit => 2 },
+);
+is( ref $scoped_search->{results},
+    'ARRAY',
+    'thread-scoped search executes through the restricted runtime role' );
+my $thread_search_entry = $catalogue->function('search_thread_ranked');
+is(
+    scalar $connection->selectrow_array(
+        'SELECT has_function_privilege(current_user, ?, ?)',
+        undef,
+        $thread_search_entry->{function} . '('
+          . join( ', ', @{ $thread_search_entry->{types} } ) . ')',
+        'EXECUTE'
+    ),
+    1,
+    'provisioning grants the new scoped-search signature'
+);
+
 ok(
     $functions->row( 'forum_resolve_viewer', { user_id => $user } )->{status},
     'request viewer resolution works without direct table rights'

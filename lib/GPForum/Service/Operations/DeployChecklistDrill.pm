@@ -44,7 +44,7 @@ sub run ( $self, $options ) {
         drill          => 'deploy_checklist',
         residual_gaps  => [ $RESIDUAL_HOST, $RESIDUAL_BETA ],
         format_hint    => $options->{format},
-        keep_workspace => $options->{keep_workspace} ? \1 : \0,
+        keep_workspace => $options->{keep_workspace} ? true : false,
     };
     try {
         $self->_execute($evidence);
@@ -153,7 +153,7 @@ sub _systemd_verify_phase ( $root, $workspace ) {
 
     return {
         status    => _phase_status_from_units( \@units ),
-        available => \1,
+        available => true,
         tool      => $binary,
         mode      => 'rendered_sample_units',
         units     => \@units,
@@ -219,7 +219,7 @@ sub _nginx_test_phase ( $root, $workspace ) {
 
     return {
         status    => _phase_status_from_units( \@configs ),
-        available => \1,
+        available => true,
         tool      => $binary,
         mode      => 'rendered_sample_nginx_t',
         configs   => \@configs,
@@ -312,7 +312,7 @@ CONF
 sub _skipped_tool ( $name, $reason ) {
     return {
         status    => 'skipped',
-        available => \0,
+        available => false,
         tool      => $name,
         reason    => $reason,
     };
@@ -365,7 +365,7 @@ sub _check_file ( $root, $check ) {
     my $result   = {
         path    => $check->{path},
         name    => $check->{name},
-        exists  => ( -f $absolute ) ? \1 : \0,
+        exists  => ( -f $absolute ) ? true : false,
         status  => 'fail',
         matched => [],
         missing => [],
@@ -389,14 +389,14 @@ sub _optional_tool_probe {
 
     return {
         systemd_analyze => {
-            available => $systemd ? \1 : \0,
+            available => $systemd ? true : false,
             path      => $systemd,
             note      => $systemd
             ? 'present on PATH; drill runs systemd-analyze verify on rendered sample units'
             : 'not on PATH; static unit text checks only (host verify skipped)',
         },
         nginx => {
-            available => $nginx ? \1 : \0,
+            available => $nginx ? true : false,
             path      => $nginx,
             note      => $nginx
             ? 'present on PATH; drill runs nginx -t on rendered sample configs'

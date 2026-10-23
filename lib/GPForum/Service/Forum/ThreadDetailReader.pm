@@ -14,6 +14,8 @@ use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
 
 use GPForum::Service::Forum::PostReader;
+use GPForum::Service::Forum::PageWindow;
+use GPForum::Infrastructure::Id;
 
 our $VERSION = '0.001';
 
@@ -132,11 +134,29 @@ sub thread_page ( $self, $request ) {
 
     return { ok => 0, error => 'not_found' } if !$thread;
 
+    my $at = $request->{at};
+    if ( defined $request->{post} && length $request->{post} ) {
+        return { ok => 0, error => 'not_found' }
+          if !GPForum::Infrastructure::Id->is_uuid( $request->{post} );
+        my $target = $self->post_reader->find_listed_post(
+            {
+                post_id        => $request->{post},
+                thread_id      => $request->{thread_id},
+                viewer_user_id => $viewer->user_id,
+                viewer_scope   => $self->post_scope( $viewer, $thread ),
+            }
+        );
+        return { ok => 0, error => 'not_found' } if !$target;
+        $at = $target->get_column('position');
+    }
+
     my $posts = $self->post_reader->list_thread_posts(
         {
-            thread_id      => $request->{thread_id},
-            limit          => $request->{limit} || $DEFAULT_POST_LIMIT,
-            after          => $request->{after},
+            thread_id => $request->{thread_id},
+            limit     => $request->{limit} || $DEFAULT_POST_LIMIT,
+            after     =>
+              GPForum::Service::Forum::PageWindow->cursor_at_position($at)
+              // $request->{after},
             viewer_user_id => $viewer->user_id,
             viewer_scope   => $self->post_scope( $viewer, $thread ),
         }

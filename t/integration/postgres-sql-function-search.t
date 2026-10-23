@@ -122,6 +122,16 @@ for my $level (qw(public members private)) {
             { limit => $ROW_LIMIT },
             "$level/$name"
         );
+        _compare_search(
+            $actor,
+            'performance vacuum',
+            {
+                limit     => $ROW_LIMIT,
+                thread_id => $source->{thread_id},
+                scope     => 'posts'
+            },
+            "$level/$name thread-scoped"
+        );
         is_deeply(
             $searcher->autocomplete(
                 $actor, 'performance', { limit => $ROW_LIMIT }
@@ -191,6 +201,31 @@ for my $scope ( [ threads => 'thread' ], [ posts => 'post' ] ) {
     ok( ( all { $_->{entity_type} eq $entity_type } @{$results} ),
         'and only those' );
 }
+
+my $scoped = $searcher->ranked_search( { viewer => $viewers{global} },
+    'performance',
+    { limit => 1, thread_id => $source->{thread_id}, scope => 'posts' } )
+  ->{results};
+ok( @{$scoped}, 'thread scope finds a post with a one-row limit' );
+for my $hit ( @{$scoped} ) {
+    is(
+        $dbh->selectrow_array(
+            'SELECT thread_id FROM posts WHERE post_id = ?', undef,
+            $hit->{entity_id}
+        ),
+        $source->{thread_id},
+        'scope is applied before the candidate and result limits'
+    );
+}
+is_deeply(
+    $searcher->ranked_search(
+        { viewer => $viewers{global} },
+        'performance',
+        { thread_id => 'ffffffff-ffff-ffff-ffff-ffffffffffff' }
+    )->{results},
+    [],
+    'nonexistent thread cannot widen search to the whole community'
+);
 
 done_testing();
 

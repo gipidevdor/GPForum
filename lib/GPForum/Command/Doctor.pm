@@ -43,11 +43,12 @@ sub run ( $self, @arguments ) {
     try {
         $options = GPForum::Command::Usage->parse_options(
             \@arguments,
-            { json => 0, upgrade => 0 },
+            { json => 0, upgrade => 0, calibrate_password => 0 },
             {
                 switches => {
-                    '--json'    => { json    => 1 },
-                    '--upgrade' => { upgrade => 1 },
+                    '--json'               => { json               => 1 },
+                    '--upgrade'            => { upgrade            => 1 },
+                    '--calibrate-password' => { calibrate_password => 1 },
                 },
                 usage => _usage(),
             }
@@ -59,6 +60,27 @@ sub run ( $self, @arguments ) {
           if GPForum::Command::Usage->is_usage($error);
         die $error;    ## no critic (ErrorHandling::RequireCarping) -- rethrows the caught error as it was raised
     };
+
+    if ( $options->{calibrate_password} ) {
+        require GPForum::Service::Operations::PasswordCalibration;
+        my $report =
+          GPForum::Service::Operations::PasswordCalibration->new->run;
+        if ( $options->{json} ) {
+            GPForum::Command::Usage->json( \*STDOUT, $report );
+        }
+        else {
+            my $cost = $report->{recommendation};
+            printf
+"Argon2id: %.1f ms (target <250 ms)\nGPFORUM_PASSWORD_MEMORY_MIB=%d\nGPFORUM_PASSWORD_ITERATIONS=%d\n",
+              $cost->{milliseconds}, $cost->{memory_mib}, $cost->{iterations};
+            if ( !$report->{within_budget} ) {
+                print
+"The security floor exceeds the budget; capacity needs attention.\n"
+                  or croak 'cannot print calibration result';
+            }
+        }
+        return 0;
+    }
 
     my $result;
     try {
@@ -161,7 +183,7 @@ sub _report ( $self, $options, $result ) {
 
 sub _usage {
     return <<'USAGE';
-Usage: gpforum doctor [--upgrade] [--json]
+Usage: gpforum doctor [--upgrade] [--calibrate-password] [--json]
 
 Checks this forum the way an operator would, one line each: the settings,
 the host, the database and its schema, the readiness report, the outbox
@@ -171,6 +193,7 @@ file -- and the command that fixes it, then how many things there are to
 fix. It reads the environment file the service reads, so run it as the
 service's user: sudo -u gpforum gpforum doctor.
 
+  --calibrate-password  measure Argon2id on this host and print settings (no writes)
   --upgrade   after an upgrade: the dependencies for this Perl, migrations
               still to apply, and service files that differ from this
               release's

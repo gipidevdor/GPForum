@@ -24,6 +24,15 @@ const my $ZONE     => qr{Z | [+-] \d\d (?: :? \d\d )?}msx;
 const my $SORT_VALUE =>
   qr{\A (?: $POSITION | $DAY [T ] $TIME (?: $ZONE )? ) \z}msx;
 
+# Seek by ordinal using the same indexed keyset as ordinary pagination.
+# The maximal UUID excludes every row at the preceding position.
+sub cursor_at_position ( $class, $position ) {
+    return undef
+      if !defined $position || $position !~ /\A [1-9][[:digit:]]{0,17} \z/amsx;
+    return encode_base64url(
+        ( $position - 1 ) . '|ffffffff-ffff-ffff-ffff-ffffffffffff' );
+}
+
 sub plan ( $self, $input ) {
     my $limit = _bounded_limit( $input->{limit} );
     my $after = _decode_cursor( $input->{after} );
@@ -133,6 +142,12 @@ treated as no cursor, so the first page is shown. A malformed C<?after=>
 used to reach PostgreSQL and fail the request on an invalid timestamp.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 cursor_at_position
+
+Class method. Takes a positive post position and returns the opaque keyset
+cursor immediately before it, or undef for invalid input. Readers still
+apply the thread's visibility and permission checks to the resulting page.
 
 =head2 plan
 

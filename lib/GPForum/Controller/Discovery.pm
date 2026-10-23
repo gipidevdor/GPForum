@@ -20,6 +20,8 @@ const my $HTTP_BAD_REQUEST         => 400;
 const my $HTTP_ACCEPTED            => 202;
 const my $HTTP_BAD_GATEWAY         => 502;
 
+const my $MAXIMUM_SITEMAP_PAGE => 50_000;
+
 sub robots ($self) {
     return GPForum::Web::DiscoveryAccess->new->render_document(
         $self,
@@ -30,20 +32,20 @@ sub robots ($self) {
 }
 
 sub sitemap ($self) {
-    my $access = GPForum::Web::DiscoveryAccess->new;
-    my $limit  = $access->sitemap_limit;
+    return $self->render(
+        data   => $self->gp_sitemap_pages->sitemap_index,
+        format => 'xml'
+    );
+}
 
-    return $access->render_document(
-        $self,
-        GPForum::Web::DiscoveryPayload->sitemap(
-            builder    => $self->gp_sitemap_builder,
-            categories =>
-              $self->gp_category_reader->list_categories( { limit => $limit } ),
-            presenter => $self->gp_discovery_view_model,
-            threads   => $self->gp_thread_reader->list_public_threads(
-                { limit => $limit }
-            ),
-        )
+sub sitemap_page ($self) {
+    my $page = $self->param('page');
+    return $self->reply->not_found
+      if $page !~ /\A[1-9][[:digit:]]{0,4}\z/amsx
+      || $page > $MAXIMUM_SITEMAP_PAGE;
+    return $self->render(
+        data   => $self->gp_sitemap_pages->page($page),
+        format => 'xml'
     );
 }
 

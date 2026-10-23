@@ -2921,3 +2921,10 @@ html[data-theme="dark"] .app-shell--forum {
   .app-shell--forum .composer--docked .composer-formatting { flex-wrap: nowrap; overflow-x: auto; }
   .app-shell--forum .composer--docked .composer-formatting button { flex: 0 0 auto; }
 }
+.editor-suggestions { border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); max-block-size: 14rem; overflow-y: auto; }
+.editor-suggestions[hidden] { display: none; }
+.editor-suggestions [role="option"] { padding: var(--space-2) var(--space-3); min-block-size: 2.75rem; cursor: pointer; overflow-wrap: anywhere; }
+.editor-suggestions [aria-selected="true"], .editor-suggestions [role="option"]:hover { background: var(--color-surface-alt); outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
+@media (max-width: 640px) {
+  .app-shell--forum #thread-page-navigation select { flex: 1; inline-size: 0; min-inline-size: 8rem; }
+}

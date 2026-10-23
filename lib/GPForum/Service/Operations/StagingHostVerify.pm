@@ -163,7 +163,7 @@ sub _prerequisites_phase ($self) {
         push @artifacts,
           {
             path   => $relative,
-            exists => $exists ? \1     : \0,
+            exists => $exists ? true   : false,
             status => $exists ? 'pass' : 'fail',
           };
         if ( !$exists ) {
@@ -227,7 +227,7 @@ sub _env_file_phase ( $self, $options ) {
         present_keys    => \@present,
         missing_keys    => \@absent,
         problems        => $problems,
-        values_redacted => \1,
+        values_redacted => true,
         note            => 'Only key names and the settings\' problems are'
           . ' reported; secret values are never copied',
     };
@@ -307,7 +307,7 @@ sub _systemd_phase ( $self, $options ) {
           {
             name   => $unit,
             status => $active ? 'pass' : 'fail',
-            active => $active ? \1     : \0,
+            active => $active ? true   : false,
             exit   => $capture->{exit},
             output => _trim_output( $capture->{output} ),
           };
@@ -317,7 +317,7 @@ sub _systemd_phase ( $self, $options ) {
 
     return {
         status    => $failed ? 'fail' : 'pass',
-        available => \1,
+        available => true,
         tool      => $binary,
         units     => \@units,
     };

@@ -8,6 +8,8 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Service::Discovery::VisibilityPolicy;
+use JSON::MaybeXS;
+use Mojo::DOM;
 
 our $VERSION = '0.001';
 
@@ -17,7 +19,7 @@ __PACKAGE__->requires(qw(canonical_url));
 has visibility_policy =>
   sub { return GPForum::Service::Discovery::VisibilityPolicy->new; };
 
-sub thread_metadata ( $self, $thread, $body ) {
+sub thread_metadata ( $self, $thread, $body, $posts = [] ) {
     return { robots => 'noindex,nofollow' }
       if !$self->visibility_policy->is_public($thread);
 
@@ -36,7 +38,52 @@ sub thread_metadata ( $self, $thread, $body ) {
             type        => 'article',
             url         => $canonical,
         },
-        robots => 'index,follow',
+        robots          => 'index,follow',
+        structured_data => $self->structured_data( $thread, $posts ),
+    };
+}
+
+# Only the first page contains the original posting. Never label a reply
+# as its thread's original, or describe content hidden from anonymous users.
+sub structured_data ( $self, $thread, $posts ) {
+    return undef if !@{$posts} || ( $posts->[0]{position} // 0 ) != 1;
+    my @public = grep {
+             ( $_->{visibility} // q{} ) eq 'public'
+          && ( $_->{moderation_state} // q{} ) eq 'visible'
+          && !$_->{deleted_at}
+          && length( $_->{body} // q{} )
+    } @{$posts};
+    return undef if !@public || $public[0] != $posts->[0];
+    my $url   = $self->canonical_url->thread_url($thread);
+    my @nodes = map { _comment_node( $_, $url ) } @public;
+    my $root  = shift @nodes;
+    $root->{'@type'}    = 'DiscussionForumPosting';
+    $root->{'@context'} = 'https://schema.org';
+    $root->{headline}   = $thread->{title};
+    $root->{url}        = $url;
+    if (@nodes) { $root->{comment} = \@nodes; }
+    my $json = JSON::MaybeXS->new( canonical => 1, utf8 => 0 )->encode($root);
+    $json =~ s/</\\u003c/gmsx;
+    $json =~ s/>/\\u003e/gmsx;
+    $json =~ s/&/\\u0026/gmsx;
+    return $json;
+}
+
+sub _comment_node ( $post, $url ) {
+    my $date = "$post->{created_at}";
+    $date =~ s/[ ]/T/msx;
+    $date =~ s/([+-][[:digit:]]{2})\z/$1:00/amsx;
+    return {
+        '@type' => 'Comment',
+        author  => {
+            '@type' => 'Person',
+            name    => $post->{author_display_name}
+              || $post->{author_username}
+              || 'Anonymous'
+        },
+        datePublished => $date,
+        text          => Mojo::DOM->new( $post->{body} )->all_text,
+        url           => "$url#post-$post->{post_id}"
     };
 }
 
@@ -94,6 +141,10 @@ Otherwise returns C<title>, C<description>, C<canonical>, C<open_graph>
 C<< robots => 'index,follow' >>. The description is the body's
 C<safe_text>, else its C<body_text>, else empty, with tags replaced by
 spaces, whitespace collapsed and trimmed, and cut to 160 characters.
+
+=head2 structured_data
+
+Takes a public thread and its visible posts; returns script-safe JSON-LD for the original posting and public comments present on its first page, or undef.
 
 =head1 DIAGNOSTICS
 

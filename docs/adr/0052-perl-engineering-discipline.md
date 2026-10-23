@@ -302,3 +302,10 @@ and tooling.
   `t/75-architecture-foundation.t`, `t/86-engineering-correctness.t`.
 - `CONTRIBUTING.md`, `docs/PERFORMANCE.md#profiling`, `docs/ENGINEERING_CORRECTNESS.md`,
   `docs/CPAN_LICENSE_REVIEW.md`.
+
+## Installation amendment (2026-10-23)
+
+[ADR 0152](0152-parallel-locked-dependency-installation.md) replaces the
+Carton-only installation requirement with App::cpm resolving exclusively from
+`cpanfile.snapshot`. Carton retains lock updates, checks and vendor bundles;
+the system Perl requirement and committed dependency pins still apply.

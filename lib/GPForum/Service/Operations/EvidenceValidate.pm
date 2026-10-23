@@ -59,11 +59,11 @@ sub run ( $self, $options ) {
     my $evidence = {
         status               => 'pass',
         check                => 'evidence_validate',
-        strict               => $strict ? \1 : \0,
+        strict               => $strict ? true : false,
         files                => [],
         residual_gaps        => [],
         private_beta_claimed => 0,
-        secrets_redacted     => \1,
+        secrets_redacted     => true,
     };
 
     if ( !@paths ) {

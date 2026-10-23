@@ -1,0 +1,28 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -eu
+
+# App::cpm is a host tool, like Carton::Snapshot, not an application pin.
+# Always launch it with the interpreter that will build the XS modules.
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+perl_bin=$("$root/script/gpforum-system-perl" --require)
+PATH="$(dirname "$perl_bin"):$PATH"
+export PATH
+
+if [ -n "${GPFORUM_CPM:-}" ]; then
+    if [ ! -x "$GPFORUM_CPM" ]; then
+        echo "gpforum-cpm: GPFORUM_CPM is not executable: $GPFORUM_CPM" >&2
+        exit 1
+    fi
+    exec "$perl_bin" "$GPFORUM_CPM" "$@"
+fi
+
+if "$perl_bin" -S cpm --version >/dev/null 2>&1; then
+    exec "$perl_bin" -S cpm "$@"
+fi
+
+echo "gpforum-cpm: App::cpm was not found for system Perl $perl_bin." >&2
+echo "Install it for this Perl with: $perl_bin -S cpanm -M https://cpan.metacpan.org/ App::cpm Carton" >&2
+exit 1

@@ -16,6 +16,7 @@ on:
       - 'script/gpforum-system-perl'
       - 'script/bootstrap-deps'
       - 'script/gpforum-carton'
+      - 'script/gpforum-cpm'
       - 't/700-ev-fork-drill.t'
       - 'cpanfile'
       - 'cpanfile.postgres'
@@ -51,10 +52,10 @@ jobs:
           prepare: |
             set -eu
             pkg install -y bash ca_root_nss curl git perl5 p5-App-cpanminus postgresql16-client
-            # Carton is a host tool for the ports Perl; its package is not
+            # cpm and Carton are host tools for the ports Perl; their packages are not
             # available in every FreeBSD repository snapshot.
             /usr/local/bin/perl /usr/local/bin/cpanm --notest \
-              --mirror https://cpan.metacpan.org/ --mirror-only Carton
+              --mirror https://cpan.metacpan.org/ --mirror-only App::cpm Carton
           run: |
             set -eu
 

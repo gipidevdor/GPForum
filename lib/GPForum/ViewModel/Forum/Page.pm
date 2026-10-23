@@ -54,6 +54,7 @@ sub tag_page ( $self, %input ) {
 
 sub thread_page ( $self, %input ) {
     my $parts = $self->_thread_page_parts( \%input );
+    return $parts if $input{omit_metadata};
 
     return {
         %{$parts},
@@ -215,7 +216,7 @@ sub thread_page_metadata ( $self, %input ) {
 
     return $input{metadata_builder}->thread_metadata( $input{thread},
         { safe_text => $input{posts}[0]{body} || q{}, },
-    );
+        $input{posts}, );
 }
 
 sub _thread_page_parts ( $self, $input ) {

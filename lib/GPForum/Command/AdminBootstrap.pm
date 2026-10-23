@@ -17,6 +17,7 @@ use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::Schema;
 use GPForum::Service::Admin::Bootstrapper;
+use GPForum::Service::Password;
 use GPForum::X::Usage;
 
 our $VERSION = '0.001';
@@ -484,8 +485,11 @@ sub _sign_in_next ($self) {
 }
 
 sub _bootstrapper ($self) {
+    my $config = $self->schema ? undef : GPForum::Config->from_environment;
     return GPForum::Service::Admin::Bootstrapper->new(
-        schema => $self->_schema );
+        schema           => $self->_schema,
+        password_service => GPForum::Service::Password->from_config($config)
+    );
 }
 
 sub _schema ($self) {

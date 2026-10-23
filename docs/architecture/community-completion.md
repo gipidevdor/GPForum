@@ -46,6 +46,10 @@ Local validation on Apple M4 / PostgreSQL 18.6:
   modified files were checked again under the same brutal profile.
 - Syntax, formatting, architecture/SQL-function guards and translation checks
   passed. No critic exemption or baseline entry was added.
+- The published release snapshot with the localized login-test fix was checked
+  separately from concurrent working-tree edits: 603 files, 17,873 top-level
+  tests, PASS. This is the count for that isolated snapshot; the initial general
+  run above included the concurrent fragment tests.
 
 [Raw diagnostic evidence](../../benchmarks/community-workflows/2026-10-23/README.md)
 contains 100 serial warm-cache poll reads with 1,000 synthetic voters and plans
@@ -61,6 +65,10 @@ jobs also passed. Its unit job and the Debian target exposed one stale assertion
 the sign-in guidance now includes staff approval as well as email verification.
 `t/379-controller-collapsed-branches.t` checks the current explanation in English
 and Italian, the error element and HTTP 401.
+The [corrected CI run for `7fd2c40`](https://github.com/gpicchiarelli/GPForum/actions/runs/39984546015)
+is green, including the full Perl::Critic gate. The
+[corrected Debian run](https://github.com/gpicchiarelli/GPForum/actions/runs/39984546021)
+also passes: 603 files and 29,647 top-level tests with PostgreSQL 18.
 
 The local development database on the Unix socket `/tmp/gpfv`, port 55433,
 was advanced from migration 1023 through 1029 using `gpforum migrate --apply`.
@@ -73,6 +81,17 @@ This instance uses its existing development owner login; it has no separate
 restricted runtime role or running outbox worker. This check does not establish
 production role provisioning or delivery readiness. The runtime role guide
 remains required for production activation.
+
+HTTP 200 readiness is not an all-clear: its body remains `degraded`, exposing
+the server environment's undeclared RAM/CPU/storage profile and historical seed
+notifications in `DEFAULT` (75 rows dated May 2026). A separate read-only
+inspection with an explicit local shared profile (16 GiB, 8 GiB reserved, ten
+cores, NVMe) identifies eight tuning differences; `verify --strict` correctly
+returns 1. No tuning was applied to the shared cluster. `fsync`,
+`full_page_writes`, `synchronous_commit` and `autovacuum` remain on. The historical
+notifications were preserved, not redated or deleted to clear readiness.
+[Activation evidence](../../benchmarks/community-workflows/2026-10-23/activation.json)
+records these checks separately from the temporary poll benchmark cluster.
 
 The [performance run for `6bc1850`](https://github.com/gpicchiarelli/GPForum/actions/runs/39977006751)
 completed its ordinary HTTP, SQL and outbox collection steps, but failed the

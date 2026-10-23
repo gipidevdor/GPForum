@@ -1,0 +1,42 @@
+% layout 'default', shell => 'wide';
+% title t('moderation.organize') . ' - ' . t('app.name');
+% my %operation_label = (move => 'moderation.transfer_move',split => 'moderation.transfer_split',merge => 'moderation.transfer_merge');
+<section aria-labelledby="transfers-heading">
+  <h1 id="transfers-heading"><%= t('moderation.organize') %></h1>
+  <p><%= t('moderation.transfer_help') %></p>
+  <form method="post" action="<%= ui_path('moderation_transfer') %>">
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $transfer_command_id %>">
+    <label for="transfer-source"><%= t('moderation.transfer_source') %></label>
+    <input id="transfer-source" name="source" required value="<%= param('source') // q{} %>">
+    <label for="transfer-target"><%= t('moderation.transfer_target') %></label>
+    <input id="transfer-target" name="target">
+    <label for="transfer-operation"><%= t('moderation.transfer_operation') %></label>
+    <select id="transfer-operation" name="operation">
+      % for my $op (qw(move split merge)) {
+        <option value="<%= $op %>"><%= t($operation_label{$op}) %></option>
+      % }
+    </select>
+    <label for="transfer-numbers"><%= t('moderation.transfer_numbers') %></label>
+    <input id="transfer-numbers" name="post_numbers" maxlength="10000">
+    <label for="transfer-title"><%= t('forum.thread_title') %></label>
+    <input id="transfer-title" name="title" maxlength="200">
+    <label for="transfer-reason"><%= t('moderation.reason') %></label>
+    <input id="transfer-reason" name="reason" required maxlength="500">
+    <button type="submit"><%= t('moderation.organize') %></button>
+  </form>
+  <h2><%= t('moderation.transfer_history') %></h2>
+  <ul>
+    % for my $transfer (@{$transfers}) {
+      <li><%= t($operation_label{$transfer->{operation}}) %> — <%= $transfer->{post_count} %> — <%= dt($transfer->{created_at}) %>
+        % if (!$transfer->{undone_at}) {
+          <form method="post" action="<%= ui_path('moderation_transfer_undo', transfer_id => $transfer->{transfer_id}) %>">
+            <%= csrf_field %>
+            <input type="hidden" name="command_id" value="<%= $transfer->{undo_command_id} %>">
+            <button type="submit"><%= t('moderation.transfer_undo') %></button>
+          </form>
+        % }
+      </li>
+    % }
+  </ul>
+</section>

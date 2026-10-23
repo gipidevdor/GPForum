@@ -52,6 +52,7 @@ use GPForum::Service::Forum::ViewerResolver;
 use GPForum::Service::Moderation::AutomodStore;
 use GPForum::Service::Moderation::ReviewStore;
 use GPForum::Service::Notification::Dispatcher;
+use GPForum::Service::Notification::CategorySubscriptions;
 use GPForum::Service::Notification::RecipientPolicy;
 use GPForum::Service::Notification::PreferenceStore;
 use GPForum::Service::Notification::Renderer;
@@ -68,6 +69,12 @@ sub register ( $, %input ) {
     my $application = $input{application};
     my $config      = $input{config};
 
+    $application->helper(
+        gp_category_subscriptions => sub ($controller) {
+            return GPForum::Service::Notification::CategorySubscriptions->new(
+                schema => $controller->gp_schema );
+        }
+    );
     _register_forum_helpers( $application, $config );
     _register_attachment_helpers($application);
     _register_community_helpers($application);

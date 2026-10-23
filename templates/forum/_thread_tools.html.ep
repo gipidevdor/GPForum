@@ -16,6 +16,7 @@
 % my $subscription = $signed_in && $engagement->{subscription} || {};
 
 <div class="toolbar" id="thread-toolbar" hx-target="#thread-toolbar" hx-swap="outerHTML"<%== stash('swap_oob') ? ' hx-swap-oob="true"' : q{} %>>
+  <a class="button--quiet" href="<%= ui_path('thread_poll', thread_id => $thread_id) %>"><%= t('forum.poll') %></a>
   % if ($can_reply) {
     <a class="button button--secondary button--small" href="#reply-body"><%= t('forum.reply') %></a>
   % }
@@ -142,6 +143,7 @@
         % my $locked = $thread->{locked_at} ? 1 : 0;
         <section class="sheet__part" aria-labelledby="thread-moderation-heading">
           <h3 id="thread-moderation-heading"><%= t('moderation.thread_actions') %></h3>
+          <p><a href="<%= url_for('moderation_transfers')->query(source => ui_path('thread',thread_id => $thread_id)) %>"><%= t('moderation.organize') %></a></p>
           <form method="post" action="<%= ui_path($pinned ? 'moderation_thread_unpin' : 'moderation_thread_pin', thread_id => $thread_id) %>">
             <%= csrf_field %>
             <input type="hidden" name="command_id" value="<%= $ids->{pin} || q{} %>">

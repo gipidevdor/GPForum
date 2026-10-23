@@ -323,13 +323,14 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
         subject_user_id => $subject_user_id,
         generated_at    => $self->clock->now_iso8601,
         format          => $FORMAT_JSON,
-        profile         => $parts->{profile}       || {},
-        posts           => $parts->{posts}         || [],
-        drafts          => $parts->{drafts}        || [],
-        attachments     => $parts->{attachments}   || [],
-        notifications   => $parts->{notifications} || [],
-        subscriptions   => $parts->{subscriptions} || [],
-        preferences     => $parts->{preferences}   || [],
+        %{ _community_parts($parts) },
+        profile       => $parts->{profile}       || {},
+        posts         => $parts->{posts}         || [],
+        drafts        => $parts->{drafts}        || [],
+        attachments   => $parts->{attachments}   || [],
+        notifications => $parts->{notifications} || [],
+        subscriptions => $parts->{subscriptions} || [],
+        preferences   => $parts->{preferences}   || [],
 
         # ADR 0130: the members the subject ignores or blocks.
         member_relations => $parts->{member_relations} || [],
@@ -351,6 +352,13 @@ sub build_user_bundle ( $self, $subject_user_id, $parts ) {
         # ADR 0144: the picture the subject shows, since when, and the one
         # waiting; the uploads themselves are among their attachments.
         avatar => _avatar_part($parts),
+    };
+}
+
+sub _community_parts ($parts) {
+    return {
+        poll_ballots => $parts->{poll_ballots} || [],
+        admission    => $parts->{admission}
     };
 }
 

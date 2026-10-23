@@ -49,7 +49,7 @@ its own scope and acceptance criteria.
 | --- | --- | --- | --- |
 | A01 | Emoji reactions | Done 2026-10-22 (ADR 0145): four reactions (heart, laugh, celebrate, think) beside the like, one row each (`post_reactions`, migration 133), never on one's own post, counted from rows, erased and exported with the account; read with the thread page's one statement. No custom emoji. [routes], [post-model] | PB-01 |
 | A02 | Likes / upvotes / downvotes | Done 2026-10-15 for the reversible like (ADR 0129): one per member and post, not on one's own, counted from rows, erased and exported with the account; votes remain a product decision. [routes] | PB-01 |
-| A03 | Polls | Not found in schema, posting workflows or composer. [routes], [composer] | PB-03 |
+| A03 | Polls | Done 2026-10-23 (ADR 0151): author creates a single-choice thread poll, 2–10 immutable options, one changeable ballot per active member, aggregate results, author/staff closure and 30-day expiry; permission-aware, export/erasure covered. Dedicated thread-tools page; no multi-choice poll. [routes] | PB-03 |
 | A04 | Reply to a particular post | Done 2026-10-15 (ADR 0132): "Reply" and "Quote" under a post open the composer naming it; the link is written after the reply (`post_replies`, migration 114) and shown as "In reply to #N" under the byline. Notifications and feeds do not follow it yet. [post-model], [markup] | PB-10 |
 | A05 | Draft autosave | Present in the current change; locally validated. Private thread/reply drafts, revision conflicts, serialized progressive autosave and native Save. [draft-flow], [draft-client], [draft-schema] | PB-10 / Maintain |
 | A06 | Rich live preview | Present for the existing safe markup subset in the current change; locally validated. Native Preview and debounced live preview use the canonical post renderer. WYSIWYG/full Markdown remain separate. [draft-flow], [draft-client], [markup] | PB-10 / Maintain |
@@ -90,7 +90,7 @@ its own scope and acceptance criteria.
 
 | ID | Feature | Verified status and scope | Package |
 | --- | --- | --- | --- |
-| D01 | Daily / weekly email digest | Done 2026-10-15: with the Digest channel on (daily or weekly) and email on, the hourly `notification_digests` scheduled job queues one digest per member and UTC day or week (recorded once, bounded by `--limit`, resumable) of unread posts in followed threads and followed categories, read with the member's permissions; the worker mails it in their locale as text and HTML with a one-click unsubscribe that turns the digest off (migration 119, ADR 0078 amended). No page creates a category follow yet. [notification-prefs], [notification-dispatch], [workers] | PB-08 |
+| D01 | Daily / weekly email digest | Done 2026-10-15: with the Digest channel on (daily or weekly) and email on, the hourly `notification_digests` scheduled job queues one digest per member and UTC day or week (recorded once, bounded by `--limit`, resumable) of unread posts in followed threads and followed categories, read with the member's permissions; the worker mails it in their locale as text and HTML with a one-click unsubscribe that turns the digest off (migration 119, ADR 0078 amended). Category follow/mute/unfollow forms are available since 2026-10-23 (ADR 0151), reused by feed, reply notification fanout and digests. [notification-prefs], [notification-dispatch], [workers] | PB-08 |
 | D02 | Preferences by notification type | Done 2026-10-15: per-kind switches (replies in followed threads, mentions, moderation notices) for the inbox and email in settings, beside the channel switches; fanout reads them through one delivery plan (migration 118, ADR 0078 amended). [settings], [notification-prefs] | PB-08 |
 | D03 | Web push | Not found; no subscription or service-worker delivery workflow. [routes], [manifest] | PB-16 |
 | D04 | Email every reply / first reply | Partial 2026-10-15: a notification of a kind the member takes by email (replies in followed threads when switched on) is queued in the outbox and mailed in their locale, one mail per notification; a first-reply-only mode was not built. [notification-dispatch], [workers] | PB-08 |
@@ -106,8 +106,8 @@ its own scope and acceptance criteria.
 | E04 | WebAuthn / passkeys | Foundation: credential type placeholder exists; ceremony/enrollment/recovery were not found. [identity-schema], [routes] | PB-20 |
 | E05 | Magic-link login | Not found; email verification tokens are a different lifecycle. [routes], [identity-mail] | PB-20 |
 | E06 | Passwordless login | Not found. [routes], [credential-store] | PB-20 |
-| E07 | Registration invitations | Not found in registration workflow or routes. [routes], [identity-flow] | PB-20 |
-| E08 | Manual registration approval | Not found; pending/email confirmation does not imply staff approval. [identity-flow] | PB-20 |
+| E07 | Registration invitations | Done 2026-10-23 (ADR 0151): staff-issued email-bound, single-use codes, seven-day expiry, revocation, invite-only/open/closed policy. Raw code shown once for operator delivery; never persisted. [routes], [identity-flow] | PB-20 |
+| E08 | Manual registration approval | Done 2026-10-23 (ADR 0151): independent approval queue and decisions; account activation requires both approval and email verification in either order. Existing members unchanged. [identity-flow] | PB-20 |
 | E09 | Registration CAPTCHA | Not found. Consider an optional adapter only after local abuse controls and provider/privacy review. [routes], [identity-flow] | PB-05 |
 | E10 | Multi-provider account linking | Not found; depends on safe external identity verification and explicit linking confirmation. [credential-store] | PB-20 |
 
@@ -365,3 +365,13 @@ historical ADR wording that predates the identity mailer.
 [draft-schema]: ../migrations/1003_forum.sql
 [deployment]: DEPLOYMENT.md
 [upgrade]: ops/upgrade.md
+
+
+## Thread organization increment — 2026-10-23
+
+ADR 0151 adds staff move/split/merge and checked undo, bounded to 1000 posts,
+identical category and public/members audience, excluding private selected posts
+and polls. Original body/revision/attachment identities remain intact. Complete
+merges retain a permission-filtered source redirect. Cross-category transfers,
+private-audience changes and preserving a source poll through merge are not
+implemented by this increment.

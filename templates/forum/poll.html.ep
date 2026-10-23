@@ -1,0 +1,49 @@
+% layout 'default';
+% title t('forum.poll') . ' - ' . t('app.name');
+<section aria-labelledby="poll-heading">
+  <h1 id="poll-heading"><%= t('forum.poll') %></h1>
+  <p><a href="<%= ui_path('thread', thread_id => param('thread_id')) %>"><%= t('forum.back_to_thread') %></a></p>
+  % if (my $poll = $poll_page->{poll}) {
+    <h2><%= $poll->{question} %></h2>
+    <p><%= t($poll->{closed} ? 'forum.poll_closed' : 'forum.poll_open') %> — <%= dt($poll->{closes_at}) %></p>
+    <ul>
+      % for my $option (@{$poll->{options}}) {
+        <li><%= $option->{label} %>: <%= $option->{votes} %></li>
+      % }
+    </ul>
+    % if (session('user_id') && !$poll->{closed}) {
+      <form method="post" action="<%= ui_path('thread_poll_change', thread_id => param('thread_id')) %>">
+        <%= csrf_field %>
+        <input type="hidden" name="command_id" value="<%= $poll_page->{commands}{vote} %>">
+        <input type="hidden" name="operation" value="vote">
+        <fieldset><legend><%= t('forum.poll_choose') %></legend>
+          % for my $option (@{$poll->{options}}) {
+            <label><input type="radio" name="choice" required value="<%= $option->{number} %>"<%= ($poll->{choice} // 0) == $option->{number} ? ' checked' : '' %>> <%= $option->{label} %></label>
+          % }
+        </fieldset>
+        <button type="submit"><%= t('forum.poll_vote') %></button>
+      </form>
+    % }
+    % if ($poll_page->{can_close} && !$poll->{closed}) {
+      <form method="post" action="<%= ui_path('thread_poll_change', thread_id => param('thread_id')) %>">
+        <%= csrf_field %>
+        <input type="hidden" name="command_id" value="<%= $poll_page->{commands}{close} %>">
+        <button name="operation" value="close"><%= t('forum.poll_close') %></button>
+      </form>
+    % }
+  % } elsif ($poll_page->{can_create}) {
+    <form method="post" action="<%= ui_path('thread_poll_change', thread_id => param('thread_id')) %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $poll_page->{commands}{create} %>">
+      <input type="hidden" name="operation" value="create">
+      <label for="poll-question"><%= t('forum.poll_question') %></label>
+      <input id="poll-question" name="question" required maxlength="200">
+      <label for="poll-options"><%= t('forum.poll_options') %></label>
+      <textarea id="poll-options" name="options" required rows="5" maxlength="1210"></textarea>
+      <p><%= t('forum.poll_privacy') %></p>
+      <button type="submit"><%= t('forum.poll_create') %></button>
+    </form>
+  % } else {
+    <p><%= t('forum.poll_none') %></p>
+  % }
+</section>

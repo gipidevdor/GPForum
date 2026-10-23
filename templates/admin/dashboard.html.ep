@@ -7,6 +7,7 @@
     component_title => t('admin.admin'),
     actions_label => t('admin.admin'),
     actions => ui_actions(
+      { href => ui_path('admin_registration'), label => t('admin.registration') },
       { href => ui_path('admin_users'), label => t('admin.users') },
       { href => ui_path('admin_roles'), label => t('admin.roles') },
       { href => ui_path('admin_categories'), label => t('admin.categories') },
@@ -15,6 +16,7 @@
       { href => ui_path('admin_second_factor'), label => t('admin.second_factor') },
       { href => ui_path('admin_address_bans'), label => t('admin.address_bans') },
       { href => ui_path('admin_audit'), label => t('admin.audit') },
+      { href => ui_path('moderation_transfers'), label => t('moderation.organize') },
       { href => ui_path('moderation_reports'), label => t('moderation.queue') },
       { href => ui_path('moderation_actions'), label => t('moderation.actions') },
       { href => ui_path('moderation_suspensions'), label => t('moderation.suspensions') },

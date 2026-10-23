@@ -27,7 +27,7 @@ sub update ( $self, $values ) {
     my $stored    = $functions->row( 'identity_update_user',
         { user_id => $self->{id}, changes => $values } );
     if ($stored) {
-        %{$self} = ( %{$stored}, %{$values} );
+        %{$self} = ( %{$stored}, %{$values}, status => $stored->{status} );
     }
     return $self;
 }

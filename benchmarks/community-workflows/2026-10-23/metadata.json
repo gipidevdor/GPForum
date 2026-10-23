@@ -1,0 +1,131 @@
+{
+  "hardware": {
+    "cpu": "Apple M4",
+    "logical_cpus": 10,
+    "macos": "27.0.1",
+    "memory_bytes": 17179869184
+  },
+  "latency": {
+    "p50_ms": 0.18000602722168,
+    "p95_ms": 0.23198127746582,
+    "p99_ms": 0.288009643554688
+  },
+  "limitations": [
+    "Single warm-cache integration smoke run, 1000 synthetic voters, 3 options; application function client over local Unix socket.",
+    "No HTTP, TLS, concurrency capacity or sustained throughput measurement.",
+    "No before/after improvement assertion; desktop services remain active.",
+    "Internal read plans are preserved separately from the function wrapper."
+  ],
+  "postgres_settings": [
+    {
+      "name": "autovacuum",
+      "pending_restart": false,
+      "setting": "on",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "effective_cache_size",
+      "pending_restart": false,
+      "setting": "524288",
+      "source": "default",
+      "unit": "8kB"
+    },
+    {
+      "name": "effective_io_concurrency",
+      "pending_restart": false,
+      "setting": "16",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "fsync",
+      "pending_restart": false,
+      "setting": "on",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "full_page_writes",
+      "pending_restart": false,
+      "setting": "on",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "jit",
+      "pending_restart": false,
+      "setting": "on",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "maintenance_work_mem",
+      "pending_restart": false,
+      "setting": "65536",
+      "source": "default",
+      "unit": "kB"
+    },
+    {
+      "name": "max_connections",
+      "pending_restart": false,
+      "setting": "100",
+      "source": "configuration file",
+      "unit": null
+    },
+    {
+      "name": "random_page_cost",
+      "pending_restart": false,
+      "setting": "4",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "shared_buffers",
+      "pending_restart": false,
+      "setting": "16384",
+      "source": "configuration file",
+      "unit": "8kB"
+    },
+    {
+      "name": "synchronous_commit",
+      "pending_restart": false,
+      "setting": "on",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "track_io_timing",
+      "pending_restart": false,
+      "setting": "off",
+      "source": "default",
+      "unit": null
+    },
+    {
+      "name": "work_mem",
+      "pending_restart": false,
+      "setting": "4096",
+      "source": "default",
+      "unit": "kB"
+    }
+  ],
+  "quantile_method": "nearest rank over 100 serial client wall-clock samples",
+  "recorded_at_utc": "2026-10-23T15:12:45.556839+00:00",
+  "sample_count": 100,
+  "source_base_commit": "8d6ca3b19581c58f5520cc0e398db301d7ec6bb1",
+  "source_sha256": {
+    "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "b8679fdbf8496c7ec34424a094e8a72fbc997271dadad975176d3574e88a78f5",
+    "lib/GPForum/Service/Forum/Polls.pm": "e950572f231be177240c8c4f012ec9456a8015886df83958a615ebe31b902e7f",
+    "migrations/1025_category_subscriptions.sql": "e4053ff4a261149c1c1a8513c75e89d2f5ccee0089e763ca4977b440dbd83c93",
+    "migrations/1026_registration_admission.sql": "b9fd77e1d43d0d6ae865bcdc6bcd574400d4f910221a613182b7be7c7e409217",
+    "migrations/1027_thread_polls.sql": "1beefe0c7591754ba1d730c47b73b0af75b97d7083be7b920d72edc7e5857ed8",
+    "migrations/1028_thread_transfers.sql": "ec14875e2162f3f2d02aa07772c8f1af23865bfff312107053c2d87691b01dbc",
+    "migrations/1029_community_privacy.sql": "a2972318ab860b76d3473f3e8e0607b8d76bcad712eef77f7e631a7974214a3f",
+    "t/integration/postgres-community-completion.t": "0355cc4870db0ec605dd7584de36635a5a96b7664fb918a8de9179ad647a8ce2"
+  },
+  "source_state": "working tree with the migrations and services fingerprinted here; not an A/B comparison",
+  "tap_output": {
+    "normalization": "Trailing spaces stripped from diagnostic output; TAP checks and latency data are unchanged.",
+    "original_sha256": "8d5f841b32a4afde6562f2797cf6afb6552571c75ab7e5f028b7c2c47a566082"
+  }
+}

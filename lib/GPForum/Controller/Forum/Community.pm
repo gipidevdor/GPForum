@@ -169,6 +169,26 @@ sub remove_thread_bookmark ($self) {
     );
 }
 
+sub category_subscription ($self) {
+    my $actor = $self->write_user_id('category.subscribe');
+    return if !$actor;
+    my $result = $self->gp_category_subscriptions->change(
+        {
+            actor       => $actor,
+            command     => $self->command_id_param,
+            category_id => $self->param('category_id'),
+            operation   => $self->param('operation'),
+        }
+    );
+    return $self->_not_found('category not found')
+      if $result->{status} eq 'not_found';
+    return $self->_bad_request( { subscription => $result->{status} } )
+      if $result->{status} ne 'ok';
+    return $self->render( json => $result ) if $self->_wants_json;
+    return $self->redirect_to( 'category',
+        category_id => $self->param('category_id') );
+}
+
 sub subscribe_thread ($self) {
     my $user_id = $self->write_user_id('thread.subscribe');
     if ( !$user_id ) {
@@ -512,6 +532,10 @@ Removes a thread bookmark.
 Moves one of the member's bookmarks to the folder given, or out of its
 folder when the field is empty (ADR 0136); 404 when the bookmark is not
 the member's or the folder is too long.
+
+=head2 category_subscription
+
+Changes the category subscription after CSRF and write throttling.
 
 =head2 subscribe_thread
 

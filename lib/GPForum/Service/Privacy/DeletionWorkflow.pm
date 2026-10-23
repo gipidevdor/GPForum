@@ -710,6 +710,8 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
         $self->_revoke_user_rows( 'ForumDraft',   $user_id, $timestamp );
         $self->_revoke_user_rows( 'PostLike',     $user_id, $timestamp );
         $self->_revoke_user_rows( 'PostReaction', $user_id, $timestamp );
+        $self->_revoke_user_rows( 'PollBallot',   $user_id, $timestamp );
+        $self->_revoke_user_rows( 'Admission',    $user_id, $timestamp );
 
         # ADR 0130: the erased member leaves every ignore and block list.
         $self->_revoke_user_rows( 'MemberRelation', $user_id, $timestamp );

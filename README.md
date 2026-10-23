@@ -36,10 +36,10 @@ to activate the database permission boundary.
 
 ## What it does
 
-- Threads, replies and revisions. Search, bookmarks, follows and notifications.
+- Threads, replies and revisions. Polls, search, bookmarks, thread/category follows and notifications.
 - Images, PDFs and text attachments up to 25 MiB, scanned before delivery.
 - Moderation queues, suspensions and reversible actions with an audit trail.
-- Verified accounts, data export and account deletion.
+- Verified accounts, optional invitations and staff approval, data export and account deletion.
 - English and Italian; light, dark and high-contrast themes.
 - An admin console and one command, `gpforum`, to run and maintain the forum.
 

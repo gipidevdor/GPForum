@@ -23,8 +23,10 @@ sub category_page ( $self, %input ) {
     my $items = $self->array_or_empty( $input{threads_page}{items} );
 
     return {
-        category    => $self->category( $input{category} ),
-        next_cursor => $input{threads_page}{next_cursor},
+        viewer_user_id          => $input{viewer_user_id},
+        subscription_command_id => $input{subscription_command_id},
+        category                => $self->category( $input{category} ),
+        next_cursor             => $input{threads_page}{next_cursor},
         threads => [ map { $self->_category_thread( $_, \%input ) } @{$items} ],
     };
 }

@@ -21,6 +21,9 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 
 # Migration 1024 retains these shipped entry points for the previous workers.
 const my @RETAINED => qw(
+  ops_retention_purge_v2 notification_subscribers_v2
+  portability_export_parts_v22 privacy_revoke_user_v22
+  identity_register_command_v2 identity_update_user_v4
   moderation_active_suspension_v2 moderation_can_participate_v2
 );
 
@@ -77,7 +80,7 @@ for my $retained (@RETAINED) {
         "api.$retained remains callable by older workers" );
     is(
         $function{$retained}{arguments},
-        'p_user_id uuid, p_now text',
+        _retained_arguments($retained),
         "api.$retained retains its shipped argument types"
     );
 }
@@ -148,6 +151,29 @@ sub _check_live_invariants ( $catalogue, $functions ) {
 sub _type_name ($type) {
     return
       scalar $dbh->selectrow_array( 'SELECT ?::regtype::text', undef, $type );
+}
+
+1;
+
+sub _retained_arguments ($name) {
+    return
+      'p_source text, p_cutoff timestamp with time zone, p_row_limit integer'
+      if $name eq 'ops_retention_purge_v2';
+    return 'p_target_type text, p_target_id uuid, p_notification_type text'
+      if $name eq 'notification_subscribers_v2';
+    return 'p_source text, p_user_id uuid, p_at text'
+      if $name eq 'privacy_revoke_user_v22';
+    return 'p_user_id uuid' if $name eq 'portability_export_parts_v22';
+    return 'p_user_id uuid, p_changes jsonb'
+      if $name eq 'identity_update_user_v4';
+    if ( $name eq 'identity_register_command_v2' ) {
+        my @names =
+          qw(log answer accepted refused user credential event event_outbox_id audit token token_audit mail_event mail_outbox_id mail_outbox_extras);
+        return join q{, },
+          map { 'p_' . $_ . q{ } . ( /outbox_id\z/msx ? 'text' : 'jsonb' ) }
+          @names;
+    }
+    return 'p_user_id uuid, p_now text';
 }
 
 1;

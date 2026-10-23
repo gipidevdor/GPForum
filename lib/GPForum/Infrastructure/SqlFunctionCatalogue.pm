@@ -59,6 +59,68 @@ const my @REPLY_RECORD => (
 );
 
 const my %FUNCTION => (
+    moderation_thread_transfer => {
+        version    => 2,
+        parameters => [
+            actor        => 'uuid',
+            command      => 'uuid',
+            source_id    => 'uuid',
+            target_id    => 'uuid',
+            operation    => 'text',
+            post_numbers => 'bigint[]',
+            title        => 'text',
+            reason       => 'text'
+        ],
+        json => ['result']
+    },
+    moderation_thread_transfer_undo => {
+        version    => 2,
+        parameters =>
+          [ actor => 'uuid', command => 'uuid', transfer_id => 'uuid' ],
+        json => ['result']
+    },
+    moderation_thread_transfers =>
+      { version => 2, parameters => [ actor => 'uuid' ], json => ['result'] },
+    forum_thread_redirect =>
+      { version => 2, parameters => [ actor => 'uuid', thread_id => 'uuid' ] },
+    forum_poll_read => {
+        version    => 2,
+        parameters => [ actor => 'uuid', thread_id => 'uuid' ],
+        json       => ['result']
+    },
+    forum_poll_change => {
+        version    => 2,
+        parameters => [
+            actor     => 'uuid',
+            command   => 'uuid',
+            thread_id => 'uuid',
+            operation => 'text',
+            values    => 'jsonb'
+        ],
+        json => ['result']
+    },
+    notification_category_follow => {
+        version    => 2,
+        parameters => [
+            actor       => 'uuid',
+            command     => 'uuid',
+            category_id => 'uuid',
+            operation   => 'text'
+        ],
+        json => ['result']
+    },
+    admin_registration_state =>
+      { version => 2, parameters => [ actor => 'uuid' ], json => ['result'] },
+    admin_registration_change => {
+        version    => 2,
+        parameters => [
+            actor     => 'uuid',
+            command   => 'uuid',
+            operation => 'text',
+            values    => 'jsonb'
+        ],
+        json => ['result']
+    },
     forum_draft_find => {
         version    => 2,
         parameters =>
@@ -220,7 +282,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 22,
+        version    => 24,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -230,7 +292,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     portability_export_parts => {
-        version    => 22,
+        version    => 24,
         parameters => [ user_id => 'uuid' ],
         json       => ['document']
     },
@@ -238,7 +300,7 @@ const my %FUNCTION => (
     ops_publish_notification =>
       { version => 2, parameters => [ channel => 'text', payload => 'text' ] },
     ops_retention_purge => {
-        version    => 2,
+        version    => 4,
         parameters =>
           [ source => 'text', cutoff => 'timestamptz', row_limit => 'integer' ]
     },
@@ -845,7 +907,7 @@ const my %FUNCTION => (
         json => ['result']
     },
     notification_subscribers => {
-        version    => 2,
+        version    => 4,
         parameters => [
             target_type       => 'text',
             target_id         => 'uuid',
@@ -1403,7 +1465,7 @@ const my %FUNCTION => (
         parameters => [ values => 'jsonb' ],
     },
     identity_update_user => {
-        version    => 4,
+        version    => 6,
         parameters => [ user_id => 'uuid', changes => 'jsonb' ],
     },
     identity_insert_credential => {
@@ -1427,7 +1489,7 @@ const my %FUNCTION => (
     # duplicates, the user, the credential, the registration's event and
     # audit, the verification token with its audit and mail.
     identity_register_command => {
-        version    => 2,
+        version    => 4,
         parameters => [
             log                => 'jsonb',
             answer             => 'jsonb',
@@ -1443,6 +1505,7 @@ const my %FUNCTION => (
             mail_event         => 'jsonb',
             mail_outbox_id     => 'text',
             mail_outbox_extras => 'jsonb',
+            invitation_hash    => 'text',
         ],
         json => [ 'response', 'stored_user' ],
     },

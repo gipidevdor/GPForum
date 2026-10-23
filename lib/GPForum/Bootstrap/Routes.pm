@@ -114,6 +114,12 @@ sub register ( $, %input ) {
       ->to('Admin::Maintenance#cache_purge')
       ->name('admin_cache_purge');
     $routes->get('/admin/status')->to('Admin#status')->name('admin_status');
+    $routes->get('/admin/registration')
+      ->to('Admin::Admission#show')
+      ->name('admin_registration');
+    $routes->post('/admin/registration')
+      ->to('Admin::Admission#change')
+      ->name('admin_registration_change');
     $routes->get('/admin/settings')
       ->to('Admin#settings')
       ->name('admin_settings');
@@ -137,6 +143,15 @@ sub register ( $, %input ) {
       ->name('privacy_erasure_run');
     $routes->get('/categories')->to('Forum#categories')->name('categories');
     $routes->get('/c/:category_id')->to('Forum#category')->name('category');
+    $routes->post('/c/:category_id/subscription')
+      ->to('Forum::Community#category_subscription')
+      ->name('category_subscription');
+    $routes->get('/t/:thread_id/tools/poll')
+      ->to('Forum::Polls#show')
+      ->name('thread_poll');
+    $routes->post('/t/:thread_id/tools/poll')
+      ->to('Forum::Polls#change')
+      ->name('thread_poll_change');
     $routes->get('/t/:thread_id/:slug')
       ->to('Forum#thread')
       ->name('thread_canonical');
@@ -243,6 +258,15 @@ sub register ( $, %input ) {
     $routes->post('/u/:username/report')
       ->to('Forum::Community#report_profile')
       ->name('profile_report');
+    $routes->get('/moderation/transfers')
+      ->to('Moderation::ThreadTransfers#show')
+      ->name('moderation_transfers');
+    $routes->post('/moderation/transfers')
+      ->to('Moderation::ThreadTransfers#change')
+      ->name('moderation_transfer');
+    $routes->post('/moderation/transfers/:transfer_id/undo')
+      ->to('Moderation::ThreadTransfers#undo')
+      ->name('moderation_transfer_undo');
     $routes->get('/moderation/reports')
       ->to('Moderation#reports')
       ->name('moderation_reports');

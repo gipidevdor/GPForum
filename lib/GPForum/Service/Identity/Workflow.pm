@@ -14,6 +14,7 @@ use Scalar::Util qw(blessed);
 use GPForum::Infrastructure::ResultRow::IdentityUser;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::X::Conflict;
+use GPForum::Service::SessionToken;
 
 our $VERSION = '0.001';
 
@@ -25,7 +26,7 @@ const my $USER_ID_CONSTRAINT => 'users_pkey';
 # order; `answer`, `accepted` and `refused` are the answers it may record.
 const my @REGISTER_PARAMETERS => qw(
   answer accepted refused user credential event event_outbox_id audit token
-  token_audit mail_event mail_outbox_id mail_outbox_extras
+  token_audit mail_event mail_outbox_id mail_outbox_extras invitation_hash
 );
 
 has command_idempotency => undef;    # optional: writes run unlogged without one
@@ -422,11 +423,23 @@ sub _call_layer ($service) {
 # records. The composer's refusal is recorded without a write; a taken
 # username or email records the refusal prepared here. A user id the
 # database already holds for another account is drawn again, once.
+sub _invitation_hash ($input) {
+    my $token = _trim( $input->{invitation} );
+    return
+      length $token
+      ? GPForum::Service::SessionToken->new->hash_token($token)
+      : undef;
+}
+
 sub _register_by_function ( $self, $input ) {
     my $request = {
         email    => _trim( $input->{email} ),
         username => _trim( $input->{username} ),
     };
+
+    if ( my $hash = _invitation_hash($input) ) {
+        $request->{invitation_hash} = $hash;
+    }
 
     # The command log's ids and time are drawn before the registration's, as
     # CommandIdempotency draws them before the work it guards.
@@ -467,7 +480,8 @@ sub _register_by_function ( $self, $input ) {
             $log,
             {
                 %{$call},
-                accepted => _result(
+                invitation_hash => _invitation_hash($input),
+                accepted        => _result(
                     status => 'ok',
                     stored => {
                         registration => $registration,

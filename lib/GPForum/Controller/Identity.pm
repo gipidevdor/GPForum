@@ -45,6 +45,7 @@ sub register ($self) {
             email        => $self->param('email'),
             password     => $self->param('password'),
             username     => $self->param('username'),
+            invitation   => $self->param('invitation'),
         }
     );
     if ( $result->{status} eq 'invalid' ) {

@@ -6,6 +6,7 @@ package GPForum::Controller::Forum;
 use Const::Fast;
 use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
 use v5.40;
+use GPForum::Service::Moderation::ThreadTransfers;
 
 our $VERSION = '0.001';
 
@@ -88,6 +89,7 @@ sub category ($self) {
           $self->_restore_thread_command_ids( $threads, $user_id ),
         thread_tags    => $self->gp_tags_for_threads( $threads->{items} ),
         viewer_user_id => $user_id,
+        subscription_command_id => $user_id ? $self->gp_id->uuid : undef,
     );
 
     return $self->render_payload(
@@ -122,6 +124,10 @@ sub thread ($self) {
     );
 
     if ( !$page->{ok} ) {
+        my $destination = GPForum::Service::Moderation::ThreadTransfers->new(
+            schema => $self->gp_schema )->redirect( $user_id, $thread_id );
+        return $self->redirect_to( 'thread', thread_id => $destination )
+          if $destination;
         return $self->_not_found('thread not found');
     }
 

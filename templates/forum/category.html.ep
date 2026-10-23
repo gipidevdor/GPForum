@@ -23,6 +23,19 @@
         label => t('nav.start_thread'),
       },
     ) %>
+  % if ($viewer_user_id) {
+    <form method="post" action="<%= ui_path('category_subscription', category_id => $category->{category_id}) %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $subscription_command_id %>">
+      <label for="category-follow"><%= t('community.category_follow') %></label>
+      <select id="category-follow" name="operation">
+        <option value="follow"><%= t('community.follow_category') %></option>
+        <option value="mute"><%= t('community.mute_notifications') %></option>
+        <option value="remove"><%= t('community.unfollow_category') %></option>
+      </select>
+      <button type="submit"><%= t('common.save') %></button>
+    </form>
+  % }
   % if (@{$threads}) {
     <ol class="ui-card-list topic-list" aria-label="<%= $category->{title} %>">
       % for my $thread (@{$threads}) {

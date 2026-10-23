@@ -84,3 +84,24 @@ tabs release their socket and timers. The inbox reuses its server-rendered
 count until a snapshot or fallback updates it. An HTTP response begun before
 a push cannot replace the newer count. Temporary failures retain the last
 known badge; no notification data is persisted in browser storage.
+
+
+## Community completion (ADR 0151)
+
+All writes require the existing session, CSRF token, write throttling and a fresh
+UUID `command_id`. JSON is selected with `Accept: application/json`; mutations
+are PostgreSQL function calls with atomic authorization and command replay.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET/POST | `/admin/registration` | Staff policy, email-bound invitations and admission decisions. POST `operation`: policy/invite/revoke/approve/reject. |
+| POST | `/c/:category_id/subscription` | `operation`: follow/mute/remove using the existing category subscription. |
+| GET/POST | `/t/:thread_id/tools/poll` | Read/create/vote/close a single-choice poll. POST `operation`, with question/options (one option per line) or choice. |
+| GET/POST | `/moderation/transfers` | Global thread moderators inspect history or move/split/merge. Forms accept source/target discussion links and comma-separated post numbers. |
+| POST | `/moderation/transfers/:transfer_id/undo` | Checked reversal; intervening placement/audience changes may conflict. |
+
+Individual ballots and invitation secrets are absent from public results. An
+invitation secret is returned only on its first successful creation response;
+replay returns its id. Staff-only pages and poll responses use no-store.
+See [ADR 0151](docs/adr/0151-admission-polls-category-follows-and-thread-organization.md)
+for bounds, audiences, rollback and privacy semantics.

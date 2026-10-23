@@ -142,3 +142,22 @@ each row of the monthly logs through its parent, so it lands in the new
 database's partition for its month, or in DEFAULT. This was done on a 0.x
 database seeded with the `medium` profile: every row of every table arrived,
 the same.
+
+
+## Admission and community workflows (migrations 1025–1029)
+
+[ADR 0151](../adr/0151-admission-polls-category-follows-and-thread-organization.md)
+adds optional staff-controlled admission, polls, category follow forms and
+bounded post organization. Apply the migrations through the existing migration
+command, deploy updated web/outbox workers and refresh restricted runtime-role
+EXECUTE grants from the current catalogue. Keep admission open during mixed
+worker versions; older registration/user-update boundaries are retained for
+compatibility and do not enforce the new policy. Enable invite-only or approval
+mode from the admin registration console only after old workers have stopped.
+
+The default policy preserves open registration and existing member status.
+Expired invitation rows join the existing bounded identity-token retention job.
+No PostgreSQL server configuration or restart is required. Follow the normal
+forward-fix/restore procedure for deployment rollback; do not delete installed
+migration ledger entries or run inverse schema DDL. Transfer undo is a checked
+product command and can refuse when later content placement has changed.

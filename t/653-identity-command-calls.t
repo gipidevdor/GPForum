@@ -135,7 +135,7 @@ subtest 'a registration is one call' => sub {
     is( scalar @{ $handle->executed }, 1, 'in one call' );
     like(
         $handle->prepared->[0],
-        qr/api[.]identity_register_command_v2/msx,
+        qr/api[.]identity_register_command_v4/msx,
         'to the registration command'
     );
     my $sent = sent($handle);

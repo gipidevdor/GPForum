@@ -1,0 +1,61 @@
+% layout 'default', shell => 'wide';
+% title t('admin.registration') . ' - ' . t('app.name');
+% my %mode_label = (open => 'admin.registration_open',invite => 'admin.registration_invite',closed => 'admin.registration_closed');
+<section aria-labelledby="admission-heading">
+  <h1 id="admission-heading"><%= t('admin.registration') %></h1>
+  % if (my $secret = stash('invitation')) {
+    <p><%= t('admin.invitation_once') %></p>
+    <code><%= $secret %></code>
+  % }
+  <form method="post" action="<%= ui_path('admin_registration_change') %>">
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $admission->{commands}{policy} %>">
+    <input type="hidden" name="operation" value="policy">
+    <label for="registration-mode"><%= t('admin.registration_mode') %></label>
+    <select name="mode" id="registration-mode">
+      % for my $mode (qw(open invite closed)) {
+        <option value="<%= $mode %>"<%= $admission->{policy}{mode} eq $mode ? ' selected' : '' %>><%= t($mode_label{$mode}) %></option>
+      % }
+    </select>
+    <label><input type="checkbox" name="approval_required" value="1"<%= $admission->{policy}{approval_required} ? ' checked' : '' %>> <%= t('admin.registration_approval') %></label>
+    <button type="submit"><%= t('common.save') %></button>
+  </form>
+  <h2><%= t('admin.invite') %></h2>
+  <form method="post" action="<%= ui_path('admin_registration_change') %>">
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $admission->{commands}{invite} %>">
+    <input type="hidden" name="operation" value="invite">
+    <label for="invitation-email"><%= t('auth.email') %></label>
+    <input name="email" id="invitation-email" type="email" required maxlength="254">
+    <button type="submit"><%= t('admin.invite') %></button>
+  </form>
+  <h2><%= t('admin.registration_waiting') %></h2>
+  <ul>
+    % for my $member (@{$admission->{reviews}}) {
+      <li><%= $member->{username} %> — <%= t($member->{email_verified_at} ? 'admin.email_verified' : 'admin.email_unverified') %>
+        <form method="post" action="<%= ui_path('admin_registration_change') %>">
+          <%= csrf_field %>
+          <input type="hidden" name="command_id" value="<%= $member->{command_id} %>">
+          <input type="hidden" name="user_id" value="<%= $member->{user_id} %>">
+          <button name="operation" value="approve"><%= t('admin.registration_approve') %></button>
+          <button name="operation" value="reject"><%= t('admin.registration_reject') %></button>
+        </form>
+      </li>
+    % }
+  </ul>
+  <h2><%= t('admin.invitations') %></h2>
+  <ul>
+    % for my $invite (@{$admission->{invitations}}) {
+      <li><%= $invite->{email_normalized} %> — <%= dt($invite->{expires_at}) %>
+        % if (!$invite->{used_at} && !$invite->{revoked_at}) {
+          <form method="post" action="<%= ui_path('admin_registration_change') %>">
+            <%= csrf_field %>
+            <input type="hidden" name="command_id" value="<%= $invite->{command_id} %>">
+            <input type="hidden" name="invitation_id" value="<%= $invite->{invitation_id} %>">
+            <button name="operation" value="revoke"><%= t('admin.invitation_revoke') %></button>
+          </form>
+        % }
+      </li>
+    % }
+  </ul>
+</section>

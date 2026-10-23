@@ -21,6 +21,8 @@ on:
       - 'benchmarks/*.lua'
       - 'benchmarks/*.pl'
       - 't/performance/**'
+      - 't/integration/**'
+      - 't/742-benchmark-operations.t'
       - 't/lib/GPForum/Test/PostgresHarness.pm'
       - 't/lib/GPForum/Test/OutboxTransport.pm'
       - '.github/actions/setup-gpforum-perl/**'
@@ -281,3 +283,34 @@ jobs:
         if: always()
         # The connection gate is all or nothing: its own summary must be ok.
         run: perl script/performance-workflow-status --output "$PERF_OUTPUT" --check --gate "$PERF_OUTPUT/connections-5000"
+
+  operations:
+    name: HTTP and SQL operation diagnostics
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout measured commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up locked GPForum dependencies
+        uses: ./.github/actions/setup-gpforum-perl
+        with:
+          postgres: 'true'
+
+      - name: Verify operation instrumentation
+        run: script/gpforum-carton exec prove -l t/742-benchmark-operations.t
+
+      - name: Exercise all PostgreSQL integration workflows
+        run: script/gpforum-carton exec script/benchmark-operations --output "$RUNNER_TEMP/operations"
+
+      - name: Upload operation coverage, distributions and test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gpforum-operation-diagnostics-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/operations/
+          retention-days: 14
+          if-no-files-found: warn

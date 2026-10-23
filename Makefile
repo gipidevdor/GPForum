@@ -39,6 +39,11 @@ JOBS ?= 8
 integration: ## Run PostgreSQL integration tests on temporary clusters (JOBS=8)
 	script/gpforum-carton exec prove -l -j $(JOBS) -It/lib --exec 'perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres' -r t/integration
 
+.PHONY: benchmark-operations
+BENCHMARK_OUTPUT ?= artifacts/operations
+benchmark-operations: ## Diagnose HTTP and SQL operations across all PostgreSQL integration workflows
+	script/gpforum-carton exec script/benchmark-operations --output "$(BENCHMARK_OUTPUT)"
+
 # No --severity override. The profile declares `severity = brutal` and the
 # baseline in etc/ was recorded at that level, so passing --severity 5 here
 # meant `make check` compared a severity-5 run against a severity-1 baseline:

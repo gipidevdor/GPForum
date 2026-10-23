@@ -19,7 +19,7 @@ use DBI;
 use English       qw(-no_match_vars);
 use Getopt::Long  qw(GetOptionsFromArray);
 use JSON::MaybeXS qw(encode_json);
-use List::Util    qw(sum0);
+use List::Util    qw(sum0 max);
 use Time::HiRes   qw(clock_gettime CLOCK_MONOTONIC);
 
 use GPForum::Benchmark::Measure qw(percentile);
@@ -64,12 +64,34 @@ const my $COMPILED_EP  => 'templates (compiled EP)';
 const my $TEMPLATE_CODE =>
   qr/\A (?:Mojo::Template|GPForum::Web::Partials)::Sandbox::/msx;
 const my @PAGES => (
-    [ thread_member => 'member', "/t/$THREAD_ID" ],
-    [ thread_guest  => 'guest',  "/t/$THREAD_ID" ],
-    [ categories    => 'member', '/categories' ],
-    [ category      => 'member', "/c/$CATEGORY_ID" ],
-    [ home          => 'member', q{/} ],
-    [ search        => 'member', '/search?q=performance' ],
+    [ thread_member        => 'member', "/t/$THREAD_ID" ],
+    [ thread_guest         => 'guest',  "/t/$THREAD_ID" ],
+    [ categories           => 'member', '/categories' ],
+    [ category             => 'member', "/c/$CATEGORY_ID" ],
+    [ home                 => 'member', q{/} ],
+    [ search               => 'member', '/search?q=performance' ],
+    [ autocomplete         => 'member', '/search/autocomplete?q=per' ],
+    [ new_thread           => 'member', '/new-thread' ],
+    [ drafts               => 'member', '/drafts' ],
+    [ pending              => 'member', '/pending' ],
+    [ bookmarks            => 'member', '/bookmarks' ],
+    [ feed                 => 'member', '/feed' ],
+    [ notifications        => 'member', '/notifications' ],
+    [ notification_summary => 'member', '/notifications/summary' ],
+    [ mentions             => 'member', '/mentions' ],
+    [ messages             => 'member', '/messages' ],
+    [ message_compose      => 'member', '/messages/new/perf_user_2' ],
+    [ settings             => 'member', '/settings' ],
+    [ security             => 'member', '/settings/security' ],
+    [ avatar               => 'member', '/settings/avatar' ],
+    [ relations            => 'member', '/settings/ignored' ],
+    [ privacy              => 'member', '/privacy' ],
+    [ profile              => 'guest',  '/u/perf_user_2' ],
+    [ tags                 => 'guest',  '/tags' ],
+    [ public_feed          => 'guest',  '/feed.atom' ],
+    [ sitemap              => 'guest',  '/sitemap.xml' ],
+    [ thread_archive       => 'guest',  "/t/$THREAD_ID/archive.mbox" ],
+    [ category_archive     => 'guest',  "/c/$CATEGORY_ID/archive.mbox" ],
 );
 
 exit main(@ARGV);
@@ -206,11 +228,20 @@ sub _bench ( $dsn, $created, $option ) {
         DB::finish_profile();
     }
 
+    # End application connections before main drops its owned database.
+    # Cached statements must not outlive DROP DATABASE ... WITH (FORCE).
+    my $controller = $app->build_controller;
+    $controller->gp_schema->storage->disconnect;
+
     return {
         iterations => $option->{iterations},
         warmup     => $option->{warmup},
         perl       => "$PERL_VERSION",
         pages      => \@rows,
+        dataset    =>
+'medium: 120 threads, 1800 posts, 25 seeded users plus a registered benchmark member; member-specific inboxes/lists start empty',
+        cache =>
+'SSR page cache bypassed; application and PostgreSQL caches warmed by warmup requests',
     };
 }
 
@@ -303,21 +334,28 @@ sub _measure_page ( $client, $label, $path, $render, $option ) {
     if ($profiling) {
         DB::enable_profile();
     }
-    my ( @request, @rendering );
-    my ( $bytes,   $renders ) = ( 0, 0 );
+    my ( @request, @rendering, @database, @queries, @non_database );
+    my ( $bytes, $renders ) = ( 0, 0 );
     for ( 1 .. $option->{iterations} ) {
-        my ( $elapsed, $rendered, $size, $count ) =
+        my ( $elapsed, $rendered, $size, $count, $stats ) =
           _request( $client, $path, $render );
         push @request,   $elapsed;
         push @rendering, $rendered;
+        push @database,  $stats->{db_duration_ms};
+        push @queries,   $stats->{queries};
+        push @non_database,
+          max( 0, $elapsed * $MILLISECONDS - $stats->{db_duration_ms} );
         ( $bytes, $renders ) = ( $size, $count );
     }
     if ($profiling) {
         DB::disable_profile();
     }
 
-    @request   = sort { $a <=> $b } @request;
-    @rendering = sort { $a <=> $b } @rendering;
+    @request      = sort { $a <=> $b } @request;
+    @rendering    = sort { $a <=> $b } @rendering;
+    @database     = sort { $a <=> $b } @database;
+    @queries      = sort { $a <=> $b } @queries;
+    @non_database = sort { $a <=> $b } @non_database;
     return {
         page              => $label,
         path              => $path,
@@ -327,6 +365,12 @@ sub _measure_page ( $client, $label, $path, $render, $option ) {
         request_p95_ms    => _ms( percentile( \@request,   $P95 ) ),
         render_median_ms  => _ms( percentile( \@rendering, $P50 ) ),
         render_p95_ms     => _ms( percentile( \@rendering, $P95 ) ),
+        db_median_ms => 0 + sprintf( '%.3f', percentile( \@database, $P50 ) ),
+        db_p95_ms    => 0 + sprintf( '%.3f', percentile( \@database, $P95 ) ),
+        non_db_median_ms => 0 +
+          sprintf( '%.3f', percentile( \@non_database, $P50 ) ),
+        queries_median => percentile( \@queries, $P50 ),
+        queries_max    => max(@queries),
     };
 }
 
@@ -339,11 +383,12 @@ sub _request ( $client, $path, $render ) {
     my $elapsed = clock_gettime(CLOCK_MONOTONIC) - $started;
     my $code    = $tx->res->code // 0;
     croak "GET $path answered $code" if $code != $HTTP_OK;
+    my $observer = $client->app->build_controller->gp_db_query_stats;
+    my $stats    = $observer->last_request;
+    croak "GET $path has no database timing observation" if !$stats;
 
-    return (
-        $elapsed,              $render->{elapsed},
-        length $tx->res->body, $render->{renders}
-    );
+    return ( $elapsed, $render->{elapsed}, length $tx->res->body,
+        $render->{renders}, $stats );
 }
 
 sub _ms ($seconds) {
@@ -373,13 +418,14 @@ sub _text ($report) {
     my $text =
       sprintf "render bench: %d requests per page after %d warm-up (%s)\n",
       $report->{iterations}, $report->{warmup}, $report->{database};
-    $text .= sprintf "%-14s %10s %10s %10s %10s %8s %8s\n", 'page',
-      'req p50', 'req p95', 'render p50', 'render p95', 'renders', 'KiB';
+    $text .= sprintf "%-22s %10s %10s %10s %10s %10s %10s %8s %8s\n", 'page',
+      'req p50', 'req p95', 'render p50', 'render p95', 'DB p50', 'other p50',
+      'queries', 'KiB';
     for my $row ( @{ $report->{pages} } ) {
-        $text .= sprintf "%-14s %10s %10s %10s %10s %8d %8.1f\n",
+        $text .= sprintf "%-22s %10s %10s %10s %10s %10s %10s %8d %8.1f\n",
           $row->{page},
           @{$row}{
-            qw(request_median_ms request_p95_ms render_median_ms render_p95_ms renders)
+            qw(request_median_ms request_p95_ms render_median_ms render_p95_ms db_median_ms non_db_median_ms queries_max)
           },
           $row->{bytes} / $KIBIBYTE;
     }

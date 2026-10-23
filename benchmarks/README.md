@@ -16,6 +16,73 @@ implemented in Perl. Bootstrap and failure reporting use only core modules;
 application/database commands use the existing locked Carton tree. The separate
 [Sunday extreme workload](EXTREME.md) adds bounded mixed/soak evidence as artifacts.
 
+## Operation diagnostics
+
+`script/benchmark-operations` adds the complete PostgreSQL integration tier as
+a diagnostic workload, covering authenticated requests, writes, identity,
+administration, moderation, attachments, privacy, discovery, notifications,
+search and background processing wherever those workflows exercise them.
+It instruments the actual SQL execution boundary and HTTP request observer;
+it does not substitute fake services or invent arguments for stored functions.
+New routes and SQL catalogue entries appear automatically in the coverage inventory.
+
+```sh
+make benchmark-operations BENCHMARK_OUTPUT=artifacts/operations-001
+script/gpforum-carton exec script/benchmark-operations \
+  --output artifacts/operations-replies \
+  --test t/integration/postgres-sql-function-forum-writes.t \
+  --repetitions 3
+script/gpforum-carton exec script/benchmark-operations --inventory
+```
+
+Each run requires a new output directory, starts socket-only temporary
+PostgreSQL clusters and discards inherited database DSNs. It owns its test
+databases and never points at the running forum. The default is one test
+process at a time; `--jobs N` trades diagnostic isolation for run time.
+The performance workflow runs this in a separate job on main pushes and
+manual/weekly runs, outside the HTTP load harness's deadline.
+
+`operations.json` reports count, total, mean, nearest-rank p50/p95/p99/max,
+HTTP database and remaining application time, query counts, contributing
+tests and the slowest sample's test. SQL returns/exceptions and individual
+HTTP status codes have separate distributions. First observations are kept
+apart from subsequent observations per process, operation and outcome; these
+are not a guarantee of cold or warm caches. Fewer than 20 samples are flagged.
+The coverage lists **missing operations** and operations without a 2xx HTTP
+response or a nonexceptional SQL return. A legitimate form redirect remains
+a 3xx measurement; a SQL return can still be a rejected domain command.
+Workflow assertions, not HTTP status alone, determine test correctness.
+`status=ok` means collection and assertions passed, not complete operation coverage.
+
+The report is diagnostic: integration scenarios use different data sizes,
+deliberate errors, races and injected failures. SQL time includes DBI and
+transport. HTTP time covers application dispatch, excluding client/network;
+trace recording adds overhead outside the measured SQL call. Do not compare
+these percentiles to the controlled Hypnotoad load baseline. Use the recorded
+test to reproduce a slow path, then profile that path on a fixed seed and run
+the load suite. External services remain governed by the integration tests'
+opt-ins; a skipped ClamAV, standby or external-mail test is not capacity evidence.
+`tests-*.log` retains the TAP result and explicit skips; private per-process
+JSONL traces omit SQL parameters, URLs, request bodies and exception messages.
+Rebuild aggregates without rerunning tests with `--output DIR --summarize`.
+This report has its own format and does not change the load evidence schema below.
+
+For repeated measurements on one fixed dataset, `script/bench-render` now
+also measures member lists, settings/security/privacy, messages, discovery and
+thread/category mbox exports (28 scenarios). Every request must return 200.
+It reports request, database, template and remaining time plus query counts:
+
+```sh
+GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=/path/to/socket' \
+  script/gpforum-carton exec script/bench-render --iterations 50 --warmup 5 --json
+```
+
+This command creates and drops its own migrated medium-seed database.
+The benchmark member's private lists start empty; populated inboxes and
+write lifecycles remain covered by the integration diagnostic suite.
+Use `--page category_archive` or another label to isolate a measurement;
+`--nytprof /tmp/archive.nytprof` profiles only the measured requests, after warmup.
+
 ## When measurements run
 
 | Mode | Trigger | HTTP workload | Other evidence |

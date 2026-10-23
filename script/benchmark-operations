@@ -1,0 +1,145 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+use v5.40;
+use Carp qw(croak);
+use Const::Fast;
+use English    qw(-no_match_vars);
+use File::Path qw(make_path);
+use File::Spec;
+use FindBin;
+use Getopt::Long qw(GetOptions);
+use JSON::MaybeXS;
+use List::Util  qw(any);
+use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
+use lib "$FindBin::Bin/lib", "$FindBin::Bin/../lib";
+use GPForum::Performance::Operations qw(summarize inventory);
+
+our $VERSION = '0.001';
+const my $EXIT_SHIFT  => 8;
+const my $SIGNAL_MASK => 127;
+exit main();
+
+sub main {
+    my $option = _options();
+    my $json   = JSON::MaybeXS->new( canonical => 1, pretty => 1 );
+    return 0 if _print_only( $option, $json );
+    my $output = File::Spec->rel2abs( $option->{output} );
+    croak 'Refusing an existing output directory; use a new run directory'
+      if -e $output;
+    my $tests = _tests($option);
+    make_path("$output/traces");
+    my $started = clock_gettime(CLOCK_MONOTONIC);
+    my @runs;
+
+    for my $repeat ( 1 .. $option->{repetitions} ) {
+        push @runs, _run( $output, $option, $tests, $repeat );
+    }
+    my $report = summarize("$output/traces");
+    $report->{runs}             = \@runs;
+    $report->{jobs}             = $option->{jobs};
+    $report->{duration_seconds} = clock_gettime(CLOCK_MONOTONIC) - $started;
+    my $failed = any { $_->{exit_code} || $_->{signal} } @runs;
+    $report->{status} =
+      @{ $report->{measurements} } && !$failed ? 'ok' : 'fail';
+    _write( "$output/operations.json", $json->encode($report) );
+    print $json->encode(
+        {
+            status           => $report->{status},
+            coverage         => $report->{coverage},
+            report           => "$output/operations.json",
+            duration_seconds => $report->{duration_seconds}
+        }
+    ) or croak 'Cannot write benchmark summary';
+    return $report->{status} eq 'ok' ? 0 : 1;
+}
+
+sub _options {
+    my %option = ( jobs => 1, repetitions => 1 );
+    GetOptions( \%option, 'output=s', 'jobs=i', 'repetitions=i', 'test=s@',
+        'inventory', 'summarize', 'help' )
+      or croak 'Invalid benchmark options';
+    croak 'Use --output DIR and positive jobs/repetitions'
+      if @ARGV || $option{jobs} < 1 || $option{repetitions} < 1;
+    croak 'Use --output DIR'
+      if !$option{help} && !$option{inventory} && !$option{output};
+    return \%option;
+}
+
+sub _print_only ( $option, $json ) {
+    if ( $option->{help} ) {
+        print
+"Usage: script/gpforum-carton exec script/benchmark-operations --output DIR [--test t/integration/FILE.t] [--jobs 1] [--repetitions 1]\nRuns all PostgreSQL integration workflows by default, on temporary clusters. DIR must be new. --inventory lists the current operation catalogue. --summarize rebuilds a report from DIR/traces.\n"
+          or croak 'Cannot write usage';
+        return 1;
+    }
+    if ( $option->{inventory} ) {
+        print $json->encode( inventory() ) or croak 'Cannot write inventory';
+        return 1;
+    }
+    my $output = File::Spec->rel2abs( $option->{output} );
+    if ( $option->{summarize} ) {
+        my $report = summarize("$output/traces");
+        if ( -f "$output/operations.json" ) {
+            open my $previous, '<:raw', "$output/operations.json"
+              or croak 'Cannot open previous report';
+            my $text =
+              do { local $INPUT_RECORD_SEPARATOR = undef; <$previous> };
+            close $previous or croak 'Cannot close previous report';
+            $report = { %{ $json->decode($text) }, %{$report} };
+        }
+        _write( "$output/operations.json", $json->encode($report) );
+        return 1;
+    }
+    return 0;
+}
+
+sub _tests ($option) {
+    my @tests = @{ $option->{test} // ['t/integration'] };
+    for my $test (@tests) {
+        croak 'Tests must be existing files/directories below t/integration'
+          if $test !~ m{\At/integration(?:/[[:alnum:]_.-]+)*\z}msx
+          || $test =~ m{(?:\A|/)[.][.](?:/|\z)}msx
+          || !-e $test;
+    }
+    return \@tests;
+}
+
+sub _run ( $output, $option, $tests, $repeat ) {
+    local %ENV = %ENV;
+
+    # Avoid accidentally using a server configured in the caller's shell.
+    delete @ENV{
+        qw(GPFORUM_DATABASE_DSN GPFORUM_TEST_DSN GPFORUM_DATABASE_USER GPFORUM_DATABASE_PASSWORD GPFORUM_POSTGRES_CONTROLLED_TEST)
+    };
+    local $ENV{GPFORUM_BENCHMARK_TRACE_DIR} = "$output/traces";
+    my $pid = fork;
+    croak "Cannot fork benchmark: $OS_ERROR" if !defined $pid;
+    if ( !$pid ) {
+        open STDOUT, '>', "$output/tests-$repeat.log"
+          or croak 'Cannot open test log';
+        open STDERR, '>&', \*STDOUT or croak 'Cannot redirect diagnostics';
+        exec {$EXECUTABLE_NAME} $EXECUTABLE_NAME, '-S', 'prove', '-l', '-j',
+          $option->{jobs},
+          '-It/lib', '--exec',
+'perl -Ilib -It/lib -Iscript/lib -MGPForum::Test::TemporaryPostgres -MGPForum::Performance::OperationProbe',
+          '-r', @{$tests}
+          or croak "Cannot execute prove: $OS_ERROR";
+    }
+    waitpid $pid, 0;
+    return {
+        repetition => $repeat,
+        exit_code  => $CHILD_ERROR >> $EXIT_SHIFT,
+        signal     => $CHILD_ERROR & $SIGNAL_MASK,
+        log        => "tests-$repeat.log"
+    };
+}
+
+sub _write ( $path, $text ) {
+    open my $file, '>:raw', $path or croak "Cannot write report: $OS_ERROR";
+    print {$file} $text or croak "Cannot write report: $OS_ERROR";
+    close $file         or croak "Cannot close report: $OS_ERROR";
+    return undef;
+}

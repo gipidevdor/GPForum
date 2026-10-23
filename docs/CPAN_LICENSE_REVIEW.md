@@ -25,6 +25,8 @@ requirements without review.
 | Email::Address::XS | runtime | Perl 5 license | Email::Sender::Simple address parsing | allowed |
 | Email::Simple | runtime | Perl 5 license | message construction in the identity mailer | allowed |
 | Email::MIME | runtime | Perl 5 license | inbound reply MIME parsing; pinned to 1.954, with message size, part count and nesting bounded by MailIn | allowed |
+| Mail::DKIM | runtime | Perl 5 license | DKIM signing and verification; pinned to 1.20240923, using the host OpenSSL through Crypt::OpenSSL::RSA and CryptX for Ed25519 | allowed |
+| Net::DNS | runtime | MIT (distribution metadata) | DNS lookups for DKIM verification; pinned to 1.57; retain the distribution's copyright and permission notices | allowed |
 | Authen::SASL | runtime | Perl 5 license | SMTP AUTH mechanisms Net::SMTP loads on demand when GPFORUM_SMTP_USERNAME is set | allowed |
 | IO::Socket::SSL | runtime | Perl 5 license | TLS for SMTP (STARTTLS or implicit, the default under GPFORUM_SMTP_TLS) and doctor's https probes; brings Net::SSLeay (Artistic-2.0), XS built against the host's OpenSSL, whose security updates come from the OS | allowed |
 | Const::Fast | runtime | Perl 5 license | immutable scalar helper | allowed |

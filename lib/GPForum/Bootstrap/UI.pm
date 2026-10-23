@@ -67,6 +67,12 @@ sub register {
     $application->helper( ui_render_policy => sub { return $render_policy; } );
     $application->helper( ui_presenter     => sub { return $presenter; } );
     $application->helper(
+        ui_realtime_enabled => sub {
+            my ($controller) = @_;
+            return $controller->gp_config->realtime_listener_enabled ? 1 : 0;
+        }
+    );
+    $application->helper(
         ui_theme_registry => sub { return $theme_registry; } );
     $application->helper(
         gp_admin_view_model => sub { return $admin_view_model; } );

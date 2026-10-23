@@ -62,3 +62,25 @@ Future bot/mobile integrations should use a dedicated token boundary:
 - rate limits per token, actor, and IP class.
 
 Session cookies remain the browser default.
+
+### Notification badge browser route
+
+`GET /notifications/summary` returns `{ "unread_count": 3 }` for the signed-in
+member. The existing permission-aware unread query stops at 100; the interface
+shows `99+` at that threshold. No inbox bodies or recipient identifiers are
+returned. Responses use `Cache-Control: private, no-store`; anonymous requests
+return 401, rate-limited requests 429, and unavailable storage 503. The route
+shares the existing notification HTTP limit (120 requests per 60 seconds).
+
+The navigation normally subscribes to the signed-in member's notification
+channel over the same-origin `/realtime` WebSocket. Its snapshot and subsequent
+`notification.badge` frames update the badge without HTTP polling. The page
+advertises this transport only when the realtime listener is enabled. See
+[the browser client lifecycle](docs/realtime.md#browser-notification-client).
+
+If WebSocket is unsupported, unavailable or denied, this summary is the
+fallback, at most once per minute while visible. Requests coalesce; hidden
+tabs release their socket and timers. The inbox reuses its server-rendered
+count until a snapshot or fallback updates it. An HTTP response begun before
+a push cannot replace the newer count. Temporary failures retain the last
+known badge; no notification data is persisted in browser storage.

@@ -1,0 +1,62 @@
+{
+  "scope": "In-process registry only; no database or network throughput claim",
+  "baseline_commit": "2036a63a8f64f78ac6b5d32ce2ac2d3b5821404c",
+  "baseline_registry_sha256": "4bbd8c048c97b7043c91fe2c637640e0a3e58c91279716f1f144dcec719f855b",
+  "optimized_registry_sha256": "a6d5336b35730fc7a64d6ee206882aa2b267142c884fb2bccd2a57d017750b4e",
+  "comparisons": [
+    {
+      "connections": 100,
+      "register_seconds": {
+        "baseline_median": 0.0025690000038594,
+        "optimized_median": 0.00100500008556992,
+        "speedup": 2.5562186916656424
+      },
+      "lookup_seconds": {
+        "baseline_median": 0.0390960000222549,
+        "optimized_median": 0.00442699994891882,
+        "speedup": 8.831262813048616
+      },
+      "cleanup_seconds": {
+        "baseline_median": 8.59999563544989e-05,
+        "optimized_median": 0.000272999983280897,
+        "speedup": 0.31501817443707036
+      }
+    },
+    {
+      "connections": 1000,
+      "register_seconds": {
+        "baseline_median": 0.192031000042334,
+        "optimized_median": 0.0103699999162927,
+        "speedup": 18.517936508430132
+      },
+      "lookup_seconds": {
+        "baseline_median": 0.521638000034727,
+        "optimized_median": 0.00457200000528246,
+        "speedup": 114.09405061942908
+      },
+      "cleanup_seconds": {
+        "baseline_median": 0.000866999966092408,
+        "optimized_median": 0.00273199996445328,
+        "speedup": 0.31734991851140437
+      }
+    },
+    {
+      "connections": 5000,
+      "register_seconds": {
+        "baseline_median": 4.58614499995019,
+        "optimized_median": 0.049341999925673,
+        "speedup": 92.94607042395106
+      },
+      "lookup_seconds": {
+        "baseline_median": 2.74431600002572,
+        "optimized_median": 0.00449800002388656,
+        "speedup": 610.1191608386109
+      },
+      "cleanup_seconds": {
+        "baseline_median": 0.00419000000692904,
+        "optimized_median": 0.0134190000826493,
+        "speedup": 0.3122438319638055
+      }
+    }
+  ]
+}

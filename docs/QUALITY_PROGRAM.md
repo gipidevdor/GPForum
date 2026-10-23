@@ -1,8 +1,8 @@
 # GPForum Quality Program
 
-The objective is 10/10 on every engineering index, with absolute priority on
-Perl software-engineering craft, system-administrator ergonomics, and the
-aesthetics proper to each technology involved.
+This program defines the engineering checks and remediation work for GPForum.
+It prioritizes Perl code quality, reliable PostgreSQL operations, accessible
+interfaces and clear administration workflows.
 
 This document is the audit verdict and the work plan derived from it. It is
 adversarial by design: every claim below is anchored to a file and a line that

@@ -66,6 +66,7 @@
           // Append rather than replacing a selection or an unsaved draft.
           field.setRangeText(insertion, field.value.length, field.value.length, "end");
           field.dispatchEvent(new Event("input", { bubbles: true }));
+          field.dispatchEvent(new Event("composer:reveal"));
           field.focus();
           status.textContent = label("Selection added to your reply.", "Selezione aggiunta alla risposta.");
         });

@@ -7,7 +7,7 @@ inspected. Draft/preview rows were updated against the feature change based on
 document becomes an accepted architecture decision or a shipped capability by
 being listed here.
 
-This backlog reconciles the requested A–L feature inventory with application
+This backlog reconciles the A–L product inventory with application
 routes, schema/migrations, services, workers, templates, assets and existing
 tests. The initial inventory is a static repository review; validation of the
 draft/preview increment is recorded in the [composer guide][draft-flow]. This
@@ -38,14 +38,10 @@ The two draft rows share PB-10; typing indicators and collaborative editing are
 separate deliverables. Related rows share packages without counting as duplicate
 features.
 
-Comparison products inform user needs, not an assertion that every feature is
-standard in every installation. Discourse describes its capabilities on its
-[feature page](https://www.discourse.org/features); Flarum and NodeBB document
-extension/plugin installation as part of their ecosystems
-([Flarum](https://docs.flarum.org/2.x/extensions/),
-[NodeBB](https://docs.nodebb.org/configuring/plugins/)). Version, enabled
-extensions and hosting configuration must be specified for any future parity
-claim. No competitor source code or assets were imported for this review.
+Features are evaluated against GPForum's reading, writing, moderation and
+administration workflows. Availability depends on the implemented routes,
+permissions and deployment configuration. Each proposed increment must state
+its own scope and acceptance criteria.
 
 ## A. Engagement and conversation
 
@@ -176,9 +172,9 @@ claim. No competitor source code or assets were imported for this review.
 | J02 | Public versioned write API | Partial: browser writes can respond in JSON using session/CSRF; public `/api/v1`, integration tokens and a stable documented contract are pending. [api], [mvp] | PB-15 |
 | J03 | Outgoing webhooks | Not found as a wired delivery workflow. [workers], [routes] | PB-15 |
 | J04 | Public plugin / extension API | Not found. The unwired registry, manifest and hook modules were deleted on 2026-10-15. [adr-0083] | PB-15 / Later |
-| J05 | phpBB import | Not found. The unwired job, manifest and legacy-ID services were deleted on 2026-10-15. [adr-0081] | PB-09 |
-| J06 | Discourse import | Not found. [adr-0081] | PB-09 / Later |
-| J07 | Flarum / NodeBB / vBulletin import | Not found. [adr-0081] | PB-09 / Later |
+| J05 | Legacy SQL forum import | Not found. The unwired job, manifest and legacy-ID services were deleted on 2026-10-15. [adr-0081] | PB-09 |
+| J06 | JSON community export import | Not found. [adr-0081] | PB-09 / Later |
+| J07 | Additional legacy import adapters | Not found. [adr-0081] | PB-09 / Later |
 | J08 | Whole-community migration export | Partial: operational backup and account export exist; a portable forum-wide pack/reimport workflow was not found. [export-builder], [backup] | PB-09 |
 | J09 | Native iOS / Android app | Not found. [api], [manifest] | PB-22 / Defer |
 | J10 | Advanced PWA install/offline | Foundation: standalone webmanifest exists; service-worker/offline workflow was not found. [manifest] | PB-16 |
@@ -209,10 +205,11 @@ claim. No competitor source code or assets were imported for this review.
 
 ## Proposed priority roadmap
 
-The requested eight high-value gaps remain the first product candidates:
-likes/reactions, DMs, tags, polls, stronger authentication, one major-forum
-importer, spam controls and email digests. Sequencing below reflects dependency
-and privacy risk, rather than a promise of dates or a claim of full parity.
+The priority areas are engagement, direct messages, tags, polls,
+authentication, legacy migration, spam controls and email digests. The inventory
+above records which increments have shipped and which remain open. Sequencing
+below reflects dependencies and privacy risk; it does not establish delivery
+dates or completion.
 
 | Wave | Proposed outcome | Dependencies / exit criteria |
 | --- | --- | --- |
@@ -275,13 +272,10 @@ does not complete a product workflow.
 
 ## Original implementation, licensing and data protection
 
-The requested constraint applies to every package: implement from GPForum's own
-requirements and architecture. Use public competitor documentation to understand
-behavior; do not copy code, templates, prose, branding, screenshots, icons or
-other assets without an applicable permission/license and recorded obligations.
-The EU software directive distinguishes ideas/principles from protected program
-expression; that distinction is not blanket permission to reuse implementation
-or other protected material. [Directive 2009/24/EC, Article 1](https://eur-lex.europa.eu/eli/dir/2009/24/oj/eng)
+Every package follows GPForum's requirements and architecture. Reused code,
+templates, prose, branding, screenshots, icons and other assets require an
+applicable license or permission, with obligations recorded alongside their
+provenance.
 
 For each introduced dependency or asset, record exact origin/version, license,
 required notices and distribution obligations, and review compatibility with

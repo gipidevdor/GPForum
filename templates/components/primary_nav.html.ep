@@ -12,7 +12,7 @@
     <a href="<%= ui_path('bookmarks') %>"<%== $current->('bookmarks') %>><%= t('nav.bookmarks') %></a>
     <a href="<%= ui_path('drafts') %>"<%== $current->('drafts') %>><%= t('nav.drafts') %></a>
     <a href="<%= ui_path('feed') %>"<%== $current->('feed') %>><%= t('nav.feed') %></a>
-    <a href="<%= ui_path('notifications') %>"<%== $current->('notifications') %>><%= t('nav.notifications') %></a>
+    <a href="<%= ui_path('notifications') %>" data-notification-link data-summary-url="<%= ui_path('notifications_summary') %>" data-notification-label="<%= t('nav.notifications') %>"<% if (ui_realtime_enabled) { %> data-realtime-url="<%= ui_path('realtime') %>" data-realtime-channel="notifications:<%= session('user_id') %>"<% } %><%== defined stash('unread_count') ? ' data-initial-count="' . (0 + stash('unread_count')) . '"' : q{} %><%== $current->('notifications') %>><%= t('nav.notifications') %> <span class="notification-count" data-notification-count aria-hidden="true" hidden></span></a>
     <a href="<%= ui_path('messages') %>"<%== $current->('messages') %>><%= t('nav.messages') %></a>
   % }
 </nav>

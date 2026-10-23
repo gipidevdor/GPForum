@@ -13,6 +13,28 @@ our $VERSION = '0.001';
 has clock       => sub { return GPForum::Service::Clock->new; };
 has connections => sub { return {}; };
 
+# Secondary indexes contain ids and counters, never another socket reference.
+# Lazy construction also supports a registry initialized with existing rows.
+has channel_connections => sub ($self) {
+    my %channels;
+    for my $row ( values %{ $self->connections } ) {
+        for my $channel ( keys %{ $row->{subscriptions} } ) {
+            $channels{$channel}{ $row->{connection_id} } = 1;
+        }
+    }
+    return \%channels;
+};
+has user_connection_counts => sub ($self) {
+    my %counts;
+    for my $row ( values %{ $self->connections } ) {
+        my $user_id = _user_id( $row->{actor} );
+        if ( defined $user_id ) {
+            $counts{$user_id}++;
+        }
+    }
+    return \%counts;
+};
+
 # Per process, not per user across the cluster: a memory bound on what one
 # user can hold open in one worker, so a user may have this many sockets on
 # every worker of every node. The cross-node control is the PostgreSQL-backed
@@ -23,6 +45,9 @@ has max_subscriptions_per_connection => 32;
 
 sub register ( $self, $connection_id, $actor, $connection ) {
     return undef if !$self->can_register($actor);
+    if ( $self->connection($connection_id) ) {
+        $self->unregister($connection_id);
+    }
 
     my $row = {
         connection_id => $connection_id,
@@ -32,11 +57,36 @@ sub register ( $self, $connection_id, $actor, $connection ) {
         subscriptions => {},
     };
     $self->connections->{$connection_id} = $row;
+    my $user_id = _user_id($actor);
+    if ( defined $user_id ) {
+        $self->user_connection_counts->{$user_id}++;
+    }
 
     return $row;
 }
 
 sub unregister ( $self, $connection_id ) {
+    my $row = $self->connection($connection_id);
+    return undef if !$row;
+
+    # Build before removing the row: seeded registries must not decrement a
+    # count that was already initialized without it.
+    my $channels = $self->channel_connections;
+    my $counts   = $self->user_connection_counts;
+    for my $channel ( keys %{ $row->{subscriptions} } ) {
+        delete $channels->{$channel}{$connection_id};
+        if ( !keys %{ $channels->{$channel} } ) {
+            delete $channels->{$channel};
+        }
+    }
+    my $user_id = _user_id( $row->{actor} );
+    if ( defined $user_id ) {
+        $counts->{$user_id}--;
+        if ( !$counts->{$user_id} ) {
+            delete $counts->{$user_id};
+        }
+    }
+
     return delete $self->connections->{$connection_id};
 }
 
@@ -53,6 +103,7 @@ sub subscribe ( $self, $connection_id, $channel ) {
     }
 
     $row->{subscriptions}{$channel} = 1;
+    $self->channel_connections->{$channel}{$connection_id} = 1;
 
     return { ok => 1, row => $row };
 }
@@ -62,8 +113,9 @@ sub connection ( $self, $connection_id ) {
 }
 
 sub subscribers ( $self, $channel ) {
-    return
-      grep { $_->{subscriptions}{$channel} } values %{ $self->connections };
+    my $connections = $self->connections;
+    my $subscribers = $self->channel_connections->{$channel} // {};
+    return map { $connections->{$_} } keys %{$subscribers};
 }
 
 # Connections with at least one channel of a family, such as notifications.
@@ -101,8 +153,7 @@ sub can_register ( $self, $actor ) {
     my $user_id = _user_id($actor);
     return 1 if !defined $user_id;
 
-    my $count = grep { ( _user_id( $_->{actor} ) || q{} ) eq $user_id }
-      values %{ $self->connections };
+    my $count = $self->user_connection_counts->{$user_id} // 0;
 
     return $count < $self->max_connections_per_user ? 1 : 0;
 }
@@ -142,7 +193,12 @@ Version 0.001.
 An in-memory table of the realtime connections open in this process, kept by
 L<GPForum::Service::Realtime::Hub>: for each connection id, the actor, the
 connection object, when it connected, and the set of channels it subscribed
-to. It answers who is subscribed to a channel, or to any channel of a family
+to. Per-channel connection-id sets make a recipient lookup proportional to
+that channel's subscribers rather than every connection. Per-user counters
+make quota checks constant-time. Disconnecting removes both index entries,
+including empty channels and user counters, so churn does not retain them.
+Indexes are derived lazily when a registry is seeded with existing rows.
+It answers who is subscribed to a channel, or to any channel of a family
 such as C<notifications>, so the hub can fan an event out.
 
 It also bounds memory: at most C<max_connections_per_user> (8) connections

@@ -24,6 +24,8 @@
     <script src="<%= ui_asset_url('similar.js') %>" defer></script>
     <script src="<%= ui_asset_url('thread-navigation.js') %>" defer></script>
     <script src="<%= ui_asset_url('thread-actions.js') %>" defer></script>
+    <script src="<%= ui_asset_url('discussion-workspace.js') %>" defer></script>
+    <script src="<%= ui_asset_url('notifications.js') %>" defer></script>
     % my $page_metadata = stash('page_metadata') || {};
     % if ($page_metadata->{description}) {
       <meta name="description" content="<%= $page_metadata->{description} %>">

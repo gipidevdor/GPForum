@@ -81,7 +81,7 @@ native plus JavaScript EN/IT keyboard flows. Existing readiness, performance,
 migration and privacy gates remain required. This decision adds no application
 or runtime dependency. Node's built-in test runner is a development/CI tool for
 the progressive composer behavior, with no npm packages or application build
-step. No competitor implementation or assets are imported.
+step.
 
 ## Related Decisions and Implementation
 

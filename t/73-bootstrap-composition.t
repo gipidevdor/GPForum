@@ -374,6 +374,7 @@ sub _helper_names {
       ui_presenter
       ui_render_policy
       ui_return_to
+      ui_realtime_enabled
       ui_theme
       ui_theme_color
       ui_theme_color_scheme

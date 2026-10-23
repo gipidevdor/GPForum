@@ -5,6 +5,7 @@ package GPForum::Service::Realtime::Hub;
 
 use Const::Fast;
 use List::Util   qw(uniq);
+use Mojo::JSON   qw(encode_json);
 use Scalar::Util qw(weaken);
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -206,8 +207,9 @@ sub broadcast ( $self, $channel, $payload ) {
     $self->stats->{broadcast}  += 1;
     $self->stats->{broadcasts} += 1;
 
+    my $prepared = {};
     for my $subscriber (@subscribers) {
-        my $sent = _send_json( $subscriber->{connection}, $payload );
+        my $sent = _send_json( $subscriber->{connection}, $payload, $prepared );
         if ($sent) {
             $delivered++;
         }
@@ -395,12 +397,23 @@ sub _user_id ($actor) {
     return ref $actor eq 'HASH' ? $actor->{user_id} : $actor;
 }
 
-sub _send_json ( $connection, $payload ) {
+sub _send_json ( $connection, $payload, $prepared = undef ) {
     return undef if !$connection;
 
     my $sent;
     try {
-        $sent = $connection->send( { json => $payload } );
+        if ( $connection->can('send_realtime') ) {
+            $prepared //= {};
+            if ( !exists $prepared->{text} ) {
+                my $bytes = encode_json($payload);
+                $prepared->{bytes} = length $bytes;
+                $prepared->{text}  = $bytes;
+            }
+            $sent = $connection->send_realtime($prepared);
+        }
+        else {
+            $sent = $connection->send( { json => $payload } );
+        }
     }
     catch ($error) {
         return undef;
@@ -541,7 +554,10 @@ C<< { ok => 1, channel, reason } >> with the authorizer's reason.
 Takes a channel name and the event to send, and sends it as JSON to every
 subscriber of the channel left after the readability filters. Returns
 C<< { ok => 1, channel, delivered, failed } >>; a send that dies or returns
-false counts as failed and is not raised.
+false counts as failed and is not raised. Native WebSocket recipients share
+one encoded JSON text per broadcast, produced only when a recipient needs
+it. Their controllers bound pending output and close overloaded sockets
+with code 1013; an overloaded send counts as failed.
 
 =head2 send_badge_snapshot
 

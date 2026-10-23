@@ -320,6 +320,9 @@ sub register ( $, %input ) {
     $routes->post('/moderation/suspensions/:suspension_id/revoke')
       ->to('Moderation::Suspensions#revoke_suspension')
       ->name('moderation_suspension_revoke');
+    $routes->get('/notifications/summary')
+      ->to('Notifications#summary')
+      ->name('notifications_summary');
     $routes->get('/notifications')
       ->to('Notifications#inbox')
       ->name('notifications');

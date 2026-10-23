@@ -4,6 +4,7 @@
 package GPForum::Controller::Realtime;
 
 use Const::Fast;
+use Scalar::Util qw(weaken);
 use GPForum::Web::Access;
 use GPForum::Web::RealtimeAccess;
 use GPForum::Web::RealtimePayload;
@@ -12,9 +13,16 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-const my $HTTP_FORBIDDEN => 403;
-const my $HTTP_PAYLOAD   => 413;
-const my $HTTP_TOO_MANY  => 429;
+const my $HTTP_FORBIDDEN     => 403;
+const my $HTTP_PAYLOAD       => 413;
+const my $HTTP_TOO_MANY      => 429;
+const my $MAX_PENDING_FRAMES => 32;
+const my $MAX_PENDING_BYTES  => 262_144;
+const my $TRY_AGAIN_LATER    => 1013;
+
+has realtime_pending_frames => 0;
+has realtime_pending_bytes  => 0;
+has realtime_overloaded     => 0;
 
 has realtime_access => sub { return GPForum::Web::RealtimeAccess->new; };
 
@@ -166,6 +174,40 @@ sub _subscribe ( $self, $input ) {
     return $self;
 }
 
+# Bound queued realtime output independently for each socket. A drained
+# transport releases its budget; a stalled transport reconnects for a fresh
+# snapshot instead of retaining an unbounded history of obsolete hints.
+# The text field is already UTF-8 bytes, as required by Mojo's text hash.
+sub send_realtime ( $self, $prepared ) {
+    return undef if $self->realtime_overloaded;
+
+    my $bytes = $prepared->{bytes};
+    if (   $self->realtime_pending_frames >= $MAX_PENDING_FRAMES
+        || $self->realtime_pending_bytes + $bytes > $MAX_PENDING_BYTES )
+    {
+        $self->realtime_overloaded(1);
+        $self->finish( $TRY_AGAIN_LATER, 'realtime backlog exceeded' );
+        return undef;
+    }
+
+    $self->realtime_pending_frames( $self->realtime_pending_frames + 1 );
+    $self->realtime_pending_bytes( $self->realtime_pending_bytes + $bytes );
+    my $controller = $self;
+    weaken $controller;
+    $self->tx->send(
+        { text => $prepared->{text} },
+        sub (@) {
+            return if !$controller;
+            $controller->realtime_pending_frames(
+                $controller->realtime_pending_frames - 1 );
+            $controller->realtime_pending_bytes(
+                $controller->realtime_pending_bytes - $bytes );
+        }
+    );
+
+    return $self;
+}
+
 sub _send_error ( $self, $reason ) {
     return $self->send(
         {
@@ -237,6 +279,15 @@ state from the C<fallback> endpoints and then applies hints.
 
 Accepts the websocket after origin, authentication, rate-limit, and quota
 checks.
+
+=head2 send_realtime
+
+Accepts a prepared C<text> (UTF-8 bytes) and its C<bytes> count from the hub.
+Queues one event and releases its frame/byte budget on transport drain.
+Refuses output beyond 32 pending events or 256 KiB of event content, closes
+with code 1013, and refuses subsequent events. Returns this controller when
+accepted, undef when overloaded. These bounds exclude protocol and kernel
+buffer overhead.
 
 =head1 DIAGNOSTICS
 

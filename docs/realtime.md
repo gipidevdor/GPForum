@@ -93,6 +93,42 @@ per process). Badges come only by NOTIFY and take no place in it, so the
 badges of a large fanout do not push out the hints the backstop is about to
 read again.
 
+## Outbound fanout and slow clients
+
+The hub serializes JSON lazily once per broadcast, sharing the encoded UTF-8
+text with every native WebSocket recipient. An empty channel does no encoding.
+Readability checks still run before delivery; sharing serialized text does not
+share authorization decisions or bypass per-recipient permissions.
+
+Each controller permits at most 32 outstanding realtime events and 256 KiB
+of encoded event content. Mojolicious transport drain callbacks release both
+budgets. A socket that would exceed either budget receives close code 1013
+(`Try Again Later`) and accepts no further realtime events. Healthy sockets
+continue receiving the same broadcast; refused sends count as failures in the
+hub's existing delivery statistics. These limits bound the application's event
+backlog, not total socket memory, framing overhead, or kernel buffers.
+
+The client reconnects with its existing exponential backoff and restores the
+notification badge from the authoritative snapshot. Events are hints, not a
+replay log: disconnecting a slow reader never drops a canonical forum write.
+No compression, extra broker, or persistence layer is added for these small
+messages. `t/730-realtime-output-budget.t` exercises real Mojolicious WebSocket
+transactions, including shared encoding, Unicode, draining, limits, retry
+closure, independent healthy recipients, and callback lifetime.
+
+## Registry lookup cost
+
+Each process indexes connection ids by channel and keeps per-user connection
+counts. Recipient lookup visits only the sockets subscribed to that channel;
+quota checks do not enumerate all sockets. Disconnects remove subscriptions,
+prune empty channels and release user counters. No cluster-wide registry or
+extra database lookup is introduced.
+
+The [local registry comparison](../benchmarks/realtime-registry/README.md)
+records the workload, source fingerprints, raw repetitions, medians and cleanup
+tradeoff. Its speedups describe this in-memory workload, not total application
+throughput or supported production concurrency.
+
 ## Listener Lifecycle
 
 The listener is supervised inside each Mojolicious web process. This is
@@ -155,6 +191,39 @@ then a badge snapshot. Every badge, snapshot or change, has one shape:
 
 The count is in `payload.unread_count` only; earlier releases also copied it
 to a top-level `unread_count` on some frames.
+
+## Browser notification client
+
+`assets/js/notifications.js` connects the signed-in navigation to the existing
+same-origin `/realtime` endpoint (`wss:` on HTTPS). The template supplies the
+mounted URL and the member's own channel; guests open no socket. It advertises
+the channel only while `realtime_listener_enabled` is on (the default).
+
+The client waits for the greeting, subscribes once, then accepts badge frames
+only after acknowledgement and only for its own recipient. The first snapshot
+recovers missed changes. While subscribed and receiving its snapshot there is
+no HTTP polling and no inbox-body fetch per notification. On the inbox, a
+changed count reveals an update link instead of replacing rows being read.
+
+Connection/subscription/snapshot timeout is 10 seconds. Failed connections
+retry with exponential backoff and jitter, capped at 60 seconds. Focus events
+do not bypass that backoff. A hidden tab or page entering the back/forward
+cache releases the socket and timers; returning opens a fresh subscription.
+A session-ended close (1008) clears the badge and stops reconnecting. Permanent
+subscription denials fall back to HTTP instead of repeating the denied request.
+
+`GET /notifications/summary` is the count-only recovery path: at most one
+request per minute while visible, none while a working WebSocket supplies
+badges. Slow HTTP results cannot overwrite a newer pushed count. The native
+inbox and read forms continue to work without JavaScript.
+
+Validation: `t/js/notifications.test.cjs` drives the transport lifecycle,
+late responses and failure cases; `t/208-realtime-subscribe-snapshot.t` drives
+the real WebSocket greeting/acknowledgement/snapshot protocol; existing hub,
+listener, multiprocess and session-end tests cover the server boundaries.
+A local browser walkthrough also exercised the real controller and hub with
+an in-memory badge counter: one snapshot, one push delivered, zero summary
+requests. This is functional evidence, not a PostgreSQL load benchmark.
 
 ## Reconnect Contract
 

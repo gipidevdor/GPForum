@@ -2,7 +2,8 @@
 % title t('nav.notifications') . ' - ' . t('app.name');
 
 <section aria-labelledby="notifications-heading">
-  <%= include 'components/page_header', heading_id => 'notifications-heading', component_title => t('nav.notifications') %>
+  <%= include 'components/page_header', heading_id => 'notifications-heading', component_title => t('nav.notifications'),
+    actions => ui_actions({ href => url_for('settings')->fragment('settings-notifications-heading'), label => t('settings.title') }) %>
   % my $unread = $unread_count || 0;
   <div class="toolbar">
     <p class="ui-meta"><span class="ui-count"><%= $unread > 99 ? t('notifications.unread_many') : tc('notifications.unread_count', $unread) %></span></p>
@@ -13,6 +14,10 @@
       </form>
     % }
   </div>
+  <p class="notification-update ui-note" data-notification-update role="status" hidden>
+    <%= t('notifications.live_updates') %>
+    <a href="<%= ui_path('notifications') %>"><%= t('notifications.show_updates') %></a>
+  </p>
   % if (@{$notifications}) {
     <ol class="ui-card-list" aria-label="<%= t('notifications.inbox_label') %>">
       % for my $notification (@{$notifications}) {

@@ -11,6 +11,28 @@ our $VERSION = '0.001';
 
 const my $HTTP_OK => 200;
 
+# A badge needs only the bounded, permission-aware count, never inbox bodies.
+sub summary ($self) {
+    $self->res->headers->cache_control('private, no-store');
+    my $user_id = $self->member_user_id;
+    return if !$user_id;
+    return $self->_rate_limited
+      if !$self->_allowed( $user_id, 'notification.read' );
+
+    my $count;
+    try {
+        $count =
+          $self->gp_notification_dispatcher->unread_count_for_user( $user_id,
+            $self->gp_forum_viewer );
+    }
+    catch ($error) { return $self->_system_failure; };
+
+    return $self->render(
+        json   => { unread_count => 0 + $count },
+        status => $HTTP_OK
+    );
+}
+
 sub inbox ($self) {
     my $user_id = $self->member_user_id;
     if ( !$user_id ) {
@@ -79,6 +101,11 @@ live on L<GPForum::Controller::Notifications::Read>. Mentions live on
 L<GPForum::Controller::Notifications::Mentions>.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 summary
+
+Returns only the bounded unread count for the signed-in member, with private
+no-store caching and the notification HTTP rate limit. No inbox rows load.
 
 =head2 inbox
 

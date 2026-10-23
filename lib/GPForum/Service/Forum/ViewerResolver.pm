@@ -27,7 +27,7 @@ const my %MEMBER_STATUS => ( active => 1 );
 # global grant has neither a resource nor a space; a space grant names the
 # space; a category grant names the category.
 const my $VIEWER_SQL => join q{ },
-  'SELECT u.status,',
+  'SELECT u.status, u.trust_level,',
   'EXISTS (SELECT 1 FROM suspensions s WHERE s.user_id = u.id',
   'AND s.revoked_at IS NULL AND s.valid_from <= now()',
   'AND (s.valid_to IS NULL OR s.valid_to > now())) AS suspended,',
@@ -78,10 +78,11 @@ sub resolve ( $self, $user_id ) {
       if !$member;
 
     return $viewer_class->new(
-        listed    => $listed,
-        member    => 1,
-        moderates => $row->{moderates} ? 1 : 0,
-        user_id   => $user_id,
+        listed      => $listed,
+        member      => 1,
+        trust_level => $row->{trust_level} // 0,
+        moderates   => $row->{moderates} ? 1 : 0,
+        user_id     => $user_id,
         %{ $self->grant_scopes( $row->{grants} ) },
     );
 }
@@ -158,8 +159,9 @@ Turns a session user id into a L<GPForum::Service::Forum::Viewer> with one
 query: the account's status, an active suspension, the scopes of its
 C<category.read> grants (ADR 0102), and whether it holds the global
 C<thread.moderate> binding (the thread page's staff actions), and the
-members on its ignore and block list (ADR 0130). Pending
-accounts count as members; suspended and deleted ones do not.
+members on its ignore and block list (ADR 0130). The same statement resolves
+the account's trust level for rate limits, without a second account lookup.
+Only active accounts count as members; pending, suspended and deleted ones do not.
 
 =head1 SUBROUTINES/METHODS
 

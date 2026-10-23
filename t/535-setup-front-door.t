@@ -46,8 +46,8 @@ subtest 'the help lists setup first, in both languages' => sub {
     my $help = _in_process( { LC_ALL => 'en_US.UTF-8' }, 'help', 'setup' );
     like(
         $help->{output},
-        qr/\A Usage: [ ] gpforum [ ] setup [ ]/msx,
-        'gpforum help setup is its usage'
+qr/\A NAME .* SYNOPSIS .* Usage: [ ] gpforum [ ] setup [ ].* DESCRIPTION/msx,
+        'gpforum help setup renders usage and embedded POD'
     );
 };
 

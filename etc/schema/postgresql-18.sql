@@ -9194,6 +9194,36 @@ $$;
 
 
 --
+-- Name: forum_resolve_viewer_v7(uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_resolve_viewer_v7(p_user_id uuid) RETURNS TABLE(status text, suspended boolean, grants json, moderates boolean, listed uuid[], trust_level integer)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT v.status, v.suspended, v.grants, v.moderates, v.listed,
+    CASE WHEN v.status = 'active' AND NOT v.suspended AND u.deleted_at IS NULL
+         THEN u.trust_level ELSE 0 END
+FROM api.forum_resolve_viewer_v6(p_user_id) v
+JOIN public.users u ON u.id = p_user_id;
+$$;
+
+
+--
+-- Name: forum_resolve_viewer_v8(uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_resolve_viewer_v8(p_user_id uuid) RETURNS TABLE(status text, suspended boolean, grants json, moderates boolean, listed uuid[], trust_level integer)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.forum_resolve_viewer_v7(p_user_id);
+$$;
+
+
+--
 -- Name: forum_set_thread_tags_v1(uuid, text[], text[]); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -24761,6 +24791,20 @@ REVOKE ALL ON FUNCTION api.forum_resolve_viewer_v5(p_user_id uuid) FROM PUBLIC;
 --
 
 REVOKE ALL ON FUNCTION api.forum_resolve_viewer_v6(p_user_id uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_resolve_viewer_v7(p_user_id uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_resolve_viewer_v7(p_user_id uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_resolve_viewer_v8(p_user_id uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_resolve_viewer_v8(p_user_id uuid) FROM PUBLIC;
 
 
 --

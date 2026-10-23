@@ -7,7 +7,7 @@ use v5.40;
 
 use Const::Fast;
 use Mojo::File qw(path);
-use Mojo::JSON qw(encode_json);
+use Mojo::JSON qw(decode_json encode_json);
 use Test::More;
 
 use lib 'lib';
@@ -136,14 +136,15 @@ subtest 'a unit from before this release still starts' => sub {
         local $ENV{LC_ALL}            = 'C';
         GPForum->new;
     }
-    my $logged = $log->slurp;
+    my $logged = decode_json( $log->slurp );
+    is( $logged->{level}, 'warn', 'the old unit produces a warning' );
     like(
-        $logged,
-        qr/\[warn\] [ ] The [ ] installed [ ] systemd [ ] unit/msx,
+        $logged->{message},
+        qr/\A The [ ] installed [ ] systemd [ ] unit/msx,
         'and the start logs what to do'
     );
     like(
-        $logged,
+        $logged->{message},
         qr{copy [ ] the [ ] units [ ] in [ ] deploy/systemd/}msx,
         'naming the files to copy'
     );

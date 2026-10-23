@@ -56,7 +56,21 @@ subtest 'migrated: schema, budgets and readiness agree' => sub {
     is( $status{budgets},   'ok', 'the budgets match the code' );
     is( $status{readiness}, 'ok', 'the rest of the readiness report passes' );
     is( $status{outbox},    'ok', 'nothing waits in the outbox' );
-    is( $result->{findings}->exit_status, 0, 'and nothing failed' );
+
+    # Database hardware and durability vary independently of this fixture:
+    # Test::PostgreSQL deliberately disables fsync. The performance-control
+    # tests cover that finding; it must remain visible without obscuring a
+    # failure of one of the database probes exercised here.
+    is_deeply(
+        [
+            map { $_->{name} }
+            grep {
+                $_->{status} eq 'fail' && $_->{name} ne 'postgres_performance'
+            } @{ $result->{findings}->items }
+        ],
+        [],
+        'no database probe failed apart from the independent host tuning check'
+    ) or diag $result->{findings}->human_text;
 };
 
 subtest 'a message nobody sends is a stopped outbox worker' => sub {

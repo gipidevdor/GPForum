@@ -584,19 +584,26 @@ sub _same_store ( $pair, $label, $position ) {
             }
             );
         my $store = _post_store( $path, $side );
-        $answer{$path} = _plain(
-              $path eq 'perl'
-            ? $store->create_post( $composed->{command} )
-            : $store->reply_answer(
-                GPForum::Infrastructure::SqlFunction->new(
-                    catalogue => $STORE_STEP,
-                    schema    => $side->{schema},
-                )->row(
-                    'core_forum_store_reply',
-                    $store->reply_parameters( $composed->{command} )
+        if ( $path eq 'perl' ) {
+            $answer{$path} =
+              _plain( $store->create_post( $composed->{command} ) );
+        }
+        else {
+            # This frozen internal store function predates post attestations;
+            # build its parameters only on this path so both deterministic
+            # recorders draw the same number of event and audit identifiers.
+            my $legacy_parameters =
+              $store->reply_parameters( $composed->{command} );
+            delete $legacy_parameters->{post_signature};
+            $answer{$path} = _plain(
+                $store->reply_answer(
+                    GPForum::Infrastructure::SqlFunction->new(
+                        catalogue => $STORE_STEP,
+                        schema    => $side->{schema},
+                    )->row( 'core_forum_store_reply', $legacy_parameters )
                 )
-            )
-        );
+            );
+        }
     }
     is_deeply( $answer{function}, $answer{perl}, "$label: the same answer" )
       or diag explain \%answer;

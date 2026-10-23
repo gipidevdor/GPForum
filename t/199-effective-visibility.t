@@ -248,10 +248,11 @@ for my $case ( [ 1, 'moderates' ], [ 0, 'does not moderate' ] ) {
     my $handle = GPForum::Test::SqlFunctionHandle->new(
         rows => [
             {
-                grants    => '[{"resource_type":"global"}]',
-                moderates => $moderates,
-                status    => 'active',
-                suspended => 0,
+                grants      => '[{"resource_type":"global"}]',
+                moderates   => $moderates,
+                status      => 'active',
+                suspended   => 0,
+                trust_level => 2,
             }
         ]
     );
@@ -263,7 +264,11 @@ for my $case ( [ 1, 'moderates' ], [ 0, 'does not moderate' ] ) {
     )->resolve('018f1001-0001-7000-8000-000000000001');
     is( $viewer->moderates,   $moderates, "a member who $name is resolved so" );
     is( $viewer->global_read, 1,          'with their grants' );
+    is( $viewer->trust_level, 2, 'the same account query resolves reputation' );
+    is( $viewer->within( 'category-1', 'space-1' )->trust_level,
+        2, 'category scoping preserves reputation' );
 }
+is( $anonymous->trust_level, 0, 'anonymous readers have no reputation boost' );
 is(
     GPForum::Service::Forum::Viewer->new( moderates => 1 )
       ->within( 'category-1', 'space-1' )

@@ -61,6 +61,8 @@ jobs:
       GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=/var/run/postgresql;port=5432
       GPFORUM_DATABASE_USER: postgres
       GPFORUM_DATABASE_PASSWORD: postgres
+      GPFORUM_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
+      GPFORUM_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
       DEBIAN_FRONTEND: noninteractive
 
     steps:
@@ -78,6 +80,17 @@ jobs:
           localedef -i it_IT -f UTF-8 it_IT.UTF-8
           # Carton is a host tool for the OS system Perl, not a Carton-local binary.
           /usr/bin/perl /usr/bin/cpanm --notest Carton
+
+      - name: Install matching PostgreSQL 18 client
+        run: |
+          set -euo pipefail
+          install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main\n' \
+            > /etc/apt/sources.list.d/pgdg.list
+          apt-get update
+          apt-get install -y --no-install-recommends postgresql-client-18
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

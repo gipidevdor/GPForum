@@ -21,11 +21,17 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 
 # Migration 1024 retains these shipped entry points for the previous workers.
 const my @RETAINED => qw(
+  forum_resolve_viewer_v6
   ops_retention_purge_v2 notification_subscribers_v2
   portability_export_parts_v22 privacy_revoke_user_v22
   identity_register_command_v2 identity_update_user_v4
   moderation_active_suspension_v2 moderation_can_participate_v2
 );
+
+# The typed write boundaries kept for workers from the previous release,
+# also retained by the static ADR 0127 contract in t/641.
+const my @RETAINED_WRITES =>
+  qw(forum_create_reply_v4 forum_store_write_v2 forum_write_command_v4);
 
 const my $FUNCTIONS_SQL => join q{ },
   'SELECT p.proname AS name,',
@@ -74,6 +80,10 @@ for my $name ( @{ $catalogue->names } ) {
 }
 
 _check_live_invariants( $catalogue, \%function );
+for my $retained (@RETAINED_WRITES) {
+    ok( $function{$retained},
+        "api.$retained remains an owner-rights boundary for older workers" );
+}
 
 for my $retained (@RETAINED) {
     ok( $function{$retained},
@@ -111,7 +121,8 @@ sub _check_live_invariants ( $catalogue, $functions ) {
         ( $catalogue->function($_)->{function} =~ /\A api [.] (\w+)/msx )[0] =>
           1
       } @{ $catalogue->names };
-    @called{@RETAINED} = (1) x @RETAINED;
+    @called{ @RETAINED, @RETAINED_WRITES } =
+      (1) x ( @RETAINED + @RETAINED_WRITES );
     my %reached;
     my @next = grep { $functions->{$_} } sort keys %called;
     while ( my $name = shift @next ) {
@@ -156,6 +167,7 @@ sub _type_name ($type) {
 1;
 
 sub _retained_arguments ($name) {
+    return 'p_user_id uuid' if $name eq 'forum_resolve_viewer_v6';
     return
       'p_source text, p_cutoff timestamp with time zone, p_row_limit integer'
       if $name eq 'ops_retention_purge_v2';

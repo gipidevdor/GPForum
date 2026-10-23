@@ -31,39 +31,40 @@ use GPForum::Test::PostgresHarness;
 
 our $VERSION = '0.001';
 
-const my $HTTP_OK           => 200;
-const my $HTTP_FOUND        => 302;
-const my $HTTP_NOT_MODIFIED => 304;
-const my $HTTP_INVALID      => 400;
-const my $HTTP_UNAUTHORIZED => 401;
-const my $HTTP_FORBIDDEN    => 403;
-const my $HTTP_MISSING      => 404;
-const my $HTTP_TOO_LARGE    => 413;
-const my $HTTP_UNSUPPORTED  => 415;
-const my $HTTP_UNPROCESSED  => 422;
-const my $HTTP_TOO_MANY     => 429;
-const my $HTTP_UNAVAILABLE  => 503;
-const my $WIDTH             => 300;
-const my $HEIGHT            => 200;
-const my $PHOTO_WIDTH       => 640;
-const my $PHOTO_HEIGHT      => 480;
-const my $SMALL             => 64;
-const my $MIDDLE            => 128;
-const my $LARGE             => 256;
-const my $NOT_A_SIDE        => 99;
-const my $LITTLE            => 40;
-const my $SQUARE            => 80;
-const my $OTHER_SQUARE      => 90;
-const my $THIRD_SQUARE      => 70;
-const my $TOO_MANY          => 9_000;
-const my $FILES             => 4;
-const my $CHURN_LIMIT       => 10;
-const my $LONG_REASON       => 501;
-const my $BASELINE          => 0xc0;
-const my $SIX_MB            => 6 * 1_024 * 1_024;
-const my $PNG_SIGNATURE     => pack 'H*', '89504e470d0a1a0a';
-const my $JSON              => { Accept => 'application/json' };
-const my $NOW               => '2026-10-17T10:00:00Z';
+const my $HTTP_OK             => 200;
+const my $HTTP_FOUND          => 302;
+const my $HTTP_NOT_MODIFIED   => 304;
+const my $HTTP_INVALID        => 400;
+const my $HTTP_UNAUTHORIZED   => 401;
+const my $HTTP_FORBIDDEN      => 403;
+const my $HTTP_MISSING        => 404;
+const my $HTTP_TOO_LARGE      => 413;
+const my $HTTP_UNSUPPORTED    => 415;
+const my $HTTP_UNPROCESSED    => 422;
+const my $HTTP_TOO_MANY       => 429;
+const my $HTTP_UNAVAILABLE    => 503;
+const my $WIDTH               => 300;
+const my $HEIGHT              => 200;
+const my $PHOTO_WIDTH         => 640;
+const my $PHOTO_HEIGHT        => 480;
+const my $SMALL               => 64;
+const my $MIDDLE              => 128;
+const my $LARGE               => 256;
+const my $NOT_A_SIDE          => 99;
+const my $LITTLE              => 40;
+const my $SQUARE              => 80;
+const my $OTHER_SQUARE        => 90;
+const my $THIRD_SQUARE        => 70;
+const my $TOO_MANY            => 9_000;
+const my $FILES               => 4;
+const my $CHURN_LIMIT         => 10;
+const my $TRUSTED_CHURN_LIMIT => 20;
+const my $LONG_REASON         => 501;
+const my $BASELINE            => 0xc0;
+const my $SIX_MB              => 6 * 1_024 * 1_024;
+const my $PNG_SIGNATURE       => pack 'H*', '89504e470d0a1a0a';
+const my $JSON                => { Accept => 'application/json' };
+const my $NOW                 => '2026-10-17T10:00:00Z';
 
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all => 'set GPFORUM_TEST_DSN for members\' profile pictures';
@@ -119,7 +120,7 @@ subtest 'uploads are refused before they are stored'    => \&_refused_early;
 subtest 'the tool that cannot read or cannot run'       => \&_tool_failures;
 subtest 'a slow scan waits; the scan refuses'           => \&_scans;
 subtest 'uploads need a member and an active account'   => \&_members_only;
-subtest 'uploads and removals are held to ten a minute' => \&_rate_limited;
+subtest 'avatar churn has bounded reputation limits'    => \&_rate_limited;
 subtest 'staff remove a picture, audited'               => \&_moderated;
 subtest 'the member removes their own picture'          => \&_removed;
 subtest 'the store refuses what is not the member\'s'   => \&_not_theirs;
@@ -443,16 +444,25 @@ sub _members_only {
 }
 
 sub _rate_limited {
-    my $test = _client($member);
-    my $csrf = _csrf($test);
-    for my $attempt ( 1 .. $CHURN_LIMIT ) {
+    my $trusted = _user( 'avatar_trusted', 0 );
+    $dbh->do( 'UPDATE users SET trust_level = 1 WHERE id = ?', undef,
+        $trusted );
+    for
+      my $case ( [ $other, $CHURN_LIMIT ], [ $trusted, $TRUSTED_CHURN_LIMIT ] )
+    {
+        my ( $user_id, $limit ) = @{$case};
+        my $test = _client($user_id);
+        my $csrf = _csrf($test);
+        for my $attempt ( 1 .. $limit ) {
+            $test->post_ok(
+                '/settings/avatar' => $JSON => form => { csrf_token => $csrf } )
+              ->status_is( $HTTP_INVALID,
+                "attempt $attempt of $limit is answered" );
+        }
         $test->post_ok(
             '/settings/avatar' => $JSON => form => { csrf_token => $csrf } )
-          ->status_is( $HTTP_INVALID, "attempt $attempt is answered" );
+          ->status_is( $HTTP_TOO_MANY, "the request after $limit is refused" );
     }
-    $test->post_ok(
-        '/settings/avatar' => $JSON => form => { csrf_token => $csrf } )
-      ->status_is( $HTTP_TOO_MANY, 'the eleventh in a minute is refused' );
 
     return;
 }

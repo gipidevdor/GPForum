@@ -13,6 +13,7 @@ our $VERSION = '0.001';
 # every attribute that widens what can be read has to be established.
 has user_id      => undef;                # optional: anonymous has none
 has member       => 0;
+has trust_level  => 0;
 has global_read  => 0;
 has category_ids => sub { return []; };
 has space_ids    => sub { return []; };
@@ -69,6 +70,7 @@ sub within ( $self, $category_id, $space_id ) {
     return ( ref $self )->new(
         global_read => $self->granted( $category_id, $space_id ),
         member      => $self->member,
+        trust_level => $self->trust_level,
         moderates   => $self->moderates,
         user_id     => $self->user_id,
     );
@@ -98,7 +100,8 @@ pending account, not suspended), the scopes of their C<category.read>
 grants, and whether they hold the global C<thread.moderate> binding
 (C<moderates>), for the thread page to offer the staff actions, and the
 ids of the members the reader ignores or blocks (C<listed>, ADR 0130),
-whose posts it collapses. Built by
+whose posts it collapses. C<trust_level> carries the active account's
+server-resolved reputation for rate limits, defaulting to zero. Built by
 L<GPForum::Service::Forum::ViewerResolver>; judged by
 L<GPForum::Service::Forum::Visibility>.
 

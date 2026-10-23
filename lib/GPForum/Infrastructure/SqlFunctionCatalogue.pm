@@ -1656,7 +1656,7 @@ const my %FUNCTION => (
         ],
     },
     forum_resolve_viewer => {
-        version    => 6,
+        version    => 8,
         parameters => [
             user_id => 'uuid',
         ],

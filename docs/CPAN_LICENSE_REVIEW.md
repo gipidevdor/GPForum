@@ -20,9 +20,11 @@ requirements without review.
 | DateTime::TimeZone | runtime | Perl 5 license | named directly by the date formatter and the time zone preference; tz data is frozen in the pinned release, so zone rule changes need a version bump | allowed |
 | Crypt::Argon2 | runtime | Apache-2.0 | password hashing XS dependency | allowed |
 | Crypt::URandom | runtime | Perl 5 license | entropy source | allowed |
+| Crypt::PK::Ed25519 | runtime (CryptX) | Perl 5 license | XS Ed25519 post attestations; CryptX 0.091 is pinned in the lock, with its bundled cryptographic implementation | allowed |
 | Email::Sender | runtime | Perl 5 license | email delivery boundary | allowed |
 | Email::Address::XS | runtime | Perl 5 license | Email::Sender::Simple address parsing | allowed |
 | Email::Simple | runtime | Perl 5 license | message construction in the identity mailer | allowed |
+| Email::MIME | runtime | Perl 5 license | inbound reply MIME parsing; pinned to 1.954, with message size, part count and nesting bounded by MailIn | allowed |
 | Authen::SASL | runtime | Perl 5 license | SMTP AUTH mechanisms Net::SMTP loads on demand when GPFORUM_SMTP_USERNAME is set | allowed |
 | IO::Socket::SSL | runtime | Perl 5 license | TLS for SMTP (STARTTLS or implicit, the default under GPFORUM_SMTP_TLS) and doctor's https probes; brings Net::SSLeay (Artistic-2.0), XS built against the host's OpenSSL, whose security updates come from the OS | allowed |
 | Const::Fast | runtime | Perl 5 license | immutable scalar helper | allowed |

@@ -135,7 +135,8 @@ Authenticated readers and writers have per-account buckets, independent of
 their shared IP. Trust levels zero through four multiply the read budget by
 1, 4, 16, 64 and 256, and ordinary write budgets by 1, 2, 4, 8 and 16.
 Reports retain their stricter bound. Trust comes from the active account in
-the database; clients cannot supply it. Anonymous traffic uses the IP bucket.
+the database in the existing request-viewer query; clients cannot supply it.
+This adds no account query to HTTP reads. Anonymous traffic uses the IP bucket.
 
 ```sh
 gpforum backup --to /var/backups/gpforum --verify --json

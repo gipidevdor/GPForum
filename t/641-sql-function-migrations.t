@@ -61,12 +61,14 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 # (ADR 0150).
 const my $RETURNED => qr/(?:public [.])? (?<returned>\w+) \b (?! \s* [.])/msx;
 const my $RETURNS  => qr/RETURNS \s+ (?:SETOF \s+)? $RETURNED/imsx;
-const my $SEARCH_VERSION => 10;
+const my $SEARCH_VERSION       => 10;
+const my $LEGACY_REPLY_VERSION => 4;
 
 # The boundaries a release keeps for the previous one's workers until a
 # contract migration drops them (ADR 0126, section 2). Migration 1024 keeps
 # the 1.0 suspension boundaries for workers that have not restarted yet.
 const my %RETAINED_BOUNDARIES => (
+    forum_resolve_viewer         => [6],
     forum_create_reply           => [4],
     forum_store_write            => [2],
     forum_write_command          => [4],
@@ -90,7 +92,11 @@ for my $name ( @{ $catalogue->names } ) {
       exists $RETAINED_BOUNDARIES{$name} ? $RETAINED_BOUNDARIES{$name} : [];
     for my $version ( $entry->{version}, @{$retained} ) {
         my @parameters = @{ $entry->{names} };
-        pop @parameters if $name eq 'forum_create_reply' && $version == 4;
+        if (   $name eq 'forum_create_reply'
+            && $version == $LEGACY_REPLY_VERSION )
+        {
+            pop @parameters;
+        }
         if ( $name eq 'identity_register_command' && $version == 2 ) {
             pop @parameters;
         }

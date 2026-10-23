@@ -972,7 +972,7 @@ sub _allowed ( $self, $user_id, $action ) {
             {
                 action      => $action,
                 actor_id    => $user_id,
-                trust_level => $self->gp_reputation_rate->level($user_id),
+                trust_level => $self->gp_forum_viewer->trust_level,
             }
         )
     );
@@ -988,7 +988,7 @@ sub read_allowed ( $self, $action ) {
             {
                 action      => $action,
                 actor_id    => $actor_id,
-                trust_level => $self->gp_reputation_rate->level($user_id),
+                trust_level => $self->gp_forum_viewer->trust_level,
             }
         )
     );

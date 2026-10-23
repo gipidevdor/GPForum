@@ -1,0 +1,102 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 Giacomo Picchiarelli
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+use Carp    qw(croak);
+use English qw(-no_match_vars);
+
+our $VERSION = '0.001';
+
+exit _run();
+
+# Keep pg_dump's SQL, including grants, comments and function bodies. Only
+# version banners, the random psql restriction key and rolling month
+# partitions vary independently of the migrations. Pin the dump client to
+# major 18: different clients serialize an identical schema differently.
+sub _run {
+    my $check;
+    if ( @ARGV && $ARGV[0] eq '--check' ) {
+        shift @ARGV;
+        $check = shift @ARGV // croak '--check needs a snapshot file';
+    }
+    if ( !@ARGV || $ARGV[0] eq '--help' ) {
+        say 'Usage: script/schema-snapshot [--check FILE] [psql options] DBNAME'
+          or croak $OS_ERROR;
+        say
+'Uses PGHOST, PGPORT, PGUSER, PGPASSWORD; GPFORUM_PG_DUMP selects pg_dump 18.'
+          or croak $OS_ERROR;
+        exit 0;
+    }
+    my $sql = _snapshot();
+    if ( defined $check ) {
+        return _check_snapshot( $sql, $check );
+    }
+    print $sql or croak "cannot print schema: $OS_ERROR";
+    return 0;
+}
+
+sub _check_snapshot ( $sql, $check ) {
+    open my $handle, '<', $check or croak "cannot read $check: $OS_ERROR";
+    my $expected = do { local $INPUT_RECORD_SEPARATOR = undef; <$handle> };
+    close $handle or croak "cannot close $check: $OS_ERROR";
+    if ( $sql eq $expected ) {
+        return 0;
+    }
+    print $sql or croak "cannot print schema: $OS_ERROR";
+    warn "schema differs from $check; regenerate and review its SQL diff\n";
+    return 1;
+}
+
+sub _snapshot {
+    my $dump    = $ENV{GPFORUM_PG_DUMP} // 'pg_dump';
+    my $version = _capture( $dump, '--version' );
+    croak 'schema snapshots require the PostgreSQL 18 pg_dump client'
+      if $version !~ /PostgreSQL[)] [ ] 18[.]/msx;
+
+    my $partitions = _capture(
+        $ENV{PSQL} // 'psql',
+        '-X',
+        '-At',
+        '-v',
+        'ON_ERROR_STOP=1',
+        @ARGV,
+        '-c',
+        join q{ },
+        q{SELECT format('%I.%I', n.nspname, c.relname)},
+        q{FROM pg_catalog.pg_class c},
+        q{JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace},
+        q{WHERE c.relispartition AND n.nspname='public'},
+        q{AND pg_catalog.pg_get_expr(c.relpartbound, c.oid) <> 'DEFAULT'},
+        q{ORDER BY 1},
+    );
+    my $owner = _capture( $ENV{PSQL} // 'psql',
+        '-X', '-At', '-v',
+        'ON_ERROR_STOP=1', @ARGV, '-c', 'SELECT quote_ident(current_user)' );
+    chomp $owner;
+    my @excluded = map { "--exclude-table=$_" } split /\n/msx, $partitions;
+    my $sql =
+      _capture( $dump, '--schema-only', '--no-owner',
+        '--exclude-extension=pg_stat_statements',
+        @excluded, @ARGV, );
+    $sql =~ s/^--[ ]Dumped[ ]from[ ]database[ ]version[^\n]*\n//gmsx;
+    $sql =~ s/^--[ ]Dumped[ ]by[ ]pg_dump[ ]version[^\n]*\n//gmsx;
+    $sql =~ s/^\\(?:un)?restrict[^\n]*\n//gmsx;
+    $sql =~ s/^(--[ ]Name:[^\n]*;[ ]Owner:)[^\n]*/$1 -/gmsx;
+    $sql =~
+s/^ALTER[ ]DEFAULT[ ]PRIVILEGES[ ]FOR[ ]ROLE[ ]\Q$owner\E[ ]/ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER /gmsx;
+    $sql =~ s/\A\n+//msx;
+    $sql =~ s/\n+\z/\n/msx;
+
+    return $sql;
+}
+
+sub _capture (@command) {
+    open my $handle, q{-|}, @command
+      or croak "cannot run $command[0]: $OS_ERROR";
+    my $output = do { local $INPUT_RECORD_SEPARATOR = undef; <$handle> };
+    close $handle or croak "$command[0] failed (status $CHILD_ERROR)";
+    return $output // q{};
+}

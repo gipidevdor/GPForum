@@ -61,5 +61,14 @@ open, and it cannot be exercised on a development host without systemd.
 
 ## Related
 
+The application's PostgreSQL connection is lazy in each worker. The warmup
+closes the manager's handle even when rendering fails, and the pre-server hook
+also closes an existing handle when warmup is disabled. DBIx discards an
+inherited handle on PID change without disconnecting the parent's backend.
+`t/integration/postgres-query-catalogue.t` exercises an actual fork and checks
+that the parent still queries afterwards. These guarantees concern database
+connection ownership; they do not change the systemd manager-tracking limit
+above. See [ADR 0153](../adr/0153-postgresql-and-operational-boundaries-are-tested.md).
+
 - `deploy/systemd/gpforum.service` — the unit, with the reasoning inline
 - `docs/ops/partition-maintenance.md` — another operation that needs a window

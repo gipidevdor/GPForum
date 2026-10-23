@@ -24,10 +24,17 @@ sub run ($self) {
     my $started     = time;
 
     $application->defaults->{'gpforum.warming'} = 1;
-    my @pages = map { _fetched( $application, $_ ) } @PAGES,
-      $self->_listed_paths;
+    my ( @pages, $failure );
+    try {
+        @pages = map { _fetched( $application, $_ ) } @PAGES,
+          $self->_listed_paths;
+    }
+    catch ($error) {
+        $failure = $error;
+    };
     delete $application->defaults->{'gpforum.warming'};
     $self->_disconnect;
+    die $failure if defined $failure;    ## no critic (ErrorHandling::RequireCarping) -- cleanup preserves the original exception
 
     return {
         milliseconds => ( time - $started ) * $MILLISECONDS,

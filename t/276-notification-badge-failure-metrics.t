@@ -7,6 +7,7 @@ use v5.40;
 
 use Const::Fast;
 use Mojo::Log;
+use Mojo::JSON qw(decode_json);
 use Test::Mojo;
 use Test::More;
 
@@ -356,11 +357,13 @@ for ( 1 .. $FAILED_BADGES_IN_APP ) {
 }
 is( _badge_warnings($app_warnings),
     1, 'the failed count is logged in the application log, once' );
-like(
-    "$app_warnings",
-    qr/badge [ ] not [ ] sent: [ ] \Q$STATEMENT_TIMEOUT\E $/msx,
-    'with its error'
+my $warning_record = decode_json("$app_warnings");
+is(
+    $warning_record->{message},
+    "notification badge not sent: $STATEMENT_TIMEOUT",
+    'with its error in the JSON message'
 );
+is( $warning_record->{level}, 'warn', 'at the warning level' );
 undef $app_warnings;
 
 $test->get_ok('/metrics')->status_is($HTTP_OK);

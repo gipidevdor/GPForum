@@ -34,6 +34,7 @@ our $VERSION = '0.001';
 
 const my $MAX_REQUEST_ID_LENGTH => 128;
 const my $PLAIN_REQUEST_ID      => qr/\A [[:alnum:]_.:-]+ \z/msx;
+const my $MILLISECONDS          => 1_000;
 my $request_sequence = 0;
 
 # The query budget each named route is counted under. A route not named here
@@ -155,6 +156,18 @@ sub _register_schema_helpers ( $application, $config ) {
                   $db_query_stats->attach_to_schema($schema);
             }
             return $schema;
+        }
+    );
+
+    # The warmup runs first and closes its handle. Also cover a handle opened
+    # during startup when warmup is disabled. Workers connect lazily; DBIx
+    # verifies the PID before reusing a handle after any subsequent fork.
+    $application->hook(
+        before_server_start => sub ( $server, $ ) {
+            return if !$server->isa('Mojo::Server::Prefork');
+            if ($schema) {
+                $schema->storage->disconnect;
+            }
         }
     );
 
@@ -362,6 +375,8 @@ sub _configure_db_query_observer {
 
             my $request_id = _request_id($controller);
             $controller->stash( gp_request_id => $request_id );
+            GPForum::Log->identify_request( $controller, $config );
+            $controller->timing->begin('gpforum.request');
             $controller->res->headers->header( 'X-Request-ID' => $request_id );
 
             my $stats = $controller->gp_db_query_stats;
@@ -423,6 +438,29 @@ sub _configure_db_query_observer {
             }
             _add_benchmark_query_headers( $controller, $request_stats,
                 $observation );
+            if ($request_stats) {
+                $controller->timing->server_timing(
+                    'app',
+                    'GPForum',
+                    sprintf '%.3f',
+                    $controller->timing->elapsed('gpforum.request') *
+                      $MILLISECONDS
+                );
+                $controller->timing->server_timing(
+                    'db', 'PostgreSQL',
+                    sprintf '%.3f',
+                    $request_stats->{db_duration_ms}
+                );
+                GPForum::Log->identify_request( $controller, $config );
+                $controller->log->info(
+                    {
+                        event          => 'http.request',
+                        route          => $route,
+                        status         => $controller->res->code || 0,
+                        db_duration_ms => $request_stats->{db_duration_ms},
+                    }
+                );
+            }
             _enforce_query_budget( $config, $request_stats, $observation );
         }
     );

@@ -16,7 +16,7 @@ use GPForum::OS::Filesystem;
 
 our $VERSION = '0.001';
 
-has filesystem => sub { return GPForum::OS::Filesystem->new; };
+has filesystem => sub { return GPForum::OS::Filesystem->new( durable => 1 ); };
 has root       => 'var/attachments';
 
 sub write_object ( $self, $object_key, $content ) {
@@ -25,7 +25,12 @@ sub write_object ( $self, $object_key, $content ) {
     my $path      = $self->path_for($object_key);
     my $directory = dirname($path);
     if ( defined $directory && length $directory ) {
-        make_path($directory);
+        my @created = make_path($directory);
+        if ( $self->filesystem->durable ) {
+            for my $created (@created) {
+                $self->filesystem->sync_directory( dirname($created) );
+            }
+        }
     }
 
     my $written = $self->filesystem->write_atomic( $path, $content );
@@ -134,6 +139,9 @@ C<_>, C</> and C<-> is refused, so a key cannot reach outside the root.
 Writes go through L<GPForum::OS::Filesystem/write_atomic>. Because the
 backend can name a path, L<GPForum::Service::Attachment::Delivery> streams
 downloads from it instead of reading them into memory.
+The default filesystem synchronizes the file before the rename and its
+directory afterwards. Newly created directory entries are synchronized too.
+A synchronization failure fails the upload; it never reports a durable write.
 
 =head1 SUBROUTINES/METHODS
 

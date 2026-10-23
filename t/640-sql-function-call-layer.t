@@ -162,6 +162,25 @@ subtest 'each call is one statement to the statistics' => sub {
     is( $stats->{total_queries}, 2, 'two calls, two statements' );
 };
 
+subtest 'a failed SQL call still closes its observation interval' => sub {
+    my $stats  = GPForum::Service::Operations::DbQueryStats->new;
+    my $token  = $stats->start_request( { route => 'failure-and-recovery' } );
+    my $handle = GPForum::Test::SqlFunctionHandle->new(
+        debugobj    => $stats,
+        error       => 'ERROR: canceling statement due to lock timeout',
+        error_state => '55P03',
+    );
+    throws_ok { _layer($handle)->rows( 'probe_lookup', _values() ) }
+    qr/lock[ ]timeout/msx, 'the SQL failure propagates unchanged';
+    $handle->error(undef);
+    _layer($handle)->rows( 'probe_lookup', _values() );
+    my $observed = $stats->finish_request( $token, {} );
+    is( $observed->{queries}, 2,
+        'both the failure and recovery were observed' );
+    cmp_ok( $observed->{db_duration_ms},
+        '>', 0, 'an error did not leave later calls inside an unclosed timer' );
+};
+
 subtest 'SQLSTATEs map to the exceptions of ADR 0118' => sub {
     my %raised = (
         '22023' => [

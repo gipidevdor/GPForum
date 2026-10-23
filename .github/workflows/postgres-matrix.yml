@@ -53,6 +53,12 @@ on:
       - 'script/bench-sql-functions'
       - 'script/performance-outbox.pl'
       - 'script/postgres-diagnostics'
+      - 'script/schema-snapshot'
+      - 'etc/schema/**'
+      - 'lib/GPForum/Bootstrap/**'
+      - 'lib/GPForum/Log.pm'
+      - 'lib/GPForum/OS/Filesystem.pm'
+      - 'lib/GPForum/Web/Warmup.pm'
       - 'script/lib/GPForum/PostgreSQL/**'
       - 'docs/ops/postgres-diagnostics-schema-v1.json'
       - 'cpanfile'
@@ -108,6 +114,12 @@ on:
       - 'script/bench-sql-functions'
       - 'script/performance-outbox.pl'
       - 'script/postgres-diagnostics'
+      - 'script/schema-snapshot'
+      - 'etc/schema/**'
+      - 'lib/GPForum/Bootstrap/**'
+      - 'lib/GPForum/Log.pm'
+      - 'lib/GPForum/OS/Filesystem.pm'
+      - 'lib/GPForum/Web/Warmup.pm'
       - 'script/lib/GPForum/PostgreSQL/**'
       - 'docs/ops/postgres-diagnostics-schema-v1.json'
       - 'cpanfile'
@@ -273,6 +285,23 @@ jobs:
         run: |
           bin/gpforum evidence-validate --strict --human \
             "artifacts/staging-drill-pg${{ matrix.postgres }}.json"
+
+      - name: Dump schema and compare the PostgreSQL 18 snapshot
+        if: always() && steps.migrate.outcome == 'success'
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/schema
+          if [ '${{ matrix.postgres }}' = '18' ]; then
+            script/gpforum-carton exec script/schema-snapshot -U postgres gpforum_test \
+              > artifacts/schema/postgresql-18.sql
+            diff -u etc/schema/postgresql-18.sql artifacts/schema/postgresql-18.sql \
+              | tee artifacts/schema/postgresql-18.diff
+          else
+            "$GPFORUM_PG_DUMP" --schema-only --no-owner -U postgres gpforum_test \
+              > "artifacts/schema/postgresql-${{ matrix.postgres }}.sql"
+          fi
 
       - name: Upload drill evidence
         if: always()

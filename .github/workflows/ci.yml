@@ -181,6 +181,7 @@ jobs:
 
       - &migrate
         name: Apply database migrations
+        id: migrate
         run: bin/gpforum migrate
 
       - &seed
@@ -261,6 +262,24 @@ jobs:
 
       - name: Run platform check
         run: bin/gpforum platform-check --with-db
+
+      - name: Save the schema after the integration suite
+        if: always() && steps.migrate.outcome == 'success'
+        env:
+          PGPASSWORD: postgres
+        run: |
+          mkdir -p artifacts/schema
+          "$GPFORUM_PG_DUMP" --schema-only --no-owner -U postgres gpforum_test \
+            > artifacts/schema/postgresql-16.sql
+
+      - name: Upload schema evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gpforum-schema-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/schema/
+          if-no-files-found: warn
+          retention-days: 14
 
   # The instrumented suite takes most of an hour even in parallel: nightly and
   # on demand, never on a push, so it can no longer hold the gate hostage.

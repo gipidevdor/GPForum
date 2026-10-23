@@ -7,7 +7,7 @@ use v5.40;
 
 use Const::Fast;
 use parent      qw(DBIx::Class::Storage::Statistics);
-use Time::HiRes qw(time);
+use Time::HiRes qw(time clock_gettime CLOCK_MONOTONIC);
 
 our $VERSION = '0.001';
 
@@ -62,6 +62,7 @@ sub start_request ( $self, $metadata ) {
         status                 => undef,
         started_at             => time,
         duration_ms            => undef,
+        db_duration_ms         => 0,
         queries                => 0,
         connection_queries     => 0,
         transactions           => 0,
@@ -91,6 +92,8 @@ sub finish_request ( $self, $token, $metadata ) {
     $request->{duration_ms} =
       int( ( time - $request->{started_at} ) * $MILLISECONDS_PER_SECOND );
     delete $request->{started_at};
+    delete $request->{query_started_at};
+    delete $request->{query_depth};
 
     delete $request->{fingerprints};
     $self->_push_recent($request);
@@ -173,6 +176,13 @@ sub txn_rollback {
 # is the connection's, not the request's that happened to make it: it is
 # counted apart, and does not touch the request's budget.
 sub query_start ( $self, $sql, @ ) {
+    if ( $self->{current} ) {
+        my $request = $self->{current};
+        if ( !$request->{query_depth} ) {
+            $request->{query_started_at} = clock_gettime(CLOCK_MONOTONIC);
+        }
+        $request->{query_depth} = ( $request->{query_depth} // 0 ) + 1;
+    }
     my $fingerprint = _fingerprint($sql);
     if ( $self->{connection_actions}{$fingerprint} ) {
         $self->{total_connection_queries}++;
@@ -197,7 +207,17 @@ sub query_start ( $self, $sql, @ ) {
     return;
 }
 
-sub query_end {
+sub query_end ( $self, @ ) {
+    my $request = $self->{current};
+    return if !$request;
+    return if !$request->{query_depth};
+    $request->{query_depth}--;
+    return if $request->{query_depth};
+    my $started = delete $request->{query_started_at};
+    return if !defined $started;
+    $request->{db_duration_ms} +=
+      ( clock_gettime(CLOCK_MONOTONIC) - $started ) * $MILLISECONDS_PER_SECOND;
+
     return;
 }
 
@@ -350,7 +370,10 @@ C<duplicate_queries>. Returns nothing.
 
 =head2 query_end
 
-DBIx::Class callback; does nothing.
+DBIx::Class callback. Adds a completed query interval to the request's
+C<db_duration_ms>, using a monotonic clock. Nested connection setup intervals
+are counted once within their enclosing call. A call with no end callback
+does not contribute a duration. Timing state is discarded with the request.
 
 =head2 txn_begin
 

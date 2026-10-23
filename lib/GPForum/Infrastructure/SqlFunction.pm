@@ -222,11 +222,21 @@ sub _execute ( $self, $entry, $bound ) {
         $stats->query_start( $entry->{sql},
             map { defined $_ ? $_ : 'NULL' } @{$bound} );
     }
-    my $rows = $self->_on_handle( $storage, $entry, $bound );
+    my ( $rows, $failure );
+    try {
+        $rows = $self->_on_handle( $storage, $entry, $bound );
+    }
+    catch ($error) {
+        $failure = $error;
+    };
     if ($stats) {
         $stats->query_end( $entry->{sql},
             map { defined $_ ? $_ : 'NULL' } @{$bound} );
     }
+
+    # Balance timing on errors too: an aborted call must not leave the next
+    # call nested inside it, or hide all subsequent SQL time in this request.
+    die $failure if defined $failure;    ## no critic (ErrorHandling::RequireCarping) -- rethrow the original SQL exception after ending its observation
 
     return $rows;
 }

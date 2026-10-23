@@ -1,5 +1,9 @@
 # PostgreSQL operator diagnostics
 
+For request correlation, structured warnings and browser SQL timings, see
+[request diagnostics](request-diagnostics.md). Schema review evidence is
+documented in [the snapshot directory](../../etc/schema/README.md).
+
 `script/postgres-diagnostics` produces a bounded, versioned read-only snapshot
 on PostgreSQL 16–18. It complements request query budgets and actual reader
 plans; it does not run a workload, install an extension, vacuum, reset counters,

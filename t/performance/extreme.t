@@ -6,10 +6,12 @@ use v5.40;
 use Carp qw(croak);
 use FindBin;
 use lib "$FindBin::Bin/../../script/lib";
+use lib "$FindBin::Bin/../lib";
 use File::Spec;
 use File::Temp qw(tempdir);
 use JSON::PP;
 use Test::More;
+use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 use GPForum::Performance::Budget;
 use GPForum::Performance::Extreme;
 use GPForum::Performance::ExtremeContainer qw(cleanup start_database);
@@ -28,6 +30,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
     EXPERIMENTAL_CONCURRENCY => 1_000,
     WINDOW_LIMIT             => 30,
     PRIOR_SETUP              => 50,
+    CLOCK_ORIGIN             => 100,
     REMAINING_JOB            => 1_750,
     REMAINING_MEASUREMENTS   => 1_510,
     REQUESTED_PHASE          => 2_000,
@@ -100,22 +103,30 @@ is( profiles()->{full}{levels}[-1],
 cmp_ok( profiles()->{full}{window_seconds},
     '<=', WINDOW_LIMIT, 'mixed/soak windows fit the shared generator bound' );
 
-my $now    = monotonic();
-my $budget = GPForum::Performance::Budget->new(
-    {
-        started_monotonic              => $now - PRIOR_SETUP,
-        deadline_monotonic             => $now + REMAINING_JOB,
-        measurement_deadline_monotonic => $now + REMAINING_MEASUREMENTS
+# A runner can reach this test within 50 seconds of boot. Simulate elapsed
+# setup rather than subtracting it from the host's real monotonic uptime.
+with_replaced_subs(
+    'GPForum::Performance::Budget',
+    { monotonic => sub { return CLOCK_ORIGIN; } },
+    sub {
+        my $budget = GPForum::Performance::Budget->new(
+            {
+                started_monotonic              => CLOCK_ORIGIN - PRIOR_SETUP,
+                deadline_monotonic             => CLOCK_ORIGIN + REMAINING_JOB,
+                measurement_deadline_monotonic => CLOCK_ORIGIN +
+                  REMAINING_MEASUREMENTS
+            }
+        );
+        is( $budget->elapsed, PRIOR_SETUP,
+            'setup already elapsed is included' );
+        is( $budget->remaining, REMAINING_MEASUREMENTS,
+            'remaining budget excludes report reserve' );
+        is(
+            $budget->phase(REQUESTED_PHASE),
+            $budget->{measurement_deadline},
+            'phase clamped to global deadline'
+        );
     }
-);
-cmp_ok( $budget->elapsed, '>=', PRIOR_SETUP,
-    'setup already elapsed is included' );
-cmp_ok( $budget->remaining, '<=', REMAINING_MEASUREMENTS,
-    'remaining budget excludes report reserve' );
-is(
-    $budget->phase(REQUESTED_PHASE),
-    $budget->{measurement_deadline},
-    'phase clamped to global deadline'
 );
 _fails(
     sub {

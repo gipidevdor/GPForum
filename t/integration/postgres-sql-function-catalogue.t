@@ -21,7 +21,7 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 
 # Migration 1024 retains these shipped entry points for the previous workers.
 const my @RETAINED => qw(
-  forum_resolve_viewer_v6
+  forum_resolve_viewer_v6 outbox_claim_ready_v2
   ops_retention_purge_v2 notification_subscribers_v2
   portability_export_parts_v22 privacy_revoke_user_v22
   identity_register_command_v2 identity_update_user_v4
@@ -168,6 +168,9 @@ sub _type_name ($type) {
 
 sub _retained_arguments ($name) {
     return 'p_user_id uuid' if $name eq 'forum_resolve_viewer_v6';
+    return
+      'p_now text, p_locked_until text, p_worker_id text, p_row_limit integer'
+      if $name eq 'outbox_claim_ready_v2';
     return
       'p_source text, p_cutoff timestamp with time zone, p_row_limit integer'
       if $name eq 'ops_retention_purge_v2';

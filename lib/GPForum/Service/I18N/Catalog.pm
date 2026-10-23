@@ -111,20 +111,43 @@ sub plural_form ( $, $message, $category ) {
     return _scalar_form( $message, $category );
 }
 
+# A message's text and placeholders, taken apart once: a thread page
+# interpolates the same four messages for each of its posts, and the split
+# was two regular expressions on each of them, every time. The table is
+# bounded and emptied when full: a message is one the catalogs hold, but
+# the method takes any text.
+const my $SPLIT_MESSAGES => 4_096;
+my %SPLIT;
+
 sub interpolate ( $, $message, $variables ) {
-    my $output = q{};
-    my $rest   = $message;
-    while (1) {
-        my ( $prefix, $name, $suffix ) = _split_placeholder($rest);
-        if ( !defined $name ) {
-            last;
+    my $parts = $SPLIT{$message} // do {
+        if ( keys %SPLIT >= $SPLIT_MESSAGES ) {
+            %SPLIT = ();
         }
-        $output .= $prefix;
-        $output .= _variable( $variables, $name );
+        $SPLIT{$message} = _split_message($message);
+    };
+    my $output = $parts->[0];
+    my $index  = 1;
+    while ( $index < @{$parts} ) {
+        $output .=
+          _variable( $variables, $parts->[$index] ) . $parts->[ $index + 1 ];
+        $index += 2;
+    }
+
+    return $output;
+}
+
+# The message as its literal text and placeholder names, alternating,
+# starting and ending with text: [ text, name, text, ..., name, text ].
+sub _split_message ($message) {
+    my @parts;
+    my $rest = $message;
+    while ( my ( $prefix, $name, $suffix ) = _split_placeholder($rest) ) {
+        push @parts, $prefix, $name;
         $rest = $suffix;
     }
 
-    return $output . $rest;
+    return [ @parts, $rest ];
 }
 
 sub _locale_catalog ( $self, $locale ) {

@@ -216,7 +216,8 @@ sub list_for_user ( $self, $user_id, $options ) {
 }
 
 sub list_page_for_user ( $self, $user_id, $options ) {
-    my $page = $self->page_window->plan($options);
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     if ( $self->functions ) {
         my $rows = $self->_list_by_function(
             $user_id,

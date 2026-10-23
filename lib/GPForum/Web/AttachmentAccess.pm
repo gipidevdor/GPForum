@@ -6,6 +6,7 @@ package GPForum::Web::AttachmentAccess;
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Mojo::Util qw(encode url_escape);
 
 our $VERSION = '0.001';
 
@@ -55,13 +56,24 @@ sub safe_filename ( $, $filename ) {
     if ( !defined $filename || !length $filename ) {
         $filename = $DEFAULT_FILENAME;
     }
-    $filename =~ s/["\r\n]/_/gmsx;
+    $filename =~ s/["\\\r\n]/_/gmsx;
 
     return $filename;
 }
 
+# A header is bytes: a name with a character outside ASCII went into it as
+# typed, and writing it died with "Wide character" (every download of a
+# file named in Chinese, or with a dash a word processor typed, dropped the
+# connection). The quoted name is ASCII, each other character a mark, and
+# the name itself follows as RFC 6266 has it, filename* in UTF-8 and
+# percent-encoded, which browsers prefer when both are given.
 sub content_disposition ( $self, $filename ) {
-    return 'attachment; filename="' . $self->safe_filename($filename) . q{"};
+    my $safe  = $self->safe_filename($filename);
+    my $ascii = $safe =~ s/[^\x20-\x7e]/_/gmsxr;
+    return qq{attachment; filename="$ascii"} if $ascii eq $safe;
+
+    return qq{attachment; filename="$ascii"; filename*=UTF-8''}
+      . url_escape( encode( 'UTF-8', $safe ), q{^A-Za-z0-9\-._~} );
 }
 
 sub is_failed ( $self, $result ) {

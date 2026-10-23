@@ -5,6 +5,7 @@ package GPForum::Service::Forum::PageWindow;
 
 use Const::Fast;
 use GPForum::Infrastructure::Id;
+use GPForum::X::Argument;
 use MIME::Base64 qw(decode_base64url encode_base64url);
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -16,13 +17,21 @@ const my $MAX_LIMIT     => 100;
 const my $MIN_LIMIT     => 1;
 const my $CURSOR_PARTS  => 2;
 
-# A position, or a timestamp as PostgreSQL or ISO 8601 writes it.
-const my $POSITION => qr{\d{1,18}}msx;
-const my $DAY      => qr{\d{4} - \d\d - \d\d}msx;
-const my $TIME     => qr{\d\d : \d\d : \d\d (?: [.] \d{1,6} )?}msx;
-const my $ZONE     => qr{Z | [+-] \d\d (?: :? \d\d )?}msx;
-const my $SORT_VALUE =>
-  qr{\A (?: $POSITION | $DAY [T ] $TIME (?: $ZONE )? ) \z}msx;
+# A position, or a timestamp as PostgreSQL or ISO 8601 writes it. Each list
+# sorts by one of them and binds the cursor as that type, so a plan says
+# which (sort => 'position' or 'timestamp'); a cursor of the other kind is
+# no cursor. Both passed when the kind was not said, and a timestamp
+# reached a thread page's bigint parameter, which failed the request.
+const my $POSITION  => qr{\d{1,18}}msx;
+const my $DAY       => qr{\d{4} - \d\d - \d\d}msx;
+const my $TIME      => qr{\d\d : \d\d : \d\d (?: [.] \d{1,6} )?}msx;
+const my $ZONE      => qr{Z | [+-] \d\d (?: :? \d\d )?}msx;
+const my $TIMESTAMP => qr{$DAY [T ] $TIME (?: $ZONE )?}msx;
+const my %SORT_VALUE => (
+    position  => qr{\A $POSITION \z}msxa,
+    timestamp => qr{\A $TIMESTAMP \z}msxa,
+    any       => qr{\A (?: $POSITION | $TIMESTAMP ) \z}msxa,
+);
 
 # Seek by ordinal using the same indexed keyset as ordinary pagination.
 # The maximal UUID excludes every row at the preceding position.
@@ -35,7 +44,7 @@ sub cursor_at_position ( $class, $position ) {
 
 sub plan ( $self, $input ) {
     my $limit = _bounded_limit( $input->{limit} );
-    my $after = _decode_cursor( $input->{after} );
+    my $after = _decode_cursor( $input->{after}, $input->{sort} );
 
     return {
         limit      => $limit,
@@ -63,7 +72,7 @@ sub page ( $self, $rows, $limit, $cursor_columns ) {
 
 sub _bounded_limit ($requested) {
     return $DEFAULT_LIMIT if !defined $requested;
-    return $DEFAULT_LIMIT if $requested !~ /\A [[:digit:]]+ \z/msx;
+    return $DEFAULT_LIMIT if $requested !~ /\A [[:digit:]]+ \z/amsx;
     return $MIN_LIMIT     if $requested < $MIN_LIMIT;
     return $MAX_LIMIT     if $requested > $MAX_LIMIT;
 
@@ -81,14 +90,17 @@ sub _encode_cursor ( $row, $columns ) {
 # may reach SQL. Anything else shows the first page. It used to reach
 # PostgreSQL -- `?after=anything` failed the request on an invalid
 # timestamp, and anyone could fill the error log that way.
-sub acceptable_cursor ( $class, $sort_value, $id ) {
+sub acceptable_cursor ( $class, $sort_value, $id, $sort = undef ) {
     return 0 if !GPForum::Infrastructure::Id->is_uuid($id);
     return 0 if !defined $sort_value;
 
-    return $sort_value =~ $SORT_VALUE ? 1 : 0;
+    my $kind = $SORT_VALUE{ $sort // 'any' } // GPForum::X::Argument->throw(
+        message => "a list sorts by position or timestamp, not $sort" );
+
+    return $sort_value =~ $kind ? 1 : 0;
 }
 
-sub _decode_cursor ($cursor) {
+sub _decode_cursor ( $cursor, $sort = undef ) {
     return undef if !defined $cursor || !length $cursor;
 
     my $decoded;
@@ -98,7 +110,7 @@ sub _decode_cursor ($cursor) {
 
     my @parts = split /[|]/msx, $decoded, $CURSOR_PARTS;
     return undef if @parts != $CURSOR_PARTS;
-    return undef if !__PACKAGE__->acceptable_cursor(@parts);
+    return undef if !__PACKAGE__->acceptable_cursor( @parts, $sort );
 
     return {
         sort_value => $parts[0],

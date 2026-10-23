@@ -24,6 +24,12 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migration 1034, then restart the outbox workers.** `gpforum
+  migrate` installs `api.outbox_claim_ready_v4`, the claim that reads each
+  half of the ready rows from its own index; the previous entry point stays
+  for workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
 - **Apply migration 1024, then restart the application workers.** On an
   existing 1.0 database, `gpforum migrate` installs typed suspension
   lookups; no database rebuild or PostgreSQL restart is needed. The old
@@ -1325,6 +1331,28 @@ a host set up from an earlier `main`, newest first.
 
 ### Changed
 
+- **The outbox claim reads each half from its index (migration 1034).** The
+  claim's WHERE was an OR of the two predicates the partial indexes serve,
+  which no index can serve in order, so every claim scanned the table and
+  sorted every ready row for a page of 100: 104 ms and a 14 MB external sort
+  on 300,000 ready rows, growing with the backlog it was there to drain. Each
+  half is read in order from its own index and cut at the page, and the page
+  is locked with the readiness predicate restated, so a row another worker
+  claimed meanwhile is left out as before: 0.9 ms on the same rows.
+  `api.outbox_claim_ready_v4` (v3 inside); v2 stays for the previous
+  release's workers.
+- **The thread page renders faster.** Signed in, 13.2 ms to 11.0 ms a
+  request in-process (the hot-thread seed, 25 posts, 161 forms); anonymous,
+  6.4 ms to 5.6 ms. The reactions partial computes its eight texts once a
+  request and builds each form's path once; the posts partial builds the
+  page URL once; the i18n catalogue keeps each message's split template; the
+  structured data strips tags from the renderer's own HTML instead of
+  parsing 25 bodies with Mojo::DOM; the CSRF field is answered from the
+  stash without the token helper's lookups; a uuid is formatted with one
+  unpack. A password change verifies the new password against the current
+  one as text in constant time, where it ran Argon2 a second time under the
+  credential's lock.
+
 - **The schema starts from a 1.0 baseline (ADR 0150).** The 106 migrations
   of the 0.x chain are 24 files numbered 1000 to 1023: the tables by area,
   each created once in its final shape and commented (`COMMENT ON TABLE`),
@@ -2152,6 +2180,52 @@ a host set up from an earlier `main`, newest first.
   production floors fail the same gate as OS preflight and query-budget drift.
 
 ### Fixed
+
+- **A member stays signed in for the 30 days the session says.** The
+  Mojolicious cookie was stamped an hour ahead on every response, so a
+  member away for an hour was a visitor again, whatever the server's row
+  and `session_expires_at_epoch` said. Sign-in gives the cookie the session's
+  lifetime (`expiration`); the row and the epoch still end it 30 days after
+  sign-in (ADR 0018).
+- **Reporting another member's post from the thread page works.** Every post
+  carries a report form for a signed-in reader, but a command id was minted
+  for the reader's own posts alone, so the form under any other post sent an
+  empty id and was refused (400, "command_id is required"). Each post's
+  report form has an id of its own (t/744).
+- **A handler claim another worker holds no longer acknowledges the outbox
+  message.** A worker killed mid-handler left its claim; the next worker,
+  60 s later, found the claim held, read that as "skipped", and the outbox
+  marked the message done without the side effect -- notifications lost for
+  good, since the claim could be taken over only after 900 s. A held claim
+  is now a failure the outbox retries, and the claim's lease is 300 s, inside
+  the retries. A handler's exception object is rethrown as raised, so a
+  declared permanent failure is classified as one instead of retried four
+  times.
+- **A cursor of the wrong kind shows the first page instead of failing.**
+  Every list accepted a position or a timestamp cursor; a timestamp given to
+  a thread page reached PostgreSQL as a bigint and failed the request (500),
+  as a position did on the category and home lists. Each list now says
+  which kind it sorts by (`PageWindow` plans with `sort`), and the other
+  kind is no cursor. Fullwidth digits are no longer read as numbers.
+- **Downloading an attachment named outside ASCII works.** The name went into
+  `Content-Disposition` as typed and writing the header died ("Wide
+  character"), dropping every download of a file named in Chinese or with a
+  typographic dash. The quoted name is ASCII and the real one follows as
+  `filename*=UTF-8''...` (RFC 6266).
+- **An export holds every part it counts.** Six named parts were stored and
+  the others -- direct messages, drafts, held posts, relations, likes,
+  reactions, poll ballots, second factor, avatar -- counted only, so an
+  export said "5 direct messages" and held none. The likes and reactions
+  the SQL collects are in the bundle and counted.
+- **Smaller.** The Atom feed's `<updated>` is RFC 3339 (PostgreSQL's
+  `+00` zone and space were sent as read); admin and moderation page sizes
+  from the URL are bounded numbers (text was a 500, a huge size unbounded);
+  an upload whose row cannot be written deletes its object instead of
+  leaving it where no purge sees it; a dead letter no longer reads a column
+  the outbox row does not have; the thread page's one-statement reads skip a
+  part they do not know instead of dying on a restricted hash; a shared
+  render's "copy post link" URL carries the page's own parameters, not the
+  first visitor's query string.
 
 - **Suspension ends are compared as instants in PostgreSQL and Perl.** A
   suspension ending later today could read as expired because the database

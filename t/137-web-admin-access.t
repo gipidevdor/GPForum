@@ -19,6 +19,7 @@ const my $REQUESTED_LIMIT   => 10;
 const my $DASHBOARD_LIMIT   => 10;
 const my $WRITE_RATE_LIMIT  => 20;
 const my $WRITE_RATE_WINDOW => 60;
+const my $HUGE_LIMIT        => 100_000_000;
 
 my $access = GPForum::Web::AdminAccess->new;
 
@@ -27,6 +28,10 @@ is( $access->page_limit(undef),
 is( $access->page_limit(0), $DEFAULT_LIMIT, 'page_limit defaults a zero size' );
 is( $access->page_limit($REQUESTED_LIMIT),
     $REQUESTED_LIMIT, 'page_limit keeps an explicit size' );
+is( $access->page_limit('many'),
+    $DEFAULT_LIMIT, 'page_limit defaults text, which SQL would refuse' );
+is( $access->page_limit($HUGE_LIMIT),
+    $DEFAULT_LIMIT, 'page_limit caps a size past the default' );
 is( $access->dashboard_limit,
     $DASHBOARD_LIMIT, 'dashboard_limit keeps the summary cap' );
 

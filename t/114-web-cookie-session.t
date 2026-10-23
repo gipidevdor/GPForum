@@ -76,6 +76,9 @@ $cookies->replace_login(
 );
 is( $cleared->data->{user_id},    'user-2', 'replace_login writes user_id' );
 is( $cleared->data->{session_id}, 'sess-2', 'replace_login writes session_id' );
+is( $cleared->data->{expiration}, GPForum::Web::CookieSession->session_seconds,
+'replace_login gives the cookie the session\'s 30 days, not Mojolicious\'s hour'
+);
 is( $cleared->data->{preferred_locale},
     'en', 'replace_login writes preferred_locale' );
 is( $cleared->data->{login_rotation},

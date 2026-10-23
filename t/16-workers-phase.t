@@ -32,6 +32,7 @@ use GPForum::Worker::Handler::NotificationDispatch;
 use GPForum::Worker::Handler::ReputationUpdate;
 use GPForum::Worker::Handler::SearchIndexing;
 use GPForum::Worker::IdempotentJobRunner;
+use GPForum::X::Argument;
 use GPForum::Worker::MinionRegistrar;
 
 our $VERSION = '0.001';
@@ -741,10 +742,29 @@ my $contended     = $contended_runner->run(
         return { handled => 1 };
     }
 );
-ok( $contended->{ok},      'a contended run reports success' );
-ok( $contended->{skipped}, 'a contended run is skipped' );
+ok( !$contended->{ok},  'a contended run is not a success' );
+ok( $contended->{held}, 'it says the claim is held' );
+ok( !$contended->{skipped},
+    'and is not a skip, which the outbox would acknowledge' );
+like(
+    $contended->{error},
+    qr/held [ ] by [ ] another [ ] worker/msx,
+    'with the reason the outbox records and retries'
+);
 is( $contended_ran, 0,
     'the side effect does not run when another worker holds the claim' );
+
+# A claim the other worker finished between the two checks is a replay.
+my $finished_store = GPForum::Test::IdempotencyStore->new;
+$finished_store->claimed->{'job-finished'} = 1;
+$finished_store->done->{'job-finished'}    = 1;
+my $finished =
+  GPForum::Worker::IdempotentJobRunner->new( store => $finished_store )
+  ->run( 'job-finished', sub { return { unreachable => 1 }; } );
+ok(
+    $finished->{ok} && $finished->{skipped},
+    'a claim finished by its holder is skipped'
+);
 
 my $failed = $runner->run(
     'job-2',
@@ -761,6 +781,22 @@ like(
 );
 is( $idempotency_store->events->[-1][0],
     'failed', 'idempotent runner marks failure' );
+
+# An exception object is handed back as raised, so its declared failure
+# type reaches the outbox; the store gets its text.
+my $declared = $runner->run(
+    'job-3',
+    sub {
+        GPForum::X::Argument->throw( message => 'a batch needs its event' );
+    }
+);
+isa_ok( $declared->{error}, 'GPForum::X::Argument',
+    'the runner keeps the exception object' );
+like(
+    $idempotency_store->events->[-1][2],
+    qr/needs [ ] its [ ] event/msx,
+    'and records its text'
+);
 
 my $minion_dispatcher = GPForum::Test::OutboxDispatcher->new;
 my $registrar =

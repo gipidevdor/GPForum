@@ -52,7 +52,7 @@ has functions => sub ($self) {
 # viewer's standing, whether their own deleted posts are listed, and whether
 # a cursor bounds the page.
 sub list_thread_posts ( $self, $request ) {
-    my $plan      = $self->page_window->plan($request);
+    my $plan      = $self->_plan($request);
     my $functions = $self->functions;
     my $rows =
         $functions
@@ -77,7 +77,7 @@ sub _function_posts ( $self, $functions, $request, $plan ) {
 # name and its parameters, the shape's branch chosen by the three things the
 # shape names. Public so the query-plan evidence explains what runs.
 sub thread_posts_call ( $self, $request, $plan = undef ) {
-    $plan ||= $self->page_window->plan($request);
+    $plan ||= $self->_plan($request);
     my $after  = $plan->{after} || {};
     my $viewer = $request->{viewer_user_id};
     if ( !length( $viewer // q{} ) ) {
@@ -122,6 +122,12 @@ sub _prepared_posts ( $self, $request, $plan ) {
     );
 }
 
+# The page's plan: a thread's posts sort by position, so only a position
+# cursor is one.
+sub _plan ( $self, $request ) {
+    return $self->page_window->plan( { %{$request}, sort => 'position' } );
+}
+
 # The shape binds one viewer id for both the posts the viewer may read and
 # the deleted posts of their own; a request whose scope names another
 # viewer than its viewer_user_id has no shape and runs the resultset.
@@ -153,7 +159,7 @@ sub _standing ($request) {
 # The resultset list_thread_posts executes.
 # Public so the query-plan evidence EXPLAINs what actually runs.
 sub thread_posts_resultset ( $self, $request, $plan = undef ) {
-    $plan ||= $self->page_window->plan($request);
+    $plan ||= $self->_plan($request);
     my $query = {
         'me.thread_id'        => $request->{thread_id},
         'me.moderation_state' => 'visible',

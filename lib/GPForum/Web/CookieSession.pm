@@ -47,7 +47,7 @@ sub clear ( $self, $controller ) {
     $self->_delete_keys(
         $controller,
         [
-            qw(user_id session_id session_token login_rotation session_expires_at_epoch)
+            qw(user_id session_id session_token login_rotation session_expires_at_epoch expiration)
         ]
     );
     $controller->session( expires => 1 );
@@ -63,7 +63,7 @@ sub replace_login ( $self, $controller, $input ) {
     $self->_delete_keys(
         $controller,
         [
-            qw(user_id session_id session_token login_rotation session_expires_at_epoch preferred_locale preferred_theme preferred_timezone csrf_token)
+            qw(user_id session_id session_token login_rotation session_expires_at_epoch expiration preferred_locale preferred_theme preferred_timezone csrf_token)
         ]
     );
     $controller->session( $self->login_values($input) );
@@ -82,8 +82,15 @@ sub sign_out ( $self, $controller ) {
     return;
 }
 
+# Mojolicious stamps the cookie with its own expiry on every response,
+# one hour ahead unless the session says otherwise: a member who came back
+# after an hour away was a visitor again, whatever session_expires_at_epoch
+# and the server's row said. The session carries the lifetime the cookie is
+# written with; the row and the epoch above still end it 30 days after
+# sign-in.
 sub login_values ( $self, $input ) {
     my %values = (
+        expiration               => $SESSION_SECONDS,
         login_rotation           => $input->{rotation},
         session_expires_at_epoch => $input->{expires_at},
         session_id               => $input->{session_id},

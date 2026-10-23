@@ -22,10 +22,11 @@ sub thread_items ( $self, $threads ) {
     return [
         map {
             {
-                id        => $_->{thread_id},
-                title     => $_->{title},
-                url       => $self->canonical_url->thread_url($_),
-                updated   => $_->{last_activity_at} || $_->{created_at},
+                id      => $_->{thread_id},
+                title   => $_->{title},
+                url     => $self->canonical_url->thread_url($_),
+                updated =>
+                  _rfc3339( $_->{last_activity_at} || $_->{created_at} ),
                 summary   => _summary( $_->{safe_excerpt} || q{} ),
                 full_body => undef,
             }
@@ -51,6 +52,20 @@ sub render_atom ( $self, $feed ) {
       @entries,
       '</feed>',
       q{};
+}
+
+# A time as PostgreSQL writes it ("2026-10-23 12:34:56.123456+00") as RFC
+# 3339 wants it in an Atom feed: "T" between date and time, and a zone with
+# its minutes. A time already in that shape is left as it is.
+sub _rfc3339 ($value) {
+    return $value if !defined $value;
+    my $date = "$value";
+    $date =~ s/[ ]/T/msx;
+    if ( index( $date, 'T' ) >= 0 ) {
+        $date =~ s/([+-][[:digit:]]{2})\z/$1:00/amsx;
+    }
+
+    return $date;
 }
 
 sub _summary ($text) {

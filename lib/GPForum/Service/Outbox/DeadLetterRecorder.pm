@@ -113,17 +113,19 @@ sub _letter_row ( $self, $message, $failure ) {
     my $failure_time = $self->clock->now_iso8601;
 
     return {
-        dead_letter_id  => $self->id_service->uuid,
-        source_table    => $SOURCE_TABLE,
-        source_id       => $message->get_column('outbox_id'),
-        payload         => $message->get_column('payload') || {},
-        error_class     => $failure->{error_class},
-        error_message   => $failure->{error_message},
-        failure_type    => $failure->{failure_type} || 'transient',
-        retry_count     => $failure->{attempt_count},
-        first_failed_at => $message->get_column('first_failed_at')
-          || $failure_time,
-        last_failed_at => $failure_time,
+        dead_letter_id => $self->id_service->uuid,
+        source_table   => $SOURCE_TABLE,
+        source_id      => $message->get_column('outbox_id'),
+        payload        => $message->get_column('payload') || {},
+        error_class    => $failure->{error_class},
+        error_message  => $failure->{error_message},
+        failure_type   => $failure->{failure_type} || 'transient',
+        retry_count    => $failure->{attempt_count},
+
+        # The outbox row keeps no first failure time, so the letter's is
+        # the time it was written.
+        first_failed_at => $failure_time,
+        last_failed_at  => $failure_time,
     };
 }
 

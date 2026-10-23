@@ -652,11 +652,11 @@ sub _thread_page_payload ( $self, $page, $user_id, %option ) {
         reaction_command_ids => $user_id
         ? $self->_reaction_command_ids($post_ids)
         : {},
-        reply_targets    => $self->_reply_targets($post_ids),
-        thread_tags      => $self->gp_tags_for_threads( [ $page->{thread} ] ),
-        like_command_ids => $user_id ? $self->_command_ids_for($post_ids) : {},
-        delete_command_ids     => $self->_command_ids_for($own),
-        report_command_ids     => $self->_command_ids_for($own),
+        reply_targets      => $self->_reply_targets($post_ids),
+        thread_tags        => $self->gp_tags_for_threads( [ $page->{thread} ] ),
+        like_command_ids   => $self->_member_command_ids( $post_ids, $user_id ),
+        delete_command_ids => $self->_command_ids_for($own),
+        report_command_ids => $self->_member_command_ids( $post_ids, $user_id ),
         restore_command_ids    => $self->_command_ids_for($own),
         edit_thread_command_id =>
           $self->_thread_edit_command_id( $page, $user_id ),
@@ -832,6 +832,17 @@ sub _own_post_ids ( $self, $page, $user_id ) {
 # A fresh command id for each of the ids.
 sub _command_ids_for ( $self, $ids ) {
     return { map { $_ => $self->_new_command_id } @{$ids} };
+}
+
+# A command id for each post, for a signed-in reader; none for a guest. The
+# like and the report forms under every post take one: the report ids were
+# minted for the reader's own posts alone, so the form under every other
+# post -- the ones a reader reports -- sent an empty id and was refused
+# (400, "command_id is required").
+sub _member_command_ids ( $self, $post_ids, $user_id ) {
+    return {} if !$user_id;
+
+    return $self->_command_ids_for($post_ids);
 }
 
 sub _attachment_delete_command_ids ( $self, $by_post, $user_id ) {

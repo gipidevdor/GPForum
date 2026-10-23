@@ -202,7 +202,8 @@ sub _values ( $read, $calls ) {
 sub _answers ( $functions, $calls, $rows ) {
     my %by_part;
     for my $row ( @{$rows} ) {
-        my $part = $PART{ $row->{part} } or next;
+        next if !exists $PART{ $row->{part} // q{} };
+        my $part = $PART{ $row->{part} };
         push @{ $by_part{ $row->{part} } },
           { map { $_ => $row->{$_} } @{ $part->{columns} } };
     }

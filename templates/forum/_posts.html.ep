@@ -18,13 +18,22 @@
 %# the loop.
 % my $signed_in = $engagement && $engagement->{authenticated};
 % my $fragments = ui_presenter->post_fragments;
+%# The page's URL for "Copy post link": its path and the parameters that
+%# chose the page, not the rest of the query -- a shared render is served to
+%# every visitor, and carried the first visitor's.
+% my $page_url = do {
+%   my $url = $self->req->url->clone;
+%   my %kept = map { $_ => 1 } qw(after at limit post quote reply_to);
+%   $url->query->remove($_) for grep { !$kept{$_} } @{ $url->query->names };
+%   $url->to_string;
+% };
 
 % for my $post (@{$posts}) {
 %   my $dom_id = 'post-' . $post->{post_id};
 %   my $static = $fragments->render($self, $post);
 %   my $paths = $static->{paths};
   <li class="ui-card-list__item" hx-target="this" hx-swap="outerHTML">
-    <article class="post" id="<%= $dom_id %>" data-page-url="<%= $self->req->url->to_string %>" aria-labelledby="<%= $dom_id %>-heading">
+    <article class="post" id="<%= $dom_id %>" data-page-url="<%= $page_url %>" aria-labelledby="<%= $dom_id %>-heading">
       <%= $static->{header} %>
           % if ($post->{created_at}) {
             <span><%= ui_timestamp($post->{created_at}) %></span>

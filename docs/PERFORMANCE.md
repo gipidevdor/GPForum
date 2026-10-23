@@ -245,11 +245,13 @@ a maintenance window. After restoring a dump, run `ANALYZE` as usual.
 
 ### The outbox claim
 
-The dispatcher claims work in one statement (`GPForum::Service::Outbox::ClaimQuery`):
-ready `pending` and `failed` rows with `next_attempt_at <= now`, and `running`
-rows whose lease (`locked_until`) has expired, ordered by `next_attempt_at,
-created_at, outbox_id`, locked `FOR UPDATE SKIP LOCKED` so several workers
-consume without a global lock, and marked `running` with `locked_at`,
+The dispatcher claims work in one statement (`api.outbox_claim_ready_v4`,
+migration 1034; `GPForum::Service::Outbox::ClaimQuery` keeps the resultset
+shape for doubles): ready `pending` and `failed` rows with `next_attempt_at
+<= now`, and `running` rows whose lease (`locked_until`) has expired, ordered
+by `next_attempt_at, created_at, outbox_id`, locked `FOR UPDATE SKIP LOCKED`
+so several workers consume without a global lock, and marked `running` with
+`locked_at`,
 `locked_until` and `locked_by` in the same statement. On PostgreSQL the
 claimed rows come back as lightweight DBI-backed messages, with no
 DBIx::Class reload. Each message then costs two single-row `UPDATE`s by
@@ -264,9 +266,17 @@ in one `UPDATE` at its end managed 9,000 to 11,600 and 8 to 11 ms
 (2026-10-08). That is one worker's ceiling with nothing to do: a real
 handler writes its own rows for each message, and several workers take from
 the queue without waiting for each other's rows. The indexes are
-`idx_outbox_messages_claim_ready` and `idx_outbox_messages_stale_locks`;
-migration 037 dropped the pending- and failed-only ones the claim no longer
-used.
+`idx_outbox_messages_claim_ready` (pending and failed) and
+`idx_outbox_messages_stale_locks` (running). Until migration 1034 the
+claim's `WHERE` was an OR of the two predicates, which no index can serve in
+order, so every claim scanned the table and sorted every ready row for its
+page: on 300,000 ready rows, 104 ms and a 14 MB external sort, growing with
+the backlog it was there to drain. The claim now reads each half in order
+from its own index, cut at the page, takes the page from the two, and locks
+it with the readiness predicate restated on the locked row (so a row another
+worker claimed and committed between the read and the lock is judged again
+and left out): 0.9 ms on the same rows (2026-10-23). Under contention a
+claim may hold fewer rows than asked; the next poll takes the rest.
 
 ## Query budgets
 

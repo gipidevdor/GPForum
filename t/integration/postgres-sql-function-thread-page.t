@@ -177,17 +177,23 @@ for my $name ( sort keys %path ) {
 is( $stats->{total_queries} - $before,
     0, 'a malformed id sends no statement on either path' );
 
-# A cursor whose position is a timestamp is one PageWindow lets through for
-# every list; the posts' position is a number, and PostgreSQL refuses it on
-# both paths alike.
+# A cursor whose position is a timestamp is no cursor for a list of
+# positions: the page is the first one, on both paths alike. PageWindow
+# used to let it through for every list, and PostgreSQL refused the bigint,
+# which failed the request.
 my $timestamp = encode_base64url("2026-01-01 00:00:00|$thread{long}");
 for my $name ( sort keys %path ) {
-    my $died = !eval {
-        $path{$name}{posts}->list_thread_posts(
-            { after => $timestamp, limit => 1, thread_id => $thread{long} } );
-        1;
-    };
-    ok( $died, "$name: a timestamp cursor on the posts is refused" );
+    my %page = map {
+        $_ => [
+            map { _columns($_) } @{
+                $path{$name}{posts}->list_thread_posts(
+                    { after => $_, limit => 1, thread_id => $thread{long} }
+                )->{items}
+            }
+        ]
+    } ( $timestamp, undef );
+    is_deeply( $page{$timestamp}, $page{q{}},
+        "$name: a timestamp cursor on the posts shows the first page" );
 }
 
 # One statement per list, on both paths.

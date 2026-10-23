@@ -18,6 +18,7 @@ const my $DEFAULT_QUEUE_LIMIT => 50;
 const my $REQUESTED_LIMIT     => 10;
 const my $WRITE_RATE_LIMIT    => 20;
 const my $WRITE_RATE_WINDOW   => 60;
+const my $HUGE_LIMIT          => 100_000_000;
 
 my $access = GPForum::Web::ModerationAccess->new;
 
@@ -46,6 +47,10 @@ is( $access->queue_limit(0),
     $DEFAULT_QUEUE_LIMIT, 'queue_limit defaults a zero size' );
 is( $access->queue_limit($REQUESTED_LIMIT),
     $REQUESTED_LIMIT, 'queue_limit keeps an explicit size' );
+is( $access->queue_limit('many'),
+    $DEFAULT_QUEUE_LIMIT, 'queue_limit defaults text, which SQL would refuse' );
+is( $access->queue_limit($HUGE_LIMIT),
+    $DEFAULT_QUEUE_LIMIT, 'queue_limit caps a size past the default' );
 
 is( $access->queue_status(undef),
     'open', 'queue_status defaults a missing filter' );

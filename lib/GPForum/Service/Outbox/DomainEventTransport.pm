@@ -69,10 +69,16 @@ sub _handler_key ( $self, $handler, $payload ) {
 # The event id is passed rather than parsed back out of the key. The store
 # writes it to a uuid column when it claims the key, and reconstructing it
 # from the key's suffix only works while every key happens to end in one.
+#
+# A failure is raised again as the handler raised it: an exception object
+# declares its failure type (GPForum::X), and stringified it was classified
+# by its text alone, so a permanent one was retried four times.
 sub _run_idempotent ( $self, $key, $code, $event_id ) {
     my $outcome = $self->job_runner->run( $key, $code, $event_id );
     if ( !$outcome->{ok} ) {
-        croak $outcome->{error} || 'idempotent handler failed';
+        my $error = $outcome->{error};
+        die $error if blessed $error;    ## no critic (ErrorHandling::RequireCarping) -- the handler's own exception, rethrown as raised
+        croak $error || 'idempotent handler failed';
     }
     if ( $outcome->{skipped} ) {
         return { skipped => 1, idempotency_key => $key };

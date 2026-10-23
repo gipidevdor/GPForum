@@ -129,7 +129,7 @@ sub invalid_mark ( $, $input ) {
       map { _has_value( $input->{$_} ) ? () : ( $_ => "$_ is required" ) }
       qw(user_id thread_id);
     my $position = $input->{last_read_position};
-    if ( !defined $position || $position !~ /\A [[:digit:]]+ \z/msx ) {
+    if ( !defined $position || $position !~ /\A [[:digit:]]+ \z/amsx ) {
         $errors{last_read_position} =
           'last_read_position must be a non-negative integer';
     }

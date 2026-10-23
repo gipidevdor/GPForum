@@ -118,7 +118,7 @@ sub category_threads_resultset ( $self, $request, $plan = undef ) {
 }
 
 sub list_public_threads ( $self, $request ) {
-    my $plan = $self->page_window->plan($request);
+    my $plan = $self->_latest_plan($request);
 
     if ( my $functions = $self->functions ) {
         my $rows = $functions->rows(
@@ -140,7 +140,7 @@ sub list_public_threads ( $self, $request ) {
 }
 
 sub latest_threads_call ( $self, $request, $plan = undef ) {
-    $plan ||= $self->page_window->plan($request);
+    $plan ||= $self->_latest_plan($request);
     my $viewer = $request->{viewer}
       || GPForum::Service::Forum::Viewer->anonymous;
     my $after = $plan->{after} || {};
@@ -163,7 +163,7 @@ sub latest_threads_call ( $self, $request, $plan = undef ) {
 # 0102): the home page's latest list and, with an anonymous viewer, the
 # sitemap and the Atom feed.
 sub latest_threads_resultset ( $self, $request, $plan = undef ) {
-    $plan ||= $self->page_window->plan($request);
+    $plan ||= $self->_latest_plan($request);
     my $query = {
         'me.deleted_at'       => undef,
         'me.moderation_state' => { -in => [ 'visible', 'locked' ] },
@@ -212,6 +212,12 @@ sub latest_threads_resultset ( $self, $request, $plan = undef ) {
             rows => $plan->{fetch_rows},
         }
     );
+}
+
+# The latest list's plan: it sorts by last_activity_at, so only a timestamp
+# cursor is one.
+sub _latest_plan ( $self, $request ) {
+    return $self->page_window->plan( { %{$request}, sort => 'timestamp' } );
 }
 
 # The category was authorized by the caller; its threads are judged on their
@@ -365,7 +371,7 @@ sub _decode_pinned_cursor ($cursor) {
     return if !$cursor_parts;
     return
       if !GPForum::Service::Forum::PageWindow->acceptable_cursor(
-        @{$cursor_parts}{qw(sort_value id)} );
+        @{$cursor_parts}{qw(sort_value id)}, 'timestamp' );
 
     return $cursor_parts;
 }

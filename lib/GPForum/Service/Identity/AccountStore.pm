@@ -6,6 +6,7 @@ package GPForum::Service::Identity::AccountStore;
 use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Util qw(secure_compare);
 
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
@@ -254,7 +255,13 @@ sub _change_password_in_txn ( $self, $user, $input, $verified ) {
     {
         return { error => 'invalid_current_password', ok => 0 };
     }
-    if ( $self->_credential_matches( $current, $input->{new_password} ) ) {
+
+    # $current is the credential the current password matched, so the new
+    # password matches it exactly when it is the current one: compared as
+    # text, in constant time, where verifying it against the hash was a
+    # second Argon2 run (tens of milliseconds) under the row's lock.
+    if ( secure_compare( $input->{new_password}, $input->{current_password} ) )
+    {
         return {
             ok      => 1,
             skipped => 1,

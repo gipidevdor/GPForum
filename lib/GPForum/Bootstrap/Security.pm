@@ -70,23 +70,29 @@ sub _mask_csrf_token_once_per_response ($application) {
             return $masked;
         }
     );
+
+    # The field is asked for by every form on the page -- 158 times on a
+    # thread page -- so the one written is answered from the stash by the
+    # session's token it masks, without the token helper's own lookups.
     $application->helper(
         csrf_field => sub ( $controller, @attributes ) {
+            my $stash = $controller->stash;
             return Mojo::ByteStream->new(q{})
-              if $controller->stash->{'gpforum.shared_render'};
+              if $stash->{'gpforum.shared_render'};
             return $tag_field->( $controller, @attributes ) if @attributes;
 
-            my $token = $controller->csrf_token;
-            my $kept  = $controller->stash->{'gpforum.csrf_field'};
-            return $kept->{field} if $kept && $kept->{token} eq $token;
+            my $kept = $stash->{'gpforum.csrf_field'};
+            my $raw  = $controller->session->{csrf_token};
+            return $kept->{field}
+              if $kept && defined $raw && $kept->{raw} eq $raw;
 
             my $field =
               Mojo::ByteStream->new(
                     '<input name="csrf_token" type="hidden" value="'
-                  . $token
+                  . $controller->csrf_token
                   . '">' );
-            $controller->stash->{'gpforum.csrf_field'} =
-              { field => $field, token => $token };
+            $stash->{'gpforum.csrf_field'} =
+              { field => $field, raw => $controller->session->{csrf_token} };
             return $field;
         }
     );

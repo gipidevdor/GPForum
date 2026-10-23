@@ -75,8 +75,14 @@ const my %WRITE_FLASH_TYPE => (
     $STATUS_MAIL_TEST_FAILED     => 'warning',
 );
 
+# The page size from the URL: a number from 1 to the default, which is
+# also the ceiling; anything else -- text, which PostgreSQL would refuse as
+# an integer, or a size past the ceiling -- is the default.
 sub page_limit ( $, $requested ) {
-    return $requested || $DEFAULT_LIMIT;
+    return $DEFAULT_LIMIT
+      if !defined $requested || $requested !~ /\A [1-9][[:digit:]]{0,5} \z/amsx;
+
+    return $requested > $DEFAULT_LIMIT ? $DEFAULT_LIMIT : 0 + $requested;
 }
 
 sub dashboard_limit {

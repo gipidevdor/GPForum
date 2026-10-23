@@ -267,12 +267,12 @@ sub _complete_request ( $self, $export_request_id, $parts ) {
         $parts
       ? $self->build_user_bundle( $subject_user_id, $parts )
       : $self->_build_user_bundle_from_storage($subject_user_id);
-    my $summary = $self->safe_manifest($bundle);
-    my $stored  = {
-        %{$summary},
-        map { $_ => $bundle->{$_} }
-          qw(attachments notifications posts preferences profile subscriptions)
-    };
+
+    # The stored manifest is what the member downloads: the summary and every
+    # part. Six named parts were kept and the rest counted only, so an export
+    # said "5 direct messages" and held none of them.
+    my $summary  = $self->safe_manifest($bundle);
+    my $stored   = { %{$bundle}, %{$summary} };
     my $finished = $self->clock->now_iso8601;
     my $changes  = {
         status      => $STATUS_COMPLETED,
@@ -318,32 +318,26 @@ sub _complete_request ( $self, $export_request_id, $parts ) {
     };
 }
 
+# The parts of a bundle that are lists, each an empty one when the subject
+# has none: what they wrote, kept, were sent and chose; the members they
+# ignore or block (ADR 0130); their posts held for review, as written (ADR
+# 0134); their choices by kind of notification (ADR 0078); their
+# conversations and the messages they wrote (ADR 0139); the likes and the
+# reactions they gave.
+const my @LIST_PARTS => qw(
+  posts drafts attachments notifications subscriptions preferences
+  member_relations held_posts notification_type_preferences direct_messages
+  likes reactions
+);
+
 sub build_user_bundle ( $self, $subject_user_id, $parts ) {
     return {
         subject_user_id => $subject_user_id,
         generated_at    => $self->clock->now_iso8601,
         format          => $FORMAT_JSON,
         %{ _community_parts($parts) },
-        profile       => $parts->{profile}       || {},
-        posts         => $parts->{posts}         || [],
-        drafts        => $parts->{drafts}        || [],
-        attachments   => $parts->{attachments}   || [],
-        notifications => $parts->{notifications} || [],
-        subscriptions => $parts->{subscriptions} || [],
-        preferences   => $parts->{preferences}   || [],
-
-        # ADR 0130: the members the subject ignores or blocks.
-        member_relations => $parts->{member_relations} || [],
-
-        # ADR 0134: the subject's posts held for review, as written.
-        held_posts => $parts->{held_posts} || [],
-
-        # ADR 0078: the subject's choices by kind of notification.
-        notification_type_preferences => $parts->{notification_type_preferences}
-          || [],
-
-        # ADR 0139: the subject's conversations and the messages they wrote.
-        direct_messages => $parts->{direct_messages} || [],
+        ( map { $_ => $parts->{$_} || [] } @LIST_PARTS ),
+        profile => $parts->{profile} || {},
 
         # ADR 0142: whether two-step sign-in is on, since when, and the
         # recovery codes left; never the secret or the codes.
@@ -387,6 +381,9 @@ sub safe_manifest ( $self, $bundle ) {
             notification_type_preferences =>
               scalar @{ $bundle->{notification_type_preferences} // [] },
             direct_messages => scalar @{ $bundle->{direct_messages} // [] },
+            likes           => scalar @{ $bundle->{likes}           // [] },
+            reactions       => scalar @{ $bundle->{reactions}       // [] },
+            poll_ballots    => scalar @{ $bundle->{poll_ballots}    // [] },
         },
     };
 }

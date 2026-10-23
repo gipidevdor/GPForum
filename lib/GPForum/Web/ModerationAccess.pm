@@ -65,8 +65,15 @@ const my %WRITE_FLASH => (
     $STATUS_USER_SUSPENDED     => 'moderation.user_suspended',
 );
 
+# The queue page size from the URL: a number from 1 to the default, which
+# is also the ceiling; anything else is the default.
 sub queue_limit ( $, $requested ) {
-    return $requested || $DEFAULT_QUEUE_LIMIT;
+    return $DEFAULT_QUEUE_LIMIT
+      if !defined $requested || $requested !~ /\A [1-9][[:digit:]]{0,5} \z/amsx;
+
+    return $requested > $DEFAULT_QUEUE_LIMIT
+      ? $DEFAULT_QUEUE_LIMIT
+      : 0 + $requested;
 }
 
 sub queue_status ( $, $status ) {

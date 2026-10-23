@@ -9,7 +9,7 @@ use v5.40;
 
 use GPForum::Service::Discovery::VisibilityPolicy;
 use JSON::MaybeXS;
-use Mojo::DOM;
+use Mojo::Util qw(html_unescape);
 
 our $VERSION = '0.001';
 
@@ -82,9 +82,21 @@ sub _comment_node ( $post, $url ) {
               || 'Anonymous'
         },
         datePublished => $date,
-        text          => Mojo::DOM->new( $post->{body} )->all_text,
+        text          => _body_text( $post->{body} ),
         url           => "$url#post-$post->{post_id}"
     };
+}
+
+# The text of a body as GPForum::Service::Forum::BodyRenderer wrote it:
+# every tag is the renderer's own, no attribute holds a raw angle bracket,
+# and the text between the tags is escaped. Taking the tags out and
+# unescaping what is left is what parsing it gave, and a page has twenty-five
+# bodies: parsing each with Mojo::DOM was a tenth of its render.
+sub _body_text ($html) {
+    my $text = $html;
+    $text =~ s/<[^>]*>//gmsx;
+
+    return html_unescape($text);
 }
 
 sub _excerpt ($text) {

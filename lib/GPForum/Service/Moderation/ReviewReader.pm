@@ -30,7 +30,8 @@ has functions => sub ($self) {
 sub list_actions ( $self, $options ) {
     $options ||= {};
 
-    my $page = $self->page_window->plan($options);
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     if ( $self->functions ) {
         my $after = $page->{after} || {};
         my $rows  = [
@@ -85,7 +86,8 @@ sub list_actions ( $self, $options ) {
 sub list_suspensions ( $self, $options ) {
     $options ||= {};
 
-    my $page = $self->page_window->plan($options);
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     if ( $self->functions ) {
         my $after = $page->{after} || {};
         my $rows  = [

@@ -21,8 +21,12 @@ has functions => sub ($self) {
 # How long a claim is honoured before another worker may take it over. A
 # worker killed between claiming and finishing would otherwise park its event
 # forever, because the claim row it left behind looks exactly like one held by
-# a worker that is still running.
-const my $CLAIM_LEASE_SECONDS => 900;
+# a worker that is still running. Shorter than the outbox's five tries at
+# 60 s, 120 s, 180 s and 240 s apart (Service::Outbox::Retry): a message
+# whose handler's claim is held waits for its next try, and with a lease
+# of 900 s the fifth try came, and the message was a dead letter, before
+# the claim of a worker that had died could be taken over.
+const my $CLAIM_LEASE_SECONDS => 300;
 const my $KEY_CONSTRAINT      => 'event_idempotency_keys_pkey';
 
 __PACKAGE__->requires(qw(schema));

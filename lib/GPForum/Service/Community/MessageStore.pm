@@ -182,8 +182,8 @@ sub _answer ($row) {
 # A page of the member's conversations, the one moved last first:
 # { items, has_next, next_cursor }.
 sub inbox ( $self, $user_id, $after = undef ) {
-    my $plan =
-      $self->page_window->plan( { after => $after, limit => $INBOX_PAGE } );
+    my $plan = $self->page_window->plan(
+        { after => $after, limit => $INBOX_PAGE, sort => 'timestamp' } );
     return _empty_page() if !$self->functions || !defined $user_id;
 
     my $rows = $self->functions->rows(
@@ -216,7 +216,7 @@ sub conversation ( $self, $conversation_id, $user_id ) {
 # { items, has_next, next_cursor }.
 sub messages ( $self, $conversation_id, $user_id, $before = undef ) {
     my $plan = $self->page_window->plan(
-        { after => $before, limit => $CONVERSATION_PAGE } );
+        { after => $before, limit => $CONVERSATION_PAGE, sort => 'position' } );
     return _empty_page()
       if !$self->functions
       || !defined $user_id

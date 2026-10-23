@@ -32,7 +32,8 @@ has functions => sub ($self) {
 has readability => undef;    # optional: every source counts as readable
 
 sub list_page_for_recipient ( $self, $user_id, $options ) {
-    my $page = $self->page_window->plan($options);
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     if ( $self->functions ) {
         my $rows = $self->_list_by_function(
             $user_id,

@@ -1373,7 +1373,7 @@ const my %FUNCTION => (
         ]
     },
     outbox_claim_ready => {
-        version    => 2,
+        version    => 4,
         parameters => [
             now          => 'text',
             locked_until => 'text',

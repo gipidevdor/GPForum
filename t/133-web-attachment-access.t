@@ -16,6 +16,9 @@ our $VERSION = '0.001';
 
 const my $UPLOAD_LIMIT  => 20;
 const my $UPLOAD_WINDOW => 60;
+const my $E_ACUTE       => chr 0xE9;
+const my $BAO           => chr 0x62A5;
+const my $GAO           => chr 0x544A;
 
 my $access = GPForum::Web::AttachmentAccess->new;
 
@@ -43,6 +46,22 @@ is(
     $access->content_disposition('photo"x.png'),
     'attachment; filename="photo_x.png"',
     'content_disposition quotes the sanitized filename'
+);
+is( $access->safe_filename('a\\b.txt'),
+    'a_b.txt', 'safe_filename neutralises a backslash' );
+
+# A name outside ASCII is a header that cannot be written as it is: the
+# quoted name stays ASCII and the real one follows, encoded, as RFC 6266
+# has it.
+is(
+    $access->content_disposition("r${E_ACUTE}sum${E_ACUTE}.pdf"),
+    q{attachment; filename="r_sum_.pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf},
+    'a Latin-1 name is sent as ASCII and as UTF-8'
+);
+is(
+    $access->content_disposition("${BAO}${GAO}.pdf"),
+    q{attachment; filename="__.pdf"; filename*=UTF-8''%E6%8A%A5%E5%91%8A.pdf},
+    'a name in another script is sent the same way'
 );
 
 ok(

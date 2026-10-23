@@ -19,7 +19,7 @@ use GPForum::Test::ModerationSchema;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS   => 16;
+const my $EXPECTED_TESTS   => 21;
 const my $TWO_CREATED_ROWS => 2;
 const my $TWO_POSTS        => 2;
 const my $ONE_ATTACHMENT   => 1;
@@ -98,12 +98,14 @@ ok(
 my $completed_export = $export_builder->complete_user_export(
     $request->{export_request_id},
     {
-        profile       => { username => 'giacomo' },
-        posts         => [ { post_id         => 1 }, { post_id => 2 } ],
-        attachments   => [ { attachment_id   => 1 } ],
-        notifications => [ { notification_id => 1 } ],
-        subscriptions => [ { thread_id       => 1 } ],
-        preferences   => [ { channel         => 'email' } ],
+        profile         => { username => 'giacomo' },
+        posts           => [ { post_id         => 1 }, { post_id => 2 } ],
+        attachments     => [ { attachment_id   => 1 } ],
+        notifications   => [ { notification_id => 1 } ],
+        subscriptions   => [ { thread_id       => 1 } ],
+        preferences     => [ { channel         => 'email' } ],
+        direct_messages => [ { message_id      => 'm-1' } ],
+        likes           => [ { post_id         => 2 } ],
     }
 );
 is( $completed_export->{status},
@@ -118,6 +120,18 @@ is( $completed_export->{manifest}{counts}{notifications},
     $ONE_NOTIFICATION, 'completed export stores safe notification count' );
 is( $completed_export->{manifest}{posts}[0]{post_id},
     1, 'completed export stores the supplied post rows' );
+
+# What the manifest counts, it holds: six named parts were stored and the
+# rest counted only, so an export said how many messages and had none.
+is( $completed_export->{manifest}{counts}{direct_messages},
+    1, 'completed export counts the direct messages' );
+is( $completed_export->{manifest}{direct_messages}[0]{message_id},
+    'm-1', 'and stores them' );
+is( $completed_export->{manifest}{counts}{likes},
+    1, 'completed export counts the likes' );
+is( $completed_export->{manifest}{likes}[0]{post_id}, 2, 'and stores them' );
+is( $completed_export->{manifest}{second_factor}{state},
+    'off', 'and the parts with a default' );
 is( scalar @{ $event_log->created },
     $TWO_CREATED_ROWS, 'export completion emits second privacy event' );
 is( scalar @{ $outbox_messages->created },

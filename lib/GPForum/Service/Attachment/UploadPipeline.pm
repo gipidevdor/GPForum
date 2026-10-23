@@ -45,7 +45,16 @@ sub upload_and_link ( $self, $input ) {
     my $intent = $self->intent_builder->build_intent( $validated->{values} );
     $self->storage->write_object( $intent->{object_key}, $content );
 
-    my $created  = $self->store->create_intent($intent);
+    # The row is what the orphan purge walks: an object whose row was never
+    # written (the insert failed) stayed on disk for good.
+    my $created;
+    try {
+        $created = $self->store->create_intent($intent);
+    }
+    catch ($error) {
+        _discard_object( $self->storage, $intent->{object_key} );
+        die $error;    ## no critic (ErrorHandling::RequireCarping) -- the store's own exception, rethrown as raised
+    };
     my $uploaded = $self->store->mark_uploaded( $intent->{attachment_id} );
     my $scanned  = $self->_scan_at_upload( $intent->{attachment_id}, $content );
     my $link     = $self->_link_target( $input, $intent->{attachment_id} );
@@ -140,6 +149,20 @@ sub _client_media_type ($input) {
       if $upload->can('headers') && $upload->headers;
 
     return undef;
+}
+
+# The object of a row that was never written. A storage that cannot delete
+# it now leaves it to the operator: the insert's own error is the one to
+# report.
+sub _discard_object ( $storage, $object_key ) {
+    try {
+        $storage->delete_object($object_key);
+    }
+    catch ($ignored) {
+        return;
+    };
+
+    return;
 }
 
 sub _original_filename ($input) {

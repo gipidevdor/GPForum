@@ -69,6 +69,7 @@ const my $LEGACY_REPLY_VERSION => 4;
 # the 1.0 suspension boundaries for workers that have not restarted yet.
 const my %RETAINED_BOUNDARIES => (
     forum_resolve_viewer         => [6],
+    outbox_claim_ready           => [2],
     forum_create_reply           => [4],
     forum_store_write            => [2],
     forum_write_command          => [4],

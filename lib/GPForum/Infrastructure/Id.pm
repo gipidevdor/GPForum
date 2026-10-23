@@ -24,7 +24,7 @@ const my $BITS               => 8;
 const my $VARIANT_MASK       => 0x3f;
 const my $VARIANT_RFC4122    => 0x80;
 const my $VARIANT_BYTE_INDEX => 8;
-const my $UUID_GROUPS        => 'A8 A4 A4 A4 A12';
+const my $UUID_GROUPS        => 'H8 H4 H4 H4 H12';
 
 # /a: without it [[:xdigit:]] also matches the fullwidth digits and letters
 # (U+FF10...), which PostgreSQL's uuid input rejects.
@@ -82,7 +82,7 @@ sub uuid ($self) {
       ( vec( $bytes, $VARIANT_BYTE_INDEX, $BITS ) & $VARIANT_MASK ) |
       $VARIANT_RFC4122;
 
-    return join q{-}, unpack $UUID_GROUPS, unpack 'H*', $bytes;
+    return join q{-}, unpack $UUID_GROUPS, $bytes;
 }
 
 # The system's random bytes, read a page at a time: each id read its bytes

@@ -15773,6 +15773,78 @@ $$;
 
 
 --
+-- Name: outbox_claim_ready_v3(text, text, text, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.outbox_claim_ready_v3(p_now text, p_locked_until text, p_worker_id text, p_row_limit integer) RETURNS SETOF api.outbox_message_v1
+    LANGUAGE sql
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+WITH due AS (
+    (SELECT outbox_id, next_attempt_at, created_at FROM public.outbox_messages
+      WHERE status IN ('pending', 'failed')
+        AND next_attempt_at <= p_now::timestamptz
+        AND (locked_until IS NULL OR locked_until <= p_now::timestamptz)
+      ORDER BY next_attempt_at, created_at, outbox_id
+      LIMIT p_row_limit)
+    UNION ALL
+    (SELECT outbox_id, next_attempt_at, created_at FROM public.outbox_messages
+      WHERE status = 'running'
+        AND locked_until IS NOT NULL
+        AND locked_until <= p_now::timestamptz
+      ORDER BY next_attempt_at, created_at, outbox_id
+      LIMIT p_row_limit)
+), ready AS (
+    SELECT me.outbox_id, me.next_attempt_at, me.created_at
+    FROM due JOIN public.outbox_messages me ON me.outbox_id = due.outbox_id
+    WHERE (me.status IN ('pending', 'failed')
+        AND me.next_attempt_at <= p_now::timestamptz
+        AND (me.locked_until IS NULL OR me.locked_until <= p_now::timestamptz))
+      OR (me.status = 'running'
+        AND me.locked_until IS NOT NULL
+        AND me.locked_until <= p_now::timestamptz)
+    ORDER BY due.next_attempt_at, due.created_at, due.outbox_id
+    LIMIT p_row_limit
+    FOR UPDATE OF me SKIP LOCKED
+), claimed AS (
+    UPDATE public.outbox_messages outbox SET status = 'running',
+        locked_at = p_now::timestamptz,
+        locked_by = p_worker_id,
+        locked_until = p_locked_until::timestamptz
+    FROM ready WHERE outbox.outbox_id = ready.outbox_id RETURNING
+        outbox.outbox_id, outbox.event_id, outbox.queue, outbox.job_type,
+        outbox.idempotency_key, outbox.payload, outbox.available_at,
+        outbox.created_at, outbox.locked_at, outbox.attempts, outbox.status,
+        outbox.last_error, outbox.next_attempt_at, outbox.locked_by,
+        outbox.locked_until, outbox.attempt_count, outbox.last_error_class,
+        outbox.failure_type
+)
+SELECT claimed.outbox_id, claimed.event_id, claimed.queue, claimed.job_type,
+    claimed.idempotency_key, claimed.payload, claimed.available_at,
+    claimed.created_at, claimed.locked_at, claimed.attempts, claimed.status,
+    claimed.last_error, claimed.next_attempt_at, claimed.locked_by,
+    claimed.locked_until, claimed.attempt_count, claimed.last_error_class,
+    claimed.failure_type
+FROM claimed JOIN ready ON ready.outbox_id = claimed.outbox_id
+ORDER BY ready.next_attempt_at, ready.created_at, ready.outbox_id
+$$;
+
+
+--
+-- Name: outbox_claim_ready_v4(text, text, text, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.outbox_claim_ready_v4(p_now text, p_locked_until text, p_worker_id text, p_row_limit integer) RETURNS SETOF api.outbox_message_v1
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.outbox_claim_ready_v3(p_now, p_locked_until, p_worker_id, p_row_limit);
+$$;
+
+
+--
 -- Name: outbox_dead_letter_v1(jsonb); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -26925,6 +26997,20 @@ REVOKE ALL ON FUNCTION api.outbox_claim_ready_v1(p_now text, p_locked_until text
 --
 
 REVOKE ALL ON FUNCTION api.outbox_claim_ready_v2(p_now text, p_locked_until text, p_worker_id text, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION outbox_claim_ready_v3(p_now text, p_locked_until text, p_worker_id text, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.outbox_claim_ready_v3(p_now text, p_locked_until text, p_worker_id text, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION outbox_claim_ready_v4(p_now text, p_locked_until text, p_worker_id text, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.outbox_claim_ready_v4(p_now text, p_locked_until text, p_worker_id text, p_row_limit integer) FROM PUBLIC;
 
 
 --

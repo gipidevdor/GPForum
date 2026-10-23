@@ -23,11 +23,12 @@ use GPForum::Test::ThreadKeysetResultSet;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 43;
+const my $EXPECTED_TESTS => 48;
 const my $DEFAULT_LIMIT  => 25;
 const my $MAX_LIMIT      => 100;
 const my $REQUEST_LIMIT  => 2;
 const my $MAX_PAGE_WALK  => 20;
+const my $FULLWIDTH_ONE  => chr 0xFF11;
 
 plan tests => $EXPECTED_TESTS;
 
@@ -54,6 +55,44 @@ is( $invalid_limit_plan->{limit},
 my $invalid_cursor_plan = $page_window->plan( { after => 'not-a-cursor' } );
 is( $invalid_cursor_plan->{after},
     undef, 'page window ignores malformed cursor' );
+
+# A list binds its cursor as the type it sorts by: a timestamp given to a
+# list of positions reached PostgreSQL as a bigint and failed the request.
+my $position_cursor =
+  encode_base64url( join q{|}, '12', '018f1000-0000-7000-8000-000000000105' );
+my $timestamp_cursor = encode_base64url( join q{|}, '2026-05-23T12:02:00Z',
+    '018f1000-0000-7000-8000-000000000105' );
+is(
+    $page_window->plan( { after => $timestamp_cursor, sort => 'position' } )
+      ->{after},
+    undef,
+    'a list of positions takes no timestamp cursor'
+);
+is(
+    $page_window->plan( { after => $position_cursor, sort => 'timestamp' } )
+      ->{after},
+    undef,
+    'a list of timestamps takes no position cursor'
+);
+is(
+    $page_window->plan( { after => $position_cursor, sort => 'position' } )
+      ->{after}{sort_value},
+    '12',
+    'a list of positions takes a position cursor'
+);
+is(
+    $page_window->plan( { after => $timestamp_cursor, sort => 'timestamp' } )
+      ->{after}{sort_value},
+    '2026-05-23T12:02:00Z',
+    'a list of timestamps takes a timestamp cursor'
+);
+is(
+    $page_window->plan(
+        { after => "${FULLWIDTH_ONE}|018f1000-0000-7000-8000-000000000105" }
+    )->{after},
+    undef,
+    'a fullwidth digit is no position'
+);
 
 my $thread_rows = [
     _row(

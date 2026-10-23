@@ -102,7 +102,8 @@ sub _trust_hash ( $self, $user ) {
 }
 
 sub _recent_public_threads ( $self, $user, $options ) {
-    my $page = $self->page_window->plan($options);
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     my @rows =
       $self->functions
       ? @{
@@ -146,7 +147,8 @@ sub public_threads_resultset ( $self, $user_id, $page ) {
 }
 
 sub _recent_public_replies ( $self, $user, $options ) {
-    my $page = $self->page_window->plan($options);
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     if ( $self->functions ) {
         my $rows = $self->functions->rows( 'identity_profile_replies',
             _page_parameters( $user, $page ) );

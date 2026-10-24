@@ -26,6 +26,14 @@ const my %UUID_FILTER  => map { $_ => 1 } qw(actor_id target_id correlation_id);
 const my %DAY_FILTER   => map { $_ => 1 } qw(from until);
 const my $CURSOR_PARTS => 2;
 
+# What an entry of the audit viewer carries: the columns of
+# api.admin_audit_entry_v1, which the resultset path selects too, so the two
+# paths read the same row (the chain columns of ADR 0156 are not shown).
+const my @ENTRY_COLUMNS => qw(
+  audit_id action schema_version actor_id target_type target_id
+  correlation_id previous_hash record_hash metadata created_at
+);
+
 __PACKAGE__->requires(qw(schema));
 
 # The dashboard's recent activity.
@@ -47,6 +55,7 @@ sub recent ( $self, $options ) {
             $self->schema->resultset('AuditLog')->search_rs(
                 {},
                 {
+                    columns  => [@ENTRY_COLUMNS],
                     order_by => _newest_first(),
                     rows     => $options->{limit} || $DEFAULT_LIMIT,
                 }
@@ -124,6 +133,7 @@ sub page_resultset ( $self, $filters, $page ) {
     return $self->schema->resultset('AuditLog')->search_rs(
         $query,
         {
+            columns  => [@ENTRY_COLUMNS],
             order_by => _newest_first(),
             rows     => ( $page->{limit} || $DEFAULT_LIMIT ) + 1,
         }

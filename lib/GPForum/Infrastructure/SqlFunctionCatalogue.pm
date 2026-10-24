@@ -1347,6 +1347,10 @@ const my %FUNCTION => (
         parameters => [ audit => 'jsonb', explicit => 'boolean' ],
         json       => ['audit']
     },
+    ops_audit_chain_verify => {
+        version    => 2,
+        parameters => [ chain_key => 'text' ],
+    },
     ops_event_recorded => { version => 2, parameters => [ key => 'text' ] },
     ops_command_lookup => {
         version    => 2,

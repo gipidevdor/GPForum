@@ -26,6 +26,13 @@ and consider every unrevoked suspension before choosing the newest active
 one. The preceding entry points remain available during the application
 restart. Apply it with `gpforum migrate`; no PostgreSQL restart is needed.
 
+[1035_audit_chain_per_aggregate.sql](1035_audit_chain_per_aggregate.sql)
+makes the audit chain one chain per aggregate (ADR 0156): two nullable
+columns on `audit_log`, a partial index no existing row enters, the four
+chain functions replaced in place so every writer follows the new order from
+the migration on, and `api.ops_audit_chain_verify_v2`. Rows written before it
+keep their links and stay outside every chain.
+
 ## Writing a migration
 
 - A new file goes here, `NNNN_what_it_does.sql`, with the next number after
@@ -42,7 +49,9 @@ restart. Apply it with `gpforum migrate`; no PostgreSQL restart is needed.
   behind the application fails instead of stalling it.
 - A table comes with `COMMENT ON TABLE` (t/05 asks for it).
 - A function in `api` follows ADR 0126 and 0127, which t/641 holds every
-  migration to: `CREATE FUNCTION`, never `OR REPLACE`; a version suffix and an
+  migration to: `CREATE FUNCTION`, never `OR REPLACE` (the four audit chain
+  functions migration 1035 replaced in place are the one exception, named
+  in t/641; ADR 0156 says why); a version suffix and an
   area; `SET search_path = pg_catalog, pg_temp` and `SET plan_cache_mode`;
   `EXECUTE` revoked from `PUBLIC`; tables written with their schema; no
   dynamic SQL; `SECURITY DEFINER` only on a catalogue entry point that

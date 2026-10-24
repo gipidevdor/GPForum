@@ -115,9 +115,11 @@ sub _audit_id_taken_at_another_time {
     return;
 }
 
-# The lookup by audit id cannot race only because the chain lock is already
-# held: looked up before it, a writer of the same id at another time could
-# commit between the lookup and the lock, and the id was stored twice.
+# The lookup by audit id cannot race only because a lock is already held:
+# looked up before it, a writer of the same id at another time could commit
+# between the lookup and the lock, and the id was stored twice. ADR 0156:
+# the chain's lock is the aggregate's, so the id has a lock of its own,
+# taken after it and before the lookup.
 sub _audit_id_looked_up_under_the_chain_lock {
     my $schema   = GPForum::Test::AuditLookupSchema->new;
     my $recorder = _recorder($schema);
@@ -136,8 +138,8 @@ sub _audit_id_looked_up_under_the_chain_lock {
 
     is_deeply(
         [ map { $_->{step} } @{ $schema->journal } ],
-        [qw(begin lock lookup commit)],
-        q{a caller's audit id is looked up under the audit chain's lock}
+        [qw(begin lock lock lookup commit)],
+        q{a caller's audit id is looked up under the chain's lock and its own}
     );
 
     return;

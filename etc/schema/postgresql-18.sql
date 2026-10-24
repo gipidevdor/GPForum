@@ -4943,46 +4943,56 @@ $$;
 --
 
 CREATE FUNCTION api.core_append_audit_v1(p_action text, p_actor_id text, p_audit_id text, p_correlation_id text, p_created_at text, p_metadata jsonb, p_schema_version integer, p_target_id text, p_target_type text) RETURNS jsonb
-    LANGUAGE plpgsql
+    LANGUAGE sql
     SET search_path TO 'pg_catalog', 'pg_temp'
     SET plan_cache_mode TO 'force_generic_plan'
     AS $$
-#variable_conflict use_column
-DECLARE
-    tip text;
-    previous text;
-    audit jsonb;
-    chain_hash text;
-BEGIN
-    SELECT me.record_hash INTO tip FROM public.audit_log me
-    ORDER BY me.created_at DESC, me.audit_id DESC
-    LIMIT 1;
-    previous := CASE WHEN length(coalesce(tip, '')) > 0 THEN tip END;
+SELECT api.core_shared_append_audit_v1(jsonb_build_object(
+    'action', p_action,
+    'actor_id', p_actor_id,
+    'audit_id', p_audit_id,
+    'correlation_id', p_correlation_id,
+    'created_at', p_created_at,
+    'metadata', coalesce(p_metadata, '{}'::jsonb),
+    'schema_version', p_schema_version,
+    'target_id', p_target_id,
+    'target_type', p_target_type))
+$$;
 
-    audit := jsonb_build_object(
-        'action', p_action,
-        'actor_id', p_actor_id,
-        'audit_id', p_audit_id,
-        'correlation_id', p_correlation_id,
-        'created_at', p_created_at,
-        'metadata', coalesce(p_metadata, '{}'::jsonb),
-        'previous_hash', previous,
-        'schema_version', p_schema_version,
-        'target_id', p_target_id,
-        'target_type', p_target_type);
-    chain_hash := encode(sha256(convert_to(
-        api.core_canonical_json_v1(audit), 'UTF8')), 'hex');
 
-    INSERT INTO public.audit_log (action, actor_id, audit_id, correlation_id,
-        created_at, metadata, previous_hash, record_hash, schema_version,
-        target_id, target_type)
-    VALUES (p_action, p_actor_id::uuid, p_audit_id::uuid,
-        p_correlation_id::uuid, p_created_at::timestamptz,
-        coalesce(p_metadata, '{}'::jsonb), previous, chain_hash,
-        p_schema_version, p_target_id::uuid, p_target_type);
+--
+-- Name: core_audit_chain_key_v1(text, text); Type: FUNCTION; Schema: api; Owner: -
+--
 
-    RETURN audit || jsonb_build_object('record_hash', chain_hash);
-END
+CREATE FUNCTION api.core_audit_chain_key_v1(p_target_type text, p_target_id text) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT coalesce(p_target_type, '') || ':' || coalesce(p_target_id, '')
+$$;
+
+
+--
+-- Name: core_audit_digest_v1(text, uuid, uuid, uuid, timestamp with time zone, jsonb, text, integer, uuid, text); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.core_audit_digest_v1(p_action text, p_actor_id uuid, p_audit_id uuid, p_correlation_id uuid, p_created_at timestamp with time zone, p_metadata jsonb, p_previous_hash text, p_schema_version integer, p_target_id uuid, p_target_type text) RETURNS text
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT encode(sha256(convert_to(api.core_canonical_json_v1(jsonb_build_object(
+    'action', p_action,
+    'actor_id', p_actor_id::text,
+    'audit_id', p_audit_id::text,
+    'correlation_id', p_correlation_id::text,
+    'created_at', to_char(p_created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+    'metadata', coalesce(p_metadata, '{}'::jsonb),
+    'previous_hash', p_previous_hash,
+    'schema_version', p_schema_version,
+    'target_id', p_target_id::text,
+    'target_type', p_target_type)), 'UTF8')), 'hex')
 $$;
 
 
@@ -7035,7 +7045,6 @@ CREATE FUNCTION api.core_record_audit_v1(p_action text, p_actor_id text, p_audit
 DECLARE
     reported text;
 BEGIN
-    PERFORM pg_advisory_xact_lock(2026060210);
     BEGIN
         RETURN api.core_append_audit_v1(p_action, p_actor_id, p_audit_id,
             p_correlation_id, p_created_at, p_metadata, p_schema_version,
@@ -7182,21 +7191,47 @@ CREATE FUNCTION api.core_shared_append_audit_v1(p_audit jsonb) RETURNS jsonb
     SET search_path TO 'pg_catalog', 'pg_temp'
     SET plan_cache_mode TO 'force_generic_plan'
     AS $$
-DECLARE audit jsonb := p_audit - 'record_hash'; tip text; chain_hash text;
+DECLARE
+    key text := api.core_audit_chain_key_v1(p_audit->>'target_type', p_audit->>'target_id');
+    tip_hash text;
+    tip_position bigint;
+    stamp timestamptz := (p_audit->>'created_at')::timestamptz;
+    document jsonb;
+    chain_hash text;
 BEGIN
-    SELECT me.record_hash INTO tip FROM public.audit_log me
-        ORDER BY me.created_at DESC,me.audit_id DESC LIMIT 1;
-    audit := audit || jsonb_build_object('previous_hash',CASE
-        WHEN length(coalesce(audit->>'previous_hash','')) > 0 THEN audit->>'previous_hash'
-        ELSE nullif(tip,'') END);
-    chain_hash := encode(sha256(convert_to(api.core_canonical_json_v1(audit),'UTF8')),'hex');
-    INSERT INTO public.audit_log(action,actor_id,audit_id,correlation_id,created_at,metadata,
-        previous_hash,record_hash,schema_version,target_id,target_type)
-    VALUES (audit->>'action',(audit->>'actor_id')::uuid,(audit->>'audit_id')::uuid,
-        (audit->>'correlation_id')::uuid,(audit->>'created_at')::timestamptz,
-        audit->'metadata',audit->>'previous_hash',chain_hash,(audit->>'schema_version')::integer,
-        (audit->>'target_id')::uuid,audit->>'target_type');
-    RETURN audit || jsonb_build_object('record_hash',chain_hash);
+    PERFORM pg_advisory_xact_lock(2026102401, hashtext(key));
+    SELECT me.record_hash, me.chain_position INTO tip_hash, tip_position
+        FROM public.audit_log me
+        WHERE me.chain_key = key
+        ORDER BY me.chain_position DESC LIMIT 1;
+    tip_position := coalesce(tip_position, 0) + 1;
+    chain_hash := api.core_audit_digest_v1(p_audit->>'action',
+        (p_audit->>'actor_id')::uuid, (p_audit->>'audit_id')::uuid,
+        (p_audit->>'correlation_id')::uuid, stamp,
+        coalesce(p_audit->'metadata', '{}'::jsonb), tip_hash,
+        (p_audit->>'schema_version')::integer, (p_audit->>'target_id')::uuid,
+        p_audit->>'target_type');
+    INSERT INTO public.audit_log (action, actor_id, audit_id, correlation_id,
+        created_at, metadata, previous_hash, record_hash, schema_version,
+        target_id, target_type, chain_key, chain_position)
+    VALUES (p_audit->>'action', (p_audit->>'actor_id')::uuid,
+        (p_audit->>'audit_id')::uuid, (p_audit->>'correlation_id')::uuid, stamp,
+        coalesce(p_audit->'metadata', '{}'::jsonb), tip_hash, chain_hash,
+        (p_audit->>'schema_version')::integer, (p_audit->>'target_id')::uuid,
+        p_audit->>'target_type', key, tip_position);
+    document := jsonb_build_object(
+        'action', p_audit->>'action',
+        'actor_id', p_audit->>'actor_id',
+        'audit_id', p_audit->>'audit_id',
+        'correlation_id', p_audit->>'correlation_id',
+        'created_at', to_char(stamp AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        'metadata', coalesce(p_audit->'metadata', '{}'::jsonb),
+        'previous_hash', tip_hash,
+        'schema_version', (p_audit->>'schema_version')::integer,
+        'target_id', p_audit->>'target_id',
+        'target_type', p_audit->>'target_type');
+    RETURN document || jsonb_build_object('record_hash', chain_hash,
+        'chain_key', key, 'chain_position', tip_position);
 END $$;
 
 
@@ -14815,6 +14850,54 @@ $$;
 
 
 --
+-- Name: ops_audit_chain_verify_v1(text); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.ops_audit_chain_verify_v1(p_chain_key text) RETURNS TABLE(chain_position bigint, audit_id uuid, problem text)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+WITH chain AS (
+    SELECT me.*,
+        lag(me.record_hash) OVER (ORDER BY me.chain_position) AS hash_before,
+        lag(me.chain_position) OVER (ORDER BY me.chain_position) AS position_before
+    FROM public.audit_log me
+    WHERE me.chain_key = p_chain_key
+)
+SELECT chain.chain_position, chain.audit_id, flaw.problem
+FROM chain
+CROSS JOIN LATERAL (VALUES
+    (CASE WHEN chain.chain_position <> coalesce(chain.position_before, 0) + 1
+        THEN 'position ' || chain.chain_position || ' follows '
+            || coalesce(chain.position_before, 0) END),
+    (CASE WHEN chain.previous_hash IS DISTINCT FROM chain.hash_before
+        THEN 'previous_hash is not the hash of the row before' END),
+    (CASE WHEN chain.record_hash <> api.core_audit_digest_v1(chain.action,
+            chain.actor_id, chain.audit_id, chain.correlation_id,
+            chain.created_at, chain.metadata, chain.previous_hash,
+            chain.schema_version, chain.target_id, chain.target_type)
+        THEN 'record_hash is not the hash of the row' END)
+) AS flaw(problem)
+WHERE flaw.problem IS NOT NULL
+ORDER BY chain.chain_position, flaw.problem
+$$;
+
+
+--
+-- Name: ops_audit_chain_verify_v2(text); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.ops_audit_chain_verify_v2(p_chain_key text) RETURNS TABLE(chain_position bigint, audit_id uuid, problem text)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.ops_audit_chain_verify_v1(p_chain_key);
+$$;
+
+
+--
 -- Name: ops_command_finish_v1(uuid, jsonb); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -15390,10 +15473,12 @@ CREATE FUNCTION api.ops_record_audit_v1(p_audit jsonb, p_explicit boolean) RETUR
     AS $$
 DECLARE document jsonb := p_audit; reported text;
 BEGIN
-    PERFORM pg_advisory_xact_lock(2026060210);
-    IF p_explicit AND EXISTS (SELECT 1 FROM public.audit_log me
-        WHERE me.audit_id = (document->>'audit_id')::uuid) THEN
-        document := document || jsonb_build_object('audit_id',api.core_uuid_v7_v1()::text);
+    IF p_explicit THEN
+        PERFORM pg_advisory_xact_lock(2026100311, hashtext(document->>'audit_id'));
+        IF EXISTS (SELECT 1 FROM public.audit_log me
+            WHERE me.audit_id = (document->>'audit_id')::uuid) THEN
+            document := document || jsonb_build_object('audit_id',api.core_uuid_v7_v1()::text);
+        END IF;
     END IF;
     BEGIN
         RETURN QUERY SELECT api.core_shared_append_audit_v1(document)::json;
@@ -17809,6 +17894,8 @@ CREATE TABLE public.audit_log (
     record_hash text DEFAULT ''::text NOT NULL,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    chain_key text,
+    chain_position bigint,
     CONSTRAINT audit_log_schema_version_check CHECK ((schema_version > 0))
 )
 PARTITION BY RANGE (created_at);
@@ -17819,6 +17906,20 @@ PARTITION BY RANGE (created_at);
 --
 
 COMMENT ON TABLE public.audit_log IS 'The audit trail, hash-chained and append-only, partitioned by month on created_at.';
+
+
+--
+-- Name: COLUMN audit_log.chain_key; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_log.chain_key IS 'The chain the row belongs to: its target as type:id (ADR 0156); NULL for a row written before the chains were per aggregate.';
+
+
+--
+-- Name: COLUMN audit_log.chain_position; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_log.chain_position IS 'The row''s place in its chain, dense from 1 (ADR 0156).';
 
 
 --
@@ -17837,6 +17938,8 @@ CREATE TABLE public.audit_log_default (
     record_hash text DEFAULT ''::text CONSTRAINT audit_log_record_hash_not_null NOT NULL,
     metadata jsonb DEFAULT '{}'::jsonb CONSTRAINT audit_log_metadata_not_null NOT NULL,
     created_at timestamp with time zone DEFAULT now() CONSTRAINT audit_log_created_at_not_null NOT NULL,
+    chain_key text,
+    chain_position bigint,
     CONSTRAINT audit_log_schema_version_check CHECK ((schema_version > 0))
 );
 
@@ -20740,6 +20843,20 @@ CREATE INDEX audit_log_default_actor_id_created_at_idx ON public.audit_log_defau
 
 
 --
+-- Name: idx_audit_log_chain_key_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_log_chain_key_position ON ONLY public.audit_log USING btree (chain_key, chain_position DESC) WHERE (chain_key IS NOT NULL);
+
+
+--
+-- Name: audit_log_default_chain_key_chain_position_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX audit_log_default_chain_key_chain_position_idx ON public.audit_log_default USING btree (chain_key, chain_position DESC) WHERE (chain_key IS NOT NULL);
+
+
+--
 -- Name: idx_audit_log_correlation; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -21598,6 +21715,13 @@ ALTER INDEX public.idx_audit_log_action_created_at ATTACH PARTITION public.audit
 --
 
 ALTER INDEX public.idx_audit_log_actor_created_at ATTACH PARTITION public.audit_log_default_actor_id_created_at_idx;
+
+
+--
+-- Name: audit_log_default_chain_key_chain_position_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.idx_audit_log_chain_key_position ATTACH PARTITION public.audit_log_default_chain_key_chain_position_idx;
 
 
 --
@@ -24116,6 +24240,20 @@ REVOKE ALL ON FUNCTION api.core_append_audit_v1(p_action text, p_actor_id text, 
 
 
 --
+-- Name: FUNCTION core_audit_chain_key_v1(p_target_type text, p_target_id text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.core_audit_chain_key_v1(p_target_type text, p_target_id text) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION core_audit_digest_v1(p_action text, p_actor_id uuid, p_audit_id uuid, p_correlation_id uuid, p_created_at timestamp with time zone, p_metadata jsonb, p_previous_hash text, p_schema_version integer, p_target_id uuid, p_target_type text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.core_audit_digest_v1(p_action text, p_actor_id uuid, p_audit_id uuid, p_correlation_id uuid, p_created_at timestamp with time zone, p_metadata jsonb, p_previous_hash text, p_schema_version integer, p_target_id uuid, p_target_type text) FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION core_canonical_json_v1(p_value jsonb); Type: ACL; Schema: api; Owner: -
 --
 
@@ -26605,6 +26743,20 @@ REVOKE ALL ON FUNCTION api.notification_unsubscribe_v3(p_user_id uuid, p_scope t
 --
 
 REVOKE ALL ON FUNCTION api.notification_unsubscribe_v4(p_user_id uuid, p_scope text, p_now timestamp with time zone, p_audit jsonb) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION ops_audit_chain_verify_v1(p_chain_key text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.ops_audit_chain_verify_v1(p_chain_key text) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION ops_audit_chain_verify_v2(p_chain_key text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.ops_audit_chain_verify_v2(p_chain_key text) FROM PUBLIC;
 
 
 --

@@ -37,6 +37,35 @@ ok(
     'build computes a canonical record_hash'
 );
 ok( $records->verify($first), 'verify accepts an untampered record' );
+
+# ADR 0156: the hash covers the stored form, so the row as PostgreSQL hands
+# it back -- the time in the session's zone, metadata as jsonb text, the
+# schema version as digits -- verifies as the record did.
+ok(
+    $records->verify(
+        {
+            %{$first},
+            created_at     => '2026-05-28 10:00:00+02',
+            metadata       => '{"title": "Welcome"}',
+            schema_version => '1',
+        }
+    ),
+    'verify accepts the record as a row read back'
+);
+ok(
+    !$records->verify( { %{$first}, created_at => '2026-05-28 10:00:01+02' } ),
+    'and refuses one whose time moved'
+);
+is( $records->canonical_time('2026-05-28T08:00:00Z'),
+    '2026-05-28T08:00:00.000000Z', 'canonical_time adds the microseconds' );
+is( $records->canonical_time('2026-05-28 10:00:00.5+02'),
+    '2026-05-28T08:00:00.500000Z', 'canonical_time moves a zone to UTC' );
+is( $records->canonical_time('yesterday'),
+    'yesterday', 'canonical_time leaves other text alone' );
+is( $records->chain_key( 'thread', 'thread-1' ),
+    'thread:thread-1', 'chain_key names the target' );
+is( $records->chain_key( undef, undef ),
+    q{:}, 'and the chain of the records with no target' );
 is( $first->{audit_id}, 'generated-1',
     'build allocates audit_id when omitted' );
 is( $first->{schema_version},

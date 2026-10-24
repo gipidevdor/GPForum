@@ -67,6 +67,19 @@ const my $LEGACY_REPLY_VERSION => 4;
 # The boundaries a release keeps for the previous one's workers until a
 # contract migration drops them (ADR 0126, section 2). Migration 1024 keeps
 # the 1.0 suspension boundaries for workers that have not restarted yet.
+# ADR 0156 amends ADR 0126, section 2: a chain discipline must change for
+# every writer at once, the previous release's workers included, or two
+# disciplines fork the chain, so migration 1035 replaces the four audit
+# functions in place, signatures and result types unchanged. Nothing else
+# may.
+const my %REPLACED_IN_PLACE => (
+    '1035_audit_chain_per_aggregate.sql' => {
+        map { $_ => 1 }
+          qw(core_append_audit_v1 core_shared_append_audit_v1
+          core_record_audit_v1 ops_record_audit_v1)
+    },
+);
+
 const my %RETAINED_BOUNDARIES => (
     forum_resolve_viewer         => [6],
     outbox_claim_ready           => [2],
@@ -160,6 +173,38 @@ subtest 'the rules see what they are written for' => sub {
     }
 };
 
+subtest 'a shipped function is replaced in place only where ADR 0156 says' =>
+  sub {
+    my $replaced = join "\n", 'BEGIN;', q{SET LOCAL lock_timeout = '5s';},
+'CREATE OR REPLACE FUNCTION api.core_append_audit_v1(p text) RETURNS jsonb',
+      'LANGUAGE sql SET search_path = pg_catalog, pg_temp',
+      'SET plan_cache_mode = force_generic_plan AS $$ SELECT NULL::jsonb $$;',
+      'REVOKE EXECUTE ON FUNCTION api.core_append_audit_v1(text) FROM PUBLIC;',
+      'COMMIT;';
+    my ($allowed) =
+      _problems( 'migrations/1035_audit_chain_per_aggregate.sql', $replaced );
+    is_deeply( $allowed, [], 'the audit chain migration replaces its four' );
+    my ($elsewhere) = _problems( 'migrations/1036_other.sql', $replaced );
+    is_deeply(
+        $elsewhere,
+        [
+'migrations/1036_other.sql: api.core_append_audit_v1: CREATE OR REPLACE'
+        ],
+        'another migration may not'
+    );
+    my ($other) = _problems(
+        'migrations/1035_audit_chain_per_aggregate.sql',
+        $replaced =~ s/core_append_audit_v1/core_other_step_v1/grmsx
+    );
+    is_deeply(
+        $other,
+        [
+'migrations/1035_audit_chain_per_aggregate.sql: api.core_other_step_v1: CREATE OR REPLACE'
+        ],
+        'nor may it replace another function'
+    );
+  };
+
 subtest 'only registered typed boundaries gain owner rights' => sub {
     my $head     = 'LANGUAGE sql SECURITY DEFINER';
     my $name     = "search_ranked_v$SEARCH_VERSION";
@@ -248,8 +293,14 @@ sub _problems ( $file, $sql ) {
             push @found, "$file: no lock_timeout";
         }
     }
+    my $base = path($file)->basename;
+    my $allowed =
+      exists $REPLACED_IN_PLACE{$base} ? $REPLACED_IN_PLACE{$base} : {};
     while ( $code =~ /$FUNCTION/gmsx ) {
         my %function = %LAST_PAREN_MATCH;
+        if ( exists $allowed->{ $function{name} } ) {
+            delete $function{replace};
+        }
         push @found,
           _function_problems( "$file: api.$function{name}", \%function, $code );
         $made{"api.$function{name}"} = $function{body};

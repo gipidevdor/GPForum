@@ -396,12 +396,14 @@ twelve call sites to thirty-eight. The unit doubles have no storage layer, so
 the regression test lives in `t/integration/postgres-concurrency.t`; it was
 confirmed to fail against the previous implementation.
 
-**1.3 Make the audit hash chain affordable. — DONE; the fork half of the
-finding did not hold.** The chain cannot fork: `_lock_audit_chain` takes
-`pg_advisory_xact_lock` before reading the tip, and `t/159` already pins that
-the lock is taken inside the transaction rather than released at statement end.
-The tie-break on `audit_id DESC` also makes the tip deterministic for a given
-set of rows.
+**1.3 Make the audit hash chain affordable. — DONE (ADR 0156, 2026-10-24).**
+The forum-wide lock held the tip read and the insert, but the tip was chosen
+by the caller's `created_at`, so two writers whose stamps were out of order
+left a leaf no row linked to: the chain could fork after all. It is now one
+chain per aggregate, ordered by `chain_position` under that aggregate's lock
+alone, and `t/integration/postgres-audit-chain.t` pins that writers of
+different aggregates do not wait, that out-of-order stamps take consecutive
+positions, and that a row verifies as the table holds it.
 
 The cost half was real and worse than stated. `audit_log` is partitioned on
 `created_at` and carried only a BRIN index there, which cannot answer an

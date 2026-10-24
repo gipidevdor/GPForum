@@ -126,7 +126,11 @@ double modules of DBIx::Class schemas, resultsets, rows and storages in
   by a new migration with `CREATE FUNCTION`. Migrations from 052 on never
   write `CREATE OR REPLACE` for an `api` function: replacing the body under
   a name would change what the previous release's workers run in the middle
-  of its requests.
+  of its requests. One exception, named: a discipline every writer must
+  follow at once -- the audit chain's (ADR 0156, migration 1035) -- is
+  replaced in place, signatures and result types unchanged, because two
+  versions side by side would fork the chain; `t/641` lists the functions
+  and the migration, and admits no other.
 - **One place in Perl names the versions a release calls** (the catalogue,
   section 8). A release moves to `_v<N+1>` by changing that line.
 - **An old version is dropped by a contract migration in a later release**,

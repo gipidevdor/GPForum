@@ -2,7 +2,12 @@
 
 ## Status
 
-Proposed. The implementation follows in its own batch, in the steps below.
+Superseded by ADR 0156 (2026-10-24), which keeps the chain synchronous, one
+chain per aggregate under that aggregate's lock, in insertion order, with a
+stored-form hash; the analysis below of the forum-wide lock and the forked
+tip stands, the linker, the second table and the epochs were not built.
+Written as: Proposed. The implementation follows in its own batch, in the
+steps below.
 Amends ADR 0020 (the chain is no longer built in `EventRecorder`) and the
 audit bullet of ADR 0116 (a caller's audit id is locked on its own, not
 under the chain lock). Closes the follow-up ADR 0111 left open; keeps

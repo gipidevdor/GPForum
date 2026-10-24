@@ -59,6 +59,18 @@ __PACKAGE__->add_columns(
         data_type   => 'timestamp with time zone',
         is_nullable => 0,
     },
+
+    # ADR 0156: the chain the row belongs to (its target as type:id) and
+    # its place in it; NULL on a row written before the chains were per
+    # aggregate.
+    chain_key => {
+        data_type   => 'text',
+        is_nullable => 1,
+    },
+    chain_position => {
+        data_type   => 'bigint',
+        is_nullable => 1,
+    },
 );
 
 GPForum::Schema::JsonColumn->inflate_json_columns(__PACKAGE__);

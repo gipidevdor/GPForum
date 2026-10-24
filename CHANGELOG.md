@@ -24,6 +24,13 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migration 1035 (ADR 0156).** `gpforum migrate` adds two nullable
+  columns and a partial index to `audit_log`, replaces the four audit chain
+  functions in place and adds `api.ops_audit_chain_verify_v2`; every writer,
+  the previous release's included, follows the per-aggregate chain from then
+  on, so no restart is needed for it. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
 - **Apply migration 1034, then restart the outbox workers.** `gpforum
   migrate` installs `api.outbox_claim_ready_v4`, the claim that reads each
   half of the ready rows from its own index; the previous entry point stays
@@ -1331,6 +1338,20 @@ a host set up from an earlier `main`, newest first.
 
 ### Changed
 
+- **The audit chain is one chain per aggregate, linked at commit under that
+  aggregate's lock (ADR 0156, migration 1035).** Every audited write took
+  one forum-wide advisory lock to COMMIT and linked to a tip chosen by the
+  caller's `created_at`, so two writers with out-of-order stamps left a leaf
+  no row pointed to, and every write waited for every other. A row now takes
+  the next `chain_position` in its target's chain (`chain_key`,
+  `type:id`), under `pg_advisory_xact_lock` on that key alone; its
+  `record_hash` covers the stored form (UTC time with microseconds, jsonb
+  metadata), so a row read back verifies, and
+  `api.ops_audit_chain_verify_v2` reports a changed, missing or relinked
+  row. A caller's audit id is locked on its own. Rows from before the
+  migration keep their links and stay outside every chain. The four chain
+  functions are replaced in place, the one named exception to ADR 0126,
+  section 2.
 - **The outbox claim reads each half from its index (migration 1034).** The
   claim's WHERE was an OR of the two predicates the partial indexes serve,
   which no index can serve in order, so every claim scanned the table and

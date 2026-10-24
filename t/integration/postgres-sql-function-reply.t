@@ -856,20 +856,15 @@ sub _holds_together ( $side, $label ) {
         ( grep { ( $_->{target_id} // q{} ) eq $post->{post_id} } @{$audits} ),
         "$label: the audit row names the post"
     );
+
+    # ADR 0156: the row as the table holds it verifies, time zone and jsonb
+    # text and all.
     my ($tip) =
       grep { ( $_->{target_id} // q{} ) eq $post->{post_id} } @{$audits};
-    is(
-        $tip->{record_hash},
-        $audit_record->record_hash(
-            {
-                %{ $audit_record->payload_from($tip) },
-                created_at     => $NOW,
-                metadata       => decode_json( $tip->{metadata} ),
-                schema_version => 0 + $tip->{schema_version},
-            }
-        ),
-        "$label: the reply's audit row's hash is its own"
-    );
+    ok( $audit_record->verify($tip),
+        "$label: the reply's audit row's hash is its own" );
+    is( $tip->{chain_key}, "post:$post->{post_id}",
+        "$label: in the post's own chain" );
 
     return;
 }

@@ -24,18 +24,18 @@ has functions => sub ($self) {
 };
 
 const my $DEFAULT_SCHEMA_VERSION => 1;
-const my $AUDIT_CHAIN_LOCK_KEY   => 2_026_060_210;
 const my $EVENT_ID_LOCK_CLASS    => 2_026_100_310;
+const my $AUDIT_ID_LOCK_CLASS    => 2_026_100_311;
+const my $AUDIT_CHAIN_LOCK_CLASS => 2_026_102_401;
 const my $ROW_LIMIT_ONE          => 1;
 const my $OUTBOX_ID_CONSTRAINT   => 'outbox_messages_pkey';
 const my $OUTBOX_KEY_CONSTRAINT  => 'outbox_messages_idempotency_key_key';
 const my $AUDIT_ID_CONSTRAINT    => 'audit_log_pkey';
 const my $EVENT_ID_CONSTRAINT    => 'event_log_pkey';
 
-# Two int4 keys, a key space apart from the audit chain's single bigint one:
-# the class names the lock, hashtext the id. Two ids that hash alike only
-# wait for each other.
-const my $EVENT_ID_LOCK_SQL =>
+# Two int4 keys: the class names the lock, hashtext the id or the chain key.
+# Two values that hash alike only wait for each other.
+const my $HASHED_LOCK_SQL =>
   'SELECT pg_advisory_xact_lock(?, hashtext(?::text))';
 
 has envelope   => sub { return GPForum::Domain::EventEnvelope->new; };
@@ -95,7 +95,7 @@ sub _lock_event_id ( $self, $event_id ) {
         return;
     }
 
-    $dbh->selectrow_array( $EVENT_ID_LOCK_SQL, undef, $EVENT_ID_LOCK_CLASS,
+    $dbh->selectrow_array( $HASHED_LOCK_SQL, undef, $EVENT_ID_LOCK_CLASS,
         $event_id );
 
     return;
@@ -340,7 +340,9 @@ sub record_audit ( $self, %input ) {
             $self->audit_call(%input) )->{audit};
     }
     my $work = sub {
-        $self->_lock_audit_chain;
+        $self->_lock_audit_chain(
+            $self->audit_record->chain_key( @input{qw(target_type target_id)} )
+        );
 
         return $self->_insert_or_retry_audit(
             $self->_audit_with_free_id( \%input ) );
@@ -385,17 +387,18 @@ sub _needs_transaction ($self) {
     return $depth ? 0 : 1;
 }
 
-# ADR 0116. audit_log_pkey is (audit_id, created_at): a caller's audit id
-# already stored at another time is no conflict for the insert, and was
-# written a second time. It is looked up by id in every partition, under the
-# chain lock every audit write already holds, and taken as the conflict on
-# the key is: as a collision, written under a new id. An id the record mints
-# itself is known to no one else and is not looked up.
+# ADR 0116, as ADR 0156 amends it. audit_log_pkey is (audit_id, created_at):
+# a caller's audit id already stored at another time is no conflict for the
+# insert, and was written a second time. It is looked up by id in every
+# partition, under a lock on that id, and taken as the conflict on the key
+# is: as a collision, written under a new id. An id the record mints itself
+# is known to no one else and is neither locked nor looked up.
 sub _audit_with_free_id ( $self, $input ) {
     my $audit_id = $input->{audit_id};
     if ( !$self->audit_record->has_text($audit_id) ) {
         return $input;
     }
+    $self->_lock_hashed( $AUDIT_ID_LOCK_CLASS, $audit_id );
 
     my $resultset = $self->schema->resultset('AuditLog');
     if ( !$resultset->can('search_rs') ) {
@@ -430,8 +433,16 @@ sub _insert_or_retry_audit ( $self, $input ) {
     return $self->_once_more( sub { return $self->_insert_audit( \%retry ); } );
 }
 
+# ADR 0156: the row takes the next position in its target's chain and links
+# to the row at the position before; what api.core_shared_append_audit_v1
+# does on PostgreSQL, so the two paths write the same rows.
 sub _insert_audit ( $self, $input ) {
-    my $audit = $self->audit_record->build( $input, $self->_latest_audit_hash );
+    my $key =
+      $self->audit_record->chain_key( @{$input}{qw(target_type target_id)} );
+    my $tip   = $self->_audit_chain_tip($key);
+    my $audit = $self->audit_record->build( $input, $tip->{record_hash} );
+    $audit->{chain_key}      = $key;
+    $audit->{chain_position} = ( $tip->{chain_position} // 0 ) + 1;
     $self->schema->resultset('AuditLog')->create($audit);
 
     return $audit;
@@ -441,71 +452,76 @@ sub verify_audit_record ( $self, $audit ) {
     return $self->audit_record->verify($audit);
 }
 
-sub _lock_audit_chain ($self) {
+# The flaws of one chain (ADR 0156), none for a sound one: each as
+# api.ops_audit_chain_verify answers it, with the position and the audit id
+# it is at. A schema without the function layer -- a test double -- has no
+# chain to walk and answers none.
+sub verify_audit_chain ( $self, $target_type, $target_id ) {
+    return [] if !$self->functions;
+
+    return $self->functions->rows(
+        'ops_audit_chain_verify',
+        {
+            chain_key =>
+              $self->audit_record->chain_key( $target_type, $target_id )
+        }
+    );
+}
+
+# The chain's lock, held to the end of the transaction, as the function
+# takes it: writers of one aggregate wait for each other, no one else.
+sub _lock_audit_chain ( $self, $key ) {
+    $self->_lock_hashed( $AUDIT_CHAIN_LOCK_CLASS, $key );
+
+    return;
+}
+
+sub _lock_hashed ( $self, $class, $value ) {
     my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
     if ( !$dbh ) {
         return;
     }
 
-    $dbh->selectrow_array( 'SELECT pg_advisory_xact_lock(?)',
-        undef, $AUDIT_CHAIN_LOCK_KEY );
+    $dbh->selectrow_array( $HASHED_LOCK_SQL, undef, $class, $value );
 
     return;
 }
 
-# ADR 0114 (proposed) removes the chain lock and these readers together, by
-# name. _latest_audit_hash is build's argument, in list context: each reader
-# answers undef, never an empty list.
-sub _latest_audit_hash ($self) {
-    my $created_hash = $self->_latest_created_audit_hash;
-    if ( $self->audit_record->has_text($created_hash) ) {
-        return $created_hash;
-    }
+# The last row of one chain, { record_hash, chain_position }, or an empty
+# hash for a chain with no row yet: among the rows this schema created (a
+# test double's) first, then the stored ones.
+sub _audit_chain_tip ( $self, $key ) {
+    my $created = $self->_created_chain_tip($key);
+    return $created if $created;
 
-    return $self->_latest_persisted_audit_hash;
-}
-
-sub _latest_persisted_audit_hash ($self) {
     my $resultset = $self->schema->resultset('AuditLog');
     if ( !$resultset->can('search') ) {
-        return undef;
+        return {};
     }
+    my $latest = $resultset->search_rs( { chain_key => $key },
+        { order_by => [ { -desc => 'chain_position' } ], rows => 1 } )->single;
 
-    my $latest = $resultset->search_rs(
-        {},
-        {
-            order_by => [ { -desc => 'created_at' }, { -desc => 'audit_id' }, ],
-            rows     => 1,
-        }
-    )->single;
-
-    return $latest ? $self->_row_hash($latest) : undef;
+    return $latest ? $self->_chain_tip_of($latest) : {};
 }
 
-sub _latest_created_audit_hash ($self) {
+sub _created_chain_tip ( $self, $key ) {
     if ( !$self->schema->can('created_for') ) {
         return undef;
     }
+    my @tips = sort { $a->{chain_position} <=> $b->{chain_position} }
+      map  { $self->_chain_tip_of($_) }
+      grep { ( $self->audit_record->column( $_, 'chain_key' ) // q{} ) eq $key }
+      @{ $self->schema->created_for('AuditLog') };
 
-    return $self->_newest_created_hash;
+    return @tips ? $tips[-1] : undef;
 }
 
-sub _newest_created_hash ($self) {
-    my $audits = $self->schema->created_for('AuditLog');
-    for my $audit ( reverse @{$audits} ) {
-        my $hash = $self->_row_hash($audit);
-        if ( defined $hash ) {
-            return $hash;
-        }
-    }
-
-    return undef;
-}
-
-sub _row_hash ( $self, $row ) {
-    my $hash = $self->audit_record->column( $row, 'record_hash' );
-
-    return $self->audit_record->has_text($hash) ? $hash : undef;
+sub _chain_tip_of ( $self, $row ) {
+    return {
+        chain_position => $self->audit_record->column( $row, 'chain_position' )
+          // 0,
+        record_hash => $self->audit_record->column( $row, 'record_hash' ),
+    };
 }
 
 1;
@@ -571,13 +587,17 @@ looked up under a transaction advisory lock on that id, so two workers
 writing it at once at different times cannot both miss the other. An id
 minted here is known to no one else and is neither locked nor raced.
 
-An audit record is built by L<GPForum::Infrastructure::AuditRecord>, its
-C<previous_hash> the C<record_hash> of the newest record, under
-C<pg_advisory_xact_lock(2026060210)>: the lock, the read of the chain's tip
-and the insert share one transaction, the caller's or one opened here. An
-C<audit_id> the caller passes that is already stored, at any time, is a
-collision: the record is written under a newly minted id, as it is after a
-conflict on the key.
+An audit record is built by L<GPForum::Infrastructure::AuditRecord> and
+belongs to the chain of its target (ADR 0156): C<chain_key> is
+C<target_type:target_id>, C<chain_position> the next position in that
+chain, and C<previous_hash> the C<record_hash> at the position before. The
+chain's lock, C<pg_advisory_xact_lock(2026102401, hashtext(chain_key))>,
+the read of its tip and the insert share one transaction, the caller's or
+one opened here; writers of other aggregates do not wait. On PostgreSQL
+C<api.ops_record_audit> does all of it in one call. An C<audit_id> the
+caller passes is locked on its own (class 2026100311) and looked up; one
+already stored, at any time, is a collision: the record is written under a
+newly minted id, as it is after a conflict on the key.
 
 =head1 SUBROUTINES/METHODS
 
@@ -590,6 +610,15 @@ C<outbox_id>, the outbox row's id; C<outbox_extras>, the outbox payload;
 and C<explicit>, whether the caller named the event's id. For a command
 that records the event in one call with its other writes
 (C<api.identity_register_command>).
+
+=head2 verify_audit_chain
+
+Takes a target type and a target id, the pair that names an aggregate's
+chain (ADR 0156; C<undef> for both names the chain of the rows with no
+target). Returns an array reference of the chain's flaws as
+C<api.ops_audit_chain_verify> reports them, each with C<chain_position>,
+C<audit_id> and C<problem>; empty for a sound chain. Without the function
+layer (a test double) it is empty.
 
 =head2 audit_call
 

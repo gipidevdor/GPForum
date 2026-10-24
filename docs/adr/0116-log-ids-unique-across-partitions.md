@@ -3,7 +3,9 @@
 ## Status
 
 Accepted. Follows ADR 0113 (rolling monthly partitions); keeps ADR 0091's
-append-once replay and the audit hash chain as they are.
+append-once replay as it is. The audit bullets below are amended by ADR 0156:
+the chain is per aggregate and ordered by position, and a caller's audit id
+is locked on its own, not under a chain lock.
 
 ## Context
 
@@ -47,9 +49,12 @@ extra read. It does not fit any of the three tables:
   projection offsets record the event's `created_at` beside its id; the unit
   tier runs on fixed clocks and ids such as `generated-1`. An id minted by
   `Infrastructure::Id` reads the system clock, not `Service::Clock`.
-- **An audit record's `created_at` is hashed.** `record_hash` covers it, the
-  chain is ordered by `(created_at, audit_id)`, and the dead-letter replay
-  and report transitions pass their command's time.
+- **An audit record's `created_at` is hashed.** `record_hash` covers it (in
+  UTC with microseconds since ADR 0156), and the dead-letter replay and
+  report transitions pass their command's time. The chain was ordered by
+  `(created_at, audit_id)`; since ADR 0156 it is ordered by the row's
+  `chain_position` in its aggregate's chain, so a replay's earlier time
+  cannot fork it.
 
 Retention by month would also have followed the id's minting time rather than
 the row's.
@@ -82,10 +87,11 @@ the row's.
   the first worker committed. The two int4 keys are a key space apart from
   the audit chain's single bigint `2026060210`; two ids that hash alike only
   wait for each other.
-- **A caller's audit id is looked up under the chain lock.** Every audit
-  write already holds the chain's advisory lock, so the lookup cannot race.
-  An id already taken is a collision, written under a new id, as after a
-  conflict on the key.
+- **A caller's audit id is looked up under its own lock** (ADR 0156;
+  until then under the forum-wide chain lock every audit write held):
+  `pg_advisory_xact_lock(2026100311, hashtext(audit_id))`, so two writers
+  of one id cannot both miss each other. An id already taken is a
+  collision, written under a new id, as after a conflict on the key.
 - **An id the writer mints itself is not locked, nor, for an audit record,
   looked up.** No one else knows a UUIDv7 minted in this call. An event is
   still looked up by its id whatever its origin, as it was before. Event and
@@ -108,10 +114,12 @@ the row's.
   pay the lock, in the caller's transaction or one the recorder opens.
 - The two stores that pass their own event id, report transitions and
   attachments, record the event before the audit record, so they take the
-  event id's lock before the audit chain's, always in that order. Only two
-  different ids whose `hashtext` collides, one of them recorded after an
-  audit record in its transaction, could meet in a deadlock; PostgreSQL
-  detects it and fails one of the two commands, as it does any deadlock.
+  event id's lock before the audit row's locks (its aggregate's chain, and
+  its own id when the caller passes one; ADR 0156), always in that order.
+  Only two different ids whose `hashtext` collides, one of them recorded
+  after an audit record in its transaction, could meet in a deadlock;
+  PostgreSQL detects it and fails one of the two commands, as it does any
+  deadlock.
 - The read grows with the number of partitions, about two buffers each. While
   retention is open (ADR 0113) the number grows by one a month per table;
   dropping old months bounds it.

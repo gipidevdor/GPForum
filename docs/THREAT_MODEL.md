@@ -131,16 +131,19 @@ decides.
   checked in the workflow, not again under the row lock: a visibility change
   committed between the two lets the write through (reads still apply
   effective visibility, so nothing leaks).
-- **The audit chain's forum-wide advisory lock** serialises every audited
-  write; under load it is an availability risk (ADR 0020, ADR 0111).
+- **An aggregate's audit lock** serialises the audited writes to one
+  aggregate (ADR 0156); the forum-wide lock that serialised every audited
+  write is gone, and rows with no target share one chain.
 - **Per-process realtime quotas.** The per-user connection limit is a memory
   bound per process; the cross-node control is the connect rate limit.
 - **Unsalted audit hashes.** The audit log's SHA-256 of a client address
   or a login identifier can be reversed by trying every IPv4 address or a
   list of known usernames.
 - **No external anchor for the audit chain.** Someone who can write the
-  database can rewrite the whole chain consistently; only an anchor kept
-  outside it would show that (proposed in ADR 0114).
+  database can rewrite an aggregate's whole chain consistently; only an
+  anchor kept outside it would show that (ADR 0156 leaves it open, as ADR
+  0114 did). A changed, missing or relinked row inside a chain is what
+  `api.ops_audit_chain_verify` reports.
 - **Degraded rate limiting.** When PostgreSQL is unavailable the limiter falls
   back to process-local memory.
 - **`img-src data:`** is allowed by the CSP.

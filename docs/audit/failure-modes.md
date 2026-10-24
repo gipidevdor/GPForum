@@ -39,7 +39,7 @@ the fake tests.
 | FM-007 | Outbox retries exhausted | cancelled + dead-letter; permanent fail-fast; no re-claim | dead-letter queue not drained in staging | medium | covered by `t/13-outbox-dispatcher.t` and `docs/ops/dead-letters.md` |
 | FM-008 | Duplicate privacy approval job | mitigated by migration `024` and a request lock; PG evidence in `t/integration/postgres-concurrency.t` | double erasure job | closed | two concurrent approvals produce a single erasure job |
 | FM-009 | Command log race | unique constraint + catch replay/`in_progress`; PG evidence in `t/integration/postgres-concurrency.t` | 500 unique violation | closed | the same `command_id` concurrently produces one winner, replay/`in_progress` |
-| FM-010 | Audit hash-chain branching | `pg_advisory_xact_lock` + PG evidence in `t/integration/postgres-concurrency.t` | chain branch | closed | two concurrent appends produce a linear chain with no branch |
+| FM-010 | Audit hash-chain branching | one chain per aggregate, ordered by position under the aggregate's lock (ADR 0156); PG evidence in `t/integration/postgres-audit-chain.t` and `t/integration/postgres-concurrency.t` | chain branch | closed | concurrent and out-of-order appends to one aggregate produce one linear chain; appends to different aggregates do not wait |
 
 ## Existing tests that already help
 

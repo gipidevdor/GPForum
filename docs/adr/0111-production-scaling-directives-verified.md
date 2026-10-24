@@ -192,7 +192,8 @@ number of web processes times nodes, per key and TTL: the fail-open cost ADR
 - **Follow-ups outside this ADR's changes.**
   - The audit chain's forum-wide advisory lock is the real write
     serialisation point. Moving audit linking out of request transactions
-    needs its own ADR amending 0020.
+    needs its own ADR amending 0020. Closed 2026-10-24 (ADR 0156): the chain
+    is per aggregate, under that aggregate's lock.
   - Closed 2026-10-04 (ADR 0119): `thread_counter_shards` was written on a
     constant shard, one row per thread, so it spread no writes. Replies,
     deletes and restores now add to `thread_counters` directly, the readers

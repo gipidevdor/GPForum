@@ -124,11 +124,18 @@ sub blocks ( $self, $owner_user_id, $other_user_id ) {
 # the recipient: a reply, mention or direct message by a member they ignore
 # or block.
 sub silences ( $self, $recipient_user_id, $notification_type, $actor_id ) {
-    return 0 if !exists $MEMBER_NOTIFICATIONS{ $notification_type // q{} };
+    return 0 if !$self->silenceable($notification_type);
 
     return defined $self->relation_between( $recipient_user_id, $actor_id )
       ? 1
       : 0;
+}
+
+# Whether relations silence notifications of this kind at all: replies,
+# mentions and direct messages, the kinds one member sends another. The
+# fan-out asks this once and reads each recipient's relation with the rest.
+sub silenceable ( $self, $notification_type ) {
+    return exists $MEMBER_NOTIFICATIONS{ $notification_type // q{} } ? 1 : 0;
 }
 
 sub _functions ($self) {
@@ -199,6 +206,11 @@ True when the owner blocks the other member.
 
 True when a notification of this type from this actor is silenced for the
 recipient: only replies, mentions and direct messages are.
+
+=head2 silenceable
+
+True when relations silence notifications of this type at all: replies,
+mentions and direct messages.
 
 =head2 maximum_relations
 

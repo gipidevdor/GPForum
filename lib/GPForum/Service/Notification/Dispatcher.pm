@@ -18,6 +18,7 @@ use GPForum::Service::Admin::Settings;
 use GPForum::Service::Clock;
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Forum::SourceThread;
+use GPForum::Service::Notification::Fanout;
 use GPForum::Service::Realtime::EventEnvelope;
 use GPForum::Infrastructure::Id;
 use GPForum::X::Conflict;
@@ -196,9 +197,23 @@ sub _delivery_plan ( $self, $input ) {
 # a retried delivery records it once. It carries what the mail says and
 # links to, never the address, which the worker reads when it sends.
 sub _queue_email ( $self, $input ) {
+    $self->event_recorder->record_event( $self->_email_event($input) );
+
+    return;
+}
+
+# The mail event as api.ops_record_event takes it, drawn and not sent: the
+# fan-out queues many in one statement.
+sub email_call ( $self, $input ) {
+    return $self->event_recorder->event_call( $self->_email_event($input) );
+}
+
+# The mail event's fields, as record_event takes them.
+sub _email_event ( $self, $input ) {
     my $key     = 'notification.email:' . _idempotency_key($input);
     my $payload = $input->{payload} || {};
-    $self->event_recorder->record_event(
+
+    return (
         event_type        => $EMAIL_REQUESTED,
         aggregate_type    => 'user',
         aggregate_id      => $input->{recipient_user_id},
@@ -220,8 +235,6 @@ sub _queue_email ( $self, $input ) {
               qw(conversation_id),
         },
     );
-
-    return;
 }
 
 # The badge is counted once the rows are durable. pg_notify is transactional
@@ -243,33 +256,41 @@ sub _committed_with_badge ( $self, $recipient_user_id, $work, $delivery = 0 ) {
     return $result;
 }
 
+# The delivery as api.notification_deliver takes it, stamped $at: the key,
+# the notification row and the inbox row. Drawn and not sent, so the fan-out
+# sends many in one statement.
+sub delivery_call ( $self, $input, $at ) {
+    my $idempotency_key = _idempotency_key($input);
+    my $notification_id = $input->{notification_id}
+      || _notification_id_for($idempotency_key);
+
+    return {
+        idempotency_key => $idempotency_key,
+        notification    =>
+          _notification_row( $input, $idempotency_key, $notification_id, $at ),
+        inbox => {
+            created_at        => $at,
+            notification_id   => $notification_id,
+            recipient_user_id => $input->{recipient_user_id},
+            rank_score        => $input->{rank_score} || $DEFAULT_RANK,
+            read_at           => undef
+        },
+    };
+}
+
 # The delivery writes the notification row and the recipient's inbox row.
 # An inbox row already there is answered as a duplicate: it is keyed by
 # recipient and notification, so a conflict on it is another delivery of the
 # same notification, answered the same way.
 sub _create_notification ( $self, $input ) {
+    if ( $self->functions ) {
+        return $self->functions->row( 'notification_deliver',
+            $self->delivery_call( $input, $self->clock->now_iso8601 ) )
+          ->{result};
+    }
     my $idempotency_key = _idempotency_key($input);
     my $notification_id = $input->{notification_id}
       || _notification_id_for($idempotency_key);
-    if ( $self->functions ) {
-        my $at = $self->clock->now_iso8601;
-        return $self->functions->row(
-            'notification_deliver',
-            {
-                idempotency_key => $idempotency_key,
-                notification    => _notification_row(
-                    $input, $idempotency_key, $notification_id, $at
-                ),
-                inbox => {
-                    created_at        => $at,
-                    notification_id   => $notification_id,
-                    recipient_user_id => $input->{recipient_user_id},
-                    rank_score        => $input->{rank_score} || $DEFAULT_RANK,
-                    read_at           => undef
-                },
-            }
-        )->{result};
-    }
     my $inbox_key = {
         notification_id   => $notification_id,
         recipient_user_id => $input->{recipient_user_id},
@@ -394,7 +415,76 @@ sub _notification_row ( $input, $idempotency_key, $notification_id,
     };
 }
 
+# On PostgreSQL the fan-out is four statements however many the recipients
+# (Service::Notification::Fanout, migration 1036): the candidates with
+# everything the screening reads, where the source sits, the deliveries, the
+# badges. Without the
+# function layer -- or with a preference store that has no plan to read in
+# one, a test's -- each subscriber is notified in turn, as before.
 sub fanout_to_subscribers ( $self, $input ) {
+    return $self->_fanout_in_turn($input) if !$self->_fans_out_in_one;
+
+    my $fanout =
+      GPForum::Service::Notification::Fanout->new( dispatcher => $self )
+      ->run($input);
+    for my $uncounted ( @{ $fanout->{uncounted} } ) {
+        $self->_badge_failed($uncounted);
+    }
+    $self->_badges( $fanout->{badges} );
+
+    return $fanout->{results};
+}
+
+sub _fans_out_in_one ($self) {
+    return 0 if !$self->functions;
+    my $store = $self->preference_store;
+
+    return !$store || $store->can('delivery_plan') ? 1 : 0;
+}
+
+# The badges of a fan-out, one per notification created, in one NOTIFY
+# statement (the notifier's notify_many), or one each for a notifier without
+# it. A failure is counted and logged as one badge's is.
+sub _badges ( $self, $badges ) {
+    my $notifier = $self->realtime_notifier;
+    return if !$notifier || !@{$badges};
+
+    my @events =
+      map {
+        $self->event_contract->notification_badge(
+            @{$_}{qw(user_id unread_count)} )
+      } @{$badges};
+    my ( $sent, $error );
+    try {
+        $sent =
+            $notifier->can('notify_many')
+          ? $notifier->notify_many( \@events )
+          : _each_notified( $notifier, \@events );
+    }
+    catch ($caught) {
+        $error = $caught;
+    };
+    if ( !defined $error && ref $sent eq 'HASH' && !$sent->{ok} ) {
+        $error = 'badge NOTIFY failed: ' . ( $sent->{reason} || 'unknown' );
+    }
+    if ( defined $error ) {
+        $self->_badge_failed($error);
+    }
+
+    return;
+}
+
+# Each badge sent on its own; the first failure is the answer.
+sub _each_notified ( $notifier, $events ) {
+    for my $event ( @{$events} ) {
+        my $sent = $notifier->notify($event);
+        return $sent if ref $sent eq 'HASH' && !$sent->{ok};
+    }
+
+    return { ok => 1 };
+}
+
+sub _fanout_in_turn ( $self, $input ) {
     my @recipients =
       $self->subscription_store->subscribers_for( $input->{target_type},
         $input->{target_id},
@@ -1033,15 +1123,32 @@ already had this notification; then nothing is written and no badge is
 sent, though C<unread_count> is still read. C<unread_count> is undef when
 the count failed after the write (see L</DESCRIPTION>).
 
+=head2 delivery_call
+
+Takes what C<create_notification> takes and the time to stamp the rows
+with. Returns the delivery as C<api.notification_deliver> takes it, drawn
+and not sent: C<idempotency_key>, C<notification> and C<inbox>.
+
+=head2 email_call
+
+Takes what C<create_notification> takes. Returns the mail event the member's
+plan would queue, as C<api.ops_record_event> takes it and
+L<GPForum::Infrastructure::EventRecorder/event_call> draws it, not sent.
+
 =head2 fanout_to_subscribers
 
 Takes the same hash reference as C<create_notification>, without
 C<recipient_user_id> but with C<target_type> and C<target_id>, whose
-subscribers (as the C<subscription_store>'s C<subscribers_for> lists them
-for this C<notification_type>) are the recipients, and an optional
-C<excluded_recipient_user_id> (the actor) left out. Notifies each in turn;
-one that dies does not stop the others. Returns
-C<< { ok => 1, attempted, created, duplicates, failed, skipped } >>:
+subscribers for this C<notification_type> are the recipients, and an
+optional C<excluded_recipient_user_id> (the actor) left out. On PostgreSQL
+the fan-out is four statements however many the recipients
+(L<GPForum::Service::Notification::Fanout>): the candidates with their
+plans, relations and viewers, where the source sits, the deliveries, the
+badges. Without the
+function layer each recipient is notified in turn, as the
+C<subscription_store>'s C<subscribers_for> lists them; one that dies does
+not stop the others. Either way the screening is C<create_notification>'s.
+Returns C<< { ok => 1, attempted, created, duplicates, failed, skipped } >>:
 C<attempted> a count, the others array references of the per-recipient
 results, C<failed> holding C<< { recipient_user_id, error } >>.
 

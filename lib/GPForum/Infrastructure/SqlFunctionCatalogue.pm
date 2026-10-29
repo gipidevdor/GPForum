@@ -343,6 +343,10 @@ const my %FUNCTION => (
 
     ops_publish_notification =>
       { version => 2, parameters => [ channel => 'text', payload => 'text' ] },
+    ops_publish_notifications => {
+        version    => 2,
+        parameters => [ channel => 'text', payloads => 'text[]' ],
+    },
     ops_retention_purge => {
         version    => 4,
         parameters =>
@@ -1085,6 +1089,22 @@ const my %FUNCTION => (
         ],
         json => ['result']
     },
+    notification_fanout_candidates => {
+        version    => 2,
+        parameters => [
+            target_type       => 'text',
+            target_id         => 'uuid',
+            notification_type => 'text',
+            actor_id          => 'uuid',
+            excluded_user_id  => 'uuid',
+        ],
+        json => ['grants'],
+    },
+    notification_fanout_deliver => {
+        version    => 2,
+        parameters => [ recipients => 'jsonb' ],
+        json       => ['result'],
+    },
     notification_mark_read => {
         version    => 2,
         parameters => [
@@ -1751,7 +1771,7 @@ const my %FUNCTION => (
         ],
     },
     notification_unread_count => {
-        version    => 6,
+        version    => 8,
         parameters => [
             recipient_user_id => 'uuid',
             filter_sources    => 'boolean',

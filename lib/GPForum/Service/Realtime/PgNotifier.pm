@@ -81,6 +81,76 @@ sub notify ( $self, $event ) {
     };
 }
 
+# Several events on the channel in one statement: a fan-out's badges, which
+# went out one NOTIFY statement per recipient. An event the contract refuses
+# is counted and left out, and the others go; refused all, the answer is the
+# refusal, as it is for one. Answers as notify does, with sent, how many
+# went, and rejected, how many were refused.
+sub notify_many ( $self, $events ) {
+    my ( @payloads, $rejected, $bytes ) = ( (), 0, 0 );
+    for my $event ( @{$events} ) {
+        my $serialized = $self->event_contract->serialize($event);
+        if ( !$serialized->{ok} ) {
+            $rejected += 1;
+            $self->stats->{rejected} += 1;
+            next;
+        }
+        push @payloads, $serialized->{json};
+        $bytes += $serialized->{bytes};
+    }
+    if ( !@payloads ) {
+        return { ok => 1, channel => $self->channel, sent => 0, bytes => 0 }
+          if !$rejected;
+
+        return {
+            ok           => 0,
+            failure_type => 'serialization',
+            reason       => 'rejected',
+            rejected     => $rejected,
+        };
+    }
+    my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
+    if ( !$dbh ) {
+        $self->stats->{degraded} += 1;
+        return {
+            ok           => 0,
+            degraded     => 1,
+            failure_type => 'transport',
+            reason       => 'notify_unavailable',
+        };
+    }
+    try {
+        if ( $self->functions ) {
+            $self->functions->row( 'ops_publish_notifications',
+                { channel => $self->channel, payloads => \@payloads } );
+        }
+        else {
+            $dbh->do(
+'SELECT pg_notify(?, payload) FROM unnest(?::text[]) AS payload',
+                undef, $self->channel, \@payloads
+            );
+        }
+    }
+    catch ($error) {
+        $self->stats->{notify_failures} += 1;
+        return {
+            ok           => 0,
+            degraded     => 1,
+            failure_type => 'transport',
+            reason       => 'notify_failed',
+        };
+    };
+    $self->stats->{notified} += scalar @payloads;
+
+    return {
+        ok       => 1,
+        channel  => $self->channel,
+        bytes    => $bytes,
+        sent     => scalar @payloads,
+        rejected => $rejected,
+    };
+}
+
 sub snapshot ($self) {
     return { %{ $self->stats }, channel => $self->channel };
 }
@@ -136,6 +206,16 @@ refused; C<transport> with C<< degraded => 1 >> and C<notify_unavailable>
 when there is no schema or asking it for a handle fails; C<transport> with
 C<< degraded => 1 >> and C<notify_failed> when the C<pg_notify> statement
 dies.
+
+=head2 notify_many
+
+Takes an array reference of event hash references and sends them on the
+channel in one statement (C<api.ops_publish_notifications>). Returns
+C<< { ok => 1, channel, bytes, sent, rejected } >>: C<sent> how many went,
+C<rejected> how many the contract refused and left out, each counted. With
+nothing to send it is C<ok> with C<sent> 0, unless every event was refused:
+then C<ok> 0 with C<failure_type> C<serialization>. Transport failures are
+answered as C<notify> answers them.
 
 =head2 snapshot
 

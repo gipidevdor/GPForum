@@ -24,6 +24,26 @@ sub can_notify ( $self, $recipient, $source_type, $source_id, @ ) {
     return $self->readable_by( $recipient, $source_type, $source_id );
 }
 
+# The readers, of those given -- viewers or user ids -- who may be notified
+# about the source: for a message, the members of its conversation, one
+# lookup each; for a post or thread, Readability's readers_of -- one
+# statement for where the source sits, and none for a reader given as a
+# viewer. The fan-out screens every recipient this way at once.
+sub notifiable_readers ( $self, $source_type, $source_id, @readers ) {
+    return
+      grep { $self->_message_participant( _user_id_of($_), $source_id ) }
+      @readers
+      if ( $source_type // q{} ) eq 'message';
+
+    return $self->readers_of( $source_type, $source_id, @readers );
+}
+
+sub _user_id_of ($reader) {
+    return blessed $reader && $reader->can('user_id')
+      ? $reader->user_id
+      : $reader;
+}
+
 sub _message_participant ( $self, $recipient, $message_id ) {
     return 0
       if !$self->functions
@@ -69,6 +89,15 @@ if they are a member of its conversation (ADR 0139).
 =head2 can_notify
 
 True when the recipient may be notified about the source.
+
+=head2 notifiable_readers
+
+Takes a source type, a source id and readers, each a
+L<GPForum::Service::Forum::Viewer> or a user id. Returns those who may be
+notified about the source: a conversation's members for a message, each
+looked up; for a post or thread the readers of
+L<GPForum::Service::Forum::Readability/readers_of>, one statement for where
+the source sits and none for a reader given as a viewer.
 
 =head1 DIAGNOSTICS
 

@@ -88,6 +88,7 @@ const my %RETAINED_BOUNDARIES => (
     forum_write_command          => [4],
     ops_retention_purge          => [2],
     notification_subscribers     => [2],
+    notification_unread_count    => [6],
     privacy_revoke_user          => [22],
     portability_export_parts     => [22],
     identity_register_command    => [2],

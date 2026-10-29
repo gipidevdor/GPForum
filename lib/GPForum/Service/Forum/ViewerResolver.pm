@@ -69,6 +69,16 @@ sub resolve ( $self, $user_id ) {
     catch ($error) {
         $self->_warn("viewer resolution degraded: $error");
     };
+
+    return $self->viewer_from_row( $user_id, $row );
+}
+
+# The viewer an account's row describes -- status, suspended, listed,
+# trust_level, moderates and grants, as _viewer_row reads them -- or a
+# non-member keeping the id without a row. No statement: a fan-out builds its
+# recipients' viewers from the rows it read with them.
+sub viewer_from_row ( $self, $user_id, $row ) {
+    my $viewer_class = 'GPForum::Service::Forum::Viewer';
     return $viewer_class->new( user_id => $user_id ) if !$row;
 
     my $member = exists $MEMBER_STATUS{ $row->{status} // q{} }
@@ -175,6 +185,13 @@ optional; without it a degraded resolution is not logged.
 
 Returns the viewer; anonymous for no user, and anonymous-equivalent (the user
 id kept for authorship) when the account cannot read or resolution fails.
+
+=head2 viewer_from_row
+
+Takes a user id and the account's row as C<resolve> reads it (C<status>,
+C<suspended>, C<listed>, C<trust_level>, C<moderates>, C<grants>), or undef
+for an account that is not there. Returns the viewer C<resolve> would, making
+no statement.
 
 =head2 grant_scopes
 

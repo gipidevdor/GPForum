@@ -23,6 +23,7 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 const my @RETAINED => qw(
   forum_resolve_viewer_v6 outbox_claim_ready_v2
   ops_retention_purge_v2 notification_subscribers_v2
+  notification_unread_count_v6
   portability_export_parts_v22 privacy_revoke_user_v22
   identity_register_command_v2 identity_update_user_v4
   moderation_active_suspension_v2 moderation_can_participate_v2
@@ -176,11 +177,16 @@ sub _retained_arguments ($name) {
       if $name eq 'ops_retention_purge_v2';
     return 'p_target_type text, p_target_id uuid, p_notification_type text'
       if $name eq 'notification_subscribers_v2';
+    return join q{, }, 'p_recipient_user_id uuid', 'p_filter_sources boolean',
+      'p_member boolean', 'p_global_read boolean', 'p_viewer_user_id uuid',
+      'p_category_ids uuid[]', 'p_space_ids uuid[]'
+      if $name eq 'notification_unread_count_v6';
     return 'p_source text, p_user_id uuid, p_at text'
       if $name eq 'privacy_revoke_user_v22';
     return 'p_user_id uuid' if $name eq 'portability_export_parts_v22';
     return 'p_user_id uuid, p_changes jsonb'
       if $name eq 'identity_update_user_v4';
+
     if ( $name eq 'identity_register_command_v2' ) {
         my @names =
           qw(log answer accepted refused user credential event event_outbox_id audit token token_audit mail_event mail_outbox_id mail_outbox_extras);

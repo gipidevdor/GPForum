@@ -7,7 +7,7 @@ use v5.40;
 
 use Carp qw(croak);
 use Const::Fast;
-use Mojo::JSON qw(encode_json);
+use Mojo::JSON qw(decode_json encode_json);
 use Mojo::Log;
 use POSIX qw(strftime);
 use Test::More;
@@ -16,6 +16,7 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Infrastructure::Id;
+use GPForum::Service::Community::RelationStore;
 use GPForum::Service::Notification::Dispatcher;
 use GPForum::Service::Notification::PreferenceStore;
 use GPForum::Service::Notification::RecipientPolicy;
@@ -55,10 +56,12 @@ const my $UNREAD_CAP          => 100;
 const my $BACKLOG             => 120;
 const my $OUTBOX_BATCH        => 10;
 const my $MAX_PAGES           => 50;
+const my $FANOUT_SCREENED     => 3;
+const my $NOTIFY_POLLS        => 5;
 
 const my @MEMBERS => qw(
   reader other author muted raced orphan racer hidden backlog
-  badge rollback counted fanned unsent
+  badge rollback counted fanned unsent screened silent mailed
 );
 
 const my $USER_SQL => join q{ },
@@ -89,6 +92,16 @@ const my $NOTIFICATION_SQL => join q{ },
 const my $INBOX_SQL => join q{ },
   'INSERT INTO notification_inbox (recipient_user_id, notification_id,',
   'created_at) VALUES (?, ?, ?)';
+
+const my $RELATION_SQL => join q{ },
+  'INSERT INTO member_relations (owner_user_id, other_user_id, kind,',
+  q{created_at, updated_at) VALUES (?, ?, 'ignore', now(), now())};
+const my $VERIFIED_SQL =>
+  'UPDATE users SET email_verified_at = now() WHERE id = ?';
+const my $EMAIL_EVENTS_SQL => join q{ },
+  'SELECT count(*) FROM event_log',
+  q{WHERE event_type = 'notification.email.requested'},
+  'AND aggregate_id = ?';
 
 # Due a minute ago: the outbox claims what is due by its clock, whole
 # seconds, and now() written this second would still be ahead of it.
@@ -197,6 +210,7 @@ _leftover_at_another_time($notifications);
 _raced_delivery_at_another_time($notifications);
 _refused_delivery($notifications);
 _fanout($notifications);
+_fanout_screening($notifications);
 _outbox_fanout($notifications);
 _degraded_fanout($notifications);
 _inbox_listing($notifications);
@@ -1179,6 +1193,168 @@ sub _fanout {
         0, 'fanout does not notify excluded actor' );
 
     return;
+}
+
+# The fan-out on PostgreSQL is four statements however many the recipients
+# (migration 1036): the candidates with their plans, relations and viewers,
+# where the post sits, the deliveries, the badges in one NOTIFY. The screening is
+# create_notification's: a member who ignores the author is not notified, one
+# with the inbox off and verified mail gets the mail alone, and a retry of
+# the same event adds nothing.
+sub _fanout_screening {
+    my ($ctx) = @_;
+
+    my $thread = $ctx->{club_thread};
+    my %member = map { $_ => $ctx->{users}{$_} } qw(screened silent mailed);
+    for my $name ( sort keys %member ) {
+        $ctx->{subscriptions}->subscribe(
+            {
+                target_id   => $thread,
+                target_type => 'thread',
+                user_id     => $member{$name},
+            }
+        );
+    }
+    $ctx->{dbh}
+      ->do( $RELATION_SQL, undef, $member{silent}, $ctx->{users}{author} );
+    $ctx->{preferences}->set_preference(
+        {
+            channel          => 'in_app',
+            digest_frequency => 'never',
+            enabled          => 0,
+            user_id          => $member{mailed},
+        }
+    );
+    $ctx->{preferences}->set_type_preferences(
+        {
+            user_id     => $member{mailed},
+            preferences =>
+              [ { event_type => 'reply', channel => 'email', enabled => 1 } ],
+        }
+    );
+    $ctx->{dbh}->do( $VERIFIED_SQL, undef, $member{mailed} );
+
+    my $dispatcher = GPForum::Service::Notification::Dispatcher->new(
+        clock             => $ctx->{clock},
+        permission_engine => $ctx->{policy},
+        preference_store  => $ctx->{preferences},
+        readability       => $ctx->{policy},
+        realtime_notifier => GPForum::Service::Realtime::PgNotifier->new(
+            schema => $ctx->{schema}
+        ),
+        relations => GPForum::Service::Community::RelationStore->new(
+            clock  => $ctx->{clock},
+            schema => $ctx->{schema},
+        ),
+        schema             => $ctx->{schema},
+        stats              => { badge_failures => 0 },
+        subscription_store => $ctx->{subscriptions},
+    );
+    my %fanout = (
+        excluded_recipient_user_id => $ctx->{users}{author},
+        idempotency_key            => 'notification.reply:event-screened',
+        notification_type          => 'reply',
+        payload                    => {
+            actor_id  => $ctx->{users}{author},
+            event_id  => 'event-screened',
+            thread_id => $thread,
+        },
+        source_id   => _post( $ctx, $thread ),
+        source_type => 'post',
+        target_id   => $thread,
+        target_type => 'thread',
+    );
+    $ctx->{peer}->do('LISTEN gpforum_domain_events');
+    my ( $fanned, $statements ) = _sent( $ctx, 'SELECT', undef,
+        sub { return $dispatcher->fanout_to_subscribers( {%fanout} ); } );
+    is_deeply(
+        [ map { _function_called($_) } @{$statements} ],
+        [
+            qw(notification_fanout_candidates forum_post_placement
+              notification_fanout_deliver ops_publish_notifications)
+        ],
+'the fan-out is four statements: the candidates, where the post sits, the deliveries, the badges'
+    );
+    is( $fanned->{attempted}, $FANOUT_SCREENED,
+        'every subscriber but the author is a candidate' );
+    is_deeply(
+        [
+            map { $_->{notification}{recipient_user_id} }
+              @{ $fanned->{created} }
+        ],
+        [ $member{screened} ],
+        'the member with the inbox on is notified'
+    );
+    is( $fanned->{created}[0]{unread_count},
+        1, 'with the unread count the statement read' );
+    is_deeply(
+        [ sort map { $_->{skipped} } @{ $fanned->{skipped} } ],
+        [ 'channel_disabled', 'member_relation' ],
+'the member who ignores the author and the one with the inbox off are skipped'
+    );
+    my ($mailed) =
+      grep { $_->{skipped} eq 'channel_disabled' } @{ $fanned->{skipped} };
+    is( $mailed->{email_queued}, 1, 'and the latter gets the mail alone' );
+    is( _value( $ctx, $EMAIL_EVENTS_SQL, $member{mailed} ),
+        1, 'the mail event is in the outbox' );
+    is( _value( $ctx, $EMAIL_EVENTS_SQL, $member{silent} ),
+        0, 'and the silenced member gets no mail either' );
+    is( _value( $ctx, $NOTIFICATION_ROWS_SQL, $member{silent} ),
+        0, 'the silenced member has no notification row' );
+    is( scalar @{ $fanned->{failed} }, 0, 'nothing failed' );
+
+    # The badge, among whatever else the channel carries meanwhile.
+    my $badge;
+    for ( 1 .. $NOTIFY_POLLS ) {
+        my $notice = $ctx->{peer}->pg_notifies;
+        if ( !$notice ) {
+            $ctx->{peer}->do('SELECT 1');
+            next;
+        }
+        note "NOTIFY $notice->[0]: $notice->[2]";
+        my $frame = ref $notice->[2] ? undef : decode_json( $notice->[2] );
+        if ( ref $frame eq 'HASH'
+            && ( $frame->{type} // q{} ) eq 'notification.badge' )
+        {
+            $badge = $frame;
+            last;
+        }
+    }
+    ok( $badge, 'the badge arrives by NOTIFY' );
+    $badge //= {};
+    is( $badge->{type},         'notification.badge', 'as a badge frame' );
+    is( $badge->{aggregate_id}, $member{screened}, 'for the member notified' );
+    is( $badge->{payload}{unread_count}, 1,        'with their count' );
+    $ctx->{peer}->do('UNLISTEN *');
+    is( $dispatcher->snapshot->{badge_failures}, 0, 'no badge failed' );
+
+    my ( $again, $retried ) = _sent( $ctx, 'SELECT', undef,
+        sub { return $dispatcher->fanout_to_subscribers( {%fanout} ); } );
+    is( scalar @{ $again->{created} },
+        0, 'the same event again creates nothing' );
+    is( scalar @{ $again->{duplicates} },
+        1, 'the notification made is a duplicate' );
+    is( _value( $ctx, $EMAIL_EVENTS_SQL, $member{mailed} ),
+        1, 'and the mail is queued once' );
+    is_deeply(
+        [ map { _function_called($_) } @{$retried} ],
+        [
+            qw(notification_fanout_candidates forum_post_placement
+              notification_fanout_deliver)
+        ],
+        'a fan-out that creates nothing sends no badge: three statements'
+    );
+
+    return;
+}
+
+# The api function a traced statement calls, or the statement itself.
+sub _function_called {
+    my ($statement) = @_;
+
+    return $statement =~ /\b api [.] (\w+?) _v [[:digit:]]+ \b/msx
+      ? $1
+      : $statement;
 }
 
 # A post.created event in outbox_messages, claimed and dispatched by the

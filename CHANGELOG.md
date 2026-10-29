@@ -24,6 +24,15 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migration 1036, then restart the application and outbox
+  workers.** `gpforum migrate` installs `api.notification_fanout_candidates_v2`,
+  `api.notification_fanout_deliver_v2` and `api.ops_publish_notifications_v2`,
+  the functions a reply's fan-out to a thread's subscribers now runs through,
+  and `api.notification_unread_count_v8`, the badge count planned once; the
+  previous entry points stay for workers of the preceding release, which
+  keep notifying one subscriber at a time until they restart. With a separate
+  API runtime role, reprovision its grants as for 1024.
+
 - **Apply migration 1035 (ADR 0156).** `gpforum migrate` adds two nullable
   columns and a partial index to `audit_log`, replaces the four audit chain
   functions in place and adds `api.ops_audit_chain_verify_v2`; every writer,
@@ -1337,6 +1346,40 @@ a host set up from an earlier `main`, newest first.
   foundations.
 
 ### Changed
+
+- **A reply's notifications reach a thread's subscribers in four statements,
+  however many they are (migration 1036).** The outbox worker notified each
+  subscriber in turn -- the viewer, the delivery plan, the relation to the
+  actor, the two rows in a transaction of their own, the unread count and
+  the badge -- seven round trips per recipient, so a thread with a thousand
+  followers was 7,001 statements inside one outbox message, which could
+  outlive its lease and be claimed again by the next worker. The fan-out is
+  now the candidates with their plans, relations and viewer rows in one
+  statement (`api.notification_fanout_candidates_v2`), where the post sits
+  (as before), the deliveries in one call per page of 200
+  (`api.notification_fanout_deliver_v2`, each recipient in a savepoint of
+  their own, the mail queued with them, the unread count counted after the
+  rows so a count that fails leaves the delivery made) and the badges in one
+  NOTIFY statement (`api.ops_publish_notifications_v2`). Every rule stays
+  where it was: the readability of the post (ADR 0102) is judged in Perl
+  from the viewers the candidates carry, the plan is the preference store's,
+  the relation store says which kinds a relation silences (ADR 0130).
+  Measured on a scratch cluster: 1,000 subscribers took 7,001 statements and
+  3.15 s, now 8 statements and 0.32 s; 100 took 701 and 0.33 s, now 4 and
+  0.045 s; 10,000 take 53 statements and 3.1 s. `Service::Notification::Fanout`
+  is the module; `RecipientPolicy::notifiable_readers`,
+  `ViewerResolver::viewer_from_row`, `RelationStore::silenceable` and
+  `PgNotifier::notify_many` are the set forms the fan-out uses.
+
+- **The unread count a badge carries is planned once
+  (`api.notification_unread_count_v8`, migration 1036).** The count's
+  function forced a custom plan, so every call planned its three readability
+  subqueries again: 1.4 ms of planning for a count that runs in 0.05 ms
+  (1,000 calls: 1,416 ms, against 55 ms under a generic plan). That was most
+  of what a fan-out of a thousand still cost once its round trips were gone,
+  and 1.4 ms of the badge after every delivery and every mark-read. The body
+  is unchanged; the previous entry point stays for the preceding release's
+  workers.
 
 - **The audit chain is one chain per aggregate, linked at commit under that
   aggregate's lock (ADR 0156, migration 1035).** Every audited write took

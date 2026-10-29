@@ -34,7 +34,7 @@ sub request_email_change ($self) {
         }
     );
     if ( !$result->{ok} ) {
-        return $self->identity_write_failure($result);
+        return $self->settings_write_refused($result);
     }
 
     $self->flash( success => $self->t('settings.email_change_requested') );

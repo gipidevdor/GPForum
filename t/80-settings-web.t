@@ -20,12 +20,11 @@ use GPForum::Test::ScriptedParticipation;
 
 our $VERSION = '0.001';
 
-const my $HTTP_ACCEPTED    => 202;
-const my $HTTP_FORBIDDEN   => 403;
-const my $HTTP_FOUND       => 302;
-const my $HTTP_BAD_REQUEST => 400;
-const my $BIO_TOO_LONG     => 501;
-const my $HTTP_OK          => 200;
+const my $HTTP_ACCEPTED  => 202;
+const my $HTTP_FORBIDDEN => 403;
+const my $HTTP_FOUND     => 302;
+const my $BIO_TOO_LONG   => 501;
+const my $HTTP_OK        => 200;
 
 subtest 'settings require an authenticated user' => sub {
     my $test = Test::Mojo->new('GPForum');
@@ -178,6 +177,10 @@ subtest 'the profile section saves the bio' => sub {
     $test->text_like(
         'textarea[name="bio"]' => qr/Writes [ ] about [ ] Perl/msx );
     $test->content_like(qr/Profile [ ] saved[.]/msx);
+
+    # A refusal goes back to the settings page, which says it and hands out
+    # fresh command ids: a bare 400 left the member to back out into the
+    # same form, whose command id had the refusal recorded under it.
     $test->post_ok(
         '/settings/profile' => form => {
             bio        => 'x' x $BIO_TOO_LONG,
@@ -185,7 +188,12 @@ subtest 'the profile section saves the bio' => sub {
             csrf_token => _csrf_token($test),
         }
     );
-    $test->status_is($HTTP_BAD_REQUEST);
+    $test->status_is($HTTP_FOUND);
+    $test->header_like( Location => qr{/settings\z}msx );
+    $test->get_ok('/settings');
+    $test->element_exists( 'p.flash--error[role="alert"]',
+        'the settings page says the change was refused' );
+    $test->content_like(qr/The [ ] change [ ] was [ ] not [ ] saved/msx);
 };
 
 done_testing();

@@ -175,6 +175,26 @@ is_deeply(
     'preference_cookie_options uses a one-year Lax cookie'
 );
 
+# The key a refused settings write is said with: the current password, the
+# new password's rules, or the one refusal for everything else -- an address
+# already registered included, which the page does not confirm.
+is(
+    $access->refusal_key( { error => 'invalid_current_password' } ),
+    'settings.refused_current_password',
+    'a wrong current password'
+);
+is(
+    $access->refusal_key( { errors => { current_password => 'required' } } ),
+    'settings.refused_current_password',
+    'or a missing one'
+);
+is( $access->refusal_key( { error => 'password_too_short' } ),
+    'settings.refused_password', 'a new password short of the rules' );
+is( $access->refusal_key( { error => 'email_already_registered' } ),
+    'settings.refused', 'an address already registered is not confirmed' );
+is( $access->refusal_key( { errors => { bio => 'too long' } } ),
+    'settings.refused', 'anything else is the one refusal' );
+
 done_testing();
 
 1;

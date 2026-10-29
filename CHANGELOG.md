@@ -2337,6 +2337,19 @@ a host set up from an earlier `main`, newest first.
 
 ### Fixed
 
+- **A refused password change, email change or profile write goes back to
+  the settings page, which says why and hands out fresh command ids.** A
+  wrong current password, a new password short of the rules or an overlong
+  bio answered a bare 400 page; backing out of it returned the member to the
+  same form, whose command id had the refusal recorded under it, so the
+  corrected submission got the refusal back for as long as the page stayed
+  open. The page now says the refusal (`settings.refused`,
+  `settings.refused_current_password`, `settings.refused_password`; an
+  address already registered is told as the generic refusal, as the
+  registration tells it) and every form on it comes with a new command id.
+  The preferences form, whose values only a tampered form can get wrong, and
+  clients that ask for JSON still get the 400.
+
 - **An erased member's single-use tokens go with their credentials
   (migration 1039).** A password reset, an email change carrying the new
   address, a verification: their rows in `identity_tokens` stayed until they

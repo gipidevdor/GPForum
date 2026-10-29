@@ -190,6 +190,25 @@ sub bad_request ( $self, $controller ) {
     );
 }
 
+# The message key for a settings write the store refused: the current
+# password wrong, the new password short of the rules, or the one refusal
+# for everything else. An address already registered is told as the
+# generic refusal, as the registration tells it: a signed-in member's form
+# is no place to learn which addresses have accounts either.
+sub refusal_key ( $, $result ) {
+    my $error  = $result->{error}  // q{};
+    my $errors = $result->{errors} // {};
+    return 'settings.refused_current_password'
+      if $error eq 'invalid_current_password'
+      || exists $errors->{current_password};
+    return 'settings.refused_password'
+      if $error =~ /\A password_/msx
+      || exists $errors->{new_password}
+      || exists $errors->{password};
+
+    return 'settings.refused';
+}
+
 sub _json_or_text ( $self, $controller, $input ) {
     if ( $self->_wants_json($controller) ) {
         return $controller->render(
@@ -309,6 +328,15 @@ Renders the shared unavailable payload as JSON or plaintext HTTP 503.
 =head2 bad_request
 
 Renders the identity-specific bad-request JSON payload or plaintext.
+
+=head2 refusal_key
+
+Takes a workflow result the store refused and returns the message key the
+settings page says it with: C<settings.refused_current_password> for a
+current password that is wrong or missing, C<settings.refused_password> for
+a new password short of the rules, and C<settings.refused> for everything
+else, an address already registered included, which the settings page does
+not confirm any more than the registration does.
 
 =head1 DIAGNOSTICS
 

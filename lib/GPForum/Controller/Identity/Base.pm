@@ -219,6 +219,21 @@ sub identity_write_failure ( $self, $result ) {
     return $self->identity_bad_request;
 }
 
+# A settings form's write the store refused: back to the settings page with
+# the refusal said, where every form comes with a fresh command id. A bare
+# 400 left the member to back out of it into the same form, whose command id
+# had the refusal recorded under it, so the corrected submission got the
+# refusal back for as long as the page stayed open. A failure, and a client
+# that wants JSON, are answered as before.
+sub settings_write_refused ( $self, $result ) {
+    return $self->identity_write_failure($result)
+      if $self->_wants_json || ( $result->{status} || q{} ) eq 'failed';
+
+    $self->flash(
+        error => $self->t( $self->identity_access->refusal_key($result) ) );
+    return $self->redirect_to('settings');
+}
+
 sub identity_unavailable ($self) {
     return $self->identity_access->service_unavailable($self);
 }
@@ -401,6 +416,14 @@ and CRLF variants of the same open-redirect and header-splitting tricks.
 
 Maps a failed identity store write to HTTP 503 and other non-ok results to
 HTTP 400.
+
+=head2 settings_write_refused
+
+Takes a workflow result that is not ok. For an HTML request whose result is
+a refusal (not C<failed>), flashes the refusal's message
+(L<GPForum::Web::IdentityAccess/refusal_key>) and redirects to the settings
+page, whose forms come with fresh command ids; otherwise answers as
+L</identity_write_failure> does.
 
 =head2 persist_locale_preference
 

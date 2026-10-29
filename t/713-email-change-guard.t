@@ -24,9 +24,8 @@ use GPForum::Worker::Handler::IdentityMail;
 
 our $VERSION = '0.001';
 
-const my $HTTP_FOUND       => 302;
-const my $HTTP_BAD_REQUEST => 400;
-const my $PASSWORD         => 'correct horse battery staple';
+const my $HTTP_FOUND => 302;
+const my $PASSWORD   => 'correct horse battery staple';
 
 # Whoever held a member's session could move the account to an address of
 # their own: the change asked for no password, and the address it left was
@@ -45,7 +44,10 @@ subtest 'the change asks for the current password' => sub {
             csrf_token => _csrf_token($test),
             email      => 'new@example.test',
         }
-    )->status_is( $HTTP_BAD_REQUEST, 'without it the change is refused' );
+      )
+      ->status_is( $HTTP_FOUND,
+        'without it the change is refused, back to the settings page' );
+    $test->header_like( Location => qr{/settings\z}msx );
     is( scalar @{ $store->lifecycle_calls }, 0, 'before the store is asked' );
 
     $test->post_ok(

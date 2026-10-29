@@ -181,7 +181,7 @@ sub update_profile ($self) {
         }
     );
     if ( !$result->{ok} ) {
-        return $self->identity_write_failure($result);
+        return $self->settings_write_refused($result);
     }
     $self->flash( success => $self->t('settings.profile_saved') );
     return $self->redirect_to('settings');

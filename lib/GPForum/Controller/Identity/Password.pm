@@ -130,7 +130,7 @@ sub change_password ($self) {
         }
     );
     if ( !$result->{ok} ) {
-        return $self->identity_write_failure($result);
+        return $self->settings_write_refused($result);
     }
 
     $self->flash( success => $self->t('settings.password_changed') );

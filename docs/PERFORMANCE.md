@@ -307,7 +307,9 @@ pages, anonymous and signed in, against the seeded forum, from 1 statement
 (the anonymous category index) to 8 (a signed-in thread page). Each page must
 send the same number of statements for one row as for fifty, so an N+1
 fails, and stay within the budget measured on 2026-09-26; raising one is a
-decision to write down in the commit.
+decision to write down in the commit. The seed carries what the pages read
+per row, files on the thread's posts included (migration 1037: each file
+under a post used to cost four statements the seed never showed).
 
 **When readiness reports `query_budget_drift`:** the `endpoint_query_budgets`
 table no longer matches the catalog in the code -- an endpoint missing,

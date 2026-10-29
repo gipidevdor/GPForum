@@ -83,6 +83,7 @@ const my %REPLACED_IN_PLACE => (
 const my %RETAINED_BOUNDARIES => (
     forum_resolve_viewer         => [6],
     outbox_claim_ready           => [2],
+    forum_thread_page_reads      => [4],
     forum_create_reply           => [4],
     forum_store_write            => [2],
     forum_write_command          => [4],

@@ -69,6 +69,34 @@ sub payload ( $self, $attachment ) {
     };
 }
 
+# The payload of a file listed under a post, from one row that carries the
+# link, the file (file_*), the post (post_*) and the post's placement, as
+# api.attachment_post_files answers it: the file available and clean, the
+# post live and visible, and the post readable by the reader (ADR 0102,
+# judged from the placement in hand: no statement) or the viewer the
+# file's owner; without a readability policy, the post's visibility open
+# to the viewer. The page's one link is the way to the file, so no other
+# link of the file is asked for. Undef when the file is not listed.
+sub listing_payload ( $self, $row, $reader, $viewer_user_id ) {
+    my $attachment = $self->_file_of($row);
+    return undef if $self->unavailable($attachment);
+
+    my $target = $self->_post_of($row);
+    return undef if !$self->target_visible( $target, 'post' );
+    if ( $self->readability ) {
+        return undef
+          if !$self->readability->may_read( $reader // $viewer_user_id,
+            $self->_placement_of($row) )
+          && !$self->is_owner( $attachment, $viewer_user_id );
+    }
+    elsif ( !$self->visibility_allows( $target, $attachment, $viewer_user_id ) )
+    {
+        return undef;
+    }
+
+    return $self->payload($attachment);
+}
+
 sub owner_payload ( $self, $attachment, $viewer_user_id ) {
     if ( !$self->is_owner( $attachment, $viewer_user_id ) ) {
         return undef;
@@ -173,6 +201,46 @@ sub _linked_target_allows ( $self, $input ) {
         $target_type, $self->record->column( $input->{link}, 'target_id' ) );
 
     return $self->is_owner( $input->{attachment}, $input->{viewer_user_id} );
+}
+
+# The file's columns of a row that carries them as file_*, and the post's
+# as post_*, under the names the rules read.
+const my @FILE_COLUMNS => qw(
+  owner_user_id object_key original_filename media_type byte_size state
+  scan_status deleted_at
+);
+const my @POST_COLUMNS => qw(
+  thread_id author_user_id visibility moderation_state hidden_at deleted_at
+);
+const my @PLACEMENT_COLUMNS => qw(
+  category_id category_visibility category_deleted_at space_id
+  space_visibility thread_author thread_visibility thread_deleted_at
+  thread_state post_author post_visibility post_deleted_at post_state
+);
+
+sub _file_of ( $self, $row ) {
+    return {
+        attachment_id => $self->record->column( $row, 'attachment_id' ),
+        map { $_ => $self->record->column( $row, "file_$_" ) } @FILE_COLUMNS,
+    };
+}
+
+# The post's placement, as Readability reads it from forum_post_placement.
+sub _placement_of ( $self, $row ) {
+    my %as = (
+        post_author => 'post_author_user_id',
+        post_state  => 'post_moderation_state',
+    );
+
+    return { map { $_ => $self->record->column( $row, $as{$_} // $_ ) }
+          @PLACEMENT_COLUMNS };
+}
+
+sub _post_of ( $self, $row ) {
+    return {
+        post_id => $self->record->column( $row, 'target_id' ),
+        map { $_ => $self->record->column( $row, "post_$_" ) } @POST_COLUMNS,
+    };
 }
 
 sub _is_available ( $self, $attachment ) {
@@ -285,6 +353,17 @@ True when the attachment is available, clean, and not deleted.
 =head2 payload
 
 Returns the authorized download hash.
+
+=head2 listing_payload
+
+Takes one row of C<api.attachment_post_files> -- a link with its file as
+C<file_*> columns, its post as C<post_*> columns and the post's placement
+-- the reader (a viewer, or undef) and the viewer's user id. Returns the
+download payload when the file is listed under that post: available and
+clean, the post live and visible, and the post readable by the reader
+(ADR 0102, from the placement in hand) or the viewer the file's owner;
+without a readability policy, the post's visibility open to the viewer.
+Returns undef otherwise. No statement is made.
 
 =head2 owner_payload
 

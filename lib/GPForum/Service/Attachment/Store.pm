@@ -464,7 +464,7 @@ sub attachments_for_posts ( $self, $post_ids, $input ) {
     if ( $self->functions ) {
         $rows = [
             map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows( @{ $self->post_links_call( \@ids ) } )
+                $self->functions->rows( @{ $self->post_files_call( \@ids ) } )
             }
         ];
     }
@@ -498,6 +498,20 @@ sub attachments_for_posts ( $self, $post_ids, $input ) {
         my $post_id = $self->record->column( $link, 'target_id' );
         next if !$requested{$post_id};
 
+        # A row that carries its file and its post (attachment_post_files)
+        # is decided on the spot; a bare link (the resultset path) is
+        # decided as a download is, which asks for the file, its links and
+        # the post, one statement each.
+        if ( defined $self->record->column( $link, 'file_state' ) ) {
+            my $listed =
+              $self->download_access->listing_payload( $link, $input->{viewer},
+                $input->{viewer_user_id} );
+            if ($listed) {
+                push @{ $by_post{$post_id} }, $self->record->view($listed);
+            }
+            next;
+        }
+
         my $decision = $self->download_for(
             {
                 attachment_id =>
@@ -523,6 +537,24 @@ sub attachments_for_posts ( $self, $post_ids, $input ) {
 # The call attachments_for_posts makes for the links of a page's posts, each
 # post once, in order: a page that reads the links with its other reads in
 # one statement (Service::Forum::ThreadPageReads) answers it.
+# The call attachments_for_posts makes on PostgreSQL: the links of the
+# page's posts, each with its file and its post, in one statement. A page
+# that reads its posts' extras in one statement
+# (Service::Forum::ThreadPageReads) answers it.
+sub post_files_call ( $self, $post_ids ) {
+    my %requested = map { $_ => 1 } @{$post_ids};
+    my @ids       = sort keys %requested;
+
+    return [
+        'attachment_post_files',
+        {
+            target_type => $self->lifecycle->post_link_target,
+            post_ids    => \@ids,
+            row_limit   => $self->lifecycle->post_link_rows( \@ids ),
+        }
+    ];
+}
+
 sub post_links_call ( $self, $post_ids ) {
     my %requested = map { $_ => 1 } @{$post_ids};
     my @ids       = sort keys %requested;
@@ -1090,6 +1122,14 @@ reference of C<< { attachment_id, byte_size, media_type, original_filename } >>,
 one per linked attachment that L</download_for> lets the viewer have, read
 from the download decision's own columns. The link query is capped at ten
 rows per requested post. Posts without such attachments have no key.
+
+=head2 post_files_call
+
+Takes an array reference of post ids. Returns the catalogue name and the
+parameters of the call L</attachments_for_posts> makes on PostgreSQL,
+C<attachment_post_files>: the links of those posts, each with its file and
+its post, in one statement. A thread page that reads its posts' extras in
+one statement answers it.
 
 =head2 post_links_call
 

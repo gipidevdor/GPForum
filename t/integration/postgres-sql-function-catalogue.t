@@ -21,7 +21,7 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 
 # Migration 1024 retains these shipped entry points for the previous workers.
 const my @RETAINED => qw(
-  forum_resolve_viewer_v6 outbox_claim_ready_v2
+  forum_resolve_viewer_v6 outbox_claim_ready_v2 forum_thread_page_reads_v4
   ops_retention_purge_v2 notification_subscribers_v2
   notification_unread_count_v6
   portability_export_parts_v22 privacy_revoke_user_v22
@@ -194,6 +194,11 @@ sub _retained_arguments ($name) {
           map { 'p_' . $_ . q{ } . ( /outbox_id\z/msx ? 'text' : 'jsonb' ) }
           @names;
     }
+    return join q{, }, 'p_thread_id uuid', 'p_post_ids uuid[]',
+      'p_viewer_user_id uuid',   'p_engagement_target_type text',
+      'p_link_target_type text', 'p_link_post_ids uuid[]',
+      'p_link_row_limit integer'
+      if $name eq 'forum_thread_page_reads_v4';
     return 'p_user_id uuid, p_now text';
 }
 

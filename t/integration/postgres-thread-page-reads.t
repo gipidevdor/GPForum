@@ -103,7 +103,7 @@ for my $viewer ( undef, $member ) {
             $store{reaction_store}->reactions_call( \@ids, $viewer ),
             $store{reply_links}->targets_call( \@ids ),
             $store{thread_tags}->tags_call( [$thread_id] ),
-            $store{attachment_store}->post_links_call( \@ids ),
+            $store{attachment_store}->post_files_call( \@ids ),
         );
         if ($viewer) {
             push @calls,

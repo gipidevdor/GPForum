@@ -24,6 +24,12 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migration 1037, then restart the application workers.** `gpforum
+  migrate` installs `api.forum_thread_page_reads_v6` and
+  `api.attachment_post_files_v2`; the previous reads entry point stays for
+  workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
 - **Apply migration 1036, then restart the application and outbox
   workers.** `gpforum migrate` installs `api.notification_fanout_candidates_v2`,
   `api.notification_fanout_deliver_v2` and `api.ops_publish_notifications_v2`,
@@ -1347,6 +1353,18 @@ a host set up from an earlier `main`, newest first.
 
 ### Changed
 
+- **The files under a thread page's posts cost no statement of their own
+  (migration 1037).** Each file listed under a post was four statements --
+  its row, its links, the post the link names, the post's placement --
+  after the page's one statement had read the links: twenty-five posts with
+  a file each were a hundred statements, which the query budget never saw
+  because its seed had no files. The page's one statement
+  (`api.forum_thread_page_reads_v6`) now reads each link with its file and
+  its post, and the listing decides from that
+  (`DownloadAccess::listing_payload`); `api.attachment_post_files_v2`
+  answers the same rows for a page that reads them on its own. The budget
+  test seeds a file on each of the thread's first posts, so an N+1 on them
+  would fail it. Downloading a file still judges every link of it.
 - **A reply's notifications reach a thread's subscribers in four statements,
   however many they are (migration 1036).** The outbox worker notified each
   subscriber in turn -- the viewer, the delivery plan, the relation to the

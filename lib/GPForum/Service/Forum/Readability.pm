@@ -85,6 +85,24 @@ sub readers_of ( $self, $source_type, $source_id, @readers ) {
     } @readers;
 }
 
+# Whether a reader may read a source whose placement is already in hand --
+# the columns forum_post_placement answers, read with the source's row --
+# so a listing judges each row without the statement readers_of makes.
+# An absent reader is a visitor.
+sub may_read ( $self, $reader, $placement ) {
+    return 0 if !_live($placement);
+    return 1 if _public($placement);
+
+    my $viewer =
+      defined $reader
+      ? $self->_viewer($reader)
+      : GPForum::Service::Forum::Viewer->anonymous;
+
+    return GPForum::Service::Forum::Visibility->readable( $viewer, $placement )
+      ? 1
+      : 0;
+}
+
 # Rows that point at a post or thread by a type column and an id column --
 # notifications, mentions, bookmarks, feed items -- as an SQL condition that
 # keeps only those whose source the reader may read, live and not hidden.
@@ -277,6 +295,15 @@ defaults to a L<GPForum::Service::Forum::ViewerResolver> on the same schema.
 =head2 readable_by
 
 True when a reader -- a Viewer or a user id -- may read the post or thread.
+
+=head2 may_read
+
+Takes a reader (a viewer, a user id, or undef for a visitor) and a source's
+placement as C<api.forum_post_placement> answers it, with the liveness
+columns: the visibility and author of the post and its thread, the category
+and the space, and whether each is deleted or hidden. Returns 1 when the
+reader may read the source, 0 otherwise, without a statement of its own
+(a user id is resolved to a viewer; a viewer is taken as it is).
 
 =head2 readers_of
 

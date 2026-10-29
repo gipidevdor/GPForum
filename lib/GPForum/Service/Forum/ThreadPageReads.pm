@@ -17,7 +17,8 @@ our $VERSION = '0.001';
 # GPForum::ViewModel::Forum::Page asks the bookmark and subscription stores.
 const my $THREAD_TARGET => 'thread';
 
-# Each part api.forum_thread_page_reads_v4 answers (migration 124, the reactions since 133): the
+# Each part api.forum_thread_page_reads_v6 answers (migration 124, the
+# reactions since 133, the files with their posts since 1037): the
 # store method that says the call it answers, the function and version that
 # call names -- the version whose implementation the migration calls -- and
 # the call's own columns, which the part's rows carry under those names.
@@ -45,12 +46,18 @@ const my %PART => (
         version  => 2,
         columns  => [qw(thread_id slug name tag_position)],
     },
-    attachment_link => {
-        function => 'attachment_links',
+    attachment_file => {
+        function => 'attachment_post_files',
         version  => 2,
         columns  => [
             qw(attachment_link_id attachment_id target_type target_id
-              created_at)
+              created_at file_owner_user_id file_object_key
+              file_original_filename file_media_type file_byte_size
+              file_state file_scan_status file_deleted_at post_thread_id
+              post_author_user_id post_visibility post_moderation_state
+              post_hidden_at post_deleted_at thread_author thread_visibility
+              thread_deleted_at thread_state category_id category_visibility
+              category_deleted_at space_id space_visibility)
         ],
     },
     bookmark => {
@@ -82,7 +89,7 @@ const my %CALLER => (
     reaction        => [ reaction_store     => 'reactions_call' ],
     reply_target    => [ reply_links        => 'targets_call' ],
     tag             => [ thread_tags        => 'tags_call' ],
-    attachment_link => [ attachment_store   => 'post_links_call' ],
+    attachment_file => [ attachment_store   => 'post_files_call' ],
     bookmark        => [ bookmark_store     => 'find_call' ],
     subscription    => [ subscription_store => 'find_call' ],
     read_state      => [ read_state         => 'state_call' ],
@@ -155,8 +162,8 @@ sub _calls ( $self, $read ) {
         $call{reaction} =
           $self->reaction_store->reactions_call( $posts, $viewer );
         $call{reply_target} = $self->reply_links->targets_call($posts);
-        $call{attachment_link} =
-          $self->attachment_store->post_links_call($posts);
+        $call{attachment_file} =
+          $self->attachment_store->post_files_call($posts);
     }
     $call{tag} = $self->thread_tags->tags_call( [$thread] );
     if ( defined $viewer ) {
@@ -184,7 +191,7 @@ sub _values ( $read, $calls ) {
     }
     return undef if !defined $read->{thread};
 
-    my $links = $calls->{attachment_link} ? $calls->{attachment_link}[1] : {};
+    my $links = $calls->{attachment_file} ? $calls->{attachment_file}[1] : {};
     return {
         thread_id              => $read->{thread},
         post_ids               => $read->{posts},
@@ -276,7 +283,7 @@ Once a thread page has its thread and its posts, it reads the posts'
 likes, the posts they answer, the thread's tags and the posts' attachment
 links, and for a member their bookmark, their subscription and their read
 state: eight calls (the reactions since migration 133), each a round trip.
-C<api.forum_thread_page_reads_v4> (migration 124, then 133) runs the eight
+C<api.forum_thread_page_reads_v6> (migration 124, then 133 and 1037) runs the eight
 calls' queries and answers their rows in
 one statement; this service makes that statement and hands each read's
 rows to the call that would have read them, through
@@ -285,7 +292,7 @@ shapes and their failure handling are unchanged: each still asks for its
 rows, and gets them without a round trip.
 
 Each store says the call it makes (C<summary_call>, C<targets_call>,
-C<tags_call>, C<post_links_call>, C<find_call>, C<state_call>), so the keys
+C<tags_call>, C<post_files_call>, C<find_call>, C<state_call>), so the keys
 are the stores' own. A store that cannot say -- a test double -- leaves the
 page to its own calls; so does a part whose call names a function or
 version other than the one the statement read.
@@ -332,7 +339,7 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-The statement answers what the stores' calls answer as of migration 124. A
+The statement answers what the stores' calls answer as of migration 1037. A
 store that moves its call to another function, or a later version, is no
 longer answered here, and its read goes back to a round trip of its own
 until the statement follows it.

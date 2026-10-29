@@ -601,6 +601,14 @@ const my %FUNCTION => (
         parameters =>
           [ attachment_id => 'uuid', object_key => 'text', hold => 'boolean' ]
     },
+    attachment_post_files => {
+        version    => 2,
+        parameters => [
+            target_type => 'text',
+            post_ids    => 'uuid[]',
+            row_limit   => 'integer'
+        ]
+    },
     attachment_links => {
         version    => 2,
         parameters => [
@@ -1892,7 +1900,7 @@ const my %FUNCTION => (
     # Migration 124: the seven reads a thread page makes once it has its
     # posts, in one call (GPForum::Service::Forum::ThreadPageReads).
     forum_thread_page_reads => {
-        version    => 4,
+        version    => 6,
         parameters => [
             thread_id              => 'uuid',
             post_ids               => 'uuid[]',

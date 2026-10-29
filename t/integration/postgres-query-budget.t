@@ -17,10 +17,11 @@ use GPForum::Test::PgDatabase;
 
 our $VERSION = '0.001';
 
-const my $HTTP_OK   => 200;
-const my $PASSWORD  => 'correct horse battery';
-const my $FEW_ROWS  => 1;
-const my $MANY_ROWS => 50;
+const my $HTTP_OK        => 200;
+const my $PASSWORD       => 'correct horse battery';
+const my $FEW_ROWS       => 1;
+const my $MANY_ROWS      => 50;
+const my $FILES_ON_POSTS => 3;
 
 # Statements each page may execute, as measured on 2026-09-26. Raising one
 # is a decision to write down in the commit, not a number to bump. The
@@ -88,6 +89,7 @@ my ($author) =
   $dbh->selectrow_array( q{SELECT u.username FROM users u JOIN threads t}
       . q{ ON t.author_user_id = u.id WHERE u.status = 'active' LIMIT 1} );
 my $member = _member();
+_attach_files( $dbh, $thread );
 
 my %pages = (
     category   => "/c/$category",
@@ -121,6 +123,12 @@ cmp_ok( _rows( "/t/$thread", 'article[id^="post-"]' ),
     q{>}, $FEW_ROWS, 'the thread page shows more than one post' );
 cmp_ok( _rows( "/c/$category", 'a[href^="/t/"]' ),
     q{>}, $FEW_ROWS, 'the category page lists more than one thread' );
+
+# The files under the posts are read with the page's other extras: a file
+# on each of the first posts, so fifty rows list more files than one and an
+# N+1 on them would show above.
+cmp_ok( _rows( "/t/$thread", '.post__attachments li' ),
+    q{>}, $FEW_ROWS, 'the thread page lists the files of its posts' );
 
 done_testing();
 
@@ -190,6 +198,38 @@ sub _rows {
     $anonymous->get_ok("$path?limit=$MANY_ROWS&rows=1");
 
     return $anonymous->tx->res->dom->find($selector)->size;
+}
+
+# One available, clean file on each of the thread's first posts.
+sub _attach_files {
+    my ( $handle, $thread_id ) = @_;
+
+    my $posts = $handle->selectcol_arrayref(
+        q{SELECT post_id FROM posts WHERE thread_id = ?}
+          . q{ ORDER BY position LIMIT ?},
+        undef, $thread_id, $FILES_ON_POSTS
+    );
+    my ($owner) = $handle->selectrow_array(
+        q{SELECT author_user_id FROM posts WHERE post_id = ?},
+        undef, $posts->[0] );
+    for my $post ( @{$posts} ) {
+        my ($attachment) = $handle->selectrow_array(
+            q{INSERT INTO attachments (attachment_id, owner_user_id,}
+              . q{ object_key, original_filename, media_type, byte_size,}
+              . q{ checksum, state, scan_status) VALUES (gen_random_uuid(),}
+              . q{ ?, 'budget/' || ?, 'budget.txt', 'text/plain', 6,}
+              . q{ 'sha256:0', 'available', 'clean') RETURNING attachment_id},
+            undef, $owner, $post
+        );
+        $handle->do(
+            q{INSERT INTO attachment_links (attachment_link_id,}
+              . q{ attachment_id, target_type, target_id)}
+              . q{ VALUES (gen_random_uuid(), ?, 'post', ?)},
+            undef, $attachment, $post
+        );
+    }
+
+    return;
 }
 
 sub _member {

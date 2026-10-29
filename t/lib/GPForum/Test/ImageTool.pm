@@ -36,6 +36,10 @@ sub engine ($self) { return 'fake'; }
 
 sub available ($self) { return $self->installed; }
 
+sub reads ( $, $media_type ) {
+    return ( $media_type // q{} ) =~ m{\A image/}msx ? 1 : 0;
+}
+
 sub squares ( $self, $image, $sides ) {
     push @{ $self->calls }, { %{$image}, sides => [ @{$sides} ] };
     if ( $self->answer eq 'unavailable' ) {

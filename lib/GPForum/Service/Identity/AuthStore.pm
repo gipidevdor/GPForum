@@ -32,26 +32,8 @@ has functions => sub ($self) {
 };
 
 sub authenticate_login ( $self, $input ) {
-    my $identifier =
-      $self->support->normalize_identifier( $input->{identifier} );
-    my $user;
-    if ( length $identifier ) {
-        my $column = $identifier =~ /[@]/msx ? 'email_normalized' : 'username';
-        $user =
-          $self->functions
-          ? GPForum::Infrastructure::ResultRow::IdentityUser->from(
-            $self->functions->row(
-                'identity_user_by_identifier',
-                {
-                    identifier => $identifier,
-                    by_email   => $column eq 'email_normalized' ? 1 : 0
-                }
-            ),
-            $self->functions
-          )
-          : $self->schema->resultset('User')
-          ->find( { $column => $identifier } );
-    }
+    my $user = $self->_user_by_identifier(
+        $self->support->normalize_identifier( $input->{identifier} ) );
     my $status = ( $user && $self->support->column( $user, q{status} ) ) || q{};
     if ( !$user || $status eq 'deleted' ) {
         return $self->_invalid_login_after_work( $input->{password} );
@@ -66,6 +48,36 @@ sub authenticate_login ( $self, $input ) {
 
     return $self->_second_step( $user, $credential )
       // $self->_signed_in( $user, $credential, $input );
+}
+
+# The account an identifier names, by id, for the login's per-account rate
+# limit (Controller::Identity): an address and a username both lead to the
+# one account, so its limit is one budget however the member is spelled;
+# each spelling used to have a budget of its own. Undef for an identifier
+# that names no account, which is then limited under its own spelling.
+sub account_id_for ( $self, $identifier ) {
+    my $user = $self->_user_by_identifier(
+        $self->support->normalize_identifier($identifier) );
+
+    return $user ? $self->support->column( $user, q{id} ) : undef;
+}
+
+sub _user_by_identifier ( $self, $identifier ) {
+    return undef if !length $identifier;
+
+    my $column = $identifier =~ /[@]/msx ? 'email_normalized' : 'username';
+    return GPForum::Infrastructure::ResultRow::IdentityUser->from(
+        $self->functions->row(
+            'identity_user_by_identifier',
+            {
+                identifier => $identifier,
+                by_email   => $column eq 'email_normalized' ? 1 : 0
+            }
+        ),
+        $self->functions
+    ) if $self->functions;
+
+    return $self->schema->resultset('User')->find( { $column => $identifier } );
 }
 
 # The session a verified password opens for a member without two-step
@@ -256,6 +268,12 @@ facade delegates C<authenticate_login> so HTTP and workflow callers keep a
 stable API. Failed logins remain non-enumerative.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 account_id_for
+
+Takes a login identifier, an address or a username. Returns the id of the
+account it names, or C<undef> for none: the login's per-account rate limit
+is keyed by it, so both spellings of one member share one budget.
 
 =head2 authenticate_login
 

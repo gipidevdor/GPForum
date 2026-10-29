@@ -32,6 +32,35 @@ sub storage_of ( $, $schema ) {
 # storage->dbh and reconnects when the ping fails, so this connects when it
 # has to; a connection that cannot be made is undef here like any other
 # missing handle.
+# Runs $code with the schema's handle as it stands -- $code gets the storage
+# and the handle, as DBIx::Class's dbh_do gives them -- without the ping
+# dbh_of pays for: a read made on every request, like the cache bus's take,
+# must not cost a round trip to ask whether the connection is alive. A
+# handle that is gone fails the code, and the storage's own retry connects
+# again when the code dies for that. Undef when there is no storage, or the
+# code died.
+sub with_handle ( $class, $schema, $code ) {
+    my $storage = $class->storage_of($schema);
+    if ( !blessed $storage || !$storage->can('dbh') ) {
+        return undef;
+    }
+
+    # A storage without dbh_do -- a test's double -- gives its handle as it
+    # has it.
+    my $answer;
+    try {
+        $answer =
+            $storage->can('dbh_do')
+          ? $storage->dbh_do($code)
+          : $code->( $storage, $storage->dbh );
+    }
+    catch ($error) {
+        $answer = undef;
+    };
+
+    return $answer;
+}
+
 sub dbh_of ( $class, $schema ) {
     my $storage = $class->storage_of($schema);
     if ( !blessed $storage || !$storage->can('dbh') ) {
@@ -88,6 +117,14 @@ or an argument.
 
 Class method. C<< $schema->storage >>, or undef when the schema is not an
 object, has no C<storage> method, or the call dies.
+
+=head2 with_handle
+
+Class method. Takes a schema and a code reference, and runs the code through
+C<< $schema->storage->dbh_do >>, which gives it the storage and the handle
+without pinging the connection first; a storage without C<dbh_do> (a
+double) gives the code its C<dbh>. Returns what the code returned, or undef
+when L</storage_of> is undef, the storage has no C<dbh>, or the code died.
 
 =head2 dbh_of
 

@@ -205,6 +205,10 @@ sub authenticate_login ( $self, $input ) {
     return $self->auth_store->authenticate_login($input);
 }
 
+sub account_id_for ( $self, $identifier ) {
+    return $self->auth_store->account_id_for($identifier);
+}
+
 sub complete_second_factor ( $self, $input ) {
     return $self->auth_store->complete_second_factor($input);
 }
@@ -328,6 +332,11 @@ Delegates prepared registration persistence to the registration store.
 =head2 authenticate_login
 
 Delegates credential verification and session creation to the auth store.
+
+=head2 account_id_for
+
+Takes a login identifier and returns the id of the account it names, or
+C<undef>, through the auth store (L<GPForum::Service::Identity::AuthStore/account_id_for>).
 
 =head2 complete_second_factor
 

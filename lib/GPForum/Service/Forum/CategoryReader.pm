@@ -4,6 +4,7 @@
 package GPForum::Service::Forum::CategoryReader;
 
 use Const::Fast;
+use Digest::SHA qw(sha256_hex);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
@@ -18,6 +19,10 @@ our $VERSION = '0.001';
 const my $DEFAULT_LIMIT             => 100;
 const my $MAX_LIMIT                 => 200;
 const my $DEFAULT_CACHE_TTL_SECONDS => 30;
+
+# How much of the grants' digest names a cache entry: 64 bits of SHA-256,
+# enough to tell one set of grants from another in a key kept short.
+const my $DIGEST_LENGTH => 16;
 
 # What goes on in a category, for the index: how many discussions the
 # viewer may read in it, and when the last of them moved. One lookup each
@@ -48,13 +53,16 @@ has functions         => sub ($self) {
 
 # ADR 0102: only the categories the viewer can read, judged on the category
 # and its space in the query. A request without a viewer reads as anonymous.
-# Only an anonymous list is cached: it is the one list every reader shares.
+# Every list is cached, under the standing that decides it -- anonymous,
+# member, global reader -- and, as a digest, the grants that let the viewer
+# into private categories: a member whose grants change reads under another
+# key at once, and what a category shows changes through the tags. Only the
+# anonymous list used to be, so every signed-in reader of the index had
+# every live thread of every category counted again for them.
 sub list_categories ( $self, $request ) {
     my $limit  = _bounded_limit( $request ? $request->{limit} : undef );
     my $viewer = _viewer($request);
-
-    return $self->_cached_categories($limit)
-      if $self->cache && $viewer->is_anonymous;
+    return $self->_cached_categories( $limit, $viewer ) if $self->cache;
 
     return $self->_list_categories( $limit, $viewer );
 }
@@ -119,8 +127,9 @@ sub _viewer ($request) {
     return $viewer || GPForum::Service::Forum::Viewer->anonymous;
 }
 
-sub _cached_categories ( $self, $limit ) {
-    my $key = join q{:}, 'categories', 'list', 'anonymous', $limit;
+sub _cached_categories ( $self, $limit, $viewer ) {
+    my $key = join q{:}, 'categories', 'list', _standing($viewer),
+      _grants_digest($viewer), $limit;
 
     # Plain column hashes, not rows: GlifiStore holds JSON and a row does not
     # encode, so the list never reached L2 and every fill counted as a shared
@@ -130,13 +139,35 @@ sub _cached_categories ( $self, $limit ) {
         $key,
         sub {
             return [ map { +{ $_->get_columns } }
-                  @{ $self->_list_categories($limit) } ];
+                  @{ $self->_list_categories( $limit, $viewer ) } ];
         },
         {
             tags        => [ 'categories', 'forum-index' ],
             ttl_seconds => $self->cache_ttl_seconds,
         }
     );
+}
+
+# The standing the list is decided by: which thread visibilities count, and
+# which categories a reader without grants sees.
+sub _standing ($viewer) {
+    return 'global' if $viewer->global_read;
+    return 'member' if $viewer->member;
+
+    return 'anonymous';
+}
+
+# The grants' fingerprint: the category and space ids a viewer holds
+# category.read on, sorted and hashed, so the key stays short however many
+# there are; "none" without any, which every anonymous reader shares.
+sub _grants_digest ($viewer) {
+    my @grants = (
+        ( map { "category:$_" } @{ $viewer->category_ids } ),
+        ( map { "space:$_" } @{ $viewer->space_ids } ),
+    );
+    return 'none' if !@grants;
+
+    return substr sha256_hex( join "\n", sort @grants ), 0, $DIGEST_LENGTH;
 }
 
 sub _list_categories ( $self, $limit, $viewer = undef ) {
@@ -229,7 +260,7 @@ __END__
 
 =head1 NAME
 
-GPForum::Service::Forum::CategoryReader - The categories a viewer can read, with the anonymous list cached.
+GPForum::Service::Forum::CategoryReader - The categories a viewer can read, each standing's list cached.
 
 =head1 VERSION
 
@@ -267,10 +298,15 @@ visibility check on its returned columns. C<functions =E<gt> undef> keeps
 the original path for differential tests and schemas without a function
 layer, including the in-memory doubles.
 
-Only the anonymous list is cached: it is the one list every anonymous reader
-shares, while a signed-in viewer's list depends on their grants. Each limit
-is its own entry, under C<categories:list:anonymous:E<lt>limitE<gt>>, tagged
-C<categories> and C<forum-index>, for C<cache_ttl_seconds>. The cached
+Every list is cached, under the standing that decides it. Each limit is its
+own entry, under
+C<categories:list:E<lt>standingE<gt>:E<lt>grantsE<gt>:E<lt>limitE<gt>>:
+the standing C<anonymous>, C<member> or C<global> (which thread
+visibilities count, and which categories a reader without grants sees),
+and the grants as a digest of the category and space ids the viewer holds
+C<category.read> on, C<none> without any. A member whose grants change
+reads under another key at once. The entries are tagged C<categories> and
+C<forum-index>, for C<cache_ttl_seconds>. The cached
 elements are plain hashes of the category's columns, not rows: the shared
 layer (GlifiStore, through L<GPForum::Service::Operations::TieredCache>)
 holds JSON, and a row does not encode, so a list of rows never reached it
@@ -289,7 +325,7 @@ C<Category> result source joins its C<space>. C<cache> is optional: any
 object with C<get_or_set( $key, $code, { tags =E<gt> [...], ttl_seconds
 =E<gt> $n } )>, such as L<GPForum::Service::Operations::LocalCache> or
 L<GPForum::Service::Operations::TieredCache>; without one nothing is cached.
-C<cache_ttl_seconds> is the anonymous list's lifetime (30 by default).
+C<cache_ttl_seconds> is each list's lifetime (30 by default).
 
 =head2 list_categories
 
@@ -300,11 +336,12 @@ below 1 gives 100, and above 200 gives 200. The viewer is a
 L<GPForum::Service::Forum::Viewer>; none reads as anonymous.
 
 Returns an array reference of the readable, non-deleted categories ordered
-by position, title and category id. For an anonymous viewer when a cache is
-set, the list comes from the cache (computed and stored on a miss) and its
-elements are plain hashes of the category's columns; otherwise it is read
-from the database and its elements are C<Category> rows. Its readers (the
-view models, the home page, the sitemap) take either shape.
+by position, title and category id. When a cache is set, the list comes
+from the cache (computed and stored on a miss, under the viewer's standing
+and grants) and its elements are plain hashes of the category's columns;
+otherwise it is read from the database and its elements are C<Category>
+rows. Its readers (the view models, the home page, the sitemap) take either
+shape.
 
 =head2 find_category
 

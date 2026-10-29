@@ -383,6 +383,8 @@ ok( $issued->{ok}, 'commanded password reset records a command' );
 is( $idempotency->last_input->{command_type},
     'identity.password_reset',
     'password reset uses the identity.password_reset command type' );
+ok( !defined $idempotency->last_input->{refusal},
+    'and keeps its refusals as answers: its request names the identifier' );
 
 my $replay_workflow = GPForum::Service::Identity::Workflow->new(
     command_idempotency => GPForum::Test::CommandIdempotency->new(
@@ -403,6 +405,39 @@ is(
     $issued_count + 1,
     'password reset replay does not issue a second token'
 );
+
+# The commands whose requests leave a password out ask the log to abandon
+# their refusals, so the form sent again under its command id runs.
+$commanded->change_password(
+    {
+        command_id       => 'change-command-1',
+        current_password => 'old-secret',
+        new_password     => 'new-secret-password',
+        user_id          => 'user-1',
+    }
+);
+is( $idempotency->last_input->{refusal}, 'abandon',
+        'a password change asks the log to abandon its refusals: its request'
+      . ' names the member alone, never a password' );
+$commanded->request_email_change(
+    {
+        command_id       => 'email-change-command-1',
+        current_password => 'old-secret',
+        email            => 'new@example.test',
+        user_id          => 'user-1',
+    }
+);
+is( $idempotency->last_input->{refusal},
+    'abandon', 'so does an email change, which checks the current password' );
+$commanded->reset_password(
+    {
+        command_id => 'reset-complete-command-1',
+        password   => 'new-secret-password',
+        token      => 'reset-token',
+    }
+);
+is( $idempotency->last_input->{refusal},
+    'abandon', 'and a password reset, whose request names the token alone' );
 
 my $conflicted = GPForum::Service::Identity::Workflow->new(
     command_idempotency => GPForum::Test::CommandIdempotency->new(

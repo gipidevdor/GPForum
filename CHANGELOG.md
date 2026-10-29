@@ -1353,6 +1353,36 @@ a host set up from an earlier `main`, newest first.
 
 ### Changed
 
+- **The category index is cached for every reader, under their standing and
+  grants.** Only the anonymous list was, so each signed-in reader of the
+  index had every live thread of every category counted again for them
+  (`api.forum_list_categories` counts them per request). The list is now
+  cached under `categories:list:<standing>:<grants>:<limit>`: anonymous,
+  member or global reader, and a digest of the category and space grants,
+  so a member whose grants change reads under another key at once; the same
+  tags purge it (`categories`, `forum-index`), the same 30 seconds bound it.
+
+- **A picture's thumbnail is a real one.** The media processor wrote the
+  original's bytes under a second key as the `thumbnail` variant -- a copy
+  of every picture, which nothing read -- and decoded nothing. It now has
+  the system's image tool (ADR 0144) make a 320-pixel square of the picture
+  as PNG and records that; without an image tool, or for a picture the tool
+  cannot read, no thumbnail is made and the event is done.
+
+- **A login's per-account rate limit is keyed by the account, not its
+  spelling.** The limit under `account:<identifier>` gave an address and a
+  username of one member a budget each, so a guesser had two; the key is
+  now the account the identifier names (`AuthStore::account_id_for`), or the
+  spelling when it names none.
+
+- **Cache invalidation tells the sibling workers once per event.** The
+  outbox handler purged an event's three or four tags one by one, each a
+  NOTIFY statement (`TieredCache::invalidate_tags` carries them in one), and
+  every cache read pinged PostgreSQL first: the bus's take asked for the
+  schema's handle through `dbh`, which checks the connection with a round
+  trip; it now takes the handle as it stands (`Storage::with_handle`), and a
+  connection that is gone is heard again at the next statement.
+
 - **The files under a thread page's posts cost no statement of their own
   (migration 1037).** Each file listed under a post was four statements --
   its row, its links, the post the link names, the post's placement --
@@ -2262,6 +2292,16 @@ a host set up from an earlier `main`, newest first.
   production floors fail the same gate as OS preflight and query-budget drift.
 
 ### Fixed
+
+- **A refused password change, email change or password reset no longer
+  sticks to its command id.** Those commands leave the password out of the
+  request they fingerprint (a password is no thing to fingerprint), so the
+  command log, which records a refusal as the id's answer and replays it for
+  the same request, gave the corrected form sent again under its command id
+  the old refusal back for as long as the page stayed open. Those three
+  commands now ask the log to abandon their refusals
+  (`CommandIdempotency::run`, `refusal => 'abandon'`): nothing is recorded
+  and the id runs again. Every other command keeps its refusals as answers.
 
 - **A member stays signed in for the 30 days the session says.** The
   Mojolicious cookie was stamped an hour ahead on every response, so a

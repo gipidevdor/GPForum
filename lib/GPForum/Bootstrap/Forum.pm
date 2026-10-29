@@ -408,9 +408,10 @@ sub _register_attachment_helpers {
             my ($controller) = @_;
 
             return GPForum::Service::Attachment::MediaProcessor->new(
-                avatars => $controller->gp_avatars,
-                storage => $controller->gp_attachment_storage,
-                store   => $controller->gp_attachment_store,
+                avatars    => $controller->gp_avatars,
+                image_tool => $controller->gp_image_tool,
+                storage    => $controller->gp_attachment_storage,
+                store      => $controller->gp_attachment_store,
             );
         }
     );

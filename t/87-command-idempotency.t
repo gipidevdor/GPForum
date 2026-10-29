@@ -312,6 +312,59 @@ is( $leftover_schema->created_for('CommandLog')->[0]{command_id},
 is( scalar @{ $leftover_schema->created_for('CommandLog') },
     1, 'leftover command id race does not insert a second command' );
 
+# A command whose request cannot fingerprint what the member may correct --
+# a password change names the member alone -- asks for its refusals to be
+# abandoned: nothing is recorded, and the same command id runs again with
+# the input corrected, where a recorded refusal came back to it.
+my $abandoning = GPForum::Test::Schema->new;
+my $abandoner  = GPForum::Service::Operations::CommandIdempotency->new(
+    clock      => GPForum::Test::FixedClock->new,
+    id_service => GPForum::Test::Id->new,
+    schema     => $abandoning,
+);
+my %password_change = (
+    actor_id     => 'user-1',
+    command_id   => 'password-change-1',
+    command_type => 'identity.password_change',
+    refusal      => 'abandon',
+    request      => { user_id => 'user-1' },
+);
+my $refusals = 0;
+my $refused  = $abandoner->run(
+    {%password_change},
+    sub {
+        $refusals++;
+        return { ok => 0, status => 'invalid' };
+    },
+    undef
+);
+ok(
+    $refused->{recorded} && $refused->{rolled_back},
+    'a refusal the command asked to abandon is rolled back'
+);
+is( $refused->{result}{status}, 'invalid', 'and handed back as it was' );
+is( scalar @{ $abandoning->command_logs },
+    0, 'nothing is recorded under the command id' );
+my $corrected =
+  $abandoner->run( {%password_change}, sub { return { ok => 1 }; }, undef );
+ok(
+    $corrected->{recorded} && !$corrected->{rolled_back},
+    'the corrected submission runs under the same command id'
+);
+is( $refusals, 1, 'the refusal ran once' );
+is( $abandoning->command_logs->[0]{status},
+    'handled', 'and the accepted result is the answer recorded' );
+
+# Without asking, a refusal is the command's answer, as before.
+my $kept = $abandoner->run(
+    { %password_change, command_id => 'password-change-2', refusal => undef },
+    sub { return { ok => 0, status => 'invalid' }; }, undef );
+ok(
+    $kept->{recorded} && !$kept->{rolled_back},
+    'a refusal nobody asked to abandon is recorded'
+);
+is( $abandoning->command_logs->[-1]{status}, 'rejected', 'as rejected' );
+
 done_testing();
 
 sub _command_request {

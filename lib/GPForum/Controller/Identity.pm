@@ -144,11 +144,17 @@ sub _account_login_guard ($self) {
         return;
     }
 
+    # Keyed by the account, not its spelling: an address and a username name
+    # the same member, and each spelling had a budget of its own, so a
+    # guesser had two. An identifier that names no account is limited under
+    # its spelling.
+    my $account = $self->gp_identity_store->account_id_for($identifier)
+      // $identifier;
     my $decision = $self->gp_rate_limiter->check(
         $self->identity_access->write_rate_input(
             {
                 action   => 'identity.login_account',
-                actor_id => "account:$identifier",
+                actor_id => "account:$account",
             }
         )
     );

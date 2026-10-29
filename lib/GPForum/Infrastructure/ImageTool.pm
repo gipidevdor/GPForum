@@ -90,6 +90,12 @@ sub available ($self) {
     return defined resolved( $self->program ) ? 1 : 0;
 }
 
+# Whether the tool reads pictures of this media type: the kinds it is
+# given a file extension for. squares refuses any other as not an image.
+sub reads ( $, $media_type ) {
+    return exists $EXTENSION{ $media_type // q{} } ? 1 : 0;
+}
+
 # The commands that write avatar-<side>.png into $directory for each side,
 # from $source; a subclass's.
 sub commands ( $self, $source, $directory, $image, $sides ) {
@@ -286,6 +292,12 @@ The tool's name: C<vips>, C<sips>, or C<none> here.
 =head2 available
 
 True when the program is an executable file.
+
+=head2 reads
+
+Takes a media type. True when the tool reads pictures of that kind: the
+kinds L</squares> takes, C<image/gif>, C<image/jpeg>, C<image/png> and
+C<image/webp>.
 
 =head2 commands
 

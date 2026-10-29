@@ -31,6 +31,7 @@ use GPForum::Service::Operations::ScheduledJobs;
 use GPForum::Test::Antivirus;
 use GPForum::Test::CountingAttachmentStorage;
 use GPForum::Test::FixedClock;
+use GPForum::Test::ImageTool;
 use GPForum::Test::PgDatabase;
 use GPForum::Test::PostgresHarness;
 use GPForum::Test::RacedSchema;
@@ -41,13 +42,14 @@ use GPForum::Worker::Handler::MediaProcessing;
 our $VERSION = '0.001';
 our $TODO;
 
-const my $NOW           => '2026-05-23T12:00:00Z';
-const my $NOW_EPOCH     => 1_779_537_600;
-const my $VALID_BYTES   => 4_096;
-const my $VARIANT_BYTES => 512;
-const my $PURGE_LIMIT   => 10;
-const my $PNG_BYTES     => pack( 'H*', '89504e470d0a1a0a' ) . 'attachment';
-const my $SIGNATURE     => 'Eicar-Test-Signature';
+const my $NOW            => '2026-05-23T12:00:00Z';
+const my $NOW_EPOCH      => 1_779_537_600;
+const my $VALID_BYTES    => 4_096;
+const my $VARIANT_BYTES  => 512;
+const my $THUMBNAIL_SIDE => 320;
+const my $PURGE_LIMIT    => 10;
+const my $PNG_BYTES      => pack( 'H*', '89504e470d0a1a0a' ) . 'attachment';
+const my $SIGNATURE      => 'Eicar-Test-Signature';
 const my %TABLE_OF => (
     add_variant     => 'attachment_variants',
     create_intent   => 'attachments',
@@ -819,9 +821,20 @@ sub _media {
 
     my $media_storage =
       GPForum::Test::CountingAttachmentStorage->new( inner => $storage );
-    my $processor = GPForum::Service::Attachment::MediaProcessor->new(
+    my $without_tool = GPForum::Service::Attachment::MediaProcessor->new(
         storage => $media_storage,
         store   => $store,
+    )->process($id);
+    is( $without_tool->{skipped},
+        'no_image_tool', 'without an image tool no thumbnail is made' );
+    is( scalar @{ $media_storage->reads },
+        0, 'and the original is not read for it' );
+
+    my $tool      = GPForum::Test::ImageTool->new;
+    my $processor = GPForum::Service::Attachment::MediaProcessor->new(
+        image_tool => $tool,
+        storage    => $media_storage,
+        store      => $store,
     );
     my $processed = $processor->process($id);
     ok( $processed->{ok}, 'media processor handles image attachment' );
@@ -829,6 +842,19 @@ sub _media {
         'thumbnail', 'media processor creates thumbnail variant' );
     is( scalar @{ $media_storage->reads },
         1, 'media processor reads the original object once' );
+    is_deeply( $tool->calls->[0]{sides},
+        [$THUMBNAIL_SIDE], 'and asks the image tool for one square' );
+    my $square =
+      GPForum::Test::ImageTool->png( $THUMBNAIL_SIDE, $THUMBNAIL_SIDE );
+    is( $processed->{variant}{media_type},
+        'image/png', 'the thumbnail is a PNG' );
+    is(
+        $processed->{variant}{byte_size},
+        length $square,
+        'of the square\'s size, not the original\'s'
+    );
+    is( $storage->read_object( $processed->{variant}{object_key} ),
+        $square, 'and the square is what was written' );
     my $replayed = $processor->process($id);
     ok( $replayed->{skipped},
         'already-applied thumbnail skip does not reread storage' );

@@ -102,6 +102,11 @@ const my $EMAIL_EVENTS_SQL => join q{ },
   'SELECT count(*) FROM event_log',
   q{WHERE event_type = 'notification.email.requested'},
   'AND aggregate_id = ?';
+const my $MAIL_OUTBOX_SQL => join q{ },
+  'DELETE FROM outbox_messages WHERE event_id IN',
+  '(SELECT event_id FROM event_log',
+  q{WHERE event_type = 'notification.email.requested'},
+  'AND aggregate_id = ?)';
 
 # Due a minute ago: the outbox claims what is due by its clock, whole
 # seconds, and now() written this second would still be ahead of it.
@@ -1344,6 +1349,11 @@ sub _fanout_screening {
         ],
         'a fan-out that creates nothing sends no badge: three statements'
     );
+
+    # The mail is the worker's to send, not this test's: its outbox message
+    # would be claimed by the outbox step below once its second ticked over,
+    # which counted two dispatches for one.
+    $ctx->{dbh}->do( $MAIL_OUTBOX_SQL, undef, $member{mailed} );
 
     return;
 }

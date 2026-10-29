@@ -140,9 +140,18 @@ sub handle ( $self, $event ) {
         $self->sink->capture($task);
     }
 
-    if ( $self->cache ) {
-        for my $tag ( @{ $task->{tags} } ) {
-            $self->cache->invalidate_tag($tag);
+    # One purge for the event's tags, told to the sibling workers in one
+    # message (TieredCache::invalidate_tags); a cache without it, a double's,
+    # is told tag by tag. An event's three or four tags were three or four
+    # NOTIFY statements.
+    if ( my $cache = $self->cache ) {
+        if ( $cache->can('invalidate_tags') ) {
+            $cache->invalidate_tags( $task->{tags} );
+        }
+        else {
+            for my $tag ( @{ $task->{tags} } ) {
+                $cache->invalidate_tag($tag);
+            }
         }
     }
 

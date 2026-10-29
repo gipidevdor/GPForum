@@ -22,9 +22,13 @@ our $VERSION = '0.001';
 const my $ACCOUNT_LIMIT  => 20;
 const my $HTTP_TOO_MANY  => 429;
 const my $WINDOW_SECONDS => 300;
+const my $GIACOMO        => 'user-giacomo';
 
 # A login is limited per address and per account. Per address alone, many
 # addresses each under their limit could try one account thousands of times.
+# The account's budget is one however the member is spelled: keyed by the
+# account the identifier names, an address and a username used to be two
+# budgets for one account.
 my $limiter = GPForum::Test::RecordingLimiter->new;
 my $client  = _client($limiter);
 
@@ -34,14 +38,19 @@ is_deeply(
     [qw(identity.login identity.login_account)],
     'a login is checked per address, then per account'
 );
-is(
-    $limiter->checks->[1]{actor_id},
-    'account:giacomo@example.test',
-    'the account as it signs in'
-);
+is( $limiter->checks->[1]{actor_id},
+    "account:$GIACOMO", 'the account the address names' );
 is( $limiter->checks->[1]{limit}, $ACCOUNT_LIMIT, 'twenty tries per account' );
 is( $limiter->checks->[1]{window_seconds},
     $WINDOW_SECONDS, 'every five minutes, from every address together' );
+_login( $client, 'Giacomo' );
+is( $limiter->checks->[-1]{actor_id},
+    "account:$GIACOMO",
+    'the username names the same account, so the same budget' );
+_login( $client, 'nobody@example.test' );
+is( $limiter->checks->[-1]{actor_id},
+    'account:nobody@example.test',
+    'an identifier that names no account is limited under its spelling' );
 
 my $locked = GPForum::Test::RecordingLimiter->new(
     denied => { 'identity.login_account' => 1 } );
@@ -58,7 +67,13 @@ sub _client {
     my $test = Test::Mojo->new('GPForum');
     $test->app->helper(
         gp_identity_store => sub {
-            return GPForum::Test::IdentityStore->new( invalid_login => 1 );
+            return GPForum::Test::IdentityStore->new(
+                account_ids => {
+                    'giacomo@example.test' => $GIACOMO,
+                    giacomo                => $GIACOMO,
+                },
+                invalid_login => 1,
+            );
         }
     );
     $test->app->helper( gp_identity_security_audit =>

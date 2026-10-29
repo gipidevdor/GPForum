@@ -117,12 +117,29 @@ sub take ( $self, $channel ) {
         return { available => 0, gap => 0, notifications => [] };
     }
 
-    my $dbh = $self->_dbh;
-    if ($dbh) {
-        $self->_sync($dbh);
-        $self->_pump($dbh);
+    # On the handle as it stands, without a ping: a take runs on every cache
+    # read, and asking PostgreSQL first whether the connection was alive cost
+    # each of them a round trip. A connection the server closed is found out
+    # by the read that fails on it, and replaced through the storage's own
+    # ping and reconnect -- the one take where the ping is worth its round
+    # trip; the new backend has no LISTEN yet, which _sync issues, reporting
+    # the gap.
+    my $taken = GPForum::Infrastructure::Storage->with_handle(
+        $self->schema,
+        sub ( $, $handle ) {
+            $self->_sync($handle);
+            return { handle => $handle, read => $self->_pump($handle) };
+        }
+    );
+    my $dbh = $taken ? $taken->{handle} : undef;
+    if ( $dbh && !$taken->{read} ) {
+        $dbh = $self->_dbh;
+        if ($dbh) {
+            $self->_sync($dbh);
+            $self->_pump($dbh);
+        }
     }
-    else {
+    if ( !$dbh ) {
         $self->stats->{unavailable} += 1;
     }
 
@@ -233,25 +250,41 @@ sub _listen_on ( $self, $dbh, $channel ) {
 # pg_notifies sends nothing to the server: it reads what the server has
 # already pushed onto the socket. At most max_queued are read per take; the
 # rest wait in libpq's buffer for the next one.
+# True when the socket was read, with or without notifications; false when
+# the read failed, as it does on a connection the server closed. That
+# failure is the signal take acts on, not something to warn about: DBI's
+# warning for it, and the server's parting FATAL, which libpq hands to the
+# notice processor when it arrives on an idle connection, are held while
+# the read runs. A handle that is a double has no err to ask.
 sub _pump ( $self, $dbh ) {
     if ( !$dbh->{AutoCommit} || !$dbh->can('pg_notifies') ) {
-        return;
+        return 1;
     }
 
+    ## no critic (Variables::ProhibitLocalVars) -- the handle's own settings, held for this read alone
+    local $dbh->{PrintError} = 0;
+    local $dbh->{Warn}       = 0;
+    ## use critic
     for ( 1 .. $self->max_queued ) {
         my $notification;
+        my $failed = 0;
         try {
             $notification = $dbh->pg_notifies;
         }
         catch ($error) {
-            $notification = undef;
+            $failed = 1;
         };
+        if ( $failed
+            || ( !$notification && $dbh->can('err') && $dbh->err ) )
+        {
+            return 0;
+        }
         last if !$notification;
 
         $self->_route($notification);
     }
 
-    return;
+    return 1;
 }
 
 sub _route ( $self, $notification ) {

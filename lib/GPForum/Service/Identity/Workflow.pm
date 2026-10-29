@@ -216,6 +216,7 @@ sub reset_password ( $self, $input ) {
             command_type => 'identity.password_reset_complete',
             extra_fields => ['password'],
             input        => $input,
+            refusal      => 'abandon',
             run          => sub {
                 return $self->store->reset_password($input);
             },
@@ -230,11 +231,16 @@ sub change_password ( $self, $input ) {
         return $invalid;
     }
 
+    # The request names the member alone: a password is no thing to
+    # fingerprint. So a refusal (the current password wrong, the new one
+    # weak) is not this command's answer, or the corrected form, sent again
+    # under its command id, got the refusal back until the page was reloaded.
     return $self->_commanded_write(
         {
             actor_id     => $input->{user_id},
             command_id   => $input->{command_id},
             command_type => 'identity.password_change',
+            refusal      => 'abandon',
             request      => { user_id => $input->{user_id} },
             run          => sub {
                 return $self->_public_consume_result(
@@ -251,11 +257,13 @@ sub request_email_change ( $self, $input ) {
         return $invalid;
     }
 
+    # The current password is not in the request either (see change_password).
     return $self->_commanded_token_write(
         {
             actor_id     => $input->{user_id},
             command_id   => $input->{command_id},
             command_type => 'identity.email_change',
+            refusal      => 'abandon',
             request      => {
                 email   => _trim( $input->{email} ),
                 user_id => $input->{user_id},
@@ -644,6 +652,7 @@ sub _token_consume_write ( $self, $job ) {
             actor_id     => undef,
             command_id   => $input->{command_id},
             command_type => $job->{command_type},
+            refusal      => $job->{refusal},
             request      => { token => _trim( $input->{token} ) },
             run          => sub {
                 return $self->_public_consume_result( $job->{run} );
@@ -688,6 +697,7 @@ sub _commanded_write ( $self, $job ) {
                 command_id   => _trim( $job->{command_id} ),
                 command_type => $job->{command_type},
                 request      => $job->{request} || {},
+                refusal      => $job->{refusal},
             },
             sub { return $job->{run}->(); },
             sub ($result) { return _command_log_response($result); },
@@ -723,6 +733,7 @@ sub _commanded_token_write ( $self, $job ) {
             actor_id     => $job->{actor_id},
             command_id   => $job->{command_id},
             command_type => $job->{command_type},
+            refusal      => $job->{refusal},
             request      => $job->{request},
             run          => sub {
                 my $result = $self->_store_write( $job->{run} );
@@ -945,18 +956,27 @@ Starts a password reset for an identifier. Requires C<command_id>.
 =head2 reset_password
 
 Completes a password reset with a token. Requires C<command_id>.
-A reset to the same secret still revokes sessions.
+A reset to the same secret still revokes sessions. The command's request
+names the token alone, never the password, so its refusals are not its
+answers: the log abandons them (L<GPForum::Service::Operations::CommandIdempotency/run>,
+C<< refusal => 'abandon' >>), and the form sent again under the same
+command id with the password corrected runs.
 
 =head2 change_password
 
 Changes the password of an authenticated member. Requires C<command_id>.
-Command hashes include C<user_id> only, never the current or new password.
+Command hashes include C<user_id> only, never the current or new password,
+so a refusal (the current password wrong, the new one weak) is not the
+command's answer: the log abandons it, and the form sent again under the
+same command id with the passwords corrected runs instead of getting the
+refusal back.
 
 =head2 request_email_change
 
 Starts an email change for an authenticated member. Requires C<command_id>
 and C<current_password>, which the store checks; command hashes include the
-address and C<user_id>, never the password. A request for the member's
+address and C<user_id>, never the password, so the log abandons a refusal
+as it does for L</change_password>. A request for the member's
 already-verified address does not issue a token.
 
 =head2 confirm_email_change

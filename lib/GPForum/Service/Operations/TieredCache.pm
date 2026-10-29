@@ -96,6 +96,30 @@ sub invalidate_tag ( $self, $tag ) {
     return $removed;
 }
 
+# Several tags at once -- an event's -- purged from L1 and L2 one by one (a
+# token each in L2) and told to the siblings in one message, where one went
+# out per tag. Returns the L1 entries removed, or nothing when L2 was not
+# reached for one of them, as invalidate_tag answers.
+sub invalidate_tags ( $self, $tags ) {
+    my @tags = grep { defined && length } @{ $tags || [] };
+    return 0 if !@tags;
+
+    my ( $removed, $unreached ) = ( 0, 0 );
+    for my $tag (@tags) {
+        $removed += $self->l1->invalidate_tag($tag);
+        if ( !defined $self->l2->invalidate_tag($tag) ) {
+            $unreached += 1;
+        }
+    }
+    $self->stats->{invalidations} += $removed;
+    $self->_publish( { tags => \@tags } );
+    if ($unreached) {
+        return undef;
+    }
+
+    return $removed;
+}
+
 # Applies what sibling workers invalidated. Only L1 is touched: whoever
 # published already invalidated the shared layer, and re-invalidating it would
 # turn one write into one per worker.
@@ -332,6 +356,15 @@ C<invalidate_tag> returned C<undef>: SharedCache does when it was not
 reached (paused or failed), and the tag's entries there stay current until
 their TTL. L1 and the bus are purged either way, and the count is still
 added to C<invalidations>.
+
+=head2 invalidate_tags
+
+Takes an array reference of tags. Invalidates each in L1 and L2, as
+L</invalidate_tag> does one, and publishes them to the bus in one message,
+C<< { tags => [...] } >>, where one message per tag went out. Returns the
+number of L1 entries removed, added to C<invalidations>, or C<undef> when
+L2's C<invalidate_tag> returned C<undef> for any of them. Nothing with no
+tags.
 
 =head2 absorb_remote_invalidations
 

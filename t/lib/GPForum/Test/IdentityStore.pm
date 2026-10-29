@@ -17,6 +17,7 @@ const my $AT_SIGN => chr $AT_CODE;
 has missing_profile    => 0;
 has duplicate          => 0;
 has invalid_login      => 0;
+has account_ids        => sub { return {}; };
 has unverified_login   => 0;
 has invalid_session    => 0;
 has preferred_locale   => undef;
@@ -65,6 +66,14 @@ sub prepare {
         registration => { user     => { username => $username } },
         values       => { username => $username },
     };
+}
+
+# The account an identifier names, as the auth store answers it: the ids
+# given by normalized identifier, none for the rest.
+sub account_id_for {
+    my ( $self, $identifier ) = @_;
+
+    return $self->account_ids->{ lc( $identifier // q{} ) };
 }
 
 sub authenticate_login {

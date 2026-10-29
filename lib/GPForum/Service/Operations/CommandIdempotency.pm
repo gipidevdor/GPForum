@@ -26,7 +26,12 @@ has functions => sub ($self) {
 const my $ID_CONSTRAINT  => 'command_log_pkey';
 const my $KEY_CONSTRAINT => 'command_log_idempotency_key_key';
 const my $FAILED_STATUS  => 'failed';
-const my $ABANDONED      => __PACKAGE__ . '::Abandoned';
+
+# What a command asks of its refusals: recorded as its answer (the default),
+# or abandoned, for a command whose request cannot fingerprint what the
+# member may correct.
+const my $ABANDON   => 'abandon';
+const my $ABANDONED => __PACKAGE__ . '::Abandoned';
 
 # What a command already in the log is refused with, by the outcome
 # api functions answer (ADR 0126) and _existing_result decides.
@@ -52,6 +57,7 @@ sub result_of ( $self, $job ) {
             command_id   => _trim( $job->{command_id} ),
             command_type => $job->{command_type},
             request      => $job->{request} || {},
+            refusal      => $job->{refusal},
         },
         $job->{run},
         sub ($result) { return $result; },
@@ -159,7 +165,7 @@ sub _run_inside_txn ( $self, $job ) {
 # transaction leaves neither; run() hands the failure back uncommitted.
 sub _finish_new_command ( $self, $job, $row ) {
     my $result = $job->{code}->();
-    if ( _is_failed($result) ) {
+    if ( _is_failed($result) || _refusal_abandoned( $job, $result ) ) {
         croak bless { result => $result }, $ABANDONED;
     }
 
@@ -357,6 +363,18 @@ sub _canonical_hash ($value) {
     return sha256_hex($json);
 }
 
+# A refusal is a command's answer, recorded and replayed, since the same
+# request is refused the same way. Not for a command whose request leaves
+# out what the member may correct -- a password, which is no thing to
+# fingerprint: recorded, the refusal came back to the corrected submission
+# under the same command id for as long as the form stayed open. Such a
+# command asks for its refusals to be abandoned, and the id stays free.
+sub _refusal_abandoned ( $job, $result ) {
+    return 0 if ( $job->{input}{refusal} // q{} ) ne $ABANDON;
+
+    return ref $result eq 'HASH' && $result->{ok} ? 0 : 1;
+}
+
 sub _is_failed ($result) {
     return 0 if ref $result ne 'HASH';
 
@@ -487,9 +505,10 @@ L<GPForum::Service::Clock> and L<GPForum::Infrastructure::Id>.
 =head2 result_of
 
 Takes a hash reference with C<actor_id>, C<command_id> (trimmed),
-C<command_type>, C<request> (an empty hash when absent) and C<run> (a code
-reference called with no arguments). Calls L</run> with the result itself
-as the response, and returns:
+C<command_type>, C<request> (an empty hash when absent), C<run> (a code
+reference called with no arguments) and optionally C<refusal> (passed to
+L</run>). Calls L</run> with the result itself as the response, and
+returns:
 
 =over 4
 
@@ -509,8 +528,10 @@ when the id was used for another request or is still in progress.
 =head2 run
 
 Takes an input hash reference (C<command_id>, or C<idempotency_key> when
-the command id is empty; C<request>; C<actor_id>; C<command_type>), the
-code reference to run (called with no arguments) and a response builder,
+the command id is empty; C<request>; C<actor_id>; C<command_type>; and
+optionally C<refusal>, C<abandon> for a command whose refusals are not
+answers, see below), the code reference to run (called with no arguments)
+and a response builder,
 called with the result to make the response to store (the result itself is
 stored when the builder is undefined). Returns a hash reference:
 
@@ -524,7 +545,11 @@ command; the row's status becomes C<handled> when the result has a true
 C<ok> and C<rejected> otherwise;
 
 =item * C<< { recorded => 1, result => $result, rolled_back => 1 } >> when
-the result's status was C<failed> and the transaction was abandoned;
+the result's status was C<failed> and the transaction was abandoned, or
+when the result was refused (a false C<ok>) and the input asked
+C<< refusal => 'abandon' >>: a command whose request cannot fingerprint what
+the member may correct, such as a password, so that the same command id
+runs again with the input corrected instead of getting the refusal back;
 
 =item * C<< { replayed => 1, response => $response } >> for a key already
 answered with the same request;

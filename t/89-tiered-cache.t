@@ -585,7 +585,8 @@ is( $listed->[0]{title}, 'General', 'with each row\'s columns' );
 is( $category_l2->snapshot->{stats}{failures},
     0, 'which GlifiStore stores without a failure' );
 is(
-    $category_l2->get("categories:list:anonymous:$CATEGORY_LIMIT")->[0]{title},
+    $category_l2->get("categories:list:anonymous:none:$CATEGORY_LIMIT")
+      ->[0]{title},
     'General', 'so every process shares it'
 );
 
@@ -702,14 +703,14 @@ my $tier_client = GPForum::Test::SharedCacheClient->new;
 my $tier_purger = _shared_over( $tier_client, 'tier' );
 $tier_purger->put( 'warm', 'warm', { tags => ['categories'] } );
 _tiered_over($tier_client)->get_or_set(
-    'categories:list:anonymous:10',
+    'categories:list:anonymous:none:10',
     sub {
         $tier_purger->invalidate_tag('categories');
         return ['private category'];
     },
     { tags => ['categories'] },
 );
-is( _tiered_over($tier_client)->get('categories:list:anonymous:10'),
+is( _tiered_over($tier_client)->get('categories:list:anonymous:none:10'),
     undef, 'a tiered fill computed across a purge is not served elsewhere' );
 
 # And through the public page cache, whose lookup runs before the page's

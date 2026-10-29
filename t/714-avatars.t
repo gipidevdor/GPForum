@@ -424,9 +424,10 @@ sub _media_pipeline {
     is( scalar @{ $attachments->variants }, 0, 'and gets no thumbnail' );
 
     my $other = GPForum::Service::Attachment::MediaProcessor->new(
-        avatars => GPForum::Test::AvatarDouble->new,
-        storage => GPForum::Test::AvatarDouble->new,
-        store   => $attachments,
+        avatars    => GPForum::Test::AvatarDouble->new,
+        image_tool => GPForum::Test::ImageTool->new,
+        storage    => GPForum::Test::AvatarDouble->new,
+        store      => $attachments,
     );
     ok(
         $other->process($ATTACHMENT)->{variant},

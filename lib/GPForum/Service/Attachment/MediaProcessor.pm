@@ -13,11 +13,22 @@ our $VERSION = '0.001';
 
 const my $THUMBNAIL => 'thumbnail';
 
+# The thumbnail's side, in pixels: a square, as the image tool makes them
+# for profile pictures (ADR 0144), large enough for a grid of a thread's
+# pictures and small beside the original.
+const my $THUMBNAIL_SIDE => 320;
+const my $THUMBNAIL_TYPE => 'image/png';
+
 __PACKAGE__->requires(qw(storage store));
 
 # ADR 0144: members' profile pictures (Service::Community::Avatars), which
 # take the place of the thumbnail for an upload waiting to be one.
 has avatars => undef;    # optional: without it every image gets a thumbnail
+
+# The system's image tool (Infrastructure::ImageTool), which makes the
+# thumbnail; without one, or with one the host has not installed, an image
+# is left as it is and the event is done.
+has image_tool => undef;    # optional: without it no thumbnail is made
 
 sub process ( $self, $attachment_id ) {
     my $attachment = $self->store->find_attachment($attachment_id);
@@ -34,6 +45,13 @@ sub process ( $self, $attachment_id ) {
     my $existing = $self->_existing_thumbnail($attachment_id);
     if ($existing) {
         return $self->_skipped_variant($existing);
+    }
+    my $tool = $self->image_tool;
+    if ( !$tool || !$tool->available ) {
+        return { ok => 1, skipped => 'no_image_tool' };
+    }
+    if ( !$tool->reads( _text( _column( $attachment, 'media_type' ) ) ) ) {
+        return { ok => 1, skipped => 'unreadable_image' };
     }
 
     return $self->_write_thumbnail($attachment);
@@ -105,19 +123,33 @@ sub _skipped_variant ( $self, $existing ) {
     };
 }
 
+# The thumbnail: a square of the picture, centre-cropped and scaled by the
+# image tool, as PNG. The variant used to be the original's bytes under a
+# second key -- a copy of every picture, which nothing read -- and no
+# picture was decoded. A picture the tool cannot read makes none.
 sub _write_thumbnail ( $self, $attachment ) {
-    my $object_key  = _column( $attachment, 'object_key' );
-    my $content     = $self->storage->read_object($object_key);
+    my $object_key = _column( $attachment, 'object_key' );
+    my $squares    = $self->image_tool->squares(
+        {
+            content    => $self->storage->read_object($object_key),
+            media_type => _column( $attachment, 'media_type' ),
+        },
+        [$THUMBNAIL_SIDE]
+    );
+    if ( !$squares ) {
+        return { ok => 1, skipped => 'unreadable_image' };
+    }
+    my $thumbnail   = $squares->{$THUMBNAIL_SIDE};
     my $variant_key = join q{-}, $object_key, $THUMBNAIL;
-    $self->_store_thumbnail_object( $variant_key, $content );
+    $self->_store_thumbnail_object( $variant_key, $thumbnail );
 
     return {
         ok      => 1,
         variant => $self->store->add_variant(
             {
                 attachment_id => _column( $attachment, 'attachment_id' ),
-                byte_size     => length $content,
-                media_type    => _column( $attachment, 'media_type' ),
+                byte_size     => length $thumbnail,
+                media_type    => $THUMBNAIL_TYPE,
                 object_key    => $variant_key,
                 variant_type  => $THUMBNAIL,
             }
@@ -154,8 +186,9 @@ Version 0.001.
 =head1 SYNOPSIS
 
     my $processor = GPForum::Service::Attachment::MediaProcessor->new(
-        storage => $attachment_storage,
-        store   => $attachment_store,
+        image_tool => $image_tool,
+        storage    => $attachment_storage,
+        store      => $attachment_store,
     );
     my $result = $processor->process($attachment_id);
     # { ok => 1, variant => {...} }, { ok => 1, skipped => ... }
@@ -165,15 +198,19 @@ Version 0.001.
 
 Run by the media processing worker
 (L<GPForum::Worker::Handler::MediaProcessing>) for an attachment event. For
-an available attachment whose media type starts with C<image/>, it writes a
-C<thumbnail> object under the key C<< <object_key>-thumbnail >> and records
-it as an attachment variant through L<GPForum::Service::Attachment::Store>.
+an available attachment whose media type starts with C<image/>, it has the
+system's image tool (L<GPForum::Infrastructure::ImageTool>, ADR 0144) make
+a 320-pixel square of the picture, centre-cropped, as PNG, writes it under
+the key C<< <object_key>-thumbnail >> and records it as the C<thumbnail>
+variant through L<GPForum::Service::Attachment::Store>.
 
 The work is idempotent: an attachment that already has a thumbnail variant
 is reported as skipped, and an object already present under the variant key
-is not written again, so a redelivered event does no harm. The variant's
-bytes are the original object's bytes, read from storage and written under
-the new key; no image is decoded or resized here.
+is not written again, so a redelivered event does no harm. Without an image
+tool, or with one the host has not installed, no thumbnail is made and the
+event is done; so for a picture the tool cannot read. The variant used to
+be the original's bytes under the second key, a copy of every picture that
+nothing read.
 
 =head1 SUBROUTINES/METHODS
 
@@ -187,6 +224,8 @@ a missing one throws L<GPForum::X::Argument>. C<avatars>, a
 L<GPForum::Service::Community::Avatars>, is optional: an upload waiting to be
 a member's profile picture is then cropped to its squares instead
 (ADR 0144), and the answer is the avatars' with C<< avatar => 1 >>.
+C<image_tool>, a L<GPForum::Infrastructure::ImageTool>, is optional: without
+one no thumbnail is made.
 
 =head2 process
 
@@ -207,16 +246,24 @@ not start with C<image/>;
 variant already exists; the variant's columns come with
 C<< idempotent => 1 >>;
 
-=item * C<< { ok => 1, variant => {...} } >> after writing the object and
-adding the variant (same media type, C<byte_size> the length of the
-original's bytes, also when the object was already there and not written).
+=item * C<< { ok => 1, skipped => 'no_image_tool' } >> without an image
+tool, or with one the host has not installed;
+
+=item * C<< { ok => 1, skipped => 'unreadable_image' } >> for a picture of
+a kind the tool does not read, or one it could not read;
+
+=item * C<< { ok => 1, variant => {...} } >> after writing the square and
+adding the variant (C<media_type> C<image/png>, C<byte_size> the square's
+length, also when the object was already there and not written).
 
 =back
 
 =head1 DIAGNOSTICS
 
 Refusals are returned, not thrown. Errors from the storage backend or the
-store propagate.
+store propagate, and so does L<GPForum::X::Unavailable> from an image tool
+that could not be started or outran its time: the outbox tries the event
+again.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -224,7 +271,8 @@ None.
 
 =head1 DEPENDENCIES
 
-L<GPForum::Service::Attachment::Store>, L<GPForum::Infrastructure::Row>.
+L<GPForum::Service::Attachment::Store>, L<GPForum::Infrastructure::Row>,
+L<GPForum::Infrastructure::ImageTool>.
 
 =head1 INCOMPATIBILITIES
 

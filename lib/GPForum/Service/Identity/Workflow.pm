@@ -450,7 +450,11 @@ sub _register_by_function ( $self, $input ) {
     }
 
     # The command log's ids and time are drawn before the registration's, as
-    # CommandIdempotency draws them before the work it guards.
+    # CommandIdempotency draws them before the work it guards. The password
+    # is hashed before the database says whether the username or the address
+    # is taken, on purpose: a taken one is refused in the same words and the
+    # same time as any other refusal, so nobody learns from the answer, or
+    # from how fast it came, which accounts exist.
     my $log = $self->_command_log( $input, $REGISTER, $request );
     my $tried =
       $self->_try_store( sub { return $self->registration->prepare($input); } );

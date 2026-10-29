@@ -24,6 +24,17 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migrations 1038 to 1042, then restart the application and outbox
+  workers.** `gpforum migrate` installs a poll vote that no longer locks the
+  thread's row against replies (`api.forum_poll_change_v4`), an erasure that
+  deletes the member's single-use tokens (`api.privacy_revoke_user_v26`),
+  the mbox archive's one-statement signature read
+  (`api.forum_protocol_signatures_v2`) and two reads planned once
+  (`api.forum_find_listed_post_v4`, `api.notification_list_inbox_v8`), and
+  drops three indexes no statement used. The previous entry points stay for
+  workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
 - **Apply migration 1037, then restart the application workers.** `gpforum
   migrate` installs `api.forum_thread_page_reads_v6` and
   `api.attachment_post_files_v2`; the previous reads entry point stays for
@@ -1353,6 +1364,39 @@ a host set up from an earlier `main`, newest first.
 
 ### Changed
 
+- **A vote on a thread's poll no longer holds the thread against replies
+  (migration 1038).** The vote locked the thread's row `FOR UPDATE` for its
+  length, so a reply arriving meanwhile, which updates the thread's
+  activity, waited for it. The vote now takes the row `FOR KEY SHARE`, which
+  keeps the thread from being deleted under it and lets a reply through; the
+  poll's own row stays locked, which is what keeps two votes from counting
+  over each other.
+
+- **The mbox archive reads a page's signatures in one statement (migration
+  1041).** Each post's signature was a statement of its own inside the
+  export's repeatable-read transaction, a hundred per page of posts;
+  `api.forum_protocol_signatures_v2` answers a page at once, and each
+  envelope is still verified before the post is written.
+
+- **Two reads are planned once instead of on every call (migration 1042).**
+  `api.forum_find_listed_post` and `api.notification_list_inbox` forced a
+  custom plan although their plan never changes with the parameters: measured
+  on the hot-thread seed, 0.142 and 0.288 ms per call, now 0.013 and 0.070.
+  The list functions that filter by standing keep their custom plans: a
+  generic plan cannot use the partial indexes whose predicate depends on the
+  parameters.
+
+- **Three indexes no statement used are dropped (migration 1040):**
+  `idx_sessions_active` and `idx_sessions_lookup`, both led by the session
+  id, which the primary key answers, and `idx_user_feed_items_ranked`, an
+  order by score no feed reader asks for. Each was a write on every insert
+  and update of its table.
+
+- **The ordered autocomplete index stays out.** The 2026-10-23 review asked
+  for a btree behind the autocomplete's `ORDER BY`;
+  [the record](docs/architecture/sql-functions-optimization.md) shows it was
+  measured on 2026-10-11 and rejected for giving no stable improvement.
+
 - **The category index is cached for every reader, under their standing and
   grants.** Only the anonymous list was, so each signed-in reader of the
   index had every live thread of every category counted again for them
@@ -2292,6 +2336,12 @@ a host set up from an earlier `main`, newest first.
   production floors fail the same gate as OS preflight and query-budget drift.
 
 ### Fixed
+
+- **An erased member's single-use tokens go with their credentials
+  (migration 1039).** A password reset, an email change carrying the new
+  address, a verification: their rows in `identity_tokens` stayed until they
+  expired and the retention purge took them, so the address the erasure
+  removed from the account lived on in them for up to a day.
 
 - **A refused password change, email change or password reset no longer
   sticks to its command id.** Those commands leave the password out of the

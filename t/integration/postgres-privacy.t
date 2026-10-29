@@ -131,6 +131,12 @@ const my $EXPORT_ROW_SQL =>
   'SELECT * FROM export_requests WHERE export_request_id = ?';
 const my $CREDENTIAL_ROW_SQL => 'SELECT * FROM credentials WHERE id = ?';
 const my $SESSION_ROW_SQL    => 'SELECT * FROM sessions WHERE session_id = ?';
+const my $TOKEN_SQL => join q{ },
+  'INSERT INTO identity_tokens (token_id, user_id, token_type, token_hash,',
+  q{email_normalized, expires_at) VALUES (?, ?, 'email_change', ?,},
+  q{'next@example.test', now() + interval '1 day')};
+const my $TOKENS_SQL =>
+  'SELECT count(*) FROM identity_tokens WHERE user_id = ?';
 const my $REQUESTS_SQL => join q{ },
   'SELECT count(*) FROM deletion_requests',
   q{WHERE resource_type = 'user' AND resource_id = ?};
@@ -617,9 +623,11 @@ sub _deletion_request {
     my ($ctx) = @_;
 
     my $subject = $ctx->{users}{subject};
-    $ctx->{credential}     = _credential( $ctx, $subject );
-    $ctx->{session}        = _session( $ctx, $subject );
-    $ctx->{revoked}        = _session( $ctx, $subject, $EARLY );
+    $ctx->{credential} = _credential( $ctx, $subject );
+    $ctx->{session}    = _session( $ctx, $subject );
+    $ctx->{revoked}    = _session( $ctx, $subject, $EARLY );
+    $ctx->{dbh}
+      ->do( $TOKEN_SQL, undef, $ctx->{ids}->uuid, $subject, $ctx->{ids}->uuid );
     $ctx->{other_session}  = _session( $ctx, $ctx->{users}{bystander} );
     $ctx->{other_password} = _credential( $ctx, $ctx->{users}{bystander} );
 
@@ -791,6 +799,8 @@ sub _erasure {
         { idempotent => 0, user_id => $subject },
         'completion names the member it anonymized'
     );
+    is( _value( $ctx, $TOKENS_SQL, $subject ),
+        0, 'the member\'s single-use tokens went with their credentials' );
     my $job_row = _row( $ctx, $JOB_ROW_SQL, $job );
     is( $job_row->{status}, 'done', 'erasure job row is completed' );
     is( _utc( $ctx, $job_row->{completed_at} ),

@@ -27,6 +27,7 @@ use POSIX       qw(_exit);
 use GPForum::Service::Discovery::Gemini;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::SqlFunction;
 use GPForum::Config;
 
 our $VERSION = '0.001';
@@ -37,6 +38,7 @@ const my $TLS_RETRY_DELAY     => 0.05;
 const my $TLS_CONNECT_TIMEOUT => 0.2;
 
 const my $ALL_POSTS         => 122;
+const my $SIGNATURE_PAGES   => 2;
 const my $HTTP_NOT_FOUND    => 404;
 const my $HTTP_OK           => 200;
 const my $HTTP_SERVER_ERROR => 500;
@@ -152,11 +154,35 @@ $t->get_ok("/t/$thread/archive.mbox")->status_is($HTTP_OK);
 # must be filtered before writing the spool, including inside a public thread.
 $dbh->do( $LEGACY_POSTS_SQL, undef, $thread, $user );
 $dbh->do( $LEGACY_BODIES_SQL, undef, $thread );
-my $spool = $c->gp_archive->spool( 'thread', $thread,
-    GPForum::Service::Forum::Viewer->anonymous );
+
+# The signatures of a page of posts are one call (migration 1041); each was
+# one of its own. The application's schema reports its statements to the
+# query statistics, not to a callback, so the function layer's calls are
+# counted where they are made.
+my $execute = GPForum::Infrastructure::SqlFunction->can('_execute');
+my @signature_reads;
+my $spool = with_replaced_subs(
+    'GPForum::Infrastructure::SqlFunction',
+    {
+        _execute => sub ( $functions, $entry, $bound ) {
+            if ( $entry->{function} =~ /forum_protocol_signature/msx ) {
+                push @signature_reads, $entry->{function};
+            }
+            return $execute->( $functions, $entry, $bound );
+        },
+    },
+    sub {
+        return $c->gp_archive->spool( 'thread', $thread,
+            GPForum::Service::Forum::Viewer->anonymous );
+    }
+);
 my $mbox = path( $spool->filename )->slurp;
 is( scalar( () = $mbox =~ /^From[ ]gpforum\@/gmsx ),
     $ALL_POSTS, 'archive includes every post beyond the first page' );
+is( scalar( grep { /signatures_v/msx } @signature_reads ),
+    $SIGNATURE_PAGES, 'the signatures of each page of posts are one call' );
+is( scalar( grep { /signature_v/msx } @signature_reads ),
+    0, 'and none is read post by post' );
 like(
     $mbox,
     qr/X-GPForum-Signature-Status:[ ]unsigned/msx,

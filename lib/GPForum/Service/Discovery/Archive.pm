@@ -47,10 +47,29 @@ sub signature ( $self, $post ) {
     my $row = $self->functions->row( 'forum_protocol_signature',
         { body_id => $post->{current_body_id} } );
     return undef if !$row;
+
+    return $self->_verified( $post, $row->{envelope} );
+}
+
+# The signatures of a page of posts, by body id, in one statement; a post
+# without one is not in the answer. Each was a statement of its own inside
+# the export's repeatable-read transaction.
+sub signatures ( $self, $posts ) {
+    my @body_ids = grep { defined } map { $_->{current_body_id} } @{$posts};
+    return {} if !@body_ids;
+
+    my $rows = $self->functions->rows( 'forum_protocol_signatures',
+        { body_ids => \@body_ids } );
+
+    return { map { $_->{body_id} => $_->{envelope} } @{$rows} };
+}
+
+sub _verified ( $self, $post, $envelope ) {
     croak 'post signature verification failed'
       if !$self->signer->verify( { %{$post}, body_format => 'markdown' },
-        $row->{envelope} );
-    return $row->{envelope};
+        $envelope );
+
+    return $envelope;
 }
 
 sub key_set ($self) {
@@ -120,14 +139,20 @@ sub _thread ( $self, $file, $id, $viewer ) {
                 after => $after
             }
         );
-        for my $row ( @{ $page->{items} } ) {
-            next if defined $row->get_column('deleted_at');
-            my %post = $row->get_columns;
-            print {$file}
-              $self->mbox->message( \%head, \%post, $self->signature( \%post ),
-                $root )
-              or croak 'cannot write mbox spool';
-            $root //= $post{post_id};
+        my @posts = map { +{ $_->get_columns } }
+          grep { !defined $_->get_column('deleted_at') } @{ $page->{items} };
+        my $envelopes = $self->signatures( \@posts );
+        for my $post (@posts) {
+            my $envelope = $envelopes->{ $post->{current_body_id} // q{} };
+            print {$file} $self->mbox->message(
+                \%head,
+                $post,
+                defined $envelope
+                ? $self->_verified( $post, $envelope )
+                : undef,
+                $root
+            ) or croak 'cannot write mbox spool';
+            $root //= $post->{post_id};
         }
         last if !$page->{has_next};
         $after = $page->{next_cursor};
@@ -161,6 +186,14 @@ Returns the authorized visible post with its current source, or undef.
 =head2 signature
 
 Returns the persisted envelope, undef for unsigned content, or throws if verification fails.
+
+=head2 signatures
+
+Takes an array reference of posts (hashes with C<current_body_id>). Returns
+a hash reference from body id to the persisted envelope, read in one
+statement (C<api.forum_protocol_signatures>); unsigned posts have no key.
+The envelopes are not verified here: C<spool> verifies each as it writes
+the post, and throws as L</signature> does.
 
 =head2 key_set
 

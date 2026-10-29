@@ -77,6 +77,11 @@ const my %FUNCTION => (
         parameters => [ body_id => 'uuid' ],
         json       => ['envelope']
     },
+    forum_protocol_signatures => {
+        version    => 2,
+        parameters => [ body_ids => 'uuid[]' ],
+        json       => ['envelope']
+    },
     forum_protocol_member =>
       { version => 2, parameters => [ user_id => 'uuid', email => 'text' ] },
     moderation_thread_transfer => {
@@ -109,7 +114,7 @@ const my %FUNCTION => (
         json       => ['result']
     },
     forum_poll_change => {
-        version    => 2,
+        version    => 4,
         parameters => [
             actor     => 'uuid',
             command   => 'uuid',
@@ -326,7 +331,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 24,
+        version    => 26,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -1764,7 +1769,7 @@ const my %FUNCTION => (
         ],
     },
     notification_list_inbox => {
-        version    => 6,
+        version    => 8,
         parameters => [
             recipient_user_id     => 'uuid',
             filter_sources        => 'boolean',
@@ -1863,7 +1868,7 @@ const my %FUNCTION => (
         parameters => [ post_id => 'uuid' ],
     },
     forum_find_listed_post => {
-        version    => 2,
+        version    => 4,
         parameters => [
             post_id        => 'uuid',
             thread_id      => 'uuid',

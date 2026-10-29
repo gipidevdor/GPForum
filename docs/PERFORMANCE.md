@@ -70,7 +70,7 @@ not capped at the web budget.
 | `idx_search_documents_created` | search candidates, newest first | `source_created_at DESC, entity_id DESC`; not partial | 048 |
 | `idx_search_documents_vector`, `idx_search_documents_title_trgm` | full text (GIN) and fuzzy title (trigram) | | 003 |
 | `idx_notification_inbox_recipient_created` | notification inbox | `recipient_user_id, created_at DESC, notification_id DESC` | 015 |
-| `idx_user_feed_items_user_created`, `idx_user_feed_items_ranked`, `idx_user_feed_items_item` | feed pages; removing a thread from every feed in one statement | | 047 for `_item` |
+| `idx_user_feed_items_user_created`, `idx_user_feed_items_item` | feed pages; removing a thread from every feed in one statement (`idx_user_feed_items_ranked`, which no reader ordered by, went with migration 1040) | | 047 for `_item` |
 | `idx_outbox_messages_claim_ready`, `_stale_locks`, `_status_created`, `_retry_backlog`, `_realtime_poll` | outbox claim, lease recovery, retention and console, retry metric, realtime polling | | 022, 022, 037, 021, 023 |
 | `idx_rate_limit_buckets_scope_action_window` | rate-limit windows, checked before writes | | 016 |
 | `idx_reports_reporter_target_open_unique` | one open report per reporter and target | unique | 026 |

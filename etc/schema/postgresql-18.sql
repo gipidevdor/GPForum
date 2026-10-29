@@ -8107,6 +8107,46 @@ $$;
 
 
 --
+-- Name: forum_find_listed_post_v3(uuid, uuid, boolean, boolean, uuid, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_find_listed_post_v3(p_post_id uuid, p_thread_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid) RETURNS TABLE(post_id uuid, thread_id uuid, author_user_id uuid, current_body_id uuid, "position" bigint, visibility text, moderation_state text, created_at timestamp with time zone, deleted_at timestamp with time zone, body text, body_source text, author_username text, author_display_name text)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT me.post_id, me.thread_id, me.author_user_id, me.current_body_id, me.position, me.visibility, me.moderation_state, me.created_at, me.deleted_at,
+    current_body.body_rendered_safe, current_body.body_source,
+    author.username, author.display_name
+FROM public.posts me
+LEFT JOIN public.post_bodies current_body ON current_body.body_id = me.current_body_id
+JOIN public.users author ON author.id = me.author_user_id
+WHERE me.post_id = p_post_id AND me.thread_id = p_thread_id
+    AND me.moderation_state = 'visible'
+    AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+    AND (me.deleted_at IS NULL OR me.author_user_id = p_viewer_user_id)
+LIMIT 1
+$$;
+
+
+--
+-- Name: forum_find_listed_post_v4(uuid, uuid, boolean, boolean, uuid, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_find_listed_post_v4(p_post_id uuid, p_thread_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid) RETURNS TABLE(post_id uuid, thread_id uuid, author_user_id uuid, current_body_id uuid, "position" bigint, visibility text, moderation_state text, created_at timestamp with time zone, deleted_at timestamp with time zone, body text, body_source text, author_username text, author_display_name text)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.forum_find_listed_post_v3(p_post_id, p_thread_id, p_member, p_global_read, p_scope_user_id, p_viewer_user_id);
+$$;
+
+
+--
 -- Name: forum_find_post_v1(uuid); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -8874,6 +8914,97 @@ $$;
 
 
 --
+-- Name: forum_poll_change_v3(uuid, uuid, uuid, text, jsonb); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_poll_change_v3(p_actor uuid, p_command uuid, p_thread_id uuid, p_operation text, p_values jsonb) RETURNS TABLE(result jsonb)
+    LANGUAGE plpgsql
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $_$
+DECLARE opened record; answer jsonb; thread public.threads; poll public.thread_polls;
+    old_choice integer; choice integer; n integer; labels text[];
+BEGIN
+    IF p_operation IS NULL OR p_operation NOT IN ('create','vote','close') OR p_values IS NULL THEN
+        RETURN QUERY SELECT jsonb_build_object('status','invalid'); RETURN;
+    END IF;
+    PERFORM 1 FROM public.users u WHERE u.id = p_actor AND u.status = 'active' FOR SHARE;
+    IF NOT FOUND THEN RETURN QUERY SELECT jsonb_build_object('status','forbidden'); RETURN; END IF;
+    IF NOT api.core_product_read_thread_v1(p_actor,p_thread_id)
+        OR NOT api.core_forum_draft_target_v1(p_actor,'reply',NULL,p_thread_id) THEN
+        RETURN QUERY SELECT jsonb_build_object('status','not_found'); RETURN;
+    END IF;
+    SELECT * INTO opened FROM api.core_product_open_v1(p_actor,p_command,'forum.poll.' || p_operation,
+        jsonb_build_object('thread',p_thread_id,'values',p_values));
+    IF opened.outcome <> 'opened' THEN
+        RETURN QUERY SELECT coalesce(opened.response,jsonb_build_object('status','conflict')); RETURN;
+    END IF;
+    SELECT * INTO thread FROM public.threads t WHERE t.thread_id = p_thread_id FOR KEY SHARE;
+    SELECT * INTO poll FROM public.thread_polls p WHERE p.thread_id = p_thread_id FOR UPDATE;
+    answer := jsonb_build_object('status','ok');
+    IF p_operation = 'create' THEN
+        IF thread.author_user_id <> p_actor THEN answer := jsonb_build_object('status','forbidden');
+        ELSIF thread.locked_at IS NOT NULL OR poll.thread_id IS NOT NULL THEN answer := jsonb_build_object('status','conflict');
+        ELSIF coalesce(length(btrim(p_values->>'question')),0) NOT BETWEEN 1 AND 200
+            OR jsonb_typeof(p_values->'options') IS DISTINCT FROM 'array' THEN answer := jsonb_build_object('status','invalid');
+        ELSE
+            IF EXISTS(SELECT 1 FROM jsonb_array_elements(p_values->'options') x WHERE jsonb_typeof(x) <> 'string') THEN
+                RETURN QUERY SELECT api.core_product_close_v1(opened.command_id,opened.payload,jsonb_build_object('status','invalid')); RETURN;
+            END IF;
+            SELECT array_agg(btrim(x.label) ORDER BY x.n) INTO labels
+                FROM jsonb_array_elements_text(p_values->'options') WITH ORDINALITY x(label,n);
+            n := cardinality(labels);
+            IF n IS NULL OR n NOT BETWEEN 2 AND 10 OR EXISTS(SELECT 1 FROM unnest(labels) x WHERE x IS NULL OR length(x) NOT BETWEEN 1 AND 120)
+                OR (SELECT count(DISTINCT x) FROM unnest(labels) x) <> n THEN answer := jsonb_build_object('status','invalid');
+            ELSE
+                INSERT INTO public.thread_polls(thread_id,question,created_by,closes_at)
+                VALUES (p_thread_id,btrim(p_values->>'question'),p_actor,clock_timestamp()+interval '30 days');
+                INSERT INTO public.poll_options(thread_id,option_number,label)
+                SELECT p_thread_id,x.n::integer,x.label FROM unnest(labels) WITH ORDINALITY x(label,n);
+            END IF;
+        END IF;
+    ELSIF poll.thread_id IS NULL THEN answer := jsonb_build_object('status','not_found');
+    ELSIF p_operation = 'close' THEN
+        IF thread.author_user_id <> p_actor AND NOT api.core_product_staff_v1(p_actor,'thread','moderate') THEN answer := jsonb_build_object('status','forbidden');
+        ELSE UPDATE public.thread_polls SET closed_at = coalesce(closed_at,clock_timestamp()) WHERE thread_id = p_thread_id; END IF;
+    ELSIF thread.locked_at IS NOT NULL OR poll.closed_at IS NOT NULL OR poll.closes_at <= clock_timestamp() THEN answer := jsonb_build_object('status','closed');
+    ELSIF coalesce(p_values->>'choice','') !~ '^[1-9][0-9]?$' THEN answer := jsonb_build_object('status','invalid');
+    ELSE
+        choice := (p_values->>'choice')::integer;
+        IF NOT EXISTS(SELECT 1 FROM public.poll_options o WHERE o.thread_id = p_thread_id AND o.option_number = choice) THEN
+            answer := jsonb_build_object('status','invalid');
+        ELSE
+            SELECT b.option_number INTO old_choice FROM public.poll_ballots b WHERE b.thread_id = p_thread_id AND b.user_id = p_actor;
+            IF old_choice IS DISTINCT FROM choice THEN
+                UPDATE public.poll_options o SET votes = o.votes - 1 WHERE o.thread_id = p_thread_id AND o.option_number = old_choice;
+                INSERT INTO public.poll_ballots(thread_id,user_id,option_number) VALUES(p_thread_id,p_actor,choice)
+                ON CONFLICT(thread_id,user_id) DO UPDATE SET option_number = EXCLUDED.option_number,updated_at = clock_timestamp();
+                UPDATE public.poll_options o SET votes = o.votes + 1 WHERE o.thread_id = p_thread_id AND o.option_number = choice;
+            END IF;
+        END IF;
+    END IF;
+    IF answer->>'status' = 'ok' THEN
+        PERFORM api.core_product_audit_v1(p_actor,p_command,'forum.poll.' || p_operation,p_thread_id,'thread','{}'::jsonb);
+    END IF;
+    RETURN QUERY SELECT api.core_product_close_v1(opened.command_id,opened.payload,answer);
+END;
+$_$;
+
+
+--
+-- Name: forum_poll_change_v4(uuid, uuid, uuid, text, jsonb); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_poll_change_v4(p_actor uuid, p_command uuid, p_thread_id uuid, p_operation text, p_values jsonb) RETURNS TABLE(result jsonb)
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.forum_poll_change_v3(p_actor, p_command, p_thread_id, p_operation, p_values);
+$$;
+
+
+--
 -- Name: forum_poll_read_v1(uuid, uuid); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -9065,6 +9196,32 @@ CREATE FUNCTION api.forum_protocol_signature_v2(p_body_id uuid) RETURNS TABLE(en
     SET plan_cache_mode TO 'force_generic_plan'
     AS $$
 SELECT * FROM api.forum_protocol_signature_v1(p_body_id);
+$$;
+
+
+--
+-- Name: forum_protocol_signatures_v1(uuid[]); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_protocol_signatures_v1(p_body_ids uuid[]) RETURNS TABLE(body_id uuid, envelope json)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT s.body_id, s.envelope::json FROM public.post_signatures s WHERE s.body_id = ANY(p_body_ids);
+$$;
+
+
+--
+-- Name: forum_protocol_signatures_v2(uuid[]); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_protocol_signatures_v2(p_body_ids uuid[]) RETURNS TABLE(body_id uuid, envelope json)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.forum_protocol_signatures_v1(p_body_ids);
 $$;
 
 
@@ -14693,6 +14850,125 @@ $$;
 
 
 --
+-- Name: notification_list_inbox_v7(uuid, boolean, boolean, boolean, uuid, uuid[], uuid[], timestamp with time zone, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.notification_list_inbox_v7(p_recipient_user_id uuid, p_filter_sources boolean, p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_after_created_at timestamp with time zone, p_after_notification_id uuid, p_row_limit integer) RETURNS TABLE(recipient_user_id uuid, notification_id uuid, created_at timestamp with time zone, read_at timestamp with time zone, rank_score numeric, source_type text, source_id uuid, notification_type text, payload jsonb, source_thread_id uuid, source_thread_title text)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+BEGIN
+  IF p_after_created_at IS NULL THEN
+    RETURN QUERY
+    SELECT i.recipient_user_id, i.notification_id, i.created_at, i.read_at, i.rank_score,
+      n.source_type, n.source_id, n.notification_type, n.payload,
+      CASE WHEN p_filter_sources THEN CASE n.source_type WHEN 'thread' THEN n.source_id
+        WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = n.source_id) END END,
+      CASE WHEN p_filter_sources THEN (SELECT t.title FROM public.threads t WHERE t.thread_id =
+        CASE n.source_type WHEN 'thread' THEN n.source_id
+          WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = n.source_id) END) END
+    FROM public.notification_inbox i
+    JOIN public.notifications n ON n.notification_id = i.notification_id AND n.created_at = i.created_at
+    WHERE i.recipient_user_id = p_recipient_user_id
+      AND (NOT p_filter_sources OR (n.source_type = 'message' AND EXISTS (
+          SELECT 1 FROM public.direct_messages dm
+          JOIN public.direct_conversation_members dmm
+            ON dmm.conversation_id = dm.conversation_id
+            AND dmm.user_id = p_recipient_user_id
+          WHERE dm.message_id = n.source_id))
+        OR ((n.source_type = 'thread' AND EXISTS (
+          SELECT 1 FROM public.threads t
+          JOIN public.categories c ON c.category_id = t.category_id
+          JOIN public.spaces s ON s.space_id = c.space_id
+          WHERE t.thread_id = n.source_id AND t.deleted_at IS NULL
+            AND t.moderation_state IN ('visible', 'locked') AND c.deleted_at IS NULL
+            AND (s.visibility IN ('public', 'members', 'private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (c.visibility IN ('public', 'members', 'private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (t.visibility IN ('public', 'members', 'private') AND (p_global_read OR t.visibility = 'public' OR (p_member AND t.visibility = 'members') OR (t.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (t.author_user_id = p_viewer_user_id))))))))
+        OR (n.source_type = 'post' AND EXISTS (
+          SELECT 1 FROM public.posts p
+          JOIN public.threads t ON t.thread_id = p.thread_id
+          JOIN public.categories c ON c.category_id = t.category_id
+          JOIN public.spaces s ON s.space_id = c.space_id
+          WHERE p.post_id = n.source_id AND p.deleted_at IS NULL AND p.moderation_state = 'visible'
+            AND t.deleted_at IS NULL AND t.moderation_state IN ('visible', 'locked') AND c.deleted_at IS NULL
+            AND (s.visibility IN ('public', 'members', 'private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (c.visibility IN ('public', 'members', 'private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (t.visibility IN ('public', 'members', 'private') AND (p_global_read OR t.visibility = 'public' OR (p_member AND t.visibility = 'members') OR (t.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (t.author_user_id = p_viewer_user_id))))))
+            AND (p.visibility IN ('public', 'members', 'private') AND (p_global_read OR p.visibility = 'public' OR (p_member AND p.visibility = 'members') OR (p.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (p.author_user_id = p_viewer_user_id OR (t.visibility = 'private' AND t.author_user_id = p_viewer_user_id)))))))))))
+      AND NOT (n.notification_type IN ('reply', 'mention', 'direct_message') AND EXISTS (
+          SELECT 1 FROM public.member_relations r
+          WHERE r.owner_user_id = p_recipient_user_id
+            AND r.other_user_id::text = n.payload->>'actor_id'))
+    ORDER BY i.created_at DESC, i.notification_id DESC LIMIT p_row_limit;
+  ELSE
+    RETURN QUERY
+    SELECT i.recipient_user_id, i.notification_id, i.created_at, i.read_at, i.rank_score,
+      n.source_type, n.source_id, n.notification_type, n.payload,
+      CASE WHEN p_filter_sources THEN CASE n.source_type WHEN 'thread' THEN n.source_id
+        WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = n.source_id) END END,
+      CASE WHEN p_filter_sources THEN (SELECT t.title FROM public.threads t WHERE t.thread_id =
+        CASE n.source_type WHEN 'thread' THEN n.source_id
+          WHEN 'post' THEN (SELECT p.thread_id FROM public.posts p WHERE p.post_id = n.source_id) END) END
+    FROM public.notification_inbox i
+    JOIN public.notifications n ON n.notification_id = i.notification_id AND n.created_at = i.created_at
+    WHERE i.recipient_user_id = p_recipient_user_id
+      AND (NOT p_filter_sources OR (n.source_type = 'message' AND EXISTS (
+          SELECT 1 FROM public.direct_messages dm
+          JOIN public.direct_conversation_members dmm
+            ON dmm.conversation_id = dm.conversation_id
+            AND dmm.user_id = p_recipient_user_id
+          WHERE dm.message_id = n.source_id))
+        OR ((n.source_type = 'thread' AND EXISTS (
+          SELECT 1 FROM public.threads t
+          JOIN public.categories c ON c.category_id = t.category_id
+          JOIN public.spaces s ON s.space_id = c.space_id
+          WHERE t.thread_id = n.source_id AND t.deleted_at IS NULL
+            AND t.moderation_state IN ('visible', 'locked') AND c.deleted_at IS NULL
+            AND (s.visibility IN ('public', 'members', 'private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (c.visibility IN ('public', 'members', 'private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (t.visibility IN ('public', 'members', 'private') AND (p_global_read OR t.visibility = 'public' OR (p_member AND t.visibility = 'members') OR (t.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (t.author_user_id = p_viewer_user_id))))))))
+        OR (n.source_type = 'post' AND EXISTS (
+          SELECT 1 FROM public.posts p
+          JOIN public.threads t ON t.thread_id = p.thread_id
+          JOIN public.categories c ON c.category_id = t.category_id
+          JOIN public.spaces s ON s.space_id = c.space_id
+          WHERE p.post_id = n.source_id AND p.deleted_at IS NULL AND p.moderation_state = 'visible'
+            AND t.deleted_at IS NULL AND t.moderation_state IN ('visible', 'locked') AND c.deleted_at IS NULL
+            AND (s.visibility IN ('public', 'members', 'private') AND (p_global_read OR s.visibility = 'public' OR (p_member AND s.visibility = 'members') OR (s.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (c.visibility IN ('public', 'members', 'private') AND (p_global_read OR c.visibility = 'public' OR (p_member AND c.visibility = 'members') OR (c.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (false))))))
+            AND (t.visibility IN ('public', 'members', 'private') AND (p_global_read OR t.visibility = 'public' OR (p_member AND t.visibility = 'members') OR (t.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (t.author_user_id = p_viewer_user_id))))))
+            AND (p.visibility IN ('public', 'members', 'private') AND (p_global_read OR p.visibility = 'public' OR (p_member AND p.visibility = 'members') OR (p.visibility = 'private' AND ((c.category_id = ANY(p_category_ids) OR c.space_id = ANY(p_space_ids)) OR (p_member AND (p.author_user_id = p_viewer_user_id OR (t.visibility = 'private' AND t.author_user_id = p_viewer_user_id)))))))))))
+      AND i.created_at <= p_after_created_at
+      AND (i.created_at < p_after_created_at OR (i.created_at = p_after_created_at AND i.notification_id < p_after_notification_id))
+      AND NOT (n.notification_type IN ('reply', 'mention', 'direct_message') AND EXISTS (
+          SELECT 1 FROM public.member_relations r
+          WHERE r.owner_user_id = p_recipient_user_id
+            AND r.other_user_id::text = n.payload->>'actor_id'))
+    ORDER BY i.created_at DESC, i.notification_id DESC LIMIT p_row_limit;
+  END IF;
+END;
+$$;
+
+
+--
+-- Name: notification_list_inbox_v8(uuid, boolean, boolean, boolean, uuid, uuid[], uuid[], timestamp with time zone, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.notification_list_inbox_v8(p_recipient_user_id uuid, p_filter_sources boolean, p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_after_created_at timestamp with time zone, p_after_notification_id uuid, p_row_limit integer) RETURNS TABLE(recipient_user_id uuid, notification_id uuid, created_at timestamp with time zone, read_at timestamp with time zone, rank_score numeric, source_type text, source_id uuid, notification_type text, payload jsonb, source_thread_id uuid, source_thread_title text)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.notification_list_inbox_v7(p_recipient_user_id,
+    p_filter_sources, p_member, p_global_read, p_viewer_user_id,
+    p_category_ids, p_space_ids, p_after_created_at,
+    p_after_notification_id, p_row_limit);
+$$;
+
+
+--
 -- Name: notification_list_preferences_v1(uuid); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -17308,6 +17584,40 @@ CREATE FUNCTION api.privacy_revoke_user_v24(p_source text, p_user_id uuid, p_at 
     SET plan_cache_mode TO 'force_generic_plan'
     AS $$
 SELECT * FROM api.privacy_revoke_user_v23(p_source, p_user_id, p_at);
+$$;
+
+
+--
+-- Name: privacy_revoke_user_v25(text, uuid, text); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.privacy_revoke_user_v25(p_source text, p_user_id uuid, p_at text) RETURNS TABLE(revoked bigint)
+    LANGUAGE plpgsql
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+DECLARE amount bigint;
+BEGIN
+    IF p_source = 'IdentityToken' THEN
+        DELETE FROM public.identity_tokens t WHERE t.user_id = p_user_id;
+        GET DIAGNOSTICS amount = ROW_COUNT;
+        RETURN QUERY SELECT amount;
+    ELSE RETURN QUERY SELECT * FROM api.privacy_revoke_user_v23(p_source,p_user_id,p_at);
+    END IF;
+END;
+$$;
+
+
+--
+-- Name: privacy_revoke_user_v26(text, uuid, text); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.privacy_revoke_user_v26(p_source text, p_user_id uuid, p_at text) RETURNS TABLE(revoked bigint)
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.privacy_revoke_user_v25(p_source, p_user_id, p_at);
 $$;
 
 
@@ -22023,20 +22333,6 @@ CREATE INDEX idx_second_factors_key_id ON public.second_factors USING btree (key
 
 
 --
--- Name: idx_sessions_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sessions_active ON public.sessions USING btree (session_id) WHERE (revoked_at IS NULL);
-
-
---
--- Name: idx_sessions_lookup; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sessions_lookup ON public.sessions USING btree (session_id, expires_at, revoked_at);
-
-
---
 -- Name: idx_sessions_user_revoked_expires; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -22118,13 +22414,6 @@ CREATE INDEX idx_threads_public_activity ON public.threads USING btree (last_act
 --
 
 CREATE INDEX idx_user_feed_items_item ON public.user_feed_items USING btree (item_type, item_id);
-
-
---
--- Name: idx_user_feed_items_ranked; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_user_feed_items_ranked ON public.user_feed_items USING btree (user_id, rank_score DESC, created_at DESC);
 
 
 --
@@ -25301,6 +25590,20 @@ REVOKE ALL ON FUNCTION api.forum_find_listed_post_v2(p_post_id uuid, p_thread_id
 
 
 --
+-- Name: FUNCTION forum_find_listed_post_v3(p_post_id uuid, p_thread_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_find_listed_post_v3(p_post_id uuid, p_thread_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_find_listed_post_v4(p_post_id uuid, p_thread_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_find_listed_post_v4(p_post_id uuid, p_thread_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid) FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION forum_find_post_v1(p_post_id uuid); Type: ACL; Schema: api; Owner: -
 --
 
@@ -25455,6 +25758,20 @@ REVOKE ALL ON FUNCTION api.forum_poll_change_v2(p_actor uuid, p_command uuid, p_
 
 
 --
+-- Name: FUNCTION forum_poll_change_v3(p_actor uuid, p_command uuid, p_thread_id uuid, p_operation text, p_values jsonb); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_poll_change_v3(p_actor uuid, p_command uuid, p_thread_id uuid, p_operation text, p_values jsonb) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_poll_change_v4(p_actor uuid, p_command uuid, p_thread_id uuid, p_operation text, p_values jsonb); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_poll_change_v4(p_actor uuid, p_command uuid, p_thread_id uuid, p_operation text, p_values jsonb) FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION forum_poll_read_v1(p_actor uuid, p_thread_id uuid); Type: ACL; Schema: api; Owner: -
 --
 
@@ -25536,6 +25853,20 @@ REVOKE ALL ON FUNCTION api.forum_protocol_signature_v1(p_body_id uuid) FROM PUBL
 --
 
 REVOKE ALL ON FUNCTION api.forum_protocol_signature_v2(p_body_id uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_protocol_signatures_v1(p_body_ids uuid[]); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_protocol_signatures_v1(p_body_ids uuid[]) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_protocol_signatures_v2(p_body_ids uuid[]); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_protocol_signatures_v2(p_body_ids uuid[]) FROM PUBLIC;
 
 
 --
@@ -27086,6 +27417,20 @@ REVOKE ALL ON FUNCTION api.notification_list_inbox_v6(p_recipient_user_id uuid, 
 
 
 --
+-- Name: FUNCTION notification_list_inbox_v7(p_recipient_user_id uuid, p_filter_sources boolean, p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_after_created_at timestamp with time zone, p_after_notification_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.notification_list_inbox_v7(p_recipient_user_id uuid, p_filter_sources boolean, p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_after_created_at timestamp with time zone, p_after_notification_id uuid, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION notification_list_inbox_v8(p_recipient_user_id uuid, p_filter_sources boolean, p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_after_created_at timestamp with time zone, p_after_notification_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.notification_list_inbox_v8(p_recipient_user_id uuid, p_filter_sources boolean, p_member boolean, p_global_read boolean, p_viewer_user_id uuid, p_category_ids uuid[], p_space_ids uuid[], p_after_created_at timestamp with time zone, p_after_notification_id uuid, p_row_limit integer) FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION notification_list_preferences_v1(p_user_id uuid); Type: ACL; Schema: api; Owner: -
 --
 
@@ -27993,6 +28338,20 @@ REVOKE ALL ON FUNCTION api.privacy_revoke_user_v23(p_source text, p_user_id uuid
 --
 
 REVOKE ALL ON FUNCTION api.privacy_revoke_user_v24(p_source text, p_user_id uuid, p_at text) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION privacy_revoke_user_v25(p_source text, p_user_id uuid, p_at text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.privacy_revoke_user_v25(p_source text, p_user_id uuid, p_at text) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION privacy_revoke_user_v26(p_source text, p_user_id uuid, p_at text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.privacy_revoke_user_v26(p_source text, p_user_id uuid, p_at text) FROM PUBLIC;
 
 
 --

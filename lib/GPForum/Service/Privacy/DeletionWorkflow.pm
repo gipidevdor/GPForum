@@ -700,6 +700,13 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
     }
 
     $self->_revoke_user_rows( 'Credential', $user_id, $timestamp );
+
+    # The member's single-use tokens go with the credentials: a reset, an
+    # email change with the new address in it, a verification. They stayed
+    # until they expired and the purge took them, the address in them too.
+    if ( $self->functions ) {
+        $self->_revoke_user_rows( 'IdentityToken', $user_id, $timestamp );
+    }
     my $already = $self->erasure->already_deleted($user);
     if ( !$already ) {
         $self->_update_privacy_row( 'User', $user,

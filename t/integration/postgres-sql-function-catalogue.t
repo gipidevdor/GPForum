@@ -23,8 +23,9 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 const my @RETAINED => qw(
   forum_resolve_viewer_v6 outbox_claim_ready_v2 forum_thread_page_reads_v4
   ops_retention_purge_v2 notification_subscribers_v2
-  notification_unread_count_v6
-  portability_export_parts_v22 privacy_revoke_user_v22
+  notification_unread_count_v6 notification_list_inbox_v6
+  forum_find_listed_post_v2 forum_poll_change_v2
+  portability_export_parts_v22 privacy_revoke_user_v22 privacy_revoke_user_v24
   identity_register_command_v2 identity_update_user_v4
   moderation_active_suspension_v2 moderation_can_participate_v2
 );
@@ -33,6 +34,56 @@ const my @RETAINED => qw(
 # also retained by the static ADR 0127 contract in t/641.
 const my @RETAINED_WRITES =>
   qw(forum_create_reply_v4 forum_store_write_v2 forum_write_command_v4);
+
+# The shipped argument lists of the retained entry points, by name.
+const my $READER_ARGUMENTS => join q{, },
+  'p_recipient_user_id uuid',
+  'p_filter_sources boolean', 'p_member boolean',      'p_global_read boolean',
+  'p_viewer_user_id uuid',    'p_category_ids uuid[]', 'p_space_ids uuid[]';
+const my %RETAINED_ARGUMENTS => (
+    forum_resolve_viewer_v6 => 'p_user_id uuid',
+    outbox_claim_ready_v2   =>
+      'p_now text, p_locked_until text, p_worker_id text, p_row_limit integer',
+    ops_retention_purge_v2 =>
+      'p_source text, p_cutoff timestamp with time zone, p_row_limit integer',
+    notification_subscribers_v2 =>
+      'p_target_type text, p_target_id uuid, p_notification_type text',
+    notification_unread_count_v6 => $READER_ARGUMENTS,
+    notification_list_inbox_v6   => join( q{, },
+        $READER_ARGUMENTS,
+        'p_after_created_at timestamp with time zone',
+        'p_after_notification_id uuid',
+        'p_row_limit integer' ),
+    privacy_revoke_user_v22   => 'p_source text, p_user_id uuid, p_at text',
+    privacy_revoke_user_v24   => 'p_source text, p_user_id uuid, p_at text',
+    forum_find_listed_post_v2 => join( q{, },
+        'p_post_id uuid',
+        'p_thread_id uuid',
+        'p_member boolean',
+        'p_global_read boolean',
+        'p_scope_user_id uuid',
+        'p_viewer_user_id uuid' ),
+    forum_poll_change_v2 => join( q{, },
+        'p_actor uuid',
+        'p_command uuid',
+        'p_thread_id uuid',
+        'p_operation text',
+        'p_values jsonb' ),
+    forum_thread_page_reads_v4 => join( q{, },
+        'p_thread_id uuid',
+        'p_post_ids uuid[]',
+        'p_viewer_user_id uuid',
+        'p_engagement_target_type text',
+        'p_link_target_type text',
+        'p_link_post_ids uuid[]',
+        'p_link_row_limit integer' ),
+    portability_export_parts_v22 => 'p_user_id uuid',
+    identity_update_user_v4      => 'p_user_id uuid, p_changes jsonb',
+    identity_register_command_v2 => join( q{, },
+        map { 'p_' . $_ . q{ } . ( /outbox_id\z/msx ? 'text' : 'jsonb' ) }
+          qw(log answer accepted refused user credential event event_outbox_id audit token token_audit mail_event mail_outbox_id mail_outbox_extras)
+    ),
+);
 
 const my $FUNCTIONS_SQL => join q{ },
   'SELECT p.proname AS name,',
@@ -168,37 +219,8 @@ sub _type_name ($type) {
 1;
 
 sub _retained_arguments ($name) {
-    return 'p_user_id uuid' if $name eq 'forum_resolve_viewer_v6';
-    return
-      'p_now text, p_locked_until text, p_worker_id text, p_row_limit integer'
-      if $name eq 'outbox_claim_ready_v2';
-    return
-      'p_source text, p_cutoff timestamp with time zone, p_row_limit integer'
-      if $name eq 'ops_retention_purge_v2';
-    return 'p_target_type text, p_target_id uuid, p_notification_type text'
-      if $name eq 'notification_subscribers_v2';
-    return join q{, }, 'p_recipient_user_id uuid', 'p_filter_sources boolean',
-      'p_member boolean', 'p_global_read boolean', 'p_viewer_user_id uuid',
-      'p_category_ids uuid[]', 'p_space_ids uuid[]'
-      if $name eq 'notification_unread_count_v6';
-    return 'p_source text, p_user_id uuid, p_at text'
-      if $name eq 'privacy_revoke_user_v22';
-    return 'p_user_id uuid' if $name eq 'portability_export_parts_v22';
-    return 'p_user_id uuid, p_changes jsonb'
-      if $name eq 'identity_update_user_v4';
+    return $RETAINED_ARGUMENTS{$name} if exists $RETAINED_ARGUMENTS{$name};
 
-    if ( $name eq 'identity_register_command_v2' ) {
-        my @names =
-          qw(log answer accepted refused user credential event event_outbox_id audit token token_audit mail_event mail_outbox_id mail_outbox_extras);
-        return join q{, },
-          map { 'p_' . $_ . q{ } . ( /outbox_id\z/msx ? 'text' : 'jsonb' ) }
-          @names;
-    }
-    return join q{, }, 'p_thread_id uuid', 'p_post_ids uuid[]',
-      'p_viewer_user_id uuid',   'p_engagement_target_type text',
-      'p_link_target_type text', 'p_link_post_ids uuid[]',
-      'p_link_row_limit integer'
-      if $name eq 'forum_thread_page_reads_v4';
     return 'p_user_id uuid, p_now text';
 }
 

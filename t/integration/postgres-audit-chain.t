@@ -149,12 +149,19 @@ my $holder = GPForum::Test::PostgresHarness::connect_dbi( $database->dsn );
 my $other  = GPForum::Test::PostgresHarness::connect_dbi( $database->dsn );
 $holder->begin_work;
 $holder->do( $RECORD_SQL, undef, _document( thread => $thread ), 0 );
+
+# This session's advisory locks alone: pg_locks is the cluster's, and the
+# tier runs other audited tests beside this one.
 my ($old_lock) = $holder->selectrow_array(
-    'SELECT count(*) FROM pg_locks WHERE locktype = ? AND objid = ?',
-    undef, 'advisory', $OLD_CHAIN_KEY % ( 2**$LOCK_KEY_BITS ) );
+    'SELECT count(*) FROM pg_locks WHERE locktype = ? AND objid = ?'
+      . ' AND pid = pg_backend_pid()',
+    undef, 'advisory', $OLD_CHAIN_KEY % ( 2**$LOCK_KEY_BITS )
+);
 my ($chain_locks) = $holder->selectrow_array(
-    'SELECT count(*) FROM pg_locks WHERE locktype = ? AND classid = ?',
-    undef, 'advisory', $CHAIN_CLASS );
+    'SELECT count(*) FROM pg_locks WHERE locktype = ? AND classid = ?'
+      . ' AND pid = pg_backend_pid()',
+    undef, 'advisory', $CHAIN_CLASS
+);
 is( $old_lock,    0, 'the forum-wide audit lock is not taken' );
 is( $chain_locks, 1, 'the thread\'s chain lock is' );
 

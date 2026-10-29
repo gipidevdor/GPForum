@@ -110,6 +110,26 @@ A signed-in reader also sees their own deleted rows, asked for as
 `t/integration/postgres-viewer-plan.t` asserts the plans and who sees which
 thread, and fails in four places without migration 041.
 
+### Plan cache modes
+
+Every `api` function pins `plan_cache_mode`. A function that forces a
+custom plan is planned on every call: a `LANGUAGE sql` function with `SET`
+clauses is never inlined, so the planning is paid each time, and for a
+point or keyset read it is most of the call (`forum_find_listed_post` 0.142
+ms against 0.013 generic; `notification_list_inbox` 0.288 against 0.070;
+migration 1042). A generic plan is right when the partial indexes the
+statement needs have their predicates written as literals in the body
+(live, visible or locked, public), so the plan implies them without the
+parameters, and the standing is only a filter on the scan: the two thread
+lists (migration 1043: 0.354 ms against 0.078 for the latest list, 0.426
+against 0.179 for a category's, on 100,000 threads, the same indexes under
+`EXPLAIN (GENERIC_PLAN)`). A custom plan stays right where the index's
+predicate depends on a parameter -- `forum_list_categories`' count of each
+category's threads by visibility, the search ranking -- or where the shape
+changes with the parameters. Measure before changing one: 1,000 calls in a
+`LATERAL` over `generate_series` with an argument correlated on the row (a
+constant argument is called once), against a copy with the other mode.
+
 ### Keyset pagination
 
 Every paged list -- posts, threads, profiles, bookmarks, mentions, feed,

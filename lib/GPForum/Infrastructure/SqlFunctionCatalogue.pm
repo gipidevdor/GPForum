@@ -1829,7 +1829,7 @@ const my %FUNCTION => (
         ],
     },
     forum_list_category_threads => {
-        version    => 2,
+        version    => 4,
         parameters => [
             category_id     => 'uuid',
             member          => 'boolean',
@@ -1843,7 +1843,7 @@ const my %FUNCTION => (
         ],
     },
     forum_list_public_threads => {
-        version    => 2,
+        version    => 4,
         parameters => [
             member          => 'boolean',
             global_read     => 'boolean',

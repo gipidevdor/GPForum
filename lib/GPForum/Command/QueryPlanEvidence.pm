@@ -362,8 +362,12 @@ sub _call_statement ( $self, $definition, $page = undef ) {
 
 # The nested plans of the call, the first page's, and with sequential scans
 # disabled the plans no index can do without. All in one transaction that is
-# rolled back, as _explain takes its plans; DISCARD PLANS makes the forced
-# call plan again, where the function would reuse the plan it cached.
+# rolled back, as _explain takes its plans; DISCARD PLANS makes each call
+# plan again, where the function would reuse the plan it cached. A function
+# planned once (force_generic_plan) keeps its plan for the session, so the
+# plans the forced pass made with sequential scans disabled were what the
+# next endpoint's first page ran, and its deep page, planned afresh, read
+# a small table another way: a growth that was the gate's own.
 sub _explain_nested ( $dbh, $statement, $options, $first = undef ) {
     my @log;
     local $SIG{__WARN__} = sub ($message) { push @log, $message; return; };
@@ -377,6 +381,7 @@ sub _explain_nested ( $dbh, $statement, $options, $first = undef ) {
         {
             $dbh->do($setting);
         }
+        $dbh->do('DISCARD PLANS');
         if ($first) {
             $plans{first} = _nested_plans( $dbh, $first, \@log );
         }

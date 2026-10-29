@@ -24,6 +24,12 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migration 1043, then restart the application workers.** `gpforum
+  migrate` installs `api.forum_list_public_threads_v4` and
+  `api.forum_list_category_threads_v4`, the two thread lists planned once;
+  the previous entry points stay for workers of the preceding release. With
+  a separate API runtime role, reprovision its grants as for 1024.
+
 - **Apply migrations 1038 to 1042, then restart the application and outbox
   workers.** `gpforum migrate` installs a poll vote that no longer locks the
   thread's row against replies (`api.forum_poll_change_v4`), an erasure that
@@ -1363,6 +1369,22 @@ a host set up from an earlier `main`, newest first.
   foundations.
 
 ### Changed
+
+- **The home and category thread lists are planned once (migration 1043).**
+  Both forced a custom plan, so every home page and every category page
+  planned its list again: on 100,000 threads, per call, 0.354 ms against
+  0.078 generic for the latest list and 0.426 against 0.179 for the
+  category list. The generic plans read the same indexes, because the
+  partial indexes' predicates are literals in the bodies; the viewer's
+  standing stays a filter on the scan, as it was. Bodies unchanged;
+  `forum_list_categories` keeps its custom plan (its count's predicate on
+  thread visibility depends on the standing, and the list is cached per
+  standing). The plan gate discards the session's cached plans before each
+  capture: a function planned once kept the plan the gate's own forced pass
+  had made with sequential scans disabled, and the next endpoint's first
+  page ran it, so its deep page read a small table another way and the gate
+  reported a growth that was its own. `t/integration/postgres-sql-function-plans.t`
+  replaces the list versions the catalogue reaches, not v1.
 
 - **A vote on a thread's poll no longer holds the thread against replies
   (migration 1038).** The vote locked the thread's row `FOR UPDATE` for its

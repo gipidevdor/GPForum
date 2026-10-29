@@ -8539,6 +8539,229 @@ $$;
 
 
 --
+-- Name: forum_list_category_threads_v3(uuid, boolean, boolean, uuid, uuid, boolean, timestamp with time zone, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_list_category_threads_v3(p_category_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid, p_after_pinned boolean, p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) RETURNS TABLE(thread_id uuid, category_id uuid, author_user_id uuid, title text, slug text, pinned boolean, visibility text, moderation_state text, locked_at timestamp with time zone, last_activity_at timestamp with time zone, created_at timestamp with time zone, deleted_at timestamp with time zone, author_username text, author_display_name text, reply_count bigint)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    IF p_viewer_user_id IS NULL AND p_after_thread_id IS NULL THEN
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.locked_at, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NULL
+        ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit;
+    ELSIF p_viewer_user_id IS NULL AND p_after_thread_id IS NOT NULL AND p_after_pinned THEN
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.locked_at, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NULL
+            AND me.pinned <= p_after_pinned
+            AND (me.pinned < p_after_pinned
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at < p_after_activity)
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at = p_after_activity
+                    AND me.thread_id < p_after_thread_id))
+        ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit;
+    ELSIF p_viewer_user_id IS NULL AND p_after_thread_id IS NOT NULL AND NOT p_after_pinned THEN
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.locked_at, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NULL
+            AND me.pinned <= p_after_pinned
+            AND me.last_activity_at <= p_after_activity
+            AND (me.pinned < p_after_pinned
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at < p_after_activity)
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at = p_after_activity
+                    AND me.thread_id < p_after_thread_id))
+        ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit;
+    ELSIF p_viewer_user_id IS NOT NULL AND p_after_thread_id IS NULL THEN
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.locked_at, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        WHERE me.thread_id IN (
+            (SELECT me.thread_id FROM public.threads me
+             WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NULL
+             ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit)
+UNION ALL
+            (SELECT me.thread_id FROM public.threads me
+             WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NOT NULL AND me.author_user_id = p_viewer_user_id
+             ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit)
+        )
+        ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit;
+    ELSIF p_viewer_user_id IS NOT NULL AND p_after_thread_id IS NOT NULL AND p_after_pinned THEN
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.locked_at, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        WHERE me.thread_id IN (
+            (SELECT me.thread_id FROM public.threads me
+             WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NULL
+            AND me.pinned <= p_after_pinned
+            AND (me.pinned < p_after_pinned
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at < p_after_activity)
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at = p_after_activity
+                    AND me.thread_id < p_after_thread_id))
+             ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit)
+UNION ALL
+            (SELECT me.thread_id FROM public.threads me
+             WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NOT NULL AND me.author_user_id = p_viewer_user_id
+            AND me.pinned <= p_after_pinned
+            AND (me.pinned < p_after_pinned
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at < p_after_activity)
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at = p_after_activity
+                    AND me.thread_id < p_after_thread_id))
+             ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit)
+        )
+        ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit;
+    ELSIF p_viewer_user_id IS NOT NULL AND p_after_thread_id IS NOT NULL AND NOT p_after_pinned THEN
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.locked_at, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        WHERE me.thread_id IN (
+            (SELECT me.thread_id FROM public.threads me
+             WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NULL
+            AND me.pinned <= p_after_pinned
+            AND me.last_activity_at <= p_after_activity
+            AND (me.pinned < p_after_pinned
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at < p_after_activity)
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at = p_after_activity
+                    AND me.thread_id < p_after_thread_id))
+             ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit)
+UNION ALL
+            (SELECT me.thread_id FROM public.threads me
+             WHERE me.category_id = p_category_id
+            AND me.moderation_state IN ('visible', 'locked')
+            AND (me.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR me.visibility = 'public'
+            OR (p_member AND me.visibility = 'members')
+            OR (me.visibility = 'private' AND p_member
+                AND me.author_user_id = p_scope_user_id)))
+            AND me.deleted_at IS NOT NULL AND me.author_user_id = p_viewer_user_id
+            AND me.pinned <= p_after_pinned
+            AND me.last_activity_at <= p_after_activity
+            AND (me.pinned < p_after_pinned
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at < p_after_activity)
+                OR (me.pinned = p_after_pinned
+                    AND me.last_activity_at = p_after_activity
+                    AND me.thread_id < p_after_thread_id))
+             ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit)
+        )
+        ORDER BY me.pinned DESC, me.last_activity_at DESC, me.thread_id DESC LIMIT p_row_limit;
+    ELSE
+        RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'incomplete category cursor';
+    END IF;
+END
+$$;
+
+
+--
+-- Name: forum_list_category_threads_v4(uuid, boolean, boolean, uuid, uuid, boolean, timestamp with time zone, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_list_category_threads_v4(p_category_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid, p_after_pinned boolean, p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) RETURNS TABLE(thread_id uuid, category_id uuid, author_user_id uuid, title text, slug text, pinned boolean, visibility text, moderation_state text, locked_at timestamp with time zone, last_activity_at timestamp with time zone, created_at timestamp with time zone, deleted_at timestamp with time zone, author_username text, author_display_name text, reply_count bigint)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.forum_list_category_threads_v3(p_category_id, p_member, p_global_read, p_scope_user_id, p_viewer_user_id, p_after_pinned, p_after_activity, p_after_thread_id, p_row_limit);
+$$;
+
+
+--
 -- Name: forum_list_public_threads_v1(boolean, boolean, uuid[], uuid[], timestamp with time zone, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -8622,6 +8845,93 @@ CREATE FUNCTION api.forum_list_public_threads_v2(p_member boolean, p_global_read
     SET plan_cache_mode TO 'force_generic_plan'
     AS $$
 SELECT * FROM api.forum_list_public_threads_v1(p_member, p_global_read, p_category_ids, p_space_ids, p_after_activity, p_after_thread_id, p_row_limit);
+$$;
+
+
+--
+-- Name: forum_list_public_threads_v3(boolean, boolean, uuid[], uuid[], timestamp with time zone, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_list_public_threads_v3(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) RETURNS TABLE(thread_id uuid, category_id uuid, author_user_id uuid, title text, slug text, pinned boolean, visibility text, moderation_state text, last_activity_at timestamp with time zone, created_at timestamp with time zone, deleted_at timestamp with time zone, author_username text, author_display_name text, reply_count bigint)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    IF p_after_thread_id IS NULL THEN
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        JOIN public.categories category ON category.category_id = me.category_id
+        JOIN public.spaces space ON space.space_id = category.space_id
+        WHERE me.deleted_at IS NULL
+            AND me.moderation_state IN ('visible', 'locked')
+            AND me.visibility = 'public'
+            AND (category.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR category.visibility = 'public'
+            OR (p_member AND category.visibility = 'members')
+            OR (category.visibility = 'private' AND
+                (me.category_id = ANY(p_category_ids)
+                    OR category.space_id = ANY(p_space_ids)))))
+            AND (space.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR space.visibility = 'public'
+            OR (p_member AND space.visibility = 'members')
+            OR (space.visibility = 'private' AND
+                (me.category_id = ANY(p_category_ids)
+                    OR category.space_id = ANY(p_space_ids)))))
+        ORDER BY me.last_activity_at DESC, me.thread_id DESC
+        LIMIT p_row_limit;
+    ELSE
+        RETURN QUERY
+        SELECT me.thread_id, me.category_id, me.author_user_id, me.title, me.slug, me.pinned, me.visibility, me.moderation_state, me.last_activity_at, me.created_at, me.deleted_at, author.username,
+            author.display_name, COALESCE((SELECT counter.reply_count
+                FROM public.thread_counters counter
+                WHERE counter.thread_id = me.thread_id), 0)
+        FROM public.threads me
+        JOIN public.users author ON author.id = me.author_user_id
+        JOIN public.categories category ON category.category_id = me.category_id
+        JOIN public.spaces space ON space.space_id = category.space_id
+        WHERE me.deleted_at IS NULL
+            AND me.moderation_state IN ('visible', 'locked')
+            AND me.visibility = 'public'
+            AND (category.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR category.visibility = 'public'
+            OR (p_member AND category.visibility = 'members')
+            OR (category.visibility = 'private' AND
+                (me.category_id = ANY(p_category_ids)
+                    OR category.space_id = ANY(p_space_ids)))))
+            AND (space.visibility IN ('public', 'members', 'private')
+        AND (p_global_read OR space.visibility = 'public'
+            OR (p_member AND space.visibility = 'members')
+            OR (space.visibility = 'private' AND
+                (me.category_id = ANY(p_category_ids)
+                    OR category.space_id = ANY(p_space_ids)))))
+            AND me.last_activity_at <= p_after_activity
+            AND (me.last_activity_at < p_after_activity
+                OR (me.last_activity_at = p_after_activity
+                    AND me.thread_id < p_after_thread_id))
+        ORDER BY me.last_activity_at DESC, me.thread_id DESC
+        LIMIT p_row_limit;
+    END IF;
+END
+$$;
+
+
+--
+-- Name: forum_list_public_threads_v4(boolean, boolean, uuid[], uuid[], timestamp with time zone, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.forum_list_public_threads_v4(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) RETURNS TABLE(thread_id uuid, category_id uuid, author_user_id uuid, title text, slug text, pinned boolean, visibility text, moderation_state text, last_activity_at timestamp with time zone, created_at timestamp with time zone, deleted_at timestamp with time zone, author_username text, author_display_name text, reply_count bigint)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.forum_list_public_threads_v3(p_member, p_global_read, p_category_ids, p_space_ids, p_after_activity, p_after_thread_id, p_row_limit);
 $$;
 
 
@@ -25674,6 +25984,20 @@ REVOKE ALL ON FUNCTION api.forum_list_category_threads_v2(p_category_id uuid, p_
 
 
 --
+-- Name: FUNCTION forum_list_category_threads_v3(p_category_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid, p_after_pinned boolean, p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_list_category_threads_v3(p_category_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid, p_after_pinned boolean, p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_list_category_threads_v4(p_category_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid, p_after_pinned boolean, p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_list_category_threads_v4(p_category_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid, p_after_pinned boolean, p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION forum_list_public_threads_v1(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
 --
 
@@ -25685,6 +26009,20 @@ REVOKE ALL ON FUNCTION api.forum_list_public_threads_v1(p_member boolean, p_glob
 --
 
 REVOKE ALL ON FUNCTION api.forum_list_public_threads_v2(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_list_public_threads_v3(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_list_public_threads_v3(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION forum_list_public_threads_v4(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.forum_list_public_threads_v4(p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer) FROM PUBLIC;
 
 
 --

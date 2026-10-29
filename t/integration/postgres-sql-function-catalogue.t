@@ -22,6 +22,7 @@ const my $CALLED => qr/\b api [.] (\w+) \b/msx;
 # Migration 1024 retains these shipped entry points for the previous workers.
 const my @RETAINED => qw(
   forum_resolve_viewer_v6 outbox_claim_ready_v2 forum_thread_page_reads_v4
+  forum_list_public_threads_v2 forum_list_category_threads_v2
   ops_retention_purge_v2 notification_subscribers_v2
   notification_unread_count_v6 notification_list_inbox_v6
   forum_find_listed_post_v2 forum_poll_change_v2
@@ -41,8 +42,12 @@ const my $READER_ARGUMENTS => join q{, },
   'p_filter_sources boolean', 'p_member boolean',      'p_global_read boolean',
   'p_viewer_user_id uuid',    'p_category_ids uuid[]', 'p_space_ids uuid[]';
 const my %RETAINED_ARGUMENTS => (
-    forum_resolve_viewer_v6 => 'p_user_id uuid',
-    outbox_claim_ready_v2   =>
+    forum_resolve_viewer_v6      => 'p_user_id uuid',
+    forum_list_public_threads_v2 =>
+'p_member boolean, p_global_read boolean, p_category_ids uuid[], p_space_ids uuid[], p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer',
+    forum_list_category_threads_v2 =>
+'p_category_id uuid, p_member boolean, p_global_read boolean, p_scope_user_id uuid, p_viewer_user_id uuid, p_after_pinned boolean, p_after_activity timestamp with time zone, p_after_thread_id uuid, p_row_limit integer',
+    outbox_claim_ready_v2 =>
       'p_now text, p_locked_until text, p_worker_id text, p_row_limit integer',
     ops_retention_purge_v2 =>
       'p_source text, p_cutoff timestamp with time zone, p_row_limit integer',

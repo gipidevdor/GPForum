@@ -5,6 +5,7 @@ package main;
 
 use v5.40;
 
+use Carp qw(croak);
 use Const::Fast;
 use English    qw(-no_match_vars);
 use Mojo::File qw(path);
@@ -15,6 +16,8 @@ use lib 't/lib';
 
 use GPForum::Benchmark::QueryPlanEndpoints qw(function_endpoint_names);
 use GPForum::Command::QueryPlanEvidence;
+use GPForum::Infrastructure::SqlFunctionCatalogue;
+use GPForum::Migration::Plan;
 use GPForum::Test::PgDatabase;
 use GPForum::Test::PostgresHarness;
 
@@ -148,13 +151,11 @@ for my $endpoint ( sort keys %unbounded ) {
 # The category and latest-thread functions must retain the bounded keysets
 # too, including the independently limited live/deleted category scans.
 # Replace only functions in this disposable database to prove their deep
-# gates reject the same regression the original resultset tests reject.
-my $lists = path($FORUM_API)->slurp;
+# gates reject the same regression the original resultset tests reject:
+# the version the catalogue reaches, in the migration that defines it
+# (1043 planned the lists once, as new versions).
 for my $name (qw(forum_list_category_threads forum_list_public_threads)) {
-    my $first           = index $lists, "CREATE FUNCTION api.${name}_v1";
-    my $end_of_function = index $lists, "\n\$\$;", $first;
-    my $body            = substr $lists, $first,
-      $end_of_function - $first + length "\n\$\$;";
+    my $body = _implementation_of($name);
     $body =~ s/\n [ ]+ AND [ ] me[.]pinned [ ] <= [ ] p_after_pinned//gmsx;
     $body =~
       s/\n [ ]+ AND [ ] me[.]last_activity_at [ ] <= [ ] p_after_activity//gmsx;
@@ -205,6 +206,25 @@ sub _reports ( $evidence, @endpoints ) {
         { analyze => 1, dry_run => 0, endpoints => \@endpoints } );
 
     return map { $_->{endpoint} => $_ } @{ $report->{endpoints} };
+}
+
+# The implementation behind a catalogue name: the version before the entry
+# point's, as the migration that created it wrote it.
+sub _implementation_of ($name) {
+    my $version =
+      GPForum::Infrastructure::SqlFunctionCatalogue->new->function($name)
+      ->{version} - 1;
+    my $heading = "CREATE FUNCTION api.${name}_v$version";
+    for my $file ( @{ GPForum::Migration::Plan->new->files } ) {
+        my $sql   = path($file)->slurp;
+        my $first = index $sql, $heading;
+        next if $first < 0;
+        my $stop = index $sql, "\n\$\$;", $first;
+
+        return substr $sql, $first, $stop - $first + length "\n\$\$;";
+    }
+
+    croak "no migration creates api.${name}_v$version";
 }
 
 1;

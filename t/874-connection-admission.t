@@ -25,12 +25,15 @@ const my $ORDINARY_CLIENTS => 250;
 const my $LARGE_CLIENTS    => 1000;
 const my $STRESS_CLIENTS   => 5000;
 const my $HUGE_CLIENTS     => 100_000;
-const my $MAX_BATCH        => 16;
+const my $MAX_BATCH        => 64;
 
 is( $CLASS->batch_size($ORDINARY_CLIENTS),
     1, 'ordinary limits keep one accept per turn' );
-is( $CLASS->batch_size($LARGE_CLIENTS),
-    $BATCH, 'larger budgets admit small batches' );
+is(
+    $CLASS->batch_size($LARGE_CLIENTS),
+    $MAX_BATCH / $BATCH,
+    'larger budgets admit small batches'
+);
 is( $CLASS->batch_size($STRESS_CLIENTS),
     $MAX_BATCH, 'large bursts remain bounded' );
 is( $CLASS->batch_size($HUGE_CLIENTS),

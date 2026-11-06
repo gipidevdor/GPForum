@@ -8,6 +8,7 @@ use GPForum::Bootstrap::Identity;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::ViewerResolver;
 use GPForum::Web::Guard;
+use GPForum::Web::HealthPayload;
 
 our $VERSION = '0.001';
 
@@ -15,8 +16,16 @@ sub register ( $class, $application ) {
     $application->hook(
         around_dispatch => sub ( $next, $controller ) {
             $controller->gp_begin_request;
-            return $controller->within_request($next)
-              if $controller->req->url->path->to_string eq '/health/live';
+            my $path = $controller->req->url->path;
+            if ( $path->to_string eq '/health/live' ) {
+
+                # A public liveness probe never validates a durable session.
+                # Response hooks and request observation still run normally.
+                if ( _is_live_request($controller) ) {
+                    $controller->stash( 'gp.session_checked' => 1 );
+                }
+                return $controller->within_request($next);
+            }
             $controller->render_later;
             $class->prepare_p($controller)->then(
                 sub {
@@ -36,7 +45,29 @@ sub register ( $class, $application ) {
             return;
         }
     );
+    $application->hook(
+        before_dispatch => sub ($controller) {
+            return if !_is_live_request($controller);
+            return if $controller->stash('mojo.rendered');
+
+            # Answer before the static dispatcher probes the filesystem and
+            # the router builds an action chain for this stateless endpoint.
+            $controller->match->endpoint(
+                $application->routes->lookup('health_live') );
+            return $controller->render(
+                json => GPForum::Web::HealthPayload->live(
+                    clock => $controller->gp_clock
+                )
+            );
+        }
+    );
     return;
+}
+
+sub _is_live_request ($controller) {
+    return 0 if $controller->req->url->path->to_string ne '/health/live';
+    my $method = $controller->req->method;
+    return $method eq 'GET' || $method eq 'HEAD';
 }
 
 async sub prepare_p ( $class, $controller ) {
@@ -137,6 +168,9 @@ Version 0.001.
 Loads durable configuration, validates server sessions and resolves the viewer
 with native promises before dispatching a route. Rendering stays deferred while
 the request waits; liveness and metrics avoid the configuration query.
+GET and HEAD liveness responses render from the normal C<before_dispatch>
+hook, before static filesystem lookup and route action dispatch. They never
+validate a durable session; request observers and response hooks still run.
 
 =head1 SUBROUTINES/METHODS
 

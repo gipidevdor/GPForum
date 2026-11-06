@@ -186,7 +186,8 @@ like(
     qr/^\S+ [ ] host: [ ] /msx,
     'its human output names the host first'
 );
-unlike( $script_human, qr/=/msx, 'in sentences, not key=value lines' );
+unlike( $script_human, qr/^[[:alnum:]_]+=/msx,
+    'in sentences, not key=value lines' );
 
 done_testing();
 

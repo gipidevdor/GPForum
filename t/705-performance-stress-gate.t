@@ -16,7 +16,8 @@ use List::Util qw(any first);
 use JSON::PP   qw(encode_json);
 
 use lib 'script/lib';
-use GPForum::Performance::HTTP qw(main parse_listen_counters connection_spread);
+use GPForum::Performance::HTTP
+  qw(main parse_listen_counters parse_listen_queue connection_spread);
 use GPForum::Performance::Server;
 use GPForum::Performance::Support        qw(read_json write_json);
 use GPForum::Performance::WorkflowStatus ();
@@ -201,6 +202,38 @@ subtest 'helpers' => sub {
         'connections per worker exclude the idle baseline, largest first'
     );
 };
+
+## no critic (Variables::ProtectPrivateVars, Subroutines::ProtectPrivateSubs) -- deterministic socket-drain fixtures exercise the private measurement boundary
+subtest 'listen queue and warm-up drain are independent of measured traffic' =>
+  sub {
+    my $listener =
+      "0: 0100007F:1F90 00000000:0000 0A 00000000:00000003 00:0 0 0 0 1\n";
+    my $active =
+      "1: 0100007F:1F90 0100007F:ABCD 01 00000000:000000FF 00:0 0 0 0 2\n";
+    is( parse_listen_queue( $listener . $active, 8080 ),
+        3, 'pending accepts exclude established client receive queues' );
+    is( parse_listen_queue( $listener, 8081 ),
+        undef, 'an absent listener has unknown pending accepts' );
+    my ( $reads, $waits ) = ( 0, 0 );
+    local *GPForum::Performance::HTTP::worker_sockets = sub {
+        $reads++;
+        return { 42 => $reads < 2 ? 4 : 3 };
+    };
+    local *GPForum::Performance::HTTP::_pending_accepts = sub {
+        return $reads < 3 ? 1 : 0;
+    };
+    local *GPForum::Performance::HTTP::sleep = sub { $waits++; return; };
+    my $drain = GPForum::Performance::HTTP::_wait_for_drain(
+        8080, [42],
+        { 42 => 3 },
+        GPForum::Performance::Support::monotonic() + 1
+    );
+    is( $drain->{observed}, 1, 'drain readiness is explicitly observed' );
+    cmp_ok( $waits, '>=', 2,
+        'measurement waits for both worker sockets and pending accepts' );
+  };
+
+## use critic (Variables::ProtectPrivateVars, Subroutines::ProtectPrivateSubs)
 
 subtest 'the workflow check reads the gate summary too' => sub {
     my $main = tempdir( CLEANUP => 1 );

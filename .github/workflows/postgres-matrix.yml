@@ -169,6 +169,8 @@ jobs:
     env:
       PGHOST: /var/run/postgresql
       GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=/var/run/postgresql;port=5432
+      # Each integration file models several independent web applications.
+      JOBS: '2'
       GPFORUM_DATABASE_USER: postgres
       GPFORUM_DATABASE_PASSWORD: postgres
       # The Perl launcher prepends /usr/bin, so PATH alone cannot pin clients.

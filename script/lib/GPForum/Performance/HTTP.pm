@@ -19,7 +19,7 @@ use List::Util   qw(min max sum any);
 use GPForum::Performance::Support
   qw(root_dir read_json write_json redact monotonic run_bounded);
 our @EXPORT_OK =
-  qw(scenarios free_port probe_url probe_reactor native_backend_flags wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes listen_queue_limit parse_listen_counters connection_spread);
+  qw(scenarios free_port probe_url probe_reactor native_backend_flags wrk_version parse_wrk parse_mojo process_snapshot linux_cpu_ticks resources_between plan prepare_dataset runtime_environment wrk_measure mojo_measure main which cpu_count nofile_soft memory_bytes listen_queue_limit parse_listen_counters parse_listen_queue connection_spread);
 my @ORDER =
   qw(health_live home categories category thread search cache_hit cache_miss);
 ## no critic (ValuesAndExpressions::ProhibitConstantPragma) -- Core-only bootstrap cannot load Readonly before Carton dependencies.
@@ -72,6 +72,8 @@ use constant {
     REQUEST_TIMEOUT          => 3,
     WORST_CASE_TURNS         => 2,
     STRESS_WARMUP_SECONDS    => 3,
+    STRESS_DRAIN_SECONDS     => 5,
+    STRESS_DRAIN_INTERVAL    => 0.05,
     MS_PER_SECOND            => 1000,
 };
 ## use critic
@@ -204,6 +206,31 @@ sub listen_counters {
     return -r '/proc/net/netstat'
       ? parse_listen_counters( bytes('/proc/net/netstat') )
       : undef;
+}
+
+# Linux exposes completed TCP connections waiting for accept in the listening
+# socket's receive queue. A closed warm-up client can still be in this queue.
+sub parse_listen_queue ( $text, $port ) {
+    my ( $found, $pending ) = ( 0, 0 );
+    for my $line ( split /\n/msx, $text ) {
+        my ( undef, $local, undef, $state, $queues ) = split q{ }, $line;
+        next if !defined $queues || $state ne '0A';
+        my ($hex_port) = $local =~ /:([[:xdigit:]]+)\z/msx;
+        next if !defined $hex_port || hex($hex_port) != $port;
+        my ($receive) = $queues =~ /:([[:xdigit:]]+)\z/msx;
+        next if !defined $receive;
+        $found = 1;
+        $pending += hex $receive;
+    }
+    return $found ? $pending : undef;
+}
+
+sub _pending_accepts ($port) {
+    my @pending =
+      grep { defined }
+      map  { -r ? parse_listen_queue( bytes($_), $port ) : undef }
+      qw(/proc/net/tcp /proc/net/tcp6);
+    return @pending ? sum(@pending) : undef;
 }
 
 # Open sockets per worker (Linux), or undef when a worker cannot be read.
@@ -614,6 +641,8 @@ q{use v5.40;my $reactor=ref Mojo::IOLoop->singleton->reactor;my $version;try {re
         listen_queue_limit    => listen_queue_limit(),
         stress_warmup_seconds => $args->{allow_5000} ? STRESS_WARMUP_SECONDS
         : undef,
+        stress_drain_seconds => $args->{allow_5000} ? STRESS_DRAIN_SECONDS
+        : undef,
         http_scenarios => $args->{scenarios} // [@ORDER],
         fixed_workers  => $args->{workers},
         mojo_requests  => 'at least 100 total; at least 10 per client'
@@ -705,9 +734,13 @@ sub _warm_cache ( $server, $canonical, $expected, $args, $deadline ) {
 # Before a gate sample: the warm-up pass, the listen queue's counters and the
 # sampler of each worker's connections.
 sub _stress_start ( $server, $canonical, $cell, $args, $log, $deadline ) {
+    my $pids   = process_snapshot( $server->{master} )->{worker_pids};
+    my $idle   = worker_sockets($pids);
     my $warmup = _warmup( $canonical, $cell, $args, "$log.warmup", $deadline );
+    my $drain  = _wait_for_drain( $server->{port}, $pids, $idle, $deadline );
     return {
         warmup  => $warmup,
+        drain   => $drain,
         listen  => listen_counters(),
         path    => "$log.spread.json",
         sampler =>
@@ -720,7 +753,8 @@ sub _stress_finish ($stress) {
     my $spread = _spread_result( $stress->@{qw(sampler path)} );
     my $queue  = _listen_delta( $stress->{listen}, listen_counters() );
     return {
-        warmup => $stress->{warmup},
+        warmup       => $stress->{warmup},
+        warmup_drain => $stress->{drain},
         ( $queue  ? $queue->%*                            : () ),
         ( $spread ? ( connections_per_worker => $spread ) : () ),
     };
@@ -728,8 +762,31 @@ sub _stress_finish ($stress) {
 
 # Wall-clock seconds one wrk cell needs, its stress warm-up included.
 sub _cell_seconds ($args) {
-    return $args->{duration} + GENERATOR_MARGIN +
-      ( $args->{allow_5000} ? STRESS_WARMUP_SECONDS + GENERATOR_MARGIN : 0 );
+    return $args->{duration} + GENERATOR_MARGIN + (
+        $args->{allow_5000}
+        ? STRESS_WARMUP_SECONDS + GENERATOR_MARGIN + STRESS_DRAIN_SECONDS
+        : 0
+    );
+}
+
+sub _wait_for_drain ( $port, $pids, $idle, $deadline ) {
+    return { observed => 0, reason => 'Linux socket telemetry unavailable' }
+      if !$idle || !defined _pending_accepts($port);
+    my $started = monotonic();
+    my $until   = min( $deadline, $started + STRESS_DRAIN_SECONDS );
+    while ( monotonic() < $until ) {
+        my $sockets = worker_sockets($pids)
+          or croak 'cannot observe warm-up worker sockets';
+        my $pending = _pending_accepts($port);
+        if (   defined $pending
+            && !$pending
+            && !any { $sockets->{$_} > $idle->{$_} } $pids->@* )
+        {
+            return { observed => 1, seconds => monotonic() - $started };
+        }
+        sleep STRESS_DRAIN_INTERVAL;
+    }
+    croak 'warm-up connections did not drain before the measurement deadline';
 }
 
 sub _wrk ( $url, $concurrency, $seconds, $args, $log, $deadline ) {

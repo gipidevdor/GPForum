@@ -158,6 +158,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env: &postgres-env
+      # Parallel integration files each construct several complete apps.
+      # Two files fit the shared service's default 100-connection budget.
+      JOBS: '2'
       PGHOST: /var/run/postgresql
       GPFORUM_DATABASE_DSN: dbi:Pg:dbname=gpforum_test;host=/var/run/postgresql;port=5432
       GPFORUM_DATABASE_USER: postgres

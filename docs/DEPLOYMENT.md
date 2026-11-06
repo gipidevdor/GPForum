@@ -335,12 +335,16 @@ Hypnotoad recycles worker processes automatically after a randomized share of
 on each keep-alive connection; it does not recycle a worker.
 
 At up to 250 configured clients per worker, listeners accept one connection per
-event-loop turn. Larger client budgets admit small groups, capped at 16 per
+event-loop turn. Larger client budgets admit small groups, capped at 64 per
 turn, through the native Mojolicious listener API. This keeps bursts moving
 without letting one worker drain the entire listen queue. Native connection
 limits and graceful shutdown still govern every resume. Explicit
 `single_accept` listener settings take precedence; TLS listeners retain native
 single-accept handshake behavior.
+
+The high-connection benchmark waits for warm-up sockets and pending accepts
+to drain before starting each measured run. Its JSON records whether that
+drain was observed; Linux provides both worker socket and listen-queue data.
 
 ## Deployment Evidence
 

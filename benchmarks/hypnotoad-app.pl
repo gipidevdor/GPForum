@@ -79,6 +79,8 @@ $app->hook(before_dispatch => sub ($controller) {
         ev_backend => $backend, perl => "$^V",
         mojolicious => Mojolicious->VERSION,
         worker_clients => 0 + $app->config->{hypnotoad}{clients},
+        loop_max_connections => 0 + Mojo::IOLoop->singleton->max_connections,
+        loop_max_accepts => 0 + Mojo::IOLoop->singleton->max_accepts,
         precompiled_templates => \%compiled});
     close $file or die 'cannot close benchmark worker telemetry';
 });

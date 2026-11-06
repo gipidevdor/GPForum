@@ -11,8 +11,9 @@ use Mojo::File    qw(path);
 use lib "$FindBin::Bin/../../script/lib", "$FindBin::Bin/../../lib";
 use GPForum::Performance::Support qw(run_bounded read_json);
 our $VERSION = '0.001';
-const my $TIMEOUT        => 180;
-const my $WORKER_CLIENTS => 32;
+const my $TIMEOUT             => 180;
+const my $WORKER_CLIENTS      => 32;
+const my $RECYCLE_CONNECTIONS => 10_000;
 my $directory = tempdir( CLEANUP => 1 );
 my $output    = "$directory/http";
 local $ENV{GPFORUM_WARMUP_ENABLED} = 0;
@@ -50,6 +51,12 @@ for my $worker ( @{ $report->{worker_telemetry} } ) {
     is( $worker->{worker_clients},
         $WORKER_CLIENTS,
         "worker $worker->{pid} uses the requested admission limit" );
+    is( $worker->{loop_max_connections},
+        $WORKER_CLIENTS,
+        "worker $worker->{pid} has the actual event-loop admission limit" );
+    is( $worker->{loop_max_accepts},
+        $RECYCLE_CONNECTIONS,
+        "worker $worker->{pid} retains automatic process recycling" );
     is_deeply(
         $worker->{precompiled_templates},
         {

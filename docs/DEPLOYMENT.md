@@ -328,6 +328,20 @@ run without an antivirus, set `GPFORUM_ANTIVIRUS=none` explicitly.
 [ops/antivirus.md](ops/antivirus.md) has each system's steps and the socket
 permissions.
 
+## Connection admission
+
+Hypnotoad recycles worker processes automatically after a randomized share of
+10,000 accepted connections. `GPFORUM_RUNTIME_REQUESTS` instead limits requests
+on each keep-alive connection; it does not recycle a worker.
+
+At up to 250 configured clients per worker, listeners accept one connection per
+event-loop turn. Larger client budgets admit small groups, capped at 16 per
+turn, through the native Mojolicious listener API. This keeps bursts moving
+without letting one worker drain the entire listen queue. Native connection
+limits and graceful shutdown still govern every resume. Explicit
+`single_accept` listener settings take precedence; TLS listeners retain native
+single-accept handshake behavior.
+
 ## Deployment Evidence
 
 Run the Hypnotoad evidence gate before treating a deployment profile as

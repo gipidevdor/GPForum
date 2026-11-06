@@ -202,6 +202,27 @@ ok(
     'application startup exposes runtime enforcement report'
 );
 
+subtest 'large native admission keeps explicit listener choices' => sub {
+    my $large_config = GPForum::Config->new(
+        runtime_clients => $WORKER_CONNECTION_LIMIT / 2,
+        runtime_listen  =>
+'http://*:9000,http://*:9001?single_accept=1,https://*:9443,http+unix://%2Ftmp%2Fgp.sock',
+    );
+    my $large_policy = GPForum::OS::RuntimePolicy->new(
+        config  => $large_config,
+        runtime => $runtime,
+    );
+    my $listeners = $large_policy->hypnotoad_config->{listen};
+    like( $listeners->[0], qr/single_accept=0/msx,
+        'large TCP budgets use batches' );
+    like( $listeners->[1], qr/single_accept=1/msx,
+        'explicit native admission is preserved' );
+    like( $listeners->[2], qr/single_accept=1/msx,
+        'TLS retains native handshake admission' );
+    like( $listeners->[-1], qr/single_accept=0/msx,
+        'large UNIX budgets also use batches' );
+};
+
 done_testing();
 
 sub _default_features {

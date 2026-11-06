@@ -10,6 +10,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Runtime;
+use GPForum::Infrastructure::ConnectionAdmission;
 
 our $VERSION = '0.001';
 
@@ -54,12 +55,10 @@ sub outdated_unit ($self) {
 # Hypnotoad's configuration. Each listen location asks for SO_REUSEPORT when
 # the OS has it enabled, unless the location sets up its own socket.
 #
-# Workers take one connection at a time (single_accept=1), giving the other
-# workers a chance to accept a burst before keep-alive pins its clients. This
-# already covered UNIX listeners, where one worker had taken 76/128 clients.
-# TCP can skew too: the HTTP publishing journey placed six of ten clients on
-# one of four workers, lowering throughput despite unchanged request/SQL times.
-# Respect an explicit single_accept setting, including an operator's opt-out.
+# Ordinary client budgets use one accept per turn to distribute keep-alive
+# clients. Larger budgets use bounded native batches: one accept per turn
+# otherwise admits a burst slowly while established clients keep the loop busy.
+# Explicit listener settings remain authoritative, including an opt-out.
 sub hypnotoad_config ($self) {
     my $reuseport = $self->_socket_snapshot->{reuseport}{enabled};
     my @listen;
@@ -67,7 +66,10 @@ sub hypnotoad_config ($self) {
         my $listener = $location;
         if ( $listener !~ $SINGLE_ACCEPT ) {
             my $separator = index( $listener, q{?} ) >= 0 ? q{&} : q{?};
-            $listener .= $separator . 'single_accept=1';
+            my $single =
+              GPForum::Infrastructure::ConnectionAdmission->single_accept(
+                $location, $self->config->runtime_clients );
+            $listener .= $separator . "single_accept=$single";
         }
         if ( $reuseport && $listener !~ $OWN_SOCKET ) {
             my $separator = index( $listener, q{?} ) >= 0 ? q{&} : q{?};

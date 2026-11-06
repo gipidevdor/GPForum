@@ -14,6 +14,7 @@ use Mojo::IOLoop;
 use GPForum::Service::Attachment::Validator;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
+use GPForum::Infrastructure::ConnectionAdmission;
 use GPForum::Service::Forum::Readability;
 use GPForum::Service::Realtime::ChannelAuthorizer;
 use GPForum::Service::Realtime::Hub;
@@ -75,6 +76,8 @@ sub register {
     _configure_compression($application);
     $application->renderer->cache->max_keys($TEMPLATE_CACHE_KEYS);
     _configure_warmup( $application, $config );
+    GPForum::Infrastructure::ConnectionAdmission->register( $application,
+        $config );
 
     my $clock = GPForum::Service::Clock->new;
     my $id    = GPForum::Infrastructure::Id->new;

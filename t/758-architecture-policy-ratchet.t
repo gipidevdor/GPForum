@@ -46,6 +46,20 @@ const my $EXIT_SHIFT => 8;
     is( _ratchet( $checkout, $tree )->{status},
         0, 'the inventory it writes passes' );
 
+    my $sample_file  = $tree->child($sample);
+    my $original     = $sample_file->slurp;
+    my $async_prefix = "async sub native_p { return 1; }\n";
+    $sample_file->spew( $async_prefix . $original );
+    is( _ratchet( $checkout, $tree )->{status},
+        0, 'async declarations preserve existing boundary fingerprints' );
+    $sample_file->spew(
+            'async sub forbidden_p { $self->schema->resultset("Example"); }'
+          . "\n"
+          . $original );
+    is( _ratchet( $checkout, $tree )->{status},
+        1, 'a new boundary violation inside an async body is rejected' );
+    $sample_file->spew($original);
+
     $inventory->spew(
         $listed->{output} =~ s/\A [{]/{"GPForum|gone|0": 1,/rmsx );
     my $stale = _ratchet( $checkout, $tree );

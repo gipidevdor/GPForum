@@ -1384,6 +1384,16 @@ classification function: `EvidenceValidate::_detect_type` (17),
 measurement is recorded in `.perlcriticrc` beside the number so the next person
 does not have to re-derive it.
 
+The async HTTP migration uses `Mojo::Base -async_await`. PPI 1.291 does not
+recognize that modifier and otherwise absorbs following declarations into a
+single expression. The critic and architecture gates load a tooling-only
+syntax adapter that classifies those bodies as subroutines while preserving
+the original source, locations, comments and strings. The same policies inspect
+async and ordinary bodies; exemption counts and thresholds stay unchanged.
+One existing realtime fallback fingerprint was refreshed after adding the
+native transport capability check. Regression tests verify stable fingerprints
+and rejection of real violations inside async bodies.
+
 `force = 1` is also gone. It told Perl::Critic to ignore every `## no critic`
 marker, and the tree carries ten of them, each naming one policy, none of which
 had any effect. The only way to accept a violation was the free-form baseline,

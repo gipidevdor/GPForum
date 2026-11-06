@@ -3,6 +3,7 @@
 
 package main;
 
+use Mojo::Base -strict, -async_await;
 use v5.40;
 
 use Const::Fast;
@@ -646,11 +647,13 @@ sub _signed_in ($username) {
       $dbh->selectrow_array( q{SELECT id FROM users WHERE username = ?},
         undef, $username );
     $routes->get('/__test/second-factor-session')->to(
-        cb => sub ($c) {
-            my $session =
-              $c->gp_identity_store->session_store->create_session(
+        cb => async sub ($c) {
+            my $session = await $c->call_p(
+                $c->gp_identity_store->session_store,
+                'create_session',
                 { id              => $user_id },
-                { request_address => '127.0.0.1', user_agent => 'test' } );
+                { request_address => '127.0.0.1', user_agent => 'test' }
+            );
             GPForum::Web::CookieSession->new->replace_login(
                 $c,
                 {

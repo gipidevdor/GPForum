@@ -9,12 +9,14 @@ use v5.40;
 use Carp qw(croak);
 use Const::Fast;
 use List::Util qw(min);
+use Mojo::Promise;
 
 our $VERSION = '0.001';
 const my $CHUNK_BYTES => 1_024 * 1_024;
 const my $HTTP_CHUNK  => 131_072;
 
 has [qw(storage object_key byte_size modified_at)];
+has query_context => undef;    # optional: CLI calls have no HTTP query context
 
 sub size  ($self) { return $self->byte_size; }
 sub mtime ($self) { return $self->modified_at; }
@@ -39,6 +41,32 @@ sub get_chunk ( $self, $offset, $maximum = $HTTP_CHUNK ) {
     my $bytes  = substr $self->{chunk}, $inside, $length;
     croak 'stored attachment chunk is incomplete' if length $bytes != $length;
     return $bytes;
+}
+
+sub get_chunk_p ( $self, $offset, $maximum = $HTTP_CHUNK ) {
+    $maximum //= $HTTP_CHUNK;
+    $offset += $self->start_range;
+    my $end = min( $self->end_range // ( $self->size - 1 ), $self->size - 1 );
+    return Mojo::Promise->resolve(q{}) if !$maximum || $offset > $end;
+    my $number = int( $offset / $CHUNK_BYTES );
+    my $read =
+      defined $self->{chunk_number} && $self->{chunk_number} == $number
+      ? Mojo::Promise->resolve( $self->{chunk} )
+      : $self->storage->read_chunk_p( $self->object_key, $number,
+        $self->query_context );
+    return $read->then(
+        sub ($chunk) {
+            $self->{chunk_number} = $number;
+            $self->{chunk}        = $chunk;
+            my $inside = $offset % $CHUNK_BYTES;
+            my $length =
+              min( $maximum, $CHUNK_BYTES - $inside, $end - $offset + 1 );
+            my $bytes = substr $chunk, $inside, $length;
+            croak 'stored attachment chunk is incomplete'
+              if length($bytes) != $length;
+            return $bytes;
+        }
+    );
 }
 
 sub slurp ($self) {
@@ -77,7 +105,7 @@ Version 0.001.
 
 Reads immutable one MiB chunks by primary key and retains only the current
 chunk. start_range and end_range bound each read, including the last byte.
-The HTTP path uses get_chunk, never slurp.
+The HTTP path uses get_chunk_p with write backpressure, never slurp.
 
 =head1 SUBROUTINES/METHODS
 
@@ -99,6 +127,10 @@ Reads a bounded fragment, honoring both range limits and caching one database ch
 =head2 slurp
 
 Returns the complete object for small legacy consumers; HTTP delivery never uses this method.
+
+=head2 get_chunk_p
+
+Returns a promise for the requested range, reusing at most one database chunk. HTTP streaming requests the next chunk only after the preceding write completes.
 
 =head1 DIAGNOSTICS
 

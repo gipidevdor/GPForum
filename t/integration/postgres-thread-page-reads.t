@@ -194,11 +194,17 @@ subtest 'the page is the same, for seven statements fewer' => sub {
       )
     {
         my ( $who, $client, $fewer ) = @{$case};
+
+        # Compare content statements on warm connections. A native lease's
+        # first use also initializes its session and the LISTEN channel.
+        _thread( $client, \%executed, $who );
         my ( $answered, $one )   = _thread( $client, \%executed, $who );
         my ( $called,   $seven ) = do {
             no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- the page without the one statement, for comparison
             local *GPForum::Service::Forum::ThreadPageReads::answers =
               sub { return {}; };
+            local *GPForum::Service::Forum::ThreadPageReads::answers_p =
+              sub { return Mojo::Promise->resolve( {} ); };
             _thread( $client, \%executed, $who );
         };
         is_deeply( $answered, $called, "the $who\'s page is the same" );
@@ -333,6 +339,20 @@ sub _client ( $executed, $who ) {
         selectrow_array    => $count,
         selectrow_arrayref => $count,
     };
+
+    # Asynchronous reads check out their own Mojo::Pg connection. Observe
+    # every connection rather than just the synchronous workflow handle.
+    $storage->pg->on(
+        connection => sub ( $pg, $dbh ) {
+            $dbh->{Callbacks} = {
+                ChildCallbacks     => { execute => $count },
+                do                 => $count,
+                selectall_arrayref => $count,
+                selectrow_array    => $count,
+                selectrow_arrayref => $count,
+            };
+        }
+    );
 
     return $client;
 }

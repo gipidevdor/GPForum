@@ -219,12 +219,12 @@ subtest 'status does not offer the address it has just tried' => sub {
 subtest 'a module the checks cannot load is a dependency to install' => sub {
     my $hide = path( $directory, 'hide' );
     $hide->make_path;
-    path( $hide, 'HideDBIxClass.pm' )->spew(<<'PERL');
-package HideDBIxClass;
+    path( $hide, 'HideMojoPg.pm' )->spew(<<'PERL');
+package HideMojoPg;
 unshift @INC, sub {
     my ( $hook, $file ) = @_;
     die "Can't locate $file in \@INC (hidden by t/520)\n"
-      if $file eq 'DBIx/Class.pm';
+      if $file eq 'Mojo/Pg.pm';
     return;
 };
 1;
@@ -232,7 +232,7 @@ PERL
     my $file = path( $directory, 'upgrade.env' );
     $file->spew("GPFORUM_ENV=development\n");
 
-    local $ENV{PERL5OPT} = "-I$hide -MHideDBIxClass";
+    local $ENV{PERL5OPT} = "-I$hide -MHideMojoPg";
     my $run = _front_door( '--env-file', "$file", 'doctor', '--upgrade' );
     is( $run->{status}, 1, 'doctor --upgrade fails' );
     like(
@@ -242,7 +242,7 @@ PERL
     );
     like(
         $run->{output},
-        qr/: [ ] DBIx::Class$/msx,
+        qr/: [ ] Mojo::Pg$/msx,
         q{naming it, not with Perl's error}
     );
     like(

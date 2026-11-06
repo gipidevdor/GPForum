@@ -4,15 +4,17 @@
 package GPForum::Controller::Identity::Email;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
 const my $HTTP_ACCEPTED => 202;
 
-sub request_email_change ($self) {
-    my $guard = $self->identity_post_guard('identity.email_change');
+async sub request_email_change ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.email_change') ) );
     if ($guard) {
         return $guard;
     }
@@ -24,15 +26,23 @@ sub request_email_change ($self) {
 
     # The current password, as for a password change: a session alone, one
     # left open or stolen, must not move the account to another address.
-    my $result = $self->gp_identity_workflow->request_email_change(
-        {
-            command_id       => $self->command_id_param,
-            current_password => $self->param('current_password'),
-            email            => $self->param('email'),
-            request_address  => $self->request_address,
-            user_id          => $user_id,
-        }
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'request_email_change',
+            {
+                command_id       => $self->command_id_param,
+                current_password => $self->param('current_password'),
+                email            => $self->param('email'),
+                request_address  => $self->request_address,
+                user_id          => $user_id,
+            }
+        ),
+        sub ($result) { return $self->_email_requested_async($result); }
     );
+}
+
+sub _email_requested_async ( $self, $result ) {
     if ( !$result->{ok} ) {
         return $self->settings_write_refused($result);
     }
@@ -53,17 +63,23 @@ sub email_confirm_form ($self) {
     );
 }
 
-sub confirm_email_change ($self) {
-    my $guard = $self->identity_post_guard('identity.email_change');
+async sub confirm_email_change ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.email_change') ) );
     if ($guard) {
         return $guard;
     }
 
-    my $result = $self->gp_identity_workflow->confirm_email_change(
-        {
-            command_id => $self->command_id_param,
-            token      => $self->param('token'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'confirm_email_change',
+            {
+                command_id => $self->command_id_param,
+                token      => $self->param('token'),
+            }
+        )
     );
     if ( !$result->{ok} ) {
         return $self->identity_write_failure($result);

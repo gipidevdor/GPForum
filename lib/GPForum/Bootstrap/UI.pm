@@ -841,10 +841,12 @@ sub _register_asset_helpers ($application) {
         }
     );
     $application->hook(
-        after_static => sub {
+        after_dispatch => sub {
             my ($controller) = @_;
 
-            $asset_manifest->apply($controller);
+            if ( $controller->stash('mojo.static') ) {
+                $asset_manifest->apply($controller);
+            }
         }
     );
 

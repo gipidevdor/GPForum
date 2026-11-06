@@ -12,6 +12,9 @@ use GPForum::OS::Memory;
 use GPForum::Runtime;
 
 our $VERSION = '0.001';
+
+# One workflow connection, two asynchronous query slots and one CPU/I/O child.
+const my $CONNECTIONS_PER_WEB => 4;
 __PACKAGE__->requires('config');
 
 const my $MIB                      => 1_048_576;
@@ -78,7 +81,8 @@ sub _allocations ( $c, $memory, $cores ) {
     my $web_workers =
       GPForum::Runtime->from_config($c)->effective_web_processes;
     my $minimum_connections =
-      max( $MIN_CONNECTIONS, 2 * $web_workers + $CONNECTION_HEADROOM );
+      max( $MIN_CONNECTIONS,
+        $CONNECTIONS_PER_WEB * $web_workers + $CONNECTION_HEADROOM );
     my $available =
       $budget - $buffers - $MAINTENANCE_ALLOCATIONS * $maintenance;
     my $memory_connections =
@@ -107,10 +111,12 @@ sub _allocations ( $c, $memory, $cores ) {
     my $valid    = $memory && $cores && $sufficient && $capacity;
     return {
         %{$a},
-        work                   => $work,
-        connections            => $connections,
-        valid                  => $valid,
-        required_connections   => 2 * $web_workers + $READINESS_HEADROOM,
+        work                 => $work,
+        connections          => $connections,
+        valid                => $valid,
+        required_connections => $CONNECTIONS_PER_WEB * $web_workers +
+          $READINESS_HEADROOM,
+        minimum_connections    => $minimum_connections,
         sufficient_memory      => $sufficient ? 1 : 0,
         sufficient_connections => $capacity   ? 1 : 0,
     };
@@ -165,7 +171,7 @@ sub recommendation ($self) {
         push @issues,
 'Insufficient memory after reserves and concurrent query/maintenance allowances';
     }
-    if ( !$a->{sufficient_connections} && $a->{sufficient_memory} ) {
+    if ( $a->{minimum_connections} > $MAX_CONNECTIONS ) {
         push @issues,
 'Web worker count exceeds the 100-connection profile; reduce web concurrency or use an operator-sized cluster budget';
     }

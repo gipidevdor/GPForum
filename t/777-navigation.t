@@ -3,6 +3,8 @@
 
 package main;
 use v5.40;
+use Mojo::Base -strict, -async_await;
+use v5.40;
 use Test::More;
 use Test::Mojo;
 use Const::Fast;
@@ -124,7 +126,7 @@ my $calls = 0;
 with_replaced_subs(
     'GPForum::Service::Admin::PermissionGate',
     {
-        navigation_context => sub {
+        navigation_context_p => async sub {
             $calls++;
             return {
                 available   => 1,
@@ -146,7 +148,8 @@ with_replaced_subs(
 with_replaced_subs(
     'GPForum::Service::Admin::PermissionGate',
     {
-        navigation_context => sub { die "permission store unavailable\n"; },
+        navigation_context_p => async
+          sub { die "permission store unavailable\n"; },
     },
     sub {
         $test->get_ok('/menu')->status_is($HTTP_OK);

@@ -4,7 +4,7 @@
 package GPForum::Controller::Moderation::ThreadTransfers;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 use GPForum::Service::Moderation::ThreadTransfers;
 use GPForum::Web::Guard;
@@ -23,26 +23,32 @@ const my %FAILURE => (
     not_found => $HTTP_NOT_FOUND,
 );
 
-sub show ($self) {
-    my $actor = $self->authorized_user_id( 'thread', 'moderate' );
+async sub show ($self) {
+    my $actor = (
+        await $self->await_p(
+            $self->authorized_user_id( 'thread', 'moderate' ) ) );
     return if !$actor;
-    return $self->_page($actor);
+    return ( await $self->await_p( $self->_page($actor) ) );
 }
 
-sub _page ( $self, $actor, $status = $HTTP_OK, $error = q{} ) {
+async sub _page ( $self, $actor, $status = $HTTP_OK, $error = q{} ) {
     $self->res->headers->cache_control('no-store');
-    my $page = $self->_service->history($actor);
+    my $page = ( await $self->call_p( $self->_service, 'history', $actor ) );
     return GPForum::Web::Guard->new->forbidden($self)
       if $page->{status} ne 'ok';
     return $self->render( json => $page ) if $self->wants_json;
-    my $picker = $self->_service->picker(
-        {
-            actor          => $actor,
-            source         => $self->param('source'),
-            query          => $self->param('q'),
-            after_position => $self->param('page_after')
-              // $self->param('after_position')
-        }
+    my $picker = (
+        await $self->call_p(
+            $self->_service,
+            'picker',
+            {
+                actor          => $actor,
+                source         => $self->param('source'),
+                query          => $self->param('q'),
+                after_position => $self->param('page_after')
+                  // $self->param('after_position')
+            }
+        )
     );
     return $self->_refusal($picker) if $picker->{status} ne 'ok';
     my @numbers = split /[\s,]+/msx,
@@ -86,20 +92,28 @@ sub _error_field ( $values, $selected ) {
     return 'operation';
 }
 
-sub change ($self) {
-    my $actor = $self->authorized_write_user_id( 'thread', 'moderate' );
+async sub change ($self) {
+    my $actor = (
+        await $self->await_p(
+            $self->authorized_write_user_id( 'thread', 'moderate' )
+        )
+    );
     return if !$actor;
-    return $self->_page($actor)
+    return ( await $self->await_p( $self->_page($actor) ) )
       if !$self->wants_json && defined $self->param('page_after');
-    my $result = $self->_service->change(
-        {
-            actor        => $actor,
-            command      => $self->command_id_param,
-            post_numbers =>
-              join( q{,}, @{ $self->every_param('post_numbers') } ),
-            map { $_ => $self->param($_) }
-              qw(source target operation title reason)
-        }
+    my $result = (
+        await $self->call_p(
+            $self->_service,
+            'change',
+            {
+                actor        => $actor,
+                command      => $self->command_id_param,
+                post_numbers =>
+                  join( q{,}, @{ $self->every_param('post_numbers') } ),
+                map { $_ => $self->param($_) }
+                  qw(source target operation title reason)
+            }
+        )
     );
     if (  !$self->wants_json
         && $result->{status} ne 'ok'
@@ -107,36 +121,52 @@ sub change ($self) {
         && $result->{status} ne 'not_found' )
     {
         my $invalid = $result->{status} eq 'invalid';
-        return $self->_page(
-            $actor,
-            $invalid ? $HTTP_BAD_REQUEST : $HTTP_CONFLICT,
-            $self->t(
-                $invalid
-                ? 'moderation.transfer_invalid'
-                : 'moderation.transfer_conflict'
+        return (
+            await $self->await_p(
+                $self->_page(
+                    $actor,
+                    $invalid ? $HTTP_BAD_REQUEST : $HTTP_CONFLICT,
+                    $self->t(
+                        $invalid
+                        ? 'moderation.transfer_invalid'
+                        : 'moderation.transfer_conflict'
+                    )
+                )
             )
         );
     }
-    return $self->_answer($result);
+    return ( await $self->await_p( $self->_answer($result) ) );
 }
 
-sub undo ($self) {
-    my $actor = $self->authorized_write_user_id( 'thread', 'moderate' );
+async sub undo ($self) {
+    my $actor = (
+        await $self->await_p(
+            $self->authorized_write_user_id( 'thread', 'moderate' )
+        )
+    );
     return if !$actor;
-    return $self->_answer(
-        $self->_service->undo(
-            {
-                actor       => $actor,
-                command     => $self->command_id_param,
-                transfer_id => $self->param('transfer_id')
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                (
+                    await $self->call_p(
+                        $self->_service,
+                        'undo',
+                        {
+                            actor       => $actor,
+                            command     => $self->command_id_param,
+                            transfer_id => $self->param('transfer_id')
+                        }
+                    )
+                )
+            )
         )
     );
 }
 
-sub _answer ( $self, $result ) {
+async sub _answer ( $self, $result ) {
     return $self->_refusal($result) if $result->{status} ne 'ok';
-    $self->gp_local_cache->clear;
+    await $self->call_p( $self->gp_local_cache, 'clear' );
     return $self->render( json => $result ) if $self->wants_json;
     return $self->redirect_to( 'thread', thread_id => $result->{target_id} );
 }

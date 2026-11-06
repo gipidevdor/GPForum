@@ -2573,15 +2573,21 @@ sub _user_lock_state {
 
     my $dbh   = $ctx->{rival}->storage->dbh;
     my $taken = 0;
+    my $state;
+    my $statement = $dbh->prepare($USER_LOCK_SQL);
     try {
-        $dbh->selectrow_array( $USER_LOCK_SQL, undef, $user_id );
+        $statement->execute($user_id);
         $taken = 1;
     }
     catch ($error) {
         $taken = 0;
+        $state = $statement->state;
     };
 
-    return $taken ? q{} : $dbh->state;
+    # Read SQLSTATE from the live statement: a temporary selectrow_array
+    # handle can clear the database handle's state when it is destroyed.
+    $statement->finish;
+    return $taken ? q{} : $state;
 }
 
 sub _lock_state {
@@ -2589,15 +2595,21 @@ sub _lock_state {
 
     my $dbh   = $ctx->{rival}->storage->dbh;
     my $taken = 0;
+    my $state;
+    my $statement = $dbh->prepare($LOCK_SQL);
     try {
-        $dbh->selectrow_array( $LOCK_SQL, undef, $id );
+        $statement->execute($id);
         $taken = 1;
     }
     catch ($error) {
         $taken = 0;
+        $state = $statement->state;
     };
 
-    return $taken ? q{} : $dbh->state;
+    # Read SQLSTATE from the live statement: a temporary selectrow_array
+    # handle can clear the database handle's state when it is destroyed.
+    $statement->finish;
+    return $taken ? q{} : $state;
 }
 
 # The post ids each body read binds, statement by statement.

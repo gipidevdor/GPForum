@@ -4,7 +4,7 @@
 package GPForum::Controller::Forum::Polls;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
 use GPForum::Service::Forum::Polls;
 
@@ -13,9 +13,13 @@ const my $HTTP_FORBIDDEN   => 403;
 const my $HTTP_CONFLICT    => 409;
 const my $HTTP_BAD_REQUEST => 400;
 
-sub show ($self) {
-    my $page = $self->_service->overview( $self->current_user_id,
-        $self->param('thread_id') );
+async sub show ($self) {
+    my $page = (
+        await $self->call_p(
+            $self->_service,        'overview',
+            $self->current_user_id, $self->param('thread_id')
+        )
+    );
     return $self->not_found('poll not found') if $page->{status} ne 'ok';
     $page->{commands} =
       { map { $_ => $self->gp_id->uuid } qw(create vote close) };
@@ -24,25 +28,29 @@ sub show ($self) {
     return $self->render( template => 'forum/poll', poll_page => $page );
 }
 
-sub change ($self) {
-    my $actor = $self->write_user_id('poll.write');
+async sub change ($self) {
+    my $actor = ( await $self->await_p( $self->write_user_id('poll.write') ) );
     return if !$actor;
     my @options = split /\r?\n/msx, $self->param('options') // q{};
     my @choices = @{ $self->every_param('choices') };
-    my $result  = $self->_service->change(
-        {
-            actor     => $actor,
-            command   => $self->command_id_param,
-            thread_id => $self->param('thread_id'),
-            operation => $self->param('operation'),
-            values    => {
-                question        => $self->param('question'),
-                options         => \@options,
-                choice          => $self->param('choice'),
-                maximum_choices => $self->param('maximum_choices'),
-                ( @choices ? ( choices => \@choices ) : () ),
-            },
-        }
+    my $result  = (
+        await $self->call_p(
+            $self->_service,
+            'change',
+            {
+                actor     => $actor,
+                command   => $self->command_id_param,
+                thread_id => $self->param('thread_id'),
+                operation => $self->param('operation'),
+                values    => {
+                    question        => $self->param('question'),
+                    options         => \@options,
+                    choice          => $self->param('choice'),
+                    maximum_choices => $self->param('maximum_choices'),
+                    ( @choices ? ( choices => \@choices ) : () ),
+                },
+            }
+        )
     );
     return $self->not_found('poll not found')
       if $result->{status} eq 'not_found';

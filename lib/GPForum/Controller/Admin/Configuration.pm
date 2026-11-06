@@ -4,7 +4,7 @@
 package GPForum::Controller::Admin::Configuration;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -14,17 +14,22 @@ const my $CONFLICT    => 409;
 const my $FORBIDDEN   => 403;
 const my $UNAVAILABLE => 503;
 
-sub show ($self) {
-    return if !$self->authorized_user_id( $self->admin_access->view_action );
-    return $self->_page;
+async sub show ($self) {
+    return
+      if !(
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+      );
+    return ( await $self->await_p( $self->_page ) );
 }
 
-sub change ($self) {
-    my $actor = $self->authorized_write_user_id;
+async sub change ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$actor;
     my $service = $self->gp_configuration;
     my %values;
-    for my $field ( @{ $service->fields } ) {
+    for my $field ( @{ ( await $self->call_p( $service, 'fields' ) ) } ) {
         my $value = $self->param( $field->{env} );
         if ( defined $value ) { $values{ $field->{env} } = $value; }
     }
@@ -34,25 +39,29 @@ sub change ($self) {
         expected => $self->param('revision'),
         values   => \%values
     };
-    my $result = $service->save_general($input);
-    return $self->_result( $result, \%values );
+    my $result = ( await $self->call_p( $service, 'save_general', $input ) );
+    return ( await $self->await_p( $self->_result( $result, \%values ) ) );
 }
 
-sub restore ($self) {
-    my $actor = $self->authorized_write_user_id;
+async sub restore ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$actor;
-    my $result = $self->gp_configuration->reset_general(
-        {
-            actor    => $actor,
-            command  => $self->command_id_param,
-            expected => $self->param('revision'),
-            key      => $self->param('setting')
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_configuration,
+            'reset_general',
+            {
+                actor    => $actor,
+                command  => $self->command_id_param,
+                expected => $self->param('revision'),
+                key      => $self->param('setting')
+            }
+        )
     );
-    return $self->_result( $result, {} );
+    return ( await $self->await_p( $self->_result( $result, {} ) ) );
 }
 
-sub _result ( $self, $result, $values ) {
+async sub _result ( $self, $result, $values ) {
     my $status =
         $result->{status} eq 'ok'          ? $OK
       : $result->{status} eq 'conflict'    ? $CONFLICT
@@ -66,13 +75,17 @@ sub _result ( $self, $result, $values ) {
         $self->flash( success => $self->t('admin.configuration_saved') );
         return $self->redirect_to('admin_configuration');
     }
-    $self->gp_configuration->state( $self->gp_configuration->load );
+    $self->gp_configuration->state(
+        ( await $self->call_p( $self->gp_configuration, 'load' ) ) );
     $self->stash( configuration_error_fields => $result->{error_fields} // [] );
-    return $self->_page( $status, $result->{status}, $values );
+    return (
+        await $self->await_p(
+            $self->_page( $status, $result->{status}, $values ) ) );
 }
 
-sub _page ( $self, $status = $OK, $notice = q{}, $values = undef ) {
-    my $page = $self->gp_configuration->general_page;
+async sub _page ( $self, $status = $OK, $notice = q{}, $values = undef ) {
+    my $page =
+      ( await $self->call_p( $self->gp_configuration, 'general_page' ) );
     my %invalid =
       map { $_ => 1 } @{ $self->stash('configuration_error_fields') // [] };
     for my $group ( @{ $page->{groups} } ) {

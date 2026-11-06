@@ -2418,15 +2418,21 @@ sub _lock_state {
 
     my $dbh   = $rival->storage->dbh;
     my $taken = 0;
+    my $state;
+    my $statement = $dbh->prepare($LOCK_SQL);
     try {
-        $dbh->selectrow_array( $LOCK_SQL, undef, $token_id );
+        $statement->execute($token_id);
         $taken = 1;
     }
     catch ($error) {
         $taken = 0;
+        $state = $statement->state;
     };
 
-    return $taken ? q{} : $dbh->state;
+    # Read SQLSTATE from the live statement: a temporary selectrow_array
+    # handle can clear the database handle's state when it is destroyed.
+    $statement->finish;
+    return $taken ? q{} : $state;
 }
 
 sub _in_transaction {

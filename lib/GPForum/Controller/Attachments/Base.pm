@@ -5,9 +5,10 @@ package GPForum::Controller::Attachments::Base;
 
 use Const::Fast;
 use Mojo::Asset::File;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 use GPForum::Web::MediaResponse;
+use GPForum::Service::Attachment::PostgresAsset;
 
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Web::Access;
@@ -27,14 +28,20 @@ sub attachment_access {
     return GPForum::Web::AttachmentAccess->new;
 }
 
-sub write_user_id ($self) {
+async sub write_user_id ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         $self->_csrf_failure;
         return undef;
     }
 
-    my $user_id  = $self->_rate_limited_user_id or return undef;
-    my $decision = $self->gp_suspension_store->can_participate($user_id);
+    my $user_id = ( await $self->await_p( $self->_rate_limited_user_id ) )
+      or return undef;
+    my $decision = (
+        await $self->call_p(
+            $self->gp_suspension_store,
+            'can_participate', $user_id
+        )
+    );
     if ( !$decision->{ok} ) {
         GPForum::Web::SecurityEvent->new->record_event(
             $self,
@@ -66,31 +73,34 @@ sub safe_filename ( $self, $filename ) {
     return $self->attachment_access->safe_filename($filename);
 }
 
-sub upload_write_response ( $self, $result ) {
+async sub upload_write_response ( $self, $result ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->upload_response( $result->{stored} );
+    return (
+        await $self->await_p( $self->upload_response( $result->{stored} ) ) );
 }
 
-sub delete_write_response ( $self, $result ) {
+async sub delete_write_response ( $self, $result ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->delete_response( $result->{stored} );
+    return (
+        await $self->await_p( $self->delete_response( $result->{stored} ) ) );
 }
 
-sub download_response ( $self, $result ) {
+async sub download_response ( $self, $result ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->render_download( $result->{stored} );
+    return (
+        await $self->await_p( $self->render_download( $result->{stored} ) ) );
 }
 
 sub write_failure ( $self, $result ) {
@@ -101,7 +111,7 @@ sub write_failure ( $self, $result ) {
     return $self->_mapped_failure($result);
 }
 
-sub upload_response ( $self, $stored ) {
+async sub upload_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         my $download_url = $self->url_for( 'attachment_download',
             attachment_id =>
@@ -115,11 +125,16 @@ sub upload_response ( $self, $stored ) {
         );
     }
 
-    return $self->_post_redirect( $stored,
-        $self->attachment_access->uploaded_status );
+    return (
+        await $self->await_p(
+            $self->_post_redirect(
+                $stored, $self->attachment_access->uploaded_status
+            )
+        )
+    );
 }
 
-sub delete_response ( $self, $stored ) {
+async sub delete_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json   => $self->gp_attachment_view_model->delete_response($stored),
@@ -127,8 +142,13 @@ sub delete_response ( $self, $stored ) {
         );
     }
 
-    return $self->_post_redirect( $stored,
-        $self->attachment_access->deleted_status );
+    return (
+        await $self->await_p(
+            $self->_post_redirect(
+                $stored, $self->attachment_access->deleted_status
+            )
+        )
+    );
 }
 
 # Three ways out, cheapest first. Behind a reverse proxy that accepts the
@@ -136,7 +156,12 @@ sub delete_response ( $self, $stored ) {
 # serves the file as an asset, which streams it and answers Range requests
 # instead of building one big response body. render(data => ...) is the last
 # resort and now only reachable from a storage backend that cannot name a path.
-sub render_download ( $self, $stored ) {
+async sub render_download ( $self, $stored ) {
+    if ( my $descriptor = delete $stored->{database_asset} ) {
+        $stored->{object_asset} =
+          GPForum::Service::Attachment::PostgresAsset->new( %{$descriptor},
+            storage => $self->gp_attachment_storage, );
+    }
     $self->res->headers->content_type( $stored->{media_type} );
     $self->res->headers->content_disposition(
         $self->attachment_access->content_disposition(
@@ -161,8 +186,7 @@ sub render_download ( $self, $stored ) {
         );
     }
     if ( defined $stored->{object_path} ) {
-        return $self->reply->asset(
-            Mojo::Asset::File->new( path => $stored->{object_path} ) );
+        return $self->file_p( $stored->{object_path} );
     }
 
     return $self->render( data => $stored->{content}, status => $HTTP_OK );
@@ -176,6 +200,7 @@ sub render_download ( $self, $stored ) {
 sub _delegated_download ( $self, $stored ) {
     my $prefix = $self->_accel_prefix;
     return undef if !length $prefix;
+    return undef if !defined $stored->{object_path};
     return undef if !defined $stored->{object_key};
 
     # The key reaches a response header, so it is checked here rather than
@@ -205,10 +230,14 @@ sub _accel_prefix ($self) {
     return $prefix;
 }
 
-sub download_rate_failure ($self) {
-    my $decision = $self->gp_rate_limiter->check(
-        $self->attachment_access->download_rate_input(
-            $self->download_actor_key
+async sub download_rate_failure ($self) {
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->attachment_access->download_rate_input(
+                $self->download_actor_key
+            )
         )
     );
     return $self->_rate_limited if !$decision->{ok};
@@ -223,15 +252,19 @@ sub download_actor_key ($self) {
     return 'address:' . GPForum::Web::ClientAddress->of( $self->tx );
 }
 
-sub _rate_limited_user_id ($self) {
+async sub _rate_limited_user_id ($self) {
     my $user_id = $self->current_user_id;
     if ( !$user_id ) {
         $self->_unauthorized;
         return undef;
     }
 
-    my $decision = $self->gp_rate_limiter->check(
-        $self->attachment_access->upload_rate_input($user_id) );
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter, 'check',
+            $self->attachment_access->upload_rate_input($user_id)
+        )
+    );
     if ( !$decision->{ok} ) {
         $self->_rate_limited;
         return undef;
@@ -240,13 +273,17 @@ sub _rate_limited_user_id ($self) {
     return $user_id;
 }
 
-sub _post_redirect ( $self, $stored, $status ) {
+async sub _post_redirect ( $self, $stored, $status ) {
     my $thread_id = $self->column( $stored->{post}, 'thread_id' );
 
-    return $self->_html_success(
-        $status,
-        $self->url_for( 'thread', thread_id => $thread_id )
-          ->fragment( 'post-' . $self->param('post_id') ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status,
+                $self->url_for( 'thread', thread_id => $thread_id )
+                  ->fragment( 'post-' . $self->param('post_id') ),
+            )
+        )
     );
 }
 
@@ -331,6 +368,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Attachments::Base';
+use v5.40;
 
 =head1 DESCRIPTION
 

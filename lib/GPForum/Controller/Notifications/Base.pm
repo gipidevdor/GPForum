@@ -4,7 +4,7 @@
 package GPForum::Controller::Notifications::Base;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::Access;
@@ -29,35 +29,39 @@ sub member_user_id ($self) {
     return $user_id;
 }
 
-sub write_user_id ( $self, $action ) {
+async sub write_user_id ( $self, $action ) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         $self->_csrf_failure;
         return undef;
     }
 
-    return $self->_rate_limited_user_id($action);
+    return ( await $self->await_p( $self->_rate_limited_user_id($action) ) );
 }
 
 sub page_limit ($self) {
     return $self->notification_access->page_limit( $self->param('limit') );
 }
 
-sub mark_read_response ( $self, $result ) {
+async sub mark_read_response ( $self, $result ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->_mark_read_success( $result->{stored} );
+    return (
+        await $self->await_p( $self->_mark_read_success( $result->{stored} ) )
+    );
 }
 
-sub mark_all_read_response ( $self, $result ) {
+async sub mark_all_read_response ( $self, $result ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->_mark_all_read_success( $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->_mark_all_read_success( $result->{stored} ) ) );
 }
 
 sub write_failure ( $self, $result ) {
@@ -68,12 +72,12 @@ sub write_failure ( $self, $result ) {
     return $self->_mapped_failure($result);
 }
 
-sub _rate_limited_user_id ( $self, $action ) {
+async sub _rate_limited_user_id ( $self, $action ) {
     my $user_id = $self->member_user_id;
     if ( !$user_id ) {
         return undef;
     }
-    if ( !$self->_allowed( $user_id, $action ) ) {
+    if ( !( await $self->await_p( $self->_allowed( $user_id, $action ) ) ) ) {
         $self->_rate_limited;
         return undef;
     }
@@ -81,7 +85,7 @@ sub _rate_limited_user_id ( $self, $action ) {
     return $user_id;
 }
 
-sub _mark_read_success ( $self, $stored ) {
+async sub _mark_read_success ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json =>
@@ -90,11 +94,17 @@ sub _mark_read_success ( $self, $stored ) {
         );
     }
 
-    return $self->_html_success( $self->notification_access->marked_read_status,
-        'notifications', );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->notification_access->marked_read_status,
+                'notifications',
+            )
+        )
+    );
 }
 
-sub _mark_all_read_success ( $self, $stored ) {
+async sub _mark_all_read_success ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_notifications_view_model->mark_all_read_response(
@@ -103,9 +113,14 @@ sub _mark_all_read_success ( $self, $stored ) {
         );
     }
 
-    return $self->_html_success(
-        $self->notification_access->marked_all_read_status,
-        'notifications', );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->notification_access->marked_all_read_status,
+                'notifications',
+            )
+        )
+    );
 }
 
 sub _mapped_failure ( $self, $result ) {
@@ -117,13 +132,17 @@ sub _mapped_failure ( $self, $result ) {
     return undef;
 }
 
-sub _allowed ( $self, $user_id, $action ) {
-    my $decision = $self->gp_rate_limiter->check(
-        $self->notification_access->write_rate_input(
-            {
-                action   => $action,
-                actor_id => $user_id,
-            }
+async sub _allowed ( $self, $user_id, $action ) {
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->notification_access->write_rate_input(
+                {
+                    action   => $action,
+                    actor_id => $user_id,
+                }
+            )
         )
     );
 
@@ -164,6 +183,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Notifications::Base';
+use v5.40;
 
 =head1 DESCRIPTION
 

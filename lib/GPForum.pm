@@ -8,6 +8,7 @@ use Mojo::Base 'Mojolicious', -signatures;
 use v5.40;
 
 use GPForum::Bootstrap::Admin;
+use GPForum::Bootstrap::Async;
 use GPForum::Bootstrap::Config;
 use GPForum::Bootstrap::Configuration;
 use GPForum::Bootstrap::Core;
@@ -102,6 +103,7 @@ sub startup ($self) {
         config      => $config
     );
     GPForum::Bootstrap::Routes->register( application => $self );
+    GPForum::Bootstrap::Async->register($self);
 
     return;
 }

@@ -12,6 +12,9 @@ use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::ImageBytes;
 use GPForum::Service::Attachment::Validator;
 
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncWork;
+
 our $VERSION = '0.001';
 
 # ADR 0144: what a profile picture may be. Smaller than an attachment's
@@ -224,6 +227,43 @@ sub moderate ( $self, $input ) {
 # picture the member has since replaced (a page cached before the change),
 # which is answered with the one shown now. Undef when the member shows
 # none.
+sub picture_p ( $self, $input, $request_context = undef ) {
+    $input = {
+        %{$input}, query_context => $input->{query_context} // $request_context
+    };
+    my ( $user_id, $avatar_id, $side, $context ) =
+      @{$input}{qw(user_id avatar_id side query_context)};
+    return Mojo::Promise->resolve->then(
+        sub {
+            return GPForum::Infrastructure::AsyncWork->shared->service_p( $self,
+                'picture_from_input', $input, $context )
+              if !$self->store->can('image_p')
+              || !$self->storage->can('read_object_p');
+            return $self->store->image_p( $user_id, $side, $context )->then(
+                sub ($row) {
+                    return undef if !$row;
+                    return $self->storage->read_object_p( $row->{object_key},
+                        $MAXIMUM_BYTES, $context )->then(
+                        sub ($content) {
+                            return {
+                                attachment_id => $row->{attachment_id},
+                                content       => $content,
+                                current       =>
+                                  _same( $row->{attachment_id}, $avatar_id ),
+                                media_type => $row->{media_type} // $SQUARE_TYPE
+                            };
+                        }
+                        );
+                }
+            );
+        }
+    );
+}
+
+sub picture_from_input ( $self, $input ) {
+    return $self->picture( @{$input}{qw(user_id avatar_id side)} );
+}
+
 sub picture ( $self, $user_id, $avatar_id, $side ) {
     my $row = $self->store->image( $user_id, $side ) // return undef;
     my $content;
@@ -467,6 +507,14 @@ C<pending_state> and C<pending_at>.
 
 Takes a member id. Deletes the stored objects of every upload linked to
 their profile and returns how many.
+
+=head2 picture_p
+
+Returns a promise for a bounded avatar image, with asynchronous database reads and isolated filesystem fallback.
+
+=head2 picture_from_input
+
+Adapts the positional picture interface to data-only subprocess inputs.
 
 =head1 DIAGNOSTICS
 

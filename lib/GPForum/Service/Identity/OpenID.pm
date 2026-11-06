@@ -11,6 +11,8 @@ use Crypt::URandom qw(urandom);
 use Digest::SHA    qw(sha256 sha256_hex);
 use MIME::Base64   qw(encode_base64url);
 use Mojo::JSON     qw(encode_json);
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::SqlFunction;
@@ -32,8 +34,10 @@ const my $TOKEN_BYTES            => 32;
 const my $MAX_ID_TOKEN           => 16_384;
 const my $LINK_AUTH_SECONDS      => 300;
 has policy_available => 0;
+has query_context    => undef;  # optional: CLI calls have no HTTP query context
+has async_work => sub { return GPForum::Infrastructure::AsyncWork->shared; };
 __PACKAGE__->requires(qw(schema config second_factor));
-has client   => sub { return GPForum::Service::Integration::HttpClient->new; };
+has client => sub { return GPForum::Service::Integration::HttpClient->shared; };
 has password => sub ($self) {
     return GPForum::Service::Password->from_config( $self->config );
 };
@@ -155,7 +159,102 @@ sub complete ( $self, $input ) {
         sub { return $self->_accept_identity( $input, $state, $claims ); } );
 }
 
+sub complete_p ( $self, $input, $context = undef ) {
+    $input =
+      { %{$input}, query_context => $input->{query_context} // $context };
+    return Mojo::Promise->resolve->then(
+        sub {
+            my $parameters = $self->_flow_parameters($input);
+            return undef if !$parameters;
+            return $self->functions->row_p( 'identity_oidc_consume',
+                $parameters, $self->query_context );
+        }
+    )->then(
+        sub ($row) {
+            my $state = $row && $row->{result};
+            return { status => 'refused' }
+              if !$state
+              || ( $state->{user_id} // q{} ) ne
+              ( $input->{actor_user_id} // q{} );
+            return $self->client->request_p(
+                'POST',
+                $self->config->oidc_token_endpoint,
+                { form => $self->_token_form($input) }
+            )->then(
+                sub ($tokens) {
+                    return { status => 'refused' } if !$tokens->is_success;
+                    my $token = $tokens->json;
+                    return { status => 'refused' } if ref $token ne 'HASH';
+                    return $self->client->request_p(
+                        'GET',
+                        $self->config->oidc_jwks_uri,
+                        { headers => { Accept => 'application/json' } }
+                    )->then(
+                        sub ($keys) {
+                            if ( !$keys->is_success ) {
+                                GPForum::X::Unavailable->throw( message =>
+                                      'external signing keys unavailable' );
+                            }
+                            return $self->async_work->service_p(
+                                $self,
+                                'complete_verified',
+                                {
+                                    input    => $input,
+                                    state    => $state,
+                                    id_token => $token->{id_token},
+                                    keys     => $keys->json
+                                },
+                                $self->query_context
+                            );
+                        }
+                    );
+                }
+            );
+        }
+    );
+}
+
+sub complete_verified ( $self, $prepared ) {
+    my $claims;
+    my $state = $prepared->{state};
+    try {
+        $claims = $self->verify_id_token(
+            $prepared->{id_token}, $prepared->{keys},
+            $state->{nonce},       defined $state->{user_id}
+        );
+    }
+    catch ($error) { return { status => 'refused' }; };
+    return $self->schema->txn_do(
+        sub {
+            return $self->_accept_identity( $prepared->{input}, $state,
+                $claims );
+        }
+    );
+}
+
+sub _token_form ( $self, $input ) {
+    return {
+        grant_type    => 'authorization_code',
+        code          => $input->{code},
+        redirect_uri  => $self->callback_url,
+        client_id     => $self->config->oidc_client_id,
+        client_secret => $self->config->oidc_client_secret,
+        code_verifier => $input->{flow}{verifier}
+    };
+}
+
 sub _consume_flow ( $self, $input ) {
+    my $parameters = $self->_flow_parameters($input);
+    return undef if !$parameters;
+    my $row = $self->functions->row( 'identity_oidc_consume', $parameters );
+    return undef if !$row;
+    my $state = $row->{result};
+    return undef
+      if ( $state->{user_id} // q{} ) ne ( $input->{actor_user_id} // q{} );
+    return $state;
+}
+
+sub _flow_parameters ( $self, $input ) {
     my $flow = $input->{flow};
     return undef
       if ref $flow ne 'HASH'
@@ -167,19 +266,11 @@ sub _consume_flow ( $self, $input ) {
         return undef
           if ( $flow->{$name} // q{} ) !~ /\A [[:alnum:]_-]{43} \z/amsx;
     }
-    my $row = $self->functions->row(
-        'identity_oidc_consume',
-        {
-            state_hash   => sha256_hex( $flow->{state} ),
-            binding_hash => sha256_hex( $flow->{binding} ),
-            context_hash => $self->_context
-        }
-    );
-    return undef if !$row;
-    my $state = $row->{result};
-    return undef
-      if ( $state->{user_id} // q{} ) ne ( $input->{actor_user_id} // q{} );
-    return $state;
+    return {
+        state_hash   => sha256_hex( $flow->{state} ),
+        binding_hash => sha256_hex( $flow->{binding} ),
+        context_hash => $self->_context
+    };
 }
 
 sub _exchange_code ( $self, $input, $state ) {
@@ -424,6 +515,14 @@ Pins signature algorithm, keys, issuer, audience, authorized party, nonce and ti
 =head2 remove_link
 
 Checks local password/MFA, removes the binding and revokes other sessions and outstanding challenges while preserving the current local session.
+
+=head2 complete_p
+
+Consumes the login flow and performs token and key HTTP exchanges through promises; signature verification and the final transaction run in the bounded subprocess executor.
+
+=head2 complete_verified
+
+Completes the verified token workflow inside one subprocess transaction. Takes the token reply, signing keys and consumed flow as plain data.
 
 =head1 DIAGNOSTICS
 

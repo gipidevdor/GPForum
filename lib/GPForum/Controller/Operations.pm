@@ -5,14 +5,14 @@ package GPForum::Controller::Operations;
 
 use GPForum::Web::OperationsAccess;
 use GPForum::Web::OperationsPayload;
-use Mojo::Base 'Mojolicious::Controller', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
 has operations_access => sub { return GPForum::Web::OperationsAccess->new; };
 
-sub metrics ($self) {
+async sub metrics ($self) {
     if (
         !$self->operations_access->request_authorized(
             $self->req->headers, $self->gp_config
@@ -24,7 +24,8 @@ sub metrics ($self) {
 
     return $self->render(
         json => GPForum::Web::OperationsPayload->metrics(
-            snapshot => $self->gp_metrics_snapshot->collect,
+            snapshot =>
+              ( await $self->call_p( $self->gp_metrics_snapshot, 'collect' ) ),
         ),
     );
 }

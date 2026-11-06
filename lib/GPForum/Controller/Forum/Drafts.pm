@@ -4,7 +4,7 @@
 package GPForum::Controller::Forum::Drafts;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::ComposerBase', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::ComposerBase', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
@@ -16,11 +16,12 @@ our $VERSION = '0.001';
 const my $HTTP_OK       => 200;
 const my $HTTP_CONFLICT => 409;
 
-sub list ($self) {
+async sub list ($self) {
     $self->private_draft_response;
-    my $owner = $self->read_draft_owner;
+    my $owner = ( await $self->await_p( $self->read_draft_owner ) );
     return if !$owner;
-    my $drafts = $self->gp_draft_store->list_for_user($owner);
+    my $drafts =
+      ( await $self->call_p( $self->gp_draft_store, 'list_for_user', $owner ) );
     for my $draft ( @{$drafts} ) {
         $draft->{resume_url} = $self->_resume_url($draft);
         $draft->{delete_url} =
@@ -31,35 +32,45 @@ sub list ($self) {
     return $self->render( template => 'forum/drafts', drafts => $drafts );
 }
 
-sub resume ($self) {
+async sub resume ($self) {
     $self->private_draft_response;
-    my $owner = $self->read_draft_owner;
+    my $owner = ( await $self->await_p( $self->read_draft_owner ) );
     return if !$owner;
-    my $draft = $self->gp_draft_store->find( $owner, $self->param('draft_id') );
+    my $draft = (
+        await $self->call_p(
+            $self->gp_draft_store, 'find', $owner, $self->param('draft_id')
+        )
+    );
     return $self->not_found('draft not found')          if !$draft;
     return $self->render( json => { draft => $draft } ) if $self->wants_json;
-    return $self->compose( $draft, $HTTP_OK );
+    return ( await $self->await_p( $self->compose( $draft, $HTTP_OK ) ) );
 }
 
-sub save ($self) {
+async sub save ($self) {
     $self->private_draft_response;
-    my $owner = $self->write_user_id('draft.save');
+    my $owner = ( await $self->await_p( $self->write_user_id('draft.save') ) );
     return if !$owner;
-    my $input  = $self->draft_input($owner);
-    my $result = $self->gp_draft_store->save($input);
-    return $self->save_response( $input, $result );
+    my $input = $self->draft_input($owner);
+    my $result =
+      ( await $self->call_p( $self->gp_draft_store, 'save', $input ) );
+    return ( await $self->await_p( $self->save_response( $input, $result ) ) );
 }
 
-sub remove ($self) {
+async sub remove ($self) {
     $self->private_draft_response;
-    my $owner = $self->write_user_id('draft.delete');
+    my $owner =
+      ( await $self->await_p( $self->write_user_id('draft.delete') ) );
     return if !$owner;
-    my $result = $self->gp_draft_store->remove(
-        {
-            owner_user_id  => $owner,
-            draft_id       => $self->param('draft_id'),
-            draft_revision => $self->param('draft_revision'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_draft_store,
+            'remove',
+            {
+                owner_user_id  => $owner,
+                draft_id       => $self->param('draft_id'),
+                draft_revision => $self->param('draft_revision'),
+            }
+        )
     );
     return $self->render(
         json   => $result,
@@ -71,24 +82,29 @@ sub remove ($self) {
     return $self->redirect_to('drafts');
 }
 
-sub preview ($self) {
+async sub preview ($self) {
     $self->private_draft_response;
-    my $owner = $self->write_user_id('draft.preview');
+    my $owner =
+      ( await $self->await_p( $self->write_user_id('draft.preview') ) );
     return if !$owner;
     my $input = $self->draft_input($owner);
-    return $self->save_response(
-        $input,
-        {
-            errors => {
-                body_source =>
-                  GPForum::Service::Forum::BodyLength->too_long_error
-            },
-            ok     => 0,
-            status => 'invalid',
-        }
+    return (
+        await $self->await_p(
+            $self->save_response(
+                $input,
+                {
+                    errors => {
+                        body_source =>
+                          GPForum::Service::Forum::BodyLength->too_long_error
+                    },
+                    ok     => 0,
+                    status => 'invalid',
+                }
+            )
+        )
       )
       if GPForum::Service::Forum::BodyLength->too_long( $input->{body_source} );
-    return if !$self->_target_allowed($input);
+    return if !( await $self->await_p( $self->_target_allowed($input) ) );
     my $source = trimmed( $input->{body_source} );
     my $html   = GPForum::Service::Forum::BodyRenderer->new(
         math_plugins => $self->ui_integration_plugins )->render_safe($source);
@@ -108,7 +124,7 @@ sub preview ($self) {
     return $self->render( json => { ok => 1, html => $html } )
       if $self->wants_json;
     $self->stash( composer_preview_html => $html );
-    return $self->compose( $input, $HTTP_OK );
+    return ( await $self->await_p( $self->compose( $input, $HTTP_OK ) ) );
 }
 
 1;

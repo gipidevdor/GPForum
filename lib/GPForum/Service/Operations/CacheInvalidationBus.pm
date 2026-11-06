@@ -7,6 +7,7 @@ use Const::Fast;
 use JSON::MaybeXS ();
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::PgNotifications;
 use GPForum::Infrastructure::Storage;
@@ -57,6 +58,18 @@ has stats => sub {
 # semantics cache invalidation needs — peers must not drop an entry for a write
 # that never landed — so publishing from inside the write transaction is
 # correct and deliberate, not an oversight.
+sub publish_p ( $self, $request, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub { return $self->publish($request); } )
+      if !$self->functions;
+    my $payload = $self->_payload($request);
+    return Mojo::Promise->resolve(0) if !$payload;
+    return $self->functions->row_p( 'ops_publish_notification',
+        { channel => $self->channel, payload => $payload }, $context )
+      ->then( sub { $self->stats->{published}++;         return 1; } )
+      ->catch( sub { $self->stats->{publish_failures}++; return 0; } );
+}
+
 sub publish ( $self, $request ) {
     my $payload = $self->_payload($request);
     if ( !$payload ) {
@@ -266,6 +279,10 @@ PostgreSQL does not deliver notices mid-transaction.
 =head2 snapshot
 
 Counters plus the channel name, for the operations metrics surface.
+
+=head2 publish_p
+
+Publishes the bounded invalidation payload with native SQL. Updates the bus counters in the caller and resolves false when publication fails.
 
 =head1 DIAGNOSTICS
 

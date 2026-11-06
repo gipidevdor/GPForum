@@ -21,6 +21,8 @@ use GPForum::Test::ScriptedParticipation;
 use GPForum::Test::DenyPermissionGate;
 use GPForum::Test::RecordingLimiter;
 
+use GPForum::Test::Promise qw(await_result);
+
 our $VERSION = '0.001';
 
 const my $HTTP_FOUND               => 302;
@@ -93,7 +95,8 @@ subtest 'each write asks the limiter for its own action' => sub {
     );
     for my $action ( sort keys %writes ) {
         $double{limiter} = GPForum::Test::RecordingLimiter->new;
-        is( $writes{$action}->(), $MEMBER, "$action lets the member write" );
+        is( await_result( $writes{$action}->() ),
+            $MEMBER, "$action lets the member write" );
         my ($check) = @{ $double{limiter}->checks };
         is_deeply(
             [ @{ $check || {} }{qw(action actor_id)} ],
@@ -117,10 +120,8 @@ subtest 'a refused permission is logged before the 403' => sub {
         my $controller = _controller($family);
         my @denials    = _denials_logged(
             sub {
-                ok(
-                    !$refusals{$family}->($controller),
-                    "$family refuses the member"
-                );
+                ok( !await_result( $refusals{$family}->($controller) ),
+                    "$family refuses the member" );
             }
         );
         is( $controller->res->code, $HTTP_FORBIDDEN, "$family answers 403" );

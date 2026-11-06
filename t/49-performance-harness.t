@@ -111,19 +111,22 @@ is_deeply(
     [ map { $_->{endpoint} } @{ $query_plan->{endpoints} } ],
     [
         qw(
-          home categories category_threads category_threads_signed_in
-          thread_view search autocomplete feed notifications outbox_claim
-          moderation_queue health_ready metrics home_signed_in home_deep
-          category_threads_deep category_threads_deep_signed_in
-          thread_view_signed_in thread_view_deep thread_view_deep_signed_in
+          categories_function home_function home_function_signed_in home_function_deep
+          category_threads_function category_threads_function_signed_in
+          category_threads_function_deep category_threads_function_deep_signed_in
+          search_function autocomplete_function feed_function bookmarks_function
+          mentions_function notifications_function notification_badge_function
+          thread_head_function thread_view_function thread_view_function_signed_in
+          thread_view_function_deep thread_view_function_deep_signed_in
         )
     ],
     'query plan evidence covers the hot endpoints, signed-in and deep pages'
 );
 my ($autocomplete_endpoint) =
-  grep { $_->{endpoint} eq 'autocomplete' } @{ $query_plan->{endpoints} };
+  grep { $_->{endpoint} eq 'autocomplete_function' }
+  @{ $query_plan->{endpoints} };
 is( $autocomplete_endpoint->{endpoint},
-    'autocomplete', 'query plan evidence includes autocomplete' );
+    'autocomplete_function', 'query plan evidence includes autocomplete' );
 
 my $front_door = _capture_command(
     'bin/gpforum', 'benchmark', '--fixture', '--iterations',

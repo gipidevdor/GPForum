@@ -37,6 +37,40 @@ my $admin = GPForum::Test::PostgresHarness::connect_dbi( $database->dsn );
 
 is_deeply( $functions->rows( 'forum_read_state', \%call ),
     [], 'a call answers' );
+
+subtest 'forked workers replace an inherited live connection' => sub {
+    my $parent_backend = $storage->dbh->{pg_pid};
+    my @workers        = GPForum::Test::PostgresHarness::race(
+        sub ($slot) {
+            my $rows = $functions->rows( 'forum_read_state', \%call );
+            return {
+                backend_pid => $storage->_get_dbh->{pg_pid},
+                row_count   => scalar @{$rows},
+            };
+        }
+    );
+    my %backends;
+    for my $worker (@workers) {
+        ok( $worker->{ok}, 'inherited function layer executes in the worker' )
+          or diag $worker->{error};
+        my $result = $worker->{result} // {};
+        isnt( $result->{backend_pid},
+            $parent_backend,
+            'worker uses a different PostgreSQL connection from its parent' );
+        is( $result->{row_count}, 0, 'worker receives intact query results' );
+        $backends{ $result->{backend_pid} // q{} }++;
+    }
+    is(
+        scalar keys %backends,
+        GPForum::Test::PostgresHarness::worker_count(),
+        'each worker owns a distinct PostgreSQL connection'
+    );
+    is( $storage->dbh->{pg_pid},
+        $parent_backend, 'worker exit leaves the parent connection intact' );
+    is_deeply( $functions->rows( 'forum_read_state', \%call ),
+        [], 'parent still executes its cached statement after workers exit' );
+};
+
 _terminate();
 is_deeply( $functions->rows( 'forum_read_state', \%call ),
     [], 'and answers again once its connection is gone' );

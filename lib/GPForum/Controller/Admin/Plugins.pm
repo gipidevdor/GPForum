@@ -4,7 +4,7 @@
 package GPForum::Controller::Admin::Plugins;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 use GPForum::Service::Forum::BodyRenderer;
 use GPForum::ViewModel::Admin::IntegrationOverview;
@@ -17,44 +17,66 @@ const my $FORBIDDEN   => 403;
 const my $UNAVAILABLE => 503;
 const my $MATH_LIMIT  => 4_096;
 
-sub show ($self) {
-    return if !$self->authorized_user_id( $self->admin_access->view_action );
-    return $self->_page;
+async sub show ($self) {
+    return
+      if !(
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+      );
+    return ( await $self->await_p( $self->_page ) );
 }
 
-sub change ($self) {
-    my $actor = $self->authorized_write_user_id;
+async sub change ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$actor;
-    my $result = $self->gp_configuration->save_plugin(
-        {
-            actor    => $actor,
-            command  => $self->command_id_param,
-            expected => $self->param('revision'),
-            plugin   => $self->param('plugin'),
-            enabled  => $self->param('enabled') // 0,
-            mode     => $self->param('mode')    // 'link',
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_configuration,
+            'save_plugin',
+            {
+                actor    => $actor,
+                command  => $self->command_id_param,
+                expected => $self->param('revision'),
+                plugin   => $self->param('plugin'),
+                enabled  => $self->param('enabled') // 0,
+                mode     => $self->param('mode')    // 'link',
+            }
+        )
     );
-    return $self->_result($result);
+    return ( await $self->await_p( $self->_result($result) ) );
 }
 
-sub probe ($self) {
-    return if !$self->authorized_write_user_id;
+async sub probe ($self) {
+    return if !( await $self->await_p( $self->authorized_write_user_id ) );
     my $url  = $self->param('url') // q{};
     my $card = $self->ui_integration_plugins->resolve($url);
-    return $self->_page( $OK, $card ? 'matched' : 'unmatched', $card, $url );
+    return (
+        await $self->await_p(
+            $self->_page( $OK, $card ? 'matched' : 'unmatched', $card, $url )
+        )
+    );
 }
 
-sub probe_math ($self) {
-    return if !$self->authorized_write_user_id;
+async sub probe_math ($self) {
+    return if !( await $self->await_p( $self->authorized_write_user_id ) );
     my $source = $self->param('source') // q{};
-    return $self->_page( $INVALID, 'invalid' ) if length($source) > $MATH_LIMIT;
-    my $html = GPForum::Service::Forum::BodyRenderer->new(
-        math_plugins => $self->ui_integration_plugins )->render_safe($source);
-    return $self->_page( $OK, q{}, undef, q{}, $source, $html );
+    return ( await $self->await_p( $self->_page( $INVALID, 'invalid' ) ) )
+      if length($source) > $MATH_LIMIT;
+    my $renderer = GPForum::Service::Forum::BodyRenderer->new(
+        math_plugins => $self->ui_integration_plugins );
+    my $rendered =
+      await $self->await_p( $renderer->render_many_p( [$source] ) );
+    my $html = GPForum::Service::Forum::BodyRenderer->with_rendered( $rendered,
+        sub { return $renderer->render_safe($source); } );
+    return (
+        await $self->await_p(
+            $self->_page( $OK, q{}, undef, q{}, $source, $html )
+        )
+    );
 }
 
-sub _result ( $self, $result ) {
+async sub _result ( $self, $result ) {
     my $status =
         $result->{status} eq 'ok'          ? $OK
       : $result->{status} eq 'conflict'    ? $CONFLICT
@@ -70,9 +92,11 @@ sub _result ( $self, $result ) {
         $self->flash( success => $self->t('admin.configuration_saved') );
         return $self->redirect_to('admin_plugins');
     }
-    $self->gp_configuration->state( $self->gp_configuration->load );
+    $self->gp_configuration->state(
+        ( await $self->call_p( $self->gp_configuration, 'load' ) ) );
     delete $self->stash->{'ui.integration_plugins'};
-    return $self->_page( $status, $result->{status} );
+    return (
+        await $self->await_p( $self->_page( $status, $result->{status} ) ) );
 }
 
 sub _page (

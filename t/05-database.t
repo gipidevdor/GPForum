@@ -17,6 +17,7 @@ use GPForum::Config;
 use GPForum::Migration::Plan;
 use GPForum::Migration::Runner;
 use GPForum::Schema;
+use GPForum::Test::LegacySchema;
 use GPForum::Test::MigrationSchema;
 
 our $VERSION = '0.001';
@@ -46,7 +47,7 @@ const my $POST_READER_ORDER => qr/thread_id, [ ] "position", [ ] post_id/msx;
 
 plan tests => $EXPECTED_TESTS;
 
-my $schema                         = GPForum::Schema->clone;
+my $schema                         = GPForum::Test::LegacySchema->clone;
 my $source                         = $schema->source('SchemaVersion');
 my $event_source                   = $schema->source('EventLog');
 my $event_idempotency_source       = $schema->source('EventIdempotencyKey');

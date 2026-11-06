@@ -115,6 +115,8 @@ sub _run ( $self, @arguments ) {
 }
 
 sub evidence_report ( $self, $options ) {
+    if ( !$self->_schema->can('resultset') ) { $options->{functions} = 1; }
+    $options->{functions} //= 0;
     $options->{profile} ||= 'small';
     my @endpoints =
         @{ $options->{endpoints} } ? @{ $options->{endpoints} }
@@ -365,6 +367,10 @@ sub _call_statement ( $self, $definition, $page = undef ) {
 # a small table another way: a growth that was the gate's own.
 sub _explain_nested ( $dbh, $statement, $options, $first = undef ) {
     my @log;
+
+    # Mojo::Pg disables driver warnings by default; this diagnostic deliberately
+    # captures auto_explain notices, with parameter logging disabled below.
+    local $dbh->{PrintWarn} = 1;                                               ## no critic (Variables::ProhibitLocalVars) -- scoped PostgreSQL notice capture
     local $SIG{__WARN__} = sub ($message) { push @log, $message; return; };
 
     $dbh->begin_work;

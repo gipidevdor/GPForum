@@ -22,6 +22,16 @@ for my $path (qw(/ /categories /login /register)) {
     $app->routes->get($path)->to(
         cb => sub ($controller) {
             push @warming, $controller->stash('gpforum.warming');
+            if ( $path eq '/login' ) {
+                $controller->render_later;
+                Mojo::IOLoop->next_tick(
+                    sub {
+                        $controller->render( text => 'warmed asynchronously' );
+                        return;
+                    }
+                );
+                return;
+            }
             return $controller->render( text => 'warmed' );
         }
     );
@@ -40,7 +50,7 @@ my $report;
 is_deeply(
     [ map { $_->{status} } @{ $report->{pages} } ],
     [ ($OK) x @warming ],
-    'all warmup pages run through the normal handler without network I/O'
+    'synchronous and asynchronous warmup pages finish without network I/O'
 );
 is_deeply(
     \@warming,

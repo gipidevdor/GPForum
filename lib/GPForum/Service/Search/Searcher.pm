@@ -8,6 +8,8 @@ use Carp    qw(croak);
 use English qw(-no_match_vars);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncWork;
 
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::SourceThread;
@@ -209,6 +211,10 @@ sub ranked_search ( $self, $actor, $query, $options ) {
         $hybrid
       ? $self->_hybrid_page( $read, $call->[1] )
       : { rows => $self->_timed_rows($read), semantic_status => 'disabled' };
+    return $self->_ranked_page( $actor, $normalized, $options, $page );
+}
+
+sub _ranked_page ( $self, $actor, $normalized, $options, $page ) {
     my $rows       = $page->{rows};
     my $candidates = $page->{candidates}
       // ( @{$rows} ? _column( $rows->[0], 'candidate_count' ) : 0 );
@@ -258,6 +264,122 @@ sub _hybrid_page ( $self, $read, $parameters ) {
         ? _column( $lexical->[0], 'candidate_count' )
         : 0,
     };
+}
+
+sub ranked_search_p ( $self, $actor, $query, $options, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->ranked_search( $actor, $query, $options )
+              if !$self->functions;
+            my $normalized = _normalized_query($query);
+            my $hybrid     = $self->_hybrid_enabled($normalized);
+            my $fetch =
+              $hybrid ? { %{ $options || {} }, limit => $MAX_LIMIT } : $options;
+            my $call = $self->ranked_call( $actor, $query, $fetch );
+            return $self->_ranked_read_p( $call, $hybrid, $context )->then(
+                sub ($page) {
+                    return $self->_ranked_page( $actor, $normalized, $options,
+                        $page );
+                }
+            );
+        }
+    );
+}
+
+sub _ranked_read_p ( $self, $call, $hybrid, $context ) {
+    my $work = GPForum::Infrastructure::AsyncWork->shared;
+    my $keys =
+      $hybrid
+      ? $work->service_args_p( $self->semantic, 'ranked_call', [ $call->[1] ],
+        $context )
+      ->then(
+        sub ($semantic) { return { call => $semantic, status => 'ok' }; } )
+      ->catch( sub { return { status => 'degraded' }; } )
+      : Mojo::Promise->resolve( { status => 'disabled' } );
+    return $keys->then(
+        sub ($semantic) {
+            my $lexical;
+            return $self->_timed_functions_p(
+                sub ($functions) {
+                    return _read_call_p( $functions, $call, $context )->then(
+                        sub ($rows) {
+                            $lexical = $rows;
+                            return $rows if !$semantic->{call};
+                            return _read_call_p( $functions, $semantic->{call},
+                                $context )->then(
+                                sub ($vectors) {
+                                    return _fused_rows( $rows, $vectors );
+                                }
+                                );
+                        }
+                    );
+                },
+                $context
+            )->catch(
+                sub ($error) {
+                    croak $error if !defined $lexical || !$semantic->{call};
+                    $semantic->{status} = 'degraded';
+                    return $lexical;
+                }
+            )->then(
+                sub ($rows) {
+                    return {
+                        rows            => $rows,
+                        semantic_status => $semantic->{status},
+                        candidates      => @{$lexical}
+                        ? _column( $lexical->[0], 'candidate_count' )
+                        : 0
+                    };
+                }
+            );
+        }
+    );
+}
+
+sub _read_call_p ( $functions, $call, $context ) {
+    return $functions->rows_p( @{$call}, $context )->then(
+        sub ($rows) {
+            return [ map { GPForum::Infrastructure::ResultRow->from($_) }
+                  @{$rows} ];
+        }
+    );
+}
+
+sub _timed_functions_p ( $self, $work, $context ) {
+    my $timeout = $self->statement_timeout_ms;
+    return $work->( $self->functions ) if !$timeout;
+    return $self->functions->transaction_p(
+        sub ($functions) {
+            return $functions->row_p( 'search_set_timeout',
+                { timeout => "$timeout" }, $context )
+              ->then( sub { return $work->($functions); } );
+        },
+        $context,
+        1
+    );
+}
+
+sub autocomplete_p ( $self, $actor, $prefix, $options, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->autocomplete( $actor, $prefix, $options )
+              if !$self->functions;
+            my $call = $self->autocomplete_call( $actor, $prefix, $options );
+            return $self->_timed_functions_p(
+                sub ($functions) {
+                    return _read_call_p( $functions, $call, $context );
+                },
+                $context
+            )->then(
+                sub ($rows) {
+                    return [
+                        map  { _decorate_autocomplete_result($_) }
+                        grep { $self->_can_render( $actor, $_ ) } @{$rows}
+                    ];
+                }
+            );
+        }
+    );
 }
 
 sub _hybrid_enabled ( $self, $query ) {
@@ -1079,6 +1201,14 @@ Returns the catalogue call and checked, bound parameters for ranked search. The 
 =head2 autocomplete_call
 
 Returns the catalogue call and bound parameters for title autocomplete. The nested plan evidence uses the same parameters as the reader.
+
+=head2 autocomplete_p
+
+Runs autocomplete through native SQL promises, preserving the timeout transaction, visibility filtering and result decoration. Accepts an optional observation context last.
+
+=head2 ranked_search_p
+
+Runs lexical and optional semantic ranking without blocking the reactor. Embedding work is isolated; SQL uses native promises and a read-only timeout transaction, with lexical degradation after vector failure.
 
 =head1 DIAGNOSTICS
 

@@ -161,7 +161,7 @@ subtest 'GUI network configuration reaches the production outbox worker' =>
     my ($event) = $dbh->selectrow_array(
 q{SELECT event_id FROM event_log WHERE event_type='integration.discord.requested' ORDER BY created_at DESC LIMIT 1}
     );
-    my $messages = $worker->gp_schema->resultset('OutboxMessage');
+    my $messages = $database->schema->resultset('OutboxMessage');
     my $message  = $messages->search( { event_id => $event } )->first;
     ok( $message,
         'GUI command creates the envelope consumed by the production worker' );

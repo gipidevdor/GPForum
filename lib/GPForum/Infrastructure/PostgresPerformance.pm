@@ -12,6 +12,8 @@ use IO::Handle;
 use Const::Fast;
 use List::Util qw(any);
 use GPForum::Infrastructure::PostgresProfile;
+use GPForum::Infrastructure::AsyncWork;
+use Mojo::Promise;
 use GPForum::X::Check;
 
 our $VERSION = '0.001';
@@ -40,19 +42,31 @@ const my $PRIVATE_MODE      => oct '600';
 const my %OVERRIDE_SOURCE => map { $_ => 1 }
   ( 'command line', 'database', 'user', 'database user', 'client', 'session' );
 
-sub settings ($self) {
+sub _settings_call {
     my @names = (
         @TUNING,
         sort keys %SAFETY,
         qw(superuser_reserved_connections reserved_connections autovacuum_max_workers max_parallel_workers_per_gather hash_mem_multiplier checkpoint_completion_target checkpoint_timeout max_wal_size min_wal_size wal_buffers),
     );
     my $bind = join q{,}, map { q{?} } @names;
-    my $rows = $self->dbh->selectall_arrayref(
+    return [
 "SELECT name, setting, unit, source, context, pending_restart, boot_val, reset_val FROM pg_catalog.pg_settings WHERE name IN ($bind) ORDER BY name",
-        { Slice => {} },
         @names
-    );
+    ];
+}
+
+sub settings ($self) {
+    my ( $sql, @bind ) = @{ _settings_call() };
+    my $rows = $self->dbh->selectall_arrayref( $sql, { Slice => {} }, @bind );
     return { map { $_->{name} => $_ } @{$rows} };
+}
+
+sub settings_p ( $self, $db ) {
+    return $db->query_p( @{ _settings_call() } )->then(
+        sub ($result) {
+            return { map { $_->{name} => $_ } @{ $result->hashes->to_array } };
+        }
+    );
 }
 
 # Values are compared in the units pg_settings actually reports (including
@@ -81,6 +95,24 @@ sub inspect ($self) {
     my ( $settings, $error );
     try { $settings = $self->settings; }
     catch ($caught) { $error = 'pg_settings unavailable'; };
+    return $self->_assessment( $profile, $settings, $error );
+}
+
+sub inspect_p ( $self, $db ) {
+    my $profile = GPForum::Infrastructure::AsyncWork->shared->run_p(
+        sub {
+            return GPForum::Infrastructure::PostgresProfile->new(
+                config => $self->config )->recommendation;
+        }
+    );
+    return Mojo::Promise->all( $profile, $self->settings_p($db) )->then(
+        sub ( $hardware, $settings ) {
+            return $self->_assessment( $hardware->[0], $settings->[0], undef );
+        }
+    );
+}
+
+sub _assessment ( $self, $profile, $settings, $error ) {
     my @findings = map {
         +{
             severity  => 'recommendation',
@@ -118,7 +150,7 @@ sub inspect ($self) {
             severity  => 'critical',
             parameter => 'max_connections',
             reason    =>
-"connection budget needs $required nonreserved slots (2 per web worker plus 16 for workers, operations and reload overlap)"
+"connection budget needs $required nonreserved slots (4 per web worker plus 16 for workers, operations and reload overlap)"
           };
     }
     if ( $profile->{memory_mb} && !$profile->{sufficient_memory} ) {
@@ -201,7 +233,15 @@ sub _tuning_findings ( $profile, $settings ) {
 }
 
 sub enforce ($self) {
-    my $report = $self->inspect;
+    return $self->_enforce_report( $self->inspect );
+}
+
+sub enforce_p ( $self, $db ) {
+    return $self->inspect_p($db)
+      ->then( sub ($report) { return $self->_enforce_report($report); } );
+}
+
+sub _enforce_report ( $self, $report ) {
     return $report if $report->{status} eq 'ok';
     my $message = 'PostgreSQL performance: '
       . join( '; ',

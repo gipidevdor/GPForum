@@ -6,6 +6,7 @@ package GPForum::Test::NetworkClient;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Carp qw(croak);
+use Mojo::Promise;
 use GPForum::Service::Integration::HttpClient;
 our $VERSION = '0.001';
 has responses => sub { return []; };
@@ -22,6 +23,11 @@ sub request ( $self, $method, $url, $input = {} ) {
     return ref $response eq 'CODE'
       ? $response->( $method, $url, $input )
       : $response;
+}
+
+sub request_p ( $self, @args ) {
+    return Mojo::Promise->resolve->then(
+        sub { return $self->request(@args); } );
 }
 
 1;

@@ -5,23 +5,33 @@ package GPForum::Controller::Home;
 
 use GPForum::Web::HomeAccess;
 use GPForum::Web::RequestPreference;
-use Mojo::Base 'Mojolicious::Controller', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub show ($self) {
+async sub show ($self) {
     my $access = GPForum::Web::HomeAccess->new;
     my $home;
     try {
-        $home = $self->gp_home_page_reader->home_page(
-            {
-                %{ $access->query( $self->param('after') ) },
-                viewer => $self->gp_forum_viewer,
-            }
+        $home = (
+            await $self->call_p(
+                $self->gp_home_page_reader,
+                'home_page',
+                {
+                    %{ $access->query( $self->param('after') ) },
+                    viewer => $self->gp_forum_viewer,
+                }
+            )
         );
-        _attach_tags( $home->{latest_threads}{items},
-            $self->gp_tags_for_threads( $home->{latest_threads}{items} ) );
+        _attach_tags(
+            $home->{latest_threads}{items},
+            (
+                await $self->gp_tags_for_threads_p(
+                    $home->{latest_threads}{items}
+                )
+            )
+        );
     }
     catch ($error) {
         $self->app->log->error("home page read failed: $error");
@@ -35,7 +45,7 @@ sub show ($self) {
     # Keep them live when requested without probing the OS on every page.
     my $runtime =
       GPForum::Web::RequestPreference->wants_json($self)
-      ? $self->gp_runtime->as_hash
+      ? ( await $self->call_p( $self->gp_runtime, 'as_hash' ) )
       : undef;
     return $access->render_page( $self,
         $access->page_payload( $home, $runtime ) );

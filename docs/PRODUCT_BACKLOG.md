@@ -307,7 +307,7 @@ For mail status, current worker wiring and mailer code take precedence over
 historical ADR wording that predates the identity mailer.
 
 [routes]: ../lib/GPForum/Bootstrap/Routes.pm
-[post-model]: ../lib/GPForum/Schema/Result/Post.pm
+[post-model]: ../etc/schema/postgresql-18.sql
 [composer]: ../templates/forum/_composer.html.ep
 [new-thread]: ../templates/forum/new_thread.html.ep
 [markup]: ../lib/GPForum/Service/Forum/BodyRenderer.pm

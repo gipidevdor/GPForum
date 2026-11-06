@@ -6,7 +6,9 @@ package main;
 use v5.40;
 
 use Const::Fast;
+use Carp qw(croak);
 use Test::Mojo;
+use File::Temp;
 use Test::More;
 
 use lib 'lib';
@@ -112,7 +114,7 @@ my %signed_in_pages = (
     notifications => '/notifications',
 );
 
-my %executed;
+my %execution_files;
 my $anonymous = _instrumented('anonymous');
 my $signed_in = _instrumented('signed in');
 _sign_in($signed_in);
@@ -177,7 +179,24 @@ sub _instrumented {
     my $client  = Test::Mojo->new('GPForum');
     my $schema  = $client->app->build_controller->gp_schema;
     my $storage = $schema->storage;
-    my $count   = sub { $executed{$who}++; return; };
+
+    # A shared append-only descriptor also records executions in isolated
+    # service children. A copied Perl counter observes only the HTTP parent.
+    my $counter = $execution_files{$who} = File::Temp->new( UNLINK => 1 );
+    my $count   = sub ( $handle, @arguments ) {
+        my $statement =
+          ref($handle) eq 'DBI::st' ? $handle->{Statement} : $arguments[0];
+
+        # DBI's begin_work/commit were never application queries in this
+        # observer. Explicit native async controls keep that same contract;
+        # transaction counts are observed separately by the runtime.
+        return
+          if ( $statement // q{} ) =~
+          /\A(?:BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/msx;
+        syswrite( $counter, q{x} ) == 1
+          or croak 'cannot record raw query execution';
+        return;
+    };
     $storage->dbh->{Callbacks} = {
         ChildCallbacks     => { execute => $count },
         do                 => $count,
@@ -185,6 +204,19 @@ sub _instrumented {
         selectrow_array    => $count,
         selectrow_arrayref => $count,
     };
+
+    # Native asynchronous reads lease other connections from this pool.
+    $storage->pg->on(
+        connection => sub ( $pg, $dbh ) {
+            $dbh->{Callbacks} = {
+                ChildCallbacks     => { execute => $count },
+                do                 => $count,
+                selectall_arrayref => $count,
+                selectrow_array    => $count,
+                selectrow_arrayref => $count,
+            };
+        }
+    );
 
     return $client;
 }
@@ -199,11 +231,11 @@ sub _statements {
     for my $tag (qw(forum:public-html categories forum-index)) {
         $cache->invalidate_tag($tag);
     }
-    $executed{$who} = 0;
+    my $before = -s $execution_files{$who};
     $client->get_ok( $path => { 'Accept-Language' => 'en' } )
       ->status_is($HTTP_OK);
 
-    return $executed{$who};
+    return ( -s $execution_files{$who} ) - $before;
 }
 
 sub _rows {

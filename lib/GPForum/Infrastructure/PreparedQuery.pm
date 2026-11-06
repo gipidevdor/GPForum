@@ -11,7 +11,9 @@ use Scalar::Util qw(blessed);
 
 our $VERSION = '0.001';
 
-# A statement DBIx::Class built once, run again with new values.
+# Historical fixture support: a statement DBIx::Class built once.
+# Production schemas expose no resultsets or source metadata and cannot
+# enter this path; runtime statements use the stored-function catalogue.
 #
 # DBIx::Class builds a resultset's SQL from scratch on every search. For the
 # two statements a thread page runs, the building took seven times what
@@ -42,7 +44,8 @@ sub rows ( $self, %input ) {
     return _resultset_rows(%input)
       if !defined $input{shape}
       || !blessed $schema
-      || !$schema->isa('DBIx::Class::Schema');
+      || !( $schema->isa('DBIx::Class::Schema')
+        || ( $schema->isa('GPForum::Schema') && $schema->can('source') ) );
 
     my $key       = ref($schema) . "\0" . $input{shape};
     my $statement = $STATEMENT{$key} //= _statement(%input);

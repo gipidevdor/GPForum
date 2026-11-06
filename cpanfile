@@ -1,9 +1,12 @@
 requires 'perl', '5.040.0';
 
 requires 'Mojolicious', '9.51';
+# Mojo::Base -async_await keeps the complete HTTP call chain on Mojo::Promise.
+requires 'Future::AsyncAwait', '0.71';
 # The supported OS profiles require libev's native epoll/kqueue backend.
 requires 'EV', '4.37';
-requires 'DBIx::Class', '0.082844';
+requires 'Mojo::Pg', '5.0';
+requires 'DBD::Pg', '3.21.2';
 requires 'Minion', '12.0';
 requires 'JSON::MaybeXS', '1.004008';
 # Never loaded by name: it is the XS backend JSON::MaybeXS selects at runtime,
@@ -52,6 +55,8 @@ on test => sub {
 # The maintainer's tools. A production host installs without them:
 # `make install-deps-production` (script/bootstrap-deps --production).
 on develop => sub {
+    # Historical ORM metadata and fixture comparisons are maintainer-only.
+    requires 'DBIx::Class', '0.082844';
     # Perl::Critic, Perl::Tidy, Devel::Cover and Devel::NYTProf are invoked as
     # programs by script/, not loaded by name, so they are declared but never
     # appear in a use statement.
@@ -67,8 +72,8 @@ on develop => sub {
     requires 'List::SomeUtils::XS', '0.59';
 };
 
-# PostgreSQL driver, Minion Pg backend, and DB-backed test helper.
-# Kept in cpanfile.postgres so the declared set stays split.
+# PostgreSQL test helper and compatibility feature pins. The runtime driver
+# and Mojo::Pg are required above; production no longer depends on DBIx.
 # `script/bootstrap-deps --postgres` enables this feature in cpm.
 feature 'postgres', sub {
     do './cpanfile.postgres';

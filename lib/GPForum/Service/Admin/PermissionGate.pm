@@ -4,8 +4,9 @@
 package GPForum::Service::Admin::PermissionGate;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::SqlFunction;
 
@@ -20,6 +21,37 @@ __PACKAGE__->requires(qw(schema));
 has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
 };
+
+async sub allowed_p ( $self, $actor, $permission, $context = undef ) {
+    return $self->allowed( $actor, $permission ) if !$self->functions;
+    my $user_id = _user_id($actor);
+    return 0 if !defined $user_id || !length $user_id;
+    my $row = await $self->functions->row_p(
+        'admin_permission_allowed',
+        {
+            user_id       => $user_id,
+            resource_type => $permission->{resource_type},
+            action        => $permission->{action},
+            resource_id   => _scope_value( $permission->{resource_id} ),
+            space_id      => _scope_value( $permission->{space_id} ),
+        },
+        $context
+    );
+    return $row && $row->{allowed} ? 1 : 0;
+}
+
+async sub navigation_context_p ( $self, $actor, $context = undef ) {
+    return $self->navigation_context($actor) if !$self->functions;
+    my $user_id = _user_id($actor);
+    return { available => 1, permissions => {} }
+      if !defined $user_id || !length $user_id;
+    my $row = await $self->functions->row_p( 'admin_navigation_context',
+        { user_id => $user_id }, $context );
+    return {
+        available => 1,
+        %{ $row // {} }, permissions => $row ? $row->{permissions} : {}
+    };
+}
 
 sub allowed ( $self, $actor, $permission ) {
     my $user_id = _user_id($actor);
@@ -169,6 +201,14 @@ scope.
 Reads the active account's username and the finite set of global permissions
 used by the menu in one statement. Scoped, revoked and suspended grants do not
 expose staff links. This does not authorize destination controllers.
+
+=head2 allowed_p
+
+Returns a promise for the same scoped permission decision as C<allowed>. Invalid actors are refused before querying; unavailable SQL rejects for the caller to handle.
+
+=head2 navigation_context_p
+
+Resolves the menu permission context through one native query. The result belongs to this request and is never retained in the session.
 
 =head1 DIAGNOSTICS
 

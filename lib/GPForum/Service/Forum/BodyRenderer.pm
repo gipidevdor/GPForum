@@ -8,6 +8,8 @@ use English    qw(-no_match_vars);
 use List::Util qw(any);
 use Mojo::Base -base, -signatures;
 use v5.40;
+use GPForum::Infrastructure::AsyncWork;
+use Mojo::Promise;
 use Mojo::Util qw(xml_escape);
 
 our $VERSION = '0.001';
@@ -46,9 +48,44 @@ const my $RENDERED_CHARACTERS => 4_194_304;
 # cleared when full rather than kept in order: a bound is all it needs.
 # A render too large to store leaves the existing memo untouched.
 my %RENDERED;
-my $HELD = 0;
+my %ACTIVE = ( rendered => undef );
+my $HELD   = 0;
 has math_plugins =>
   undef;    # optional: storage, exports and offline rendering keep plain source
+
+sub with_rendered ( $class, $rendered, $work ) {
+    local $ACTIVE{rendered} = $rendered;    ## no critic (Variables::ProhibitLocalVars) -- data-only rendering scope never crosses an asynchronous yield
+    return $work->();
+}
+
+sub render_many_p ( $self, $sources ) {
+    my $plugins = $self->math_plugins;
+    my $variant =
+      $plugins && $plugins->math_enabled ? $plugins->cache_variant : 'plain';
+    my ( %ready, %missing );
+    for my $source ( @{$sources} ) {
+        next if !defined $source || !length $source;
+        my $key = "$variant:$source";
+        if   ( exists $RENDERED{$key} ) { $ready{$key}   = $RENDERED{$key}; }
+        else                            { $missing{$key} = $source; }
+    }
+    return Mojo::Promise->resolve( \%ready ) if !%missing;
+    return GPForum::Infrastructure::AsyncWork->shared->run_p(
+        sub {
+            return {
+                map { $_ => $self->render_safe( $missing{$_} ) }
+                  keys %missing
+            };
+        }
+    )->then(
+        sub ($rendered) {
+            for my $key ( keys %{$rendered} ) {
+                _remember( $key, $rendered->{$key} );
+            }
+            return { %ready, %{$rendered} };
+        }
+    );
+}
 
 sub render_safe ( $self, $source ) {
     if ( !defined $source || !length $source ) {
@@ -60,9 +97,15 @@ sub render_safe ( $self, $source ) {
       : undef;
     my $key = ( $math ? $self->math_plugins->cache_variant : q{plain} ) . q{:}
       . $source;
+    return $ACTIVE{rendered}->{$key}
+      if $ACTIVE{rendered} && exists $ACTIVE{rendered}->{$key};
     return $RENDERED{$key} if exists $RENDERED{$key};
 
     my $html = _render( $source, $math );
+    return _remember( $key, $html );
+}
+
+sub _remember ( $key, $html ) {
     my $size = length($key) + length $html;
     return $html if $size > $RENDERED_CHARACTERS;
 
@@ -490,6 +533,14 @@ Returns how many characters of source and HTML the memo may hold: 4,194,304.
 =head2 held_characters
 
 Returns how many characters of source and HTML the memo holds now.
+
+=head2 render_many_p
+
+Renders missing bodies in one bounded subprocess operation, then updates the parent's bounded memo. Returns the complete per-page render map, including memo hits.
+
+=head2 with_rendered
+
+Scopes a precomputed render map to a synchronous view-model build. Even a page larger than the shared memo budget reuses its already-rendered bodies.
 
 =head1 DIAGNOSTICS
 

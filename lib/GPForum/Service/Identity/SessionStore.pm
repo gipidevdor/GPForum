@@ -6,6 +6,7 @@ package GPForum::Service::Identity::SessionStore;
 use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::PreparedQuery;
 use GPForum::Infrastructure::ResultRow;
@@ -145,6 +146,60 @@ sub validate_session ( $self, $input ) {
 # ADR 0148: which of these sessions are live -- not revoked, not past their
 # expiry -- as a set, in one call. An id that is not a uuid names no
 # session.
+sub validate_session_p ( $self, $input, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return { ok => 0, error => 'not_found' }
+              if !has_text( $input->{session_id} )
+              || !has_text( $input->{user_id} );
+            return $self->validate_session($input) if !$self->functions;
+            my $presented = $input->{session_token};
+            return $self->functions->row_p(
+                'session_validate',
+                {
+                    session_id => $input->{session_id},
+                    user_id    => $input->{user_id},
+                    token_hash => has_text($presented)
+                    ? $self->session_tokens->hash_token($presented)
+                    : undef,
+                    now                    => $self->clock->now_iso8601,
+                    touch_interval_seconds =>
+                      $self->session_touch_interval_seconds,
+                },
+                $context
+            )->then(
+                sub ($row) {
+                    return { ok => 0, error => 'not_found' } if !$row;
+                    my $code = delete $row->{result_code};
+                    return { ok => 0, error => $code }
+                      if $code ne 'ok' && $code ne 'expired';
+                    my $session =
+                      GPForum::Infrastructure::ResultRow->from($row);
+                    return { ok => 0, error => 'expired', session => $session }
+                      if $code eq 'expired';
+                    return { ok => 1, session => $session };
+                }
+            );
+        }
+    );
+}
+
+sub live_session_ids_p ( $self, $session_ids, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub { return $self->live_session_ids($session_ids); } )
+      if !$self->functions;
+    my @ids =
+      grep { GPForum::Infrastructure::Id->is_uuid($_) } @{ $session_ids || [] };
+    return Mojo::Promise->resolve( {} ) if !@ids;
+    return $self->functions->rows_p( 'session_live',
+        { session_ids => \@ids, now => $self->clock->now_iso8601 }, $context )
+      ->then(
+        sub ($rows) {
+            return { map { lc( $_->{session_id} ) => 1 } @{$rows} };
+        }
+      );
+}
+
 sub live_session_ids ( $self, $session_ids ) {
     my @ids =
       grep { GPForum::Infrastructure::Id->is_uuid($_) } @{ $session_ids || [] };
@@ -547,6 +602,14 @@ where they are. Each session is revoked at the time given, or at its own
 C<created_at> when that is later, so a session a concurrent login committed
 after the caller read its clock is revoked rather than failing
 C<sessions_revoked_after_created_check>.
+
+=head2 live_session_ids_p
+
+Returns a promise for the set of live session ids, using one bounded native query. Invalid ids are omitted; no socket is closed when the lookup fails.
+
+=head2 validate_session_p
+
+Validates and touches the server session through a native promise. Accepts the same input as C<validate_session> and an optional request observation context.
 
 =head1 DIAGNOSTICS
 

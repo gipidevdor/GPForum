@@ -125,6 +125,16 @@ sub poll ( $self, $source ) {
     );
 }
 
+sub decide_with_posting ( $self, $input, $posting, $viewer ) {
+    return $self->decide(
+        $input,
+        sub ($command) {
+            return $posting->create_thread(
+                { %{$command}, viewer => $viewer } );
+        }
+    );
+}
+
 sub decide ( $self, $input, $publish ) {
     $self->_require_policy;
     return $self->schema->txn_do(
@@ -216,6 +226,10 @@ Rechecks source authorization, uses conditional fetches and stages deduplicated 
 =head2 decide
 
 Publishes a separately approved candidate through the normal forum workflow or records rejection in the same transaction.
+
+=head2 decide_with_posting
+
+Runs a feed decision and its synchronous posting callback as one service operation. The caller isolates this complete workflow; a transaction never receives an unresolved promise.
 
 =head1 DIAGNOSTICS
 

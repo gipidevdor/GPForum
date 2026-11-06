@@ -7,6 +7,7 @@ use Const::Fast;
 use MIME::Base64 qw(encode_base64url);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::Keyset;
 use GPForum::Infrastructure::ResultRow::Thread;
@@ -64,6 +65,55 @@ sub list_category_threads ( $self, $request ) {
             )
         ],
         $plan->{limit}
+    );
+}
+
+sub list_category_threads_p ( $self, $request, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->list_category_threads($request) if !$self->functions;
+            my $plan = $self->_category_plan($request);
+            return $self->functions->rows_p(
+                @{ $self->category_threads_call( $request, $plan ) }, $context )
+              ->then(
+                sub ($rows) {
+                    return _pinned_page(
+                        [
+                            map {
+                                GPForum::Infrastructure::ResultRow::Thread
+                                  ->from($_)
+                            } @{$rows}
+                        ],
+                        $plan->{limit}
+                    );
+                }
+              );
+        }
+    );
+}
+
+sub list_public_threads_p ( $self, $request, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->list_public_threads($request) if !$self->functions;
+            my $plan = $self->_latest_plan($request);
+            return $self->functions->rows_p(
+                @{ $self->latest_threads_call( $request, $plan ) }, $context )
+              ->then(
+                sub ($rows) {
+                    return $self->page_window->page(
+                        [
+                            map {
+                                GPForum::Infrastructure::ResultRow::Thread
+                                  ->from($_)
+                            } @{$rows}
+                        ],
+                        $plan->{limit},
+                        [ 'last_activity_at', 'thread_id' ]
+                    );
+                }
+              );
+        }
     );
 }
 
@@ -534,6 +584,14 @@ safe HTML, undef when that post is not public, visible and in place
 Takes the same request and an optional plan. Returns the unexecuted
 C<Thread> resultset that C<list_public_threads> runs. Public so the
 query-plan evidence EXPLAINs what actually runs.
+
+=head2 list_category_threads_p
+
+Executes the existing visibility and keyset plan through native SQL promises and returns the same pinned page shape.
+
+=head2 list_public_threads_p
+
+Executes the public-thread keyset plan through native SQL promises and returns the same bounded page shape.
 
 =head1 DIAGNOSTICS
 

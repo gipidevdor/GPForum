@@ -3,7 +3,7 @@
 
 package GPForum::Controller::Admin::Diagnostics;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -12,17 +12,22 @@ our $VERSION = '0.001';
 # administrator who asked for it, and the check scans three files of its own.
 # Nothing is taken away. Neither reads a recipient or a file from the
 # request: there is none to read.
-sub mail_test ($self) {
-    my $actor_user_id = $self->authorized_write_user_id;
+async sub mail_test ($self) {
+    my $actor_user_id =
+      ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_user_id ) {
         return;
     }
 
-    my $result = $self->gp_admin_workflow->send_test_mail(
-        {
-            actor_user_id => $actor_user_id,
-            command_id    => $self->command_id_param,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_admin_workflow,
+            'send_test_mail',
+            {
+                actor_user_id => $actor_user_id,
+                command_id    => $self->command_id_param,
+            }
+        )
     );
     my $failure = $self->write_failure($result);
     return $failure if $failure;
@@ -32,17 +37,22 @@ sub mail_test ($self) {
         $self->admin_access->mail_test_status( $stored->{outcome} ), $stored );
 }
 
-sub antivirus_check ($self) {
-    my $actor_user_id = $self->authorized_write_user_id;
+async sub antivirus_check ($self) {
+    my $actor_user_id =
+      ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_user_id ) {
         return;
     }
 
-    my $result = $self->gp_admin_workflow->check_antivirus(
-        {
-            actor_user_id => $actor_user_id,
-            command_id    => $self->command_id_param,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_admin_workflow,
+            'check_antivirus',
+            {
+                actor_user_id => $actor_user_id,
+                command_id    => $self->command_id_param,
+            }
+        )
     );
     my $failure = $self->write_failure($result);
     return $failure if $failure;

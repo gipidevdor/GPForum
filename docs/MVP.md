@@ -324,7 +324,7 @@ leak surface.
 The HTTP forum path now follows:
 
 ```text
-route -> Forum controller -> reader/composer/store service -> DBIx::Class
+route -> Forum controller -> reader/composer/store service -> Mojo::Pg -> versioned PostgreSQL functions
 ```
 
 Thread creation and reply creation still delegate persistence to `ThreadStore`

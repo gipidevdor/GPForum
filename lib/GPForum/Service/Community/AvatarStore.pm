@@ -13,6 +13,8 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Clock;
 use GPForum::X::Unavailable;
 
+use Mojo::Promise;
+
 our $VERSION = '0.001';
 
 # ADR 0144: the sides a picture is kept at, and what a staff removal is
@@ -151,6 +153,19 @@ sub status ( $self, $user_id ) {
 
 # The stored square of the picture a member shows, at a side: its
 # attachment, object key, media type and size, or undef.
+sub image_p ( $self, $user_id, $side, $context = undef ) {
+    return Mojo::Promise->resolve(undef)
+      if !_is_uuid($user_id) || !$self->is_side($side);
+    return $self->_functions->row_p(
+        'community_avatar_image',
+        {
+            user_id      => $user_id,
+            variant_type => $self->variant_type($side)
+        },
+        $context
+    );
+}
+
 sub image ( $self, $user_id, $side ) {
     return undef if !_is_uuid($user_id) || !$self->is_side($side);
 
@@ -280,6 +295,10 @@ C<media_type> and C<byte_size> of the square, or undef.
 
 Takes a member id and optionally an attachment id. Returns
 C<< { attachment_id, object_key } >> rows, the original's and its variants'.
+
+=head2 image_p
+
+Returns a promise for the requested avatar variant metadata.
 
 =head1 DIAGNOSTICS
 

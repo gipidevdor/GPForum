@@ -3,66 +3,102 @@
 
 package GPForum::Controller::Moderation::Queue;
 
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub assign_report ($self) {
+async sub assign_report ($self) {
     my $access  = $self->moderation_access;
-    my $user_id = $self->authorized_write_user_id( $access->assign_action );
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id( $access->assign_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->report_write_response(
-        $self->gp_moderation_workflow->assign_report(
-            {
-                actor_user_id => $user_id,
-                command_id    => $self->command_id_param,
-                report_id     => $self->param('report_id'),
-            }
-        ),
-        $access->assigned_status,
+    return (
+        await $self->await_p(
+            $self->report_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_moderation_workflow,
+                        'assign_report',
+                        {
+                            actor_user_id => $user_id,
+                            command_id    => $self->command_id_param,
+                            report_id     => $self->param('report_id'),
+                        }
+                    )
+                ),
+                $access->assigned_status,
+            )
+        )
     );
 }
 
-sub release_report ($self) {
+async sub release_report ($self) {
     my $access  = $self->moderation_access;
-    my $user_id = $self->authorized_write_user_id( $access->assign_action );
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id( $access->assign_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->report_write_response(
-        $self->gp_moderation_workflow->release_report(
-            {
-                actor_user_id => $user_id,
-                command_id    => $self->command_id_param,
-                report_id     => $self->param('report_id'),
-            }
-        ),
-        $access->released_status,
+    return (
+        await $self->await_p(
+            $self->report_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_moderation_workflow,
+                        'release_report',
+                        {
+                            actor_user_id => $user_id,
+                            command_id    => $self->command_id_param,
+                            report_id     => $self->param('report_id'),
+                        }
+                    )
+                ),
+                $access->released_status,
+            )
+        )
     );
 }
 
-sub resolve_report ($self) {
+async sub resolve_report ($self) {
     my $access  = $self->moderation_access;
-    my $user_id = $self->authorized_write_user_id( $access->resolve_action );
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id( $access->resolve_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->report_write_response(
-        $self->gp_moderation_workflow->resolve_report(
-            {
-                actor_user_id => $user_id,
-                command_id    => $self->command_id_param,
-                report_id     => $self->param('report_id'),
-                resolution    => $self->param('resolution'),
-            }
-        ),
-        $access->resolved_status,
+    return (
+        await $self->await_p(
+            $self->report_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_moderation_workflow,
+                        'resolve_report',
+                        {
+                            actor_user_id => $user_id,
+                            command_id    => $self->command_id_param,
+                            report_id     => $self->param('report_id'),
+                            resolution    => $self->param('resolution'),
+                        }
+                    )
+                ),
+                $access->resolved_status,
+            )
+        )
     );
 }
 

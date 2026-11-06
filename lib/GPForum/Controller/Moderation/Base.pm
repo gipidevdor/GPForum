@@ -4,7 +4,7 @@
 package GPForum::Controller::Moderation::Base;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
@@ -42,7 +42,7 @@ sub queue_limit ($self) {
     return $self->moderation_access->queue_limit( $self->param('limit') );
 }
 
-sub authorized_write_user_id ( $self, $resource_type, $action = undef ) {
+async sub authorized_write_user_id ( $self, $resource_type, $action = undef ) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         GPForum::Web::SecurityEvent->new->csrf_failure($self);
         return;
@@ -50,17 +50,32 @@ sub authorized_write_user_id ( $self, $resource_type, $action = undef ) {
 
     my $access   = $self->moderation_access;
     my $decision = $access->authorization_target( $resource_type, $action );
-    my $user_id  = $self->_scoped_user_id( $decision,
-        $self->write_permission_scope( $decision->{resource_type} ) );
+    my $user_id  = (
+        await $self->await_p(
+            $self->_scoped_user_id(
+                $decision,
+                $self->write_permission_scope( $decision->{resource_type} )
+            )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
     return
-      if !$self->participating( $user_id,
-        join q{.}, @{$decision}{qw(resource_type action)} );
-    my $rate = $self->gp_rate_limiter->check(
-        $access->write_rate_input(
-            { action => $access->write_action, actor_id => $user_id }
+      if !(
+        await $self->await_p(
+            $self->participating(
+                $user_id, join q{.}, @{$decision}{qw(resource_type action)}
+            )
+        )
+      );
+    my $rate = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $access->write_rate_input(
+                { action => $access->write_action, actor_id => $user_id }
+            )
         )
     );
     if ( !$rate->{ok} ) {
@@ -71,12 +86,16 @@ sub authorized_write_user_id ( $self, $resource_type, $action = undef ) {
     return $user_id;
 }
 
-sub authorized_user_id ( $self, $resource_type, $action = undef ) {
-    return $self->_scoped_user_id(
-        $self->moderation_access->authorization_target(
-            $resource_type, $action
-        ),
-        $self->global_permission_scope,
+async sub authorized_user_id ( $self, $resource_type, $action = undef ) {
+    return (
+        await $self->await_p(
+            $self->_scoped_user_id(
+                $self->moderation_access->authorization_target(
+                    $resource_type, $action
+                ),
+                $self->global_permission_scope,
+            )
+        )
     );
 }
 
@@ -93,7 +112,7 @@ sub write_permission_scope ( $self, $resource_type ) {
     };
 }
 
-sub _scoped_user_id ( $self, $decision, $scope ) {
+async sub _scoped_user_id ( $self, $decision, $scope ) {
     my $user_id = GPForum::Web::Access->new->user_id($self);
     if ( !$user_id ) {
         GPForum::Web::SecurityEvent->new->unauthorized($self);
@@ -115,8 +134,11 @@ sub _scoped_user_id ( $self, $decision, $scope ) {
         %{$scope},
     };
     if (
-        !$self->gp_permission_gate->allowed(
-            { user_id => $user_id }, $permission
+        !(
+            await $self->call_p(
+                $self->gp_permission_gate, 'allowed',
+                { user_id => $user_id },   $permission
+            )
         )
       )
     {
@@ -128,31 +150,43 @@ sub _scoped_user_id ( $self, $decision, $scope ) {
     return $user_id;
 }
 
-sub report_write_response ( $self, $result, $ok_status ) {
+async sub report_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->action_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->action_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
-sub moderation_write_response ( $self, $result, $ok_status ) {
+async sub moderation_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->moderation_action_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->moderation_action_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
-sub suspension_write_response ( $self, $result, $ok_status ) {
+async sub suspension_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->suspension_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->suspension_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
 # The response a failed write answers with, or undef when it did not fail.
@@ -184,7 +218,7 @@ sub write_failure ( $self, $result ) {
     return undef;
 }
 
-sub moderation_action_response ( $self, $status, $action ) {
+async sub moderation_action_response ( $self, $status, $action ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_moderation_view_model->moderation_action_response(
@@ -194,10 +228,14 @@ sub moderation_action_response ( $self, $status, $action ) {
         );
     }
 
-    return $self->_html_success( $status, 'moderation_reports' );
+    return (
+        await $self->await_p(
+            $self->_html_success( $status, 'moderation_reports' )
+        )
+    );
 }
 
-sub suspension_response ( $self, $status, $suspension ) {
+async sub suspension_response ( $self, $status, $suspension ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_moderation_view_model->suspension_response(
@@ -207,10 +245,14 @@ sub suspension_response ( $self, $status, $suspension ) {
         );
     }
 
-    return $self->_html_success( $status, 'moderation_reports' );
+    return (
+        await $self->await_p(
+            $self->_html_success( $status, 'moderation_reports' )
+        )
+    );
 }
 
-sub action_response ( $self, $status, $report ) {
+async sub action_response ( $self, $status, $report ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_moderation_view_model->report_action_response(
@@ -220,7 +262,11 @@ sub action_response ( $self, $status, $report ) {
         );
     }
 
-    return $self->_html_success( $status, 'moderation_reports' );
+    return (
+        await $self->await_p(
+            $self->_html_success( $status, 'moderation_reports' )
+        )
+    );
 }
 
 sub status_param ($self) {
@@ -263,6 +309,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Moderation::Base';
+use v5.40;
 
 =head1 DESCRIPTION
 

@@ -4,8 +4,9 @@
 package GPForum::Controller::Forum;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
+use GPForum::X::Unavailable;
 use GPForum::Service::Moderation::ThreadTransfers;
 
 our $VERSION = '0.001';
@@ -18,18 +19,22 @@ const my $HTTP_OK => 200;
 # an entry, and whichever came first was served to both. Then it named the
 # limit as asked, and every spelling of the full index (no limit, ?limit=abc,
 # ?limit=100, ?limit=999) was an entry of its own.
-sub categories ($self) {
+async sub categories ($self) {
     my $limit =
       $self->forum_access->category_list_limit( $self->param('limit') );
     my $cache = $self->public_cache_options( 'categories', ['forum:categories'],
         { limit => $limit } );
     return if $self->served_from_public_cache($cache);
 
-    my $categories = $self->gp_category_reader->list_categories(
-        {
-            limit  => $limit,
-            viewer => $self->gp_forum_viewer,
-        }
+    my $categories = (
+        await $self->call_p(
+            $self->gp_category_reader,
+            'list_categories',
+            {
+                limit  => $limit,
+                viewer => $self->gp_forum_viewer,
+            }
+        )
     );
     my $payload =
       $self->gp_forum_view_model->categories_page( categories => $categories );
@@ -45,15 +50,19 @@ sub categories ($self) {
     );
 }
 
-sub category ($self) {
+async sub category ($self) {
     my $category_id = $self->param('category_id');
     my $cache       = $self->public_cache_options( 'category',
         [ 'forum:categories', "forum:category:$category_id" ] );
     return if $self->served_from_public_cache($cache);
 
-    my $viewer = $self->gp_forum_viewer;
-    my $category =
-      $self->gp_category_reader->find_category( $category_id, $viewer );
+    my $viewer   = $self->gp_forum_viewer;
+    my $category = (
+        await $self->call_p(
+            $self->gp_category_reader, 'find_category',
+            $category_id,              $viewer
+        )
+    );
 
     if ( !$category ) {
         return $self->not_found('category not found');
@@ -69,19 +78,23 @@ sub category ($self) {
     }
 
     my $user_id = $self->current_user_id;
-    my $threads = $self->gp_thread_reader->list_category_threads(
-        {
-            category_id    => $category_id,
-            limit          => $self->list_page_limit,
-            after          => $self->param('after'),
-            at             => $self->param('at'),
-            post           => $self->param('post'),
-            viewer_user_id => $user_id,
-            viewer_scope   => $viewer->within(
-                $self->_column( $category, 'category_id' ),
-                $self->_column( $category, 'space_id' )
-            ),
-        }
+    my $threads = (
+        await $self->call_p(
+            $self->gp_thread_reader,
+            'list_category_threads',
+            {
+                category_id    => $category_id,
+                limit          => $self->list_page_limit,
+                after          => $self->param('after'),
+                at             => $self->param('at'),
+                post           => $self->param('post'),
+                viewer_user_id => $user_id,
+                viewer_scope   => $viewer->within(
+                    $self->_column( $category, 'category_id' ),
+                    $self->_column( $category, 'space_id' )
+                ),
+            }
+        )
     );
 
     my $payload = $self->gp_forum_view_model->category_page(
@@ -89,8 +102,9 @@ sub category ($self) {
         threads_page               => $threads,
         restore_thread_command_ids =>
           $self->_restore_thread_command_ids( $threads, $user_id ),
-        thread_tags    => $self->gp_tags_for_threads( $threads->{items} ),
-        viewer_user_id => $user_id,
+        thread_tags =>
+          ( await $self->gp_tags_for_threads_p( $threads->{items} ) ),
+        viewer_user_id          => $user_id,
         subscription_command_id => $user_id ? $self->gp_id->uuid : undef,
     );
 
@@ -109,27 +123,48 @@ sub category ($self) {
 # the thread's, or its id spelled another way, is sent to the thread's own
 # URL: the key named the path, so every slug anyone typed after the id, and
 # every casing of the id, minted an entry of its own.
-sub thread ($self) {
+async sub thread ($self) {
     my $thread_id = $self->param('thread_id');
     my $cache     = $self->_thread_cache_options($thread_id);
     return if $self->served_from_public_cache($cache);
 
     my $user_id = $self->current_user_id;
-    my $page    = $self->gp_thread_detail_reader->thread_page(
-        {
-            thread_id      => $thread_id,
-            limit          => $self->list_page_limit,
-            after          => $self->param('after'),
-            at             => $self->param('at'),
-            post           => $self->param('post'),
-            viewer         => $self->gp_forum_viewer,
-            viewer_user_id => $user_id,
+    my $reader  = $self->gp_thread_detail_reader;
+    my $request = {
+        query_context  => $self->stash('gp_db_query_stats_token'),
+        thread_id      => $thread_id,
+        limit          => $self->list_page_limit,
+        after          => $self->param('after'),
+        at             => $self->param('at'),
+        post           => $self->param('post'),
+        viewer         => $self->gp_forum_viewer,
+        viewer_user_id => $user_id,
+    };
+    my $promise =
+        $reader->can('thread_page_p')
+      ? $reader->thread_page_p($request)
+      : $self->work_p( $reader, 'thread_page', $request );
+    return $self->respond_p(
+        $promise,
+        async sub ($page) {
+            return (
+                await $self->await_p(
+                    $self->_thread_page_async(
+                        $page, $user_id, $thread_id, $cache
+                    )
+                )
+            );
         }
     );
+}
+
+async sub _thread_page_async ( $self, $page, $user_id, $thread_id, $cache ) {
 
     if ( !$page->{ok} ) {
-        my $destination = GPForum::Service::Moderation::ThreadTransfers->new(
-            schema => $self->gp_schema )->redirect( $user_id, $thread_id );
+        my $transfers = GPForum::Service::Moderation::ThreadTransfers->new(
+            schema => $self->gp_schema );
+        my $destination =
+          await $self->call_p( $transfers, 'redirect', $user_id, $thread_id );
         return $self->redirect_to( 'thread', thread_id => $destination )
           if $destination;
         return $self->not_found('thread not found');
@@ -144,10 +179,28 @@ sub thread ($self) {
         $cache->{canonical_path} = $canonical;
     }
 
-    my $payload = $self->thread_page_payload( $page, $user_id,
-        $self->wants_fragment
-        ? ( fragment => { pagination => 1, posts => 1 } )
-        : () );
+    return $self->respond_p(
+        $self->thread_page_payload_p(
+            $page,
+            $user_id,
+            $self->wants_fragment
+            ? ( fragment => { pagination => 1, posts => 1 } )
+            : ()
+        ),
+        sub ($payload) {
+            return $self->_render_thread_async( $payload, $cache );
+        },
+        sub ($error) {
+            my $guard = GPForum::Web::Guard->new;
+            return $guard->service_unavailable($self)
+              if GPForum::X::Unavailable->caught($error);
+            $self->app->log->error("thread page rendering failed: $error");
+            return $guard->system_failure($self);
+        }
+    );
+}
+
+sub _render_thread_async ( $self, $payload, $cache ) {
     if ( $self->wants_fragment ) {
         return $self->render_payload(
             {
@@ -230,9 +283,13 @@ sub _requested_slug ($self) {
     return $self->stash('slug');
 }
 
-sub new_thread_form ($self) {
-    my $categories = $self->gp_category_reader->list_categories(
-        { viewer => $self->gp_forum_viewer } );
+async sub new_thread_form ($self) {
+    my $categories = (
+        await $self->call_p(
+            $self->gp_category_reader, 'list_categories',
+            { viewer => $self->gp_forum_viewer }
+        )
+    );
 
     my $command_id = $self->_new_command_id;
     $self->fresh_composer_draft( 'thread', $command_id );

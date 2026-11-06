@@ -532,6 +532,21 @@ sub _register_community_helpers {
         }
     );
 
+    $application->helper(
+        gp_tags_for_threads_p => sub ( $controller, $threads ) {
+            my @ids =
+              map { GPForum::Infrastructure::Row->column( $_, 'thread_id' ) }
+              @{ $threads || [] };
+            return $controller->call_p( $controller->gp_thread_tags,
+                'tags_for_threads', \@ids )->catch(
+                sub ($error) {
+                    $controller->app->log->warn("thread tags degraded: $error");
+                    return {};
+                }
+                );
+        }
+    );
+
     # The tags of the threads a page lists, by thread id (ADR 0135): a hint
     # on each row, so a read that fails shows none and says so in the log.
     $application->helper(

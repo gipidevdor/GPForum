@@ -4,7 +4,7 @@
 package GPForum::Controller::Moderation;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::MemberNotes;
@@ -14,9 +14,14 @@ our $VERSION = '0.001';
 
 const my $HTTP_OK => 200;
 
-sub reports ($self) {
-    my $user_id =
-      $self->authorized_user_id( $self->moderation_access->view_queue_action );
+async sub reports ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id(
+                $self->moderation_access->view_queue_action
+            )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
@@ -25,18 +30,25 @@ sub reports ($self) {
     my ( $reports, $notes, $notes_unavailable );
     try {
         $reports = $self->_with_command_ids(
-            $self->gp_report_store->list_queue(
-                {
-                    status => $status,
-                    limit  => $self->queue_limit,
-                }
+            (
+                await $self->call_p(
+                    $self->gp_report_store,
+                    'list_queue',
+                    {
+                        status => $status,
+                        limit  => $self->queue_limit,
+                    }
+                )
             )
         );
 
         # ADR 0138: beside each report, the staff notes about its member.
-        ( $notes, $notes_unavailable ) =
-          GPForum::Web::MemberNotes->new->for_reports( $self, $user_id,
-            $reports );
+        ( $notes, $notes_unavailable ) = @{ await $self->await_p(
+                GPForum::Web::MemberNotes->new->for_reports_p(
+                    $self, $user_id, $reports
+                )
+            )
+        };
     }
     catch ($error) {
         $self->app->log->error("moderation report queue failed: $error");
@@ -58,10 +70,14 @@ sub reports ($self) {
     );
 }
 
-sub actions ($self) {
-    my $user_id = $self->authorized_user_id(
-        $self->moderation_access->moderation_resource,
-        $self->moderation_access->view_action
+async sub actions ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id(
+                $self->moderation_access->moderation_resource,
+                $self->moderation_access->view_action
+            )
+        )
     );
     if ( !$user_id ) {
         return;
@@ -69,7 +85,7 @@ sub actions ($self) {
 
     my $page;
     try {
-        $page = $self->_action_history;
+        $page = ( await $self->await_p( $self->_action_history ) );
     }
     catch ($error) {
         $self->app->log->error("moderation action history failed: $error");
@@ -90,10 +106,14 @@ sub actions ($self) {
     );
 }
 
-sub suspensions ($self) {
-    my $user_id = $self->authorized_user_id(
-        $self->moderation_access->suspension_resource,
-        $self->moderation_access->view_action
+async sub suspensions ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id(
+                $self->moderation_access->suspension_resource,
+                $self->moderation_access->view_action
+            )
+        )
     );
     if ( !$user_id ) {
         return;
@@ -102,7 +122,7 @@ sub suspensions ($self) {
     my $status = $self->suspension_status_param;
     my $page;
     try {
-        $page = $self->_suspension_history($status);
+        $page = ( await $self->await_p( $self->_suspension_history($status) ) );
     }
     catch ($error) {
         $self->app->log->error("moderation suspensions failed: $error");
@@ -123,34 +143,42 @@ sub suspensions ($self) {
     );
 }
 
-sub _action_history ($self) {
+async sub _action_history ($self) {
     if ( GPForum::Web::UrlId->malformed( $self->optional_param('target_id') ) )
     {
         return $self->_empty_page;
     }
 
-    return $self->gp_moderation_review_reader->list_actions(
-        {
-            after       => $self->optional_param('after'),
-            limit       => $self->queue_limit,
-            target_id   => $self->optional_param('target_id'),
-            target_type => $self->optional_param('target_type'),
-        }
+    return (
+        await $self->call_p(
+            $self->gp_moderation_review_reader,
+            'list_actions',
+            {
+                after       => $self->optional_param('after'),
+                limit       => $self->queue_limit,
+                target_id   => $self->optional_param('target_id'),
+                target_type => $self->optional_param('target_type'),
+            }
+        )
     );
 }
 
-sub _suspension_history ( $self, $status ) {
+async sub _suspension_history ( $self, $status ) {
     if ( GPForum::Web::UrlId->malformed( $self->optional_param('user_id') ) ) {
         return $self->_empty_page;
     }
 
-    return $self->gp_moderation_review_reader->list_suspensions(
-        {
-            after   => $self->optional_param('after'),
-            limit   => $self->queue_limit,
-            status  => $status,
-            user_id => $self->optional_param('user_id'),
-        }
+    return (
+        await $self->call_p(
+            $self->gp_moderation_review_reader,
+            'list_suspensions',
+            {
+                after   => $self->optional_param('after'),
+                limit   => $self->queue_limit,
+                status  => $status,
+                user_id => $self->optional_param('user_id'),
+            }
+        )
     );
 }
 

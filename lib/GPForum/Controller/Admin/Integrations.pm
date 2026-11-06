@@ -3,7 +3,7 @@
 
 package GPForum::Controller::Admin::Integrations;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 use Const::Fast;
 use GPForum::Infrastructure::SqlFunction;
@@ -17,56 +17,90 @@ const my $HTTP_OK      => 200;
 const my $HTTP_INVALID => 400;
 const my $HTTP_FAILED  => 503;
 
-sub show ($self) {
-    return if !$self->authorized_user_id( $self->admin_access->view_action );
-    return $self->_page;
+async sub show ($self) {
+    return
+      if !(
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+      );
+    return ( await $self->await_p( $self->_page ) );
 }
 
-sub announce ($self) {
-    my $actor = $self->authorized_write_user_id or return;
-    return $self->_page( 'invalid', $HTTP_INVALID )
+async sub announce ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) )
+      or return;
+    return ( await $self->await_p( $self->_page( 'invalid', $HTTP_INVALID ) ) )
       if !GPForum::Infrastructure::Id->is_uuid( $self->param('thread_id') );
     my $answer;
     try {
-        $answer =
-          $self->_announcements->request( $actor, $self->param('thread_id') );
+        $answer = (
+            await $self->call_p(
+                $self->_announcements, 'request',
+                $actor,                $self->param('thread_id')
+            )
+        );
     }
-    catch ($error) { return $self->_page( 'failed', $HTTP_FAILED ); };
-    return $self->_respond($answer);
+    catch ($error) {
+        return (
+            await $self->await_p( $self->_page( 'failed', $HTTP_FAILED ) ) );
+    };
+    return ( await $self->await_p( $self->_respond($answer) ) );
 }
 
-sub retry_announcement ($self) {
-    my $actor = $self->authorized_write_user_id or return;
-    my $id    = $self->stash('announcement_id');
-    return $self->_page( 'invalid', $HTTP_INVALID )
+async sub retry_announcement ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) )
+      or return;
+    my $id = $self->stash('announcement_id');
+    return ( await $self->await_p( $self->_page( 'invalid', $HTTP_INVALID ) ) )
       if !GPForum::Infrastructure::Id->is_uuid($id);
     my $answer;
     try {
-        $answer = $self->_announcements->retry_checked(
-            {
-                actor_user_id   => $actor,
-                announcement_id => $id,
-                checked         => $self->param('checked'),
-                reason          => $self->param('reason')
-            }
+        $answer = (
+            await $self->call_p(
+                $self->_announcements,
+                'retry_checked',
+                {
+                    actor_user_id   => $actor,
+                    announcement_id => $id,
+                    checked         => $self->param('checked'),
+                    reason          => $self->param('reason')
+                }
+            )
         );
     }
-    catch ($error) { return $self->_page( 'failed', $HTTP_FAILED ); };
-    return $self->_respond($answer);
+    catch ($error) {
+        return (
+            await $self->await_p( $self->_page( 'failed', $HTTP_FAILED ) ) );
+    };
+    return ( await $self->await_p( $self->_respond($answer) ) );
 }
 
-sub fetch_feed ($self) {
-    my $actor = $self->authorized_write_user_id or return;
-    try { $self->_feeds->request( $actor, $self->param('source_url') ); }
-    catch ($error) { return $self->_page( 'invalid', $HTTP_INVALID ); };
-    return $self->_respond( { status => 'queued' } );
+async sub fetch_feed ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) )
+      or return;
+    try {
+        (
+            await $self->call_p(
+                $self->_feeds, 'request',
+                $actor,        $self->param('source_url')
+            )
+        );
+    }
+    catch ($error) {
+        return (
+            await $self->await_p( $self->_page( 'invalid', $HTTP_INVALID ) ) );
+    };
+    return (
+        await $self->await_p( $self->_respond( { status => 'queued' } ) ) );
 }
 
-sub decide_feed ($self) {
-    my $actor    = $self->authorized_write_user_id or return;
+async sub decide_feed ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) )
+      or return;
     my $item     = $self->stash('item_id');
     my $decision = $self->param('decision') // q{};
-    return $self->_page( 'invalid', $HTTP_INVALID )
+    return ( await $self->await_p( $self->_page( 'invalid', $HTTP_INVALID ) ) )
       if !GPForum::Infrastructure::Id->is_uuid($item)
       || ( $decision ne 'published' && $decision ne 'rejected' )
       || ( $decision eq 'published'
@@ -74,27 +108,31 @@ sub decide_feed ($self) {
       );
     my $answer;
     try {
-        $answer = $self->_feeds->decide(
+        $answer = await $self->call_p(
+            $self->_feeds,
+            'decide_with_posting',
             {
                 actor_user_id => $actor,
                 item_id       => $item,
                 decision      => $decision,
-                category_id   => $self->param('category_id')
+                category_id   => $self->param('category_id'),
             },
-            sub ($input) {
-                return $self->gp_posting_workflow->create_thread(
-                    { %{$input}, viewer => $self->gp_forum_viewer } );
-            }
+            $self->gp_posting_workflow,
+            $self->gp_forum_viewer
         );
     }
-    catch ($error) { return $self->_page( 'failed', $HTTP_FAILED ); };
-    return $self->_respond($answer);
+    catch ($error) {
+        return (
+            await $self->await_p( $self->_page( 'failed', $HTTP_FAILED ) ) );
+    };
+    return ( await $self->await_p( $self->_respond($answer) ) );
 }
 
-sub _respond ( $self, $answer ) {
+async sub _respond ( $self, $answer ) {
     return $self->render( json => $answer, status => $HTTP_OK )
       if $self->wants_json;
-    return $self->_page( $answer->{status} // 'failed' );
+    return (
+        await $self->await_p( $self->_page( $answer->{status} // 'failed' ) ) );
 }
 
 sub _announcements ($self) {
@@ -113,7 +151,7 @@ sub _feeds ($self) {
     );
 }
 
-sub _page ( $self, $notice = q{}, $status = $HTTP_OK ) {
+async sub _page ( $self, $notice = q{}, $status = $HTTP_OK ) {
     return $self->system_failure
       if !$self->gp_configuration->state->{available};
     $self->res->headers->cache_control('private, no-store');
@@ -127,8 +165,14 @@ sub _page ( $self, $notice = q{}, $status = $HTTP_OK ) {
             [ deliveries => 'integration_announcement_list' ]
           )
         {
-            $data{ $pair->[0] } =
-              [ map { $_->{result} } @{ $functions->rows( $pair->[1], {} ) } ];
+            $data{ $pair->[0] } = [
+                map { $_->{result} } @{
+                    (
+                        await $self->call_p( $functions, 'rows', $pair->[1],
+                            {} )
+                    )
+                }
+            ];
         }
         my $after = $self->param('after');
         if ( !defined $after || !GPForum::Infrastructure::Id->is_uuid($after) )
@@ -138,8 +182,12 @@ sub _page ( $self, $notice = q{}, $status = $HTTP_OK ) {
 
         $data{items} = [
             map { $_->{result} } @{
-                $functions->rows( 'integration_feed_queue',
-                    { after => $after } )
+                (
+                    await $self->call_p(
+                        $functions, 'rows',
+                        'integration_feed_queue', { after => $after }
+                    )
+                )
             }
         ];
     }

@@ -3,54 +3,77 @@
 
 package GPForum::Controller::Admin::Bindings;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::DangerConfirmation;
 
 our $VERSION = '0.001';
 
-sub bind_role ($self) {
-    my $actor_user_id = $self->authorized_write_user_id;
+async sub bind_role ($self) {
+    my $actor_user_id =
+      ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_user_id ) {
         return;
     }
 
-    return $self->binding_write_response(
-        $self->gp_admin_workflow->bind_role(
-            {
-                actor_user_id => $actor_user_id,
-                command_id    => $self->command_id_param,
-                resource_id   => $self->param('resource_id'),
-                resource_type => $self->param('resource_type'),
-                role_id       => $self->param('role_id'),
-                space_id      => $self->param('space_id'),
-                user_id       => $self->param('user_id'),
-            }
-        ),
-        $self->admin_access->role_bound_status,
+    return (
+        await $self->await_p(
+            $self->binding_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'bind_role',
+                        {
+                            actor_user_id => $actor_user_id,
+                            command_id    => $self->command_id_param,
+                            resource_id   => $self->param('resource_id'),
+                            resource_type => $self->param('resource_type'),
+                            role_id       => $self->param('role_id'),
+                            space_id      => $self->param('space_id'),
+                            user_id       => $self->param('user_id'),
+                        }
+                    )
+                ),
+                $self->admin_access->role_bound_status,
+            )
+        )
     );
 }
 
-sub revoke_binding ($self) {
-    my $actor_user_id = $self->authorized_write_user_id;
+async sub revoke_binding ($self) {
+    my $actor_user_id =
+      ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_user_id ) {
         return;
     }
     if ( my $refused = GPForum::Web::DangerConfirmation->unconfirmed($self) ) {
-        return $self->binding_write_response( $refused,
-            $self->admin_access->role_binding_revoked_status );
+        return (
+            await $self->await_p(
+                $self->binding_write_response(
+                    $refused, $self->admin_access->role_binding_revoked_status
+                )
+            )
+        );
     }
 
-    return $self->binding_write_response(
-        $self->gp_admin_workflow->revoke_binding(
-            {
-                actor_user_id => $actor_user_id,
-                binding_id    => $self->param('binding_id'),
-                command_id    => $self->command_id_param,
-            }
-        ),
-        $self->admin_access->role_binding_revoked_status,
+    return (
+        await $self->await_p(
+            $self->binding_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'revoke_binding',
+                        {
+                            actor_user_id => $actor_user_id,
+                            binding_id    => $self->param('binding_id'),
+                            command_id    => $self->command_id_param,
+                        }
+                    )
+                ),
+                $self->admin_access->role_binding_revoked_status,
+            )
+        )
     );
 }
 

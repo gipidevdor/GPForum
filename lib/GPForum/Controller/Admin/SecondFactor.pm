@@ -4,7 +4,7 @@
 package GPForum::Controller::Admin::SecondFactor;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -31,15 +31,19 @@ const my %FLASH => (
 
 # Whether staff must use two-step sign-in, and the staff, those without it
 # first: never anyone's secret.
-sub show ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub show ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     return if !$user_id;
 
     my ( $policy, $staff );
     try {
         my $two_step = $self->gp_second_factor;
-        $policy = $two_step->policy;
-        $staff  = $two_step->staff;
+        $policy = ( await $self->call_p( $two_step, 'policy' ) );
+        $staff  = ( await $self->call_p( $two_step, 'staff' ) );
     }
     catch ($error) {
         $self->app->log->error("admin second factor failed: $error");
@@ -72,51 +76,77 @@ sub show ($self) {
     );
 }
 
-sub set_policy ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub set_policy ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$user_id;
 
     my $required = $self->param('staff_required') ? 1 : 0;
 
-    return $self->_answer(
-        'policy_set',
-        $PAGE,
-        {},
-        $self->_stored(
-            sub {
-                return $self->gp_second_factor->set_policy( $required,
-                    $user_id );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'policy_set',
+                $PAGE,
+                {},
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub {
+                                return (
+                                    await $self->call_p(
+                                        $self->gp_second_factor, 'set_policy',
+                                        $required,               $user_id
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
 # A member who lost their app and their recovery codes: an administrator
 # turns their two-step sign-in off, and the member is mailed.
-sub reset_member ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub reset_member ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$user_id;
 
     my $member = $self->param('user_id');
 
-    return $self->_answer(
-        'reset',
-        'admin_user_roles',
-        { user_id => $member },
-        $self->_stored(
-            sub {
-                return $self->gp_second_factor->reset_member( $member,
-                    $user_id );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'reset',
+                'admin_user_roles',
+                { user_id => $member },
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub {
+                                return (
+                                    await $self->call_p(
+                                        $self->gp_second_factor,
+                                        'reset_member',
+                                        $member,
+                                        $user_id
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
 # The service's answer, or undef when it failed (logged).
-sub _stored ( $self, $call ) {
+async sub _stored ( $self, $call ) {
     my $result;
     try {
-        $result = $call->();
+        $result = await $self->await_p( $call->() );
     }
     catch ($error) {
         $self->app->log->error("admin second factor write failed: $error");

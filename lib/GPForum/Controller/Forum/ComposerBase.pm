@@ -4,7 +4,7 @@
 package GPForum::Controller::Forum::ComposerBase;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -30,27 +30,28 @@ sub draft_input ( $self, $owner ) {
     };
 }
 
-sub save_publish_draft ( $self, $owner, $kind ) {
+async sub save_publish_draft ( $self, $owner, $kind ) {
     return {} if !length( $self->param('draft_id') // q{} );
     my $input = $self->draft_input($owner);
     $input->{kind} = $kind;
     if ( $kind eq 'reply' ) {
         $input->{thread_id} = $self->stash('thread_id');
     }
-    my $result = $self->gp_draft_store->save($input);
+    my $result =
+      ( await $self->call_p( $self->gp_draft_store, 'save', $input ) );
     if ( !$result->{ok} ) {
 
         # The successful command may already have consumed the draft. Its
         # stored routine decides replay before looking for that draft again.
         return $input if ( $result->{status} // q{} ) eq 'not_found';
-        $self->save_response( $input, $result );
+        ( await $self->await_p( $self->save_response( $input, $result ) ) );
         return undef;
     }
     $self->param( command_id => $result->{draft}{command_id} );
     return $result->{draft};
 }
 
-sub save_response ( $self, $input, $result ) {
+async sub save_response ( $self, $input, $result ) {
     my $status = $self->draft_status($result);
     if ( !$result->{ok} ) {
         my $key =
@@ -65,7 +66,7 @@ sub save_response ( $self, $input, $result ) {
         if ( $status == $HTTP_CONFLICT ) {
             $self->stash( composer_draft_conflict => 1 );
         }
-        return $self->compose( $input, $status );
+        return ( await $self->await_p( $self->compose( $input, $status ) ) );
     }
     return $self->render( json => $result, status => $HTTP_OK )
       if $self->wants_json;
@@ -73,11 +74,12 @@ sub save_response ( $self, $input, $result ) {
     return $self->redirect_to( $self->_resume_url( $result->{draft} ) );
 }
 
-sub compose ( $self, $draft, $status ) {
+async sub compose ( $self, $draft, $status ) {
     $self->private_draft_response;
-    return if !$self->_target_allowed($draft);
+    return if !( await $self->await_p( $self->_target_allowed($draft) ) );
     $self->stash( composer_draft => $draft, composer_standalone => 1 );
-    return $self->_thread_composer( $draft, $status )
+    return (
+        await $self->await_p( $self->_thread_composer( $draft, $status ) ) )
       if ( $draft->{kind} // q{} ) eq 'thread';
     my $thread = $self->stash('composer_target_thread');
     return $self->render(
@@ -88,9 +90,13 @@ sub compose ( $self, $draft, $status ) {
     );
 }
 
-sub _thread_composer ( $self, $draft, $status ) {
-    my $categories = $self->gp_category_reader->list_categories(
-        { viewer => $self->gp_forum_viewer } );
+async sub _thread_composer ( $self, $draft, $status ) {
+    my $categories = (
+        await $self->call_p(
+            $self->gp_category_reader, 'list_categories',
+            { viewer => $self->gp_forum_viewer }
+        )
+    );
     my $payload = $self->gp_forum_view_model->new_thread_form(
         categories           => $categories,
         command_id           => $draft->{command_id},
@@ -106,12 +112,15 @@ sub _thread_composer ( $self, $draft, $status ) {
     );
 }
 
-sub _target_allowed ( $self, $input ) {
+async sub _target_allowed ( $self, $input ) {
     my $kind = $input->{kind} // q{};
     if ( $kind eq 'reply' ) {
-        my $thread =
-          $self->gp_thread_detail_reader->find_thread( $input->{thread_id},
-            $self->gp_forum_viewer );
+        my $thread = (
+            await $self->call_p(
+                $self->gp_thread_detail_reader, 'find_thread',
+                $input->{thread_id},            $self->gp_forum_viewer
+            )
+        );
         if ($thread) {
             $self->stash( composer_target_thread => $thread );
             return 1;
@@ -121,9 +130,12 @@ sub _target_allowed ( $self, $input ) {
     }
     if ( $kind eq 'thread' ) {
         return 1 if !length( $input->{category_id} // q{} );
-        my $category =
-          $self->gp_category_reader->find_category( $input->{category_id},
-            $self->gp_forum_viewer );
+        my $category = (
+            await $self->call_p(
+                $self->gp_category_reader, 'find_category',
+                $input->{category_id},     $self->gp_forum_viewer
+            )
+        );
         return 1 if $category;
         $self->not_found('category not found');
         return 0;
@@ -132,10 +144,11 @@ sub _target_allowed ( $self, $input ) {
     return 0;
 }
 
-sub read_draft_owner ($self) {
+async sub read_draft_owner ($self) {
     my $owner = $self->current_user_id;
     if ( !$owner ) { $self->_unauthorized; return undef; }
-    return undef if !$self->read_allowed('draft.read');
+    return undef
+      if !( await $self->await_p( $self->read_allowed('draft.read') ) );
     return $owner;
 }
 

@@ -4,7 +4,7 @@
 package GPForum::Controller::Identity::Base;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 use Time::HiRes qw(time);
 
@@ -26,11 +26,11 @@ sub identity_access {
     return GPForum::Web::IdentityAccess->new;
 }
 
-sub identity_post_guard ( $self, $action ) {
+async sub identity_post_guard ( $self, $action ) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         return $self->_csrf_failure;
     }
-    if ( !$self->_identity_allowed($action) ) {
+    if ( !( await $self->await_p( $self->_identity_allowed($action) ) ) ) {
         return $self->_rate_limited;
     }
 
@@ -63,7 +63,7 @@ sub requested_timezone ($self) {
     return $self->i18n_service->formats->valid_time_zone($zone) ? $zone : q{};
 }
 
-sub persist_timezone_preference ( $self, $zone ) {
+async sub persist_timezone_preference ( $self, $zone ) {
     my $user_id = $self->current_user_id;
     return if !has_text($user_id);
 
@@ -75,12 +75,16 @@ sub persist_timezone_preference ( $self, $zone ) {
     }
     $self->stash( ui_timezone => undef );
 
-    my $result = $self->gp_identity_workflow->update_preferred_timezone(
-        {
-            command_id         => $self->_preference_command_id,
-            preferred_timezone => $zone,
-            user_id            => $user_id,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'update_preferred_timezone',
+            {
+                command_id         => $self->_preference_command_id,
+                preferred_timezone => $zone,
+                user_id            => $user_id,
+            }
+        )
     );
     if ( !$result->{ok} ) {
         $self->app->log->warn('time zone preference update degraded');
@@ -89,24 +93,28 @@ sub persist_timezone_preference ( $self, $zone ) {
     return $result;
 }
 
-sub persist_locale_preference ( $self, $locale ) {
+async sub persist_locale_preference ( $self, $locale ) {
     my $user_id = $self->current_user_id;
     if ( !has_text($user_id) ) {
         return;
     }
 
     $self->session( preferred_locale => $locale );
-    return $self->_store_preferred_locale( $user_id, $locale );
+    return (
+        await $self->await_p(
+            $self->_store_preferred_locale( $user_id, $locale ) ) );
 }
 
-sub persist_theme_preference ( $self, $theme ) {
+async sub persist_theme_preference ( $self, $theme ) {
     my $user_id = $self->current_user_id;
     if ( !has_text($user_id) ) {
         return;
     }
 
     $self->session( preferred_theme => $theme );
-    return $self->_store_preferred_theme( $user_id, $theme );
+    return (
+        await $self->await_p(
+            $self->_store_preferred_theme( $user_id, $theme ) ) );
 }
 
 sub login_preferred_locale ( $self, $authenticated ) {
@@ -235,13 +243,17 @@ sub identity_unavailable ($self) {
     return $self->identity_access->service_unavailable($self);
 }
 
-sub _identity_allowed ( $self, $action ) {
-    my $decision = $self->gp_rate_limiter->check(
-        $self->identity_access->write_rate_input(
-            {
-                action   => $action,
-                actor_id => $self->_identity_actor,
-            }
+async sub _identity_allowed ( $self, $action ) {
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->identity_access->write_rate_input(
+                {
+                    action   => $action,
+                    actor_id => $self->_identity_actor,
+                }
+            )
         )
     );
 
@@ -276,13 +288,17 @@ sub _csrf_failure ($self) {
     return $self->identity_access->csrf_failure($self);
 }
 
-sub _store_preferred_locale ( $self, $user_id, $locale ) {
-    my $result = $self->gp_identity_workflow->update_preferred_locale(
-        {
-            command_id       => $self->_preference_command_id,
-            preferred_locale => $locale,
-            user_id          => $user_id,
-        }
+async sub _store_preferred_locale ( $self, $user_id, $locale ) {
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'update_preferred_locale',
+            {
+                command_id       => $self->_preference_command_id,
+                preferred_locale => $locale,
+                user_id          => $user_id,
+            }
+        )
     );
     if ( $result->{ok} ) {
         return $result;
@@ -292,13 +308,17 @@ sub _store_preferred_locale ( $self, $user_id, $locale ) {
     return $result;
 }
 
-sub _store_preferred_theme ( $self, $user_id, $theme ) {
-    my $result = $self->gp_identity_workflow->update_preferred_theme(
-        {
-            command_id      => $self->_preference_command_id,
-            preferred_theme => $theme,
-            user_id         => $user_id,
-        }
+async sub _store_preferred_theme ( $self, $user_id, $theme ) {
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'update_preferred_theme',
+            {
+                command_id      => $self->_preference_command_id,
+                preferred_theme => $theme,
+                user_id         => $user_id,
+            }
+        )
     );
     if ( $result->{ok} ) {
         return $result;
@@ -378,6 +398,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Identity::Base';
+use v5.40;
 
 =head1 DESCRIPTION
 

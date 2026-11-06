@@ -11,6 +11,7 @@ use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::Text qw(has_text);
+use Mojo::Promise;
 
 our $VERSION = '0.001';
 
@@ -122,6 +123,63 @@ sub reading ( $self, $input, $code ) {
 #
 # Takes the page as the detail reader gave it, the thread id as the request
 # names it (the read state is keyed by that one), and the viewer's user id.
+sub answers_p ( $self, $input, $context = undef ) {
+    $input =
+      { %{$input}, query_context => $input->{query_context} // $context };
+    return Mojo::Promise->resolve->then(
+        sub {
+            my $page = $input->{page};
+            my %read = (
+                omit_thread => $input->{omit_thread},
+                posts       => [ _post_ids($page) ],
+                thread      => _column( $page->{thread}, 'thread_id' ),
+                thread_id   => $input->{thread_id},
+                viewer      => has_text( $input->{viewer_user_id} )
+                ? $input->{viewer_user_id}
+                : undef,
+            );
+            my $calls     = $self->_calls( \%read )   or return {};
+            my $values    = _values( \%read, $calls ) or return {};
+            my $functions = $self->functions          or return {};
+            return $functions->rows_p( 'forum_thread_page_reads', $values,
+                $input->{query_context} )
+              ->then(
+                sub ($rows) { return _answers( $functions, $calls, $rows ); } );
+        }
+    );
+}
+
+sub individual_answers_p ( $self, $input, $context = undef ) {
+    my $page = $input->{page};
+    my %read = (
+        omit_thread => $input->{omit_thread},
+        posts       => [ _post_ids($page) ],
+        thread      => _column( $page->{thread}, 'thread_id' ),
+        thread_id   => $input->{thread_id},
+        viewer      => has_text( $input->{viewer_user_id} )
+        ? $input->{viewer_user_id}
+        : undef,
+    );
+    my $calls     = $self->_calls( \%read );
+    my $functions = $self->functions;
+    return Mojo::Promise->resolve( {} ) if !$calls || !$functions;
+    my %answers;
+    my $chain = Mojo::Promise->resolve;
+    for my $call ( values %{$calls} ) {
+        $chain = $chain->then(
+            sub {
+                return $functions->rows_p( @{$call}, $context )->then(
+                    sub ($rows) {
+                        $answers{ $functions->answer_key( @{$call} ) } = $rows;
+                        return;
+                    }
+                );
+            }
+        );
+    }
+    return $chain->then( sub { return \%answers; } );
+}
+
 sub answers ( $self, $input ) {
     my $page = $input->{page};
     my %read = (
@@ -316,6 +374,10 @@ Takes what L</answers> takes and a code reference; runs the code under
 L<GPForum::Infrastructure::SqlFunction/answering> with those answers and
 returns what it returns.
 
+=head2 individual_answers_p
+
+Reads each declared part asynchronously when the combined read is unavailable.
+
 =head2 answers
 
 Takes a hash reference: C<page>, the page the detail reader returned,
@@ -328,6 +390,10 @@ The server may set C<omit_thread> for post-only fragments: thread metadata
 branches receive NULL, while post ids and the viewer remain unchanged.
 This omits tags, bookmark, subscription and read-state data without caching
 permissions or bypassing the caller's thread/post visibility checks.
+
+=head2 answers_p
+
+Returns a promise for the combined thread-page reads. A failed SQL operation rejects; in-memory collaborators retain their normal individual reads.
 
 =head1 DIAGNOSTICS
 

@@ -14,7 +14,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
-use GPForum::Command::QueryPlanEvidence;
+use GPForum::Test::QueryPlanEvidence;
 use GPForum::Service::Forum::ThreadReader;
 use GPForum::Test::QueryPlanEvidenceDbh;
 
@@ -65,7 +65,7 @@ const my %DEEP_CATEGORY => (
 
 plan tests => $EXPECTED_TESTS;
 
-my $ok_command = GPForum::Command::QueryPlanEvidence->new(
+my $ok_command = GPForum::Test::QueryPlanEvidence->new(
     dbh => GPForum::Test::QueryPlanEvidenceDbh->new, );
 my $ok_report = $ok_command->evidence_report(
     {
@@ -78,7 +78,7 @@ is( $ok_report->{status}, 'ok', 'index-backed fake plan passes evidence' );
 is( $ok_report->{endpoints}[0]{summary}{root_node},
     'Index Scan', 'query evidence reports root node' );
 
-my $seq_scan_command = GPForum::Command::QueryPlanEvidence->new(
+my $seq_scan_command = GPForum::Test::QueryPlanEvidence->new(
     dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
         plan => {
             Plan => {
@@ -104,7 +104,7 @@ is( $seq_report->{endpoints}[0]{violations}[0],
 
 # The same scan of a table the catalog says is small is the planner's right
 # answer: recorded as a warning, not failed.
-my $small_report = GPForum::Command::QueryPlanEvidence->new(
+my $small_report = GPForum::Test::QueryPlanEvidence->new(
     dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
         forced_plan => {
             Plan => {
@@ -129,7 +129,7 @@ my $decoded = decode_json( $ok_command->format_report( $ok_report, 'json' ) );
 is( $decoded->{endpoints}[0]{status},
     'ok', 'query evidence JSON remains machine readable' );
 
-my $sort_command = GPForum::Command::QueryPlanEvidence->new(
+my $sort_command = GPForum::Test::QueryPlanEvidence->new(
     dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
         plan => {
             Plan => {
@@ -158,7 +158,7 @@ is( $sort_report->{status}, 'fail', 'large sort fails evidence gate' );
 is( $sort_report->{endpoints}[0]{violations}[0],
     'heavy_sort:1500', 'sort violation records row pressure' );
 
-my $allowed_seq = GPForum::Command::QueryPlanEvidence->new(
+my $allowed_seq = GPForum::Test::QueryPlanEvidence->new(
     dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
         plan => {
             Plan => {
@@ -180,7 +180,7 @@ my $allowed_report = $allowed_seq->evidence_report(
 is( $allowed_report->{status}, 'ok',
     'small metadata seq scans can be allowed' );
 
-my $dry_run = GPForum::Command::QueryPlanEvidence->new->evidence_report(
+my $dry_run = GPForum::Test::QueryPlanEvidence->new->evidence_report(
     {
         analyze   => 1,
         dry_run   => 1,
@@ -191,20 +191,22 @@ is( $dry_run->{mode}, 'dry-run', 'dry-run report avoids PostgreSQL' );
 is( scalar @{ $dry_run->{endpoints} },
     $DEFAULT_ENDPOINTS, 'dry-run report lists default evidence endpoints' );
 like(
-    GPForum::Command::QueryPlanEvidence->new->format_report( $dry_run, 'text' ),
+    GPForum::Test::QueryPlanEvidence->new->format_report( $dry_run, 'text' ),
     qr/query_plan_evidence [ ] status=ok/msx,
     'text report remains human readable'
 );
 
-my ( $run_status, $run_output ) =
-  _run_capturing( GPForum::Command::QueryPlanEvidence->new,
-    '--dry-run', '--json', '--endpoint', 'metrics' );
+my ( $run_status, $run_output ) = _run_capturing(
+    GPForum::Test::QueryPlanEvidence->new, '--dry-run',
+    '--json',                              '--endpoint',
+    'metrics'
+);
 is( $run_status, 0, 'run supports dry-run JSON endpoint selection' );
 my $run_report = decode_json($run_output);
 is( $run_report->{endpoints}[0]{endpoint},
     'metrics', 'run endpoint selection is reflected in JSON' );
 
-my $autocomplete = GPForum::Command::QueryPlanEvidence->new->evidence_report(
+my $autocomplete = GPForum::Test::QueryPlanEvidence->new->evidence_report(
     {
         analyze   => 1,
         dry_run   => 1,
@@ -218,7 +220,7 @@ is( $autocomplete->{endpoints}[0]{status},
 
 throws_ok(
     sub {
-        GPForum::Command::QueryPlanEvidence->new(
+        GPForum::Test::QueryPlanEvidence->new(
             dbh => GPForum::Test::QueryPlanEvidenceDbh->new, )
           ->evidence_report(
             {
@@ -233,7 +235,7 @@ throws_ok(
 );
 
 my ( $run_ok_status, $run_ok_output ) = _run_capturing(
-    GPForum::Command::QueryPlanEvidence->new(
+    GPForum::Test::QueryPlanEvidence->new(
         dbh => GPForum::Test::QueryPlanEvidenceDbh->new,
     ),
     '--json',
@@ -246,10 +248,12 @@ my $run_ok_report = decode_json($run_ok_output);
 is( $run_ok_report->{mode},    'postgres', 'run reports postgres mode' );
 is( $run_ok_report->{analyze}, 0,          'run supports no-analyze mode' );
 
-my ( $profile_status, $profile_output ) =
-  _run_capturing( GPForum::Command::QueryPlanEvidence->new,
-    '--dry-run',  '--json', '--profile', 'hot-thread',
-    '--endpoint', 'thread_view' );
+my ( $profile_status, $profile_output ) = _run_capturing(
+    GPForum::Test::QueryPlanEvidence->new, '--dry-run',
+    '--json',                              '--profile',
+    'hot-thread',                          '--endpoint',
+    'thread_view'
+);
 is( $profile_status, 0, 'run supports dataset profile metadata' );
 my $profile_report = decode_json($profile_output);
 is( $profile_report->{dataset}{profile},
@@ -263,12 +267,12 @@ my $run_fail_report = decode_json($run_fail_output);
 is( $run_fail_report->{status}, 'fail', 'run failure JSON reports status' );
 
 my ( $help_status, $help_output ) =
-  _run_capturing( GPForum::Command::QueryPlanEvidence->new, '--help' );
+  _run_capturing( GPForum::Test::QueryPlanEvidence->new, '--help' );
 is( $help_status, 0, 'run supports help output' );
 like( $help_output, qr/query-plan-evidence/msx,
     'help output names the script' );
 
-my $bitmap_command = GPForum::Command::QueryPlanEvidence->new(
+my $bitmap_command = GPForum::Test::QueryPlanEvidence->new(
     dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
         plan => {
             Plan => {
@@ -290,7 +294,7 @@ is( $bitmap_report->{status}, 'ok', 'large bitmap heap scan is a warning' );
 is( $bitmap_report->{endpoints}[0]{warnings}[0],
     'bitmap_heap_scan', 'bitmap heap scan warning is explicit' );
 
-my $nested_command = GPForum::Command::QueryPlanEvidence->new(
+my $nested_command = GPForum::Test::QueryPlanEvidence->new(
     dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
         plan => {
             Plan => {
@@ -330,7 +334,7 @@ my %one_row_outer = (
     ],
 );
 is(
-    GPForum::Command::QueryPlanEvidence->new(
+    GPForum::Test::QueryPlanEvidence->new(
         dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
             forced_plan => { Plan => { 'Node Type' => 'Index Scan' } },
             plan        => { Plan => \%one_row_outer },
@@ -425,7 +429,7 @@ is(
 is(
     _usage_status(
         sub {
-            return GPForum::Command::QueryPlanEvidence->new->run( '--endpoint',
+            return GPForum::Test::QueryPlanEvidence->new->run( '--endpoint',
                 'not-real' );
         }
     ),
@@ -433,7 +437,7 @@ is(
     'run rejects unknown endpoint names before DB access'
 );
 
-my $outbox_claim = GPForum::Command::QueryPlanEvidence->new->evidence_report(
+my $outbox_claim = GPForum::Test::QueryPlanEvidence->new->evidence_report(
     {
         analyze   => 1,
         dry_run   => 1,
@@ -454,7 +458,7 @@ is( $outbox_claim->{endpoints}[0]{status},
 # database every scan is small. The second plan, taken with sequential scans
 # disabled, still shows it: no index can answer the query, whatever the size.
 {
-    my $small_scan = GPForum::Command::QueryPlanEvidence->new(
+    my $small_scan = GPForum::Test::QueryPlanEvidence->new(
         dbh => GPForum::Test::QueryPlanEvidenceDbh->new(
             plan => {
                 Plan => {
@@ -479,7 +483,7 @@ is( $outbox_claim->{endpoints}[0]{status},
 # the outbox claim is the call to the claim function a worker makes.
 {
     my $recording = GPForum::Test::QueryPlanEvidenceDbh->new;
-    my $command = GPForum::Command::QueryPlanEvidence->new( dbh => $recording );
+    my $command   = GPForum::Test::QueryPlanEvidence->new( dbh => $recording );
     $command->evidence_report(
         {
             analyze   => 1,
@@ -525,7 +529,7 @@ is( $outbox_claim->{endpoints}[0]{status},
 {
     local $ENV{GPFORUM_SEARCH_CANDIDATE_LIMIT} = $CONFIGURED_CANDIDATES;
     my $recording = GPForum::Test::QueryPlanEvidenceDbh->new;
-    GPForum::Command::QueryPlanEvidence->new( dbh => $recording )
+    GPForum::Test::QueryPlanEvidence->new( dbh => $recording )
       ->evidence_report(
         {
             analyze   => 0,
@@ -563,7 +567,7 @@ is( $outbox_claim->{endpoints}[0]{status},
         'and the evidence records how deep it was and what each page filtered'
     );
     like(
-        GPForum::Command::QueryPlanEvidence->new->format_report(
+        GPForum::Test::QueryPlanEvidence->new->format_report(
             {
                 analyze   => 1,
                 dataset   => { profile => 'small' },
@@ -682,7 +686,7 @@ is(
 {
     my $recording =
       GPForum::Test::QueryPlanEvidenceDbh->new( deep_page => {%DEEP_CATEGORY} );
-    my $command = GPForum::Command::QueryPlanEvidence->new( dbh => $recording );
+    my $command = GPForum::Test::QueryPlanEvidence->new( dbh => $recording );
     my $report  = $command->evidence_report(
         {
             analyze   => 1,
@@ -716,7 +720,7 @@ is(
 # it, so the plans cover the conditions a member adds.
 {
     my $recording = GPForum::Test::QueryPlanEvidenceDbh->new;
-    GPForum::Command::QueryPlanEvidence->new( dbh => $recording )
+    GPForum::Test::QueryPlanEvidence->new( dbh => $recording )
       ->evidence_report(
         {
             analyze   => 0,
@@ -795,7 +799,7 @@ sub _seq_scan_plan {
 sub _deep_report {
     my ( $dbh, $endpoint ) = @_;
 
-    return GPForum::Command::QueryPlanEvidence->new( dbh => $dbh )
+    return GPForum::Test::QueryPlanEvidence->new( dbh => $dbh )
       ->evidence_report(
         { analyze => 1, dry_run => 0, endpoints => [$endpoint] } )
       ->{endpoints}[0];
@@ -837,7 +841,7 @@ sub _status {
     my ( $dbh_input, $endpoint ) = @_;
 
     my $report =
-      GPForum::Command::QueryPlanEvidence->new(
+      GPForum::Test::QueryPlanEvidence->new(
         dbh => GPForum::Test::QueryPlanEvidenceDbh->new( %{$dbh_input} ) )
       ->evidence_report(
         { analyze => 0, dry_run => 0, endpoints => [$endpoint] } );
@@ -892,7 +896,7 @@ sub _test_nested_observations {
     };
     my $dbh = GPForum::Test::QueryPlanEvidenceDbh->new(
         nested_plans => [ $plan, $helper ] );
-    my $command = GPForum::Command::QueryPlanEvidence->new( dbh => $dbh );
+    my $command = GPForum::Test::QueryPlanEvidence->new( dbh => $dbh );
     my $report  = $command->evidence_report(
         { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
     my $summary = $report->{endpoints}[0]{summary};
@@ -953,7 +957,7 @@ sub _test_nested_observations {
     my $plain =
       GPForum::Test::QueryPlanEvidenceDbh->new( nested_plans => [$bare] );
     my $not_analyzed =
-      GPForum::Command::QueryPlanEvidence->new( dbh => $plain )
+      GPForum::Test::QueryPlanEvidence->new( dbh => $plain )
       ->evidence_report(
         { analyze => 0, dry_run => 0, endpoints => ['home_function'] } );
     my $not_measured = $not_analyzed->{endpoints}[0]{summary}{statements}[0];
@@ -970,7 +974,7 @@ sub _test_nested_observations {
         state      => '42501',
     );
     my $unavailable =
-      GPForum::Command::QueryPlanEvidence->new( dbh => $failed )
+      GPForum::Test::QueryPlanEvidence->new( dbh => $failed )
       ->evidence_report(
         { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
     is( $unavailable->{status}, 'fail', 'unavailable evidence is never PASS' );
@@ -990,7 +994,7 @@ sub _test_nested_observations {
     );
     $failed->state('XX000');
     my $unknown =
-      GPForum::Command::QueryPlanEvidence->new( dbh => $failed )
+      GPForum::Test::QueryPlanEvidence->new( dbh => $failed )
       ->evidence_report(
         { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
     is(
@@ -1007,7 +1011,7 @@ sub _test_nested_observations {
     my $legacy_failed = GPForum::Test::QueryPlanEvidenceDbh->new(
         statement_error => $private_error );
     my ( $error_status, $error_output, $error_stderr ) = _run_capturing(
-        GPForum::Command::QueryPlanEvidence->new( dbh => $legacy_failed ),
+        GPForum::Test::QueryPlanEvidence->new( dbh => $legacy_failed ),
         '--json', '--check', '--endpoint', 'home' );
     is( $error_status, $EXIT_FAILURE,
         'a driver failure is a failed run, 1, not misuse' );
@@ -1028,7 +1032,7 @@ sub _test_nested_observations {
 
     my $empty = GPForum::Test::QueryPlanEvidenceDbh->new;
     my $no_plans =
-      GPForum::Command::QueryPlanEvidence->new( dbh => $empty )
+      GPForum::Test::QueryPlanEvidence->new( dbh => $empty )
       ->evidence_report(
         { analyze => 1, dry_run => 0, endpoints => ['home_function'] } );
     is( $no_plans->{status}, 'fail', 'missing nested observations never PASS' );

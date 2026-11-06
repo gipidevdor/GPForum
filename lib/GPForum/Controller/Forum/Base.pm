@@ -4,12 +4,14 @@
 package GPForum::Controller::Forum::Base;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Service::Forum::BodyLength;
+use GPForum::Service::Forum::BodyRenderer;
 use GPForum::Web::Access;
 use GPForum::Web::ClientAddress;
 use GPForum::Web::ForumAccess;
@@ -29,10 +31,13 @@ sub forum_access ($self) {
     return GPForum::Web::ForumAccess->new( config => $self->gp_config );
 }
 
-sub visible_thread ($self) {
-    my $thread =
-      $self->gp_thread_detail_reader->find_thread( $self->param('thread_id'),
-        $self->gp_forum_viewer );
+async sub visible_thread ($self) {
+    my $thread = (
+        await $self->call_p(
+            $self->gp_thread_detail_reader, 'find_thread',
+            $self->param('thread_id'),      $self->gp_forum_viewer
+        )
+    );
 
     if ( !$thread ) {
         $self->not_found('thread not found');
@@ -65,7 +70,7 @@ sub attachments_for_posts ( $self, $posts ) {
     return $by_post || {};
 }
 
-sub create_report ( $self, $input ) {
+async sub create_report ( $self, $input ) {
     my $reason  = trimmed( $self->param('reason') );
     my $details = trimmed( $self->param('details') );
     my $errors  = $self->forum_access->report_field_errors( $reason, $details );
@@ -73,15 +78,19 @@ sub create_report ( $self, $input ) {
         return { ok => 0, errors => $errors };
     }
 
-    my $result = $self->gp_community_workflow->create_report(
-        {
-            command_id       => $self->command_id_param,
-            reporter_user_id => $input->{reporter_user_id},
-            target_type      => $input->{target_type},
-            target_id        => $input->{target_id},
-            reason           => $reason,
-            details          => $details,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_community_workflow,
+            'create_report',
+            {
+                command_id       => $self->command_id_param,
+                reporter_user_id => $input->{reporter_user_id},
+                target_type      => $input->{target_type},
+                target_id        => $input->{target_id},
+                reason           => $reason,
+                details          => $details,
+            }
+        )
     );
     if ( $result->{ok} ) {
         return { ok => 1, report => $result->{stored} };
@@ -98,7 +107,7 @@ sub create_report ( $self, $input ) {
     };
 }
 
-sub report_response ( $self, $result, $thread_id, $post_id ) {
+async sub report_response ( $self, $result, $thread_id, $post_id ) {
     if ( !$result->{ok} ) {
         return $self->_report_error_response($result);
     }
@@ -111,10 +120,14 @@ sub report_response ( $self, $result, $thread_id, $post_id ) {
         $url->fragment( 'post-' . $post_id );
     }
 
-    return $self->_html_success( $self->forum_access->reported_status, $url );
+    return (
+        await $self->await_p(
+            $self->_html_success( $self->forum_access->reported_status, $url )
+        )
+    );
 }
 
-sub profilereport_response ( $self, $result, $username ) {
+async sub profilereport_response ( $self, $result, $username ) {
     if ( !$result->{ok} ) {
         return $self->_report_error_response($result);
     }
@@ -122,9 +135,13 @@ sub profilereport_response ( $self, $result, $username ) {
         return $self->_report_json_response($result);
     }
 
-    return $self->_html_success(
-        $self->forum_access->reported_status,
-        $self->url_for( 'profile', username => $username ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->reported_status,
+                $self->url_for( 'profile', username => $username ),
+            )
+        )
     );
 }
 
@@ -147,7 +164,7 @@ sub _report_json_response ( $self, $result ) {
     );
 }
 
-sub created_thread_response ( $self, $stored ) {
+async sub created_thread_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json =>
@@ -159,22 +176,34 @@ sub created_thread_response ( $self, $stored ) {
     if ( ( $self->param('after_publish') // q{} ) eq 'attachment' ) {
         my $post_id = $self->_column( $stored->{post}, 'post_id' );
         if ($post_id) {
-            return $self->_html_success(
-                $self->forum_access->thread_created_status,
-                $self->url_for( 'post_attachment_form', post_id => $post_id ) );
+            return (
+                await $self->await_p(
+                    $self->_html_success(
+                        $self->forum_access->thread_created_status,
+                        $self->url_for(
+                            'post_attachment_form', post_id => $post_id
+                        )
+                    )
+                )
+            );
         }
     }
 
-    return $self->_html_success(
-        $self->forum_access->thread_created_status,
-        $self->url_for(
-            'thread',
-            thread_id => $self->_column( $stored->{thread}, 'thread_id' ),
-        ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->thread_created_status,
+                $self->url_for(
+                    'thread',
+                    thread_id =>
+                      $self->_column( $stored->{thread}, 'thread_id' ),
+                ),
+            )
+        )
     );
 }
 
-sub updated_thread_response ( $self, $stored ) {
+async sub updated_thread_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json =>
@@ -184,21 +213,31 @@ sub updated_thread_response ( $self, $stored ) {
     }
 
     if ( $self->wants_fragment ) {
-        return $self->thread_fragment(
-            $self->forum_access->thread_updated_status,
-            header => 1 );
+        return (
+            await $self->await_p(
+                $self->thread_fragment(
+                    $self->forum_access->thread_updated_status,
+                    header => 1
+                )
+            )
+        );
     }
 
-    return $self->_html_success(
-        $self->forum_access->thread_updated_status,
-        $self->url_for(
-            'thread',
-            thread_id => $self->_column( $stored->{thread}, 'thread_id' ),
-        ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->thread_updated_status,
+                $self->url_for(
+                    'thread',
+                    thread_id =>
+                      $self->_column( $stored->{thread}, 'thread_id' ),
+                ),
+            )
+        )
     );
 }
 
-sub moved_thread_response ( $self, $stored ) {
+async sub moved_thread_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_forum_view_model->moved_thread_response($stored),
@@ -207,20 +246,31 @@ sub moved_thread_response ( $self, $stored ) {
     }
 
     if ( $self->wants_fragment ) {
-        return $self->thread_fragment( $self->forum_access->thread_moved_status,
-            header => 1 );
+        return (
+            await $self->await_p(
+                $self->thread_fragment(
+                    $self->forum_access->thread_moved_status,
+                    header => 1
+                )
+            )
+        );
     }
 
-    return $self->_html_success(
-        $self->forum_access->thread_moved_status,
-        $self->url_for(
-            'thread',
-            thread_id => $self->_column( $stored->{thread}, 'thread_id' ),
-        ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->thread_moved_status,
+                $self->url_for(
+                    'thread',
+                    thread_id =>
+                      $self->_column( $stored->{thread}, 'thread_id' ),
+                ),
+            )
+        )
     );
 }
 
-sub deleted_thread_response ( $self, $stored ) {
+async sub deleted_thread_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json =>
@@ -232,18 +282,29 @@ sub deleted_thread_response ( $self, $stored ) {
     my $status      = $self->forum_access->thread_deleted_status;
     my $category_id = $self->_column( $stored->{thread}, 'category_id' );
     if ( $self->wants_fragment ) {
-        return $self->thread_fragment( $status, header => 1 );
+        return (
+            await $self->await_p(
+                $self->thread_fragment( $status, header => 1 ) ) );
     }
     if ($category_id) {
-        return $self->_html_success( $status,
-            $self->url_for( 'category', category_id => $category_id ),
+        return (
+            await $self->await_p(
+                $self->_html_success(
+                    $status,
+                    $self->url_for( 'category', category_id => $category_id ),
+                )
+            )
         );
     }
 
-    return $self->_html_success( $status, $self->url_for('categories') );
+    return (
+        await $self->await_p(
+            $self->_html_success( $status, $self->url_for('categories') )
+        )
+    );
 }
 
-sub restored_thread_response ( $self, $stored ) {
+async sub restored_thread_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json =>
@@ -253,20 +314,29 @@ sub restored_thread_response ( $self, $stored ) {
     }
 
     if ( $self->wants_fragment ) {
-        return $self->thread_fragment(
-            $self->forum_access->thread_restored_status,
-            header => 1 );
+        return (
+            await $self->await_p(
+                $self->thread_fragment(
+                    $self->forum_access->thread_restored_status,
+                    header => 1
+                )
+            )
+        );
     }
 
     my $thread_id = $self->_column( $stored->{thread}, 'thread_id' );
 
-    return $self->_html_success(
-        $self->forum_access->thread_restored_status,
-        $self->url_for( 'thread', thread_id => $thread_id ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->thread_restored_status,
+                $self->url_for( 'thread', thread_id => $thread_id ),
+            )
+        )
     );
 }
 
-sub created_post_response ( $self, $stored ) {
+async sub created_post_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_forum_view_model->created_post_response($stored),
@@ -278,17 +348,25 @@ sub created_post_response ( $self, $stored ) {
     my $post_id   = $self->_column( $stored->{post}, 'post_id' );
     my $status    = $self->forum_access->post_created_status;
     if ( $self->wants_fragment ) {
-        return $self->thread_fragment( $status, post_id => $post_id );
+        return (
+            await $self->await_p(
+                $self->thread_fragment( $status, post_id => $post_id )
+            )
+        );
     }
 
-    return $self->_html_success(
-        $status,
-        $self->url_for( 'thread', thread_id => $thread_id )
-          ->fragment( 'post-' . $post_id ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status,
+                $self->url_for( 'thread', thread_id => $thread_id )
+                  ->fragment( 'post-' . $post_id ),
+            )
+        )
     );
 }
 
-sub updated_post_response ( $self, $stored ) {
+async sub updated_post_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_forum_view_model->updated_post_response($stored),
@@ -299,14 +377,18 @@ sub updated_post_response ( $self, $stored ) {
     my $thread_id = $self->_column( $stored->{post}, 'thread_id' );
     my $post_id   = $self->_column( $stored->{post}, 'post_id' );
 
-    return $self->_html_success(
-        $self->forum_access->post_updated_status,
-        $self->url_for( 'thread', thread_id => $thread_id )
-          ->fragment( 'post-' . $post_id ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->post_updated_status,
+                $self->url_for( 'thread', thread_id => $thread_id )
+                  ->fragment( 'post-' . $post_id ),
+            )
+        )
     );
 }
 
-sub deleted_post_response ( $self, $stored ) {
+async sub deleted_post_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_forum_view_model->deleted_post_response($stored),
@@ -316,13 +398,17 @@ sub deleted_post_response ( $self, $stored ) {
 
     my $thread_id = $self->_column( $stored->{post}, 'thread_id' );
 
-    return $self->_html_success(
-        $self->forum_access->post_deleted_status,
-        $self->url_for( 'thread', thread_id => $thread_id ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->post_deleted_status,
+                $self->url_for( 'thread', thread_id => $thread_id ),
+            )
+        )
     );
 }
 
-sub restored_post_response ( $self, $stored ) {
+async sub restored_post_response ( $self, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_forum_view_model->restored_post_response($stored),
@@ -333,14 +419,18 @@ sub restored_post_response ( $self, $stored ) {
     my $thread_id = $self->_column( $stored->{post}, 'thread_id' );
     my $post_id   = $self->_column( $stored->{post}, 'post_id' );
 
-    return $self->_html_success(
-        $self->forum_access->post_restored_status,
-        $self->url_for( 'thread', thread_id => $thread_id )
-          ->fragment( 'post-' . $post_id ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->post_restored_status,
+                $self->url_for( 'thread', thread_id => $thread_id )
+                  ->fragment( 'post-' . $post_id ),
+            )
+        )
     );
 }
 
-sub read_marker_response ( $self, $marked ) {
+async sub read_marker_response ( $self, $marked ) {
     if ( $self->wants_json ) {
         return $self->render(
             json   => $self->gp_forum_view_model->read_marker_response($marked),
@@ -348,15 +438,19 @@ sub read_marker_response ( $self, $marked ) {
         );
     }
 
-    return $self->_html_success(
-        $self->forum_access->read_marked_status,
-        $self->url_for(
-            'thread', thread_id => $marked->{read_state}{thread_id},
-        ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $self->forum_access->read_marked_status,
+                $self->url_for(
+                    'thread', thread_id => $marked->{read_state}{thread_id},
+                ),
+            )
+        )
     );
 }
 
-sub bookmark_action_response ( $self, $status, $bookmark ) {
+async sub bookmark_action_response ( $self, $status, $bookmark ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_community_view_model->bookmark_response(
@@ -366,14 +460,21 @@ sub bookmark_action_response ( $self, $status, $bookmark ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->url_for( 'thread', thread_id => $self->param('thread_id') ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status,
+                $self->url_for(
+                    'thread', thread_id => $self->param('thread_id')
+                ),
+            )
+        )
     );
 }
 
 # A like answers with the post as the list now lists it (the fragment),
 # or with the thread page at the post.
-sub reaction_action_response ( $self, $status, $reaction ) {
+async sub reaction_action_response ( $self, $status, $reaction ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_community_view_model->reaction_response(
@@ -383,14 +484,18 @@ sub reaction_action_response ( $self, $status, $reaction ) {
         );
     }
 
-    return $self->_html_success(
-        $status,
-        $self->url_for( 'thread', thread_id => $reaction->{thread_id} )
-          ->fragment( 'post-' . $self->param('post_id') ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status,
+                $self->url_for( 'thread', thread_id => $reaction->{thread_id} )
+                  ->fragment( 'post-' . $self->param('post_id') ),
+            )
+        )
     );
 }
 
-sub like_action_response ( $self, $status, $like ) {
+async sub like_action_response ( $self, $status, $like ) {
     if ( $self->wants_json ) {
         return $self->render(
             json =>
@@ -399,14 +504,18 @@ sub like_action_response ( $self, $status, $like ) {
         );
     }
 
-    return $self->_html_success(
-        $status,
-        $self->url_for( 'thread', thread_id => $like->{thread_id} )
-          ->fragment( 'post-' . $self->param('post_id') ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status,
+                $self->url_for( 'thread', thread_id => $like->{thread_id} )
+                  ->fragment( 'post-' . $self->param('post_id') ),
+            )
+        )
     );
 }
 
-sub subscription_action_response ( $self, $status, $subscription ) {
+async sub subscription_action_response ( $self, $status, $subscription ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_community_view_model->subscription_response(
@@ -416,8 +525,15 @@ sub subscription_action_response ( $self, $status, $subscription ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->url_for( 'thread', thread_id => $self->param('thread_id') ),
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status,
+                $self->url_for(
+                    'thread', thread_id => $self->param('thread_id')
+                ),
+            )
+        )
     );
 }
 
@@ -462,11 +578,11 @@ sub served_from_public_cache ( $self, $options ) {
     return $self->gp_public_http_cache->serve_cached( $self, $options );
 }
 
-sub _html_success ( $self, $status, $location ) {
+async sub _html_success ( $self, $status, $location ) {
     if ( $self->wants_fragment ) {
-        return $self->thread_fragment($status)
+        return ( await $self->await_p( $self->thread_fragment($status) ) )
           if length( $self->param('thread_id') // q{} );
-        return $self->post_fragment($status)
+        return ( await $self->await_p( $self->post_fragment($status) ) )
           if length( $self->param('post_id') // q{} );
     }
 
@@ -487,25 +603,36 @@ sub wants_fragment ($self) {
 # and the composer's place out of band, since each may have changed. With
 # any, the message the redirect would have flashed, for its place. A
 # browser without the script gets the redirect as before.
-sub thread_fragment ( $self, $status, %option ) {
+async sub thread_fragment ( $self, $status, %option ) {
     my $viewer = $self->gp_forum_viewer;
-    my $thread =
-      $self->gp_thread_detail_reader->find_thread( $self->param('thread_id'),
-        $viewer );
+    my $thread = (
+        await $self->call_p(
+            $self->gp_thread_detail_reader, 'find_thread',
+            $self->param('thread_id'),      $viewer
+        )
+    );
     if ( !$thread ) {
         return $self->not_found('thread not found');
     }
 
     my $post =
       defined $option{post_id}
-      ? $self->gp_post_reader->find_listed_post(
-        {
-            post_id      => $option{post_id},
-            thread_id    => $self->param('thread_id'),
-            viewer_scope =>
-              $self->gp_thread_detail_reader->post_scope( $viewer, $thread ),
-            viewer_user_id => $self->current_user_id,
-        }
+      ? (
+        await $self->call_p(
+            $self->gp_post_reader,
+            'find_listed_post',
+            {
+                post_id      => $option{post_id},
+                thread_id    => $self->param('thread_id'),
+                viewer_scope => (
+                    await $self->call_p(
+                        $self->gp_thread_detail_reader,
+                        'post_scope', $viewer, $thread
+                    )
+                ),
+                viewer_user_id => $self->current_user_id,
+            }
+        )
       )
       : undef;
     my $page = {
@@ -523,8 +650,14 @@ sub thread_fragment ( $self, $status, %option ) {
     return $self->render(
         template => 'forum/thread_fragment',
         %{
-            $self->thread_page_payload( $page, $self->current_user_id,
-                fragment => $fragment )
+            (
+                await $self->await_p(
+                    $self->thread_page_payload_p(
+                        $page, $self->current_user_id,
+                        fragment => $fragment
+                    )
+                )
+            )
         },
         flash_message =>
           $self->i18n( $self->forum_access->write_flash_key($status) ),
@@ -539,27 +672,40 @@ sub thread_fragment ( $self, $status, %option ) {
 # flashed. The post's thread is read first, since the post's own state no
 # longer says which one it is in: a post the viewer may not list sends them
 # the redirect.
-sub post_fragment ( $self, $status ) {
+async sub post_fragment ( $self, $status ) {
     my $viewer  = $self->gp_forum_viewer;
     my $post_id = $self->param('post_id');
-    my $located = $self->gp_post_reader->find_post($post_id);
+    my $located =
+      ( await $self->call_p( $self->gp_post_reader, 'find_post', $post_id ) );
     my $thread =
       $located
-      ? $self->gp_thread_detail_reader->find_thread(
-        $self->_column( $located, 'thread_id' ), $viewer )
+      ? (
+        await $self->call_p(
+            $self->gp_thread_detail_reader,          'find_thread',
+            $self->_column( $located, 'thread_id' ), $viewer
+        )
+      )
       : undef;
     if ( !$thread ) {
         return $self->not_found('post not found');
     }
 
-    my $post = $self->gp_post_reader->find_listed_post(
-        {
-            post_id      => $post_id,
-            thread_id    => $self->_column( $thread, 'thread_id' ),
-            viewer_scope =>
-              $self->gp_thread_detail_reader->post_scope( $viewer, $thread ),
-            viewer_user_id => $self->current_user_id,
-        }
+    my $post = (
+        await $self->call_p(
+            $self->gp_post_reader,
+            'find_listed_post',
+            {
+                post_id      => $post_id,
+                thread_id    => $self->_column( $thread, 'thread_id' ),
+                viewer_scope => (
+                    await $self->call_p(
+                        $self->gp_thread_detail_reader,
+                        'post_scope', $viewer, $thread
+                    )
+                ),
+                viewer_user_id => $self->current_user_id,
+            }
+        )
     );
     if ( !$post ) {
         return $self->not_found('post not found');
@@ -574,8 +720,14 @@ sub post_fragment ( $self, $status ) {
     return $self->render(
         template => 'forum/thread_fragment',
         %{
-            $self->thread_page_payload( $page, $self->current_user_id,
-                fragment => { posts => 1 } )
+            (
+                await $self->await_p(
+                    $self->thread_page_payload_p(
+                        $page, $self->current_user_id,
+                        fragment => { posts => 1 }
+                    )
+                )
+            )
         },
         flash_message =>
           $self->i18n( $self->forum_access->write_flash_key($status) ),
@@ -597,6 +749,84 @@ sub post_fragment ( $self, $status ) {
 # Optional fragment parts are selected by server code. They suppress unused
 # page metadata, move-category choices and composer setup; they never suppress
 # authentication, thread/post visibility or per-post action permissions.
+async sub thread_page_payload_p ( $self, $page, $user_id, %option ) {
+    my $reads;
+    try { $reads = $self->gp_thread_page_reads; }
+    catch ($error) { $reads = undef; };
+    my $parts = $option{fragment};
+    my $answers =
+      $reads
+      ? await $self->call_p(
+        $reads,
+        'answers',
+        {
+            page           => $page,
+            thread_id      => $self->param('thread_id'),
+            viewer_user_id => $user_id,
+            omit_thread    => $parts && !$parts->{header} && !$parts->{toolbar},
+        }
+      )
+      : {};
+
+    if ( $reads && !keys %{$answers} && $reads->functions ) {
+        $answers = await $self->call_p(
+            $reads,
+            'individual_answers',
+            {
+                page           => $page,
+                thread_id      => $self->param('thread_id'),
+                viewer_user_id => $user_id,
+                omit_thread    => $parts
+                  && !$parts->{header}
+                  && !$parts->{toolbar},
+            }
+        );
+    }
+
+    $option{move_categories} = await $self->await_p(
+        $self->_move_categories_p( $page, $user_id, $parts ) );
+    my $renderer = GPForum::Service::Forum::BodyRenderer->new(
+        math_plugins => $self->ui_integration_plugins );
+    my $rendered = await $self->await_p(
+        $renderer->render_many_p(
+            [
+                map { $self->_column( $_, 'body_source' ) }
+                  @{ $page->{posts}{items} || [] }
+            ]
+        )
+    );
+    return GPForum::Service::Forum::BodyRenderer->with_rendered(
+        $rendered,
+        sub {
+            return GPForum::Infrastructure::SqlFunction->answering(
+                $answers,
+                sub {
+                    return $self->_thread_page_payload( $page, $user_id,
+                        %option );
+                }
+            );
+        }
+    );
+}
+
+async sub _move_categories_p( $self, $page, $user_id, $parts ) {
+
+    # Move choices are shown only to the author. Fetch them before entering
+    # the synchronous, data-only answer scope used by the view models.
+    my $tools = !$parts || $parts->{header} || $parts->{toolbar};
+    my $moves =
+         $tools
+      && $user_id
+      && ( $self->_column( $page->{thread}, 'author_user_id' ) // q{} ) eq
+      $user_id
+      && !$self->_column( $page->{thread}, 'locked_at' )
+      && !$self->_column( $page->{thread}, 'deleted_at' );
+    return $moves
+      ? await $self->call_p( $self->gp_category_reader, 'list_categories',
+        { viewer => $self->gp_forum_viewer } )
+      : [];
+}
+
 sub thread_page_payload ( $self, $page, $user_id, %option ) {
     my $payload =
       sub { return $self->_thread_page_payload( $page, $user_id, %option ) };
@@ -664,8 +894,8 @@ sub _thread_page_payload ( $self, $page, $user_id, %option ) {
         ? $self->gp_tags_for_threads( [ $page->{thread} ] )
         : {},
         move_thread_command_id => $move_command_id,
-        categories             => length $move_command_id
-        ? $self->gp_category_reader->list_categories(
+        categories => length $move_command_id ? $option{move_categories}
+          // $self->gp_category_reader->list_categories(
             { viewer => $self->gp_forum_viewer }
           )
         : [],
@@ -822,13 +1052,17 @@ sub _thread_edit_command_id ( $self, $page, $user_id ) {
     return $self->_new_command_id;
 }
 
-sub _thread_form_bad_request ( $self, $prepared ) {
+async sub _thread_form_bad_request ( $self, $prepared ) {
     if ( $self->wants_json ) {
         return $self->_bad_request( $prepared->{errors} );
     }
 
-    my $categories = $self->gp_category_reader->list_categories(
-        { viewer => $self->gp_forum_viewer } );
+    my $categories = (
+        await $self->call_p(
+            $self->gp_category_reader, 'list_categories',
+            { viewer => $self->gp_forum_viewer }
+        )
+    );
     my $values = $prepared->{values} || {};
 
     # The form comes back with the command id and category submitted, or a
@@ -865,8 +1099,12 @@ sub thread_write_failure ( $self, $result ) {
             conflict => sub {
                 return $self->_conflict( $result->{error} );
             },
-            invalid => sub {
-                return $self->_thread_form_bad_request( $result->{prepared} );
+            invalid => async sub {
+                return (
+                    await $self->await_p(
+                        $self->_thread_form_bad_request( $result->{prepared} )
+                    )
+                );
             },
             not_found => sub {
                 return $self->not_found( $result->{error} );
@@ -922,8 +1160,10 @@ sub body_refusal ( $self, $errors ) {
         { limit => GPForum::Service::Forum::BodyLength->maximum } );
 }
 
-sub _allowed ( $self, $user_id, $action ) {
-    my $decision = $self->gp_rate_limiter->check(
+async sub _allowed ( $self, $user_id, $action ) {
+    my $decision = await $self->call_p(
+        $self->gp_rate_limiter,
+        'check',
         $self->forum_access->write_rate_input(
             {
                 action      => $action,
@@ -936,16 +1176,20 @@ sub _allowed ( $self, $user_id, $action ) {
     return $decision->{ok};
 }
 
-sub read_allowed ( $self, $action ) {
+async sub read_allowed ( $self, $action ) {
     my $user_id  = $self->current_user_id;
     my $actor_id = $user_id || GPForum::Web::ClientAddress->of( $self->tx );
-    my $decision = $self->gp_rate_limiter->check(
-        $self->forum_access->read_rate_input(
-            {
-                action      => $action,
-                actor_id    => $actor_id,
-                trust_level => $self->gp_forum_viewer->trust_level,
-            }
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->forum_access->read_rate_input(
+                {
+                    action      => $action,
+                    actor_id    => $actor_id,
+                    trust_level => $self->gp_forum_viewer->trust_level,
+                }
+            )
         )
     );
 
@@ -955,7 +1199,7 @@ sub read_allowed ( $self, $action ) {
 # The member a write is made by, or undef once the request has been answered:
 # a bad CSRF token, no member signed in, over the rate limit, or suspended
 # from an action that needs participation.
-sub write_user_id ( $self, $action ) {
+async sub write_user_id ( $self, $action ) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         $self->_csrf_failure;
         return undef;
@@ -966,7 +1210,7 @@ sub write_user_id ( $self, $action ) {
         $self->_unauthorized;
         return undef;
     }
-    if ( !$self->_allowed( $user_id, $action ) ) {
+    if ( !( await $self->await_p( $self->_allowed( $user_id, $action ) ) ) ) {
         $self->_rate_limited;
         return undef;
     }
@@ -974,7 +1218,12 @@ sub write_user_id ( $self, $action ) {
         return $user_id;
     }
 
-    my $decision = $self->gp_suspension_store->can_participate($user_id);
+    my $decision = (
+        await $self->call_p(
+            $self->gp_suspension_store,
+            'can_participate', $user_id
+        )
+    );
     if ( !$decision->{ok} ) {
         GPForum::Web::SecurityEvent->new->record_event(
             $self,
@@ -1086,6 +1335,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Forum::Base';
+use v5.40;
 
 =head1 DESCRIPTION
 

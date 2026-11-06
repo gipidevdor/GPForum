@@ -3,12 +3,25 @@
 
 package GPForum::Schema;
 
-use Mojo::Base 'DBIx::Class::Schema', -signatures;
+use Mojo::Base -base, -signatures;
 use v5.40;
+use GPForum::Infrastructure::PgStorage;
 
 our $VERSION = '0.001';
 
-__PACKAGE__->load_namespaces;
+has storage => sub { return GPForum::Infrastructure::PgStorage->new; };
+
+sub connect ( $class, @info ) {    ## no critic (Subroutines::ProhibitBuiltinHomonyms) -- retain the established connection factory API
+    my $self = $class->new;
+    $self->storage->connect_info( \@info );
+    return $self;
+}
+
+sub pg           ($self)          { return $self->storage->pg; }
+sub txn_do       ( $self, @args ) { return $self->storage->txn_do(@args); }
+sub txn_begin    ($self)          { return $self->storage->txn_begin; }
+sub txn_commit   ($self)          { return $self->storage->txn_commit; }
+sub txn_rollback ($self)          { return $self->storage->txn_rollback; }
 
 sub connect_from_config ( $class, $config ) {
     my ( $dsn, $user, $password, $attributes ) = $config->database_connect_info;
@@ -24,6 +37,12 @@ sub connect_from_config ( $class, $config ) {
             )->enforce;
             return;
         };
+        $attributes->{on_connect_call_p} = sub ( $storage, $db ) {
+            return GPForum::Infrastructure::PostgresPerformance->new(
+                config => $config,
+                dbh    => $db->dbh,
+            )->enforce_p($db);
+        };
     }
     return $class->connect( $dsn, $user, $password, $attributes );
 }
@@ -34,7 +53,7 @@ __END__
 
 =head1 NAME
 
-GPForum::Schema - DBIx::Class schema root.
+GPForum::Schema - Mojo::Pg connection and transaction boundary.
 
 =head1 VERSION
 
@@ -46,8 +65,9 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-Defines the Good Phorum DBIx::Class schema root and keeps database wiring outside
-the Mojolicious application root.
+Keeps PostgreSQL wiring outside the Mojolicious application root. Runtime
+services use the versioned stored-function catalogue through Mojo::Pg; this
+class provides no ORM, resultsets or SQL generator.
 
 =head1 SUBROUTINES/METHODS
 
@@ -57,7 +77,7 @@ Creates a schema connection from a validated Good Phorum configuration object.
 
 =head1 DIAGNOSTICS
 
-Connection failures are reported by DBIx::Class and DBI.
+Connection failures are reported by Mojo::Pg and DBD::Pg.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -65,7 +85,7 @@ Receives database connection information from L<GPForum::Config>.
 
 =head1 DEPENDENCIES
 
-Uses L<DBIx::Class::Schema> through L<Mojo::Base>.
+L<Mojo::Pg>, L<GPForum::Infrastructure::PgStorage>.
 
 =head1 INCOMPATIBILITIES
 
@@ -73,7 +93,8 @@ None known.
 
 =head1 BUGS AND LIMITATIONS
 
-Only foundational metadata results are present in this milestone.
+Existing synchronous workflows remain synchronous. Switching the transport
+does not automatically turn a workflow into a promise-based HTTP handler.
 
 =head1 AUTHOR
 

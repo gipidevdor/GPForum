@@ -7,30 +7,30 @@ use Encode qw(encode);
 use GPForum::Web::CookieSession;
 use GPForum::Web::IdentityAccess;
 use GPForum::Web::LegalAccess;
-use Mojo::Base 'Mojolicious::Controller', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub terms ($self) {
-    return $self->_page('terms');
+async sub terms ($self) {
+    return ( await $self->await_p( $self->_page('terms') ) );
 }
 
-sub privacy ($self) {
-    return $self->_page('privacy');
+async sub privacy ($self) {
+    return ( await $self->await_p( $self->_page('privacy') ) );
 }
 
-sub cookies ($self) {
-    return $self->_page('cookies');
+async sub cookies ($self) {
+    return ( await $self->await_p( $self->_page('cookies') ) );
 }
 
-sub notice ($self) {
-    return $self->_page('notice');
+async sub notice ($self) {
+    return ( await $self->await_p( $self->_page('notice') ) );
 }
 
 # RFC 9116, served at /.well-known/security.txt (RFC 8615) from the
 # settings; with no contact set there is none to serve.
-sub security_txt ($self) {
+async sub security_txt ($self) {
     my $config = $self->gp_config;
     my $text   = GPForum::Web::LegalAccess->new->security_txt(
         contact        => $config->security_contact,
@@ -39,7 +39,8 @@ sub security_txt ($self) {
         languages      => $self->_locales,
         now            => time,
     );
-    return $self->reply->not_found if !defined $text;
+    return ( await $self->await_p( $self->reply ) )->not_found
+      if !defined $text;
 
     $self->res->headers->cache_control('public, max-age=86400');
     return $self->render( data => encode( 'UTF-8', $text ), format => 'txt' );

@@ -4,7 +4,7 @@
 package GPForum::Controller::Notifications;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Notifications::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Notifications::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -12,18 +12,23 @@ our $VERSION = '0.001';
 const my $HTTP_OK => 200;
 
 # A badge needs only the bounded, permission-aware count, never inbox bodies.
-sub summary ($self) {
+async sub summary ($self) {
     $self->res->headers->cache_control('private, no-store');
     my $user_id = $self->member_user_id;
     return if !$user_id;
     return $self->_rate_limited
-      if !$self->_allowed( $user_id, 'notification.read' );
+      if !(
+        await $self->await_p( $self->_allowed( $user_id, 'notification.read' ) )
+      );
 
     my $count;
     try {
-        $count =
-          $self->gp_notification_dispatcher->unread_count_for_user( $user_id,
-            $self->gp_forum_viewer );
+        $count = (
+            await $self->call_p(
+                $self->gp_notification_dispatcher, 'unread_count_for_user',
+                $user_id,                          $self->gp_forum_viewer
+            )
+        );
     }
     catch ($error) { return $self->system_failure; };
 
@@ -33,7 +38,7 @@ sub summary ($self) {
     );
 }
 
-sub inbox ($self) {
+async sub inbox ($self) {
     my $user_id = $self->member_user_id;
     if ( !$user_id ) {
         return;
@@ -41,7 +46,7 @@ sub inbox ($self) {
 
     my $result;
     try {
-        $result = $self->_inbox_lookup($user_id);
+        $result = ( await $self->await_p( $self->_inbox_lookup($user_id) ) );
     }
     catch ($error) {
         return $self->system_failure;
@@ -61,20 +66,26 @@ sub inbox ($self) {
     );
 }
 
-sub _inbox_lookup ( $self, $user_id ) {
+async sub _inbox_lookup ( $self, $user_id ) {
     return {
-        page => $self->gp_notification_dispatcher->list_page_for_user(
-            $user_id,
-            {
-                after  => $self->param('after'),
-                limit  => $self->page_limit,
-                viewer => $self->gp_forum_viewer,
-            }
+        page => (
+            await $self->call_p(
+                $self->gp_notification_dispatcher,
+                'list_page_for_user',
+                $user_id,
+                {
+                    after  => $self->param('after'),
+                    limit  => $self->page_limit,
+                    viewer => $self->gp_forum_viewer,
+                }
+            )
         ),
-        unread_count =>
-          $self->gp_notification_dispatcher->unread_count_for_user(
-            $user_id, $self->gp_forum_viewer
-          ),
+        unread_count => (
+            await $self->call_p(
+                $self->gp_notification_dispatcher, 'unread_count_for_user',
+                $user_id,                          $self->gp_forum_viewer
+            )
+        ),
     };
 }
 

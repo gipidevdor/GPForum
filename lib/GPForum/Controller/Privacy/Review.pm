@@ -4,7 +4,7 @@
 package GPForum::Controller::Privacy::Review;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Privacy::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Privacy::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::DangerConfirmation;
@@ -13,16 +13,19 @@ our $VERSION = '0.001';
 
 const my $HTTP_OK => 200;
 
-sub review ($self) {
-    my $user_id =
-      $self->authorized_user_id( $self->privacy_access->view_action );
+async sub review ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->privacy_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
     my $payload;
     try {
-        $payload = $self->_review_payload;
+        $payload = ( await $self->await_p( $self->_review_payload ) );
     }
     catch ($error) {
         $self->app->log->error("privacy review failed: $error");
@@ -38,8 +41,8 @@ sub review ($self) {
     );
 }
 
-sub approve_deletion ($self) {
-    my $actor_id = $self->authorized_write_user_id;
+async sub approve_deletion ($self) {
+    my $actor_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_id ) {
         return;
     }
@@ -49,58 +52,70 @@ sub approve_deletion ($self) {
     }
 
     return $self->deletion_review_write_response(
-        $self->gp_privacy_workflow->approve_deletion(
-            {
-                actor_user_id => $actor_id,
-                command_id    => $self->command_id_param,
-                reason        => $self->param('reason'),
-                request_id    => $self->param('request_id'),
-            }
+        (
+            await $self->call_p(
+                $self->gp_privacy_workflow,
+                'approve_deletion',
+                {
+                    actor_user_id => $actor_id,
+                    command_id    => $self->command_id_param,
+                    reason        => $self->param('reason'),
+                    request_id    => $self->param('request_id'),
+                }
+            )
         ),
         $self->privacy_access->deletion_approved_status,
     );
 }
 
-sub hold_deletion ($self) {
-    my $actor_id = $self->authorized_write_user_id;
+async sub hold_deletion ($self) {
+    my $actor_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_id ) {
         return;
     }
 
     return $self->deletion_review_write_response(
-        $self->gp_privacy_workflow->hold_deletion(
-            {
-                actor_user_id => $actor_id,
-                command_id    => $self->command_id_param,
-                reason        => $self->param('reason'),
-                request_id    => $self->param('request_id'),
-            }
+        (
+            await $self->call_p(
+                $self->gp_privacy_workflow,
+                'hold_deletion',
+                {
+                    actor_user_id => $actor_id,
+                    command_id    => $self->command_id_param,
+                    reason        => $self->param('reason'),
+                    request_id    => $self->param('request_id'),
+                }
+            )
         ),
         $self->privacy_access->deletion_held_status,
     );
 }
 
-sub release_hold ($self) {
-    my $actor_id = $self->authorized_write_user_id;
+async sub release_hold ($self) {
+    my $actor_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_id ) {
         return;
     }
 
     return $self->deletion_review_write_response(
-        $self->gp_privacy_workflow->release_hold(
-            {
-                actor_user_id => $actor_id,
-                command_id    => $self->command_id_param,
-                hold_id       => $self->param('hold_id'),
-                reason        => $self->param('reason'),
-            }
+        (
+            await $self->call_p(
+                $self->gp_privacy_workflow,
+                'release_hold',
+                {
+                    actor_user_id => $actor_id,
+                    command_id    => $self->command_id_param,
+                    hold_id       => $self->param('hold_id'),
+                    reason        => $self->param('reason'),
+                }
+            )
         ),
         $self->privacy_access->hold_released_status,
     );
 }
 
-sub run_erasure_job ($self) {
-    my $actor_id = $self->authorized_write_user_id;
+async sub run_erasure_job ($self) {
+    my $actor_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_id ) {
         return;
     }
@@ -109,12 +124,16 @@ sub run_erasure_job ($self) {
     }
 
     return $self->erasure_write_response(
-        $self->gp_privacy_workflow->run_erasure_job(
-            {
-                actor_user_id => $actor_id,
-                command_id    => $self->command_id_param,
-                job_id        => $self->param('job_id'),
-            }
+        (
+            await $self->call_p(
+                $self->gp_privacy_workflow,
+                'run_erasure_job',
+                {
+                    actor_user_id => $actor_id,
+                    command_id    => $self->command_id_param,
+                    job_id        => $self->param('job_id'),
+                }
+            )
         ),
     );
 }
@@ -122,14 +141,24 @@ sub run_erasure_job ($self) {
 # Each pending deletion request carries the ids of its approve and hold
 # forms, each active hold the id of its release form, each pending erasure
 # job the id of its run form.
-sub _review_payload ($self) {
+async sub _review_payload ($self) {
     my $limit  = $self->limit_param;
     my $review = $self->gp_data_rights_review;
-    my $holds  = $review->active_holds( { limit => $limit } );
+    my $holds =
+      ( await $self->call_p( $review, 'active_holds', { limit => $limit } ) );
 
     my @deletion_requests;
     for my $row (
-        @{ $review->pending_deletion_requests( { limit => $limit } ) || [] } )
+        @{
+            (
+                await $self->call_p(
+                    $review, 'pending_deletion_requests',
+                    { limit => $limit }
+                )
+            )
+              || []
+        }
+      )
     {
         push @deletion_requests,
           {
@@ -142,7 +171,12 @@ sub _review_payload ($self) {
     my @erasure_jobs;
     for my $row (
         @{
-            $review->erasure_jobs_by_status( 'pending', { limit => $limit } )
+            (
+                await $self->call_p(
+                    $review, 'erasure_jobs_by_status',
+                    'pending', { limit => $limit }
+                )
+            )
               || []
         }
       )
@@ -165,8 +199,11 @@ sub _review_payload ($self) {
         csrf_token        => $self->csrf_token,
         deletion_requests => \@deletion_requests,
         erasure_jobs      => \@erasure_jobs,
-        export_requests   =>
-          $review->pending_export_requests( { limit => $limit } ),
+        export_requests   => (
+            await $self->call_p(
+                $review, 'pending_export_requests', { limit => $limit }
+            )
+        ),
     );
 }
 

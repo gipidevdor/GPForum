@@ -352,7 +352,7 @@ Files involved:
 
 - `lib/GPForum/Service/Privacy/DeletionWorkflow.pm`
 - `migrations/1010_privacy.sql`
-- `lib/GPForum/Schema/Result/ErasureJob.pm`
+- `t/lib/GPForum/Schema/Result/ErasureJob.pm`
 
 Current behavior: `approve_request` locks `deletion_requests` with `FOR UPDATE`
 before looking up or creating the job. `erasure_jobs` now has a unique
@@ -678,7 +678,7 @@ Severity: medium. Closed in code.
 Files involved:
 
 - `lib/GPForum/Service/Community/ReputationLedger.pm`
-- `lib/GPForum/Schema/Result/ReputationEvent.pm`
+- `t/lib/GPForum/Schema/Result/ReputationEvent.pm`
 - `lib/GPForum/Worker/Handler/ReputationUpdate.pm`
 - `migrations/1005_community.sql`
 

@@ -26,4 +26,6 @@ asserts that helpers resolve, every bootstrap helper is registered exactly once,
 and controller helper calls are backed by bootstrap registrations.
 
 Bootstrap modules should not implement business logic. They construct service
-boundaries and keep DBIx::Class access inside stores/readers/services.
+boundaries. Stores and readers call the versioned PostgreSQL function catalogue
+through Mojo::Pg; `GPForum::Schema` owns connection and transaction wiring
+without an ORM or resultsets (ADR 0174).

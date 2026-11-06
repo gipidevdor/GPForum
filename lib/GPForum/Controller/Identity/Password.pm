@@ -4,7 +4,7 @@
 package GPForum::Controller::Identity::Password;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -20,19 +20,31 @@ sub password_reset_request_form ($self) {
     );
 }
 
-sub request_password_reset ($self) {
-    my $guard = $self->identity_post_guard('identity.password_reset');
+async sub request_password_reset ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.password_reset')
+        )
+    );
     if ($guard) {
         return $guard;
     }
 
-    my $result = $self->gp_identity_workflow->request_password_reset(
-        {
-            command_id      => $self->command_id_param,
-            identifier      => $self->param('identifier'),
-            request_address => $self->request_address,
-        }
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'request_password_reset',
+            {
+                command_id      => $self->command_id_param,
+                identifier      => $self->param('identifier'),
+                request_address => $self->request_address,
+            }
+        ),
+        sub ($result) { return $self->_reset_requested_async($result); }
     );
+}
+
+sub _reset_requested_async ( $self, $result ) {
     if ( $result->{status} eq 'invalid' ) {
         return $self->render(
             template   => 'identity/password_reset_request',
@@ -69,19 +81,31 @@ sub password_reset_form ($self) {
     );
 }
 
-sub reset_password ($self) {
-    my $guard = $self->identity_post_guard('identity.password_reset');
+async sub reset_password ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.password_reset')
+        )
+    );
     if ($guard) {
         return $guard;
     }
 
-    my $result = $self->gp_identity_workflow->reset_password(
-        {
-            command_id => $self->command_id_param,
-            password   => $self->param('password'),
-            token      => $self->param('token'),
-        }
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'reset_password',
+            {
+                command_id => $self->command_id_param,
+                password   => $self->param('password'),
+                token      => $self->param('token'),
+            }
+        ),
+        sub ($result) { return $self->_reset_completed_async($result); }
     );
+}
+
+sub _reset_completed_async ( $self, $result ) {
     if ( $result->{status} eq 'invalid' ) {
         my $errors = $result->{errors}
           || { reset => 'password reset request could not be accepted' };
@@ -107,8 +131,12 @@ sub reset_password ($self) {
     );
 }
 
-sub change_password ($self) {
-    my $guard = $self->identity_post_guard('identity.password_change');
+async sub change_password ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.password_change')
+        )
+    );
     if ($guard) {
         return $guard;
     }
@@ -120,15 +148,23 @@ sub change_password ($self) {
 
     # Naming the current session lets the store evict the user's other devices
     # without signing them out of the browser they just used.
-    my $result = $self->gp_identity_workflow->change_password(
-        {
-            command_id       => $self->command_id_param,
-            current_password => $self->param('current_password'),
-            keep_session_id  => $self->session('session_id'),
-            new_password     => $self->param('new_password'),
-            user_id          => $user_id,
-        }
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'change_password',
+            {
+                command_id       => $self->command_id_param,
+                current_password => $self->param('current_password'),
+                keep_session_id  => $self->session('session_id'),
+                new_password     => $self->param('new_password'),
+                user_id          => $user_id,
+            }
+        ),
+        sub ($result) { return $self->_password_changed_async($result); }
     );
+}
+
+sub _password_changed_async ( $self, $result ) {
     if ( !$result->{ok} ) {
         return $self->settings_write_refused($result);
     }

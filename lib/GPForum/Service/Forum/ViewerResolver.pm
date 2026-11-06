@@ -7,6 +7,7 @@ use Const::Fast;
 use JSON::MaybeXS qw(decode_json);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::CountedQuery;
 use GPForum::Infrastructure::Id;
@@ -71,6 +72,26 @@ sub resolve ( $self, $user_id ) {
     };
 
     return $self->viewer_from_row( $user_id, $row );
+}
+
+sub resolve_p ( $self, $user_id, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return GPForum::Service::Forum::Viewer->from($user_id)
+              if !GPForum::Infrastructure::Id->is_uuid($user_id);
+            return $self->resolve($user_id) if !$self->functions;
+            return $self->functions->row_p( 'forum_resolve_viewer',
+                { user_id => $user_id }, $context )
+              ->then(
+                sub ($row) { return $self->viewer_from_row( $user_id, $row ); }
+              );
+        }
+    )->catch(
+        sub ($error) {
+            $self->_warn("viewer resolution degraded: $error");
+            return $self->viewer_from_row( $user_id, undef );
+        }
+    );
 }
 
 # The viewer an account's row describes -- status, suspended, listed,
@@ -199,6 +220,10 @@ Returns C<global_read>, C<space_ids> and C<category_ids> for a list of
 C<category.read> role bindings: a global binding with no resource and no
 space, a space binding, and a category binding grant; any other shape grants
 nothing.
+
+=head2 resolve_p
+
+Resolves viewer grants and suspension state with one native query. Invalid or unavailable viewers retain the existing fail-closed mapping.
 
 =head1 DIAGNOSTICS
 

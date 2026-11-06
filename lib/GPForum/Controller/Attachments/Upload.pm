@@ -3,7 +3,7 @@
 
 package GPForum::Controller::Attachments::Upload;
 
-use Mojo::Base 'GPForum::Controller::Attachments::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Attachments::Base', -async_await;
 use v5.40;
 use Const::Fast;
 use GPForum::Infrastructure::Id;
@@ -21,11 +21,11 @@ const my %FAILURE_CODE => (
     failed    => 503,
 );
 
-sub show ($self) {
-    return $self->_form( undef, $HTTP_OK );
+async sub show ($self) {
+    return ( await $self->await_p( $self->_form( undef, $HTTP_OK ) ) );
 }
 
-sub _form ( $self, $error, $status ) {
+async sub _form ( $self, $error, $status ) {
     my $actor = $self->current_user_id;
     if ( !$actor ) {
         my $path = $self->req->url->path;
@@ -34,8 +34,10 @@ sub _form ( $self, $error, $status ) {
     }
     $self->res->headers->cache_control('private, no-store');
     my $id   = $self->param('post_id');
-    my $post = $self->_owned_post( $id, $actor )  or return;
-    my $page = $self->_upload_page( $id, $actor ) or return;
+    my $post = ( await $self->await_p( $self->_owned_post( $id, $actor ) ) )
+      or return;
+    my $page = ( await $self->await_p( $self->_upload_page( $id, $actor ) ) )
+      or return;
     return $self->render(
         template     => 'attachments/upload',
         post_id      => $id,
@@ -55,13 +57,17 @@ sub _form ( $self, $error, $status ) {
     );
 }
 
-sub _owned_post ( $self, $id, $actor ) {
+async sub _owned_post ( $self, $id, $actor ) {
     if ( !GPForum::Infrastructure::Id->is_uuid($id) ) {
         $self->not_found('post not found');
         return undef;
     }
-    my $post =
-      $self->gp_post_reader->find_visible_post( $id, $self->gp_forum_viewer );
+    my $post = (
+        await $self->call_p(
+            $self->gp_post_reader, 'find_visible_post',
+            $id,                   $self->gp_forum_viewer
+        )
+    );
     if ( !$post || $self->column( $post, 'deleted_at' ) ) {
         $self->not_found('post not found');
         return undef;
@@ -70,21 +76,33 @@ sub _owned_post ( $self, $id, $actor ) {
         $self->_forbidden('post author required');
         return undef;
     }
-    if ( !$self->gp_suspension_store->can_participate($actor)->{ok} ) {
+    if (
+        !(
+            await $self->call_p(
+                $self->gp_suspension_store,
+                'can_participate', $actor
+            )
+        )->{ok}
+      )
+    {
         $self->_forbidden('user is suspended');
         return undef;
     }
     return $post;
 }
 
-sub _upload_page ( $self, $id, $actor ) {
+async sub _upload_page ( $self, $id, $actor ) {
     my $after = $self->param('after');
     if ( defined $after && !GPForum::Infrastructure::Id->is_uuid($after) ) {
         $self->render( text => 'Invalid cursor', status => $HTTP_BAD_REQUEST );
         return undef;
     }
-    my $files =
-      $self->gp_attachment_store->owned_uploads_for_post( $id, $actor, $after );
+    my $files = (
+        await $self->call_p(
+            $self->gp_attachment_store,
+            'owned_uploads_for_post', $id, $actor, $after
+        )
+    );
     my $more = @{$files} > $PAGE_SIZE ? pop @{$files} : undef;
     my $tail = @{$files}              ? $files->[-1]  : undef;
     my $next =
@@ -98,59 +116,85 @@ sub _upload_page ( $self, $id, $actor ) {
     return { uploads => $files, next_page => $next };
 }
 
-sub upload_post ($self) {
-    my $user_id = $self->write_user_id;
+async sub upload_post ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_attachment_workflow->upload_for_post(
-        {
-            actor_user_id    => $user_id,
-            command_id       => $self->command_id_param,
-            post_id          => $self->param('post_id'),
-            upload           => $self->req->upload('attachment'),
-            viewer           => $self->gp_forum_viewer,
-            source_kind      => $self->param('source_kind'),
-            source_url       => $self->param('source_url'),
-            rights_confirmed => $self->param('rights_confirmed'),
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_attachment_workflow,
+            'upload_for_post',
+            {
+                actor_user_id    => $user_id,
+                command_id       => $self->command_id_param,
+                post_id          => $self->param('post_id'),
+                upload           => $self->req->upload('attachment'),
+                viewer           => $self->gp_forum_viewer,
+                source_kind      => $self->param('source_kind'),
+                source_url       => $self->param('source_url'),
+                rights_confirmed => $self->param('rights_confirmed'),
+            }
+        ),
+        async sub ($result) {
+            return ( await $self->await_p( $self->_uploaded_async($result) ) );
         }
     );
+}
+
+async sub _uploaded_async ( $self, $result ) {
     if (   !$result->{ok}
         && !$self->wants_json
         && ( $self->param('upload_form') // q{} ) eq '1' )
     {
-        return $self->_form( $self->i18n('media.upload_refused'),
-            $FAILURE_CODE{ $result->{status} // q{} }
-              // $FAILURE_CODE{failed} );
+        return (
+            await $self->await_p(
+                $self->_form(
+                    $self->i18n('media.upload_refused'),
+                    $FAILURE_CODE{ $result->{status} // q{} }
+                      // $FAILURE_CODE{failed}
+                )
+            )
+        );
     }
-    return $self->upload_write_response($result);
+    return ( await $self->await_p( $self->upload_write_response($result) ) );
 }
 
-sub delete_post ($self) {
-    my $user_id = $self->write_user_id;
+async sub delete_post ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_attachment_workflow->delete_for_post(
-        {
-            actor_user_id => $user_id,
-            attachment_id => $self->param('attachment_id'),
-            command_id    => $self->command_id_param,
-            post_id       => $self->param('post_id'),
-            viewer        => $self->gp_forum_viewer,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_attachment_workflow,
+            'delete_for_post',
+            {
+                actor_user_id => $user_id,
+                attachment_id => $self->param('attachment_id'),
+                command_id    => $self->command_id_param,
+                post_id       => $self->param('post_id'),
+                viewer        => $self->gp_forum_viewer,
+            }
+        )
     );
     if ( !$self->wants_json && ( $self->param('upload_form') // q{} ) eq '1' ) {
-        return $self->_form( $self->i18n('media.upload_refused'),
-            $FAILURE_CODE{ $result->{status} // q{} } // $FAILURE_CODE{failed} )
-          if !$result->{ok};
+        return (
+            await $self->await_p(
+                $self->_form(
+                    $self->i18n('media.upload_refused'),
+                    $FAILURE_CODE{ $result->{status} // q{} }
+                      // $FAILURE_CODE{failed}
+                )
+            )
+        ) if !$result->{ok};
         $self->set_success_flash('forum.attachment_deleted');
         return $self->redirect_to( 'post_attachment_form',
             post_id => $self->param('post_id') );
     }
-    return $self->delete_write_response($result);
+    return ( await $self->await_p( $self->delete_write_response($result) ) );
 }
 
 1;

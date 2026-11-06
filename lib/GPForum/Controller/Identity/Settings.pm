@@ -6,7 +6,7 @@ package GPForum::Controller::Identity::Settings;
 use Const::Fast;
 use GPForum::Web::Access;
 use GPForum::Web::SecurityEvent;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -14,7 +14,7 @@ our $VERSION = '0.001';
 const my $HTTP_OK        => 200;
 const my $HTTP_FORBIDDEN => 403;
 
-sub set_locale ($self) {
+async sub set_locale ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         return $self->_csrf_failure;
     }
@@ -25,7 +25,8 @@ sub set_locale ($self) {
     }
 
     my $locale = $self->requested_locale;
-    my $result = $self->persist_locale_preference($locale);
+    my $result =
+      ( await $self->await_p( $self->persist_locale_preference($locale) ) );
     if ( $result && !$result->{ok} ) {
         return $self->identity_write_failure($result);
     }
@@ -37,7 +38,7 @@ sub set_locale ($self) {
         $self->safe_return_to( $self->param('return_to') ) );
 }
 
-sub set_theme ($self) {
+async sub set_theme ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         return $self->_csrf_failure;
     }
@@ -47,8 +48,9 @@ sub set_theme ($self) {
         return $blocked;
     }
 
-    my $theme  = $self->requested_theme;
-    my $result = $self->persist_theme_preference($theme);
+    my $theme = $self->requested_theme;
+    my $result =
+      ( await $self->await_p( $self->persist_theme_preference($theme) ) );
     if ( $result && !$result->{ok} ) {
         return $self->identity_write_failure($result);
     }
@@ -71,7 +73,7 @@ sub _require_preference_command ($self) {
     return $self->identity_bad_request;
 }
 
-sub settings ($self) {
+async sub settings ($self) {
     my $user_id = $self->current_user_id;
     if ( !$user_id ) {
         return $self->settings_unauthorized;
@@ -82,10 +84,17 @@ sub settings ($self) {
     my $store = $self->gp_notification_preference_store;
     my ( $preferences, $type_preferences, $profile );
     try {
-        $preferences      = $store->preferences_for_user($user_id);
-        $type_preferences = $store->type_preferences_for_user($user_id);
-        $profile =
-          $self->gp_identity_store->profile_for_user( { user_id => $user_id } );
+        $preferences =
+          ( await $self->call_p( $store, 'preferences_for_user', $user_id ) );
+        $type_preferences =
+          ( await $self->call_p( $store, 'type_preferences_for_user', $user_id )
+          );
+        $profile = (
+            await $self->call_p(
+                $self->gp_identity_store, 'profile_for_user',
+                { user_id => $user_id }
+            )
+        );
         die "profile unavailable\n" if !$profile->{ok};
     }
     catch ($error) {
@@ -120,7 +129,7 @@ sub settings ($self) {
     );
 }
 
-sub update_settings ($self) {
+async sub update_settings ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         return $self->_csrf_failure;
     }
@@ -129,17 +138,27 @@ sub update_settings ($self) {
     if ( !$user_id ) {
         return $self->settings_unauthorized;
     }
-    if ( !$self->_identity_allowed('identity.settings') ) {
+    if (
+        !(
+            await $self->await_p(
+                $self->_identity_allowed('identity.settings') )
+        )
+      )
+    {
         return $self->_rate_limited;
     }
 
-    my $result = $self->gp_notification_workflow->set_preferences(
-        {
-            command_id       => $self->command_id_param,
-            preferences      => $self->_notification_preference_input,
-            type_preferences => $self->_notification_type_input,
-            user_id          => $user_id,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_notification_workflow,
+            'set_preferences',
+            {
+                command_id       => $self->command_id_param,
+                preferences      => $self->_notification_preference_input,
+                type_preferences => $self->_notification_type_input,
+                user_id          => $user_id,
+            }
+        )
     );
     if ( !$result->{ok} ) {
         if ( ( $result->{status} || q{} ) eq 'not_found' ) {
@@ -152,12 +171,16 @@ sub update_settings ($self) {
     my $locale = $self->requested_locale;
     my $theme  = $self->requested_theme;
     $self->stash( mint_preference_command => 1 );
-    $self->persist_locale_preference($locale);
-    $self->persist_theme_preference($theme);
+    ( await $self->await_p( $self->persist_locale_preference($locale) ) );
+    ( await $self->await_p( $self->persist_theme_preference($theme) ) );
     $self->set_locale_cookie($locale);
     $self->set_theme_cookie($theme);
     $self->stash( ui_locale => $locale, ui_theme => $theme );
-    $self->persist_timezone_preference( $self->requested_timezone );
+    (
+        await $self->await_p(
+            $self->persist_timezone_preference( $self->requested_timezone )
+        )
+    );
 
     $self->flash( success => $self->t('settings.saved') );
     return $self->redirect_to('settings');
@@ -167,7 +190,7 @@ sub update_settings ($self) {
 # saved bio and saved preferences never share an id. Others read them, so a
 # suspended member may not change them, as they may not change their
 # picture.
-sub update_profile ($self) {
+async sub update_profile ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         return $self->_csrf_failure;
     }
@@ -175,10 +198,24 @@ sub update_profile ($self) {
     if ( !$user_id ) {
         return $self->settings_unauthorized;
     }
-    if ( !$self->_identity_allowed('identity.settings') ) {
+    if (
+        !(
+            await $self->await_p(
+                $self->_identity_allowed('identity.settings') )
+        )
+      )
+    {
         return $self->_rate_limited;
     }
-    if ( !$self->gp_suspension_store->can_participate($user_id)->{ok} ) {
+    if (
+        !(
+            await $self->call_p(
+                $self->gp_suspension_store,
+                'can_participate', $user_id
+            )
+        )->{ok}
+      )
+    {
         return $self->_suspended('profile.update');
     }
     my $input = {
@@ -189,10 +226,19 @@ sub update_profile ($self) {
     my $result;
     if ( defined $self->param('display_name') ) {
         $input->{display_name} = $self->param('display_name');
-        $result = $self->gp_identity_workflow->update_profile($input);
+        $result = (
+            await $self->call_p(
+                $self->gp_identity_workflow,
+                'update_profile', $input
+            )
+        );
     }
     else {
-        $result = $self->gp_identity_workflow->update_bio($input);
+        $result = (
+            await $self->call_p(
+                $self->gp_identity_workflow, 'update_bio', $input
+            )
+        );
     }
     if ( !$result->{ok} ) {
         return $self->settings_write_refused($result);

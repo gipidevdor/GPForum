@@ -123,10 +123,8 @@ subtest 'the settings page restarts what reads the settings' => sub {
         $text =~ /^EnvironmentFile=/msx && $text !~ /^Type=oneshot$/msx
       }
       sort glob 'deploy/systemd/*.service';
-    is_deeply(
-        \@long_running,
-        [qw(gpforum-outbox gpforum-push gpforum)],
-        'the shipped web, mail and optional Push services read the environment file'
+    is_deeply( \@long_running, [qw(gpforum-outbox gpforum-push gpforum)],
+'the shipped web, mail and optional Push services read the environment file'
     );
     is(
         $change->{restart},

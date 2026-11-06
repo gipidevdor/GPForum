@@ -64,10 +64,14 @@ read paths that only need raw text can keep using `get_column`.
 
 ## Alignment
 
-- `lib/GPForum/Schema/JsonColumn.pm`
-- `lib/GPForum/Schema/Result/*.pm` (15 classes with JSON columns)
+- `t/lib/GPForum/Schema/JsonColumn.pm`
+- `t/lib/GPForum/Schema/Result/*.pm` (15 classes with JSON columns)
 - `lib/GPForum/ViewModel/Base.pm`
 - `lib/GPForum/Infrastructure/AuditRecord.pm`
 - `t/05-database.t`, `t/116-infrastructure-audit-record.t`
 - `t/integration/postgres.t`
 - `docs/adr/0020-audit-record-hashing.md`
+
+Runtime follow-up: [ADR 0174](0174-mojo-pg-is-the-runtime-stored-function-transport.md)
+uses Mojo::Pg and stored functions; the ORM model paths now identify historical
+fixtures under `t/lib`.

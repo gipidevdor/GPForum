@@ -40,7 +40,7 @@ The initial layout SHOULD be:
 - `lib/GPForum.pm`
 - `lib/GPForum/Controller/`
 - `lib/GPForum/Schema.pm`
-- `lib/GPForum/Schema/Result/`
+- `t/lib/GPForum/Schema/Result/`
 - `lib/GPForum/Service/`
 - `lib/GPForum/Policy/`
 - `lib/GPForum/Event/`
@@ -130,3 +130,7 @@ The bootstrap implementation MUST:
 - Tests: `t/00-load.t`, `t/01-config.t`, `t/02-health.t`, `t/03-home.t`,
   `t/05-database.t`, `t/33-health-readiness.t`.
 - Docs: `docs/architecture/bootstrap.md`.
+
+Runtime follow-up: [ADR 0174](0174-mojo-pg-is-the-runtime-stored-function-transport.md)
+uses Mojo::Pg and stored functions; the ORM model paths now identify historical
+fixtures under `t/lib`.

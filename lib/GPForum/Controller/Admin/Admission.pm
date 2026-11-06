@@ -3,17 +3,21 @@
 
 package GPForum::Controller::Admin::Admission;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 use GPForum::Service::Identity::Admission;
 use GPForum::Web::Guard;
 
 our $VERSION = '0.001';
 
-sub show ($self) {
-    my $actor = $self->authorized_user_id( $self->admin_access->view_action );
+async sub show ($self) {
+    my $actor = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     return if !$actor;
-    my $state = $self->_page($actor);
+    my $state = ( await $self->await_p( $self->_page($actor) ) );
     return GPForum::Web::Guard->new->forbidden($self)
       if $state->{status} ne 'ok';
     $self->res->headers->cache_control('no-store');
@@ -21,16 +25,20 @@ sub show ($self) {
     return $self->render( template => 'admin/admission', admission => $state );
 }
 
-sub change ($self) {
-    my $actor = $self->authorized_write_user_id;
+async sub change ($self) {
+    my $actor = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$actor;
-    my $result = $self->_service->change(
-        {
-            actor   => $actor,
-            command => $self->command_id_param,
-            map { $_ => $self->param($_) }
-              qw(operation mode approval_required email invitation_id user_id),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->_service,
+            'change',
+            {
+                actor   => $actor,
+                command => $self->command_id_param,
+                map { $_ => $self->param($_) }
+                  qw(operation mode approval_required email invitation_id user_id),
+            }
+        )
     );
     $self->res->headers->cache_control('no-store');
     return GPForum::Web::Guard->new->forbidden($self)
@@ -41,7 +49,7 @@ sub change ($self) {
     return $self->_bad_request( { admission => $result->{status} } )
       if $result->{status} ne 'ok';
     return $self->render( json => $result ) if $self->wants_json;
-    my $state = $self->_page($actor);
+    my $state = ( await $self->await_p( $self->_page($actor) ) );
     return $self->render(
         template   => 'admin/admission',
         admission  => $state,
@@ -49,8 +57,8 @@ sub change ($self) {
     );
 }
 
-sub _page ( $self, $actor ) {
-    my $page = $self->_service->overview($actor);
+async sub _page ( $self, $actor ) {
+    my $page = ( await $self->call_p( $self->_service, 'overview', $actor ) );
     $page->{commands} = { map { $_ => $self->gp_id->uuid } qw(policy invite) };
     for my $row ( @{ $page->{reviews} // [] }, @{ $page->{invitations} // [] } )
     {

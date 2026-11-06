@@ -3,32 +3,42 @@
 
 package GPForum::Controller::Admin::DeadLetters;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
 # Not behind a danger confirmation: a replay takes nothing away. It enqueues
 # the work again, and the handlers it reaches are idempotent (ADR 0056).
-sub replay ($self) {
-    my $actor_user_id = $self->authorized_write_user_id;
+async sub replay ($self) {
+    my $actor_user_id =
+      ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_user_id ) {
         return;
     }
 
-    my $result = $self->gp_admin_workflow->replay_dead_letter(
-        {
-            actor_user_id  => $actor_user_id,
-            command_id     => $self->command_id_param,
-            dead_letter_id => $self->param('dead_letter_id'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_admin_workflow,
+            'replay_dead_letter',
+            {
+                actor_user_id  => $actor_user_id,
+                command_id     => $self->command_id_param,
+                dead_letter_id => $self->param('dead_letter_id'),
+            }
+        )
     );
     my $failure = $self->write_failure($result);
     return $failure if $failure;
 
-    return $self->dead_letter_replay_response(
-        $self->admin_access->dead_letter_replayed_status,
-        $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->dead_letter_replay_response(
+                $self->admin_access->dead_letter_replayed_status,
+                $result->{stored}
+            )
+        )
+    );
 }
 
 1;

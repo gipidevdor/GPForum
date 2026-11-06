@@ -50,13 +50,13 @@ for ( 1 .. 2 ) {
     );
     push @workers, $test;
 }
-my $read  = GPForum::Infrastructure::SqlFunction->can('rows');
+my $read  = GPForum::Infrastructure::SqlFunction->can('rows_p');
 my $build = GPForum::Service::Admin::Configuration->can('_effective_config');
 my ( $reads, $builds ) = ( 0, 0 );
 with_replaced_subs(
     'GPForum::Infrastructure::SqlFunction',
     {
-        rows => sub {
+        rows_p => sub {
             if ( $_[1] eq 'admin_configuration_state' ) { ++$reads; }
             return $read->(@_);
         },
@@ -100,8 +100,9 @@ with_replaced_subs(
                 with_replaced_subs(
                     'GPForum::Infrastructure::SqlFunction',
                     {
-                        rows => sub {
-                            croak 'fixture configuration read failed'
+                        rows_p => sub {
+                            return Mojo::Promise->reject(
+                                'fixture configuration read failed')
                               if $_[1] eq 'admin_configuration_state';
                             return $read->(@_);
                         },

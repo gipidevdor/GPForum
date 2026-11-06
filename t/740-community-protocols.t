@@ -3,6 +3,7 @@
 
 package main;
 use v5.40;
+use Mojo::Promise;
 use Const::Fast;
 use utf8;
 use lib 'lib';
@@ -416,6 +417,8 @@ $per_request->helper(
             }
         );
         return GPForum::Service::Discovery::WebSub->new(
+            resolve_host_p =>
+              sub { return Mojo::Promise->resolve('127.0.0.1'); },
             hub_url => 'https://hub.example/hub',
             topic   => $hub->topic,
             ua      => $agent

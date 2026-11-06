@@ -3,45 +3,61 @@
 
 package GPForum::Controller::Admin::Announcements;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub create_announcement ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub create_announcement ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->announcement_write_response(
-        $self->gp_admin_workflow->create_announcement(
-            {
-                actor_user_id => $user_id,
-                command_id    => $self->command_id_param,
-                message       => $self->param('message'),
-                tone          => $self->param('tone'),
-            }
-        ),
-        $self->admin_access->announcement_published_status,
+    return (
+        await $self->await_p(
+            $self->announcement_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'create_announcement',
+                        {
+                            actor_user_id => $user_id,
+                            command_id    => $self->command_id_param,
+                            message       => $self->param('message'),
+                            tone          => $self->param('tone'),
+                        }
+                    )
+                ),
+                $self->admin_access->announcement_published_status,
+            )
+        )
     );
 }
 
-sub retire_announcement ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub retire_announcement ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->announcement_write_response(
-        $self->gp_admin_workflow->retire_announcement(
-            {
-                actor_user_id   => $user_id,
-                announcement_id => $self->param('announcement_id'),
-                command_id      => $self->command_id_param,
-            }
-        ),
-        $self->admin_access->announcement_retired_status,
+    return (
+        await $self->await_p(
+            $self->announcement_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'retire_announcement',
+                        {
+                            actor_user_id   => $user_id,
+                            announcement_id => $self->param('announcement_id'),
+                            command_id      => $self->command_id_param,
+                        }
+                    )
+                ),
+                $self->admin_access->announcement_retired_status,
+            )
+        )
     );
 }
 

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 package GPForum::Bootstrap::Operations;
+use Mojo::IOLoop;
+use GPForum::Infrastructure::AsyncQuery;
 
 use v5.40;
 
@@ -214,6 +216,42 @@ sub _register_schema_helpers ( $application, $config ) {
             }
         }
     );
+    $application->hook(
+        before_server_start => sub ( $server, $ ) {
+            return if !$server->isa('Mojo::Server::Prefork');
+
+            # Core registered template warmup first, so its event-loop turns
+            # finish before this inherited first-worker-tick is scheduled.
+            # Populate Password's cost-keyed state before forking: unknown
+            # logins then verify a decoy without generating another in each child.
+            if ( $application->renderer->get_helper('gp_password') ) {
+                $application->build_controller->gp_password->decoy_hash;
+            }
+            my $manager = $PROCESS_ID;
+            Mojo::IOLoop->next_tick(
+                sub {
+                    return if $PROCESS_ID == $manager;
+                    try {
+                        my $worker_schema =
+                          $application->build_controller->gp_schema;
+                        GPForum::Infrastructure::AsyncQuery->for_schema(
+                            $worker_schema)->prewarm_p->catch(
+                            sub {
+                                $application->log->warn(
+                                    'worker database warmup unavailable');
+                                return;
+                            }
+                            );
+                    }
+                    catch ($error) {
+                        $application->log->warn(
+                            'worker database warmup unavailable');
+                    };
+                    return;
+                }
+            );
+        }
+    );
 
     # One notification queue per handle. The cache invalidation bus and the
     # realtime listener both LISTEN on gp_schema's connection, and each used
@@ -225,7 +263,9 @@ sub _register_schema_helpers ( $application, $config ) {
 
             $pg_notifications ||=
               GPForum::Infrastructure::PgNotifications->new(
-                schema => $controller->gp_schema );
+                asynchronous => 1,
+                schema       => $controller->gp_schema
+              );
             return $pg_notifications;
         }
     );
@@ -415,10 +455,9 @@ sub _optional_controller_helper ( $controller, $helper ) {
 sub _configure_db_query_observer {
     my ( $application, $config ) = @_;
 
-    $application->hook(
-        before_dispatch => sub {
-            my ($controller) = @_;
-
+    $application->helper(
+        gp_begin_request => sub ($controller) {
+            return if $controller->stash('gp_db_query_stats_token');
             my $request_id = _request_id($controller);
             $controller->stash( gp_request_id => $request_id );
             GPForum::Log->identify_request( $controller, $config );
@@ -426,6 +465,8 @@ sub _configure_db_query_observer {
             $controller->res->headers->header( 'X-Request-ID' => $request_id );
 
             my $stats = $controller->gp_db_query_stats;
+            $controller->gp_schema
+              ; # Attach the observer before creating the request token; no connection is opened.
             my $path  = $controller->req->url->path;
             my $token = $stats->start_request(
                 {
@@ -434,8 +475,11 @@ sub _configure_db_query_observer {
                 }
             );
             $controller->stash( gp_db_query_stats_token => $token );
+            return;
         }
     );
+    $application->hook( before_dispatch =>
+          sub ($controller) { $controller->gp_begin_request; return; } );
 
     $application->hook(
         after_dispatch => sub {

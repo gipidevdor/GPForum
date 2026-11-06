@@ -14,6 +14,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
 use GPForum::X::Argument;
+use Mojo::Promise;
 
 use GPForum::Service::Forum::PageWindow;
 
@@ -66,6 +67,58 @@ sub list_thread_posts ( $self, $request ) {
 
 # The page's posts from the function, as plain rows read like the
 # resultset's.
+sub list_thread_posts_p ( $self, $request, $context = undef ) {
+    $request =
+      { %{$request}, query_context => $request->{query_context} // $context };
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->list_thread_posts($request) if !$self->functions;
+            my $plan = $self->_plan($request);
+            return $self->functions->rows_p(
+                @{ $self->thread_posts_call( $request, $plan ) },
+                $request->{query_context} )->then(
+                sub ($rows) {
+                    my $posts = [
+                        map {
+                            GPForum::Infrastructure::ResultRow::Post->from($_)
+                        } @{$rows}
+                    ];
+                    return $self->page_window->page( $posts, $plan->{limit},
+                        [ 'position', 'post_id' ] );
+                }
+                );
+        }
+    );
+}
+
+sub find_listed_post_p ( $self, $request, $context = undef ) {
+    $request =
+      { %{$request}, query_context => $request->{query_context} // $context };
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->find_listed_post($request) if !$self->functions;
+            my $scope = $request->{viewer_scope}
+              || GPForum::Service::Forum::Viewer->anonymous;
+            return $self->functions->row_p(
+                'forum_find_listed_post',
+                {
+                    global_read    => $scope->global_read,
+                    member         => $scope->member,
+                    post_id        => $request->{post_id},
+                    scope_user_id  => _user_id( $scope->user_id ),
+                    thread_id      => $request->{thread_id},
+                    viewer_user_id => _user_id( $request->{viewer_user_id} ),
+                },
+                $request->{query_context}
+            )->then(
+                sub ($row) {
+                    return GPForum::Infrastructure::ResultRow::Post->from($row);
+                }
+            );
+        }
+    );
+}
+
 sub _function_posts ( $self, $functions, $request, $plan ) {
     my $rows =
       $functions->rows( @{ $self->thread_posts_call( $request, $plan ) } );
@@ -495,6 +548,14 @@ for an empty id.
 
 Takes a post id. Returns the post row whatever its state, or undef for an
 empty id or no row.
+
+=head2 list_thread_posts_p
+
+Returns the same visible, ordered post page as list_thread_posts through native asynchronous PostgreSQL calls.
+
+=head2 find_listed_post_p
+
+Returns a promise for an anchor post using the same viewer visibility rules as the synchronous reader.
 
 =head1 DIAGNOSTICS
 

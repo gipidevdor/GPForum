@@ -9,9 +9,10 @@ use English qw(-no_match_vars);
 use Test::More;
 
 use lib 'lib';
+use lib 't/lib';
 
 use GPForum::Infrastructure::PreparedQuery;
-use GPForum::Schema;
+use GPForum::Test::LegacySchema;
 use GPForum::Service::Operations::DbQueryStats;
 
 our $VERSION = '0.001';
@@ -19,7 +20,8 @@ our $VERSION = '0.001';
 # No statement runs: the schema is connected to a port nothing listens on,
 # so a lookup that reached the database would die on the connection.
 my $schema =
-  GPForum::Schema->connect('dbi:Pg:dbname=gpforum_no_database;port=1');
+  GPForum::Test::LegacySchema->connect(
+    'dbi:Pg:dbname=gpforum_no_database;port=1');
 my $prepared = GPForum::Infrastructure::PreparedQuery->new;
 my $threads  = $schema->resultset('Thread');
 

@@ -116,7 +116,8 @@ sub prepare_database {
 }
 
 sub connect_schema {
-    return GPForum::Schema->connect_from_config(
+    require GPForum::Test::PgSchema;
+    return GPForum::Test::PgSchema->connect_from_config(
         GPForum::Config->from_environment );
 }
 
@@ -296,6 +297,7 @@ sub nested_plan_without_seqscan {
     my ( $dbh, $sql, @bind ) = @_;
 
     my @log;
+    local $dbh->{PrintWarn} = 1;                                   ## no critic (Variables::ProhibitLocalVars) -- auto_explain emits its nested plans as notices on this diagnostic connection
     local $SIG{__WARN__} = sub { push @log, $_[0]; return; };
     $dbh->begin_work;
     for my $setting (@AUTO_EXPLAIN) {

@@ -6,23 +6,26 @@ package GPForum::Controller::Realtime;
 use Const::Fast;
 use Scalar::Util qw(weaken);
 use Mojo::IOLoop;
+use Mojo::Promise;
 use GPForum::Web::BoundedRealtimeStream;
 use Mojo::JSON                    qw(encode_json);
 use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::Web::Access;
 use GPForum::Web::RealtimeAccess;
 use GPForum::Web::RealtimePayload;
-use Mojo::Base 'Mojolicious::Controller', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-const my $HTTP_FORBIDDEN     => 403;
-const my $HTTP_PAYLOAD       => 413;
-const my $HTTP_TOO_MANY      => 429;
-const my $MAX_PENDING_FRAMES => 32;
-const my $MAX_PENDING_BYTES  => 262_144;
-const my $TRY_AGAIN_LATER    => 1013;
+const my $HTTP_FORBIDDEN      => 403;
+const my $HTTP_PAYLOAD        => 413;
+const my $HTTP_TOO_MANY       => 429;
+const my $MAX_PENDING_FRAMES  => 32;
+const my $MAX_PENDING_BYTES   => 262_144;
+const my $TRY_AGAIN_LATER     => 1013;
+const my $INTERNAL_ERROR      => 1011;
+const my $SWITCHING_PROTOCOLS => 101;
 
 has realtime_pending_frames => 0;
 has realtime_pending_bytes  => 0;
@@ -31,15 +34,19 @@ has realtime_transport => undef; # optional: native stream of an accepted socket
 
 has realtime_access => sub { return GPForum::Web::RealtimeAccess->new; };
 
-sub stream ($self) {
+async sub stream ($self) {
     my $access = $self->realtime_access;
     if ( !$access->origin_allowed($self) ) {
-        $self->_telemetry(
-            'realtime_origin_denied',
-            {
-                reason => 'origin_denied',
-                status => $HTTP_FORBIDDEN,
-            },
+        (
+            await $self->await_p(
+                $self->_telemetry(
+                    'realtime_origin_denied',
+                    {
+                        reason => 'origin_denied',
+                        status => $HTTP_FORBIDDEN,
+                    },
+                )
+            )
         );
         return $self->_handshake_text( $access->origin_denied );
     }
@@ -48,14 +55,21 @@ sub stream ($self) {
     if ( !has_text($user_id) ) {
         return $self->_handshake_text( $access->authentication_required );
     }
-    if ( !$self->_rate_limit( $user_id, $access->connect_action ) ) {
+    if (
+        !(
+            await $self->await_p(
+                $self->_rate_limit( $user_id, $access->connect_action )
+            )
+        )
+      )
+    {
         return $self->_handshake_text( $access->too_many_connections );
     }
 
-    return $self->_accept_stream($user_id);
+    return ( await $self->await_p( $self->_accept_stream($user_id) ) );
 }
 
-sub _accept_stream ( $self, $user_id ) {
+async sub _accept_stream ( $self, $user_id ) {
 
     # Install at the real socket sink before the first application output.
     # Mojo also sends protocol replies without going through this controller.
@@ -74,12 +88,16 @@ sub _accept_stream ( $self, $user_id ) {
       $self->gp_realtime_hub->register_connection( $connection_id, $actor,
         $self );
     if ( !$registered ) {
-        $self->_telemetry(
-            'realtime_connection_denied',
-            {
-                reason => 'connection_quota_exceeded',
-                status => $HTTP_TOO_MANY,
-            },
+        (
+            await $self->await_p(
+                $self->_telemetry(
+                    'realtime_connection_denied',
+                    {
+                        reason => 'connection_quota_exceeded',
+                        status => $HTTP_TOO_MANY,
+                    },
+                )
+            )
         );
         return $self->_handshake_text(
             $self->realtime_access->too_many_connections );
@@ -91,27 +109,41 @@ sub _accept_stream ( $self, $user_id ) {
             fallback      => $self->gp_realtime_hub->fallback_state,
         )
     );
-    $self->on(
-        json => sub ( $controller, $message, @ ) {
-            $controller->_handle_message(
-                {
-                    actor         => $actor,
-                    connection_id => $connection_id,
-                    message       => $message,
+    $self->tx->on(
+        json => sub ( $tx, $message, @ ) {
+            $self->await_p(
+                $self->_handle_message(
+                    {
+                        actor         => $actor,
+                        connection_id => $connection_id,
+                        message       => $message
+                    }
+                )
+
+            )->catch(
+                sub ($error) {
+                    $self->log->error('realtime command failed');
+                    $self->finish($INTERNAL_ERROR);
+                    return;
                 }
             );
+            return;
         }
     );
-    $self->on(
-        finish => sub ( $controller, @ ) {
-            $controller->gp_realtime_hub->disconnect($connection_id);
+    $self->tx->on(
+        finish => sub (@) {
+            $self->gp_realtime_hub->disconnect($connection_id);
+            return;
         }
     );
 
-    return;
+    # Accept once, after installing both callbacks. Controller::on accepts an
+    # unestablished websocket itself; two async on() calls can otherwise queue
+    # two handshake completions and close the newly upgraded connection.
+    return $self->rendered($SWITCHING_PROTOCOLS);
 }
 
-sub _handle_message ( $self, $input ) {
+async sub _handle_message ( $self, $input ) {
     my $access  = $self->realtime_access;
     my $message = $input->{message};
     return undef if $self->realtime_overloaded;
@@ -119,9 +151,13 @@ sub _handle_message ( $self, $input ) {
     # All decoded commands, including malformed and rejected commands,
     # consume the same ingress budget. A rejection never starts a reply loop.
     if (
-        !$self->_rate_limit(
-            $input->{actor}{user_id},
-            $access->subscribe_action
+        !(
+            await $self->await_p(
+                $self->_rate_limit(
+                    $input->{actor}{user_id},
+                    $access->subscribe_action
+                )
+            )
         )
       )
     {
@@ -129,13 +165,17 @@ sub _handle_message ( $self, $input ) {
         return $self->finish( $TRY_AGAIN_LATER, 'realtime ingress exceeded' );
     }
     if ( $access->payload_too_large($message) ) {
-        $self->_telemetry(
-            'realtime_payload_rejected',
-            {
-                payload_size => $access->payload_bytes($message),
-                reason       => 'payload_too_large',
-                status       => $HTTP_PAYLOAD,
-            },
+        (
+            await $self->await_p(
+                $self->_telemetry(
+                    'realtime_payload_rejected',
+                    {
+                        payload_size => $access->payload_bytes($message),
+                        reason       => 'payload_too_large',
+                        status       => $HTTP_PAYLOAD,
+                    },
+                )
+            )
         );
         return $self->_send_error('payload_too_large');
     }
@@ -143,28 +183,34 @@ sub _handle_message ( $self, $input ) {
         return $self->_send_error('unknown_message');
     }
 
-    return $self->_subscribe($input);
+    return ( await $self->await_p( $self->_subscribe($input) ) );
 }
 
-sub _subscribe ( $self, $input ) {
-    my $result = $self->gp_realtime_hub->subscribe(
-        {
-            actor         => $input->{actor},
-            channel       => $input->{message}{channel},
-            connection_id => $input->{connection_id},
-            context       => { transport => 'websocket' },
-        }
+async sub _subscribe ( $self, $input ) {
+    my $result = await $self->await_p(
+        $self->gp_realtime_hub->subscribe_p(
+            {
+                actor         => $input->{actor},
+                channel       => $input->{message}{channel},
+                connection_id => $input->{connection_id},
+                context       => { transport => 'websocket' },
+            }
+        )
     );
     if ( !$result->{ok} ) {
-        $self->_telemetry(
-            'realtime_subscription_denied',
-            {
-                channel_type => $self->realtime_access->channel_type(
-                    $input->{message}{channel}
-                ),
-                reason => $result->{reason},
-                status => $HTTP_FORBIDDEN,
-            },
+        (
+            await $self->await_p(
+                $self->_telemetry(
+                    'realtime_subscription_denied',
+                    {
+                        channel_type => $self->realtime_access->channel_type(
+                            $input->{message}{channel}
+                        ),
+                        reason => $result->{reason},
+                        status => $HTTP_FORBIDDEN,
+                    },
+                )
+            )
         );
         return $self->_send_error( $result->{reason} );
     }
@@ -182,7 +228,11 @@ sub _subscribe ( $self, $input ) {
     if ( $self->realtime_access->channel_type( $result->{channel} ) eq
         'notifications' )
     {
-        $self->gp_realtime_hub->send_badge_snapshot( $input->{connection_id} );
+        await $self->await_p(
+            $self->gp_realtime_hub->send_badge_snapshot_p(
+                $input->{connection_id}
+            )
+        );
     }
 
     return $self;
@@ -245,13 +295,17 @@ sub _handshake_text ( $self, $payload ) {
     );
 }
 
-sub _rate_limit ( $self, $user_id, $action ) {
-    my $decision = $self->gp_rate_limiter->check(
-        $self->realtime_access->write_rate_input(
-            {
-                action   => $action,
-                actor_id => $user_id,
-            }
+async sub _rate_limit ( $self, $user_id, $action ) {
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->realtime_access->write_rate_input(
+                {
+                    action   => $action,
+                    actor_id => $user_id,
+                }
+            )
         )
     );
 
@@ -262,8 +316,13 @@ sub _current_user_id ($self) {
     return GPForum::Web::Access->new->user_id($self);
 }
 
-sub _telemetry ( $self, $event_type, $metadata ) {
-    return $self->gp_security_telemetry->record( $event_type, $metadata );
+async sub _telemetry ( $self, $event_type, $metadata ) {
+    return (
+        await $self->call_p(
+            $self->gp_security_telemetry,
+            'record', $event_type, $metadata
+        )
+    );
 }
 
 1;

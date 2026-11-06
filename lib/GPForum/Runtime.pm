@@ -9,6 +9,8 @@ use v5.40;
 
 use GPForum::OS;
 
+use GPForum::Infrastructure::AsyncWork;
+
 our $VERSION = '0.001';
 
 const my $POLICY_CAP_TO_CPU => 'cap-to-cpu';
@@ -52,6 +54,11 @@ sub capped_web_processes ( $class, $configured, $cpu_count, $per_cpu, $policy )
     return $configured <= $cap ? $configured : $cap;
 }
 
+sub as_hash_p ( $self, $context = undef ) {
+    return GPForum::Infrastructure::AsyncWork->shared->run_p(
+        sub { return $self->as_hash; } );
+}
+
 sub as_hash ($self) {
     return {
         web_processes => $self->web_processes,
@@ -92,6 +99,11 @@ Carries process-count settings for the Good Phorum multi-process runtime model.
 =head2 from_config
 
 Creates a runtime profile from configuration.
+
+=head2 as_hash_p
+
+Returns the runtime snapshot from the shared isolated executor, keeping operating
+system probes outside the HTTP event loop.
 
 =head2 as_hash
 

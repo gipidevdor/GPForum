@@ -3,66 +3,90 @@
 
 package GPForum::Controller::Admin::Catalog;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub create_role ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub create_role ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->role_write_response(
-        $self->gp_admin_workflow->create_role(
-            {
-                actor_user_id => $user_id,
-                command_id    => $self->command_id_param,
-                description   => $self->param('description'),
-                name          => $self->param('name'),
-            }
-        ),
-        $self->admin_access->role_created_status,
+    return (
+        await $self->await_p(
+            $self->role_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'create_role',
+                        {
+                            actor_user_id => $user_id,
+                            command_id    => $self->command_id_param,
+                            description   => $self->param('description'),
+                            name          => $self->param('name'),
+                        }
+                    )
+                ),
+                $self->admin_access->role_created_status,
+            )
+        )
     );
 }
 
-sub create_permission ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub create_permission ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->permission_write_response(
-        $self->gp_admin_workflow->create_permission(
-            {
-                action        => $self->param('action'),
-                actor_user_id => $user_id,
-                command_id    => $self->command_id_param,
-                name          => $self->param('name'),
-                resource_type => $self->param('resource_type'),
-            }
-        ),
-        $self->admin_access->permission_created_status,
+    return (
+        await $self->await_p(
+            $self->permission_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'create_permission',
+                        {
+                            action        => $self->param('action'),
+                            actor_user_id => $user_id,
+                            command_id    => $self->command_id_param,
+                            name          => $self->param('name'),
+                            resource_type => $self->param('resource_type'),
+                        }
+                    )
+                ),
+                $self->admin_access->permission_created_status,
+            )
+        )
     );
 }
 
-sub attach_permission ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub attach_permission ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->role_permission_write_response(
-        $self->gp_admin_workflow->attach_permission(
-            {
-                actor_user_id => $user_id,
-                command_id    => $self->command_id_param,
-                permission_id => $self->param('permission_id'),
-                role_id       => $self->param('role_id'),
-            }
-        ),
-        $self->admin_access->role_permission_attached_status,
+    return (
+        await $self->await_p(
+            $self->role_permission_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'attach_permission',
+                        {
+                            actor_user_id => $user_id,
+                            command_id    => $self->command_id_param,
+                            permission_id => $self->param('permission_id'),
+                            role_id       => $self->param('role_id'),
+                        }
+                    )
+                ),
+                $self->admin_access->role_permission_attached_status,
+            )
+        )
     );
 }
 

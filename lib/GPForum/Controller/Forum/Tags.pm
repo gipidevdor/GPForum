@@ -4,7 +4,7 @@
 package GPForum::Controller::Forum::Tags;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -12,12 +12,16 @@ our $VERSION = '0.001';
 const my $HTTP_OK => 200;
 
 # Every tag with how many discussions the reader may read under it.
-sub list ($self) {
+async sub list ($self) {
     my $cache = $self->public_cache_options( 'tags', ['forum:tags'] );
     return if $self->served_from_public_cache($cache);
 
-    my $tags =
-      $self->gp_thread_tags->list_tags( { viewer => $self->gp_forum_viewer } );
+    my $tags = (
+        await $self->call_p(
+            $self->gp_thread_tags, 'list_tags',
+            { viewer => $self->gp_forum_viewer }
+        )
+    );
 
     return $self->render_payload(
         {
@@ -30,30 +34,36 @@ sub list ($self) {
     );
 }
 
-sub filter ($self) {
-    return $self->_rate_limited if !$self->read_allowed('search');
+async sub filter ($self) {
+    return $self->_rate_limited
+      if !( await $self->await_p( $self->read_allowed('search') ) );
     my $store = $self->gp_thread_tags;
-    my $slugs = $store->filter_slugs( $self->param('tags') );
+    my $slugs =
+      ( await $self->call_p( $store, 'filter_slugs', $self->param('tags') ) );
     my $match = $self->param('tag_match') // 'all';
     return $self->render(
         text   => $self->t('forum.tag_filter_invalid'),
         status => 400
     ) if !$slugs || !@{$slugs} || ( $match ne 'all' && $match ne 'any' );
     my $viewer   = $self->gp_forum_viewer;
-    my $category = $self->_filter_category($viewer);
+    my $category = ( await $self->await_p( $self->_filter_category($viewer) ) );
     return $self->not_found('category not found')
       if length( $self->param('category') // q{} ) && !$category;
-    my $page = $store->filter_page(
-        {
-            tags        => join( q{,}, @{$slugs} ),
-            tag_match   => $match,
-            viewer      => $viewer,
-            limit       => $self->list_page_limit,
-            after       => $self->param('after'),
-            category_id => $category
-            ? $self->_column( $category, 'category_id' )
-            : undef,
-        }
+    my $page = (
+        await $self->call_p(
+            $store,
+            'filter_page',
+            {
+                tags        => join( q{,}, @{$slugs} ),
+                tag_match   => $match,
+                viewer      => $viewer,
+                limit       => $self->list_page_limit,
+                after       => $self->param('after'),
+                category_id => $category
+                ? $self->_column( $category, 'category_id' )
+                : undef,
+            }
+        )
     );
     $self->res->headers->cache_control('private, no-store');
     return $self->render_payload(
@@ -67,7 +77,8 @@ sub filter ($self) {
                 tags        => join( q{,}, @{$slugs} ),
                 tag_match   => $match,
                 category    => $self->param('category'),
-                thread_tags => $self->gp_tags_for_threads( $page->{items} ),
+                thread_tags =>
+                  ( await $self->gp_tags_for_threads_p( $page->{items} ) ),
             ),
         }
     );
@@ -76,7 +87,7 @@ sub filter ($self) {
 # The discussions under one tag the reader may read, in every category or,
 # with ?category=ID, in one. A tag nothing readable carries is not found,
 # as is a category the reader cannot read.
-sub show ($self) {
+async sub show ($self) {
     my $slug = $self->param('slug');
     if ( !$self->gp_thread_tags->is_slug($slug) ) {
         return $self->not_found('tag not found');
@@ -89,21 +100,25 @@ sub show ($self) {
     return if $self->served_from_public_cache($cache);
 
     my $viewer   = $self->gp_forum_viewer;
-    my $category = $self->_filter_category($viewer);
+    my $category = ( await $self->await_p( $self->_filter_category($viewer) ) );
     if ( length( $self->param('category') // q{} ) && !$category ) {
         return $self->not_found('category not found');
     }
-    my $threads = $self->gp_thread_tags->list_tagged_threads(
-        {
-            category_id => $category
-            ? $self->_column( $category, 'category_id' )
-            : undef,
-            limit  => $self->list_page_limit,
-            slug   => $slug,
-            viewer => $viewer,
-        }
+    my $threads = (
+        await $self->call_p(
+            $self->gp_thread_tags,
+            'list_tagged_threads',
+            {
+                category_id => $category
+                ? $self->_column( $category, 'category_id' )
+                : undef,
+                limit  => $self->list_page_limit,
+                slug   => $slug,
+                viewer => $viewer,
+            }
+        )
     );
-    my $thread_tags = $self->gp_tags_for_threads($threads);
+    my $thread_tags = ( await $self->gp_tags_for_threads_p($threads) );
     my $tag         = _named( $slug, $thread_tags );
     if ( !$tag ) {
         return $self->not_found('tag not found');
@@ -125,11 +140,16 @@ sub show ($self) {
     );
 }
 
-sub _filter_category ( $self, $viewer ) {
+async sub _filter_category ( $self, $viewer ) {
     my $category_id = $self->param('category');
     return undef if !length( $category_id // q{} );
 
-    return $self->gp_category_reader->find_category( $category_id, $viewer );
+    return (
+        await $self->call_p(
+            $self->gp_category_reader, 'find_category',
+            $category_id,              $viewer
+        )
+    );
 }
 
 # The tag as a thread carries it (its name), found among the listed

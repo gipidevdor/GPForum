@@ -4,7 +4,7 @@
 package GPForum::Service::Realtime::PgListener;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 use POSIX qw(strftime);
 
@@ -88,6 +88,248 @@ has stats  => sub {
         reconnect_count        => 0,
     };
 };
+
+async sub start_p ($self) {
+    if ( !( await $self->notifications->listen_to_p( $self->channel ) ) ) {
+        return $self->_start_outbox_polling('listen_unavailable');
+    }
+
+    $self->status('listening');
+
+    return { ok => 1, status => $self->status, channel => $self->channel };
+}
+async sub poll_once_p ($self) {
+    my $notify = ( await $self->_poll_listen_notify_p() );
+    my $outbox = ( await $self->_poll_outbox_p() );
+    if ( !$notify->{available} && !$outbox->{available} ) {
+        return $self->_degraded('poll_unavailable');
+    }
+
+    return _combined_summary( $notify, $outbox );
+}
+async sub _poll_listen_notify_p ($self) {
+    my $taken = ( await $self->notifications->take_p( $self->channel ) );
+    $self->_note_listen_state;
+
+    my %summary = (
+        available  => $taken->{available},
+        delivered  => 0,
+        failed     => 0,
+        invalid    => 0,
+        received   => 0,
+        duplicates => 0,
+    );
+
+    for my $notification ( @{ $taken->{notifications} } ) {
+        $summary{received} += 1;
+        $self->stats->{listen_notify_received} += 1;
+
+        my $decoded =
+          $self->event_contract->deserialize(
+            _notification_payload($notification) );
+        if ( $decoded->{ok} ) {
+            ( await $self->_deliver_event_p( \%summary, $decoded->{event} ) );
+        }
+        else {
+            $summary{invalid}                  += 1;
+            $self->stats->{invalid_payloads}   += 1;
+            $self->stats->{malformed}          += 1;
+            $self->stats->{malformed_payloads} += 1;
+        }
+    }
+
+    # Badges are absolute counts, so the ones lost in a gap are rebuilt by
+    # sending each local subscriber its count again, once the LISTEN is in
+    # effect: while it fails the queue reports a gap on every take, and a
+    # snapshot sent then would be stale at the next change it cannot hear.
+    # Thread and moderation hints lost in a gap are read back by the outbox
+    # backstop.
+    if ( $taken->{gap} ) {
+        $self->stats->{gaps} += 1;
+        $self->badges_stale(1);
+    }
+    if (   $self->badges_stale
+        && $self->notifications->listening( $self->channel ) )
+    {
+        ( await $self->_resend_badges_p() );
+        $self->badges_stale(0);
+    }
+
+    return \%summary;
+}
+async sub _poll_outbox_p ($self) {
+    if ( !$self->outbox_poll_enabled || !$self->_outbox_available ) {
+        return _unavailable_summary();
+    }
+    if ( !$self->_has_local_connections ) {
+        $self->outbox_poll_cursor(undef);
+        return _available_summary();
+    }
+
+    # A new cursor starts at the head, not at the oldest retained row: a
+    # worker recycled or deployed replayed up to seven days of events into
+    # live sockets, and was minutes behind the NOTIFYs it was backing up.
+    if ( !$self->outbox_poll_cursor ) {
+        my $head = ( await $self->_settled_instant_p() );
+        return _unavailable_summary() if !defined $head;
+
+        $self->outbox_poll_cursor(
+            {
+                next_attempt_at => $head,
+                created_at      => $HEAD_CREATED_AT,
+                outbox_id       => $HEAD_OUTBOX_ID,
+            }
+        );
+        return _available_summary();
+    }
+
+    my $messages = ( await $self->_outbox_messages_p() );
+    return _unavailable_summary() if !$messages;
+
+    my %summary = %{ _available_summary() };
+    for my $message ( @{$messages} ) {
+        my @events =
+          $self->outbox_event_mapper->events_for_payload(
+            _message_payload($message) );
+        for my $event (@events) {
+            $summary{received} += 1;
+            $self->stats->{outbox_poll_received} += 1;
+            ( await $self->_deliver_event_p( \%summary, $event ) );
+        }
+        $self->outbox_poll_cursor(
+            {
+                map { $_ => $message->get_column($_) // q{} }
+                  qw(next_attempt_at created_at outbox_id)
+            }
+        );
+    }
+
+    return \%summary;
+}
+async sub _deliver_event_p ( $self, $summary, $event ) {
+
+    # Only hints shared by NOTIFY and the backstop need deduplication.
+    # Remembering badges would evict hints during a notification fanout.
+    my $event_id =
+      ( $event->{type} // q{} ) eq $NOTIFICATION_BADGE
+      ? q{}
+      : $event->{event_id} // q{};
+    if ( length $event_id && $self->seen_event_ids->{$event_id} ) {
+        $summary->{duplicates} += 1;
+        $self->stats->{duplicates} += 1;
+        return;
+    }
+
+    # The hub asks the database who may read a thread (ADR 0102), and that
+    # can fail, most likely just after the reconnect that made a gap. The
+    # exception left the poll, dropping the gap the take had returned and
+    # every notification after this one. It is a failed broadcast instead,
+    # and the id is remembered only after success so the backstop may retry.
+    my $broadcast;
+    try {
+        $broadcast =
+          $self->hub
+          ? ( await $self->hub->broadcast_event_p($event) )
+          : { ok => 0, reason => 'hub_unavailable' };
+    }
+    catch ($error) {
+        $broadcast = undef;
+    };
+    if ( !$broadcast ) {
+        $broadcast = { ok => 0, reason => 'broadcast_failed' };
+    }
+    $self->stats->{broadcast} += 1;
+
+    if ( !$broadcast->{ok} ) {
+        $summary->{failed}                 += 1;
+        $self->stats->{failed}             += 1;
+        $self->stats->{broadcast_failures} += 1;
+        return;
+    }
+
+    if ( length $event_id ) {
+        $self->_remember_delivered($event_id);
+    }
+
+    my $delivered = $broadcast->{delivered} || 0;
+    my $failed    = $broadcast->{failed}    || 0;
+    $summary->{delivered}     += $delivered;
+    $self->stats->{delivered} += $delivered;
+    $summary->{failed}        += $failed;
+    $self->stats->{failed}    += $failed;
+
+    return;
+}
+async sub _resend_badges_p ($self) {
+    return if !$self->hub;
+
+    $self->stats->{badge_snapshots} +=
+      ( await $self->hub->resend_badge_snapshots_p() );
+
+    return;
+}
+async sub _outbox_messages_p ($self) {
+    my @messages;
+    try {
+        if ( $self->functions ) {
+            my $cursor = $self->outbox_poll_cursor;
+            @messages = map { GPForum::Infrastructure::ResultRow->from($_) } @{
+                (
+                    await $self->functions->rows_p(
+                        'ops_realtime_poll',
+                        {
+                            after_next_at    => $cursor->{next_attempt_at},
+                            after_created_at => $cursor->{created_at},
+                            after_id         => $cursor->{outbox_id},
+                            settled_at       => $self->db_now
+                            ? $self->_settled_bound
+                            : undef,
+                            settle_seconds => $SETTLE_SECONDS,
+                            row_limit      => $self->batch_limit
+                        }
+                    )
+                )
+            };
+        }
+        else {
+            @messages = _search_rows( $self->outbox_poll_resultset );
+        }
+    }
+    catch ($error) {
+        return undef;
+    };
+
+    return \@messages;
+}
+async sub _settled_instant_p ($self) {
+    return _iso8601( $self->db_now->() - $SETTLE_SECONDS ) if $self->db_now;
+
+    my $instant;
+    try {
+        if ( $self->functions ) {
+            $instant = (
+                await $self->functions->row_p(
+                    'ops_realtime_settled',
+                    { settle_seconds => $SETTLE_SECONDS }
+                )
+            )->{settled_at};
+        }
+        else {
+            $instant = $self->schema->storage->dbh_do(
+                sub ( $, $dbh ) {
+                    my ($selected) =
+                      $dbh->selectrow_array( 'SELECT ' . $SETTLED_SQL );
+                    return $selected;
+                }
+            );
+        }
+    }
+    catch ($error) {
+        return undef;
+    };
+
+    return $instant;
+}
 
 sub start ($self) {
     if ( !$self->notifications->listen_to( $self->channel ) ) {
@@ -351,6 +593,7 @@ sub _start_outbox_polling ( $self, $reason ) {
 }
 
 sub _outbox_available ($self) {
+    return 1     if $self->functions;
     return undef if !$self->schema || !$self->schema->can('resultset');
 
     my $resultset;
@@ -635,6 +878,14 @@ next_attempt_at from both sides so the index range starts at the cursor.
 =head2 snapshot
 
 Counters, status and the notification queue's state, for C</metrics>.
+
+=head2 poll_once_p
+
+Awaits one nonblocking poll, preserving the existing cursor, gap handling and delivery counters. The supervisor coalesces overlapping timer polls.
+
+=head2 start_p
+
+Starts the listener with asynchronous connection and LISTEN setup. State, registration and timers remain in the owning process.
 
 =head1 DIAGNOSTICS
 

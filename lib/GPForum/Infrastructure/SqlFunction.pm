@@ -10,6 +10,9 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
+use GPForum::Infrastructure::AsyncQuery;
+use GPForum::Infrastructure::PgTransaction;
+use Mojo::Promise;
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::X::Argument;
 use GPForum::X::Conflict;
@@ -54,15 +57,16 @@ my %ANSWERING = ( answers => undef );
 
 __PACKAGE__->requires('schema');
 has catalogue => sub { return $CATALOGUE; };
+has async_database =>
+  undef;    # optional: set only inside an owned promise transaction
+has async_transaction =>
+  undef;    # optional: the transaction's serialized query runner
+has query_context => undef;    # optional: CLI callers have no request context
 
-# ADR 0126, section 8. Until the last area has moved, a call runs on the
-# DBIx::Class schema's own handle, so a call and a statement not yet moved
-# share one connection and one transaction: a call made inside txn_do joins
-# it, and one made outside is a statement in autocommit. A schema that is not
-# a DBIx::Class schema -- an in-memory test double -- has no layer. A real
-# schema must use PostgreSQL; another driver must not enable ORM routing.
+# The runtime schema owns Mojo::Pg. Every call joins its worker connection
+# and transaction; in-memory service doubles keep their scripted answers.
 sub for_schema ( $class, $schema ) {
-    return undef if !blessed $schema || !$schema->isa('DBIx::Class::Schema');
+    return undef if !blessed $schema || !$schema->isa('GPForum::Schema');
 
     my $info = $schema->storage->connect_info;
     if ( ref $info ne 'ARRAY' || !defined $info->[0] || ref $info->[0] ) {
@@ -92,6 +96,129 @@ sub rows ( $self, $name, $values ) {
     }
 
     return $rows;
+}
+
+# A separate checked-out Mojo::Pg connection per in-flight operation.
+# Existing transactional workflows keep rows(); promises never borrow their
+# handle or retry an ambiguous write after a connection failure.
+sub rows_p ( $self, $name, $values, $context = undef ) {
+    my $storage = $self->schema->storage;
+    my $stats   = $storage->debug ? $storage->debugobj : undef;
+    $context //= $self->query_context;
+    if ($stats) { $context //= $stats->request_context; }
+    return Mojo::Promise->resolve->then(
+        sub {
+            my $entry = $self->catalogue->function($name);
+            my @bound = _bound( $entry, $values );
+            return [] if _malformed_id( $entry, \@bound );
+            my @parameters = map {
+                $entry->{types}[$_] eq 'bytea'
+                  ? { type => DBD::Pg::PG_BYTEA(), value => $bound[$_] }
+                  : $bound[$_]
+            } 0 .. $#bound;
+            if ( !@parameters ) {
+                $entry =
+                  { %{$entry}, sql => $entry->{sql} . ' WHERE ?::boolean' };
+                @parameters = (1);
+            }
+            my $read = sub ($db) {
+                if ($stats) { $stats->query_start( $entry->{sql} ); }
+                return Mojo::Promise->resolve->then(
+                    sub {
+                        return $self->_query_p( $db, $entry, \@parameters );
+                    }
+                )->then(
+                    sub ($result) {
+                        my $rows = $result->hashes->to_array;
+                        if ( %{ $entry->{json} } ) {
+                            _decode_json( $entry, $rows );
+                        }
+                        return $rows;
+                    }
+                )->catch(
+                    sub ($error) {
+                        $self->_raise( $db->dbh->state, $error );
+                    }
+                )->finally(
+                    sub {
+                        if ($stats) {
+                            $stats->in_context( $context,
+                                sub { $stats->query_end; return; } );
+                        }
+                        return;
+                    }
+                );
+            };
+            if ( $self->async_database ) {
+                return $self->async_transaction->query_p(
+                    sub {
+                        return $stats
+                          ? $stats->in_context( $context,
+                            sub { return $read->( $self->async_database ); } )
+                          : $read->( $self->async_database );
+                    }
+                );
+            }
+            return GPForum::Infrastructure::AsyncQuery->for_schema(
+                $self->schema )->run_p( $read, $context );
+        }
+    );
+}
+
+sub row_p ( $self, $name, $values, $context = undef ) {
+    return $self->rows_p( $name, $values, $context )
+      ->then( sub ($rows) { return $rows->[0]; } );
+}
+
+sub transaction_p ( $self, $work, $context = undef, $readonly = 0 ) {
+    $context //= $self->query_context;
+    my $storage = $self->schema->storage;
+    my $stats   = $storage->debug ? $storage->debugobj : undef;
+    if ($stats) { $context //= $stats->request_context; }
+    if ( $self->async_transaction ) {
+        return $self->async_transaction->run_p( sub { return $work->($self); },
+            $readonly );
+    }
+    return GPForum::Infrastructure::AsyncQuery->for_schema( $self->schema )
+      ->run_p(
+        sub ($db) {
+            my $transaction = GPForum::Infrastructure::PgTransaction->new(
+                database => $db,
+                stats    => $stats,
+                context  => $context,
+            );
+            my $scope = ref($self)->new(
+                schema            => $self->schema,
+                catalogue         => $self->catalogue,
+                async_database    => $db,
+                async_transaction => $transaction,
+                query_context     => $context
+            );
+            return $transaction->run_p( sub { return $work->($scope); },
+                $readonly );
+        },
+        $context
+      );
+}
+
+sub _query_p ( $self, $db, $entry, $parameters, $attempt = 0 ) {
+    return $db->query_p( $entry->{sql}, @{$parameters} )->catch(
+        sub ($error) {
+            my $state = $db->dbh->state;
+            if (   _result_type_changed( $state, $error )
+                && !$attempt
+                && !$self->async_transaction
+                && $db->dbh->{AutoCommit} )
+            {
+                return $self->_forget_p( $db, $entry->{sql} )->then(
+                    sub {
+                        return $self->_query_p( $db, $entry, $parameters, 1 );
+                    }
+                );
+            }
+            $self->_raise( $state, $error );
+        }
+    );
 }
 
 # Runs code with some of the calls it will make already answered: a page
@@ -217,19 +344,25 @@ sub _malformed_id ( $entry, $bound ) {
     return 0;
 }
 
-# Prepared once per handle and reported to the storage's statistics as one
-# statement, as every DBIx::Class statement is, so the query budgets count a
-# call as the one statement it is.
+# Each fixed catalogue call is one statement in query budgets and timings.
+# Mojo::Pg retains its prepared statement on the worker's connection.
 sub _execute ( $self, $entry, $bound ) {
-    my $storage  = $self->schema->storage;
-    my $stats    = $storage->debug ? $storage->debugobj : undef;
-    my @observed = $stats
+    my $storage = $self->schema->storage;
+    my $stats   = $storage->debug ? $storage->debugobj : undef;
+    my $callback =
+      $storage->debug && $storage->can('debugcb') ? $storage->debugcb : undef;
+    my @observed = ( $stats || $callback )
       ? map {
             $entry->{types}[$_] eq 'bytea' ? '[binary bytes]'
           : defined $bound->[$_]           ? $bound->[$_]
           : 'NULL'
       } 0 .. $#{$bound}
       : ();
+    if ($callback) {
+        $callback->(
+            'SELECT', $entry->{sql} . ': ' . join( ', ', @observed ) . "\n"
+        );
+    }
     if ($stats) {
         $stats->query_start( $entry->{sql}, @observed );
     }
@@ -251,43 +384,41 @@ sub _execute ( $self, $entry, $bound ) {
     return $rows;
 }
 
-# What dbh_do did for a call, without the block runner it built for each one
-# -- an object, a Try::Tiny and a preserved context, 20 us of a 64 us call:
-# the storage's handle as it stands, which DBIx::Class makes again in a
-# forked process, and, outside a transaction, one more try on a new
-# connection when the first failed because the connection was gone (after a
-# restart of PostgreSQL, say), as dbh_do retries. Inside txn_do the call
-# joins the transaction and is not tried again: a new connection would not
-# be in it.
-#
-# A storage that is not DBIx::Class's own -- a test's double, which answers
-# dbh_do alone -- is called through dbh_do, as before.
+# Runtime calls use Mojo::Pg on the worker's retained connection. Scripted
+# test handles retain the small dbh_do contract used by call-layer tests.
 sub _on_handle ( $self, $storage, $entry, $bound ) {
-    if ( !$storage->isa('DBIx::Class::Storage::DBI') ) {
-        return $storage->dbh_do(
-            sub ( $, $dbh ) { return $self->_fetch( $dbh, $entry, $bound ); } );
+    if ( $storage->isa('GPForum::Infrastructure::PgStorage') ) {
+        return $self->_on_pg( $storage, $entry, $bound );
     }
-
-    my ( $rows, $failure );
-    try {
-        $rows = $self->_fetch( _handle($storage), $entry, $bound );
-    }
-    catch ($error) {
-        $failure = $error;
-    };
-    return $rows   if !defined $failure;
-    croak $failure if $storage->transaction_depth || $storage->connected;
-
-    $storage->ensure_connected;
-
-    return $self->_fetch( _handle($storage), $entry, $bound );
+    return $storage->dbh_do(
+        sub ( $, $dbh ) { return $self->_fetch( $dbh, $entry, $bound ); } );
 }
 
-# The storage's handle, connected again after a fork, never pinged: the
-# handle dbh_do gives its code. DBIx::Class names it _get_dbh; dbh, the
-# public one, pings PostgreSQL first, a round trip a call.
-sub _handle ($storage) {
-    return $storage->_get_dbh;
+sub _on_pg ( $self, $storage, $entry, $bound, $attempt = 0 ) {
+    my ( $rows, $failure, $state );
+    my $db         = $storage->database;
+    my @parameters = map {
+        $entry->{types}[$_] eq 'bytea'
+          ? { type => DBD::Pg::PG_BYTEA(), value => $bound->[$_] }
+          : $bound->[$_]
+    } 0 .. $#{$bound};
+    try { $rows = $db->query( $entry->{sql}, @parameters )->hashes->to_array; }
+    catch ($error) { $failure = $error; $state = $db->dbh->state; };
+    return $rows if !defined $failure;
+    if ( _result_type_changed( $state, $failure ) ) {
+        _forget( $db->dbh, $entry->{sql} );
+        return $self->_on_pg( $storage, $entry, $bound, 1 )
+          if !$attempt && $db->dbh->{AutoCommit};
+    }
+    if (  !$attempt
+        && $db->dbh->{AutoCommit}
+        && !$storage->transaction_depth
+        && !$storage->connected )
+    {
+        $storage->ensure_connected;
+        return $self->_on_pg( $storage, $entry, $bound, 1 );
+    }
+    return $self->_raise( $state, $failure );
 }
 
 # A statement prepared before a migration changed the columns its function
@@ -347,6 +478,29 @@ sub _result_type_changed ( $state, $error ) {
 
 # Drops the handle's cached statement for this SQL, so the next
 # prepare_cached prepares it again.
+sub _forget_p ( $self, $db, $sql ) {
+    my $cached = $db->dbh->{CachedKids} // {};
+    my @names;
+    for my $key ( keys %{$cached} ) {
+        my $statement = $cached->{$key};
+        next if !$statement || ( $statement->{Statement} // q{} ) ne $sql;
+        if ( $statement->{pg_prepare_name} ) {
+            push @names, $statement->{pg_prepare_name};
+        }
+        delete $cached->{$key};
+    }
+    my $chain = Mojo::Promise->resolve;
+    for my $name (@names) {
+        $chain = $chain->then(
+            sub {
+                return $db->query_p(
+                    'DEALLOCATE ' . $db->dbh->quote_identifier($name) );
+            }
+        );
+    }
+    return $chain;
+}
+
 sub _forget ( $dbh, $sql ) {
     my $cached = $dbh->{CachedKids} // {};
     for my $key ( keys %{$cached} ) {
@@ -496,6 +650,20 @@ every call after the code has returned or died, goes to the database.
 Takes a function's catalogue name and its parameters, as L</rows> does, and
 answers the key L</answering> keeps that call's rows under: the function
 and the values as they would be bound.
+
+=head2 transaction_p
+
+Exclusively leases a native connection through BEGIN and COMMIT or ROLLBACK.
+The callback receives a scoped function transport; nested transactions use
+savepoints. Query cancellation and swallowed statement failures reject the
+transaction. Ambiguous commits are never replayed.
+
+=head2 rows_p, row_p
+
+Promise versions of rows and row, using a separate pooled connection per
+in-flight operation. Parameter checks, JSON decoding and bytea bindings retain
+the synchronous contracts. A changed prepared result type is retried once in
+autocommit; connection loss never retries a potentially committed mutation.
 
 =head1 DIAGNOSTICS
 

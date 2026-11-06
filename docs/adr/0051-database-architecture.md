@@ -295,7 +295,7 @@ projection, and query in all bounded contexts.
   scalability and projection stability).
 - ADR 0012 (operational profiles and partition lifecycle), ADR 0020 (audit
   record hashing), ADR 0048 (GlifiStore L2).
-- `migrations/`, `lib/GPForum/Migration/`, `lib/GPForum/Schema/`,
+- `migrations/`, `lib/GPForum/Migration/`, `t/lib/GPForum/Schema/`,
   `lib/GPForum/Infrastructure/Id.pm`, `lib/GPForum/Infrastructure/EventRecorder.pm`,
   `lib/GPForum/Infrastructure/AuditRecord.pm`,
   `lib/GPForum/Service/Operations/`.
@@ -309,3 +309,7 @@ projection, and query in all bounded contexts.
 - `docs/PERFORMANCE.md#database`, `docs/PERFORMANCE.md#query-budgets`,
   `docs/architecture/partition-lifecycle.md`,
   `docs/audit/transactional-correctness.md`.
+
+Runtime follow-up: [ADR 0174](0174-mojo-pg-is-the-runtime-stored-function-transport.md)
+uses Mojo::Pg and stored functions; the ORM model paths now identify historical
+fixtures under `t/lib`.

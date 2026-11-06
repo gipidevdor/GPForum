@@ -4,10 +4,11 @@
 package GPForum::Web::AddressBans;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 
 use GPForum::Web::Guard;
+use GPForum::Infrastructure::AsyncWork;
 use GPForum::Web::SecurityEvent;
 
 our $VERSION = '0.001';
@@ -71,6 +72,31 @@ sub admits ( $self, $controller, $client ) {
     return 0;
 }
 
+async sub admits_p ( $self, $controller, $client ) {
+    return 1 if exists $SAFE_METHOD{ $controller->req->method };
+    my $route = $controller->current_route // q{};
+    return 1 if exists $ALWAYS_OPEN{$route};
+    my $ban;
+    try {
+        my $service = $controller->gp_address_bans;
+        $ban =
+          $controller->can('call_p')
+          ? await $controller->call_p( $service, 'covering', $client )
+          : await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
+            $service, 'covering', [$client] );
+    }
+    catch ($error) {
+        $controller->app->log->warn("address ban lookup failed: $error");
+        return 1;
+    };
+    return 1 if !$ban || !$self->refuses( $ban->{scope}, $route );
+    GPForum::Web::SecurityEvent->new->record_event( $controller,
+        'address_ban_refusal',
+        { scope => $ban->{scope}, status => $HTTP_FORBIDDEN } );
+    GPForum::Web::Guard->new->address_banned($controller);
+    return 0;
+}
+
 # Whether a ban of this scope refuses the write request on this route.
 sub refuses ( $self, $scope, $route ) {
     my $name = $route // q{};
@@ -122,6 +148,10 @@ refusal has been rendered.
 
 Takes a scope and a route name. True when a ban of that scope refuses a
 write on that route.
+
+=head2 admits_p
+
+Awaits the address-ban lookup before dispatching a covered write. Safe methods and exempt routes require no lookup; the existing logged lookup-failure behavior is preserved.
 
 =head1 DIAGNOSTICS
 

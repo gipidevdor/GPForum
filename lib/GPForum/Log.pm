@@ -58,6 +58,16 @@ sub configure ( $class, $app, $config ) {
     return;
 }
 
+# Capture before yielding; restore only for the synchronous callback itself.
+sub request_context ($class) { return $ACTIVE{request}; }
+
+sub in_context ( $class, $context, $work ) {
+    ## no critic (Variables::ProhibitLocalVars) -- a callback's synchronous scope, restored before its promise yields
+    local $ACTIVE{request} = $context;
+    ## use critic
+    return $work->();
+}
+
 sub identify_request ( $, $controller, $config ) {
     my $context = $controller->stash('gp_log_context');
     return if !$context;
@@ -222,6 +232,12 @@ Refreshes the request id and pseudonymous actor from the request session.
 Points the logger at C<log_path> when one is configured. Without it the logger
 stays on STDERR, captured by the foreground supervisor. A configured file
 reopens on HUP before the next append; each fork opens its own descriptor.
+
+=head2 request_context, in_context
+
+Capture a request's logging context before yielding and restore it only for a
+synchronous callback or subprocess workload. Other concurrent requests retain
+their own context.
 
 =head1 DIAGNOSTICS
 

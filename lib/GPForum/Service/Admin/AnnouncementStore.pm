@@ -6,6 +6,7 @@ package GPForum::Service::Admin::AnnouncementStore;
 use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
@@ -116,6 +117,42 @@ sub list_announcements ( $self, $options = undef ) {
         { row_limit => $options->{limit} || $DEFAULT_LIMIT } );
 }
 
+sub active_announcements_p ( $self, $options = undef, $context = undef ) {
+    $options //= {};
+    my $limit = $options->{limit} || $ACTIVE_LIMIT;
+    my $cache = $self->cache;
+    my $usable =
+      $cache && ( !$self->cache_epoch_required || defined $self->cache_epoch );
+    my $key = "announcements:active:$limit";
+    if ( defined $self->cache_epoch ) {
+        $key .= q{:privacy:} . $self->cache_epoch;
+    }
+    my $ticket;
+    if ($usable) {
+        my $cached = $cache->get($key);
+        return Mojo::Promise->resolve($cached) if defined $cached;
+        if ( $cache->can('ticket') ) {
+            $ticket = $cache->ticket( [$CACHE_TAG], { mint => 1 } );
+        }
+    }
+    return $self->_functions->rows_p( 'forum_active_announcements',
+        { row_limit => $limit }, $context )->then(
+        sub ($rows) {
+            if ($usable) {
+                $cache->put(
+                    $key, $rows,
+                    {
+                        tags        => [$CACHE_TAG],
+                        ttl_seconds => $self->cache_ttl_seconds,
+                        ticket      => $ticket
+                    }
+                );
+            }
+            return $rows;
+        }
+        );
+}
+
 sub active_announcements ( $self, $options = undef ) {
     my $limit = $options->{limit} || $ACTIVE_LIMIT;
     my $cache = $self->cache;
@@ -219,6 +256,10 @@ The announcements not retired, newest first, up to C<limit> (3 by default):
 what every page shows. With a C<cache>, the list is read once per
 C<cache_ttl_seconds> and dropped by a purge of the C<announcements> tag,
 which every announcement write causes.
+
+=head2 active_announcements_p
+
+Reads active announcements without blocking. Cache lookup and insertion stay in the web process, with a ticket preventing an invalidated in-flight read from refilling stale data.
 
 =head1 DIAGNOSTICS
 

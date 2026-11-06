@@ -74,10 +74,14 @@ $site =~ s{/opt/gpforum}{$directory}gmsx;
 path("$directory/assets/css")->make_path;
 my $css = '.probe { color: #123456; }' x $ASSET_REPETITIONS;
 path("$directory/assets/css/probe.css")->spew($css);
+path("$directory/assets/js")->make_path;
+my $javascript = 'window.gpforumProbe = true;' x $ASSET_REPETITIONS;
+path("$directory/assets/js/probe.js")->spew($javascript);
 path("$directory/nginx.conf")
   ->spew( "daemon off;\npid $directory/nginx.pid;\n"
       . "error_log $directory/nginx.log;\nevents { worker_connections 64; }\n"
-      . "http { access_log off; types { text/css css; }\n$site\n}\n" );
+      . "http { access_log off; types { text/css css; application/javascript js; }\n$site\n}\n"
+  );
 my $proxy =
   _start( 'nginx', $nginx, '-p', "$directory/", '-c', "$directory/nginx.conf" );
 $proxy->{base_url} = "http://127.0.0.1:$port";
@@ -94,8 +98,13 @@ for my $route (qw(/ /not-an-asset.css /attachments/example/download /metrics)) {
     }
     is( scalar keys %connections, 1, "$route reuses one upstream connection" );
 }
-for my $route ( '/probe.css?v=test', '/assets/css/probe.css?v=test' ) {
-    my $tx = $proxy->{ua}->build_tx( GET => "$proxy->{base_url}$route" );
+for my $route (
+    '/probe.css?v=test', '/assets/css/probe.css?v=test',
+    '/probe.js?v=test',  '/assets/js/probe.js?v=test'
+  )
+{
+    my $expected = $route =~ /[.]js[?]/msx ? $javascript : $css;
+    my $tx       = $proxy->{ua}->build_tx( GET => "$proxy->{base_url}$route" );
     $tx->req->headers->accept_encoding('gzip');
     $tx->res->content->auto_decompress(0);
     $proxy->{ua}->start($tx);
@@ -109,9 +118,9 @@ for my $route ( '/probe.css?v=test', '/assets/css/probe.css?v=test' ) {
     my $decoded = q{};
     ok( gunzip( \( $tx->result->body ) => \$decoded ),
         'static response is valid gzip' );
-    is( $decoded, $css, 'decompressed bytes match the file' );
+    is( $decoded, $expected, 'decompressed bytes match the file' );
     cmp_ok( length( $tx->result->body ),
-        '<', length($css), 'compression reduces bytes on the wire' );
+        '<', length($expected), 'compression reduces bytes on the wire' );
 }
 my $ws      = Mojo::UserAgent->new;
 my $timeout = Mojo::IOLoop->timer(

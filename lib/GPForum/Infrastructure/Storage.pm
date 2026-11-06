@@ -8,7 +8,7 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-# A schema's DBIx::Class storage, or undef when there is none to be had: no
+# A schema's connection storage, or undef when there is none to be had: no
 # schema, a test double without storage, or a storage call that died. Callers
 # that only probe -- for a transaction depth, savepoint support, a database
 # handle -- treat all three the same way.
@@ -29,7 +29,7 @@ sub storage_of ( $, $schema ) {
 }
 
 # Runs $code with the schema's handle as it stands -- $code gets the storage
-# and the handle, as DBIx::Class's dbh_do gives them -- without the ping
+# and the handle, as the native storage's dbh_do gives them -- without the ping
 # dbh_of pays for: a read made on every request, like the cache bus's take,
 # must not cost a round trip to ask whether the connection is alive. A
 # handle that is gone fails the code, and the storage's own retry connects
@@ -57,7 +57,7 @@ sub with_handle ( $class, $schema, $code ) {
     return $answer;
 }
 
-# The schema's database handle, or undef. DBIx::Class pings the handle in
+# The schema's database handle, or undef. The storage pings the handle in
 # storage->dbh and reconnects when the ping fails, so this connects when it
 # has to; a connection that cannot be made is undef here like any other
 # missing handle.
@@ -103,7 +103,7 @@ Version 0.001.
 =head1 DESCRIPTION
 
 Stores, workflows and commands ask their schema for its database handle to
-run a statement DBIx::Class does not write, or to read a transaction depth,
+run infrastructure statements, or to read a transaction depth,
 and each kept its own copy of the same probe: no schema, a test double
 without storage, a storage that died or a handle that could not be had all
 answer undef. These three class methods are that probe, once.
@@ -129,7 +129,7 @@ when L</storage_of> is undef, the storage has no C<dbh>, or the code died.
 =head2 dbh_of
 
 Class method. C<< $schema->storage->dbh >>, or undef when L</storage_of> is
-undef, the storage has no C<dbh> method, or the call dies. DBIx::Class
+undef, the storage has no C<dbh> method, or the call dies. The native storage
 connects, or reconnects after a failed ping, inside that call.
 
 =head1 DIAGNOSTICS

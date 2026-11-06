@@ -25,9 +25,13 @@ sub import ($class) {
     $owner = $PROCESS_ID;
     require Test::PostgreSQL;
     $cluster = Test::PostgreSQL->new(
-        unix_socket           => 1,
-        extra_initdb_args     => '--encoding=UTF8 --no-locale',
-        extra_postmaster_args => q{-c max_connections=40},
+        unix_socket       => 1,
+        extra_initdb_args => '--encoding=UTF8 --no-locale',
+
+        # Suites model many independent web workers with Test::Mojo apps in
+        # one process. Each now owns two query leases and one LISTEN socket;
+        # retain PostgreSQL's default headroom for those concurrent fixtures.
+        extra_postmaster_args => q{-c max_connections=100},
       )
       or croak
       'cannot start integration PostgreSQL; check initdb and postgres on PATH';

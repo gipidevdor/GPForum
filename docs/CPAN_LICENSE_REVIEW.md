@@ -10,8 +10,9 @@ requirements without review.
 | --- | --- | --- | --- | --- |
 | perl | runtime | Perl 5 license | language runtime | allowed |
 | Mojolicious | runtime | Artistic-2.0 | mature web framework; floor 9.51 for the Mojo::DOM title and textarea escaping fix of 9.50 and the WebSocket handshake fix of 9.51 | allowed |
+| Future::AsyncAwait | runtime | Perl 5 license | native Mojo::Promise async/await syntax; 0.71 | allowed |
 | EV | runtime | Perl 5 license; bundled libev uses BSD-2-Clause or GPL-2.0-or-later | XS event loop; required epoll on Linux and kqueue on macOS/FreeBSD; pinned by Carton | allowed |
-| DBIx::Class | runtime | Perl 5 license | mature ORM layer | allowed |
+| DBIx::Class | develop | Perl 5 license | historical fixtures and maintainer comparisons; runtime transport is Mojo::Pg | dev-only allowed |
 | Minion | runtime | Artistic-2.0 | optional async worker framework | allowed |
 | JSON::MaybeXS | runtime | Perl 5 license | JSON adapter selection | allowed |
 | Cpanel::JSON::XS | runtime | Perl 5 license | preferred JSON::MaybeXS backend; floor 4.80 for the decode, encode and incr_parse CVEs it fixes (CVE-2026-110672 to CVE-2026-110687), after CVE-2026-9334 and CVE-2026-9516 | allowed |
@@ -20,6 +21,8 @@ requirements without review.
 | DateTime::TimeZone | runtime | Perl 5 license | named directly by the date formatter and the time zone preference; tz data is frozen in the pinned release, so zone rule changes need a version bump | allowed |
 | Crypt::Argon2 | runtime | Apache-2.0 | password hashing XS dependency | allowed |
 | Crypt::URandom | runtime | Perl 5 license | entropy source | allowed |
+| Authen::WebAuthn | runtime | Perl 5 license (0.005 LICENSE and META.yml) | existing WebAuthn verification boundary; pinned to 0.005; retain upstream notices | allowed |
+| CBOR::XS | runtime | GPL-3.0 text in 1.87 COPYING; bundled ecb.h is BSD-2-Clause or GPL-2.0-or-later | existing WebAuthn CBOR decoder; META reports unknown, so review uses the distribution files; redistribution of the dependency must preserve its license, notices and corresponding-source obligations | allowed |
 | Crypt::PK::Ed25519 | runtime (CryptX) | Perl 5 license | XS Ed25519 post attestations; CryptX 0.091 is pinned in the lock, with its bundled cryptographic implementation | allowed |
 | Crypt::JWT | runtime | Perl 5 license | OIDC token verification; pinned to 0.038, with accepted algorithms and issuer/audience checked by the integration boundary | allowed |
 | Email::Sender | runtime | Perl 5 license | email delivery boundary | allowed |
@@ -45,8 +48,8 @@ requirements without review.
 | HTML::Parser | develop | Perl 5 license | transitive Devel::Cover dependency; floor 3.86 for the self-referencing entity expansion fix | dev-only allowed |
 | HTTP::Date | develop | Perl 5 license | transitive web-test dependency; security floor for CPANSA-HTTP-Date 2026 advisory | dev-only allowed |
 | List::SomeUtils::XS | develop | Artistic-2.0 | transitive Perl::Critic dependency; security floor for CPANSA-List-SomeUtils-XS 2026 advisory | dev-only allowed |
-| DBD::Pg | optional-postgres | Perl 5 license | PostgreSQL driver for DB-backed CI and deployments | allowed |
-| Mojo::Pg | optional-postgres | Artistic-2.0 | required by Minion PostgreSQL backend | allowed |
+| DBD::Pg | runtime | Perl 5 license | PostgreSQL driver for DB-backed CI and deployments | allowed |
+| Mojo::Pg | runtime | Artistic-2.0 | native runtime function transport and Minion PostgreSQL backend | allowed |
 | Test::PostgreSQL | optional-postgres | Perl 5 license | PostgreSQL integration testing helper | dev-only allowed |
 
 Dependency governance rules:
@@ -57,3 +60,11 @@ Dependency governance rules:
   production requirements.
 * `script/cpan-license-check` is the mechanical gate that ensures review
   coverage does not drift.
+
+The WebAuthn entries were checked against the pinned upstream distributions:
+[Authen-WebAuthn-0.005](https://cpan.metacpan.org/authors/id/M/MB/MBESSON/Authen-WebAuthn-0.005.tar.gz)
+(`LICENSE`, `META.yml`) and
+[CBOR-XS-1.87](https://cpan.metacpan.org/authors/id/M/ML/MLEHMANN/CBOR-XS-1.87.tar.gz)
+(`COPYING`, `ecb.h`, `META.json`). The latter is recorded with the GPL text
+actually shipped, rather than inferring a Perl/Artistic license from its module
+namespace or incomplete metadata.

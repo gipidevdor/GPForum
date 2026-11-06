@@ -3,6 +3,8 @@
 package main;
 use v5.40;
 use Const::Fast;
+use Carp qw(croak);
+use File::Temp;
 use Test::More;
 use Test::Mojo;
 use Email::Sender::Transport::Test;
@@ -21,6 +23,7 @@ use GPForum::Test::GuiDriver;
 use GPForum::Test::PgDatabase;
 use GPForum::Test::PostgresHarness;
 use GPForum::Test::ProtocolFixture;
+use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 our $VERSION = '0.001';
 const my $HTTP_FOUND    => 302;
 const my $HTTP_OK       => 200;
@@ -192,8 +195,29 @@ subtest 'feature: mail and antivirus diagnostics record actual outcomes' =>
         )
     );
     $t->app->helper( gp_admin_diagnostics => sub { return $diagnostics; } );
-    $gui->visit('/admin/settings')->submit('form[action="/admin/mail/test"]');
-    is( $transport->delivery_count,
+
+    # The diagnostic runs in the bounded child; a parent Perl counter cannot
+    # observe its controlled transport. Record actual deliveries through the
+    # inherited descriptor, as the query-budget tests do for child queries.
+    my $deliveries = File::Temp->new( UNLINK => 1 );
+    my $send       = $transport->can('send_email');
+    with_replaced_subs(
+        'Email::Sender::Transport::Test',
+        {
+            send_email => sub (@arguments) {
+                my $result = $send->(@arguments);
+                syswrite( $deliveries, q{x} ) == 1
+                  or croak 'cannot record test delivery';
+                return $result;
+            },
+        },
+        sub {
+            $gui->visit('/admin/settings')
+              ->submit('form[action="/admin/mail/test"]');
+            return;
+        }
+    );
+    is( -s $deliveries,
         1, 'GUI mail diagnostic delivers exactly one controlled test message' );
     $gui->visit('/admin/settings')
       ->submit('form[action="/admin/antivirus/check"]');

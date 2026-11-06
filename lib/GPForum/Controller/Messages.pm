@@ -4,7 +4,7 @@
 package GPForum::Controller::Messages;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
 
 use GPForum::ViewModel::Community::Messages;
@@ -44,10 +44,14 @@ const my %AUTOMOD_ERROR => (
 );
 
 # The member's conversations.
-sub inbox ($self) {
+async sub inbox ($self) {
     my $user_id = $self->_reader or return;
-    my $page =
-      $self->gp_message_store->inbox( $user_id, $self->param('after') );
+    my $page    = (
+        await $self->call_p(
+            $self->gp_message_store, 'inbox',
+            $user_id,                $self->param('after')
+        )
+    );
 
     return $self->_render( $HTTP_OK, 'messages/inbox',
         $self->_view->inbox_page( page => $page, user_id => $user_id ),
@@ -55,7 +59,7 @@ sub inbox ($self) {
 }
 
 # The form that writes to a member, or the conversation the two hold.
-sub compose ($self) {
+async sub compose ($self) {
     my $user_id  = $self->_reader or return;
     my $username = trimmed( $self->param('username') );
     $username =~ s/\A [@] //msx;
@@ -63,7 +67,12 @@ sub compose ($self) {
         return $self->_render( $HTTP_OK, 'messages/recipient',
             { username => q{}, error => undef } );
     }
-    my $recipient = $self->gp_message_store->recipient( $user_id, $username );
+    my $recipient = (
+        await $self->call_p(
+            $self->gp_message_store,
+            'recipient', $user_id, $username
+        )
+    );
     if ( !$recipient || $recipient->{other_user_id} eq $user_id ) {
         return $self->not_found('member not found') if $self->wants_json;
         return $self->_render(
@@ -83,21 +92,30 @@ sub compose ($self) {
 }
 
 # The first message to a member, from the compose form.
-sub start ($self) {
-    my $user_id = $self->write_user_id($SEND) or return;
-    my $result  = $self->gp_message_store->start(
-        {
-            sender_user_id => $user_id,
-            username       => $self->param('username'),
-            body           => $self->param('body'),
-            command_id     => $self->param('command_id'),
-            viewer         => $self->gp_forum_viewer,
-        }
+async sub start ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id($SEND) ) )
+      or return;
+    my $result = (
+        await $self->call_p(
+            $self->gp_message_store,
+            'start',
+            {
+                sender_user_id => $user_id,
+                username       => $self->param('username'),
+                body           => $self->param('body'),
+                command_id     => $self->param('command_id'),
+                viewer         => $self->gp_forum_viewer,
+            }
+        )
     );
     return $self->_sent($result) if $result->{ok};
 
-    my $recipient =
-      $self->gp_message_store->recipient( $user_id, $self->param('username') );
+    my $recipient = (
+        await $self->call_p(
+            $self->gp_message_store, 'recipient',
+            $user_id,                $self->param('username')
+        )
+    );
     return $self->_refused(
         $result,
         sub ( $status, $error ) {
@@ -110,42 +128,63 @@ sub start ($self) {
 
 # A conversation, its newest messages and the form that answers. Reading
 # it marks it read.
-sub conversation ($self) {
+async sub conversation ($self) {
     my $user_id = $self->_reader or return;
-    my $head =
-      $self->gp_message_store->conversation( $self->param('conversation_id'),
-        $user_id );
+    my $head    = (
+        await $self->call_p(
+            $self->gp_message_store,         'conversation',
+            $self->param('conversation_id'), $user_id
+        )
+    );
     return $self->not_found('conversation not found') if !$head;
 
     if ( ( $head->{unread_count} // 0 ) > 0 && !$self->param('before') ) {
-        $self->gp_message_store->mark_read( $head->{conversation_id},
-            $user_id );
+        (
+            await $self->call_p(
+                $self->gp_message_store,  'mark_read',
+                $head->{conversation_id}, $user_id
+            )
+        );
     }
 
-    return $self->_conversation( $HTTP_OK, $head, $user_id );
+    return (
+        await $self->await_p(
+            $self->_conversation( $HTTP_OK, $head, $user_id ) ) );
 }
 
 # An answer in the conversation.
-sub reply ($self) {
-    my $user_id = $self->write_user_id($SEND) or return;
-    my $result  = $self->gp_message_store->reply(
-        {
-            sender_user_id  => $user_id,
-            conversation_id => $self->param('conversation_id'),
-            body            => $self->param('body'),
-            command_id      => $self->param('command_id'),
-            viewer          => $self->gp_forum_viewer,
-        }
+async sub reply ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id($SEND) ) )
+      or return;
+    my $result = (
+        await $self->call_p(
+            $self->gp_message_store,
+            'reply',
+            {
+                sender_user_id  => $user_id,
+                conversation_id => $self->param('conversation_id'),
+                body            => $self->param('body'),
+                command_id      => $self->param('command_id'),
+                viewer          => $self->gp_forum_viewer,
+            }
+        )
     );
     return $self->_sent($result) if $result->{ok};
 
-    my $head =
-      $self->gp_message_store->conversation( $self->param('conversation_id'),
-        $user_id );
+    my $head = (
+        await $self->call_p(
+            $self->gp_message_store,         'conversation',
+            $self->param('conversation_id'), $user_id
+        )
+    );
     return $self->_refused(
         $result,
-        sub ( $status, $error ) {
-            return $self->_conversation( $status, $head, $user_id, $error );
+        async sub ( $status, $error ) {
+            return (
+                await $self->await_p(
+                    $self->_conversation( $status, $head, $user_id, $error )
+                )
+            );
         }
     ) if $head && !$self->wants_json;
 
@@ -154,21 +193,29 @@ sub reply ($self) {
 
 # A member reports another member's message in a conversation of theirs
 # to the staff queue, as a post is reported.
-sub report ($self) {
-    my $user_id = $self->write_user_id($REPORT) or return;
-    my $message =
-      $self->gp_message_store->reportable( $self->param('message_id'),
-        $user_id );
+async sub report ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id($REPORT) ) )
+      or return;
+    my $message = (
+        await $self->call_p(
+            $self->gp_message_store,    'reportable',
+            $self->param('message_id'), $user_id
+        )
+    );
     return $self->not_found('message not found')
       if !$message
       || $message->{conversation_id} ne $self->param('conversation_id');
 
-    my $result = $self->create_report(
-        {
-            reporter_user_id => $user_id,
-            target_type      => 'message',
-            target_id        => $message->{message_id},
-        }
+    my $result = (
+        await $self->await_p(
+            $self->create_report(
+                {
+                    reporter_user_id => $user_id,
+                    target_type      => 'message',
+                    target_id        => $message->{message_id},
+                }
+            )
+        )
     );
     return $self->_report_error_response($result) if !$result->{ok};
     return $self->_report_json_response($result)  if $self->wants_json;
@@ -176,7 +223,11 @@ sub report ($self) {
     my $url = $self->url_for( 'message_conversation',
         conversation_id => $message->{conversation_id} );
 
-    return $self->_html_success( $self->forum_access->reported_status, $url );
+    return (
+        await $self->await_p(
+            $self->_html_success( $self->forum_access->reported_status, $url )
+        )
+    );
 }
 
 # The member reading, or undef once the request is answered.
@@ -266,9 +317,13 @@ sub _compose ( $self, $status, $recipient, $error = undef ) {
     );
 }
 
-sub _conversation ( $self, $status, $head, $user_id, $error = undef ) {
-    my $page = $self->gp_message_store->messages( $head->{conversation_id},
-        $user_id, $self->param('before') );
+async sub _conversation ( $self, $status, $head, $user_id, $error = undef ) {
+    my $page = (
+        await $self->call_p(
+            $self->gp_message_store, 'messages', $head->{conversation_id},
+            $user_id, $self->param('before')
+        )
+    );
 
     return $self->_render(
         $status,

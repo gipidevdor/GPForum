@@ -21,6 +21,8 @@ use GPForum::Test::RecordingPermissionGate;
 use GPForum::Test::ScopeBindingResultSet;
 use GPForum::Test::ScopeBindingSchema;
 
+use GPForum::Test::Promise qw(await_result);
+
 our $VERSION = '0.001';
 
 my @live_transactions;
@@ -226,7 +228,7 @@ is_deeply(
 );
 
 $moderation->session( user_id => 'moderator-1' );
-is( $moderation->authorized_user_id('view_queue'),
+is( await_result( $moderation->authorized_user_id('view_queue') ),
     'moderator-1', 'moderation reads authorize the session actor' );
 is_deeply(
     $gate_recorder->last_permission,
@@ -258,7 +260,7 @@ is_deeply(
 );
 
 $admin->session( user_id => 'admin-1' );
-is( $admin->authorized_user_id('view'),
+is( await_result( $admin->authorized_user_id('view') ),
     'admin-1', 'admin reads authorize the session actor' );
 is_deeply(
     $gate_recorder->last_permission,

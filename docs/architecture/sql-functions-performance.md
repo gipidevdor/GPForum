@@ -1,9 +1,10 @@
 # PostgreSQL function API: changes and measured performance
 
 The initial PostgreSQL runtime conversion introduced 194 versioned catalogue operations. The
-adapter prepares fixed, typed function calls once per connection. DBIx::Class
-continues to supply the schema and transaction connection; it no longer
-builds application data statements on the PostgreSQL runtime paths.
+adapter executes fixed, typed function calls. The current runtime uses Mojo::Pg
+for PostgreSQL connections, prepared calls and transaction ownership (ADR 0174);
+DBIx::Class and its models remain only in maintainer fixtures for historical
+comparisons. The measurements below predate that transport change.
 
 The conversion was published in [PR #59](https://github.com/gipidevdor/GPForum/pull/59),
 merged into `main` on 2026-10-11 as

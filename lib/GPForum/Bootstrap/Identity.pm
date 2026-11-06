@@ -4,6 +4,7 @@
 package GPForum::Bootstrap::Identity;
 
 use v5.40;
+use Mojo::Promise;
 
 use Const::Fast;
 
@@ -155,12 +156,39 @@ sub _configure_session_guard {
         before_dispatch => sub {
             my ($controller) = @_;
 
+            return if $controller->stash('gp.session_checked');
             _expire_stale_session( $controller, $cookies );
             _validate_server_session( $controller, $cookies );
         }
     );
 
     return;
+}
+
+sub validate_session_p ( $class, $controller ) {
+    my $cookies = GPForum::Web::CookieSession->new;
+    _expire_stale_session( $controller, $cookies );
+    $controller->stash( 'gp.session_checked' => 1 );
+    return Mojo::Promise->resolve if !$cookies->has_server_session($controller);
+    return $controller->call_p(
+        $controller->gp_identity_store,
+        'validate_session',
+        {
+            session_id    => $controller->session('session_id'),
+            session_token => $controller->session('session_token'),
+            user_id       => GPForum::Web::Access->new->user_id($controller),
+        }
+    )->then(
+        sub ($validation) {
+            return if $validation && $validation->{ok};
+            return _invalidate_session( $controller, $cookies, $validation );
+        }
+    )->catch(
+        sub {
+            _record_validation_error($controller);
+            return GPForum::Web::Guard->new->service_unavailable($controller);
+        }
+    );
 }
 
 sub _validate_server_session ( $controller, $cookies ) {

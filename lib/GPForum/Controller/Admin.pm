@@ -4,7 +4,7 @@
 package GPForum::Controller::Admin;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::MemberNotes;
@@ -14,15 +14,19 @@ our $VERSION = '0.001';
 const my $HTTP_OK          => 200;
 const my $HTTP_BAD_REQUEST => 400;
 
-sub dashboard ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub dashboard ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
     my $payload;
     try {
-        $payload = $self->_dashboard_payload;
+        $payload = ( await $self->await_p( $self->_dashboard_payload ) );
     }
     catch ($error) {
         $self->app->log->error("admin dashboard failed: $error");
@@ -38,15 +42,19 @@ sub dashboard ($self) {
     );
 }
 
-sub roles ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub roles ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
     my $payload;
     try {
-        $payload = $self->_roles_payload;
+        $payload = ( await $self->await_p( $self->_roles_payload ) );
     }
     catch ($error) {
         $self->app->log->error("admin roles failed: $error");
@@ -62,15 +70,19 @@ sub roles ($self) {
     );
 }
 
-sub categories ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub categories ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
     my $payload;
     try {
-        $payload = $self->_categories_payload;
+        $payload = ( await $self->await_p( $self->_categories_payload ) );
     }
     catch ($error) {
         $self->app->log->error("admin categories failed: $error");
@@ -86,8 +98,12 @@ sub categories ($self) {
     );
 }
 
-sub user_roles ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub user_roles ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
@@ -97,11 +113,19 @@ sub user_roles ($self) {
         return $self->_bad_request( { user_id => 'user_id is required' } );
     }
 
-    return $self->_render_user_roles( $target_user_id, $user_id );
+    return (
+        await $self->await_p(
+            $self->_render_user_roles( $target_user_id, $user_id )
+        )
+    );
 }
 
-sub audit ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub audit ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
@@ -121,12 +145,15 @@ sub audit ($self) {
     my $result  = { rows => [] };
     if ( !$invalid ) {
         try {
-            $result = $review->page(
-                $checked->{filters},
-                {
-                    after => $self->optional_param('after'),
-                    limit => $self->limit_param
-                }
+            $result = (
+                await $self->call_p(
+                    $review, 'page',
+                    $checked->{filters},
+                    {
+                        after => $self->optional_param('after'),
+                        limit => $self->limit_param
+                    }
+                )
             );
         }
         catch ($error) {
@@ -149,8 +176,12 @@ sub audit ($self) {
     );
 }
 
-sub users ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub users ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
@@ -158,11 +189,15 @@ sub users ($self) {
     my $status = $self->optional_param('status');
     my $users;
     try {
-        $users = $self->gp_admin_console_reader->list_users(
-            {
-                limit  => $self->limit_param,
-                status => $status,
-            }
+        $users = (
+            await $self->call_p(
+                $self->gp_admin_console_reader,
+                'list_users',
+                {
+                    limit  => $self->limit_param,
+                    status => $status,
+                }
+            )
         );
     }
     catch ($error) {
@@ -182,8 +217,12 @@ sub users ($self) {
     );
 }
 
-sub jobs ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub jobs ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
@@ -191,11 +230,15 @@ sub jobs ($self) {
     my $status = $self->optional_param('status');
     my $jobs;
     try {
-        $jobs = $self->gp_admin_console_reader->async_jobs(
-            {
-                limit  => $self->limit_param,
-                status => $status,
-            }
+        $jobs = (
+            await $self->call_p(
+                $self->gp_admin_console_reader,
+                'async_jobs',
+                {
+                    limit  => $self->limit_param,
+                    status => $status,
+                }
+            )
         );
     }
     catch ($error) {
@@ -208,8 +251,8 @@ sub jobs ($self) {
             payload => $self->gp_admin_view_model->jobs_page(
                 jobs        => $jobs,
                 maintenance => {
-                    cache_purge_command_id    => $self->_new_command_id,
-                    search                    => $self->_search_status,
+                    cache_purge_command_id => $self->_new_command_id,
+                    search => ( await $self->await_p( $self->_search_status ) ),
                     search_rebuild_command_id => $self->_new_command_id,
                 },
                 replay_command_ids => $self->_ids_for(
@@ -224,15 +267,24 @@ sub jobs ($self) {
     );
 }
 
-sub status ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub status ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
     my $status;
     try {
-        $status = $self->gp_admin_console_reader->operations_status;
+        $status = (
+            await $self->call_p(
+                $self->gp_admin_console_reader,
+                'operations_status'
+            )
+        );
     }
     catch ($error) {
         $self->app->log->error("admin status failed: $error");
@@ -252,15 +304,19 @@ sub status ($self) {
 
 # 6.5: the effective configuration, read-only, with its secrets redacted, and
 # the test message and antivirus check beside it.
-sub settings ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub settings ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
     my $settings;
     try {
-        $settings = $self->gp_admin_settings->view;
+        $settings = ( await $self->call_p( $self->gp_admin_settings, 'view' ) );
     }
     catch ($error) {
         $self->app->log->error("admin settings failed: $error");
@@ -271,9 +327,12 @@ sub settings ($self) {
         {
             payload => $self->gp_admin_view_model->settings_page(
                 antivirus_command_id => $self->_new_command_id,
-                diagnostics          => $self->_diagnostics_overview($user_id),
-                mail_command_id      => $self->_new_command_id,
-                settings             => $settings,
+                diagnostics          => (
+                    await $self->await_p(
+                        $self->_diagnostics_overview($user_id) )
+                ),
+                mail_command_id => $self->_new_command_id,
+                settings        => $settings,
             ),
             status   => $HTTP_OK,
             template => 'admin/settings',
@@ -281,44 +340,68 @@ sub settings ($self) {
     );
 }
 
-sub _dashboard_payload ($self) {
-    my $limit = $self->admin_access->dashboard_limit;
-    my $console_summary =
-      $self->gp_admin_console_reader->dashboard_summary( { limit => $limit } );
+async sub _dashboard_payload ($self) {
+    my $limit           = $self->admin_access->dashboard_limit;
+    my $console_summary = (
+        await $self->call_p(
+            $self->gp_admin_console_reader, 'dashboard_summary',
+            { limit => $limit }
+        )
+    );
 
     return $self->gp_admin_view_model->dashboard(
-        audit_rows =>
-          $self->gp_admin_audit_review->recent( { limit => $limit } ),
+        audit_rows => (
+            await $self->call_p(
+                $self->gp_admin_audit_review,
+                'recent', { limit => $limit }
+            )
+        ),
         csrf_token => $self->csrf_token,
-        roles      => $self->gp_role_catalog->list_roles( { limit => $limit } ),
-        summary    => $console_summary,
+        roles      => (
+            await $self->call_p(
+                $self->gp_role_catalog, 'list_roles', { limit => $limit }
+            )
+        ),
+        summary => $console_summary,
     );
 }
 
-sub _roles_payload ($self) {
+async sub _roles_payload ($self) {
     my $limit = $self->limit_param;
-    my $roles = $self->gp_role_catalog->list_roles( { limit => $limit } );
+    my $roles = (
+        await $self->call_p(
+            $self->gp_role_catalog, 'list_roles', { limit => $limit }
+        )
+    );
 
     return $self->gp_admin_view_model->roles_page(
         attach_command_ids    => $self->_ids_for( $roles, 'role_id' ),
         csrf_token            => $self->csrf_token,
         permission_command_id => $self->_new_command_id,
-        permissions           =>
-          $self->gp_role_catalog->list_permissions( { limit => $limit } ),
+        permissions           => (
+            await $self->call_p(
+                $self->gp_role_catalog, 'list_permissions',
+                { limit => $limit }
+            )
+        ),
         role_command_id => $self->_new_command_id,
         roles           => $roles,
     );
 }
 
-sub announcements ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub announcements ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
 
     my $payload;
     try {
-        $payload = $self->_announcements_payload;
+        $payload = ( await $self->await_p( $self->_announcements_payload ) );
     }
     catch ($error) {
         $self->app->log->error("admin announcements failed: $error");
@@ -334,9 +417,13 @@ sub announcements ($self) {
     );
 }
 
-sub _announcements_payload ($self) {
-    my $announcements = $self->gp_announcement_store->list_announcements(
-        { limit => $self->limit_param } );
+async sub _announcements_payload ($self) {
+    my $announcements = (
+        await $self->call_p(
+            $self->gp_announcement_store, 'list_announcements',
+            { limit => $self->limit_param }
+        )
+    );
     return $self->gp_admin_view_model->announcements_page(
         announcements      => $announcements,
         create_command_id  => $self->_new_command_id,
@@ -346,9 +433,13 @@ sub _announcements_payload ($self) {
     );
 }
 
-sub _categories_payload ($self) {
-    my $categories = $self->gp_category_store->list_categories(
-        { limit => $self->limit_param } );
+async sub _categories_payload ($self) {
+    my $categories = (
+        await $self->call_p(
+            $self->gp_category_store, 'list_categories',
+            { limit => $self->limit_param }
+        )
+    );
 
     return $self->gp_admin_view_model->categories_page(
         categories         => $categories,
@@ -358,24 +449,33 @@ sub _categories_payload ($self) {
     );
 }
 
-sub _render_user_roles ( $self, $target_user_id, $user_id ) {
+async sub _render_user_roles ( $self, $target_user_id, $user_id ) {
     my ( $bindings, $notes, $second_factor );
     try {
-        $bindings =
-          $self->gp_permission_review->roles_for_user( $target_user_id,
-            { limit => $self->limit_param },
-          );
+        $bindings = (
+            await $self->call_p(
+                $self->gp_permission_review, 'roles_for_user',
+                $target_user_id, { limit => $self->limit_param }
+            )
+        );
 
         # ADR 0138: the staff notes about the member, for staff who may
         # read them.
-        $notes =
-          GPForum::Web::MemberNotes->new->for_member( $self, $user_id,
-            $target_user_id );
+        $notes = (
+            await $self->await_p(
+                GPForum::Web::MemberNotes->new->for_member_p(
+                    $self, $user_id, $target_user_id
+                )
+            )
+        );
 
         # ADR 0142: whether the member has two-step sign-in on; never the
         # secret.
-        $second_factor =
-          $self->gp_second_factor->member_summary($target_user_id);
+        $second_factor = (
+            await $self->call_p(
+                $self->gp_second_factor, 'member_summary', $target_user_id
+            )
+        );
     }
     catch ($error) {
         $self->app->log->error("admin user roles failed: $error");
@@ -414,10 +514,12 @@ sub _ids_for ( $self, $rows, $key ) {
 
 # Search's lag and last rebuild, for the jobs page. A failure to read them
 # leaves the section saying so rather than failing the page.
-sub _search_status ($self) {
+async sub _search_status ($self) {
     my $search;
     try {
-        $search = $self->gp_admin_maintenance->search_status;
+        $search =
+          ( await $self->call_p( $self->gp_admin_maintenance, 'search_status' )
+          );
     }
     catch ($error) {
         $self->app->log->warn("admin search status failed: $error");
@@ -430,10 +532,14 @@ sub _search_status ($self) {
 # The recipient, the transports and the last results, for the settings page.
 # A failure to read them leaves those sections saying so; the configuration,
 # which needs no database, still shows.
-sub _diagnostics_overview ( $self, $user_id ) {
+async sub _diagnostics_overview ( $self, $user_id ) {
     my $overview;
     try {
-        $overview = $self->gp_admin_diagnostics->overview($user_id);
+        $overview = (
+            await $self->call_p(
+                $self->gp_admin_diagnostics, 'overview', $user_id
+            )
+        );
     }
     catch ($error) {
         $self->app->log->warn("admin diagnostics overview failed: $error");

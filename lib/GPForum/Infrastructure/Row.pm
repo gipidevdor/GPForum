@@ -81,10 +81,12 @@ sub loaded_column ( $class, $row, $name ) {
 # answers rows, an array reference's own, nothing for anything else. There
 # were twenty-two copies of this, four of them different.
 sub rows_of ( $, $search ) {
-    return ()                 if !$search;
-    return @{$search}         if ref $search eq 'ARRAY';
-    return $search->all       if $search->can('all');
-    return @{ $search->rows } if $search->can('rows');
+    return ()         if !$search;
+    return @{$search} if ref $search eq 'ARRAY';
+    ## no critic (BuiltinFunctions::ProhibitUniversalCan) -- collection adapters may override can, and unsupported references have no methods
+    return $search->all       if UNIVERSAL::can( $search, 'all' );
+    return @{ $search->rows } if UNIVERSAL::can( $search, 'rows' );
+    ## use critic
 
     return ();
 }

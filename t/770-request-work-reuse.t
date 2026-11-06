@@ -11,6 +11,7 @@ use lib 'lib';
 use lib 't/lib';
 use GPForum::Config;
 use GPForum::Runtime;
+use Mojo::Promise;
 use GPForum::Service::Admin::Configuration;
 use GPForum::Service::Integration::Registry;
 use GPForum::Service::Integration::Spotify;
@@ -286,7 +287,11 @@ subtest 'home HTML skips diagnostics; JSON retains live runtime data' => sub {
     with_replaced_subs(
         'GPForum::Runtime',
         {
-            as_hash => sub { ++$calls; return { web_processes => 1 }; },
+            as_hash   => sub { ++$calls; return { web_processes => 1 }; },
+            as_hash_p => sub {
+                ++$calls;
+                return Mojo::Promise->resolve( { web_processes => 1 } );
+            },
         },
         sub {
             my $test = Test::Mojo->new('GPForum');

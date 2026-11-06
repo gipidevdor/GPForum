@@ -6,6 +6,7 @@ package GPForum::Service::Forum::ThreadTags;
 use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
 use Unicode::Normalize qw(NFKD);
 
 use GPForum::Infrastructure::Id;
@@ -92,6 +93,20 @@ sub tags_for_threads ( $self, $thread_ids ) {
     }
 
     return \%tags;
+}
+
+sub tags_for_threads_p ( $self, $thread_ids, $context = undef ) {
+    my $call = $self->tags_call($thread_ids)
+      // return Mojo::Promise->resolve( {} );
+    return $self->_functions->rows_p( @{$call}, $context )->then(
+        sub ($rows) {
+            my %tags;
+            for my $row ( @{$rows} ) {
+                push @{ $tags{ $row->{thread_id} } }, _tag($row);
+            }
+            return \%tags;
+        }
+    );
 }
 
 # The call tags_for_threads makes, or undef when it makes none: a page that
@@ -308,6 +323,10 @@ most used first, up to C<limit> (100).
 =head2 is_slug
 
 True when a string has the form of a slug.
+
+=head2 tags_for_threads_p
+
+Returns a promise for the bounded thread-id-to-tags map. Empty input requires no database work.
 
 =head1 DIAGNOSTICS
 

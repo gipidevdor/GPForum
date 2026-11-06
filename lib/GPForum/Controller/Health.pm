@@ -5,7 +5,7 @@ package GPForum::Controller::Health;
 
 use GPForum::Web::HealthPayload;
 use GPForum::Web::OperationsAccess;
-use Mojo::Base 'Mojolicious::Controller', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -21,12 +21,12 @@ sub live ($self) {
 # An anonymous caller -- a load balancer, or anyone -- learns one status word
 # from a report a couple of seconds old at most; an operator with the token
 # gets a fresh one.
-sub ready ($self) {
+async sub ready ($self) {
     my $full = $self->_full_report_allowed;
     my $readiness =
-        $full
-      ? $self->gp_readiness->check
-      : $self->gp_readiness->recent_check;
+      $full
+      ? ( await $self->call_p( $self->gp_readiness, 'check' ) )
+      : ( await $self->call_p( $self->gp_readiness, 'recent_check' ) );
     my $body =
         $full
       ? $readiness
@@ -41,7 +41,7 @@ sub ready ($self) {
     );
 }
 
-sub summary ($self) {
+async sub summary ($self) {
     $self->_no_store;
     if ( !$self->_full_report_allowed ) {
         return $self->render(
@@ -49,10 +49,16 @@ sub summary ($self) {
     }
 
     return $self->render(
-        json => GPForum::Web::HealthPayload->summary(
-            config  => $self->gp_config,
-            runtime => $self->gp_runtime,
-            clock   => $self->gp_clock,
+        json => await $self->await_p(
+            $self->async_work->run_p(
+                sub {
+                    return GPForum::Web::HealthPayload->summary(
+                        config  => $self->gp_config,
+                        runtime => $self->gp_runtime,
+                        clock   => $self->gp_clock
+                    );
+                }
+            )
         ),
     );
 }

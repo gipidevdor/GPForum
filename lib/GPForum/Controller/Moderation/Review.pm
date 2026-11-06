@@ -4,7 +4,7 @@
 package GPForum::Controller::Moderation::Review;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::Guard;
@@ -26,14 +26,23 @@ const my %FLASH => (
     unchanged => 'moderation.review_unchanged',
 );
 
-sub queue ($self) {
-    my $user_id =
-      $self->authorized_user_id( $self->moderation_access->view_queue_action );
+async sub queue ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id(
+                $self->moderation_access->view_queue_action
+            )
+        )
+    );
     return if !$user_id;
 
     my $rows;
     try {
-        $rows = $self->gp_review_store->queue( $self->queue_limit );
+        $rows = (
+            await $self->call_p(
+                $self->gp_review_store, 'queue', $self->queue_limit
+            )
+        );
     }
     catch ($error) {
         $self->app->log->error("moderation review queue failed: $error");
@@ -55,35 +64,49 @@ sub queue ($self) {
     );
 }
 
-sub approve ($self) {
-    my $user_id =
-      $self->authorized_write_user_id( $DECIDE_RESOURCE, $DECIDE_ACTION );
+async sub approve ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id( $DECIDE_RESOURCE, $DECIDE_ACTION )
+        )
+    );
     return if !$user_id;
 
     return $self->_decided(
         'approved',
-        $self->gp_review_workflow->approve(
-            {
-                review_id     => $self->param('review_id'),
-                actor_user_id => $user_id,
-            }
+        (
+            await $self->call_p(
+                $self->gp_review_workflow,
+                'approve',
+                {
+                    review_id     => $self->param('review_id'),
+                    actor_user_id => $user_id,
+                }
+            )
         )
     );
 }
 
-sub reject ($self) {
-    my $user_id =
-      $self->authorized_write_user_id( $DECIDE_RESOURCE, $DECIDE_ACTION );
+async sub reject ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id( $DECIDE_RESOURCE, $DECIDE_ACTION )
+        )
+    );
     return if !$user_id;
 
     return $self->_decided(
         'rejected',
-        $self->gp_review_workflow->reject(
-            {
-                review_id     => $self->param('review_id'),
-                actor_user_id => $user_id,
-                reason        => $self->param('reason'),
-            }
+        (
+            await $self->call_p(
+                $self->gp_review_workflow,
+                'reject',
+                {
+                    review_id     => $self->param('review_id'),
+                    actor_user_id => $user_id,
+                    reason        => $self->param('reason'),
+                }
+            )
         )
     );
 }

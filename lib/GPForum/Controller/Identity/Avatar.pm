@@ -4,7 +4,7 @@
 package GPForum::Controller::Identity::Avatar;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
@@ -50,27 +50,39 @@ const my %ANSWER => (
 
 # The member's picture, the form that replaces it and the one that removes
 # it.
-sub show ($self) {
+async sub show ($self) {
     my $user_id = $self->_member or return;
 
-    return $self->_page( $HTTP_OK, $user_id );
+    return ( await $self->await_p( $self->_page( $HTTP_OK, $user_id ) ) );
 }
 
 # A new picture, from the form.
-sub upload ($self) {
-    my $user_id = $self->write_user_id($UPLOAD) or return;
+async sub upload ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id($UPLOAD) ) )
+      or return;
     $self->res->headers->cache_control($NO_STORE);
 
-    my $answer = $self->gp_avatars->upload(
-        {
-            user_id          => $user_id,
-            upload           => $self->req->upload('avatar'),
-            source_kind      => $self->param('source_kind'),
-            source_url       => $self->param('source_url'),
-            rights_confirmed => $self->param('rights_confirmed')
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_avatars,
+            'upload',
+            {
+                user_id          => $user_id,
+                upload           => $self->req->upload('avatar'),
+                source_kind      => $self->param('source_kind'),
+                source_url       => $self->param('source_url'),
+                rights_confirmed => $self->param('rights_confirmed')
+            }
+        ),
+        async sub ($answer) {
+            return ( await $self->await_p( $self->_uploaded_async($answer) ) );
         }
     );
-    my $status = $answer->{status} // 'failed';
+}
+
+async sub _uploaded_async ( $self, $answer ) {
+    my $user_id = $self->current_user_id;
+    my $status  = $answer->{status} // 'failed';
     my ( $code, $key ) = @{ $ANSWER{$status} // $ANSWER{failed} };
     if ( $self->wants_json ) {
         return $self->render(
@@ -78,18 +90,22 @@ sub upload ($self) {
             status => $code,
         );
     }
-    return $self->_page( $code, $user_id, $key ) if $code != $HTTP_OK;
+    return ( await $self->await_p( $self->_page( $code, $user_id, $key ) ) )
+      if $code != $HTTP_OK;
 
     $self->set_success_flash($key);
     return $self->redirect_to('settings_avatar');
 }
 
 # The member takes their picture away.
-sub remove ($self) {
-    my $user_id = $self->write_user_id($REMOVE) or return;
+async sub remove ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id($REMOVE) ) )
+      or return;
     $self->res->headers->cache_control($NO_STORE);
 
-    my $status = $self->gp_avatars->remove_own($user_id)->{status};
+    my $status =
+      ( await $self->call_p( $self->gp_avatars, 'remove_own', $user_id ) )
+      ->{status};
     if ( $self->wants_json ) {
         return $self->render(
             json => {
@@ -114,7 +130,20 @@ sub image ($self) {
     return $self->not_found('no such picture')
       if !_is_uuid($user_id) || !_is_uuid($named);
 
-    my $picture = $self->gp_avatars->picture( $user_id, $named, $side );
+    return $self->respond_p(
+        $self->gp_avatars->picture_p(
+            {
+                user_id       => $user_id,
+                avatar_id     => $named,
+                side          => $side,
+                query_context => $self->stash('gp_db_query_stats_token'),
+            }
+        ),
+        sub ($picture) { return $self->_picture_async( $picture, $side ); }
+    );
+}
+
+sub _picture_async ( $self, $picture, $side ) {
     return $self->not_found('no such picture') if !$picture;
 
     my $headers = $self->res->headers;
@@ -143,9 +172,9 @@ sub _member ($self) {
     return $user_id;
 }
 
-sub _page ( $self, $status, $user_id, $error = undef ) {
+async sub _page ( $self, $status, $user_id, $error = undef ) {
     my $avatars = $self->gp_avatars;
-    my $picture = $avatars->status($user_id);
+    my $picture = ( await $self->call_p( $avatars, 'status', $user_id ) );
     $self->res->headers->cache_control($NO_STORE);
 
     return $self->render_payload(

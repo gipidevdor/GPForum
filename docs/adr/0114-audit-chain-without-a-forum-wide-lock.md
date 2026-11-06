@@ -336,15 +336,15 @@ oldest pending age, last verification and its result (`Bootstrap::Admin`,
   `lib/GPForum/Infrastructure/AuditChain.pm`;
   `lib/GPForum/Service/Operations/AuditChainLinker.pm`;
   `lib/GPForum/Service/Operations/AuditChainVerifier.pm`;
-  `lib/GPForum/Schema/Result/AuditChain.pm`;
-  `lib/GPForum/Schema/Result/AuditChainState.pm`;
+  `t/lib/GPForum/Schema/Result/AuditChain.pm`;
+  `t/lib/GPForum/Schema/Result/AuditChainState.pm`;
   `lib/GPForum/Command/AuditChain.pm` and its row in
   `Command/Support/Verbs.pm`;
   `docs/ops/audit-chain.md` (lag, blocked watermark, rebase, anchors,
   re-verify after an upgrade).
 - Changed: `lib/GPForum/Infrastructure/EventRecorder.pm`,
   `lib/GPForum/Infrastructure/AuditRecord.pm`,
-  `lib/GPForum/Schema/Result/AuditLog.pm`,
+  `t/lib/GPForum/Schema/Result/AuditLog.pm`,
   `lib/GPForum/Command/OutboxDispatch.pm`,
   `lib/GPForum/Service/Operations/ScheduledJobs.pm`,
   `lib/GPForum/Command/ScheduledJobs.pm` (usage, if it lists jobs),

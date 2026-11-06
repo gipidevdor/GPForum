@@ -4,7 +4,7 @@
 package GPForum::Controller::Moderation::MemberNotes;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::Access;
@@ -24,52 +24,76 @@ const my %FLASH => (
     unchanged => 'moderation.member_note_unchanged',
 );
 
-sub create ($self) {
-    my $user_id = $self->_writer;
+async sub create ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'added',
-        $self->gp_member_note_store->add(
-            {
-                subject_user_id => $self->stash('user_id'),
-                author_user_id  => $user_id,
-                body            => $self->param('body'),
-                command_id      => $self->param('command_id'),
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'added',
+                (
+                    await $self->call_p(
+                        $self->gp_member_note_store,
+                        'add',
+                        {
+                            subject_user_id => $self->stash('user_id'),
+                            author_user_id  => $user_id,
+                            body            => $self->param('body'),
+                            command_id      => $self->param('command_id'),
+                        }
+                    )
+                )
+            )
         )
     );
 }
 
-sub update ($self) {
-    my $user_id = $self->_writer;
+async sub update ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'edited',
-        $self->gp_member_note_store->edit(
-            {
-                subject_user_id => $self->stash('user_id'),
-                note_id         => $self->stash('note_id'),
-                actor_user_id   => $user_id,
-                body            => $self->param('body'),
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'edited',
+                (
+                    await $self->call_p(
+                        $self->gp_member_note_store,
+                        'edit',
+                        {
+                            subject_user_id => $self->stash('user_id'),
+                            note_id         => $self->stash('note_id'),
+                            actor_user_id   => $user_id,
+                            body            => $self->param('body'),
+                        }
+                    )
+                )
+            )
         )
     );
 }
 
-sub remove ($self) {
-    my $user_id = $self->_writer;
+async sub remove ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'deleted',
-        $self->gp_member_note_store->remove(
-            {
-                subject_user_id => $self->stash('user_id'),
-                note_id         => $self->stash('note_id'),
-                actor_user_id   => $user_id,
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'deleted',
+                (
+                    await $self->call_p(
+                        $self->gp_member_note_store,
+                        'remove',
+                        {
+                            subject_user_id => $self->stash('user_id'),
+                            note_id         => $self->stash('note_id'),
+                            actor_user_id   => $user_id,
+                        }
+                    )
+                )
+            )
         )
     );
 }
@@ -77,10 +101,15 @@ sub remove ($self) {
 # The staff member writing, or undef once the request is answered: a bad
 # CSRF token, nobody signed in, no global member_note.write binding, over
 # the moderation write limit, or suspended.
-sub _writer ($self) {
+async sub _writer ($self) {
     my $notes = GPForum::Web::MemberNotes->new;
-    return $self->authorized_write_user_id( $notes->resource,
-        $notes->write_action );
+    return (
+        await $self->await_p(
+            $self->authorized_write_user_id(
+                $notes->resource, $notes->write_action
+            )
+        )
+    );
 }
 
 sub _answer ( $self, $done, $answer ) {

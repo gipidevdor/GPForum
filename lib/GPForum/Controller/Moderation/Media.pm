@@ -3,8 +3,9 @@
 
 package GPForum::Controller::Moderation::Media;
 
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
+use GPForum::Infrastructure::FileAsset;
 
 use Mojo::Asset::File;
 use Const::Fast;
@@ -23,14 +24,20 @@ const my %HTTP_CODE => (
 
 # Queue, preview and decisions all require global moderation. Preview is a
 # separate private route, never a way around the public download's gate.
-sub queue ($self) {
-    return if !$self->authorized_user_id( 'thread', 'moderate' );
+async sub queue ($self) {
+    return
+      if !(
+        await $self->await_p(
+            $self->authorized_user_id( 'thread', 'moderate' ) ) );
     $self->res->headers->cache_control('private, no-store');
     my $rows;
     try {
-        $rows =
-          $self->gp_attachment_content_review->queue( $self->param('after_at'),
-            $self->param('after_id') );
+        $rows = (
+            await $self->call_p(
+                $self->gp_attachment_content_review, 'queue',
+                $self->param('after_at'),            $self->param('after_id')
+            )
+        );
     }
     catch ($error) {
         $self->app->log->error("media review queue: $error");
@@ -55,23 +62,30 @@ sub queue ($self) {
     );
 }
 
-sub preview ($self) {
-    return if !$self->authorized_user_id( 'thread', 'moderate' );
+async sub preview ($self) {
+    return
+      if !(
+        await $self->await_p(
+            $self->authorized_user_id( 'thread', 'moderate' ) ) );
     $self->res->headers->cache_control('private, no-store');
     my ( $row, $asset );
     try {
-        $row = $self->gp_attachment_content_review->find(
-            $self->param('attachment_id') );
+        $row = (
+            await $self->call_p(
+                $self->gp_attachment_content_review, 'find',
+                $self->param('attachment_id')
+            )
+        );
         return $self->not_found('attachment not found')
           if !$row
           || $row->{scan_status} ne 'clean'
           || $row->{status} ne 'pending';
         my $storage = $self->gp_attachment_storage;
         $asset =
-            $storage->can('asset_for')
-          ? $storage->asset_for( $row->{object_key} )
-          : Mojo::Asset::File->new(
-            path => $storage->path_for( $row->{object_key} ) );
+          $storage->can('asset_for')
+          ? ( await $self->call_p( $storage, 'asset_for', $row->{object_key} ) )
+          : await GPForum::Infrastructure::FileAsset->from_path_p(
+            await $self->call_p( $storage, 'path_for', $row->{object_key} ) );
     }
     catch ($error) {
         $self->app->log->error("media review preview: $error");
@@ -89,18 +103,25 @@ sub preview ($self) {
         $row->{checksum} );
 }
 
-sub decide ($self) {
-    my $actor = $self->authorized_write_user_id( 'thread', 'moderate' )
-      or return;
+async sub decide ($self) {
+    my $actor = (
+        await $self->await_p(
+            $self->authorized_write_user_id( 'thread', 'moderate' )
+        )
+    ) or return;
     my $answer;
     try {
-        $answer = $self->gp_attachment_content_review->decide(
-            {
-                actor_user_id => $actor,
-                attachment_id => $self->param('attachment_id'),
-                decision      => $self->param('decision'),
-                reason        => $self->param('reason'),
-            }
+        $answer = (
+            await $self->call_p(
+                $self->gp_attachment_content_review,
+                'decide',
+                {
+                    actor_user_id => $actor,
+                    attachment_id => $self->param('attachment_id'),
+                    decision      => $self->param('decision'),
+                    reason        => $self->param('reason'),
+                }
+            )
         );
     }
     catch ($error) {

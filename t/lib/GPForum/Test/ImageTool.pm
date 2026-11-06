@@ -7,6 +7,7 @@ use Compress::Zlib ();
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Storable qw(nstore retrieve);
 
 use GPForum::X::Unavailable;
 
@@ -28,9 +29,10 @@ const my $JFIF      => pack 'H*', '4a46494600010100000100010000';
 const my $COMPONENT => pack 'H*', '011100';
 const my $JPEG_END  => pack 'H*', 'ffd9';
 
-has installed => 1;
-has answer    => 'squares';            # squares, unreadable or unavailable
-has calls     => sub { return []; };
+has installed  => 1;
+has answer     => 'squares';            # squares, unreadable or unavailable
+has calls      => sub { return []; };
+has calls_file => undef;    # optional: subprocess-visible test observations
 
 sub engine ($self) { return 'fake'; }
 
@@ -41,13 +43,22 @@ sub reads ( $, $media_type ) {
 }
 
 sub squares ( $self, $image, $sides ) {
-    push @{ $self->calls }, { %{$image}, sides => [ @{$sides} ] };
+    my $calls = $self->observed_calls;
+    push @{$calls}, { %{$image}, sides => [ @{$sides} ] };
+    if ( $self->calls_file ) { nstore( $calls, $self->calls_file ); }
     if ( $self->answer eq 'unavailable' ) {
         GPForum::X::Unavailable->throw( message => 'image tool timed out' );
     }
     return undef if $self->answer eq 'unreadable';
 
     return { map { $_ => $self->png( $_, $_ ) } @{$sides} };
+}
+
+# The optional private journal makes assertions observe work done in a child.
+sub observed_calls ($self) {
+    return retrieve( $self->calls_file )
+      if $self->calls_file && -f $self->calls_file;
+    return $self->calls;
 }
 
 # A PNG of the size given, one colour, with a text chunk a real tool might

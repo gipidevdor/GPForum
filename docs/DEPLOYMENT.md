@@ -646,6 +646,12 @@ Static `/assets/` files live in the repository `assets/` tree
 (`/opt/gpforum/assets` after install). Do not point the proxy at
 `public/assets`; that path does not exist.
 
+At the site root, nginx and Caddy search `assets/css`, `assets/img` and
+`assets/js`, in the same order as the application. Missing files go to the
+application. nginx explicitly buffers request bodies before forwarding them
+and buffers upstream responses, isolating the application from slow client
+transfers within the proxy's buffer and timeout limits.
+
 The nginx site enables sendfile and gzip for static text assets. Its upstream
 pool reuses normal HTTP connections: `Connection` is cleared for those
 requests and set to `upgrade` only for an upgrade request. WebSocket
@@ -668,8 +674,8 @@ connection churn.
 proxy that URL to the application. A `location /attachments/ { internal; }` prefix
 intercepts the download and returns 404.
 
-To let nginx send the file once the application has authorized the download,
-set `GPFORUM_ATTACHMENT_ACCEL_REDIRECT=/internal-attachments/` in the
+For the filesystem backend, nginx can send the file once the application has
+authorized the download. Set `GPFORUM_ATTACHMENT_ACCEL_REDIRECT=/internal-attachments/` in the
 environment file: the application then answers with an `X-Accel-Redirect`
 header instead of the bytes, and nginx serves the file from its
 `/internal-attachments/` alias. The shipped alias is
@@ -680,6 +686,64 @@ and the store belongs to `gpforum` with mode `0750`: put nginx's user in the
 restart nginx`), or every download answers 403. Leave the setting empty
 behind Caddy, which has no internal alias in the sample: a proxy that does not
 understand the header would pass it to the browser.
+
+The default PostgreSQL attachment backend returns an application asset rather
+than a filesystem path. Downloads use native `Mojo::Pg` promises and retain at
+most one 1 MiB database chunk per response. The next HTTP chunk is read only
+after the preceding write completes; disconnects stop further reads. HEAD,
+ETag and range requests keep their usual semantics. `X-Accel-Redirect` applies
+to filesystem assets only.
+
+HTTP dispatch prepares configuration, validates the server session and resolves
+viewer state asynchronously. Controllers use Mojolicious async/await; native
+readers cover category and thread listings, search, thread extras, permission
+checks, rate limits and session reads. Other persistent service operations run
+as complete workflows in the bounded subprocess executor. A synchronous
+PostgreSQL checkout in the HTTP request context is rejected before it can
+block the reactor. CLI service interfaces remain synchronous.
+
+Native transactions own one leased connection through BEGIN, savepoints,
+COMMIT and rollback. They never borrow another workflow's transaction or
+replay an ambiguous commit. Query cancellation (SQLSTATE 57014) rejects even
+when DBD::Pg reports a zero-row result. Prepared-plan retirement runs
+asynchronously; DBI statement destruction does not send synchronous DEALLOCATE.
+Connection handshakes use libpq asynchronous connect and reactor readiness
+watchers with a five-second deadline. OS hostname resolution runs in the
+bounded Mojolicious subprocess executor; numeric addresses are pinned while
+retaining the configured hostname for TLS. A libpq service definition with a
+hidden hostname uses an isolated connection probe before the owned connection.
+
+Cache invalidation and realtime share one dedicated, idle LISTEN connection.
+Cache reads drain local notification queues without checking a database handle
+out or pinging it. Realtime authorization, current visibility, badge counts,
+session revocation and backstop polling complete asynchronously; registries
+and sockets stay in the web process. OIDC uses approved public HTTPS peers and
+reactor-driven DNS. WebSub resolves its operator-configured hub outside the
+reactor and retains its native user agent until forwarding completes.
+
+Argon2id, account transactions, avatar processing, upload validation and scans,
+archive generation, uncached Markdown and QR generation run in bounded
+`Mojo::IOLoop::Subprocess` children. Password hashing costs and validation rules
+are unchanged. The manager warms the cost-keyed decoy hash before forking, so
+unknown-account checks verify it without generating a second hash per child.
+Queued work from a disconnected request is skipped; active mutations finish.
+Legacy filesystem downloads and archives stream at most 256 KiB at a time,
+with the next read admitted only after the preceding write drains. Database
+media retains its existing one-chunk bound. HEAD, ranges and conditional
+responses keep their semantics.
+
+Each worker admits two concurrent native SQL operations, one subprocess and
+four outbound integration HTTP requests. Executor queues hold at most sixteen
+additional operations for at most fifteen seconds. Saturation rejects work.
+The database budget remains four connections per web worker: two native query
+leases, one shared listener and one isolated workflow connection, plus the
+existing operational headroom. Worker startup warms the two query leases
+asynchronously after fork. No operator setting is required for this behavior.
+
+`Mojo::File` itself is synchronous. Small metadata operations and Mojolicious's
+request parsing, logging and template machinery retain their normal framework
+semantics. Keep nginx or Caddy in front for static assets, upload buffering,
+TLS and slow clients. GlifiStore is not required or enabled by this migration.
 
 nginx accepts request bodies up to 251 MiB (`client_max_body_size`), enough for
 audio or video at Good Phorum's 250 MiB limit and the form around it. Images

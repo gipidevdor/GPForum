@@ -8,7 +8,7 @@ use GPForum::Web::DiscoveryAccess;
 use GPForum::Web::DiscoveryPayload;
 use GPForum::Web::ClientAddress;
 use GPForum::Web::SiteIcon;
-use Mojo::Base 'Mojolicious::Controller', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 use Mojo::Util qw(encode);
@@ -47,29 +47,34 @@ sub icon ($self) {
 
 # Home Screen installation needs a linked standalone manifest on the SSR
 # origin too. Its contents contain no account data or receiver capabilities.
-sub manifest ($self) {
+async sub manifest ($self) {
     $self->res->headers->cache_control('private, max-age=3600');
     $self->res->headers->content_type('application/manifest+json');
-    return $self->reply->file( $self->app->home->rel_file('site.webmanifest') );
+    return $self->file_p( $self->app->home->rel_file('site.webmanifest') );
 }
 
 # The sitemaps are text, sent as the UTF-8 their XML declares, as every
 # discovery document is (GPForum::Web::DiscoveryAccess).
-sub sitemap ($self) {
+async sub sitemap ($self) {
     $self->res->headers->cache_control('public, max-age=0, must-revalidate');
     return $self->render(
-        data   => encode( 'UTF-8', $self->gp_sitemap_pages->sitemap_index ),
+        data => encode(
+            'UTF-8',
+            ( await $self->call_p( $self->gp_sitemap_pages, 'sitemap_index' ) )
+        ),
         format => 'xml'
     );
 }
 
-sub sitemap_page ($self) {
+async sub sitemap_page ($self) {
     my $page = $self->param('page');
-    return $self->reply->not_found
+    return ( await $self->await_p( $self->reply ) )->not_found
       if $page !~ /\A[1-9][[:digit:]]{0,4}\z/amsx
       || $page > $MAXIMUM_SITEMAP_PAGE;
-    my $document = $self->gp_sitemap_pages->page($page);
-    return $self->reply->not_found if !defined $document;
+    my $document =
+      ( await $self->call_p( $self->gp_sitemap_pages, 'page', $page ) );
+    return ( await $self->await_p( $self->reply ) )->not_found
+      if !defined $document;
 
     $self->res->headers->cache_control('public, max-age=0, must-revalidate');
 
@@ -79,7 +84,7 @@ sub sitemap_page ($self) {
     );
 }
 
-sub feed ($self) {
+async sub feed ($self) {
     my $access = GPForum::Web::DiscoveryAccess->new;
     my $hub    = $self->gp_websub;
     if ( $hub->enabled ) {
@@ -96,15 +101,19 @@ sub feed ($self) {
             builder       => $self->gp_feed_builder,
             canonical_url => $self->gp_canonical_url,
             clock         => $self->gp_clock,
-            page          => $self->gp_thread_reader->list_public_threads(
-                { limit => $access->feed_limit( $self->param('limit') ) }
+            page          => (
+                await $self->call_p(
+                    $self->gp_thread_reader,
+                    'list_public_threads',
+                    { limit => $access->feed_limit( $self->param('limit') ) }
+                )
             ),
             presenter => $self->gp_discovery_view_model,
         )
     );
 }
 
-sub subscribe ($self) {
+async sub subscribe ($self) {
     my $publisher = $self->gp_websub;
     return $self->render(
         text   => 'WebSub is disabled',
@@ -120,24 +129,32 @@ sub subscribe ($self) {
       )
       if ( $self->req->headers->content_type // q{} ) !~
       /\A application\/x-www-form-urlencoded(?:;|\z)/imsx;
-    my $rate = $self->gp_rate_limiter->check(
-        {
-            scope          => 'websub',
-            action         => 'subscribe',
-            actor_id       => GPForum::Web::ClientAddress->of( $self->tx ),
-            limit          => 10,
-            window_seconds => 60
-        }
+    my $rate = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            {
+                scope          => 'websub',
+                action         => 'subscribe',
+                actor_id       => GPForum::Web::ClientAddress->of( $self->tx ),
+                limit          => 10,
+                window_seconds => 60
+            }
+        )
     );
     return $self->render( text => 'Rate limited', status => $HTTP_RATE_LIMITED )
       if !$rate->{ok};
     my $form;
     try {
-        $form = $publisher->subscription(
-            {
-                map { $_ => $self->param($_) }
-                  qw(hub.mode hub.topic hub.callback hub.secret hub.lease_seconds)
-            }
+        $form = (
+            await $self->call_p(
+                $publisher,
+                'subscription',
+                {
+                    map { $_ => $self->param($_) }
+                      qw(hub.mode hub.topic hub.callback hub.secret hub.lease_seconds)
+                }
+            )
         );
     }
     catch ($error) {
@@ -152,9 +169,8 @@ sub subscribe ($self) {
     # one for each request: held by nothing once this action returned, the
     # agent went and took the pending connection with it, and every
     # subscription answered 502. The chain holds it until the hub answers.
-    my $forward =
-      $publisher->ua->post_p( $publisher->hub_url => form => $form );
-    $forward->then(
+    return $self->respond_p(
+        $publisher->forward_p($form),
         sub ($tx) {
             return $self->render(
                 text   => q{},
@@ -162,16 +178,14 @@ sub subscribe ($self) {
                 ? $HTTP_ACCEPTED
                 : $HTTP_BAD_GATEWAY
             );
-        }
-    )->catch(
+        },
         sub ($error) {
             return $self->render(
                 text   => 'Hub unavailable',
                 status => $HTTP_BAD_GATEWAY
             );
         }
-    )->finally( sub { undef $publisher; return; } );
-    return;
+    );
 }
 
 1;

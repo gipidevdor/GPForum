@@ -11,7 +11,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
-use GPForum::Command::QueryPlanEvidence;
+use GPForum::Test::QueryPlanEvidence;
 use GPForum::Test::QueryPlanEvidenceDbh;
 
 our $VERSION = '0.001';
@@ -96,7 +96,7 @@ sub _test_summary {
 
 sub _test_failure_rule {
     my $report =
-      GPForum::Command::QueryPlanEvidence->new(
+      GPForum::Test::QueryPlanEvidence->new(
         dbh => GPForum::Test::QueryPlanEvidenceDbh->new )
       ->evidence_report(
         { analyze => 0, dry_run => 0, endpoints => ['home'] } );
@@ -146,7 +146,7 @@ sub _test_seeded_ids {
     {
         my ( $endpoint, $id, $what ) = @{$case};
         my $dbh = GPForum::Test::QueryPlanEvidenceDbh->new;
-        GPForum::Command::QueryPlanEvidence->new( dbh => $dbh )
+        GPForum::Test::QueryPlanEvidence->new( dbh => $dbh )
           ->evidence_report(
             { analyze => 0, dry_run => 0, endpoints => [$endpoint] } );
         my @binds = map { @{ $_->{bind} } }
@@ -167,7 +167,7 @@ sub _test_empty_lists_text {
     open my $handle, '>', \$stdout or BAIL_OUT('cannot capture STDOUT');
     {
         local *STDOUT = $handle;
-        GPForum::Command::QueryPlanEvidence->new->run( '--dry-run',
+        GPForum::Test::QueryPlanEvidence->new->run( '--dry-run',
             '--endpoint', 'home' );
     }
     close $handle or BAIL_OUT('cannot close the captured STDOUT');
@@ -185,7 +185,7 @@ sub _test_empty_lists_text {
 }
 
 sub _report ( $dbh_input, $endpoint ) {
-    return GPForum::Command::QueryPlanEvidence->new(
+    return GPForum::Test::QueryPlanEvidence->new(
         dbh => GPForum::Test::QueryPlanEvidenceDbh->new( %{$dbh_input} ) )
       ->evidence_report(
         { analyze => 0, dry_run => 0, endpoints => [$endpoint] } )

@@ -6,6 +6,7 @@ package main;
 use v5.40;
 
 use Const::Fast;
+use Test::Fatal;
 use Test::More;
 
 use lib 'lib';
@@ -14,6 +15,7 @@ use lib 't/lib';
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::ResultRow;
 use GPForum::Test::RowDouble;
+use GPForum::Test::SearchResult;
 use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 use GPForum::Infrastructure::UniqueConflict;
 
@@ -25,6 +27,48 @@ const my $LIST_LENGTH => 6;
 const my $KEPT_KEYS   => 3;
 
 my $reader = 'GPForum::Infrastructure::Row';
+
+subtest
+  'row collections keep unsupported inputs and capability overrides safe' =>
+  sub {
+    my $opaque = 'opaque';
+    for my $unsupported ( undef, {}, \$opaque, sub { return; } ) {
+        my @rows;
+        my $error = exception { @rows = $reader->rows_of($unsupported); };
+        is( $error, undef,
+            'an unsupported collection does not invoke object methods' );
+        is_deeply( \@rows, [], 'an unsupported collection supplies no rows' );
+    }
+    my $expected = [ { id => 'first' }, { id => 'second' } ];
+    is_deeply( [ $reader->rows_of($expected) ],
+        $expected, 'ordinary arrays keep their rows' );
+    my $search = GPForum::Test::SearchResult->new( rows => $expected );
+    with_replaced_subs(
+        'GPForum::Test::SearchResult',
+        { can => sub { die "collection can override must not be invoked\n"; } },
+        sub {
+            my @rows;
+            my $error = exception { @rows = $reader->rows_of($search); };
+            is( $error, undef, 'all capability probes bypass a can override' );
+            is_deeply( \@rows, $expected, 'an all adapter keeps its rows' );
+        }
+    );
+    my $row = GPForum::Test::RowDouble->new;
+    with_replaced_subs(
+        'GPForum::Test::RowDouble',
+        {
+            can => sub { die "collection can override must not be invoked\n"; },
+            rows => sub { return $expected; },
+        },
+        sub {
+            my @rows;
+            my $error = exception { @rows = $reader->rows_of($row); };
+            is( $error, undef, 'rows capability probes bypass a can override' );
+            is_deeply( \@rows, $expected,
+                'a rows-only adapter keeps its rows' );
+        }
+    );
+  };
 
 subtest 'loaded snapshots preserve the row contracts' => sub {
     my $values = { score => $HASH_SCORE, optional => 0 };

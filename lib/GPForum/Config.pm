@@ -2603,7 +2603,7 @@ its startup options, each unless the DSN already sets it.
 
 =head2 database_connect_info
 
-Returns DBI connection arguments for DBIx::Class: C<database_connection_dsn>,
+Returns DBI connection arguments for the Mojo::Pg transport: C<database_connection_dsn>,
 the role and its password, and the attributes. Session
 C<statement_timeout>, C<idle_in_transaction_session_timeout> and
 C<lock_timeout> are applied on connect. Zero

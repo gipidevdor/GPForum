@@ -4,7 +4,7 @@
 package GPForum::Service::Forum::Readability;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::CountedQuery;
@@ -65,6 +65,41 @@ has viewer_resolver => sub ($self) {
 # request's) or a user id, resolved only when the source is not public. A
 # source that is missing, removed or hidden, or of a kind this does not
 # know, is readable by nobody.
+async sub readers_list_p ( $self, $source_type, $source_id, @readers ) {
+    return $self->readers_list( $source_type, $source_id, @readers )
+      if !$self->functions;
+    my $type = $source_type // q{};
+    return []
+      if !exists $PLACEMENT_SQL->{$type}
+      || !GPForum::Infrastructure::Id->is_uuid($source_id);
+    my $placement = await $self->functions->row_p( "forum_${type}_placement",
+        { source_id => $source_id } );
+    return [] if !$placement || !_live($placement);
+    my $resource = {
+        map  { $_ => $placement->{$_} }
+        grep { exists $placement->{$_} } @PLACEMENT_COLUMNS
+    };
+    return \@readers if _public($resource);
+    my @allowed;
+
+    for my $reader (@readers) {
+        my $viewer =
+          ref $reader
+          ? $reader
+          : await $self->viewer_resolver->resolve_p($reader);
+        if ( GPForum::Service::Forum::Visibility->readable( $viewer, $resource )
+          )
+        {
+            push @allowed, $reader;
+        }
+    }
+    return \@allowed;
+}
+
+sub readers_list ( $self, @arguments ) {
+    return [ $self->readers_of(@arguments) ];
+}
+
 sub readable_by ( $self, $reader, $source_type, $source_id ) {
     my @readers = $self->readers_of( $source_type, $source_id, $reader );
 
@@ -313,6 +348,14 @@ The readers, of those given, who may read the post or thread, in order.
 
 An SQL condition, for DBIx::Class, on a row's source type and id columns:
 true only for a post or thread the reader may read.
+
+=head2 readers_list
+
+Returns C<readers_of> as an array reference for the data-only service boundary.
+
+=head2 readers_list_p
+
+Reads source placement natively and resolves private-source viewers asynchronously. Returns the allowed readers in their original order; public sources need one query.
 
 =head1 DIAGNOSTICS
 

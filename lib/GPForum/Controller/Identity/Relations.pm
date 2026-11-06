@@ -5,7 +5,7 @@ package GPForum::Controller::Identity::Relations;
 
 use Const::Fast;
 use GPForum::Web::ErrorPayload;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -33,12 +33,13 @@ const my %FLASH_FOR => (
 
 # The settings page of the list: who the member ignores or blocks, each
 # with the way to take them off.
-sub list ($self) {
+async sub list ($self) {
     my $user_id = $self->current_user_id;
     return $self->settings_unauthorized if !$user_id;
 
-    my $store     = $self->gp_relation_store;
-    my $relations = $store->list_for_user($user_id);
+    my $store = $self->gp_relation_store;
+    my $relations =
+      ( await $self->call_p( $store, 'list_for_user', $user_id ) );
     $self->res->headers->cache_control('private, no-store');
     if ( $self->wants_json ) {
         return $self->render(
@@ -58,35 +59,49 @@ sub list ($self) {
     );
 }
 
-sub ignore ($self) { return $self->_set('ignore'); }
-
-sub block ($self) { return $self->_set('block'); }
-
-sub remove ($self) {
-    my $user_id = $self->_writer or return;
-    my $result  = $self->gp_relation_store->remove_relation(
-        { owner_user_id => $user_id, username => $self->param('username') } );
-
-    return $self->_answer( 'remove', $result );
+async sub ignore ($self) {
+    return ( await $self->await_p( $self->_set('ignore') ) );
 }
 
-sub _set ( $self, $kind ) {
-    my $user_id = $self->_writer or return;
-    my $result  = $self->gp_relation_store->set_relation(
-        {
-            owner_user_id => $user_id,
-            username      => $self->param('username'),
-            kind          => $kind,
-        }
+async sub block ($self) {
+    return ( await $self->await_p( $self->_set('block') ) );
+}
+
+async sub remove ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
+    my $result  = (
+        await $self->call_p(
+            $self->gp_relation_store,
+            'remove_relation',
+            { owner_user_id => $user_id, username => $self->param('username') }
+        )
     );
 
-    return $self->_answer( $kind, $result );
+    return ( await $self->await_p( $self->_answer( 'remove', $result ) ) );
+}
+
+async sub _set ( $self, $kind ) {
+    my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
+    my $result  = (
+        await $self->call_p(
+            $self->gp_relation_store,
+            'set_relation',
+            {
+                owner_user_id => $user_id,
+                username      => $self->param('username'),
+                kind          => $kind,
+            }
+        )
+    );
+
+    return ( await $self->await_p( $self->_answer( $kind, $result ) ) );
 }
 
 # CSRF, then a signed-in member, then the rate limit: undef once a refusal
 # is rendered.
-sub _writer ($self) {
-    my $refused = $self->identity_post_guard($ACTION);
+async sub _writer ($self) {
+    my $refused =
+      ( await $self->await_p( $self->identity_post_guard($ACTION) ) );
     return undef if $refused;
 
     my $user_id = $self->current_user_id;

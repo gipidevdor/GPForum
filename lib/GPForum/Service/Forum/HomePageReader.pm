@@ -6,6 +6,7 @@ package GPForum::Service::Forum::HomePageReader;
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::Text qw(plain_excerpt);
@@ -61,6 +62,44 @@ sub home_page ( $self, $request ) {
             next_cursor => $threads->{next_cursor},
         },
     };
+}
+
+sub home_page_p ( $self, $request, $context = undef ) {
+    my $categories = $self->_category_reader;
+    my $threads    = $self->_thread_reader;
+    return Mojo::Promise->resolve->then(
+        sub { return $self->home_page($request); } )
+      if !$categories->can('list_categories_p')
+      || !$threads->can('list_public_threads_p');
+    my $category_limit =
+      _bounded_limit( $request ? $request->{category_limit} : undef,
+        $DEFAULT_CATEGORY_LIMIT, $MAX_CATEGORY_LIMIT );
+    my $thread_limit =
+      _bounded_limit( $request ? $request->{thread_limit} : undef,
+        $DEFAULT_THREAD_LIMIT, $MAX_THREAD_LIMIT );
+    my $viewer = $request ? $request->{viewer} : undef;
+    my $after  = $request ? $request->{after}  : undef;
+    return Mojo::Promise->all(
+        $categories->list_categories_p(
+            { limit => $category_limit, viewer => $viewer }, $context
+        ),
+        $threads->list_public_threads_p(
+            { limit => $thread_limit, viewer => $viewer, after => $after },
+            $context
+        ),
+    )->then(
+        sub ( $category_rows, $thread_page ) {
+            my $page = $thread_page->[0];
+            return {
+                categories =>
+                  [ map { _category($_) } @{ $category_rows->[0] } ],
+                latest_threads => {
+                    items       => [ map { _thread($_) } @{ $page->{items} } ],
+                    next_cursor => $page->{next_cursor}
+                }
+            };
+        }
+    );
 }
 
 sub _category_reader ($self) {
@@ -201,6 +240,10 @@ none.
 =back
 
 The readers bound the limits again on their side.
+
+=head2 home_page_p
+
+Builds the home page from native category and thread reader promises. In-memory collaborators retain their existing behavior.
 
 =head1 DIAGNOSTICS
 

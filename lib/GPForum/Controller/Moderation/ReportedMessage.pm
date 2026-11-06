@@ -4,7 +4,7 @@
 package GPForum::Controller::Moderation::ReportedMessage;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -17,14 +17,22 @@ const my $HTTP_GONE => 410;
 # reading needs a CSRF token and stays under the moderation write limit, and
 # it is audited in the same call that reads the message. A suspended staff
 # member reads none.
-sub show ($self) {
-    my $user_id = $self->authorized_write_user_id(
-        $self->moderation_access->view_queue_action );
+async sub show ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id(
+                $self->moderation_access->view_queue_action
+            )
+        )
+    );
     return if !$user_id;
 
-    my $read =
-      $self->gp_message_store->read_reported( $self->stash('report_id'),
-        $user_id );
+    my $read = (
+        await $self->call_p(
+            $self->gp_message_store,   'read_reported',
+            $self->stash('report_id'), $user_id
+        )
+    );
     return $self->not_found('reported message not found')
       if $read->{status} ne 'ok' && $read->{status} ne 'gone';
     $self->res->headers->cache_control('private, no-store');

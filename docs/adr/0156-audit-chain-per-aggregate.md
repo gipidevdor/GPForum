@@ -136,7 +136,7 @@ limiting and the system jobs would share.
   resultset path, kept for the doubles and the differential tests under ADR
   0126 section 8, writes the same chain: the aggregate's lock, the tip by
   position, the id's own lock),
-  `lib/GPForum/Schema/Result/AuditLog.pm`,
+  `t/lib/GPForum/Schema/Result/AuditLog.pm`,
   `lib/GPForum/Service/Admin/AuditReview.pm` (the viewer reads the entry's
   columns on both paths),
   `lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm`

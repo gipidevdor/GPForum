@@ -245,12 +245,20 @@ sub revoke_session ( $self, $input ) {
     return $self->session_store->revoke_session($input);
 }
 
+sub live_session_ids_p ( $self, $session_ids, $context = undef ) {
+    return $self->session_store->live_session_ids_p( $session_ids, $context );
+}
+
 sub live_session_ids ( $self, $session_ids ) {
     return $self->session_store->live_session_ids($session_ids);
 }
 
 sub validate_session ( $self, $input ) {
     return $self->session_store->validate_session($input);
+}
+
+sub validate_session_p ( $self, $input, $context = undef ) {
+    return $self->session_store->validate_session_p( $input, $context );
 }
 
 sub preferred_locale_for_user ( $self, $input ) {
@@ -425,6 +433,14 @@ Delegates theme reads to the preference store.
 =head2 update_preferred_theme
 
 Delegates theme writes to the preference store.
+
+=head2 live_session_ids_p
+
+Returns a promise for the set of live session ids, using one bounded native query. Invalid ids are omitted; no socket is closed when the lookup fails.
+
+=head2 validate_session_p
+
+Validates and touches the server session through a native promise. Accepts the same input as C<validate_session> and an optional request observation context.
 
 =head1 DIAGNOSTICS
 

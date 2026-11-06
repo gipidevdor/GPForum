@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 GPForum Contributors
 # SPDX-License-Identifier: BSD-3-Clause
 package GPForum::Controller::Identity::Passkeys;
-use Mojo::Base 'GPForum::Controller::Identity', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity', -async_await;
 use v5.40;
 use Const::Fast;
 use Crypt::URandom qw(urandom);
@@ -18,13 +18,15 @@ sub _provider ($self) {
     return $self->gp_passkeys;
 }
 
-sub show ($self) {
+async sub show ($self) {
     return $self->settings_unauthorized if !$self->current_user_id;
     my ( $enabled, $keys );
     try {
         my $provider = $self->_provider;
         $enabled = $provider->enabled;
-        $keys    = $provider->listed( $self->current_user_id );
+        $keys =
+          ( await $self->call_p( $provider, 'listed', $self->current_user_id )
+          );
     }
     catch ($error) { return $self->identity_unavailable; };
     $self->res->headers->cache_control('private, no-store');
@@ -34,24 +36,32 @@ sub show ($self) {
         passkeys => $keys
     );
 }
-sub begin_registration ($self) { return $self->_begin('register'); }
-sub begin_login        ($self) { return $self->_begin('login'); }
+async sub begin_registration ($self) {
+    return ( await $self->await_p( $self->_begin('register') ) );
+}
+async sub begin_login ($self) {
+    return ( await $self->await_p( $self->_begin('login') ) );
+}
 
-sub _begin ( $self, $purpose ) {
-    return if $self->_guard($purpose);
+async sub _begin ( $self, $purpose ) {
+    return if ( await $self->await_p( $self->_guard($purpose) ) );
     my $binding = encode_base64url( urandom($RANDOM_BYTES) );
     my $options;
     try {
-        $options = $self->_provider->begin(
-            {
-                purpose    => $purpose,
-                binding    => $binding,
-                user_id    => $self->current_user_id,
-                session_id => $self->session('session_id'),
-                password   => $self->param('password'),
-                code       => $self->param('code'),
-                label      => $self->param('label')
-            }
+        $options = (
+            await $self->call_p(
+                $self->_provider,
+                'begin',
+                {
+                    purpose    => $purpose,
+                    binding    => $binding,
+                    user_id    => $self->current_user_id,
+                    session_id => $self->session('session_id'),
+                    password   => $self->param('password'),
+                    code       => $self->param('code'),
+                    label      => $self->param('label')
+                }
+            )
         );
     }
     catch ($error) { return $self->_refused; };
@@ -67,11 +77,15 @@ sub _begin ( $self, $purpose ) {
     );
     return $self->render( json => { publicKey => $options } );
 }
-sub finish_registration ($self) { return $self->_finish('register'); }
-sub finish_login        ($self) { return $self->_finish('login'); }
+async sub finish_registration ($self) {
+    return ( await $self->await_p( $self->_finish('register') ) );
+}
+async sub finish_login ($self) {
+    return ( await $self->await_p( $self->_finish('login') ) );
+}
 
-sub _finish ( $self, $purpose ) {
-    return if $self->_guard($purpose);
+async sub _finish ( $self, $purpose ) {
+    return if ( await $self->await_p( $self->_guard($purpose) ) );
     my $flow = delete $self->session->{ 'passkey_' . $purpose };
     return $self->_refused if ref $flow ne 'HASH';
     my $payload;
@@ -80,16 +94,20 @@ sub _finish ( $self, $purpose ) {
     };
     my $answer;
     try {
-        $answer = $self->_provider->complete(
-            {
-                %{$flow},
-                purpose         => $purpose,
-                credential      => $payload,
-                user_id         => $self->current_user_id,
-                session_id      => $self->session('session_id'),
-                request_address => $self->request_address,
-                user_agent      => $self->req->headers->user_agent // 'unknown'
-            }
+        $answer = (
+            await $self->call_p(
+                $self->_provider,
+                'complete',
+                {
+                    %{$flow},
+                    purpose         => $purpose,
+                    credential      => $payload,
+                    user_id         => $self->current_user_id,
+                    session_id      => $self->session('session_id'),
+                    request_address => $self->request_address,
+                    user_agent => $self->req->headers->user_agent // 'unknown'
+                }
+            )
         );
     }
     catch ($error) { return $self->_refused; };
@@ -111,17 +129,18 @@ sub _finish ( $self, $purpose ) {
     if ( !$answer->{ok} ) { return $self->_refused; }
     $self->_apply_login_session($answer);
     my $next =
-        $self->_second_step_owed( $answer->{user_id} )
+      ( await $self->await_p( $self->_second_step_owed( $answer->{user_id} ) ) )
       ? $self->url_for('settings_security')->to_string
       : $self->safe_return_to( $flow->{return_to} );
     return $self->render( json => { ok => 1, next => $next } );
 }
 
-sub revoke ($self) {
-    return if $self->_guard('register');
-    my $answer;
-    try {
-        $answer = $self->_provider->revoke(
+async sub revoke ($self) {
+    return if ( await $self->await_p( $self->_guard('register') ) );
+    return $self->respond_p(
+        $self->work_p(
+            $self->_provider,
+            'revoke',
             {
                 user_id    => $self->current_user_id,
                 session_id => $self->session('session_id'),
@@ -129,15 +148,19 @@ sub revoke ($self) {
                 password   => $self->param('password'),
                 code       => $self->param('code')
             }
-        );
-    }
-    catch ($error) { return $self->_refused; };
+        ),
+        sub ($answer) { return $self->_revoked_async($answer); },
+        sub ($error) { return $self->_refused; }
+    );
+}
+
+sub _revoked_async ( $self, $answer ) {
     if ( !$answer ) { return $self->_refused; }
     $self->flash( success => $self->t('auth.passkey_revoked') );
     return $self->redirect_to('settings_passkeys');
 }
 
-sub _guard ( $self, $purpose ) {
+async sub _guard ( $self, $purpose ) {
     $self->res->headers->cache_control('private, no-store');
     if ( $self->req->body_size > $REQUEST_LIMIT ) {
         return $self->render(
@@ -152,28 +175,39 @@ sub _guard ( $self, $purpose ) {
       $purpose eq 'register'
       ? 'identity.second_factor_settings'
       : 'identity.login';
-    my $blocked = $self->identity_post_guard($action);
+    my $blocked =
+      ( await $self->await_p( $self->identity_post_guard($action) ) );
     if ($blocked) { return $blocked; }
     if ( $purpose eq 'register' ) {
-        return $self->_member_guard || $self->_origin_guard;
+        return ( await $self->await_p( $self->_member_guard ) )
+          || ( await $self->await_p( $self->_origin_guard ) );
     }
-    return $self->_origin_guard;
+    return ( await $self->await_p( $self->_origin_guard ) );
 }
 
-sub _member_guard ($self) {
+async sub _member_guard ($self) {
     if ( !$self->current_user_id ) {
         return $self->render(
             status => $HTTP_UNAUTHORIZED,
             json   => { error => 'unauthorized' }
         );
     }
-    if ( !$self->participating( $self->current_user_id, 'identity.passkey' ) ) {
+    if (
+        !(
+            await $self->await_p(
+                $self->participating(
+                    $self->current_user_id, 'identity.passkey'
+                )
+            )
+        )
+      )
+    {
         return 1;
     }
     return;
 }
 
-sub _origin_guard ($self) {
+async sub _origin_guard ($self) {
     my $provider = $self->_provider;
     if ( !$provider->enabled ) {
         return $self->render(
@@ -181,7 +215,9 @@ sub _origin_guard ($self) {
             json   => { error => 'passkey_unavailable' }
         );
     }
-    if ( ( $self->req->headers->origin // q{} ) ne $provider->origin ) {
+    if ( ( $self->req->headers->origin // q{} ) ne
+        ( await $self->call_p( $provider, 'origin' ) ) )
+    {
         return $self->render(
             status => $HTTP_FORBIDDEN,
             json   => { error => 'origin_invalid' }

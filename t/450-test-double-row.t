@@ -11,7 +11,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
-use GPForum::Schema;
+use GPForum::Test::LegacySchema;
 use GPForum::Test::AttachmentRow;
 use GPForum::Test::CommunityRow;
 use GPForum::Test::EngineeringCorrectness::Row;
@@ -51,7 +51,8 @@ const my @ROW_DOUBLES => qw(
 
 # No statement runs: new_result builds a row in memory.
 my $schema =
-  GPForum::Schema->connect('dbi:Pg:dbname=gpforum_no_database;port=1');
+  GPForum::Test::LegacySchema->connect(
+    'dbi:Pg:dbname=gpforum_no_database;port=1');
 
 subtest 'every shared row double answers the DBIx::Class row methods' => sub {
     for my $class (@ROW_DOUBLES) {

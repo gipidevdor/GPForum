@@ -86,8 +86,10 @@ sub apply ( $self, $controller ) {
             development => $controller->app->mode eq 'development',
             name        => $name,
             served      => scalar _served_path( $controller, $name ),
-            sets_cookie => defined $response->headers->set_cookie,
-            version     => $url->query->param($VERSION_PARAMETER),
+            sets_cookie => defined $response->headers->set_cookie
+              || $controller->stash('mojo.active_session')
+              || scalar( keys %{ $controller->stash('mojo.session') // {} } ),
+            version => $url->query->param($VERSION_PARAMETER),
         )
     );
 

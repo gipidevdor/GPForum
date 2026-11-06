@@ -8,6 +8,8 @@ use v5.40;
 use Const::Fast;
 use List::Util qw(any min);
 use Mojo::Date;
+use Carp qw(croak);
+use Mojo::IOLoop;
 
 our $VERSION = '0.001';
 const my $HTTP_OK            => 200;
@@ -22,9 +24,10 @@ sub render ( $self, $controller, $asset, $checksum ) {
     my $headers = $controller->res->headers;
     my $etag    = qq{"$checksum"};
     my $size    = $asset->size;
-    $headers->accept_ranges('bytes')
-      ->etag($etag)
-      ->cache_control('private, no-store');
+    $headers->accept_ranges('bytes')->etag($etag);
+    if ( !defined $headers->cache_control ) {
+        $headers->cache_control('private, no-store');
+    }
     $headers->last_modified( Mojo::Date->new( $asset->mtime )->to_string );
     return $controller->rendered($HTTP_NOT_MODIFIED)
       if _matches( $request->if_none_match // q{}, $etag );
@@ -41,8 +44,66 @@ sub render ( $self, $controller, $asset, $checksum ) {
     }
     $asset->start_range($start)->end_range($end);
     $headers->content_length( $end - $start + 1 );
+    return $self->_stream( $controller, $asset, $end - $start + 1, $code )
+      if $asset->can('get_chunk_p');
     $controller->res->content->asset($asset);
     return $controller->rendered($code);
+}
+
+sub _stream ( $self, $controller, $asset, $length, $code ) {
+    if ( $asset->can('query_context') ) {
+        $asset->query_context( $controller->stash('gp_db_query_stats_token') );
+    }
+    $controller->res->code($code);
+    return $controller->rendered($code) if $controller->req->method eq 'HEAD';
+    $controller->render_later;
+    my ( $offset, $finished ) = ( 0, 0 );
+    my $pump;
+    $controller->on( finish => sub { $finished = 1; undef $pump; return; } );
+    $pump = sub {
+        return if $finished;
+        if ( $offset >= $length ) {
+            $controller->finish;
+            return;
+        }
+        $asset->get_chunk_p($offset)->then(
+            sub ($bytes) {
+                return                         if $finished;
+                croak 'media read ended early' if !length $bytes;
+                $offset += length $bytes;
+
+                # Fetch another bounded chunk only after this one drains.
+                $controller->write(
+                    $bytes,
+                    sub {
+                        if ($pump) { $pump->(); }
+                        return;
+                    }
+                );
+                return;
+            }
+        )->catch(
+            sub ($error) {
+                return if $finished;
+                $controller->log->error('asynchronous media read failed');
+                $finished = 1;
+                undef $pump;
+                if ( !$controller->stash('mojo.finished') ) {
+                    $controller->res->headers->remove('Content-Length');
+                    $controller->render(
+                        text   => 'Media unavailable',
+                        status => 503
+                    );
+                }
+                else {
+                    Mojo::IOLoop->remove( $controller->tx->connection );
+                }
+                return;
+            }
+        );
+    };
+    $pump->();
+    return;
 }
 
 sub _matches ( $match, $etag ) {

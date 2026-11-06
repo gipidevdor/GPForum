@@ -10,7 +10,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
-use GPForum::Schema;
+use GPForum::Test::LegacySchema;
 use GPForum::Service::Community::BookmarkStore;
 use GPForum::Service::Community::FeedReader;
 use GPForum::Service::Community::MentionReader;
@@ -25,7 +25,8 @@ our $VERSION = '0.001';
 # filter on what the reader can read, in the query, before LIMIT. The SQL is
 # generated without a database: DBIx::Class knows the dialect from the DSN.
 my $schema =
-  GPForum::Schema->connect('dbi:Pg:dbname=gpforum_unused;host=127.0.0.1');
+  GPForum::Test::LegacySchema->connect(
+    'dbi:Pg:dbname=gpforum_unused;host=127.0.0.1');
 my $user   = '018f1002-0001-7000-8000-000000000001';
 my $viewer = GPForum::Service::Forum::Viewer->new(
     member       => 1,

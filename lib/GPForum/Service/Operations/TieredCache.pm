@@ -5,6 +5,8 @@ package GPForum::Service::Operations::TieredCache;
 
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use GPForum::Infrastructure::AsyncWork;
+use Mojo::Promise;
 use English qw(-no_match_vars);
 
 our $VERSION = '0.001';
@@ -24,6 +26,7 @@ has stats => sub {
 };
 
 sub get ( $self, $key ) {
+    return undef if $GPForum::Infrastructure::AsyncWork::IS_CHILD;
 
     # L1 is process-local and this read short-circuits on it, so a sibling
     # worker's invalidation has to be absorbed before the hit is trusted.
@@ -136,6 +139,7 @@ sub invalidate_tags ( $self, $tags ) {
 # published already invalidated the shared layer, and re-invalidating it would
 # turn one write into one per worker.
 sub absorb_remote_invalidations ($self) {
+    return 0 if $GPForum::Infrastructure::AsyncWork::IS_CHILD;
     my $bus = $self->bus;
     if ( !$bus ) {
         return 0;
@@ -180,6 +184,21 @@ sub purge_expired ($self) {
     my $removed = $self->l1->purge_expired;
     $self->l2->purge_expired;
     return $removed;
+}
+
+sub clear_p ( $self, $context = undef ) {
+    my $bus = $self->bus;
+    my $removed;
+    {
+        local $self->{bus} = undef;    ## no critic (Variables::ProhibitLocalVars) -- clear local layers before yielding to native publication
+        $removed = $self->clear;
+    }
+    return Mojo::Promise->resolve($removed) if !$bus;
+    return $bus->publish_p( { clear => 1 }, $context )
+      ->then( sub { return $removed; } )
+      if $bus->can('publish_p');
+    return Mojo::Promise->resolve->then(
+        sub { $bus->publish( { clear => 1 } ); return $removed; } );
 }
 
 sub clear ($self) {
@@ -425,6 +444,10 @@ and 0 when it does not or is being skipped after a failed call. An L2
 without C<ping>, such as a LocalCache, is in the process and is no shared
 cache: 0, which readiness reports as the local fallback, as it does for a
 cache with no C<ping>.
+
+=head2 clear_p
+
+Clears both local layers immediately, then awaits publication to sibling workers. Local cache ownership stays in this process.
 
 =head1 DIAGNOSTICS
 

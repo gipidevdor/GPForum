@@ -2,17 +2,21 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 package GPForum::Controller::Navigation;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 use GPForum::Web::Navigation;
 our $VERSION = '0.001';
 
-sub show ($self) {
+async sub show ($self) {
     my $actor   = $self->current_user_id;
     my $context = { available => 1, permissions => {} };
     if ( defined $actor && length $actor ) {
         try {
-            $context = $self->gp_permission_gate->navigation_context($actor);
+            $context = (
+                await $self->call_p(
+                    $self->gp_permission_gate, 'navigation_context', $actor
+                )
+            );
         }
         catch ($error) {
             $self->app->log->warn("navigation permissions unavailable: $error");

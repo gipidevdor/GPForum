@@ -248,6 +248,7 @@ sub _helper_names {
       gp_reply_links
       gp_thread_tags
       gp_tags_for_threads
+      gp_tags_for_threads_p
       gp_thread_page_reads
       gp_community_view_model
       gp_community_workflow
@@ -262,6 +263,7 @@ sub _helper_names {
       gp_configuration
       gp_data_rights_review
       gp_db_query_stats
+      gp_begin_request
       gp_dead_letter_replay
       gp_deletion_workflow
       gp_discovery_view_model

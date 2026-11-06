@@ -6,7 +6,7 @@ package GPForum::Controller::Identity::Profile;
 use Const::Fast;
 use GPForum::Web::ErrorPayload;
 use GPForum::Service::Community::Follows;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -14,16 +14,20 @@ our $VERSION = '0.001';
 const my $HTTP_NOT_FOUND => 404;
 const my $HTTP_OK        => 200;
 
-sub profile ($self) {
-    my $result = $self->gp_profile_reader->public_profile(
-        $self->param('username'),
-        {
-            limit => $self->identity_access->profile_thread_limit(
-                $self->param('limit')
-            ),
-            after         => $self->param('after'),
-            replies_after => $self->param('replies_after'),
-        }
+async sub profile ($self) {
+    my $result = (
+        await $self->call_p(
+            $self->gp_profile_reader,
+            'public_profile',
+            $self->param('username'),
+            {
+                limit => $self->identity_access->profile_thread_limit(
+                    $self->param('limit')
+                ),
+                after         => $self->param('after'),
+                replies_after => $self->param('replies_after'),
+            }
+        )
     );
     if ( !$result->{ok} ) {
         if ( $self->wants_json ) {
@@ -48,8 +52,12 @@ sub profile ($self) {
     # never in the JSON, which says nothing of the reader.
     my $relation =
       $reader
-      ? $self->gp_relation_store->relation_between( $reader,
-        ( $page->{user} || {} )->{user_id} )
+      ? (
+        await $self->call_p(
+            $self->gp_relation_store, 'relation_between',
+            $reader, ( $page->{user} || {} )->{user_id}
+        )
+      )
       : undef;
 
     if ( $self->wants_json ) {
@@ -63,20 +71,28 @@ sub profile ($self) {
         template    => 'identity/profile',
         profile     => $profile,
         relation    => $relation // q{},
-        follow_form => $self->_follow_form( $reader, $page->{user} || {} ),
-        avatar_moderation =>
-          $self->_avatar_moderation( $reader, $page->{user} || {} ),
+        follow_form => (
+            await $self->await_p(
+                $self->_follow_form( $reader, $page->{user} || {} )
+            )
+        ),
+        avatar_moderation => (
+            await $self->await_p(
+                $self->_avatar_moderation( $reader, $page->{user} || {} )
+            )
+        ),
         status => $HTTP_OK,
     );
 }
 
-sub _follow_form ( $self, $reader, $user ) {
+async sub _follow_form ( $self, $reader, $user ) {
     return undef if !$reader || $reader eq ( $user->{user_id} // q{} );
     my $following;
     try {
-        $following = GPForum::Service::Community::Follows->new(
-            schema => $self->gp_schema )
-          ->following( $reader, $user->{user_id} );
+        my $follows = GPForum::Service::Community::Follows->new(
+            schema => $self->gp_schema );
+        $following = await $self->call_p( $follows, 'following', $reader,
+            $user->{user_id} );
     }
     catch ($error) {
         $self->app->log->warn('follow controls unavailable');
@@ -88,17 +104,21 @@ sub _follow_form ( $self, $reader, $user ) {
 
 # ADR 0144: staff holding avatar.moderate globally see the form that removes
 # the picture the member shows; nobody else, and never in the JSON.
-sub _avatar_moderation ( $self, $reader, $user ) {
+async sub _avatar_moderation ( $self, $reader, $user ) {
     return 0 if !$reader || !$user->{avatar_id};
 
-    return $self->gp_permission_gate->allowed(
-        { user_id => $reader },
-        {
-            action        => 'moderate',
-            resource_type => 'avatar',
-            resource_id   => undef,
-            space_id      => undef,
-        }
+    return (
+        await $self->call_p(
+            $self->gp_permission_gate,
+            'allowed',
+            { user_id => $reader },
+            {
+                action        => 'moderate',
+                resource_type => 'avatar',
+                resource_id   => undef,
+                space_id      => undef,
+            }
+        )
     ) ? 1 : 0;
 }
 

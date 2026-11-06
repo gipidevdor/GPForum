@@ -3,7 +3,7 @@
 
 package GPForum::Controller::Push;
 
-use Mojo::Base 'GPForum::Controller::Notifications::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Notifications::Base', -async_await;
 use v5.40;
 use Const::Fast;
 use Mojo::JSON qw(decode_json);
@@ -28,53 +28,70 @@ const my %HTTP_STATUS => (
     limit        => 429,
 );
 
-sub configuration ($self) {
+async sub configuration ($self) {
     $self->res->headers->cache_control('private, no-store');
     my $user = $self->member_user_id or return;
     return $self->_rate_limited
-      if !$self->_allowed( $user, 'notification.push.read' );
+      if !(
+        await $self->await_p(
+            $self->_allowed( $user, 'notification.push.read' ) ) );
     my $configuration;
     try {
         $configuration = $self->gp_push_store->public_config;
         $configuration->{devices} =
-          $configuration->{enabled} ? $self->gp_push_store->devices($user) : [];
+          $configuration->{enabled}
+          ? ( await $self->call_p( $self->gp_push_store, 'devices', $user ) )
+          : [];
         $configuration->{csrf_token} = $self->csrf_token;
     }
     catch ($error) { return $self->system_failure; };
     return $self->render( json => $configuration );
 }
 
-sub register ($self) { return $self->_write('register'); }
-sub confirm  ($self) { return $self->_write('confirm'); }
-sub revoke   ($self) { return $self->_write('revoke'); }
+async sub register ($self) {
+    return ( await $self->await_p( $self->_write('register') ) );
+}
+async sub confirm ($self) {
+    return ( await $self->await_p( $self->_write('confirm') ) );
+}
+async sub revoke ($self) {
+    return ( await $self->await_p( $self->_write('revoke') ) );
+}
 
-sub worker ($self) {
+async sub worker ($self) {
     $self->res->headers->cache_control('private, no-cache');
     $self->res->headers->header( 'Service-Worker-Allowed' => '/push/' );
     $self->res->headers->content_security_policy(
         q{default-src 'none'; script-src 'self'; connect-src 'self'});
-    return $self->reply->file(
-        $self->app->home->rel_file('assets/push-worker.js') );
+    return $self->file_p( $self->app->home->rel_file('assets/push-worker.js') );
 }
 
-sub _write ( $self, $operation ) {
+async sub _write ( $self, $operation ) {
     $self->res->headers->cache_control('private, no-store');
     return $self->_csrf_failure
       if !GPForum::Web::Access->new->same_origin($self);
-    my $user = $self->write_user_id("notification.push.$operation") or return;
+    my $user = (
+        await $self->await_p(
+            $self->write_user_id("notification.push.$operation")
+        )
+    ) or return;
     return $self->render(
         json   => { status => 'disabled' },
         status => $HTTP_UNAVAILABLE
     ) if !$self->gp_push_store->enabled && $operation ne 'revoke';
     if ( $operation eq 'register' ) {
-        my $decision = $self->gp_rate_limiter->check(
-            {
-                action         => 'notification.push.register',
-                actor_id       => $user,
-                scope          => 'push_activation',
-                limit          => $ACTIVATION_LIMIT,
-                window_seconds => $ACTIVATION_WINDOW,
-            }
+        my $decision = (
+            await $self->call_p(
+                $self->gp_rate_limiter,
+                'check',
+                {
+                    action         => 'notification.push.register',
+                    actor_id       => $user,
+                    scope          => 'push_activation',
+                    limit          => $ACTIVATION_LIMIT,
+                    window_seconds => $ACTIVATION_WINDOW,
+                }
+            )
         );
         return $self->_rate_limited if !$decision->{ok};
     }
@@ -82,10 +99,19 @@ sub _write ( $self, $operation ) {
     try {
         my $input = $self->_input;
         $result =
-            $operation eq 'revoke'
-          ? $self->gp_push_store->revoke( $user, $input->{subscription_id} )
-          : $self->gp_push_store->$operation( $user,
-            $self->session('session_id'), $input );
+          $operation eq 'revoke'
+          ? (
+            await $self->call_p(
+                $self->gp_push_store, 'revoke',
+                $user,                $input->{subscription_id}
+            )
+          )
+          : (
+            await $self->call_p(
+                $self->gp_push_store,         $operation, $user,
+                $self->session('session_id'), $input
+            )
+          );
     }
     catch ($error) {
         return $self->render(

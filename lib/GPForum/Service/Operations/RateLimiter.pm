@@ -5,13 +5,16 @@ package GPForum::Service::Operations::RateLimiter;
 
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Service::Clock;
 use GPForum::Service::Operations::RateLimiter::DegradationPolicy;
 use GPForum::Service::Operations::RateLimiter::LocalMemoryStore;
+
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncWork;
 
 our $VERSION = '0.001';
 
@@ -60,6 +63,48 @@ has stats              => sub {
         primary_failures   => 0,
     };
 };
+
+async sub check_p ( $self, $input, $context = undef ) {
+    my $decision;
+    if ( my $store = $self->primary_store ) {
+        try {
+            $decision =
+              $store->can('check_p')
+              ? await $store->check_p( $input, $context )
+              : await GPForum::Infrastructure::AsyncWork->shared
+              ->service_result_p( $store, 'check', [$input], $context );
+        }
+        catch ($error) { $decision = undef; };
+        if ( !$decision ) {
+            $self->stats->{primary_failures}++;
+            $self->_telemetry(
+                'rate_limit_store_degraded',
+                {
+                    action   => $input->{action},
+                    degraded => 1,
+                    reason   => 'primary_store_failed',
+                    store    => 'postgresql'
+                }
+            );
+        }
+    }
+    $decision //= $self->_degraded_decision($input);
+    _mark_denied_reason($decision);
+    my @audits;
+    {
+        local $self->{async_audits} = \@audits;    ## no critic (Variables::ProhibitLocalVars) -- collect this decision's audit promises before yielding
+        $self->_record_decision( $input, $decision );
+    }
+    if (@audits) { await Mojo::Promise->all(@audits); }
+    return $decision;
+}
+
+sub block_audit_result ( $self, $input, $decision ) {
+    local $self->{async_audits} = undef;    ## no critic (Variables::ProhibitLocalVars) -- the isolated audit must not reschedule itself
+    my $before = $self->stats->{audit_failures};
+    $self->_record_block_audit( $input, $decision );
+    return $self->stats->{audit_failures} - $before;
+}
 
 sub check ( $self, $input ) {
     my $decision = $self->_check_primary($input);
@@ -206,6 +251,18 @@ sub _record_block_audit ( $self, $input, $decision ) {
       && defined $decision->{limit}
       && $decision->{observed_count} > $decision->{limit} + 1;
 
+    if ( my $pending = $self->{async_audits} ) {
+        my $operation =
+          GPForum::Infrastructure::AsyncWork->shared->service_result_p( $self,
+            'block_audit_result', [ $input, $decision ] );
+        push @{$pending}, $operation->then(
+            sub ($failures) {
+                $self->stats->{audit_failures} += $failures;
+                return;
+            }
+        )->catch( sub { $self->stats->{audit_failures}++; return; } );
+        return;
+    }
     my $created;
     try {
         $created = $self->recorder->record_audit(
@@ -429,6 +486,14 @@ C<fail_closed>, and a copy of C<stats>. When the authoritative snapshot throws,
 the local snapshot is returned with C<< status => 'degraded' >> and
 C<< fallback => 1 >> so the metrics endpoint cannot report a degraded limiter
 as healthy.
+
+=head2 block_audit_result
+
+Internal executor operation for a first-refusal audit. Returns the audit failure count to merge into the owning limiter; no service object or connection crosses IPC.
+
+=head2 check_p
+
+Awaits the primary store, keeps fallback windows, counters and telemetry in the parent, and isolates only the first-refusal audit. Accepts the request context last.
 
 =head1 DIAGNOSTICS
 

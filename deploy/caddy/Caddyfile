@@ -11,17 +11,17 @@ forum.example.com {
     @versioned query v=*
     @unversioned not query v=*
 
-    # The application's static roots are assets/css and assets/img, searched
-    # in that order and served at the site root (/gpforum-ssr.css,
-    # /gpforum-mark.svg). Caddy serves them from disk with the application's
-    # Cache-Control; a name neither holds goes on to the application. A file
+    # The application's static roots are assets/css, assets/img and assets/js,
+    # searched in that order and served at the site root (/gpforum-ssr.css,
+    # /gpforum-mark.svg, /page-enhancements.js). Caddy preserves the application's
+    # Cache-Control; a name none holds goes on to the application. A file
     # Caddy serves itself carries none of the application's browser headers,
     # so nosniff is added here.
     @static_root {
         path_regexp ^/[^/]+\.(css|js|svg|png|jpe?g|webp|ico|woff2)$
         file {
             root /opt/gpforum/assets
-            try_files /css{path} /img{path}
+            try_files /css{path} /img{path} /js{path}
         }
     }
     handle @static_root {

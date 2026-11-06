@@ -88,7 +88,8 @@ sub schema {
 
     if ( !$self->{schema} ) {
         local $ENV{GPFORUM_DATABASE_DSN} = $self->{dsn};
-        $self->{schema} = GPForum::Schema->connect_from_config(
+        require GPForum::Test::PgSchema;
+        $self->{schema} = GPForum::Test::PgSchema->connect_from_config(
             GPForum::Config->from_environment );
     }
 

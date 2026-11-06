@@ -4,7 +4,7 @@
 package GPForum::Service::Realtime::ListenerSupervisor;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 use Mojo::IOLoop;
 use Scalar::Util qw(weaken);
@@ -60,6 +60,123 @@ has stats         => sub {
     };
 };
 has status => 'stopped';
+
+sub start_p( $self, $options = undef ) {
+    return $self->{starting} if $self->{starting};
+    my $promise = $self->_start_p($options);
+    $self->{starting} = $promise;
+    return $promise->finally( sub { delete $self->{starting}; return; } );
+}
+
+async sub _start_p ( $self, $options = undef ) {
+    $options ||= {};
+    return { ok => 0, status => 'disabled', reason => 'disabled' }
+      if !$self->enabled;
+    return { ok => 1, status => 'running', idempotent => 1 }
+      if $self->running;
+
+    my ( $started, $died );
+    try {
+        $started =
+          $self->listener->can('start_p')
+          ? await $self->listener->start_p
+          : $self->listener->start;
+    }
+    catch ($error) {
+        $died = $error;
+    };
+    if ( !$started || !$started->{ok} ) {
+        my $reason = $self->_record_failure( 'start', $started, $died );
+        $self->stats->{degraded} += 1;
+        if ( !$options->{without_timers} ) {
+            $self->_schedule_reconnect;
+        }
+        return {
+            ok       => 0,
+            degraded => 1,
+            status   => 'degraded',
+            reason   => $reason,
+        };
+    }
+
+    $self->running(1);
+    $self->status('running');
+    $self->stats->{starts} += 1;
+    $self->_register_finish_handler;
+    if ( !$options->{without_timers} ) {
+        $self->_schedule_timers;
+    }
+
+    return {
+        ok       => 1,
+        status   => 'running',
+        listener => $started,
+    };
+}
+async sub poll_once_p ($self) {
+    return { ok => 0, status => 'disabled', reason => 'disabled' }
+      if !$self->enabled;
+    my $started;
+    if ( !$self->running ) {
+        $started = ( await $self->start_p( { without_timers => 1 } ) );
+    }
+    return $started if $started && !$started->{ok};
+
+    my ( $result, $died );
+    try {
+        $result =
+          $self->listener->can('poll_once_p')
+          ? await $self->listener->poll_once_p
+          : $self->listener->poll_once;
+    }
+    catch ($error) {
+        $died = $error;
+    };
+    $self->stats->{polls} += 1;
+
+    if ( !$result || !$result->{ok} ) {
+        my $reason = $self->_record_failure( 'poll', $result, $died );
+        $self->stats->{poll_failures} += 1;
+        ( await $self->_reconnect_now_p() );
+        return {
+            ok       => 0,
+            degraded => 1,
+            status   => 'degraded',
+            reason   => $reason,
+        };
+    }
+
+    # The listener works again: its next failure is a new outage.
+    delete $self->logged_errors->{listener};
+
+    return $result;
+}
+async sub _reconnect_now_p ($self) {
+    $self->stats->{reconnects} += 1;
+    my ( $result, $died );
+    try {
+        $result =
+          $self->listener->can('start_p')
+          ? await $self->listener->start_p
+          : $self->listener->reconnect;
+    }
+    catch ($error) {
+        $died = $error;
+    };
+
+    if ( !$result || !$result->{ok} ) {
+        $self->_record_failure( 'reconnect', $result, $died );
+        $self->running(0);
+        $self->_schedule_reconnect;
+        return undef;
+    }
+
+    $self->running(1);
+    $self->status('running');
+    $self->_schedule_timers;
+
+    return undef;
+}
 
 sub start ( $self, $options = undef ) {
     $options ||= {};
@@ -265,7 +382,11 @@ sub _schedule_timers ($self) {
         $self->poll_timer_id(
             $self->ioloop->recurring(
                 $self->poll_interval_seconds => sub {
-                    $self->poll_once;
+                    return if $self->{poll_pending};
+                    $self->{poll_pending} = 1;
+                    $self->poll_once_p->finally(
+                        sub { delete $self->{poll_pending}; return; } )
+                      ->catch( sub { return; } );
                 }
             )
         );
@@ -310,7 +431,7 @@ sub _schedule_reconnect ($self) {
         $self->ioloop->timer(
             $self->reconnect_backoff_seconds => sub {
                 $self->reconnect_timer_id(undef);
-                $self->_reconnect_now;
+                $self->_reconnect_now_p->catch( sub { return; } );
             }
         )
     );
@@ -456,6 +577,14 @@ C<< { status => 'unavailable', error => $message } >> and counts in
 C<snapshot_failures>; it leaves C<last_error> and C<status> as they were,
 since they describe the listener's own start, poll and reconnect. It never
 dies itself, since C</metrics> and the admin console read it.
+
+=head2 poll_once_p
+
+Awaits one nonblocking poll, preserving the existing cursor, gap handling and delivery counters. The supervisor coalesces overlapping timer polls.
+
+=head2 start_p
+
+Starts the listener with asynchronous connection and LISTEN setup. State, registration and timers remain in the owning process.
 
 =head1 DIAGNOSTICS
 

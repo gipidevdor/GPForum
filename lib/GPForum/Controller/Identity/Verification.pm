@@ -4,7 +4,7 @@
 package GPForum::Controller::Identity::Verification;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -20,18 +20,24 @@ sub email_verify_request_form ($self) {
     );
 }
 
-sub request_email_verification ($self) {
-    my $guard = $self->identity_post_guard('identity.email_verify');
+async sub request_email_verification ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.email_verify') ) );
     if ($guard) {
         return $guard;
     }
 
-    my $result = $self->gp_identity_workflow->request_email_verification(
-        {
-            command_id      => $self->command_id_param,
-            identifier      => $self->param('identifier'),
-            request_address => $self->request_address,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'request_email_verification',
+            {
+                command_id      => $self->command_id_param,
+                identifier      => $self->param('identifier'),
+                request_address => $self->request_address,
+            }
+        )
     );
     if ( $result->{status} eq 'invalid' ) {
         return $self->render(
@@ -69,17 +75,23 @@ sub email_verify_form ($self) {
     );
 }
 
-sub verify_email ($self) {
-    my $guard = $self->identity_post_guard('identity.email_verify');
+async sub verify_email ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.email_verify') ) );
     if ($guard) {
         return $guard;
     }
 
-    my $result = $self->gp_identity_workflow->verify_email(
-        {
-            command_id => $self->command_id_param,
-            token      => $self->param('token'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'verify_email',
+            {
+                command_id => $self->command_id_param,
+                token      => $self->param('token'),
+            }
+        )
     );
     if ( $result->{status} eq 'invalid' ) {
         return $self->identity_bad_request;

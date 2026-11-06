@@ -3,39 +3,57 @@
 
 package GPForum::Controller::Notifications::Read;
 
-use Mojo::Base 'GPForum::Controller::Notifications::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Notifications::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub mark_read ($self) {
-    my $user_id = $self->write_user_id('notification.read');
+async sub mark_read ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('notification.read') ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->mark_read_response(
-        $self->gp_notification_workflow->mark_read(
-            {
-                notification_id => $self->param('notification_id'),
-                user_id         => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->mark_read_response(
+                (
+                    await $self->call_p(
+                        $self->gp_notification_workflow,
+                        'mark_read',
+                        {
+                            notification_id => $self->param('notification_id'),
+                            user_id         => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 
-sub mark_all_read ($self) {
-    my $user_id = $self->write_user_id('notification.read');
+async sub mark_all_read ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('notification.read') ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->mark_all_read_response(
-        $self->gp_notification_workflow->mark_all_read(
-            {
-                user_id => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->mark_all_read_response(
+                (
+                    await $self->call_p(
+                        $self->gp_notification_workflow,
+                        'mark_all_read',
+                        {
+                            user_id => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 

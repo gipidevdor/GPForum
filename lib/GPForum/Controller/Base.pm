@@ -3,12 +3,18 @@
 
 package GPForum::Controller::Base;
 
-use Mojo::Base 'Mojolicious::Controller', -signatures;
+use Mojo::Base 'Mojolicious::Controller', -async_await;
 use v5.40;
+use English qw(-no_match_vars);
 
 use Const::Fast;
 
 use GPForum::Infrastructure::Text qw(trimmed);
+use GPForum::Infrastructure::AsyncWork;
+use GPForum::Infrastructure::RequestPromise;
+use GPForum::Infrastructure::FileAsset;
+use GPForum::Web::MediaResponse;
+use GPForum::Log;
 use GPForum::Web::Access;
 use GPForum::Web::Guard;
 use GPForum::Web::Responder;
@@ -17,6 +23,108 @@ use GPForum::Web::SecurityEvent;
 our $VERSION = '0.001';
 
 const my $HTTP_FORBIDDEN => 403;
+
+sub async_work ($self) {
+    return GPForum::Infrastructure::AsyncWork->shared;
+}
+
+sub await_p ( $self, @values ) {
+    return GPForum::Infrastructure::RequestPromise->new->controller($self)
+      ->resolve(@values);
+}
+
+sub call_p ( $self, $service, $method, @arguments ) {
+    if ( !$self->stash('mojo.finished') ) { $self->render_later; }
+    my $context = $self->stash('gp_db_query_stats_token');
+    my $promise = $self->within_request(
+        sub {
+            my $async = $method . '_p';
+            return $service->$async( @arguments, $context )
+              if $service->can($async);
+            my $abandoned = 0;
+            $self->tx->on( finish => sub { $abandoned = 1; return; } );
+            return $self->async_work->service_result_p( $service, $method,
+                \@arguments, $context, sub { return $abandoned; } );
+        }
+    );
+    return $self->await_p($promise);
+}
+
+sub file_p ( $self, $path, $type = undef ) {
+    $self->render_later;
+    return GPForum::Infrastructure::FileAsset->from_path_p($path)->then(
+        sub ($asset) {
+            return if $self->stash('mojo.finished');
+            if (   !defined $type
+                && !defined $self->res->headers->content_type
+                && "$path" =~ /[.]([[:alnum:]]+)\z/msx )
+            {
+                $type = $self->app->types->type($1);
+            }
+            if ( defined $type ) { $self->res->headers->content_type($type); }
+            return GPForum::Web::MediaResponse->new->render( $self, $asset,
+                $asset->size . q{-} . $asset->mtime );
+        }
+    );
+}
+
+sub respond_p ( $self, $promise, $respond, $failure = undef ) {
+    $self->render_later;
+    my $finished = 0;
+    $self->tx->on( finish => sub { $finished = 1; return; } );
+    $promise->then(
+        sub (@values) {
+            return if $finished;
+            my $work = sub { return $respond->(@values); };
+            return $self->within_request($work);
+        }
+    )->catch(
+        sub ($error) {
+            return if $finished;
+            my $work = sub {
+                return $failure->($error) if $failure;
+                return GPForum::Web::Guard->new->service_unavailable($self);
+            };
+            return $self->within_request($work);
+        }
+    );
+    return;
+}
+
+sub work_p ( $self, $service, $method, $input ) {
+    my $abandoned = 0;
+    $self->tx->on( finish => sub { $abandoned = 1; return; } );
+    return $self->async_work->service_p(
+        $service, $method, $input,
+        $self->stash('gp_db_query_stats_token'),
+        sub { return $abandoned; }
+    );
+}
+
+sub work_args_p ( $self, $service, $method, $arguments ) {
+    my $abandoned = 0;
+    $self->tx->on( finish => sub { $abandoned = 1; return; } );
+    return $self->async_work->service_args_p(
+        $service, $method, $arguments,
+        $self->stash('gp_db_query_stats_token'),
+        sub { return $abandoned; }
+    );
+}
+
+sub within_request ( $self, $work ) {
+    local $GPForum::Infrastructure::PgStorage::HTTP_PID = $PROCESS_ID;
+    my $stats =
+        $self->app->renderer->get_helper('gp_db_query_stats')
+      ? $self->gp_db_query_stats
+      : undef;
+    my $scoped = sub {
+        return GPForum::Log->in_context( $self->stash('gp_log_context'),
+            $work );
+    };
+    return $stats
+      ? $stats->in_context( $self->stash('gp_db_query_stats_token'), $scoped )
+      : $scoped->();
+}
 
 # A write's command id: the Forum-style command_id field, or the older
 # idempotency_key; empty when neither is given.
@@ -62,10 +170,15 @@ sub global_permission_scope {
 # The refusal is recorded as a suspended_user_block under the action tried
 # and answered 403; a store that cannot say answers 503, as an unreachable
 # write does. True when they may.
-sub participating ( $self, $user_id, $action ) {
+async sub participating ( $self, $user_id, $action ) {
     my $decision;
     try {
-        $decision = $self->gp_suspension_store->can_participate($user_id);
+        $decision = (
+            await $self->call_p(
+                $self->gp_suspension_store,
+                'can_participate', $user_id
+            )
+        );
     }
     catch ($error) {
         $self->app->log->error("participation check failed: $error");
@@ -128,6 +241,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use v5.40;
 
     my $command_id = $self->command_id_param;
     my $after      = $self->optional_param('after');
@@ -191,6 +305,44 @@ request asks (L<GPForum::Web::Guard>).
 =head2 system_failure
 
 Renders the internal-error answer, JSON or a page as the request asks.
+
+=head2 await_p
+
+Wraps a promise so async/await resumes inside the originating request's query
+and logging context. No context is retained across a yield.
+
+=head2 call_p
+
+Defers rendering and uses a service's native promise API when present. A
+persistent synchronous workflow runs in the bounded subprocess executor, with
+its transaction, typed result rows and exceptions preserved.
+
+=head2 file_p
+
+Reads file metadata off the reactor and streams bounded chunks with backpressure,
+including HEAD, byte ranges and conditional responses.
+
+=head2 async_work
+
+Returns the shared per-worker executor for blocking operations.
+
+=head2 respond_p
+
+Defers rendering until a promise settles, restores request counters and logging
+for callbacks, and skips responses after disconnect. Admission failures answer 503.
+
+=head2 work_p
+
+Runs a persistent service method with one input in a bounded subprocess.
+
+=head2 work_args_p
+
+Runs a persistent service method with positional inputs in a bounded subprocess.
+
+=head2 within_request
+
+Scopes synchronous callback work to its original request's counters and logger.
+The scope is restored before the callback's returned promise yields.
 
 =head1 DIAGNOSTICS
 

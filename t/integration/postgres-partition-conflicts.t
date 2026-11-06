@@ -406,6 +406,10 @@ sub _refused_lookup {
 sub _raced_event {
     my ($ctx) = @_;
 
+    # This race deliberately suppresses an ORM lookup. Keep both its
+    # transaction and resultset on the historical fixture storage.
+    $ctx = { %{$ctx}, schema => $ctx->{schema}->fixture_schema };
+
     my $recorder = GPForum::Infrastructure::EventRecorder->new(
         id_service => $ctx->{ids},
         schema     => $ctx->{schema},

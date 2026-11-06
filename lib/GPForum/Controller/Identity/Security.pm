@@ -4,7 +4,7 @@
 package GPForum::Controller::Identity::Security;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::QrCode;
@@ -42,17 +42,21 @@ const my %REFUSAL => (
 # The member's two-step sign-in: off with the way to set it up, pending
 # with the QR code and the key to type, or on with the way to renew the
 # recovery codes and to turn it off.
-sub show ($self) {
+async sub show ($self) {
     my $user_id = $self->current_user_id;
     return $self->settings_unauthorized if !$user_id;
 
     my $two_step = $self->gp_second_factor;
     my ( $status, $enrollment );
     try {
-        $status = $two_step->status($user_id);
+        $status = ( await $self->call_p( $two_step, 'status', $user_id ) );
         $enrollment =
-            $status->{state} eq 'pending'
-          ? $two_step->enrollment( $user_id, $self->t('app.name') )
+          $status->{state} eq 'pending'
+          ? (
+            await $self->call_p(
+                $two_step, 'enrollment', $user_id, $self->t('app.name')
+            )
+          )
           : undef;
     }
     catch ($error) {
@@ -83,7 +87,7 @@ sub show ($self) {
         enrollment => $enrollment
         ? {
             secret => $enrollment->{secret},
-            qr     => $self->_qr_code( $enrollment->{uri} ),
+            qr => await $self->await_p( $self->_qr_code( $enrollment->{uri} ) ),
           }
         : undef,
         digits => $two_step->codes->digits,
@@ -93,12 +97,17 @@ sub show ($self) {
 
 # The link as an inline SVG QR code; without one (a link longer than the
 # code holds) the page shows the key to type alone.
-sub _qr_code ( $self, $uri ) {
+async sub _qr_code ( $self, $uri ) {
     my $svg;
     try {
-        $svg =
-          GPForum::Web::QrCode->svg( $uri,
-            $self->t('auth.second_factor_qr_label') );
+        my $label = $self->t('auth.second_factor_qr_label');
+        $svg = await $self->await_p(
+            $self->async_work->run_p(
+                sub {
+                    return GPForum::Web::QrCode->svg( $uri, $label );
+                }
+            )
+        );
     }
     catch ($error) {
         $self->app->log->warn("second factor QR code skipped: $error");
@@ -107,67 +116,97 @@ sub _qr_code ( $self, $uri ) {
     return $svg;
 }
 
-sub begin ($self) {
-    my $user_id = $self->_writer or return;
-
-    return $self->_answer( 'auth.second_factor_begun',
-        $self->_service( begin => $user_id, $self->param('password') ) );
-}
-
-sub cancel ($self) {
-    my $user_id = $self->_writer or return;
-
-    return $self->_answer( 'auth.second_factor_cancelled',
-        $self->_service( cancel => $user_id ) );
-}
-
-sub confirm ($self) {
-    my $user_id = $self->_writer or return;
-    my $result  = $self->_service(
-        confirm => $user_id,
-        $self->param('code'), $self->session('session_id')
+async sub begin ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
+    return $self->respond_p(
+        $self->_service_p( begin => $user_id, $self->param('password') ),
+        async sub ($result) {
+            return (
+                await $self->await_p(
+                    $self->_answer( 'auth.second_factor_begun', $result )
+                )
+            );
+        }
     );
-
-    return $self->_codes( 'auth.second_factor_enabled', $result );
 }
 
-sub renew ($self) {
-    my $user_id = $self->_writer or return;
-
-    return $self->_codes( 'auth.second_factor_renewed',
-        $self->_service( renew => $user_id, $self->param('code') ) );
+async sub cancel ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
+    return $self->respond_p(
+        $self->_service_p( cancel => $user_id ),
+        async sub ($result) {
+            return (
+                await $self->await_p(
+                    $self->_answer( 'auth.second_factor_cancelled', $result )
+                )
+            );
+        }
+    );
 }
 
-sub disable ($self) {
-    my $user_id = $self->_writer or return;
+async sub confirm ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
+    return $self->respond_p(
+        $self->_service_p(
+            confirm => $user_id,
+            $self->param('code'), $self->session('session_id')
+        ),
+        async sub ($result) {
+            return (
+                await $self->await_p(
+                    $self->_codes( 'auth.second_factor_enabled', $result )
+                )
+            );
+        }
+    );
+}
 
-    return $self->_answer(
-        'auth.second_factor_disabled',
-        $self->_service(
+async sub renew ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
+    return $self->respond_p(
+        $self->_service_p( renew => $user_id, $self->param('code') ),
+        async sub ($result) {
+            return (
+                await $self->await_p(
+                    $self->_codes( 'auth.second_factor_renewed', $result )
+                )
+            );
+        }
+    );
+}
+
+async sub disable ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
+    return $self->respond_p(
+        $self->_service_p(
             disable => $user_id,
             $self->param('password'), $self->param('code')
-        )
+        ),
+        async sub ($result) {
+            return (
+                await $self->await_p(
+                    $self->_answer( 'auth.second_factor_disabled', $result )
+                )
+            );
+        }
     );
 }
 
-# The service's answer, or undef when it failed (logged).
-sub _service ( $self, $method, @arguments ) {
-    my $result;
-    try {
-        $result = $self->gp_second_factor->$method(@arguments);
-    }
-    catch ($error) {
-        $self->app->log->error("second factor $method failed: $error");
-        return undef;
-    };
-
-    return $result;
+sub _service_p ( $self, $method, @arguments ) {
+    return $self->work_args_p( $self->gp_second_factor, $method, \@arguments )
+      ->catch(
+        sub ($error) {
+            $self->app->log->error("second factor $method failed");
+            return undef;
+        }
+      );
 }
 
 # CSRF, the rate limit, then a signed-in member: undef once a refusal is
 # rendered.
-sub _writer ($self) {
-    return undef if $self->identity_post_guard($ACTION);
+async sub _writer ($self) {
+    return undef
+      if ( await $self->await_p( $self->identity_post_guard($ACTION) ) );
 
     my $user_id = $self->current_user_id;
     if ( !$user_id ) {
@@ -180,8 +219,9 @@ sub _writer ($self) {
 
 # The recovery codes, shown once on a page of their own that is never
 # stored by a cache.
-sub _codes ( $self, $done, $result ) {
-    return $self->_answer( $done, $result ) if !$result || !$result->{ok};
+async sub _codes ( $self, $done, $result ) {
+    return ( await $self->await_p( $self->_answer( $done, $result ) ) )
+      if !$result || !$result->{ok};
 
     $self->res->headers->cache_control('private, no-store');
     if ( $self->wants_json ) {

@@ -3,7 +3,7 @@
 
 package GPForum::Controller::Admin::Maintenance;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -11,33 +11,49 @@ our $VERSION = '0.001';
 # Neither is behind a danger confirmation: a rebuild rewrites the search
 # index from the forum, and a purge drops pages that are rendered again on
 # their next request. Nothing is taken away.
-sub search_rebuild ($self) {
-    return $self->_maintenance( 'request_search_rebuild',
-        sub { return $self->admin_access->search_rebuild_status; } );
+async sub search_rebuild ($self) {
+    return (
+        await $self->await_p(
+            $self->_maintenance(
+                'request_search_rebuild',
+                sub { return $self->admin_access->search_rebuild_status; }
+            )
+        )
+    );
 }
 
 # The answer follows how far the purge went: a purge the shared cache did not
 # take is a warning naming the tags it left, not "purged".
-sub cache_purge ($self) {
-    return $self->_maintenance(
-        'purge_public_cache',
-        sub ($stored) {
-            return $self->admin_access->cache_purge_status( $stored->{status} );
-        }
+async sub cache_purge ($self) {
+    return (
+        await $self->await_p(
+            $self->_maintenance(
+                'purge_public_cache',
+                sub ($stored) {
+                    return $self->admin_access->cache_purge_status(
+                        $stored->{status} );
+                }
+            )
+        )
     );
 }
 
-sub _maintenance ( $self, $command, $status_of ) {
-    my $actor_user_id = $self->authorized_write_user_id;
+async sub _maintenance ( $self, $command, $status_of ) {
+    my $actor_user_id =
+      ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$actor_user_id ) {
         return;
     }
 
-    my $result = $self->gp_admin_workflow->$command(
-        {
-            actor_user_id => $actor_user_id,
-            command_id    => $self->command_id_param,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_admin_workflow,
+            $command,
+            {
+                actor_user_id => $actor_user_id,
+                command_id    => $self->command_id_param,
+            }
+        )
     );
     my $failure = $self->write_failure($result);
     return $failure if $failure;

@@ -3,39 +3,54 @@
 
 package GPForum::Controller::Admin::Categories;
 
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub create_category ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub create_category ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->category_write_response(
-        $self->gp_admin_workflow->create_category(
-            $self->_category_params($user_id)
-        ),
-        $self->admin_access->category_created_status,
+    return (
+        await $self->await_p(
+            $self->category_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow, 'create_category',
+                        $self->_category_params($user_id)
+                    )
+                ),
+                $self->admin_access->category_created_status,
+            )
+        )
     );
 }
 
-sub update_category ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub update_category ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
-    return $self->category_write_response(
-        $self->gp_admin_workflow->update_category(
-            {
-                %{ $self->_category_params($user_id) },
-                category_id => $self->param('category_id'),
-            }
-        ),
-        $self->admin_access->category_updated_status,
+    return (
+        await $self->await_p(
+            $self->category_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_admin_workflow,
+                        'update_category',
+                        {
+                            %{ $self->_category_params($user_id) },
+                            category_id => $self->param('category_id'),
+                        }
+                    )
+                ),
+                $self->admin_access->category_updated_status,
+            )
+        )
     );
 }
 

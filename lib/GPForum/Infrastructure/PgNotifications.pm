@@ -4,9 +4,14 @@
 package GPForum::Infrastructure::PgNotifications;
 
 use Const::Fast;
+use Carp qw(croak);
 use Mojo::Base -base, -signatures;
 use v5.40;
+use English      qw(-no_match_vars);
 use Scalar::Util qw(refaddr weaken);
+use Mojo::IOLoop;
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncGate;
 
 use GPForum::Infrastructure::Storage;
 
@@ -16,7 +21,8 @@ our $VERSION = '0.001';
 # otherwise grow its queue for as long as the process lives.
 const my $DEFAULT_MAX_QUEUED => 1_000;
 
-has max_queued => $DEFAULT_MAX_QUEUED;
+has asynchronous => 0;
+has max_queued   => $DEFAULT_MAX_QUEUED;
 
 # Without a schema there is no connection to listen on, and every listen
 # and take reports the database unavailable, as a lost one does.
@@ -26,7 +32,7 @@ has schema => undef;    # optional: then always unavailable
 # connection changes, every channel has to be listened for again. It is
 # known by its backend PID and by the handle itself, held weakly. A PID can
 # come back -- a PostgreSQL restarted in a fresh container hands out the
-# same small PIDs again -- but DBIx::Class replaces the handle whenever it
+# same small PIDs again -- but the storage replaces the handle whenever it
 # reconnects, and a handle that was freed or replaced is a new connection
 # whatever its PID. All three are undef until the first take sees one.
 has backend_pid => undef;               # optional: state, set by the first take
@@ -48,6 +54,12 @@ has stats            => sub {
 };
 
 sub listen_to ( $self, $channel ) {
+    if ( $self->_native ) {
+        $self->channels->{$channel} //=
+          { connection => undef, failed => 0, gap => 0, queue => [] };
+        $self->ensure_p->catch( sub { return; } );
+        return $self->listening($channel);
+    }
     my $entry = $self->channels->{$channel};
     if ( !$entry ) {
         $entry = { connection => undef, failed => 0, gap => 0, queue => [] };
@@ -73,6 +85,22 @@ sub listen_to ( $self, $channel ) {
 }
 
 sub unlisten ( $self, $channel ) {
+    if ( $self->_native ) {
+        delete $self->channels->{$channel};
+        $self->ensure_p->then(
+            sub {
+                return if !$self->{async_db};
+                return $self->{async_gate}->run_p(
+                    sub {
+                        return $self->{async_db}->query_p( 'UNLISTEN '
+                              . $self->{async_db}
+                              ->dbh->quote_identifier($channel) );
+                    }
+                );
+            }
+        )->catch( sub { return; } );
+        return 1;
+    }
     my $entry = delete $self->channels->{$channel};
     if ( !$entry || !defined $entry->{connection} ) {
         return 1;
@@ -117,6 +145,7 @@ sub listening ( $self, $channel ) {
 # whole libpq buffer and files each notification under its own channel, so
 # one consumer draining the handle no longer swallows another's messages.
 sub take ( $self, $channel ) {
+    return $self->_take_native($channel) if $self->_native;
     my $entry = $self->channels->{$channel};
     if ( !$entry ) {
         return { available => 0, gap => 0, notifications => [] };
@@ -161,6 +190,157 @@ sub take ( $self, $channel ) {
     };
 }
 
+sub listen_to_p ( $self, $channel ) {
+    return Mojo::Promise->resolve( $self->listen_to($channel) )
+      if !$self->_native;
+    $self->channels->{$channel} //=
+      { connection => undef, failed => 0, gap => 0, queue => [] };
+    return $self->ensure_p->then( sub { return $self->listening($channel); } );
+}
+
+sub take_p ( $self, $channel ) {
+    return Mojo::Promise->resolve( $self->take($channel) ) if !$self->_native;
+    return $self->ensure_p->then(
+        sub { return $self->_take_native($channel); } );
+}
+
+sub _native ($self) {
+    return
+         $self->asynchronous
+      && !$GPForum::Infrastructure::AsyncWork::IS_CHILD
+      && $self->schema
+      && $self->schema->isa('GPForum::Schema');
+}
+
+# One dedicated, idle LISTEN connection is shared by all consumers. Neither
+# cache lookups nor the read watcher check a pooled connection out or ping it.
+sub ensure_p ($self) {
+    return Mojo::Promise->resolve(1) if !$self->_native;
+    if ( ( $self->{async_owner} // 0 ) != $PROCESS_ID ) {
+        if ( my $old = delete $self->{async_db} ) {
+            $old->dbh->{InactiveDestroy} = 1;
+        }
+        delete $self->{async_pending};
+        if ( my $socket = delete $self->{async_watch} ) {
+            Mojo::IOLoop->singleton->reactor->remove($socket);
+            close $socket or croak 'cannot close notification descriptor';
+        }
+        $self->{async_owner} = $PROCESS_ID;
+        $self->{async_gate} =
+          GPForum::Infrastructure::AsyncGate->new( concurrency => 1 );
+        $self->_read_unavailable;
+    }
+    return $self->{async_pending} if $self->{async_pending};
+    my $operation = $self->{async_gate}->run_p(
+        sub {
+            my $connected =
+              $self->{async_db}
+              ? Mojo::Promise->resolve( $self->{async_db} )
+              : $self->schema->storage->database_p;
+            return $connected->then(
+                sub ($db) {
+                    $self->{async_db} = $db;
+                    $self->schema->storage->notifications($self);
+                    my $identity = $self->_identify( $db->dbh );
+                    my $chain    = Mojo::Promise->resolve;
+                    for my $channel ( sort keys %{ $self->channels } ) {
+                        next if $self->listening($channel);
+                        $chain = $chain->then(
+                            sub {
+                                return $db->query_p( 'LISTEN '
+                                      . $db->dbh->quote_identifier($channel) )
+                                  ->then(
+                                    sub {
+                                        my $entry = $self->channels->{$channel};
+                                        return if !$entry;
+                                        if ( $entry->{failed} ) {
+                                            $entry->{gap} = 1;
+                                            $self->stats->{relistens}++;
+                                        }
+                                        $entry->{connection} = $identity;
+                                        $entry->{failed}     = 0;
+                                        return;
+                                    }
+                                  );
+                            }
+                        );
+                    }
+                    return $chain->then(
+                        sub { $self->_watch_native; return 1; } );
+                }
+            );
+        }
+    )->catch( sub ($error) { $self->_drop_native; return 0; } );
+    $self->{async_pending} = $operation;
+    return $operation->finally(
+        sub { delete $self->{async_pending}; return; } );
+}
+
+sub _watch_native ($self) {
+    return if $self->{async_watch};
+    my $fd = $self->{async_db}->dbh->{pg_socket};
+    open my $socket, '+<&', $fd    ## no critic (InputOutput::RequireBriefOpen) -- the reactor owns this long-lived LISTEN descriptor
+      or croak "Cannot watch PostgreSQL notifications: $OS_ERROR";
+    $self->{async_watch} = $socket;
+    my $broker = $self;
+    weaken($broker);
+    my $reactor = Mojo::IOLoop->singleton->reactor;
+    $reactor->io(
+        $socket => sub {
+            return if !$broker;
+            if ( !$broker->_pump( $broker->{async_db}->dbh ) ) {
+                $broker->_drop_native;
+            }
+        }
+    )->watch( $socket, 1, 0 );
+    return;
+}
+
+sub retire_connections ($self) {
+    if ( ( $self->{async_owner} // 0 ) == $PROCESS_ID ) { $self->_drop_native; }
+    return;
+}
+
+sub _drop_native ($self) {
+    if ( my $socket = delete $self->{async_watch} ) {
+        Mojo::IOLoop->singleton->reactor->remove($socket);
+        close $socket or croak 'cannot close notification descriptor';
+    }
+    if ( my $db = delete $self->{async_db} ) {
+        try { $db->dbh->disconnect; } catch ($error) {
+        };
+    }
+    $self->_read_unavailable;
+    return;
+}
+
+sub _take_native ( $self, $channel ) {
+    if ( ( $self->{async_owner} // 0 ) != $PROCESS_ID ) {
+        $self->_read_unavailable;
+        $self->ensure_p->catch( sub { return; } );
+        return { available => 0, gap => 1, notifications => [] };
+    }
+    my $entry = $self->channels->{$channel};
+    return { available => 0, gap => 0, notifications => [] } if !$entry;
+    my $ready = $self->{async_db} && $self->listening($channel);
+    if ( $ready && !$self->_pump( $self->{async_db}->dbh ) ) {
+        $self->_drop_native;
+        $ready = 0;
+    }
+    if ( !$ready ) {
+        $self->_read_unavailable;
+        $self->ensure_p->catch( sub { return; } );
+    }
+    my @notifications = splice @{ $entry->{queue} };
+    my $gap           = $entry->{gap};
+    $entry->{gap} = 0;
+    return {
+        available     => $ready ? 1 : 0,
+        gap           => $gap,
+        notifications => \@notifications
+    };
+}
+
 sub snapshot ($self) {
     my %channels;
     for my $channel ( keys %{ $self->channels } ) {
@@ -180,6 +360,7 @@ sub snapshot ($self) {
 # Outside a transaction only: PostgreSQL delivers nothing inside one, and a
 # LISTEN issued inside one is undone by its rollback.
 sub _sync ( $self, $dbh ) {
+    $self->_bind_native_notifications;
     if ( !$dbh->{AutoCommit} ) {
         return;
     }
@@ -201,6 +382,26 @@ sub _sync ( $self, $dbh ) {
     }
     $self->sync_needed($pending);
 
+    return;
+}
+
+# Mojo::Pg delivers notifications that arrive during a query through its
+# database event. Feed that event into the same bounded channel queues as
+# pg_notifies, so query completion cannot consume the invalidation stream.
+sub _bind_native_notifications ($self) {
+    my $storage = GPForum::Infrastructure::Storage->storage_of( $self->schema );
+    return if !$storage || !$storage->isa('GPForum::Infrastructure::PgStorage');
+    my $database = $storage->database;
+    return if $self->{native_database} && $self->{native_database} == $database;
+    $self->{native_database} = $database;
+    weaken( $self->{native_database} );
+    my $broker = $self;
+    weaken($broker);
+    $database->on(
+        notification => sub ( $, @notification ) {
+            if ($broker) { $broker->_route( \@notification ); }
+        }
+    );
     return;
 }
 
@@ -338,7 +539,7 @@ sub _route ( $self, $notification ) {
     return;
 }
 
-# One storage->dbh per call. DBIx::Class pings the handle there and
+# One storage->dbh per call. The storage pings the handle there and
 # reconnects when the ping fails, which is how a lost backend is noticed.
 sub _dbh ($self) {
     return GPForum::Infrastructure::Storage->dbh_of( $self->schema );
@@ -385,7 +586,7 @@ This module owns the buffer. Consumers register their channel with
 C<listen_to> and read only their own channel with C<take>; a notification on a
 channel nobody registered is counted and dropped.
 
-It also owns the LISTENs. A LISTEN lives on one backend, and DBIx::Class
+It also owns the LISTENs. A LISTEN lives on one backend, and the Mojo::Pg storage
 replaces the handle after a reconnect, so the backend PID and the handle
 identify the connection: when either changes, every registered channel is
 listened for again and each is marked with a gap. A LISTEN that fails marks
@@ -395,9 +596,19 @@ inside a transaction, on the take that does. A gap tells the consumer that
 notifications were lost -- raised while nobody was listening, or pushed out
 of a full queue -- so it can fall back to something that does not need them.
 
-It adds no connection: it reads the handle the application already holds.
+In the web application, C<asynchronous> is enabled and one dedicated native
+LISTEN connection is shared by all channels. Its reactor watcher never checks
+out or pings the query pool. Explicit storage disconnects retire the listener;
+forked children never pump the parent's socket. CLI consumers retain the
+synchronous interface on their existing workflow connection.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 ensure_p, listen_to_p, take_p, retire_connections
+
+Establishes native registrations, drains a channel, or retires owned resources.
+Concurrent setup calls share one connection attempt. A failed setup or reconnect
+marks a gap so consumers invalidate data before admitting another local hit.
 
 =head2 listen_to
 

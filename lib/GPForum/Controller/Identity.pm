@@ -8,7 +8,7 @@ use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Web::CookieSession;
 use GPForum::Web::ErrorPayload;
 use GPForum::Web::SecurityEvent;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 use Time::HiRes qw(time);
 
@@ -34,22 +34,32 @@ sub register_form ($self) {
     );
 }
 
-sub register ($self) {
-    my $blocked = $self->identity_post_guard('identity.register');
+async sub register ($self) {
+    my $blocked =
+      ( await $self->await_p( $self->identity_post_guard('identity.register') )
+      );
     if ($blocked) {
         return $blocked;
     }
 
-    my $result = $self->gp_identity_workflow->register(
-        {
-            command_id   => $self->command_id_param,
-            display_name => $self->param('display_name'),
-            email        => $self->param('email'),
-            password     => $self->param('password'),
-            username     => $self->param('username'),
-            invitation   => $self->param('invitation'),
-        }
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'register',
+            {
+                command_id   => $self->command_id_param,
+                display_name => $self->param('display_name'),
+                email        => $self->param('email'),
+                password     => $self->param('password'),
+                username     => $self->param('username'),
+                invitation   => $self->param('invitation'),
+            }
+        ),
+        sub ($result) { return $self->_registered_async($result); }
     );
+}
+
+sub _registered_async ( $self, $result ) {
     if ( $result->{status} eq 'invalid' ) {
         return $self->render(
             template   => 'identity/register',
@@ -96,22 +106,33 @@ sub login_form ($self) {
     );
 }
 
-sub login ($self) {
-    my $blocked = $self->identity_post_guard('identity.login')
-      || $self->_account_login_guard;
+async sub login ($self) {
+    my $blocked =
+      ( await $self->await_p( $self->identity_post_guard('identity.login') ) )
+      || ( await $self->await_p( $self->_account_login_guard ) );
     if ($blocked) {
         return $blocked;
     }
 
-    my $result = $self->gp_identity_workflow->login(
-        {
-            command_id      => $self->command_id_param,
-            identifier      => $self->param('identifier'),
-            password        => $self->param('password'),
-            request_address => $self->request_address,
-            user_agent      => $self->req->headers->user_agent || 'unknown',
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'login',
+            {
+                command_id      => $self->command_id_param,
+                identifier      => $self->param('identifier'),
+                password        => $self->param('password'),
+                request_address => $self->request_address,
+                user_agent      => $self->req->headers->user_agent || 'unknown',
+            }
+        ),
+        async sub ($result) {
+            return ( await $self->await_p( $self->_logged_in_async($result) ) );
         }
     );
+}
+
+async sub _logged_in_async ( $self, $result ) {
     if ( $result->{status} eq 'invalid' ) {
         return $self->_render_login_form( $HTTP_BAD_REQUEST,
             $result->{errors} );
@@ -123,7 +144,8 @@ sub login ($self) {
     }
     if ( $result->{ok} ) {
         $self->_remember_device;
-        return $self->_accept_login( $result->{stored} );
+        return (
+            await $self->await_p( $self->_accept_login( $result->{stored} ) ) );
     }
     if ( $result->{status} eq 'second_factor' ) {
         $self->_remember_device;
@@ -144,7 +166,7 @@ sub login ($self) {
 # ADR 0147: the account's limit does not apply to a browser that has signed
 # in to it, so nobody can lock a member out of the browsers they use by
 # guessing from elsewhere; only its address's limit does.
-sub _account_login_guard ($self) {
+async sub _account_login_guard ($self) {
     my $identifier = $self->_login_identifier;
     if ( !length $identifier ) {
         return;
@@ -164,14 +186,21 @@ sub _account_login_guard ($self) {
     # the same member, and each spelling had a budget of its own, so a
     # guesser had two. An identifier that names no account is limited under
     # its spelling.
-    my $account = $self->gp_identity_store->account_id_for($identifier)
-      // $identifier;
-    my $decision = $self->gp_rate_limiter->check(
-        $self->identity_access->write_rate_input(
-            {
-                action   => 'identity.login_account',
-                actor_id => "account:$account",
-            }
+    my $account = (
+        await $self->call_p(
+            $self->gp_identity_store, 'account_id_for', $identifier
+        )
+    ) // $identifier;
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->identity_access->write_rate_input(
+                {
+                    action   => 'identity.login_account',
+                    actor_id => "account:$account",
+                }
+            )
         )
     );
     if ( $decision->{ok} ) {
@@ -215,8 +244,12 @@ sub second_factor_form ($self) {
     return $self->_render_second_step( $HTTP_OK, undef );
 }
 
-sub second_factor ($self) {
-    my $blocked = $self->identity_post_guard('identity.second_factor');
+async sub second_factor ($self) {
+    my $blocked = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.second_factor')
+        )
+    );
     if ($blocked) {
         return $blocked;
     }
@@ -225,13 +258,17 @@ sub second_factor ($self) {
         return $self->_second_step_expired;
     }
 
-    my $result = $self->gp_identity_workflow->complete_second_factor(
-        {
-            challenge_token => $token,
-            code            => $self->param('code'),
-            request_address => $self->request_address,
-            user_agent      => $self->req->headers->user_agent || 'unknown',
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'complete_second_factor',
+            {
+                challenge_token => $token,
+                code            => $self->param('code'),
+                request_address => $self->request_address,
+                user_agent      => $self->req->headers->user_agent || 'unknown',
+            }
+        )
     );
     my $status = $result->{status} // 'failed';
     if ( $result->{ok} ) {
@@ -245,7 +282,11 @@ sub second_factor ($self) {
                 )
             );
         }
-        return $self->_accept_login( $result->{stored}, $return_to );
+        return (
+            await $self->await_p(
+                $self->_accept_login( $result->{stored}, $return_to )
+            )
+        );
     }
     if ( $status eq 'wrong' ) {
         return $self->_wrong_second_step( $result->{attempts_left} );
@@ -371,19 +412,24 @@ sub _render_second_step ( $self, $status, $error ) {
     );
 }
 
-sub logout ($self) {
-    my $blocked = $self->identity_post_guard('identity.logout');
+async sub logout ($self) {
+    my $blocked =
+      ( await $self->await_p( $self->identity_post_guard('identity.logout') ) );
     if ($blocked) {
         return $blocked;
     }
 
     my $session_id = $self->session('session_id');
-    my $result     = $self->gp_identity_workflow->logout(
-        {
-            command_id => $self->command_id_param,
-            session_id => $session_id,
-            user_id    => $self->current_user_id,
-        }
+    my $result     = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'logout',
+            {
+                command_id => $self->command_id_param,
+                session_id => $session_id,
+                user_id    => $self->current_user_id,
+            }
+        )
     );
     if ( !$result->{ok} ) {
         return $self->identity_write_failure($result);
@@ -393,12 +439,14 @@ sub logout ($self) {
     # worker's at its next session check.
     $self->gp_realtime_hub->close_session($session_id);
 
-    $self->_record_identity_audit(
-        'record_logout_request',
-        {
-            actor_id        => $self->current_user_id,
-            request_address => $self->request_address,
-        }
+    await $self->await_p(
+        $self->_record_identity_audit(
+            'record_logout_request',
+            {
+                actor_id        => $self->current_user_id,
+                request_address => $self->request_address,
+            }
+        )
     );
     GPForum::Web::CookieSession->new->sign_out($self);
 
@@ -408,16 +456,18 @@ sub logout ($self) {
     );
 }
 
-sub _accept_login ( $self, $authenticated, $return_to = undef ) {
+async sub _accept_login ( $self, $authenticated, $return_to = undef ) {
     $self->_apply_login_session($authenticated);
-    $self->_record_identity_audit(
-        'record_login_request',
-        {
-            actor_id        => $authenticated->{user_id},
-            identifier      => $self->param('identifier'),
-            outcome         => 'accepted',
-            request_address => $self->request_address,
-        }
+    await $self->await_p(
+        $self->_record_identity_audit(
+            'record_login_request',
+            {
+                actor_id        => $authenticated->{user_id},
+                identifier      => $self->param('identifier'),
+                outcome         => 'accepted',
+                request_address => $self->request_address,
+            }
+        )
     );
 
     # A client that asked for JSON keeps the answer it always had. A reader
@@ -432,7 +482,14 @@ sub _accept_login ( $self, $authenticated, $return_to = undef ) {
 
     # ADR 0142: staff the policy requires two-step sign-in of, who have
     # none, are sent to set it up; the staff consoles refuse them until then.
-    if ( $self->_second_step_owed( $authenticated->{user_id} ) ) {
+    if (
+        (
+            await $self->await_p(
+                $self->_second_step_owed( $authenticated->{user_id} )
+            )
+        )
+      )
+    {
         $self->flash( error => $self->t('auth.second_factor_staff_required') );
         return $self->redirect_to('settings_security');
     }
@@ -445,10 +502,12 @@ sub _accept_login ( $self, $authenticated, $return_to = undef ) {
     );
 }
 
-sub _second_step_owed ( $self, $user_id ) {
+async sub _second_step_owed ( $self, $user_id ) {
     my $status;
     try {
-        $status = $self->gp_second_factor->status($user_id);
+        $status =
+          ( await $self->call_p( $self->gp_second_factor, 'status', $user_id )
+          );
     }
     catch ($error) {
         $self->app->log->warn("second factor status degraded: $error");
@@ -502,10 +561,12 @@ sub _apply_login_session ( $self, $authenticated ) {
     return;
 }
 
-sub _record_identity_audit ( $self, $method, $input ) {
+async sub _record_identity_audit ( $self, $method, $input ) {
     my $result;
     try {
-        $result = $self->gp_identity_security_audit->$method($input);
+        $result =
+          await $self->call_p( $self->gp_identity_security_audit, $method,
+            $input );
     }
     catch ($error) {
         $self->app->log->warn("identity audit degraded: $error");

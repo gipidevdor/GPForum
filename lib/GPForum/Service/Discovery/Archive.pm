@@ -8,6 +8,7 @@ use v5.40;
 use Const::Fast;
 use Carp qw(croak);
 use File::Temp;
+use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Discovery::Mbox;
 use GPForum::Service::Forum::Viewer;
@@ -15,6 +16,8 @@ use GPForum::Service::Forum::Viewer;
 our $VERSION = '0.001';
 
 const my $ARCHIVE_PAGE_SIZE => 100;
+const my $STAT_SIZE         => 7;
+const my $STAT_MTIME        => 9;
 __PACKAGE__->requires(
     qw(schema category_reader thread_reader thread_detail_reader post_reader signer base_url)
 );
@@ -75,6 +78,25 @@ sub _verified ( $self, $post, $envelope ) {
 sub key_set ($self) {
     my %keys = %{ $self->signer->trusted_keys };
     return { keys => [ map { $keys{$_} } sort keys %keys ] };
+}
+
+sub spool_p ( $self, $kind, $id, $viewer, $context = undef ) {
+    return GPForum::Infrastructure::AsyncWork->shared->service_result_p( $self,
+        'spool_descriptor', [ $kind, $id, $viewer ], $context );
+}
+
+sub spool_descriptor ( $self, @arguments ) {
+    my $file     = $self->spool(@arguments) or return undef;
+    my @stat     = stat $file;
+    my $metadata = {
+        path   => $file->filename,
+        size   => $stat[$STAT_SIZE],
+        mtime  => $stat[$STAT_MTIME],
+        device => $stat[0],
+        inode  => $stat[1]
+    };
+    $file->unlink_on_destroy(0);
+    return $metadata;
 }
 
 sub spool ( $self, $kind, $id, $viewer ) {
@@ -210,6 +232,14 @@ Version 0.001.
 =head1 SYNOPSIS
 
     my $file = $archive->spool( thread => $id, $viewer );
+
+=head2 spool_descriptor
+
+Creates a spool and transfers its path, size, modification time and file identity as plain data. The receiver must adopt the temporary file with cleanup enabled.
+
+=head2 spool_p
+
+Builds the repeatable-read archive in the bounded subprocess executor. Resolves with trusted spool metadata; the HTTP caller owns deletion after streaming or disconnect.
 
 =head1 DIAGNOSTICS
 

@@ -14,7 +14,7 @@ use lib 't/lib';
 
 use GPForum::Command::Benchmark;
 use GPForum::Command::HypnotoadBenchmark;
-use GPForum::Command::QueryPlanEvidence;
+use GPForum::Test::QueryPlanEvidence;
 use GPForum::Test::QueryPlanEvidenceDbh;
 use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
@@ -239,12 +239,11 @@ sub _test_hypnotoad_baseline_routes {
 
 sub _test_query_plan_help {
     my ( $status, $stdout ) = _stdout_of(
-        sub { return GPForum::Command::QueryPlanEvidence->new->run('--help') }
-    );
+        sub { return GPForum::Test::QueryPlanEvidence->new->run('--help') } );
     is( $status, 0, 'query plan --help exits 0' );
     is(
         $stdout,
-        GPForum::Command::QueryPlanEvidence->usage_text . "\n",
+        GPForum::Test::QueryPlanEvidence->usage_text . "\n",
         'and prints the usage and a newline'
     );
 
@@ -255,10 +254,10 @@ sub _test_query_plan_database_error {
     my ( $status, $stderr ) = _stderr_of(
         sub {
             return with_replaced_subs(
-                'GPForum::Command::QueryPlanEvidence',
+                'GPForum::Test::QueryPlanEvidence',
                 { evidence_report => sub { die "connection refused\n" } },
                 sub {
-                    return GPForum::Command::QueryPlanEvidence->new->run(
+                    return GPForum::Test::QueryPlanEvidence->new->run(
                         '--endpoint', 'home' );
                 }
             );
@@ -297,7 +296,7 @@ sub _test_query_plan_redacted_dsn {
     {
         my ( $dsn, $shown, $name ) = @{$case};
         local $ENV{GPFORUM_DATABASE_DSN} = $dsn;
-        my $report = GPForum::Command::QueryPlanEvidence->new(
+        my $report = GPForum::Test::QueryPlanEvidence->new(
             dbh => GPForum::Test::QueryPlanEvidenceDbh->new )
           ->evidence_report(
             { analyze => 0, dry_run => 0, endpoints => ['home'] } );
@@ -308,7 +307,7 @@ sub _test_query_plan_redacted_dsn {
 }
 
 sub _test_query_plan_deep_pages_per_report {
-    my $command = GPForum::Command::QueryPlanEvidence->new;
+    my $command = GPForum::Test::QueryPlanEvidence->new;
     my @counts;
     for ( 1 .. 2 ) {
         my $dbh = GPForum::Test::QueryPlanEvidenceDbh->new;

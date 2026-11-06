@@ -3,7 +3,7 @@
 
 package GPForum::Controller::Identity::OpenID;
 
-use Mojo::Base 'GPForum::Controller::Identity', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity', -async_await;
 use v5.40;
 use Const::Fast;
 use GPForum::Infrastructure::SqlFunction;
@@ -12,19 +12,21 @@ our $VERSION = '0.001';
 const my $HTTP_BAD         => 400;
 const my $HTTP_UNAVAILABLE => 503;
 
-sub settings ($self) {
+async sub settings ($self) {
     return $self->redirect_to('login') if !$self->current_user_id;
     my $linked = 0;
     try {
-        my $row =
-          GPForum::Infrastructure::SqlFunction->for_schema( $self->gp_schema )
-          ->row(
+        my $functions =
+          GPForum::Infrastructure::SqlFunction->for_schema( $self->gp_schema );
+        my $row = await $self->call_p(
+            $functions,
+            'row',
             'identity_oidc_status',
             {
                 actor  => $self->current_user_id,
-                issuer => $self->gp_config->oidc_issuer
+                issuer => $self->gp_config->oidc_issuer,
             }
-          );
+        );
 
         if ($row) { $linked = $row->{result}{linked}; }
     }
@@ -37,38 +39,54 @@ sub settings ($self) {
     );
 }
 
-sub start ($self) {
-    return if $self->identity_post_guard('identity.login');
+async sub start ($self) {
+    return
+      if (
+        await $self->await_p( $self->identity_post_guard('identity.login') ) );
     my $actor = $self->current_user_id;
     return $self->render(
         status => $HTTP_BAD,
         text   => $self->t('auth.oidc_failed')
     ) if $actor;
-    return $self->_begin( {} );
+    return ( await $self->await_p( $self->_begin( {} ) ) );
 }
 
-sub link_identity ($self) {
-    return if $self->identity_post_guard('identity.login');
+async sub link_identity ($self) {
+    return
+      if (
+        await $self->await_p( $self->identity_post_guard('identity.login') ) );
     my $actor = $self->current_user_id or return $self->redirect_to('login');
-    return if !$self->participating( $actor, 'identity.oidc.link' );
-    return $self->_begin(
-        {
-            actor_user_id => $actor,
-            password      => $self->param('password'),
-            code          => $self->param('code')
-        }
+    return
+      if !(
+        await $self->await_p(
+            $self->participating( $actor, 'identity.oidc.link' ) ) );
+    return (
+        await $self->await_p(
+            $self->_begin(
+                {
+                    actor_user_id => $actor,
+                    password      => $self->param('password'),
+                    code          => $self->param('code')
+                }
+            )
+        )
     );
 }
 
 sub _begin ( $self, $input ) {
-    my $result;
-    try { $result = $self->_provider->begin($input); }
-    catch ($error) {
-        return $self->render(
-            status => $HTTP_UNAVAILABLE,
-            text   => $self->t('auth.oidc_unavailable')
-        );
-    };
+    return $self->respond_p(
+        $self->work_p( $self->_provider, 'begin', $input ),
+        sub ($result) { return $self->_begin_result($result); },
+        sub ($error) {
+            return $self->render(
+                status => $HTTP_UNAVAILABLE,
+                text   => $self->t('auth.oidc_unavailable')
+            );
+        }
+    );
+}
+
+sub _begin_result ( $self, $result ) {
     return $self->render(
         status => $HTTP_BAD,
         text   => $self->t('auth.oidc_failed')
@@ -80,10 +98,10 @@ sub _begin ( $self, $input ) {
 
 sub callback ($self) {
     $self->res->headers->cache_control('private, no-store');
-    my $flow = delete $self->session->{oidc_flow};
-    my $answer;
-    try {
-        $answer = $self->_provider->complete(
+    my $flow     = delete $self->session->{oidc_flow};
+    my $provider = $self->_provider;
+    return $self->respond_p(
+        $provider->complete_p(
             {
                 flow            => $flow,
                 code            => $self->param('code'),
@@ -92,17 +110,27 @@ sub callback ($self) {
                 request_address => $self->request_address,
                 user_agent      => $self->req->headers->user_agent // 'unknown'
             }
-        );
-    }
-    catch ($error) {
-        return $self->render(
-            status => $HTTP_UNAVAILABLE,
-            text   => $self->t('auth.oidc_unavailable')
-        );
-    };
-    return $self->_accept_login( $answer,
-        $self->url_for('home')->path->to_string )
-      if $answer->{ok};
+        ),
+        async sub ($answer) {
+            return ( await $self->await_p( $self->_callback_answer($answer) ) );
+        },
+        sub ($error) {
+            return $self->render(
+                status => $HTTP_UNAVAILABLE,
+                text   => $self->t('auth.oidc_unavailable')
+            );
+        }
+    );
+}
+
+async sub _callback_answer ( $self, $answer ) {
+    return (
+        await $self->await_p(
+            $self->_accept_login(
+                $answer, $self->url_for('home')->path->to_string
+            )
+        )
+    ) if $answer->{ok};
     return $self->_ask_second_step($answer)
       if $answer->{status} eq 'second_factor';
     if ( $answer->{status} eq 'linked' ) {
@@ -115,21 +143,28 @@ sub callback ($self) {
     );
 }
 
-sub remove_link ($self) {
-    return if $self->identity_post_guard('identity.login');
+async sub remove_link ($self) {
+    return
+      if (
+        await $self->await_p( $self->identity_post_guard('identity.login') ) );
     my $actor = $self->current_user_id or return $self->redirect_to('login');
-    my $answer;
-    try {
-        $answer = $self->_provider->remove_link(
+    return $self->respond_p(
+        $self->work_p(
+            $self->_provider,
+            'remove_link',
             {
                 actor_user_id => $actor,
                 password      => $self->param('password'),
                 code          => $self->param('code'),
                 session_id    => $self->session('session_id')
             }
-        );
-    }
-    catch ($error) { return $self->identity_unavailable; };
+        ),
+        sub ($answer) { return $self->_removed_link($answer); },
+        sub ($error) { return $self->identity_unavailable; }
+    );
+}
+
+sub _removed_link ( $self, $answer ) {
     return $self->render(
         status => $HTTP_BAD,
         text   => $self->t('auth.oidc_failed')
@@ -140,6 +175,8 @@ sub remove_link ($self) {
 
 sub _provider ($self) {
     return GPForum::Service::Identity::OpenID->new(
+        async_work       => $self->async_work,
+        query_context    => $self->stash('gp_db_query_stats_token'),
         schema           => $self->gp_schema,
         policy_available => $self->gp_configuration->state->{available} ? 1 : 0,
         config           => $self->gp_config,

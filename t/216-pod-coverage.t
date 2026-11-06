@@ -41,7 +41,7 @@ for my $module (@modules) {
     }
 
     my %documented = map { $_ => 1 } $pod =~ /^=head2 [ ] (\w+)/gmsx;
-    for my $sub ( $code =~ /^sub [ ] ([[:lower:]]\w*)/gmsx ) {
+    for my $sub ( $code =~ /^(?:async [ ])?sub [ ] ([[:lower:]]\w*)/gmsx ) {
         next if $documented{$sub};
         push @missing, "$module: $sub";
     }

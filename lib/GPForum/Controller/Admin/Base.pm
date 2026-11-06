@@ -4,7 +4,7 @@
 package GPForum::Controller::Admin::Base;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::Access;
@@ -30,22 +30,36 @@ sub limit_param ($self) {
     return $self->admin_access->page_limit( $self->param('limit') );
 }
 
-sub authorized_write_user_id ($self) {
+async sub authorized_write_user_id ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         GPForum::Web::SecurityEvent->new->csrf_failure($self);
         return;
     }
 
     my $access  = $self->admin_access;
-    my $user_id = $self->_scoped_user_id( $access->manage_action,
-        $self->write_permission_scope );
+    my $user_id = (
+        await $self->await_p(
+            $self->_scoped_user_id(
+                $access->manage_action, $self->write_permission_scope
+            )
+        )
+    );
     if ( !$user_id ) {
         return;
     }
-    return if !$self->participating( $user_id, $access->write_action );
-    my $decision = $self->gp_rate_limiter->check(
-        $access->write_rate_input(
-            { action => $access->write_action, actor_id => $user_id }
+    return
+      if !(
+        await $self->await_p(
+            $self->participating( $user_id, $access->write_action )
+        )
+      );
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $access->write_rate_input(
+                { action => $access->write_action, actor_id => $user_id }
+            )
         )
     );
     if ( !$decision->{ok} ) {
@@ -56,8 +70,12 @@ sub authorized_write_user_id ($self) {
     return $user_id;
 }
 
-sub authorized_user_id ( $self, $action ) {
-    return $self->_scoped_user_id( $action, $self->global_permission_scope );
+async sub authorized_user_id ( $self, $action ) {
+    return (
+        await $self->await_p(
+            $self->_scoped_user_id( $action, $self->global_permission_scope )
+        )
+    );
 }
 
 sub write_permission_scope ($self) {
@@ -71,7 +89,7 @@ sub write_permission_scope ($self) {
     };
 }
 
-sub _scoped_user_id ( $self, $action, $scope ) {
+async sub _scoped_user_id ( $self, $action, $scope ) {
     my $user_id = GPForum::Web::Access->new->user_id($self);
     if ( !$user_id ) {
         GPForum::Web::SecurityEvent->new->unauthorized($self);
@@ -80,8 +98,11 @@ sub _scoped_user_id ( $self, $action, $scope ) {
     my $permission =
       { %{ $self->admin_access->permission_target($action) }, %{$scope} };
     if (
-        !$self->gp_permission_gate->allowed(
-            { user_id => $user_id }, $permission
+        !(
+            await $self->call_p(
+                $self->gp_permission_gate, 'allowed',
+                { user_id => $user_id },   $permission
+            )
         )
       )
     {
@@ -93,58 +114,82 @@ sub _scoped_user_id ( $self, $action, $scope ) {
     return $user_id;
 }
 
-sub role_write_response ( $self, $result, $ok_status ) {
+async sub role_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->role_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->role_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
-sub permission_write_response ( $self, $result, $ok_status ) {
+async sub permission_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->permission_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->permission_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
-sub role_permission_write_response ( $self, $result, $ok_status ) {
+async sub role_permission_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->role_permission_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->role_permission_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
-sub binding_write_response ( $self, $result, $ok_status ) {
+async sub binding_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->binding_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->binding_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
-sub category_write_response ( $self, $result, $ok_status ) {
+async sub category_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->category_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->category_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
-sub announcement_write_response ( $self, $result, $ok_status ) {
+async sub announcement_write_response ( $self, $result, $ok_status ) {
     my $failure = $self->write_failure($result);
     if ($failure) {
         return $failure;
     }
 
-    return $self->announcement_response( $ok_status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->announcement_response( $ok_status, $result->{stored} )
+        )
+    );
 }
 
 # The response a failed write answers with, or undef when it did not fail.
@@ -175,7 +220,7 @@ sub write_failure ( $self, $result ) {
     return undef;
 }
 
-sub role_response ( $self, $status, $role ) {
+async sub role_response ( $self, $status, $role ) {
     if ( $self->wants_json ) {
         return $self->render(
             json =>
@@ -184,11 +229,16 @@ sub role_response ( $self, $status, $role ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->admin_access->default_redirect );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status, $self->admin_access->default_redirect
+            )
+        )
+    );
 }
 
-sub permission_response ( $self, $status, $permission ) {
+async sub permission_response ( $self, $status, $permission ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_admin_view_model->permission_response(
@@ -198,11 +248,16 @@ sub permission_response ( $self, $status, $permission ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->admin_access->default_redirect );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status, $self->admin_access->default_redirect
+            )
+        )
+    );
 }
 
-sub role_permission_response ( $self, $status, $role_permission ) {
+async sub role_permission_response ( $self, $status, $role_permission ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_admin_view_model->role_permission_response(
@@ -212,11 +267,16 @@ sub role_permission_response ( $self, $status, $role_permission ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->admin_access->default_redirect );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status, $self->admin_access->default_redirect
+            )
+        )
+    );
 }
 
-sub binding_response ( $self, $status, $binding ) {
+async sub binding_response ( $self, $status, $binding ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_admin_view_model->role_binding_response(
@@ -226,11 +286,16 @@ sub binding_response ( $self, $status, $binding ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->admin_access->default_redirect );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status, $self->admin_access->default_redirect
+            )
+        )
+    );
 }
 
-sub category_response ( $self, $status, $category ) {
+async sub category_response ( $self, $status, $category ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_admin_view_model->category_response(
@@ -240,11 +305,16 @@ sub category_response ( $self, $status, $category ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->admin_access->categories_redirect );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status, $self->admin_access->categories_redirect
+            )
+        )
+    );
 }
 
-sub announcement_response ( $self, $status, $announcement ) {
+async sub announcement_response ( $self, $status, $announcement ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_admin_view_model->announcement_response(
@@ -254,11 +324,16 @@ sub announcement_response ( $self, $status, $announcement ) {
         );
     }
 
-    return $self->_html_success( $status,
-        $self->admin_access->announcements_redirect );
+    return (
+        await $self->await_p(
+            $self->_html_success(
+                $status, $self->admin_access->announcements_redirect
+            )
+        )
+    );
 }
 
-sub dead_letter_replay_response ( $self, $status, $replayed ) {
+async sub dead_letter_replay_response ( $self, $status, $replayed ) {
     if ( $self->wants_json ) {
         return $self->render(
             json => $self->gp_admin_view_model->dead_letter_replay_response(
@@ -268,7 +343,11 @@ sub dead_letter_replay_response ( $self, $status, $replayed ) {
         );
     }
 
-    return $self->_html_success( $status, $self->admin_access->jobs_redirect );
+    return (
+        await $self->await_p(
+            $self->_html_success( $status, $self->admin_access->jobs_redirect )
+        )
+    );
 }
 
 # A maintenance command's answer: JSON, or back to the jobs page with a
@@ -342,6 +421,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Admin::Base';
+use v5.40;
 
 =head1 DESCRIPTION
 

@@ -5,7 +5,7 @@ package GPForum::Controller::Identity::Unsubscribe;
 
 use Const::Fast;
 use GPForum::Web::Access;
-use Mojo::Base 'GPForum::Controller::Identity::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -19,8 +19,13 @@ const my $ONE_CLICK_VALUE => 'One-Click';
 
 # ADR 0078. Opening the link changes nothing (a mail scanner follows links):
 # it shows what the link stops, and a button.
-sub form ($self) {
-    my $claim = $self->gp_unsubscribe_tokens->verify( $self->param('token') );
+async sub form ($self) {
+    my $claim = (
+        await $self->call_p(
+            $self->gp_unsubscribe_tokens,
+            'verify', $self->param('token')
+        )
+    );
     return $self->_invalid_link if !$claim;
 
     return $self->render(
@@ -37,14 +42,19 @@ sub form ($self) {
 # credential: the mail client posts without a session and so without a
 # CSRF token, which the form, posted from a browser, carries and has
 # checked. The form may widen the scope to all notification email.
-sub unsubscribe ($self) {
+async sub unsubscribe ($self) {
     my $one_click =
       ( $self->param($ONE_CLICK_FIELD) // q{} ) eq $ONE_CLICK_VALUE;
     if ( !$one_click && GPForum::Web::Access->new->csrf_invalid($self) ) {
         return $self->_csrf_failure;
     }
-    my $claim = $self->gp_unsubscribe_tokens->verify( $self->param('token') );
-    if ( !$self->_unsubscribe_allowed($claim) ) {
+    my $claim = (
+        await $self->call_p(
+            $self->gp_unsubscribe_tokens,
+            'verify', $self->param('token')
+        )
+    );
+    if ( !( await $self->await_p( $self->_unsubscribe_allowed($claim) ) ) ) {
         return $self->_rate_limited;
     }
     return $self->_invalid_link if !$claim;
@@ -55,12 +65,16 @@ sub unsubscribe ($self) {
       : $claim->{scope};
     my $result;
     try {
-        $result = $self->gp_notification_preference_store->unsubscribe(
-            {
-                user_id => $claim->{user_id},
-                scope   => $scope,
-                via     => $one_click ? 'one_click' : 'link',
-            }
+        $result = (
+            await $self->call_p(
+                $self->gp_notification_preference_store,
+                'unsubscribe',
+                {
+                    user_id => $claim->{user_id},
+                    scope   => $scope,
+                    via     => $one_click ? 'one_click' : 'link',
+                }
+            )
         );
     }
     catch ($error) {
@@ -87,15 +101,21 @@ sub unsubscribe ($self) {
 # one-click unsubscribes of all its users from a few addresses, and a limit
 # per address turned most of them away (RFC 8058 clients do not retry). A
 # link that does not verify is limited per address, as before.
-sub _unsubscribe_allowed ( $self, $claim ) {
-    return $self->_identity_allowed('identity.unsubscribe') if !$claim;
+async sub _unsubscribe_allowed ( $self, $claim ) {
+    return (
+        await $self->await_p( $self->_identity_allowed('identity.unsubscribe') )
+    ) if !$claim;
 
-    my $decision = $self->gp_rate_limiter->check(
-        $self->identity_access->write_rate_input(
-            {
-                action   => 'identity.unsubscribe',
-                actor_id => $claim->{user_id},
-            }
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->identity_access->write_rate_input(
+                {
+                    action   => 'identity.unsubscribe',
+                    actor_id => $claim->{user_id},
+                }
+            )
         )
     );
 

@@ -7,15 +7,16 @@ use Const::Fast;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Service::Forum::ThreadTags;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
+use Mojo::Promise;
 
 our $VERSION = '0.001';
 
 const my $HTTP_OK => 200;
 
-sub search ($self) {
-    if ( !$self->read_allowed('search') ) {
+async sub search ($self) {
+    if ( !( await $self->await_p( $self->read_allowed('search') ) ) ) {
         return $self->_rate_limited;
     }
 
@@ -31,8 +32,12 @@ sub search ($self) {
     if ( length( $filters->{thread_id} // q{} ) ) {
         return $self->not_found('thread not found')
           if !GPForum::Infrastructure::Id->is_uuid( $filters->{thread_id} )
-          || !$self->gp_thread_detail_reader->find_thread(
-            $filters->{thread_id}, $self->gp_forum_viewer );
+          || !(
+            await $self->call_p(
+                $self->gp_thread_detail_reader, 'find_thread',
+                $filters->{thread_id},          $self->gp_forum_viewer
+            )
+          );
     }
     my $limit = $self->forum_access->search_page_limit( $self->param('limit') );
 
@@ -51,38 +56,46 @@ sub search ($self) {
 }
 
 sub _search_results ( $self, $query, $filters, $limit ) {
-    my $found;
-    try {
-        $found = $self->gp_search_service->ranked_search(
-            {
-                user_id => $self->current_user_id,
-                viewer  => $self->gp_forum_viewer,
-            },
-            $query,
-            {
-                %{$filters}, limit => $self->_search_fetch_limit($limit),
-            },
-        );
-    }
-    catch ($error) {
-        $self->app->log->warn( 'search degraded: ' . _reason($error) );
-        return $self->_search_page(
-            {
-                filters => $filters,
-                limit   => $limit,
-                query   => $query,
-                results => [],
-                status  => 'degraded',
-            }
-        );
-    };
-
-    return $self->_search_success(
-        {
-            filters => $filters,
-            found   => $found,
-            limit   => $limit,
-            query   => $query,
+    my $promise = Mojo::Promise->resolve->then(
+        async sub {
+            my $service   = $self->gp_search_service;
+            my $arguments = [
+                {
+                    user_id => $self->current_user_id,
+                    viewer  => $self->gp_forum_viewer
+                },
+                $query,
+                { %{$filters}, limit => $self->_search_fetch_limit($limit) },
+            ];
+            return $service->ranked_search_p( @{$arguments},
+                $self->stash('gp_db_query_stats_token') )
+              if $service->can('ranked_search_p');
+            return $self->work_args_p( $service, 'ranked_search', $arguments );
+        }
+    );
+    return $self->respond_p(
+        $promise,
+        sub ($found) {
+            return $self->_search_success(
+                {
+                    filters => $filters,
+                    found   => $found,
+                    limit   => $limit,
+                    query   => $query
+                }
+            );
+        },
+        sub ($error) {
+            $self->log->warn( 'search degraded: ' . _reason($error) );
+            return $self->_search_page(
+                {
+                    filters => $filters,
+                    limit   => $limit,
+                    query   => $query,
+                    results => [],
+                    status  => 'degraded'
+                }
+            );
         }
     );
 }
@@ -153,12 +166,14 @@ sub _search_page ( $self, $input ) {
     );
 }
 
-sub search_autocomplete ($self) {
+async sub search_autocomplete ($self) {
     my $query = trimmed( $self->param('q') || $self->param('prefix') );
     if ( $self->forum_access->autocomplete_too_short($query) ) {
         return $self->_autocomplete_payload( $query, [] );
     }
-    if ( !$self->read_allowed('search.autocomplete') ) {
+    if ( !( await $self->await_p( $self->read_allowed('search.autocomplete') ) )
+      )
+    {
         return $self->_rate_limited;
     }
 
@@ -166,27 +181,37 @@ sub search_autocomplete ($self) {
 }
 
 sub _autocomplete_lookup ( $self, $query ) {
-    my $rows;
-    try {
-        $rows = $self->gp_search_service->autocomplete(
-            {
-                user_id => $self->current_user_id,
-                viewer  => $self->gp_forum_viewer,
-            },
-            $query,
-            {
-                limit => $self->forum_access->autocomplete_limit(
-                    $self->param('limit')
-                ),
-            },
-        );
-    }
-    catch ($error) {
-        $self->app->log->warn( 'autocomplete degraded: ' . _reason($error) );
-        return $self->_autocomplete_payload( $query, [], 'degraded' );
-    };
-
-    return $self->_autocomplete_payload( $query, $rows );
+    my $promise = Mojo::Promise->resolve->then(
+        async sub {
+            my $service   = $self->gp_search_service;
+            my $arguments = [
+                {
+                    user_id => $self->current_user_id,
+                    viewer  => $self->gp_forum_viewer
+                },
+                $query,
+                {
+                    limit => $self->forum_access->autocomplete_limit(
+                        $self->param('limit')
+                    )
+                },
+            ];
+            return $service->autocomplete_p( @{$arguments},
+                $self->stash('gp_db_query_stats_token') )
+              if $service->can('autocomplete_p');
+            return $self->work_args_p( $service, 'autocomplete', $arguments );
+        }
+    );
+    return $self->respond_p(
+        $promise,
+        sub ($rows) {
+            return $self->_autocomplete_payload( $query, $rows );
+        },
+        sub ($error) {
+            $self->log->warn( 'autocomplete degraded: ' . _reason($error) );
+            return $self->_autocomplete_payload( $query, [], 'degraded' );
+        }
+    );
 }
 
 # Why a search failed, for the log. DBI appends the statement and its bind

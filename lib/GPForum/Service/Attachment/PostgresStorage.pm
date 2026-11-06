@@ -5,6 +5,7 @@ package GPForum::Service::Attachment::PostgresStorage;
 
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use GPForum::Infrastructure::FileAsset;
 
 use Carp qw(croak);
 use Const::Fast;
@@ -13,6 +14,8 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Attachment::PostgresAsset;
 use GPForum::Service::Attachment::Source;
 use Mojo::Asset::File;
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncWork;
 
 our $VERSION = '0.001';
 const my $SHA_BITS => 256;
@@ -77,6 +80,26 @@ sub exists_object ( $self, $key ) {
     return $self->legacy ? $self->legacy->exists_object($key) : 0;
 }
 
+sub asset_for_p ( $self, $key, $context = undef ) {
+    return $self->functions->row_p( 'attachment_object_info',
+        { object_key => $key }, $context )->then(
+        sub ($info) {
+            if ($info) {
+                return GPForum::Service::Attachment::PostgresAsset->new(
+                    storage       => $self,
+                    object_key    => $key,
+                    byte_size     => $info->{byte_size},
+                    modified_at   => $info->{modified_at},
+                    query_context => $context
+                );
+            }
+            croak 'attachment object is missing from storage' if !$self->legacy;
+            my $path = $self->legacy->path_for($key);
+            return GPForum::Infrastructure::FileAsset->from_path_p($path);
+        }
+        );
+}
+
 sub asset_for ( $self, $key ) {
     if ( my $info = $self->object_info($key) ) {
         return GPForum::Service::Attachment::PostgresAsset->new(
@@ -104,6 +127,65 @@ sub read_chunk ( $self, $key, $number ) {
 }
 
 sub read_object ( $self, $key ) { return $self->asset_for($key)->slurp; }
+
+sub read_object_p ( $self, $key, $maximum, $context = undef ) {
+    return $self->functions->row_p( 'attachment_object_info',
+        { object_key => $key }, $context )->then(
+        sub ($info) {
+            if ( !$info ) {
+                return GPForum::Infrastructure::AsyncWork->shared->run_p(
+                    sub {
+                        my $bytes =
+                            $self->legacy
+                          ? $self->legacy->read_object($key)
+                          : undef;
+                        croak 'legacy image unavailable or too large'
+                          if !defined $bytes || length($bytes) > $maximum;
+                        return $bytes;
+                    }
+                );
+            }
+            croak 'image exceeds its read limit'
+              if $info->{byte_size} > $maximum;
+            my $asset = GPForum::Service::Attachment::PostgresAsset->new(
+                storage       => $self,
+                object_key    => $key,
+                byte_size     => $info->{byte_size},
+                query_context => $context,
+            );
+            my $bytes = q{};
+            my $next;
+            $next = sub {
+                return Mojo::Promise->resolve($bytes)
+                  if length($bytes) >= $info->{byte_size};
+                return $asset->get_chunk_p( length $bytes )->then(
+                    sub ($chunk) {
+                        croak 'image read ended early' if !length $chunk;
+                        $bytes .= $chunk;
+                        return $next->();
+                    }
+                );
+            };
+            return $next->()->finally( sub { undef $next; return; } );
+        }
+        );
+}
+
+sub read_chunk_p ( $self, $key, $number, $context = undef ) {
+    return $self->functions->row_p(
+        'attachment_object_chunk',
+        {
+            object_key   => $key,
+            chunk_number => $number,
+        },
+        $context
+    )->then(
+        sub ($row) {
+            croak "attachment object $key has a missing chunk" if !$row;
+            return $row->{data};
+        }
+    );
+}
 
 sub delete_object ( $self, $key ) {
     my $result = $self->functions->row( 'attachment_object_delete',
@@ -183,6 +265,18 @@ Returns all bytes for existing small-image consumers.
 =head2 delete_object
 
 Deletes the database object and cascades its chunks in the current transaction. An explicit deletion also removes a retained legacy copy.
+
+=head2 read_object_p
+
+Reads a size-limited object through sequential asynchronous database chunks. Legacy filesystem reads run in a bounded subprocess.
+
+=head2 read_chunk_p
+
+Returns a promise for one immutable database chunk on a separately leased connection.
+
+=head2 asset_for_p
+
+Loads object metadata with native SQL and constructs the streaming asset in the caller. A legacy filesystem object uses asynchronous bounded file reads.
 
 =head1 DIAGNOSTICS
 

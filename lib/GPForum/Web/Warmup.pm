@@ -6,16 +6,19 @@ package GPForum::Web::Warmup;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
+use Carp qw(croak);
 use Const::Fast;
 use GPForum::Infrastructure::Row;
+use Mojo::IOLoop;
 use Time::HiRes qw(time);
 
 our $VERSION = '0.001';
 
 # The pages that need no row to render, and the pages the newest thread
 # gives: its category and itself, the two templates with the most in them.
-const my @PAGES        => ( q{/}, '/categories', '/login', '/register' );
-const my $MILLISECONDS => 1_000;
+const my @PAGES          => ( q{/}, '/categories', '/login', '/register' );
+const my $MILLISECONDS   => 1_000;
+const my $RENDER_TIMEOUT => 30;
 
 __PACKAGE__->requires(qw(application));
 
@@ -52,9 +55,12 @@ sub describe ( $, $report ) {
 
 sub _fetched ( $application, $path ) {
 
-    # Dispatch synchronously before the server starts. No HTTP listener or
-    # second event loop is needed just to compile the application's templates.
+    # Dispatch before the server starts and retain the transaction until an
+    # asynchronous handler has rendered its response. Use the existing loop;
+    # warming templates needs no listener or additional event loop.
     my $transaction = $application->build_tx;
+    my $rendered    = 0;
+    $transaction->once( resume => sub { $rendered = 1; return; } );
     $transaction->remote_address('127.0.0.1');
     my $request = $transaction->req;
     $request->method('GET');
@@ -62,6 +68,22 @@ sub _fetched ( $application, $path ) {
     $request->url->base->parse('http://127.0.0.1');
     $request->headers->host('127.0.0.1');
     $application->handler($transaction);
+
+    if ( !$rendered ) {
+        my $expired = 0;
+        my $timer   = Mojo::IOLoop->timer(
+            $RENDER_TIMEOUT => sub { $expired = 1; return; } );
+        my $failure;
+        try {
+            while ( !$rendered && !$expired ) { Mojo::IOLoop->one_tick; }
+        }
+        catch ($error) { $failure = $error; };
+        Mojo::IOLoop->remove($timer);
+        $transaction->closed;
+        die $failure                                 if defined $failure;    ## no critic (ErrorHandling::RequireCarping) -- rethrow after removing the warmup timer
+        croak "Warmup rendering timed out for $path" if $expired;
+    }
+    else { $transaction->closed; }
     my $status = $transaction->res->code;
 
     return { path => $path, status => $status // 0 };
@@ -137,9 +159,11 @@ inherits it through the fork. L<GPForum::Bootstrap::Core> runs it from the
 C<before_server_start> hook when the server is a L<Mojo::Server::Prefork>
 (Hypnotoad is one) and C<warmup_enabled> is on.
 
-The synchronous pages are dispatched directly through the application's
+The pages are dispatched directly through the application's
 normal handler, with C<gpforum.warming> set on the stash defaults for the
-duration. No TCP listener, HTTP client or additional event loop is opened.
+duration. Asynchronous responses finish on the existing event loop before
+the next page or the fork. No TCP listener, HTTP client or additional event
+loop is opened. Each render has a thirty-second deadline.
 The realtime listener is not started for those requests, since the workers
 would inherit its connection. The database connection the manager opened
 is closed afterwards for the same reason.

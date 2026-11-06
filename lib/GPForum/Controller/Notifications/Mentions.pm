@@ -4,14 +4,14 @@
 package GPForum::Controller::Notifications::Mentions;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Notifications::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Notifications::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
 const my $HTTP_OK => 200;
 
-sub mentions ($self) {
+async sub mentions ($self) {
     my $user_id = $self->member_user_id;
     if ( !$user_id ) {
         return;
@@ -19,7 +19,7 @@ sub mentions ($self) {
 
     my $page;
     try {
-        $page = $self->_mentions_page($user_id);
+        $page = ( await $self->await_p( $self->_mentions_page($user_id) ) );
     }
     catch ($error) {
         return $self->system_failure;
@@ -38,14 +38,18 @@ sub mentions ($self) {
     );
 }
 
-sub _mentions_page ( $self, $user_id ) {
-    return $self->gp_mention_reader->list_page_for_recipient(
-        $user_id,
-        {
-            after  => $self->param('after'),
-            limit  => $self->page_limit,
-            viewer => $self->gp_forum_viewer,
-        }
+async sub _mentions_page ( $self, $user_id ) {
+    return (
+        await $self->call_p(
+            $self->gp_mention_reader,
+            'list_page_for_recipient',
+            $user_id,
+            {
+                after  => $self->param('after'),
+                limit  => $self->page_limit,
+                viewer => $self->gp_forum_viewer,
+            }
+        )
     );
 }
 

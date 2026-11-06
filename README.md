@@ -153,6 +153,7 @@ lists every setting.
 
 - **Native EV.** Persistent Mojolicious workers use `Mojo::Reactor::EV`: epoll on Linux, kqueue on macOS and FreeBSD. Startup verifies the [actual backend](docs/ops/reactor-backend.md).
 - **PostgreSQL function API.** Mojo::Pg calls the typed, versioned `api.*_vN` catalogue. A [restricted runtime login](docs/ops/sql-api-role.md) can enforce that boundary. DBIx::Class remains a maintainer dependency for historical fixtures and comparisons ([ADR 0174](docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md)).
+- **Asynchronous HTTP services.** Mojolicious async/await drives native PostgreSQL queries, transactions and connection handshakes. Bounded subprocesses isolate expensive CPU work and synchronous service workflows; cache and realtime state remain in the web process. See [deployment limits](docs/DEPLOYMENT.md).
 - **Templates compiled before fork.** Startup waits for asynchronous warmup to finish. Workers inherit compiled EP templates and partials; [HTTP benchmarks verify each serving worker](benchmarks/README.md#complete-http-workload).
 - **Transactional events.** A write commits its rows, domain event and audit record together. Outbox workers deliver events with safe retries.
 - **PostgreSQL search.** Full-text search and `pg_trgm`, optional [pgvector semantic search](docs/ops/hybrid-search.md), and keyset pagination.

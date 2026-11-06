@@ -6,7 +6,7 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 
-runner="perlcritic"
+runner="perl -Iscript/lib -MGPForum::Quality::AsyncSyntax -S perlcritic"
 
 # Route through the project wrapper, the way script/perltidy-check already
 # does. Requiring `carton` on PATH meant that on a host where the dependencies
@@ -16,7 +16,7 @@ runner="perlcritic"
 # and the gate reported status=ok with new_violations=0. It passed by not
 # running.
 if [ -d "$root/local" ]; then
-    runner="$root/script/gpforum-carton exec perlcritic"
+    runner="$root/script/gpforum-carton exec perl -I$root/script/lib -MGPForum::Quality::AsyncSyntax -S perlcritic"
 fi
 
 has_target=0

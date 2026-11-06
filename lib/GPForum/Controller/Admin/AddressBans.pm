@@ -4,7 +4,7 @@
 package GPForum::Controller::Admin::AddressBans;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::ClientAddress;
@@ -59,13 +59,17 @@ const my %INVALID => (
 
 # The bans, live first, the form that places one, and the answer to "which
 # ban covers this address?" when the page is asked it.
-sub show ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub show ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     return if !$user_id;
 
     my %page;
     try {
-        %page = $self->_page;
+        %page = ( await $self->await_p( $self->_page ) );
     }
     catch ($error) {
         $self->app->log->error("admin address bans failed: $error");
@@ -89,86 +93,130 @@ sub show ($self) {
     );
 }
 
-sub create ($self) {
-    my $user_id = $self->_writer;
+async sub create ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'placed',
-        $self->_stored(
-            sub ($bans) {
-                return $bans->place(
-                    {
-                        range         => $self->param('range'),
-                        scope         => $self->param('scope'),
-                        duration      => $self->param('duration'),
-                        reason        => $self->param('reason'),
-                        command_id    => $self->param('command_id'),
-                        actor_user_id => $user_id,
-                        actor_address => $self->_client,
-                    }
-                );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'placed',
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub ($bans) {
+                                return (
+                                    await $self->call_p(
+                                        $bans, 'place',
+                                        {
+                                            range    => $self->param('range'),
+                                            scope    => $self->param('scope'),
+                                            duration =>
+                                              $self->param('duration'),
+                                            reason => $self->param('reason'),
+                                            command_id =>
+                                              $self->param('command_id'),
+                                            actor_user_id => $user_id,
+                                            actor_address => $self->_client,
+                                        }
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
-sub update ($self) {
-    my $user_id = $self->_writer;
+async sub update ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'edited',
-        $self->_stored(
-            sub ($bans) {
-                return $bans->edit(
-                    {
-                        ban_id        => $self->stash('ban_id'),
-                        scope         => $self->param('scope'),
-                        duration      => $self->param('duration'),
-                        reason        => $self->param('reason'),
-                        actor_user_id => $user_id,
-                        actor_address => $self->_client,
-                    }
-                );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'edited',
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub ($bans) {
+                                return (
+                                    await $self->call_p(
+                                        $bans, 'edit',
+                                        {
+                                            ban_id   => $self->stash('ban_id'),
+                                            scope    => $self->param('scope'),
+                                            duration =>
+                                              $self->param('duration'),
+                                            reason => $self->param('reason'),
+                                            actor_user_id => $user_id,
+                                            actor_address => $self->_client,
+                                        }
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
-sub lift ($self) {
-    my $user_id = $self->_writer;
+async sub lift ($self) {
+    my $user_id = ( await $self->await_p( $self->_writer ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'lifted',
-        $self->_stored(
-            sub ($bans) {
-                return $bans->lift(
-                    {
-                        ban_id        => $self->stash('ban_id'),
-                        actor_user_id => $user_id,
-                    }
-                );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'lifted',
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub ($bans) {
+                                return (
+                                    await $self->call_p(
+                                        $bans, 'lift',
+                                        {
+                                            ban_id => $self->stash('ban_id'),
+                                            actor_user_id => $user_id,
+                                        }
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
-sub _page ($self) {
+async sub _page ($self) {
     my $bans = $self->gp_address_bans;
-    my $rows = $bans->list;
+    my $rows = ( await $self->call_p( $bans, 'list' ) );
     my %page = (
         bans           => [ map { _shown( $bans, $_ ) } @{$rows} ],
         live_total     => @{$rows} ? 0 + $rows->[0]{live_total} : 0,
-        client_address => $bans->address( $self->_client ),
-        check          => undef,
+        client_address =>
+          ( await $self->call_p( $bans, 'address', $self->_client ) ),
+        check => undef,
     );
 
     my $asked = $self->param('check');
     if ( defined $asked && length $asked ) {
-        my $address = $bans->address( $asked =~ s/\A \s+ | \s+ \z//grmsx );
-        my $ban     = defined $address ? $bans->covering($address) : undef;
+        my $address = (
+            await $self->call_p(
+                $bans, 'address', $asked =~ s/\A \s+ | \s+ \z//grmsx
+            )
+        );
+        my $ban =
+          defined $address
+          ? ( await $self->call_p( $bans, 'covering', $address ) )
+          : undef;
         $page{check} = {
             asked   => $asked,
             address => $address,
@@ -191,8 +239,8 @@ sub _shown ( $bans, $row ) {
 # The staff member writing, or undef once the request is answered: a bad
 # CSRF token, nobody signed in, no admin_console.manage binding, over the
 # admin write limit, or suspended.
-sub _writer ($self) {
-    return $self->authorized_write_user_id;
+async sub _writer ($self) {
+    return ( await $self->await_p( $self->authorized_write_user_id ) );
 }
 
 sub _client ($self) {
@@ -200,10 +248,10 @@ sub _client ($self) {
 }
 
 # The store's answer, or undef when it failed (logged).
-sub _stored ( $self, $call ) {
+async sub _stored ( $self, $call ) {
     my $result;
     try {
-        $result = $call->( $self->gp_address_bans );
+        $result = await $self->await_p( $call->( $self->gp_address_bans ) );
     }
     catch ($error) {
         $self->app->log->error("admin address ban write failed: $error");

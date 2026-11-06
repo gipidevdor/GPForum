@@ -9,6 +9,7 @@ use Digest::SHA qw(hmac_sha256_hex);
 use JSON::MaybeXS;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
 use GPForum::Config;
 use Mojo::Util qw(encode decode);
 use GPForum::X::Config;
@@ -70,6 +71,30 @@ sub load ($self) {
         public_cache_epoch => $row->{public_cache_epoch},
         settings => $row->{settings} // { plugins => {}, general => {} }
     };
+}
+
+sub load_p ( $self, $context = undef ) {
+    return Mojo::Promise->resolve->then( sub { return $self->load; } )
+      if !$self->functions;
+    return $self->functions->row_p( 'admin_configuration_state', {}, $context )
+      ->then(
+        sub ($row) {
+            return {
+                available          => $row ? 1 : 0,
+                revision           => $row->{revision} // 0,
+                public_cache_epoch => $row->{public_cache_epoch},
+                settings => $row->{settings} // { plugins => {}, general => {} }
+            };
+        }
+      )->catch(
+        sub {
+            return {
+                available => 0,
+                revision  => 0,
+                settings  => { plugins => {}, general => {} }
+            };
+        }
+      );
 }
 
 sub environment ($self) {
@@ -446,6 +471,10 @@ Saves the enabled state and display mode of one independent plugin with a revisi
 =head2 reset_general
 
 Restores one setting to the installation value after checking the resulting complete configuration.
+
+=head2 load_p
+
+Reads authoritative configuration with native SQL and returns the same state shape as C<load>. Unavailable configuration retains the existing degraded-state contract.
 
 =head1 DIAGNOSTICS
 

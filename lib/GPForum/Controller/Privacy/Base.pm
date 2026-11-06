@@ -4,7 +4,7 @@
 package GPForum::Controller::Privacy::Base;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::Access;
@@ -53,7 +53,7 @@ sub member_user_id ($self) {
     return $user_id;
 }
 
-sub write_user_id ($self) {
+async sub write_user_id ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         $self->_csrf_failure;
         return;
@@ -62,25 +62,40 @@ sub write_user_id ($self) {
     # scalar: a refusal returns an empty list, which shifted the action into
     # the user id and died on the signature after the 401 was rendered -- the
     # client lost the connection instead of reading the 401.
-    return $self->_rate_limited_user_id( scalar $self->member_user_id,
-        $self->privacy_access->request_action );
+    return (
+        await $self->await_p(
+            $self->_rate_limited_user_id(
+                scalar $self->member_user_id,
+                $self->privacy_access->request_action
+            )
+        )
+    );
 }
 
-sub authorized_write_user_id ($self) {
+async sub authorized_write_user_id ($self) {
     if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
         $self->_csrf_failure;
         return;
     }
 
     # scalar, as in write_user_id: a 401, 403 or 404 already rendered.
-    return $self->_rate_limited_user_id(
-        scalar $self->authorized_user_id(
-            $self->privacy_access->manage_action ),
-        $self->privacy_access->review_action,
+    return (
+        await $self->await_p(
+            $self->_rate_limited_user_id(
+                scalar(
+                    await $self->await_p(
+                        $self->authorized_user_id(
+                            $self->privacy_access->manage_action
+                        )
+                    )
+                ),
+                $self->privacy_access->review_action,
+            )
+        )
     );
 }
 
-sub authorized_user_id ( $self, $action ) {
+async sub authorized_user_id ( $self, $action ) {
     my $user_id = $self->member_user_id;
     if ( !$user_id ) {
         return;
@@ -90,8 +105,11 @@ sub authorized_user_id ( $self, $action ) {
         %{ $self->global_permission_scope },
     };
     if (
-        !$self->gp_permission_gate->allowed(
-            { user_id => $user_id }, $permission
+        !(
+            await $self->call_p(
+                $self->gp_permission_gate, 'allowed',
+                { user_id => $user_id },   $permission
+            )
         )
       )
     {
@@ -196,13 +214,17 @@ sub privacy_action_response ( $self, $payload, $redirect_route = undef ) {
     return $self->redirect_to( $redirect_route || $access->default_redirect );
 }
 
-sub _rate_limited_user_id ( $self, $user_id, $action ) {
+async sub _rate_limited_user_id ( $self, $user_id, $action ) {
     if ( !$user_id ) {
         return;
     }
-    my $decision = $self->gp_rate_limiter->check(
-        $self->privacy_access->write_rate_input(
-            { action => $action, actor_id => $user_id }
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->privacy_access->write_rate_input(
+                { action => $action, actor_id => $user_id }
+            )
         )
     );
     if ( !$decision->{ok} ) {
@@ -262,6 +284,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     use Mojo::Base 'GPForum::Controller::Privacy::Base';
+use v5.40;
 
 =head1 DESCRIPTION
 

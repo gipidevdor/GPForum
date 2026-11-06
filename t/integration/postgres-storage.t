@@ -28,7 +28,7 @@ my $schema = GPForum::Schema->connect(
     $ENV{GPFORUM_DATABASE_USER} // q{},
     $ENV{GPFORUM_DATABASE_PASSWORD} // q{}, \%options,
 );
-isa_ok( $storage->storage_of($schema), 'DBIx::Class::Storage::DBI' );
+isa_ok( $storage->storage_of($schema), 'GPForum::Infrastructure::PgStorage' );
 my $dbh = $storage->dbh_of($schema);
 isa_ok( $dbh, 'DBI::db', 'dbh_of on a PostgreSQL schema' );
 is( scalar $dbh->selectrow_array('SELECT 1'), 1, 'and the handle answers' );

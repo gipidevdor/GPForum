@@ -4,14 +4,14 @@
 package GPForum::Controller::Privacy;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Privacy::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Privacy::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
 const my $HTTP_OK => 200;
 
-sub dashboard ($self) {
+async sub dashboard ($self) {
     my $user_id = $self->member_user_id;
     if ( !$user_id ) {
         return;
@@ -19,7 +19,8 @@ sub dashboard ($self) {
 
     my $payload;
     try {
-        $payload = $self->_dashboard_payload($user_id);
+        $payload =
+          ( await $self->await_p( $self->_dashboard_payload($user_id) ) );
     }
     catch ($error) {
         $self->app->log->error("privacy dashboard failed: $error");
@@ -35,20 +36,23 @@ sub dashboard ($self) {
     );
 }
 
-sub download_export ($self) {
+async sub download_export ($self) {
     my $user_id = $self->member_user_id;
     if ( !$user_id ) {
         return;
     }
 
-    return $self->_download_completed_export($user_id);
+    return (
+        await $self->await_p( $self->_download_completed_export($user_id) ) );
 }
 
-sub _download_completed_export ( $self, $user_id ) {
-    my $row =
-      $self->gp_data_rights_review->completed_export_for_user( $user_id,
-        $self->param('export_request_id'),
-      );
+async sub _download_completed_export ( $self, $user_id ) {
+    my $row = (
+        await $self->call_p(
+            $self->gp_data_rights_review, 'completed_export_for_user',
+            $user_id,                     $self->param('export_request_id')
+        )
+    );
     if ( !$row ) {
         return $self->not_found('export request not found');
     }
@@ -56,24 +60,31 @@ sub _download_completed_export ( $self, $user_id ) {
     return $self->render_export_download($row);
 }
 
-sub _dashboard_payload ( $self, $user_id ) {
+async sub _dashboard_payload ( $self, $user_id ) {
     my $limit = $self->limit_param;
 
     return $self->gp_privacy_view_model->dashboard(
-        active_holds => $self->gp_data_rights_review->active_holds_for_user(
-            $user_id, { limit => $limit },
+        active_holds => (
+            await $self->call_p(
+                $self->gp_data_rights_review, 'active_holds_for_user',
+                $user_id, { limit => $limit }
+            )
         ),
         csrf_token          => $self->csrf_token,
         deletion_command_id => $self->gp_id->uuid,
-        deletion_requests   =>
-          $self->gp_data_rights_review->deletion_requests_for_user(
-            $user_id, { limit => $limit },
-          ),
+        deletion_requests   => (
+            await $self->call_p(
+                $self->gp_data_rights_review, 'deletion_requests_for_user',
+                $user_id, { limit => $limit }
+            )
+        ),
         export_command_id => $self->gp_id->uuid,
-        export_requests   =>
-          $self->gp_data_rights_review->export_requests_for_user(
-            $user_id, { limit => $limit },
-          ),
+        export_requests   => (
+            await $self->call_p(
+                $self->gp_data_rights_review, 'export_requests_for_user',
+                $user_id, { limit => $limit }
+            )
+        ),
     );
 }
 

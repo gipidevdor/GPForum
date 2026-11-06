@@ -494,11 +494,9 @@ sub _proxies_send_the_same_policy {
         qr/default \s+ "\Q$IMMUTABLE\E";/msx,
         'and a versioned one the immutable lifetime'
     );
-    like(
-        $nginx,
-        qr{try_files [ ] /css\$uri [ ] /img\$uri [ ] \@gpforum_app;}msx,
-        'nginx searches the static roots in the application order'
-    );
+    my $static_fallback = 'try_files /css$uri /img$uri /js$uri @gpforum_app;';
+    like( $nginx, qr/\Q$static_fallback\E/msx,
+        'nginx searches the static roots in the application order' );
     like(
         $nginx,
         qr/add_header [ ] Cache-Control [ ] \$gpforum_asset_cache_control/msx,

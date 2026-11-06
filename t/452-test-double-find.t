@@ -11,7 +11,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
-use GPForum::Schema;
+use GPForum::Test::LegacySchema;
 use GPForum::Test::EngineeringCorrectness::Schema;
 use GPForum::Test::ModerationResultSet;
 use GPForum::Test::UniqueKey;
@@ -29,7 +29,8 @@ const my $EXTRA_COLUMN_VALUE => 'not-a-key-value';
 
 # No statement runs: single is replaced to capture the condition find built.
 my $schema =
-  GPForum::Schema->connect('dbi:Pg:dbname=gpforum_no_database;port=1');
+  GPForum::Test::LegacySchema->connect(
+    'dbi:Pg:dbname=gpforum_no_database;port=1');
 
 subtest 'the doubles build the condition DBIx::Class builds' => sub {
     for my $source_name ( sort $schema->sources ) {

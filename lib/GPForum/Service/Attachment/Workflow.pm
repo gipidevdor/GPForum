@@ -70,6 +70,29 @@ sub download ( $self, $input ) {
     );
 }
 
+sub download_metadata ( $self, $input ) {
+    my $result = $self->download($input);
+    return $result if !$result->{ok};
+    my $stored = $result->{stored};
+    my $asset  = delete $stored->{object_asset};
+    if ($asset) {
+        if ( $asset->isa('GPForum::Service::Attachment::PostgresAsset') ) {
+            $stored->{database_asset} = {
+                object_key  => $asset->object_key,
+                byte_size   => $asset->size,
+                modified_at => $asset->mtime,
+            };
+        }
+        elsif ( $asset->isa('Mojo::Asset::File') ) {
+            $stored->{object_path} = $asset->path;
+        }
+        else {
+            $stored->{content} = $asset->slurp;
+        }
+    }
+    return $result;
+}
+
 sub _upload_once ( $self, $input ) {
     my $post = $self->post_reader->find_visible_post( $input->{post_id},
         $input->{viewer} );
@@ -414,6 +437,10 @@ Already-deleted rows replay as success. Requires C<command_id>.
 =head2 download
 
 Delivers attachment bytes for an authorized viewer.
+
+=head2 download_metadata
+
+Authorizes a download and returns a data-only descriptor for reconstruction in the web process; database handles never cross subprocess IPC.
 
 =head1 DIAGNOSTICS
 

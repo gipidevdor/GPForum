@@ -39,7 +39,7 @@ if ( !GPForum::Test::PgDatabase->admin_dsn ) {
 }
 
 my $database = GPForum::Test::PgDatabase->fresh;
-my $schema   = $database->schema;
+my $schema   = $database->schema->fixture_schema;
 my $budgets  = $schema->resultset('EndpointQueryBudget');
 for my $queries ( 1, 2 ) {
     $budgets->create(

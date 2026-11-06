@@ -4,7 +4,7 @@
 package GPForum::Controller::Forum::Write;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::ComposerBase', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::ComposerBase', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -12,30 +12,37 @@ our $VERSION = '0.001';
 const my $HTTP_OK       => 200;
 const my $HTTP_ACCEPTED => 202;
 
-sub create_thread ($self) {
-    my $user_id = $self->write_user_id('thread.create');
+async sub create_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.create') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $draft = $self->save_publish_draft( $user_id, 'thread' );
+    my $draft =
+      ( await $self->await_p( $self->save_publish_draft( $user_id, 'thread' ) )
+      );
     return if !defined $draft;
-    my $result = $self->gp_posting_workflow->create_thread(
-        {
-            viewer         => $self->gp_forum_viewer,
-            category_id    => $self->param('category_id'),
-            author_user_id => $user_id,
-            title          => $self->param('title'),
-            body_source    => $self->param('body_source'),
-            command_id     => $draft->{command_id} // $self->command_id_param,
-            draft_id       => $draft->{draft_id},
-            draft_revision => $draft->{draft_revision},
-            visibility     => $self->param('visibility'),
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'create_thread',
+            {
+                viewer         => $self->gp_forum_viewer,
+                category_id    => $self->param('category_id'),
+                author_user_id => $user_id,
+                title          => $self->param('title'),
+                body_source    => $self->param('body_source'),
+                command_id => $draft->{command_id} // $self->command_id_param,
+                draft_id   => $draft->{draft_id},
+                draft_revision => $draft->{draft_revision},
+                visibility     => $self->param('visibility'),
 
-            # ADR 0135: kept with a thread held for review, set once it
-            # is published.
-            tags => $self->param('tags'),
-        }
+                # ADR 0135: kept with a thread held for review, set once it
+                # is published.
+                tags => $self->param('tags'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
@@ -51,30 +58,45 @@ sub create_thread ($self) {
                 composer_draft_error    => $self->i18n('forum.draft_conflict'),
                 composer_draft_conflict => 1
             );
-            return $self->compose( $draft, $self->draft_status($result) );
+            return (
+                await $self->await_p(
+                    $self->compose( $draft, $self->draft_status($result) )
+                )
+            );
         }
         return $self->thread_write_failure($result);
     }
 
     return $self->_held_response($result) if $result->{held};
-    $self->_set_thread_tags( $result->{stored}{thread} );
-    return $self->created_thread_response( $result->{stored} );
+    (
+        await $self->await_p(
+            $self->_set_thread_tags( $result->{stored}{thread} )
+        )
+    );
+    return (
+        await $self->await_p(
+            $self->created_thread_response( $result->{stored} ) ) );
 }
 
-sub edit_thread ($self) {
-    my $user_id = $self->write_user_id('thread.edit');
+async sub edit_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.edit') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_posting_workflow->edit_thread(
-        {
-            viewer         => $self->gp_forum_viewer,
-            author_user_id => $user_id,
-            command_id     => $self->command_id_param,
-            thread_id      => $self->param('thread_id'),
-            title          => $self->param('title'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'edit_thread',
+            {
+                viewer         => $self->gp_forum_viewer,
+                author_user_id => $user_id,
+                command_id     => $self->command_id_param,
+                thread_id      => $self->param('thread_id'),
+                title          => $self->param('title'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
@@ -82,100 +104,136 @@ sub edit_thread ($self) {
         return $self->reply_write_failure($result);
     }
 
-    $self->_set_thread_tags( $result->{stored}{thread} );
-    return $self->updated_thread_response( $result->{stored} );
+    (
+        await $self->await_p(
+            $self->_set_thread_tags( $result->{stored}{thread} )
+        )
+    );
+    return (
+        await $self->await_p(
+            $self->updated_thread_response( $result->{stored} ) ) );
 }
 
-sub move_thread ($self) {
-    my $user_id = $self->write_user_id('thread.move');
+async sub move_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.move') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_posting_workflow->move_thread(
-        {
-            viewer         => $self->gp_forum_viewer,
-            author_user_id => $user_id,
-            category_id    => $self->param('category_id'),
-            command_id     => $self->command_id_param,
-            thread_id      => $self->param('thread_id'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'move_thread',
+            {
+                viewer         => $self->gp_forum_viewer,
+                author_user_id => $user_id,
+                category_id    => $self->param('category_id'),
+                command_id     => $self->command_id_param,
+                thread_id      => $self->param('thread_id'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
         return $self->reply_write_failure($result);
     }
 
-    return $self->moved_thread_response( $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->moved_thread_response( $result->{stored} ) ) );
 }
 
-sub delete_thread ($self) {
-    my $user_id = $self->write_user_id('thread.delete');
+async sub delete_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.delete') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_posting_workflow->delete_thread(
-        {
-            viewer         => $self->gp_forum_viewer,
-            author_user_id => $user_id,
-            command_id     => $self->command_id_param,
-            thread_id      => $self->param('thread_id'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'delete_thread',
+            {
+                viewer         => $self->gp_forum_viewer,
+                author_user_id => $user_id,
+                command_id     => $self->command_id_param,
+                thread_id      => $self->param('thread_id'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
         return $self->reply_write_failure($result);
     }
 
-    return $self->deleted_thread_response( $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->deleted_thread_response( $result->{stored} ) ) );
 }
 
-sub restore_thread ($self) {
-    my $user_id = $self->write_user_id('thread.restore');
+async sub restore_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.restore') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_posting_workflow->restore_thread(
-        {
-            viewer         => $self->gp_forum_viewer,
-            author_user_id => $user_id,
-            command_id     => $self->command_id_param,
-            thread_id      => $self->param('thread_id'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'restore_thread',
+            {
+                viewer         => $self->gp_forum_viewer,
+                author_user_id => $user_id,
+                command_id     => $self->command_id_param,
+                thread_id      => $self->param('thread_id'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
         return $self->reply_write_failure($result);
     }
 
-    return $self->restored_thread_response( $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->restored_thread_response( $result->{stored} )
+        )
+    );
 }
 
-sub create_reply ($self) {
-    my $user_id = $self->write_user_id('reply.create');
+async sub create_reply ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('reply.create') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $draft = $self->save_publish_draft( $user_id, 'reply' );
+    my $draft =
+      ( await $self->await_p( $self->save_publish_draft( $user_id, 'reply' ) )
+      );
     return if !defined $draft;
-    my $result = $self->gp_posting_workflow->create_reply(
-        {
-            viewer         => $self->gp_forum_viewer,
-            thread_id      => $self->param('thread_id'),
-            author_user_id => $user_id,
-            body_source    => $self->param('body_source'),
-            command_id     => $draft->{command_id} // $self->command_id_param,
-            draft_id       => $draft->{draft_id},
-            draft_revision => $draft->{draft_revision},
-            visibility     => $self->param('visibility'),
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'create_reply',
+            {
+                viewer         => $self->gp_forum_viewer,
+                thread_id      => $self->param('thread_id'),
+                author_user_id => $user_id,
+                body_source    => $self->param('body_source'),
+                command_id => $draft->{command_id} // $self->command_id_param,
+                draft_id   => $draft->{draft_id},
+                draft_revision => $draft->{draft_revision},
+                visibility     => $self->param('visibility'),
 
-            # ADR 0135: kept with a reply held for review, linked once
-            # it is published.
-            reply_to_post_id => $self->param('reply_to_post_id'),
-        }
+                # ADR 0135: kept with a reply held for review, linked once
+                # it is published.
+                reply_to_post_id => $self->param('reply_to_post_id'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
@@ -191,14 +249,20 @@ sub create_reply ($self) {
             if ( ( $result->{status} // q{} ) eq 'conflict' ) {
                 $self->stash( composer_draft_conflict => 1 );
             }
-            return $self->compose( $draft, $self->draft_status($result) );
+            return (
+                await $self->await_p(
+                    $self->compose( $draft, $self->draft_status($result) )
+                )
+            );
         }
         return $self->reply_write_failure($result);
     }
 
     return $self->_held_response($result) if $result->{held};
-    $self->_link_reply( $result->{stored} );
-    return $self->created_post_response( $result->{stored} );
+    ( await $self->await_p( $self->_link_reply( $result->{stored} ) ) );
+    return (
+        await $self->await_p(
+            $self->created_post_response( $result->{stored} ) ) );
 }
 
 # ADR 0135: a post held for review is accepted, not created. The author is
@@ -241,13 +305,17 @@ sub _held_response ( $self, $result ) {
 # thread is made or its title saved, a field left out leaves them, a
 # field sent empty clears them. A write that fails leaves the thread as
 # it is: the thread is the content, the tags a hint.
-sub _set_thread_tags ( $self, $thread ) {
+async sub _set_thread_tags ( $self, $thread ) {
     my $text = $self->param('tags');
     return if !defined $text;
     my $thread_id = $self->_column( $thread, 'thread_id' );
     return if !$thread_id;
     try {
-        $self->gp_thread_tags->set_thread_tags( $thread_id, $text );
+        (
+            await $self->call_p(
+                $self->gp_thread_tags, 'set_thread_tags', $thread_id, $text
+            )
+        );
     }
     catch ($error) {
         $self->app->log->warn("thread tags failed: $error");
@@ -255,13 +323,17 @@ sub _set_thread_tags ( $self, $thread ) {
     return;
 }
 
-sub _link_reply ( $self, $stored ) {
+async sub _link_reply ( $self, $stored ) {
     my $target = $self->param('reply_to_post_id');
     return if !defined $target || !length $target;
     my $post_id = $self->_column( $stored->{post}, 'post_id' );
     return if !$post_id;
     try {
-        $self->gp_reply_links->link_reply( $post_id, $target );
+        (
+            await $self->call_p(
+                $self->gp_reply_links, 'link_reply', $post_id, $target
+            )
+        );
     }
     catch ($error) {
         $self->app->log->warn("reply link failed: $error");
@@ -269,20 +341,24 @@ sub _link_reply ( $self, $stored ) {
     return;
 }
 
-sub edit_post ($self) {
-    my $user_id = $self->write_user_id('post.edit');
+async sub edit_post ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id('post.edit') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_posting_workflow->edit_post(
-        {
-            viewer         => $self->gp_forum_viewer,
-            author_user_id => $user_id,
-            body_source    => $self->param('body_source'),
-            command_id     => $self->command_id_param,
-            post_id        => $self->param('post_id'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'edit_post',
+            {
+                viewer         => $self->gp_forum_viewer,
+                author_user_id => $user_id,
+                body_source    => $self->param('body_source'),
+                command_id     => $self->command_id_param,
+                post_id        => $self->param('post_id'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
@@ -290,63 +366,83 @@ sub edit_post ($self) {
         return $self->reply_write_failure($result);
     }
 
-    return $self->updated_post_response( $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->updated_post_response( $result->{stored} ) ) );
 }
 
-sub delete_post ($self) {
-    my $user_id = $self->write_user_id('post.delete');
+async sub delete_post ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('post.delete') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_posting_workflow->delete_post(
-        {
-            viewer         => $self->gp_forum_viewer,
-            author_user_id => $user_id,
-            command_id     => $self->command_id_param,
-            post_id        => $self->param('post_id'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'delete_post',
+            {
+                viewer         => $self->gp_forum_viewer,
+                author_user_id => $user_id,
+                command_id     => $self->command_id_param,
+                post_id        => $self->param('post_id'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
         return $self->reply_write_failure($result);
     }
 
-    return $self->deleted_post_response( $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->deleted_post_response( $result->{stored} ) ) );
 }
 
-sub restore_post ($self) {
-    my $user_id = $self->write_user_id('post.restore');
+async sub restore_post ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('post.restore') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $result = $self->gp_posting_workflow->restore_post(
-        {
-            viewer         => $self->gp_forum_viewer,
-            author_user_id => $user_id,
-            command_id     => $self->command_id_param,
-            post_id        => $self->param('post_id'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_posting_workflow,
+            'restore_post',
+            {
+                viewer         => $self->gp_forum_viewer,
+                author_user_id => $user_id,
+                command_id     => $self->command_id_param,
+                post_id        => $self->param('post_id'),
+            }
+        )
     );
 
     if ( !$result->{ok} ) {
         return $self->reply_write_failure($result);
     }
 
-    return $self->restored_post_response( $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->restored_post_response( $result->{stored} ) ) );
 }
 
-sub mark_thread_read ($self) {
-    my $user_id = $self->write_user_id('thread.read');
+async sub mark_thread_read ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.read') ) );
     if ( !$user_id ) {
         return;
     }
 
     my $thread_id = $self->param('thread_id');
     if (
-        !$self->gp_thread_detail_reader->find_thread(
-            $thread_id, $self->gp_forum_viewer
+        !(
+            await $self->call_p(
+                $self->gp_thread_detail_reader, 'find_thread',
+                $thread_id,                     $self->gp_forum_viewer
+            )
         )
       )
     {
@@ -358,13 +454,17 @@ sub mark_thread_read ($self) {
         return $self->_bad_request( $self->forum_access->read_position_errors );
     }
 
-    my $marked = $self->gp_thread_read_workflow->mark_thread_read(
-        {
-            command_id         => $self->command_id_param,
-            last_read_position => $position,
-            thread_id          => $thread_id,
-            user_id            => $user_id,
-        }
+    my $marked = (
+        await $self->call_p(
+            $self->gp_thread_read_workflow,
+            'mark_thread_read',
+            {
+                command_id         => $self->command_id_param,
+                last_read_position => $position,
+                thread_id          => $thread_id,
+                user_id            => $user_id,
+            }
+        )
     );
     if ( !$marked->{ok} ) {
         return $self->_write_failure(
@@ -380,7 +480,7 @@ sub mark_thread_read ($self) {
         );
     }
 
-    return $self->read_marker_response($marked);
+    return ( await $self->await_p( $self->read_marker_response($marked) ) );
 }
 
 # ADR 0133: a write the automod rules refused says why, in the reader's

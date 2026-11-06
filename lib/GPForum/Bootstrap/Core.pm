@@ -4,6 +4,8 @@
 package GPForum::Bootstrap::Core;
 
 use v5.40;
+use GPForum::Controller::Base;
+use Scalar::Util ();
 
 use Compress::Raw::Zlib qw(WANT_GZIP Z_OK);
 use Const::Fast;
@@ -45,7 +47,22 @@ sub register {
     my ( undef, %input ) = @_;
 
     my $application = $input{application};
-    my $config      = $input{config};
+    $application->hook(
+        around_action => sub ( $next, $controller, @ ) {
+            my $result = $next->();
+            if ( Scalar::Util::blessed($result)
+                && $result->isa('Mojo::Promise') )
+            {
+                if ( !$controller->stash('mojo.finished') ) {
+                    $controller->render_later;
+                }
+            }
+            return $result;
+        }
+    );
+
+    my $config = $input{config};
+    $application->controller_class('GPForum::Controller::Base');
 
     $application->secrets( $config->signing_secrets );
     $application->mode( $config->environment );
@@ -299,7 +316,8 @@ sub _configure_realtime_listener_lifecycle {
             # connection: the workers would inherit it.
             return if $controller->stash('gpforum.warming');
 
-            $controller->gp_realtime_listener_supervisor->start;
+            return
+              ;  # Asynchronous preparation starts the listener before dispatch.
         }
     );
 

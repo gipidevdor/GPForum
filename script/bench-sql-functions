@@ -22,6 +22,9 @@ use POSIX         qw(_exit clock setsid strftime);
 use Time::HiRes   qw(sleep time);
 
 use lib "$Bin/../lib";
+use lib "$Bin/../t/lib";
+use lib 't/lib';
+use GPForum::Test::PgSchema;
 
 use GPForum::Benchmark::BucketProfile;
 use GPForum::Benchmark::SeedDataset qw(seed_id);
@@ -347,7 +350,7 @@ sub _stop ($proxy) {
 sub _schema ($dsn) {
     local $ENV{GPFORUM_DATABASE_DSN} = $dsn;
 
-    return GPForum::Schema->connect_from_config(
+    return GPForum::Test::PgSchema->connect_from_config(
         GPForum::Config->from_environment );
 }
 

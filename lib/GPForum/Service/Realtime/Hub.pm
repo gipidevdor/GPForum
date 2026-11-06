@@ -7,12 +7,15 @@ use Const::Fast;
 use List::Util   qw(uniq);
 use Mojo::JSON   qw(encode_json);
 use Scalar::Util qw(weaken);
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 
 use GPForum::Service::Realtime::ChannelAuthorizer;
 use GPForum::Service::Realtime::ConnectionRegistry;
 use GPForum::Service::Realtime::EventEnvelope;
+
+use GPForum::Infrastructure::AsyncWork;
+use Mojo::Promise;
 
 our $VERSION = '0.001';
 
@@ -73,6 +76,156 @@ has session_store         => undef;  # optional: no session check without it
 has ioloop                => undef;  # optional: the check runs only when called
 has session_check_seconds => $SESSION_CHECK_SECONDS;
 has session_timer_id      => undef;    # optional: set while a check runs
+
+sub _call_p ( $self, $service, $method, @args ) {
+    my $native = $method . '_p';
+    return $service->$native(@args) if $service->can($native);
+    return GPForum::Infrastructure::AsyncWork->shared->service_result_p(
+        $service, $method, \@args );
+}
+
+async sub subscribe_p ( $self, $request ) {
+    my $authorization = await $self->_call_p( $self->authorizer, 'authorize',
+        $request->{actor}, $request->{channel}, $request->{context} || {} );
+    return $authorization if !$authorization->{ok};
+
+    # A socket may close while authorization is pending.
+    my $subscription = $self->registry->subscribe( $request->{connection_id},
+        $request->{channel} );
+    return $subscription if !$subscription->{ok};
+    return {
+        ok      => 1,
+        channel => $request->{channel},
+        reason  => $authorization->{reason}
+    };
+}
+
+async sub close_ended_sessions_p ($self) {
+    return 0 if !$self->session_store;
+    my @rows = values %{ $self->registry->connections };
+    my @ids  = uniq grep { defined } map { _session_id( $_->{actor} ) } @rows;
+    my $live = {};
+    try {
+        if (@ids) {
+            $live =
+              await $self->_call_p( $self->session_store, 'live_session_ids',
+                \@ids );
+        }
+    }
+    catch ($error) { $self->stats->{session_check_failures}++; return 0; };
+    return $self->_close_sessions(
+        grep {
+            $self->registry->connection( $_->{connection_id} )
+              && !$live->{ _session_id( $_->{actor} ) // q{} }
+        } @rows
+    );
+}
+
+async sub send_badge_snapshot_p ( $self, $connection_id ) {
+    my $row     = $self->registry->connection($connection_id);
+    my $user_id = $row ? _user_id( $row->{actor} ) : undef;
+    return { ok => 0, reason => 'connection_not_found' } if !defined $user_id;
+    my $count;
+    try {
+        if ( $self->badge_counter ) {
+            $count = await $self->_call_p( $self->badge_counter,
+                'unread_count_for_user', $user_id );
+        }
+    }
+    catch ($error) { $count = undef; };
+    return { ok => 0, reason => 'connection_not_found' }
+      if !$self->registry->connection($connection_id);
+    return $self->_send_badge( $row, $user_id, $count );
+}
+
+async sub resend_badge_snapshots_p ($self) {
+    my %count;
+    my $sent = 0;
+    for my $row ( $self->registry->subscribers_of_family($NOTIFICATIONS) ) {
+        my $user_id = _user_id( $row->{actor} );
+        next if !defined $user_id || !$self->badge_counter;
+        if ( !exists $count{$user_id} ) {
+            try {
+                $count{$user_id} = await $self->_call_p( $self->badge_counter,
+                    'unread_count_for_user', $user_id );
+            }
+            catch ($error) { $count{$user_id} = undef; };
+        }
+        next if !$self->registry->connection( $row->{connection_id} );
+        if ( $self->_send_badge( $row, $user_id, $count{$user_id} )->{ok} ) {
+            $sent++;
+        }
+    }
+    return $sent;
+}
+
+async sub broadcast_p ( $self, $channel, $payload ) {
+    my @subscribers = $self->registry->subscribers($channel);
+    my @resources   = _readability_resources( $channel, $payload );
+    for my $resource (@resources) {
+        last if !@subscribers || !$self->readability;
+        my %users =
+          map { $_->{connection_id} => _user_id( $_->{actor} ) // q{} }
+          @subscribers;
+        my $readable = await $self->_call_p(
+            $self->readability, 'readers_list',
+            @{$resource},       uniq values %users
+        );
+        my %allowed = map { $_ => 1 } @{$readable};
+        @subscribers =
+          grep { $allowed{ $users{ $_->{connection_id} } } } @subscribers;
+    }
+    my ( $delivered, $failed ) = ( 0, 0 );
+    my $prepared = {};
+    for my $row (@subscribers) {
+        next if !$self->registry->connection( $row->{connection_id} );
+        if ( _send_json( $row->{connection}, $payload, $prepared ) ) {
+            $delivered++;
+        }
+        else { $failed++; }
+    }
+    $self->stats->{broadcast}++;
+    $self->stats->{broadcasts}++;
+    $self->stats->{delivered}          += $delivered;
+    $self->stats->{failed}             += $failed;
+    $self->stats->{broadcast_failures} += $failed;
+    return {
+        ok        => 1,
+        channel   => $channel,
+        delivered => $delivered,
+        failed    => $failed
+    };
+}
+
+sub _readability_resources( $channel, $payload ) {
+    my $parsed =
+      GPForum::Service::Realtime::ChannelAuthorizer::parse_channel($channel);
+    my @resources;
+    if ( $parsed && $parsed->{type} eq 'thread' ) {
+        push @resources, [ 'thread', $parsed->{resource_id} ];
+    }
+    if (   ref $payload eq 'HASH'
+        && ref $payload->{payload} eq 'HASH'
+        && defined $payload->{payload}{post_id} )
+    {
+        push @resources, [ 'post', $payload->{payload}{post_id} ];
+    }
+    return @resources;
+}
+
+async sub broadcast_event_p ( $self, $event ) {
+    my $rejection = $self->_event_rejection($event);
+    return $rejection if $rejection;
+    my @channels = _channels_for_event($event);
+    my $summary =
+      { ok => 1, delivered => 0, failed => 0, channels => \@channels };
+    for my $channel (@channels) {
+        my $result = await $self->broadcast_p( $channel, $event );
+        $summary->{delivered} += $result->{delivered} || 0;
+        $summary->{failed}    += $result->{failed}    || 0;
+    }
+    return $summary;
+}
 
 sub register_connection ( $self, $connection_id, $actor, $connection ) {
     my $row = $self->registry->register( $connection_id, $actor, $connection );
@@ -145,7 +298,11 @@ sub _watch_sessions ($self) {
         $self->ioloop->recurring(
             $self->session_check_seconds => sub (@) {
                 if ($hub) {
-                    $hub->close_ended_sessions;
+                    return if $hub->{sessions_pending};
+                    $hub->{sessions_pending} = 1;
+                    $hub->close_ended_sessions_p->finally(
+                        sub { delete $hub->{sessions_pending}; return; } )
+                      ->catch( sub { return; } );
                 }
             }
         )
@@ -600,6 +757,30 @@ two limits) merged with the hub's counters: C<badge_snapshots>,
 C<broadcast> and C<broadcasts>, C<delivered>, C<failed> and
 C<broadcast_failures>, C<malformed> and C<malformed_events>. The paired
 counters are kept equal.
+
+=head2 broadcast_event_p
+
+Validates an event and awaits per-channel delivery. Visibility decisions complete before any payload is sent to a subscriber.
+
+=head2 broadcast_p
+
+Resolves current thread and post readability before writing to live local sockets. No socket or registry is transferred to a child process.
+
+=head2 close_ended_sessions_p
+
+Reads all local session ids in one asynchronous operation, then closes only sockets still registered whose sessions ended. Lookup failure closes none.
+
+=head2 resend_badge_snapshots_p
+
+Reads each subscribed user's count once and sends absolute counts to their still-live local sockets.
+
+=head2 send_badge_snapshot_p
+
+Awaits the unread count before sending a snapshot to one still-registered connection. Missing or failed counts produce no badge.
+
+=head2 subscribe_p
+
+Awaits channel authorization, then updates the local registry if the connection is still registered. An unresolved promise is never treated as permission.
 
 =head1 DIAGNOSTICS
 

@@ -22,6 +22,9 @@ use GPForum::Service::Operations::Replication;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncWork;
+
 our $VERSION = '0.001';
 has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
@@ -77,6 +80,28 @@ sub runbooks ($class) {
 }
 
 # The last report, when it is at most reuse_seconds old; a fresh one when not.
+sub check_p ( $self, $context = undef ) {
+    my $work = GPForum::Infrastructure::AsyncWork->shared;
+    return $work->service_result_p( $self, 'check', [], $context )
+      if $self->schema && $self->schema->isa('GPForum::Schema');
+    return $work->run_p( sub { return $self->check; } );
+}
+
+sub recent_check_p ( $self, $context = undef ) {
+    my $recent = $self->_recent;
+    return Mojo::Promise->resolve( $recent->{report} )
+      if $recent && time - $recent->{at} < $self->reuse_seconds;
+    return $self->{recent_pending} if $self->{recent_pending};
+    my $promise = $self->check_p($context)->then(
+        sub ($report) {
+            $self->_recent( { at => time, report => $report } );
+            return $report;
+        }
+    );
+    $self->{recent_pending} = $promise;
+    return $promise->finally( sub { delete $self->{recent_pending}; return; } );
+}
+
 sub recent_check ($self) {
     my $recent = $self->_recent;
     if ( !$recent || time - $recent->{at} >= $self->reuse_seconds ) {
@@ -496,6 +521,14 @@ failed check carries in its C<runbook> field.
 =head2 probe_resultset
 
 The one-row query a table check runs.
+
+=head2 check_p
+
+Runs database, operating-system and external dependency probes in the bounded executor and returns the full readiness report without blocking HTTP.
+
+=head2 recent_check_p
+
+Coalesces concurrent asynchronous checks and reuses a completed report for C<reuse_seconds>. The cache remains in the parent process.
 
 =head1 DIAGNOSTICS
 

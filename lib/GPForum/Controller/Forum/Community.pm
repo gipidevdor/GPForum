@@ -4,26 +4,30 @@
 package GPForum::Controller::Forum::Community;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
 const my $HTTP_OK => 200;
 
-sub feed ($self) {
+async sub feed ($self) {
     my $user_id = $self->current_user_id;
     if ( !$user_id ) {
         return $self->_unauthorized;
     }
 
-    my $page = $self->gp_feed_reader->list_page_for_user(
-        $user_id,
-        {
-            limit  => $self->list_page_limit,
-            after  => $self->param('after'),
-            viewer => $self->gp_forum_viewer,
-        }
+    my $page = (
+        await $self->call_p(
+            $self->gp_feed_reader,
+            'list_page_for_user',
+            $user_id,
+            {
+                limit  => $self->list_page_limit,
+                after  => $self->param('after'),
+                viewer => $self->gp_forum_viewer,
+            }
+        )
     );
 
     my $payload = $self->gp_community_view_model->feed_page( page => $page );
@@ -38,7 +42,7 @@ sub feed ($self) {
     );
 }
 
-sub bookmarks ($self) {
+async sub bookmarks ($self) {
     my $user_id = $self->current_user_id;
     if ( !$user_id ) {
         return $self->_unauthorized;
@@ -46,25 +50,33 @@ sub bookmarks ($self) {
 
     my $folder =
       $self->gp_bookmark_folders->normalise( $self->param('folder') );
-    my $page = $self->gp_bookmark_store->list_page_for_user(
-        $user_id,
-        {
-            folder      => length( $folder // q{} ) ? $folder : undef,
-            target_type => $self->forum_access->thread_target,
-            limit       => $self->list_page_limit,
-            after       => $self->param('after'),
-            viewer      => $self->gp_forum_viewer,
-        }
+    my $page = (
+        await $self->call_p(
+            $self->gp_bookmark_store,
+            'list_page_for_user',
+            $user_id,
+            {
+                folder      => length( $folder // q{} ) ? $folder : undef,
+                target_type => $self->forum_access->thread_target,
+                limit       => $self->list_page_limit,
+                after       => $self->param('after'),
+                viewer      => $self->gp_forum_viewer,
+            }
+        )
     );
 
     my $payload = $self->gp_community_view_model->bookmarks_page(
         folder  => $folder,
-        folders => $self->gp_bookmark_folders->list_folders(
-            $user_id,
-            {
-                target_type => $self->forum_access->thread_target,
-                viewer      => $self->gp_forum_viewer,
-            }
+        folders => (
+            await $self->call_p(
+                $self->gp_bookmark_folders,
+                'list_folders',
+                $user_id,
+                {
+                    target_type => $self->forum_access->thread_target,
+                    viewer      => $self->gp_forum_viewer,
+                }
+            )
         ),
         page => $page,
     );
@@ -79,42 +91,58 @@ sub bookmarks ($self) {
     );
 }
 
-sub create_thread_bookmark ($self) {
-    my $user_id = $self->write_user_id('thread.bookmark');
+async sub create_thread_bookmark ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.bookmark') ) );
     if ( !$user_id ) {
         return;
     }
-    if ( !$self->visible_thread ) {
+    if ( !( await $self->await_p( $self->visible_thread ) ) ) {
         return;
     }
 
-    my $result = $self->gp_community_workflow->save_bookmark(
-        {
-            command_id  => $self->command_id_param,
-            note        => $self->param('note'),
-            target_id   => $self->param('thread_id'),
-            target_type => $self->forum_access->thread_target,
-            user_id     => $user_id,
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_community_workflow,
+            'save_bookmark',
+            {
+                command_id  => $self->command_id_param,
+                note        => $self->param('note'),
+                target_id   => $self->param('thread_id'),
+                target_type => $self->forum_access->thread_target,
+                user_id     => $user_id,
+            }
+        )
     );
-    $self->_file_saved_bookmark( $result, $user_id );
+    ( await $self->await_p( $self->_file_saved_bookmark( $result, $user_id ) )
+    );
 
-    return $self->_community_write_response( 'bookmark',
-        $self->forum_access->bookmarked_status, $result );
+    return (
+        await $self->await_p(
+            $self->_community_write_response(
+                'bookmark', $self->forum_access->bookmarked_status, $result
+            )
+        )
+    );
 }
 
 # The folder named with a save (ADR 0136) is set once the bookmark is
 # stored; a field left out or empty leaves the bookmark where it is. A
 # write that fails leaves the bookmark as it is: the folder is a hint.
-sub _file_saved_bookmark ( $self, $result, $user_id ) {
+async sub _file_saved_bookmark ( $self, $result, $user_id ) {
     my $folder = $self->param('folder');
     return if !defined $folder || !length $folder;
     return if ( $result->{status} // 'ok' ) ne 'ok';
     my $bookmark_id = $self->_column( $result->{stored}, 'bookmark_id' );
     return if !$bookmark_id;
     try {
-        $self->gp_bookmark_folders->file_bookmark( $bookmark_id, $user_id,
-            $folder );
+        (
+            await $self->call_p(
+                $self->gp_bookmark_folders, 'file_bookmark',
+                $bookmark_id,               $user_id,
+                $folder
+            )
+        );
     }
     catch ($error) {
         $self->app->log->warn("bookmark folder failed: $error");
@@ -124,15 +152,20 @@ sub _file_saved_bookmark ( $self, $result, $user_id ) {
 
 # Moves one of the member's bookmarks to a folder, or out of its folder,
 # from the bookmarks page; the page then shows that folder.
-sub file_bookmark ($self) {
-    my $user_id = $self->write_user_id('thread.bookmark.file');
+async sub file_bookmark ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.bookmark.file') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $filed =
-      $self->gp_bookmark_folders->file_bookmark( $self->param('bookmark_id'),
-        $user_id, $self->param('folder') );
+    my $filed = (
+        await $self->call_p(
+            $self->gp_bookmark_folders,  'file_bookmark',
+            $self->param('bookmark_id'), $user_id,
+            $self->param('folder')
+        )
+    );
     if ( !$filed ) {
         return $self->not_found('bookmark not found');
     }
@@ -152,39 +185,54 @@ sub file_bookmark ($self) {
           ->query( length $folder ? ( folder => $folder ) : () ) );
 }
 
-sub remove_thread_bookmark ($self) {
-    my $user_id = $self->write_user_id('thread.bookmark.remove');
+async sub remove_thread_bookmark ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.bookmark.remove') )
+      );
     if ( !$user_id ) {
         return;
     }
-    if ( !$self->visible_thread ) {
+    if ( !( await $self->await_p( $self->visible_thread ) ) ) {
         return;
     }
 
-    return $self->_community_write_response(
-        'bookmark',
-        $self->forum_access->bookmark_removed_status,
-        $self->gp_community_workflow->remove_bookmark(
-            {
-                command_id  => $self->command_id_param,
-                target_id   => $self->param('thread_id'),
-                target_type => $self->forum_access->thread_target,
-                user_id     => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->_community_write_response(
+                'bookmark',
+                $self->forum_access->bookmark_removed_status,
+                (
+                    await $self->call_p(
+                        $self->gp_community_workflow,
+                        'remove_bookmark',
+                        {
+                            command_id  => $self->command_id_param,
+                            target_id   => $self->param('thread_id'),
+                            target_type => $self->forum_access->thread_target,
+                            user_id     => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 
-sub category_subscription ($self) {
-    my $actor = $self->write_user_id('category.subscribe');
+async sub category_subscription ($self) {
+    my $actor =
+      ( await $self->await_p( $self->write_user_id('category.subscribe') ) );
     return if !$actor;
-    my $result = $self->gp_category_subscriptions->change(
-        {
-            actor       => $actor,
-            command     => $self->command_id_param,
-            category_id => $self->param('category_id'),
-            operation   => $self->param('operation'),
-        }
+    my $result = (
+        await $self->call_p(
+            $self->gp_category_subscriptions,
+            'change',
+            {
+                actor       => $actor,
+                command     => $self->command_id_param,
+                category_id => $self->param('category_id'),
+                operation   => $self->param('operation'),
+            }
+        )
     );
     return $self->not_found('category not found')
       if $result->{status} eq 'not_found';
@@ -195,102 +243,154 @@ sub category_subscription ($self) {
         category_id => $self->param('category_id') );
 }
 
-sub subscribe_thread ($self) {
-    my $user_id = $self->write_user_id('thread.subscribe');
+async sub subscribe_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.subscribe') ) );
     if ( !$user_id ) {
         return;
     }
-    if ( !$self->visible_thread ) {
+    if ( !( await $self->await_p( $self->visible_thread ) ) ) {
         return;
     }
 
-    return $self->_community_write_response(
-        'subscription',
-        $self->forum_access->subscribed_status,
-        $self->gp_community_workflow->save_subscription(
-            {
-                command_id  => $self->command_id_param,
-                preference  => $self->param('preference') || 'all',
-                target_id   => $self->param('thread_id'),
-                target_type => $self->forum_access->thread_target,
-                user_id     => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->_community_write_response(
+                'subscription',
+                $self->forum_access->subscribed_status,
+                (
+                    await $self->call_p(
+                        $self->gp_community_workflow,
+                        'save_subscription',
+                        {
+                            command_id  => $self->command_id_param,
+                            preference  => $self->param('preference') || 'all',
+                            target_id   => $self->param('thread_id'),
+                            target_type => $self->forum_access->thread_target,
+                            user_id     => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 
-sub mute_thread_subscription ($self) {
-    my $user_id = $self->write_user_id('thread.subscription.mute');
+async sub mute_thread_subscription ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.subscription.mute') )
+      );
     if ( !$user_id ) {
         return;
     }
-    if ( !$self->visible_thread ) {
+    if ( !( await $self->await_p( $self->visible_thread ) ) ) {
         return;
     }
 
-    return $self->_community_write_response(
-        'subscription',
-        $self->forum_access->subscription_muted_status,
-        $self->gp_community_workflow->mute_subscription(
-            {
-                command_id  => $self->command_id_param,
-                target_id   => $self->param('thread_id'),
-                target_type => $self->forum_access->thread_target,
-                user_id     => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->_community_write_response(
+                'subscription',
+                $self->forum_access->subscription_muted_status,
+                (
+                    await $self->call_p(
+                        $self->gp_community_workflow,
+                        'mute_subscription',
+                        {
+                            command_id  => $self->command_id_param,
+                            target_id   => $self->param('thread_id'),
+                            target_type => $self->forum_access->thread_target,
+                            user_id     => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 
-sub unsubscribe_thread ($self) {
-    my $user_id = $self->write_user_id('thread.unsubscribe');
+async sub unsubscribe_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('thread.unsubscribe') ) );
     if ( !$user_id ) {
         return;
     }
-    if ( !$self->visible_thread ) {
+    if ( !( await $self->await_p( $self->visible_thread ) ) ) {
         return;
     }
 
-    return $self->_community_write_response(
-        'subscription',
-        $self->forum_access->unsubscribed_status,
-        $self->gp_community_workflow->revoke_subscription(
-            {
-                command_id  => $self->command_id_param,
-                target_id   => $self->param('thread_id'),
-                target_type => $self->forum_access->thread_target,
-                user_id     => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->_community_write_response(
+                'subscription',
+                $self->forum_access->unsubscribed_status,
+                (
+                    await $self->call_p(
+                        $self->gp_community_workflow,
+                        'revoke_subscription',
+                        {
+                            command_id  => $self->command_id_param,
+                            target_id   => $self->param('thread_id'),
+                            target_type => $self->forum_access->thread_target,
+                            user_id     => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 
 # A refusal the workflow names answers with its error page; any other status
 # (none, or ok) is the bookmark or subscription response.
-sub like_post ($self) {
-    return $self->_like_write( 'post.like', 'like_post',
-        $self->forum_access->post_liked_status );
+async sub like_post ($self) {
+    return (
+        await $self->await_p(
+            $self->_like_write(
+                'post.like', 'like_post',
+                $self->forum_access->post_liked_status
+            )
+        )
+    );
 }
 
-sub unlike_post ($self) {
-    return $self->_like_write( 'post.unlike', 'unlike_post',
-        $self->forum_access->post_unliked_status );
+async sub unlike_post ($self) {
+    return (
+        await $self->await_p(
+            $self->_like_write(
+                'post.unlike', 'unlike_post',
+                $self->forum_access->post_unliked_status
+            )
+        )
+    );
 }
 
 # A reaction (ADR 0145): one of the four, on a post the member may read,
 # not their own; the function refuses all three again.
-sub react_post ($self) {
-    return $self->_reaction_write( 'post.react', 'react_post',
-        $self->forum_access->post_reacted_status );
+async sub react_post ($self) {
+    return (
+        await $self->await_p(
+            $self->_reaction_write(
+                'post.react', 'react_post',
+                $self->forum_access->post_reacted_status
+            )
+        )
+    );
 }
 
-sub unreact_post ($self) {
-    return $self->_reaction_write( 'post.unreact', 'unreact_post',
-        $self->forum_access->post_unreacted_status );
+async sub unreact_post ($self) {
+    return (
+        await $self->await_p(
+            $self->_reaction_write(
+                'post.unreact', 'unreact_post',
+                $self->forum_access->post_unreacted_status
+            )
+        )
+    );
 }
 
-sub _reaction_write ( $self, $action, $method, $status ) {
-    my $user_id = $self->write_user_id($action);
+async sub _reaction_write ( $self, $action, $method, $status ) {
+    my $user_id = ( await $self->await_p( $self->write_user_id($action) ) );
     if ( !$user_id ) {
         return;
     }
@@ -298,7 +398,7 @@ sub _reaction_write ( $self, $action, $method, $status ) {
     if ( !$self->gp_reaction_store->is_reaction($reaction) ) {
         return $self->_bad_request( { reaction => 'unknown reaction' } );
     }
-    my $post = $self->_visible_post;
+    my $post = ( await $self->await_p( $self->_visible_post ) );
     if ( !$post ) {
         return;
     }
@@ -309,28 +409,36 @@ sub _reaction_write ( $self, $action, $method, $status ) {
             { post_id => 'a post is not reacted to by its author' } );
     }
 
-    return $self->_community_write_response(
-        'reaction',
-        $status,
-        $self->gp_community_workflow->$method(
-            {
-                command_id => $self->command_id_param,
-                post_id    => $self->param('post_id'),
-                reaction   => $reaction,
-                user_id    => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->_community_write_response(
+                'reaction',
+                $status,
+                (
+                    await $self->call_p(
+                        $self->gp_community_workflow,
+                        $method,
+                        {
+                            command_id => $self->command_id_param,
+                            post_id    => $self->param('post_id'),
+                            reaction   => $reaction,
+                            user_id    => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 
 # A like goes to a post the member may read, and not to their own; the
 # function refuses both again under its lock (ADR 0129).
-sub _like_write ( $self, $action, $method, $status ) {
-    my $user_id = $self->write_user_id($action);
+async sub _like_write ( $self, $action, $method, $status ) {
+    my $user_id = ( await $self->await_p( $self->write_user_id($action) ) );
     if ( !$user_id ) {
         return;
     }
-    my $post = $self->_visible_post;
+    my $post = ( await $self->await_p( $self->_visible_post ) );
     if ( !$post ) {
         return;
     }
@@ -341,29 +449,42 @@ sub _like_write ( $self, $action, $method, $status ) {
             { post_id => 'a post is not liked by its author' } );
     }
 
-    return $self->_community_write_response(
-        'like', $status,
-        $self->gp_community_workflow->$method(
-            {
-                command_id => $self->command_id_param,
-                post_id    => $self->param('post_id'),
-                user_id    => $user_id,
-            }
-        ),
+    return (
+        await $self->await_p(
+            $self->_community_write_response(
+                'like', $status,
+                (
+                    await $self->call_p(
+                        $self->gp_community_workflow,
+                        $method,
+                        {
+                            command_id => $self->command_id_param,
+                            post_id    => $self->param('post_id'),
+                            user_id    => $user_id,
+                        }
+                    )
+                ),
+            )
+        )
     );
 }
 
 # The post of the request when the viewer may read it and its thread, else
 # a 404 answered and nothing.
-sub _visible_post ($self) {
-    my $post =
-      $self->gp_post_reader->find_visible_post( $self->param('post_id'),
-        $self->gp_forum_viewer );
+async sub _visible_post ($self) {
+    my $post = (
+        await $self->call_p(
+            $self->gp_post_reader,   'find_visible_post',
+            $self->param('post_id'), $self->gp_forum_viewer
+        )
+    );
     if (
         !$post
-        || !$self->gp_thread_detail_reader->find_thread(
-            $self->_column( $post, 'thread_id' ),
-            $self->gp_forum_viewer
+        || !(
+            await $self->call_p(
+                $self->gp_thread_detail_reader,       'find_thread',
+                $self->_column( $post, 'thread_id' ), $self->gp_forum_viewer
+            )
         )
       )
     {
@@ -374,7 +495,7 @@ sub _visible_post ($self) {
     return $post;
 }
 
-sub _community_write_response ( $self, $kind, $status, $result ) {
+async sub _community_write_response ( $self, $kind, $status, $result ) {
     my $mapped = $result->{status} // 'ok';
     if ( $mapped eq 'failed' ) {
         return $self->_service_unavailable;
@@ -389,105 +510,159 @@ sub _community_write_response ( $self, $kind, $status, $result ) {
         return $self->_conflict( $result->{error} );
     }
     if ( $kind eq 'bookmark' ) {
-        return $self->bookmark_action_response( $status, $result->{stored} );
+        return (
+            await $self->await_p(
+                $self->bookmark_action_response( $status, $result->{stored} )
+            )
+        );
     }
     if ( $kind eq 'like' ) {
-        return $self->like_action_response( $status, $result->{stored} );
+        return (
+            await $self->await_p(
+                $self->like_action_response( $status, $result->{stored} )
+            )
+        );
     }
     if ( $kind eq 'reaction' ) {
-        return $self->reaction_action_response( $status, $result->{stored} );
+        return (
+            await $self->await_p(
+                $self->reaction_action_response( $status, $result->{stored} )
+            )
+        );
     }
 
-    return $self->subscription_action_response( $status, $result->{stored} );
+    return (
+        await $self->await_p(
+            $self->subscription_action_response( $status, $result->{stored} )
+        )
+    );
 }
 
-sub report_thread ($self) {
-    my $user_id = $self->write_user_id('report.create');
+async sub report_thread ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('report.create') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $thread = $self->visible_thread;
+    my $thread = ( await $self->await_p( $self->visible_thread ) );
     if ( !$thread ) {
         return;
     }
 
     my $thread_id = $self->_column( $thread, 'thread_id' );
-    return $self->report_response(
-        $self->create_report(
-            {
-                reporter_user_id => $user_id,
-                target_type      => $self->forum_access->thread_target,
-                target_id        => $thread_id,
-            }
-        ),
-        $thread_id,
-        undef,
+    return (
+        await $self->await_p(
+            $self->report_response(
+                (
+                    await $self->await_p(
+                        $self->create_report(
+                            {
+                                reporter_user_id => $user_id,
+                                target_type      =>
+                                  $self->forum_access->thread_target,
+                                target_id => $thread_id,
+                            }
+                        )
+                    )
+                ),
+                $thread_id,
+                undef,
+            )
+        )
     );
 }
 
-sub report_post ($self) {
-    my $user_id = $self->write_user_id('report.create');
+async sub report_post ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('report.create') ) );
     if ( !$user_id ) {
         return;
     }
 
-    my $post =
-      $self->gp_post_reader->find_visible_post( $self->param('post_id'),
-        $self->gp_forum_viewer );
+    my $post = (
+        await $self->call_p(
+            $self->gp_post_reader,   'find_visible_post',
+            $self->param('post_id'), $self->gp_forum_viewer
+        )
+    );
     if ( !$post ) {
         return $self->not_found('post not found');
     }
 
     my $thread_id = $self->_column( $post, 'thread_id' );
     if (
-        !$self->gp_thread_detail_reader->find_thread(
-            $thread_id, $self->gp_forum_viewer
+        !(
+            await $self->call_p(
+                $self->gp_thread_detail_reader, 'find_thread',
+                $thread_id,                     $self->gp_forum_viewer
+            )
         )
       )
     {
         return $self->not_found('post not found');
     }
 
-    return $self->report_response(
-        $self->create_report(
-            {
-                reporter_user_id => $user_id,
-                target_type      => $self->forum_access->post_target,
-                target_id        => $self->_column( $post, 'post_id' ),
-            }
-        ),
-        $thread_id,
-        $self->_column( $post, 'post_id' ),
+    return (
+        await $self->await_p(
+            $self->report_response(
+                (
+                    await $self->await_p(
+                        $self->create_report(
+                            {
+                                reporter_user_id => $user_id,
+                                target_type => $self->forum_access->post_target,
+                                target_id => $self->_column( $post, 'post_id' ),
+                            }
+                        )
+                    )
+                ),
+                $thread_id,
+                $self->_column( $post, 'post_id' ),
+            )
+        )
     );
 }
 
-sub report_profile ($self) {
-    my $user_id = $self->write_user_id('report.create');
+async sub report_profile ($self) {
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('report.create') ) );
     if ( !$user_id ) {
         return;
     }
 
     my $username = $self->param('username');
-    my $profile  = $self->gp_profile_reader->public_profile(
-        $username,
-        {
-            limit => 1,
-        }
+    my $profile  = (
+        await $self->call_p(
+            $self->gp_profile_reader,
+            'public_profile',
+            $username,
+            {
+                limit => 1,
+            }
+        )
     );
     if ( !$profile->{ok} ) {
         return $self->not_found('profile not found');
     }
 
-    return $self->profilereport_response(
-        $self->create_report(
-            {
-                reporter_user_id => $user_id,
-                target_type      => $self->forum_access->user_target,
-                target_id        => $profile->{profile}{user}{user_id},
-            }
-        ),
-        $profile->{profile}{user}{username} || $username,
+    return (
+        await $self->await_p(
+            $self->profilereport_response(
+                (
+                    await $self->await_p(
+                        $self->create_report(
+                            {
+                                reporter_user_id => $user_id,
+                                target_type => $self->forum_access->user_target,
+                                target_id => $profile->{profile}{user}{user_id},
+                            }
+                        )
+                    )
+                ),
+                $profile->{profile}{user}{username} || $username,
+            )
+        )
     );
 }
 

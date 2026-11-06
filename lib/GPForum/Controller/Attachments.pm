@@ -3,17 +3,19 @@
 
 package GPForum::Controller::Attachments;
 
-use Mojo::Base 'GPForum::Controller::Attachments::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Attachments::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub download ($self) {
-    my $limited = $self->download_rate_failure;
+async sub download ($self) {
+    my $limited = ( await $self->await_p( $self->download_rate_failure ) );
     return $limited if $limited;
 
-    return $self->download_response(
-        $self->gp_attachment_workflow->download(
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_attachment_workflow,
+            'download_metadata',
             {
                 attachment_id  => $self->param('attachment_id'),
                 preview        => $self->param('preview'),
@@ -21,6 +23,10 @@ sub download ($self) {
                 viewer_user_id => $self->current_user_id,
             }
         ),
+        async sub ($result) {
+            return (
+                await $self->await_p( $self->download_response($result) ) );
+        }
     );
 }
 

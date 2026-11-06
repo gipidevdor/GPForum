@@ -7,6 +7,10 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 use Const::Fast;
 use Mojo::UserAgent;
+use Carp qw(croak);
+use Mojo::Promise;
+use GPForum::Infrastructure::PublicResolver;
+use GPForum::Infrastructure::AsyncGate;
 use Mojo::URL;
 use Net::DNS;
 use List::Util qw(any);
@@ -42,6 +46,67 @@ has resolver => sub {
         retrans     => $DNS_SECONDS
     );
 };
+
+has client_factory => sub {
+    return sub { return Mojo::UserAgent->new; };
+};
+has async_resolver => sub {
+    return GPForum::Infrastructure::PublicResolver->new( allowed_address =>
+          sub ($address) { return __PACKAGE__->public_ipv4($address); } );
+};
+
+has gate =>
+  sub { return GPForum::Infrastructure::AsyncGate->new( concurrency => 4 ); };
+has agents => sub { return {}; };
+
+sub shared ($class) {
+    state $client = $class->new;
+    return $client;
+}
+
+sub request_p ( $self, $method, $raw, $input = {}, $context = undef ) {
+    return $self->gate->run_p(
+        sub {
+            my $url = $self->https_url($raw);
+            return $self->async_resolver->resolve_p( $url->host )->then(
+                sub ($peer) {
+                    if ( !__PACKAGE__->public_ipv4( $peer->{address} ) ) {
+                        GPForum::X::Config->throw( message =>
+'integration endpoint has no permitted public address'
+                        );
+                    }
+                    my $key   = $url->host;
+                    my $entry = $self->agents->{$key};
+                    if ( !$entry || $entry->{address} ne $peer->{address} ) {
+
+                        # Cap cached origins; in-flight chains retain their own agent.
+                        if ( keys %{ $self->agents } >= $MAX_ADDRESSES ) {
+                            my ($first) = sort keys %{ $self->agents };
+                            delete $self->agents->{$first};
+                        }
+                        $entry = {
+                            address => $peer->{address},
+                            ua      => $self->_agent( $url, $peer->{address} )
+                              ->max_connections(2)
+                        };
+                        $self->agents->{$key} = $entry;
+                    }
+                    my $ua = $entry->{ua};
+                    return $ua->start_p(
+                        $ua->build_tx( _arguments( $method, $url, $input ) ) )
+                      ->then( sub ($tx) { return _response($tx); } )
+                      ->finally( sub { undef $ua; return; } );
+                }
+            );
+        }
+    )->catch(
+        sub ($error) {
+            croak $error if ref $error && $error->isa('GPForum::X::Config');
+            GPForum::X::Unavailable->throw(
+                message => 'integration transport unavailable' );
+        }
+    );
+}
 
 sub https_url ( $self, $raw ) {
     if (  !defined $raw
@@ -101,14 +166,28 @@ sub request ( $self, $method, $raw, $input = {} ) {
             message => 'integration endpoint has no permitted public address' );
     }
 
-    my $ua = Mojo::UserAgent->new;
+    my $ua        = $self->_agent( $url, $addresses[0] );
+    my @arguments = _arguments( $method, $url, $input );
+
+    my $tx;
+    try { $tx = $ua->start( $ua->build_tx(@arguments) ); }
+    catch ($error) {
+        GPForum::X::Unavailable->throw(
+            message => 'integration transport unavailable' );
+    };
+
+    return _response($tx);
+}
+
+sub _agent ( $self, $url, $address ) {
+    my $ua = $self->client_factory->();
     $ua->proxy( GPForum::Service::Integration::DirectProxy->new );
     $ua->max_redirects(0)->max_connections(0);
     $ua->max_response_size($MAX_RESPONSE);
     $ua->connect_timeout($CONNECT_SECONDS)->request_timeout($REQUEST_SECONDS);
     $ua->transactor(
         GPForum::Service::Integration::PinnedPeer->new(
-            address => $addresses[0]
+            address => $address
         )
     );
     $ua->transactor->compressed(0);
@@ -119,19 +198,19 @@ sub request ( $self, $method, $raw, $input = {} ) {
             SSL_verifycn_scheme => 'http'
         }
     );
+    return $ua;
+}
+
+sub _arguments ( $method, $url, $input ) {
     my %headers =
       ( %{ $input->{headers} // {} }, 'Accept-Encoding' => 'identity' );
     my @arguments = ( $method, $url, \%headers );
     if ( exists $input->{json} ) { push @arguments, json => $input->{json}; }
     if ( exists $input->{form} ) { push @arguments, form => $input->{form}; }
+    return @arguments;
+}
 
-    my $tx;
-    try { $tx = $ua->start( $ua->build_tx(@arguments) ); }
-    catch ($error) {
-        GPForum::X::Unavailable->throw(
-            message => 'integration transport unavailable' );
-    };
-
+sub _response ($tx) {
     if ( !$tx->res->code ) {
         GPForum::X::Unavailable->throw(
             message => 'integration transport unavailable' );
@@ -177,6 +256,14 @@ Rejects private, reserved and documentation IPv4 ranges.
 =head2 request
 
 Resolves and pins a public peer, verifies the original TLS hostname and performs one bounded request without redirects.
+
+=head2 shared
+
+Returns the per-worker client, retaining bounded connection pools and DNS caches between requests.
+
+=head2 request_p
+
+Returns a promise for an HTTPS response. Resolves public DNS peers through the reactor, pins the approved address and bounds concurrency, queue residency, timeouts and response size.
 
 =head1 DIAGNOSTICS
 

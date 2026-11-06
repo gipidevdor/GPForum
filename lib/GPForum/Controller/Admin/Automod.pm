@@ -4,7 +4,7 @@
 package GPForum::Controller::Admin::Automod;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Admin::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Admin::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -34,15 +34,19 @@ const my %INVALID => map { $_ => "admin.automod_invalid_$_" }
   first_posts);
 
 # The watched words and the link rule, with the forms that change them.
-sub show ($self) {
-    my $user_id = $self->authorized_user_id( $self->admin_access->view_action );
+async sub show ($self) {
+    my $user_id = (
+        await $self->await_p(
+            $self->authorized_user_id( $self->admin_access->view_action )
+        )
+    );
     return if !$user_id;
 
     my ( $words, $rules );
     try {
         my $store = $self->gp_automod_store;
-        $words = $store->words;
-        $rules = $store->rules_for(undef) // {};
+        $words = ( await $self->call_p( $store, 'words' ) );
+        $rules = ( await $self->call_p( $store, 'rules_for', undef ) ) // {};
     }
     catch ($error) {
         $self->app->log->error("admin automod failed: $error");
@@ -77,94 +81,148 @@ sub _word_row ($word) {
     return { %{$word}, ui => { id => "word-$word->{word_id}" } };
 }
 
-sub add_word ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub add_word ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'word_added',
-        $self->_stored(
-            sub {
-                return $self->gp_automod_store->add_word(
-                    {
-                        actor_user_id => $user_id,
-                        phrase        => $self->param('phrase'),
-                        action        => $self->param('action'),
-                        replacement   => $self->param('replacement'),
-                    }
-                );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'word_added',
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub {
+                                return (
+                                    await $self->call_p(
+                                        $self->gp_automod_store,
+                                        'add_word',
+                                        {
+                                            actor_user_id => $user_id,
+                                            phrase => $self->param('phrase'),
+                                            action => $self->param('action'),
+                                            replacement =>
+                                              $self->param('replacement'),
+                                        }
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
-sub remove_word ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub remove_word ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'word_removed',
-        $self->_stored(
-            sub {
-                return $self->gp_automod_store->remove_word(
-                    {
-                        actor_user_id => $user_id,
-                        word_id       => $self->param('word_id'),
-                    }
-                );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'word_removed',
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub {
+                                return (
+                                    await $self->call_p(
+                                        $self->gp_automod_store,
+                                        'remove_word',
+                                        {
+                                            actor_user_id => $user_id,
+                                            word_id => $self->param('word_id'),
+                                        }
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
-sub set_links ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub set_links ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'links_set',
-        $self->_stored(
-            sub {
-                return $self->gp_automod_store->set_link_rule(
-                    {
-                        actor_user_id    => $user_id,
-                        link_limit       => $self->param('link_limit'),
-                        link_trust_below => $self->param('link_trust_below'),
-                        link_action      => $self->param('link_action'),
-                    }
-                );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'links_set',
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub {
+                                return (
+                                    await $self->call_p(
+                                        $self->gp_automod_store,
+                                        'set_link_rule',
+                                        {
+                                            actor_user_id => $user_id,
+                                            link_limit    =>
+                                              $self->param('link_limit'),
+                                            link_trust_below =>
+                                              $self->param('link_trust_below'),
+                                            link_action =>
+                                              $self->param('link_action'),
+                                        }
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
 # ADR 0134: how many first posts of a new member are held for review (0
 # is off), and whether flagged posts are held too.
-sub set_review ($self) {
-    my $user_id = $self->authorized_write_user_id;
+async sub set_review ($self) {
+    my $user_id = ( await $self->await_p( $self->authorized_write_user_id ) );
     return if !$user_id;
 
-    return $self->_answer(
-        'review_set',
-        $self->_stored(
-            sub {
-                return $self->gp_review_store->set_rule(
-                    {
-                        actor_user_id => $user_id,
-                        first_posts   => $self->param('review_first_posts'),
-                        flagged       => $self->param('review_flagged'),
-                    }
-                );
-            }
+    return (
+        await $self->await_p(
+            $self->_answer(
+                'review_set',
+                (
+                    await $self->await_p(
+                        $self->_stored(
+                            async sub {
+                                return (
+                                    await $self->call_p(
+                                        $self->gp_review_store,
+                                        'set_rule',
+                                        {
+                                            actor_user_id => $user_id,
+                                            first_posts   => $self->param(
+                                                'review_first_posts'),
+                                            flagged =>
+                                              $self->param('review_flagged'),
+                                        }
+                                    )
+                                );
+                            }
+                        )
+                    )
+                )
+            )
         )
     );
 }
 
 # The store's answer, or undef when it failed (logged).
-sub _stored ( $self, $call ) {
+async sub _stored ( $self, $call ) {
     my $result;
     try {
-        $result = $call->();
+        $result = await $self->await_p( $call->() );
     }
     catch ($error) {
         $self->app->log->error("admin automod write failed: $error");
@@ -174,7 +232,7 @@ sub _stored ( $self, $call ) {
     return $result;
 }
 
-sub _answer ( $self, $done, $result ) {
+async sub _answer ( $self, $done, $result ) {
     return $self->system_failure if !$result;
 
     my $status = $result->{status} // 'invalid';
@@ -198,7 +256,9 @@ sub _answer ( $self, $done, $result ) {
         $self->flash(
             error => $self->i18n(
                 $key,
-                { maximum => $self->gp_automod_store->automod->maximum_words }
+                {
+                    maximum => $self->gp_automod_store->automod->maximum_words
+                }
             )
         );
     }

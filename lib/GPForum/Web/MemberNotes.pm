@@ -4,7 +4,7 @@
 package GPForum::Web::MemberNotes;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -88,6 +88,104 @@ sub for_reports ( $self, $controller, $user_id, $reports ) {
     return ( \%blocks, 0 );
 }
 
+async sub may_p ( $self, $controller, $user_id, $action ) {
+    return 0 if !$user_id;
+
+    return (
+        await $controller->call_p(
+            $controller->gp_permission_gate,
+            'allowed',
+            { user_id => $user_id },
+            {
+                action        => $action,
+                resource_type => $RESOURCE,
+                resource_id   => undef,
+                space_id      => undef,
+            }
+        )
+    ) ? 1 : 0;
+}
+
+# The notes block of a member's admin page, or undef for a reader who may
+# not read notes. Notes that cannot be read leave the block saying so
+# ({ unavailable => 1 }) rather than failing the page.
+async sub for_member_p ( $self, $controller, $user_id, $subject_user_id ) {
+    return undef
+      if !(
+        await $controller->await_p(
+            $self->may_p( $controller, $user_id, $VIEW ) ) );
+
+    my $store = $controller->gp_member_note_store;
+    my $rows  = (
+        await $controller->await_p(
+            _read_p( $controller, $store, 'for_member', $subject_user_id )
+        )
+    );
+    return { unavailable => 1 } if !$rows;
+
+    return $controller->gp_moderation_view_model->member_notes(
+        add_command_id => $controller->gp_id->uuid,
+        can_write      => (
+            await $controller->await_p(
+                $self->may_p( $controller, $user_id, $WRITE )
+            )
+        ),
+        maximum         => $store->maximum_body,
+        note_total      => @{$rows} ? $rows->[0]{note_total} : 0,
+        notes           => $rows,
+        scope           => 'member',
+        subject_user_id => $subject_user_id,
+    );
+}
+
+# The notes blocks beside the reports, by report id: empty for a reader
+# who may not read notes. The second value is true when the notes could not
+# be read, so the queue says so and still lists the reports.
+async sub for_reports_p ( $self, $controller, $user_id, $reports ) {
+    return [ {}, 0 ] if !@{ $reports || [] };
+    return [ {}, 0 ]
+      if !(
+        await $controller->await_p(
+            $self->may_p( $controller, $user_id, $VIEW ) ) );
+
+    my $store     = $controller->gp_member_note_store;
+    my $can_write = (
+        await $controller->await_p(
+            $self->may_p( $controller, $user_id, $WRITE ) ) );
+    my @ids   = map { $_->{report_id} } @{$reports};
+    my $found = (
+        await $controller->await_p(
+            _read_p( $controller, $store, 'for_reports', \@ids )
+        )
+    );
+    return [ {}, 1 ] if !$found;
+
+    my %blocks;
+    for my $report_id ( keys %{$found} ) {
+        my $entry = $found->{$report_id};
+        $blocks{$report_id} =
+          $controller->gp_moderation_view_model->member_notes(
+            %{$entry},
+            add_command_id => $can_write ? $controller->gp_id->uuid : undef,
+            can_write      => $can_write,
+            maximum        => $store->maximum_body,
+            scope          => "report-$report_id",
+          );
+    }
+
+    return [ \%blocks, 0 ];
+}
+
+async sub _read_p ( $controller, $store, $method, @arguments ) {
+    my $found;
+    try { $found = await $controller->call_p( $store, $method, @arguments ); }
+    catch ($error) {
+        $controller->app->log->warn("member notes unavailable: $error");
+        return undef;
+    };
+    return $found;
+}
+
 sub _read ( $controller, $code ) {
     my $found;
     try {
@@ -139,6 +237,19 @@ C<view>.
 =head2 write_action
 
 C<write>.
+
+=head2 may_p
+
+Checks the permission through the controller promise boundary.
+
+=head2 for_member_p
+
+Builds a member note block after asynchronous reads.
+
+=head2 for_reports_p
+
+Promise-based permission and note reads. C<for_reports_p> resolves to an array
+containing the blocks and availability flag; no controller enters a subprocess.
 
 =head2 may
 

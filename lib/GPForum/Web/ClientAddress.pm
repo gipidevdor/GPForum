@@ -3,7 +3,7 @@
 
 package GPForum::Web::ClientAddress;
 
-use Mojo::Base -strict, -signatures;
+use Mojo::Base -strict, -async_await;
 use v5.40;
 
 use Const::Fast;
@@ -35,12 +35,17 @@ sub register ( $class, $application ) {
     );
     my $bans = GPForum::Web::AddressBans->new;
     $application->hook(
-        around_action => sub ( $next, $controller, $action, $last ) {
-            return $next->()
-              if !$last
-              || $bans->admits( $controller, $class->of( $controller->tx ) );
-
-            return 0;
+        around_action => async sub ( $next, $controller, $action, $last ) {
+            if ($last) { $controller->render_later; }
+            return $next->() if !$last;
+            my $admission =
+              $bans->admits_p( $controller, $class->of( $controller->tx ) );
+            my $allowed = await(
+                  $controller->can('await_p')
+                ? $controller->await_p($admission)
+                : $admission
+            );
+            return $allowed ? $next->() : 0;
         }
     );
 

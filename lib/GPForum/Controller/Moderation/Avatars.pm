@@ -4,7 +4,7 @@
 package GPForum::Controller::Moderation::Avatars;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::Access;
@@ -19,16 +19,20 @@ const my $HOME     => 'admin_user_roles';
 
 # Staff take away the picture a member shows: the one they saw, named by
 # the form, so a picture uploaded since is not removed unseen.
-sub remove ($self) {
-    my $user_id = $self->_moderator or return;
+async sub remove ($self) {
+    my $user_id = ( await $self->await_p( $self->_moderator ) ) or return;
 
-    my $answer = $self->gp_avatars->moderate(
-        {
-            actor_user_id   => $user_id,
-            subject_user_id => $self->stash('user_id'),
-            attachment_id   => $self->param('avatar_id'),
-            reason          => $self->param('reason'),
-        }
+    my $answer = (
+        await $self->call_p(
+            $self->gp_avatars,
+            'moderate',
+            {
+                actor_user_id   => $user_id,
+                subject_user_id => $self->stash('user_id'),
+                attachment_id   => $self->param('avatar_id'),
+                reason          => $self->param('reason'),
+            }
+        )
     );
     my $status = $answer->{status} // 'invalid';
     return $self->not_found('profile picture not found')
@@ -59,8 +63,12 @@ sub remove ($self) {
 # The staff member, or undef once the request is answered: a bad CSRF
 # token, nobody signed in, no global avatar.moderate binding, over the
 # moderation write limit, or suspended.
-sub _moderator ($self) {
-    return $self->authorized_write_user_id( $RESOURCE, $ACTION );
+async sub _moderator ($self) {
+    return (
+        await $self->await_p(
+            $self->authorized_write_user_id( $RESOURCE, $ACTION )
+        )
+    );
 }
 
 1;

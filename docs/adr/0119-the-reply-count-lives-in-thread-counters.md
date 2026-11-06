@@ -215,7 +215,7 @@ Evidence for the trigger:
 - `lib/GPForum/Service/Forum/PostStore.pm`,
   `lib/GPForum/Service/Forum/PostComposer.pm`,
   `lib/GPForum/Service/Forum/ThreadReader.pm`,
-  `lib/GPForum/Schema/Result/Thread.pm`.
+  `t/lib/GPForum/Schema/Result/Thread.pm`.
 - `migrations/001-schema/051_fold_thread_counter_shards.sql`.
 - `t/12-forum-post.t`, `t/integration/postgres-thread-counter-fold.t`,
   `t/integration/postgres-thread-reply-count.t`,

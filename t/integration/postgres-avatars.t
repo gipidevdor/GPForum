@@ -86,7 +86,8 @@ my $ids       = GPForum::Infrastructure::Id->new;
 my $functions = GPForum::Infrastructure::SqlFunction->new( schema => $schema );
 my $storage   = GPForum::Service::Attachment::FilesystemStorage->new(
     root => tempdir( CLEANUP => 1 ) );
-my $tool      = GPForum::Test::ImageTool->new;
+my $tool = GPForum::Test::ImageTool->new(
+    calls_file => $storage->root . '/image-tool-calls.bin' );
 my $antivirus = GPForum::Test::Antivirus->new;
 my $store = GPForum::Service::Community::AvatarStore->new( schema => $schema );
 
@@ -161,11 +162,11 @@ sub _uploaded {
         'kept at three sides, and no thumbnail copy of the original'
     );
     is_deeply(
-        $tool->calls->[-1]{sides},
+        $tool->observed_calls->[-1]{sides},
         [ $SMALL, $MIDDLE, $LARGE ],
         'the tool was asked for the three squares'
     );
-    is( $tool->calls->[-1]{width},
+    is( $tool->observed_calls->[-1]{width},
         $WIDTH, 'with the size read from the header' );
     is(
         scalar $dbh->selectrow_array(
@@ -262,7 +263,7 @@ sub _replaced {
     isnt( $shown{now}, $first, 'a new picture is shown' );
     ok( _none_stored(@old_keys), 'the old one\'s files are deleted' );
     is( _attachment($first)->{state}, 'deleted', 'the old upload is deleted' );
-    is( $tool->calls->[-1]{media_type},
+    is( $tool->observed_calls->[-1]{media_type},
         'image/jpeg', 'the type is sniffed, not taken from the client' );
     my $anonymous = _client(undef);
     $anonymous->get_ok("/avatars/$member/$first/64")

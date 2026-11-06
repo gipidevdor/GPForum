@@ -126,21 +126,35 @@ is( _cache_misses() - $misses, 1, 'which asks the cache once' );
 # A hit answers before the page's queries run.
 my $app_schema = $client->app->build_controller->gp_schema;
 my $storage    = $app_schema->storage;
-my $dbh        = $storage->dbh;
+my $dbh        = GPForum::Test::PostgresHarness::connect_schema()->storage->dbh;
 my $sent       = 0;
 my @prepared;
-my $capture_preparation = sub {
-    my ( undef, $statement ) = @_;
-    $sent++;
-    push @prepared, $statement;
+my $capturing         = 1;
+my $capture_execution = sub ( $handle, @arguments ) {
+    return if !$capturing;
+    ++$sent;
+    push @prepared, $handle->{Statement};
     return;
 };
-$dbh->{Callbacks} = {
-    prepare        => $capture_preparation,
-    prepare_cached => $capture_preparation,
+my $install_observer = sub ($handle) {
+    $handle->{Callbacks} =
+      { ChildCallbacks => { execute => $capture_execution } };
+    for my $statement ( grep { defined } @{ $handle->{ChildHandles} // [] } ) {
+        $statement->{Callbacks} = { execute => $capture_execution };
+    }
+    return;
 };
+
+# Observe the actual native leases; opening the synchronous CLI connection
+# here deliberately retires those leases and invalidates every cache fill.
+for my $db ( @{ $app_schema->{gp_async_query}->connections } ) {
+    $install_observer->( $db->dbh );
+}
+$storage->pg->on(
+    connection => sub ( $pg, $handle ) { $install_observer->($handle); return; }
+);
 _get( "/c/$category", 'en' );
-delete $dbh->{Callbacks};
+$capturing = 0;
 is( _state(), 'hit', 'a cached category page is a hit' );
 is( $sent, 1,
     'only authoritative configuration and revocation epoch are read' );
@@ -236,14 +250,11 @@ is( _state(), 'hit', 'which the URL without a slug is served' );
 _get( "/t/$thread?limit=abc", 'en' );
 is( _state(), 'hit', 'as is one whose page size is no number' );
 my $entries = _cached_entries();
-$sent             = 0;
-@prepared         = ();
-$dbh->{Callbacks} = {
-    prepare        => $capture_preparation,
-    prepare_cached => $capture_preparation,
-};
+$sent      = 0;
+@prepared  = ();
+$capturing = 1;
 _get( "/t/$thread/anything-else", 'en' );
-delete $dbh->{Callbacks};
+$capturing = 0;
 $client->status_is( $HTTP_MOVED_PERMANENTLY,
     'a junk slug of a cached thread is redirected' );
 $client->header_is( Location => $canonical, 'to the thread\'s URL' );

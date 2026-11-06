@@ -3,57 +3,88 @@
 
 package GPForum::Controller::Moderation::Suspensions;
 
-use Mojo::Base 'GPForum::Controller::Moderation::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Moderation::Base', -async_await;
 use v5.40;
 
 use GPForum::Web::DangerConfirmation;
 
 our $VERSION = '0.001';
 
-sub suspend_user ($self) {
+async sub suspend_user ($self) {
     my $access        = $self->moderation_access;
-    my $actor_user_id = $self->authorized_write_user_id( $access->user_resource,
-        $access->suspend_action );
+    my $actor_user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id(
+                $access->user_resource, $access->suspend_action
+            )
+        )
+    );
     if ( !$actor_user_id ) {
         return;
     }
     if ( my $refused = GPForum::Web::DangerConfirmation->unconfirmed($self) ) {
-        return $self->suspension_write_response( $refused,
-            $access->user_suspended_status );
+        return (
+            await $self->await_p(
+                $self->suspension_write_response(
+                    $refused, $access->user_suspended_status
+                )
+            )
+        );
     }
 
-    return $self->suspension_write_response(
-        $self->gp_moderation_workflow->suspend_user(
-            {
-                actor_user_id => $actor_user_id,
-                command_id    => $self->command_id_param,
-                reason        => $self->reason_param,
-                user_id       => $self->param('user_id'),
-                valid_to      => $self->optional_param('valid_to'),
-            }
-        ),
-        $access->user_suspended_status,
+    return (
+        await $self->await_p(
+            $self->suspension_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_moderation_workflow,
+                        'suspend_user',
+                        {
+                            actor_user_id => $actor_user_id,
+                            command_id    => $self->command_id_param,
+                            reason        => $self->reason_param,
+                            user_id       => $self->param('user_id'),
+                            valid_to      => $self->optional_param('valid_to'),
+                        }
+                    )
+                ),
+                $access->user_suspended_status,
+            )
+        )
     );
 }
 
-sub revoke_suspension ($self) {
+async sub revoke_suspension ($self) {
     my $access        = $self->moderation_access;
-    my $actor_user_id = $self->authorized_write_user_id( $access->user_resource,
-        $access->suspend_action );
+    my $actor_user_id = (
+        await $self->await_p(
+            $self->authorized_write_user_id(
+                $access->user_resource, $access->suspend_action
+            )
+        )
+    );
     if ( !$actor_user_id ) {
         return;
     }
 
-    return $self->suspension_write_response(
-        $self->gp_moderation_workflow->revoke_suspension(
-            {
-                actor_user_id => $actor_user_id,
-                command_id    => $self->command_id_param,
-                reason        => $self->reason_param,
-                suspension_id => $self->param('suspension_id'),
-            }
-        ),
-        $access->suspension_revoked_status,
+    return (
+        await $self->await_p(
+            $self->suspension_write_response(
+                (
+                    await $self->call_p(
+                        $self->gp_moderation_workflow,
+                        'revoke_suspension',
+                        {
+                            actor_user_id => $actor_user_id,
+                            command_id    => $self->command_id_param,
+                            reason        => $self->reason_param,
+                            suspension_id => $self->param('suspension_id'),
+                        }
+                    )
+                ),
+                $access->suspension_revoked_status,
+            )
+        )
     );
 }
 

@@ -3,40 +3,48 @@
 
 package GPForum::Controller::Privacy::Requests;
 
-use Mojo::Base 'GPForum::Controller::Privacy::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Privacy::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
 
-sub request_export ($self) {
-    my $user_id = $self->write_user_id;
+async sub request_export ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
     return $self->export_write_response(
-        $self->gp_privacy_workflow->request_export(
-            {
-                command_id => $self->command_id_param,
-                user_id    => $user_id,
-            }
+        (
+            await $self->call_p(
+                $self->gp_privacy_workflow,
+                'request_export',
+                {
+                    command_id => $self->command_id_param,
+                    user_id    => $user_id,
+                }
+            )
         ),
     );
 }
 
-sub request_deletion ($self) {
-    my $user_id = $self->write_user_id;
+async sub request_deletion ($self) {
+    my $user_id = ( await $self->await_p( $self->write_user_id ) );
     if ( !$user_id ) {
         return;
     }
 
     return $self->deletion_write_response(
-        $self->gp_privacy_workflow->request_deletion(
-            {
-                command_id => $self->command_id_param,
-                reason     => $self->param('reason'),
-                user_id    => $user_id,
-            }
+        (
+            await $self->call_p(
+                $self->gp_privacy_workflow,
+                'request_deletion',
+                {
+                    command_id => $self->command_id_param,
+                    reason     => $self->param('reason'),
+                    user_id    => $user_id,
+                }
+            )
         ),
     );
 }

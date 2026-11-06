@@ -7,7 +7,6 @@ use v5.40;
 
 use Const::Fast;
 use List::Util  qw(max);
-use parent      qw(DBIx::Class::Storage::Statistics);
 use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
 
 use GPForum::X::Argument;
@@ -166,6 +165,42 @@ sub snapshot ($self) {
     };
 }
 
+sub request_context ($self) {
+    return $self->{current}
+      ? { request_id => $self->{current}{request_id} }
+      : undef;
+}
+
+sub in_context ( $self, $token, $work ) {
+    ## no critic (Variables::ProhibitLocalVars) -- a callback's request, restored before yielding
+    local $self->{current} =
+      $token ? $self->{open}{ $token->{request_id} } : undef;
+    ## use critic
+    return $work->();
+}
+
+sub work_snapshot ( $self, $token ) {
+    my $request = $token ? $self->{open}{ $token->{request_id} } : undef;
+    return {
+        queries            => $self->{total_queries},
+        connection_queries => $self->{total_connection_queries},
+        transactions       => $self->{total_transactions},
+        db_duration_ms     => $request ? $request->{db_duration_ms} : 0,
+    };
+}
+
+sub merge_work ( $self, $token, $delta ) {
+    my $request = $token ? $self->{open}{ $token->{request_id} } : undef;
+    for my $field (qw(queries connection_queries transactions)) {
+        $self->{ 'total_' . $field } += $delta->{$field} // 0;
+        if ($request) { $request->{$field} += $delta->{$field} // 0; }
+    }
+    if ($request) {
+        $request->{db_duration_ms} += $delta->{db_duration_ms} // 0;
+    }
+    return;
+}
+
 sub txn_begin ($self) {
     $self->{total_transactions}++;
     if ( $self->{current} ) {
@@ -193,6 +228,14 @@ sub print {
 sub txn_rollback {
     return;
 }
+
+sub debugfh ( $self, $handle = undef ) {
+    if ( defined $handle ) { $self->{debugfh} = $handle; }
+    return $self->{debugfh};
+}
+sub svp_begin    { return; }
+sub svp_release  { return; }
+sub svp_rollback { return; }
 
 # DBIx::Class calls this as query_start($sql, @bind), so the binds are accepted
 # and ignored: the fingerprint is the statement, not its values. A two-argument
@@ -327,6 +370,22 @@ default), oldest dropped first.
 
 =head1 SUBROUTINES/METHODS
 
+=head2 debugfh
+
+Gets or sets an optional diagnostic handle. The collector never writes to it.
+
+=head2 svp_begin
+
+Accepts the savepoint observer callback without writing to the log.
+
+=head2 svp_release
+
+Accepts the savepoint release observer callback.
+
+=head2 svp_rollback
+
+Accepts the savepoint rollback observer callback.
+
 =head2 new
 
 Class method. Takes C<recent_limit> as a key/value pair or in a hash
@@ -419,6 +478,22 @@ DBIx::Class callback; does nothing.
 
 Overrides the parent's output method, which would otherwise write
 savepoint statements to STDERR; does nothing.
+
+=head2 request_context
+
+Returns the current request token before an asynchronous operation yields.
+
+=head2 in_context
+
+Scopes counters to the captured request only during the supplied synchronous callback, restoring the previous context before returning its promise.
+
+=head2 work_snapshot
+
+Captures cumulative counters and request database time for a subprocess workload.
+
+=head2 merge_work
+
+Merges subprocess counter deltas into the originating request, even when concurrent requests finish in a different order.
 
 =head1 DIAGNOSTICS
 

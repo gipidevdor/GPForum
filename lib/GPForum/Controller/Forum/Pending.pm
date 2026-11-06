@@ -4,7 +4,7 @@
 package GPForum::Controller::Forum::Pending;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Controller::Forum::Base', -signatures;
+use Mojo::Base 'GPForum::Controller::Forum::Base', -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -13,16 +13,20 @@ const my $HTTP_OK => 200;
 
 # ADR 0134: the signed-in member's posts held for review -- pending, and
 # those decided in the last 30 days -- only ever their own.
-sub list ($self) {
+async sub list ($self) {
     $self->res->headers->cache_control('private, no-store');
     my $user_id = $self->current_user_id;
     return $self->_unauthorized if !$user_id;
-    return                      if !$self->read_allowed('review.read');
+    return if !( await $self->await_p( $self->read_allowed('review.read') ) );
 
     my $rows;
     try {
-        $rows =
-          $self->gp_review_store->mine( $user_id, $self->gp_forum_viewer );
+        $rows = (
+            await $self->call_p(
+                $self->gp_review_store, 'mine',
+                $user_id,               $self->gp_forum_viewer
+            )
+        );
     }
     catch ($error) {
         $self->app->log->error("held posts failed: $error");
@@ -42,16 +46,21 @@ sub list ($self) {
 }
 
 # The author takes back a post still pending.
-sub withdraw ($self) {
+async sub withdraw ($self) {
     $self->res->headers->cache_control('private, no-store');
-    my $user_id = $self->write_user_id('review.withdraw');
+    my $user_id =
+      ( await $self->await_p( $self->write_user_id('review.withdraw') ) );
     return if !$user_id;
 
-    my $answer = $self->gp_review_workflow->withdraw(
-        {
-            review_id      => $self->param('review_id'),
-            author_user_id => $user_id,
-        }
+    my $answer = (
+        await $self->call_p(
+            $self->gp_review_workflow,
+            'withdraw',
+            {
+                review_id      => $self->param('review_id'),
+                author_user_id => $user_id,
+            }
+        )
     );
     my $status = $answer->{status} // 'failed';
     return $self->_service_unavailable             if $status eq 'failed';

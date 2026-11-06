@@ -5,8 +5,10 @@ package GPForum::Service::Operations::RateLimiter::PostgreSQLStore;
 
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
+use Mojo::Promise;
+use GPForum::Infrastructure::AsyncWork;
 use POSIX qw(strftime);
 
 use GPForum::Service::Clock;
@@ -22,6 +24,64 @@ __PACKAGE__->requires(qw(schema));
 has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
 };
+
+async sub check_p ( $self, $input, $context = undef ) {
+    my $limit          = $input->{limit}          || $DEFAULT_LIMIT;
+    my $window_seconds = $input->{window_seconds} || $DEFAULT_WINDOW_SECONDS;
+    my $now            = $self->clock->now_epoch;
+    my $window_start   = $now - ( $now % $window_seconds );
+    my $row            = (
+        await $self->_upsert_bucket_p(
+            $input,
+            {
+                actor_hash     => _actor_hash($input),
+                limit          => $limit,
+                now_epoch      => $now,
+                now_iso        => _iso8601_from_epoch($now),
+                window_seconds => $window_seconds,
+                window_start   => _iso8601_from_epoch($window_start),
+                expires_at     =>
+                  _iso8601_from_epoch( $window_start + $window_seconds ),
+            },
+            $context
+        )
+    );
+
+    return {
+        ok  => $row->{observed_count} <= $limit ? 1 : 0,
+        key => join( q{:},
+            $input->{scope},  $row->{actor_hash},
+            $input->{action}, $row->{window_started_at} ),
+        limit           => $limit,
+        remaining       => _remaining( $limit, $row->{observed_count} ),
+        reset_at_epoch  => $window_start + $window_seconds,
+        store           => 'postgresql',
+        window_seconds  => $window_seconds,
+        observed_count  => $row->{observed_count},
+        mitigation_hint => 'slow_down',
+        actor_hash      => $row->{actor_hash},
+    };
+}
+
+sub _upsert_bucket_p ( $self, $input, $window, $context ) {
+    return Mojo::Promise->resolve->then(
+        sub { return $self->_upsert_bucket( $input, $window ); } )
+      if !$self->functions;
+    return $self->functions->row_p(
+        'ops_rate_limit_check',
+        {
+            scope          => $input->{scope},
+            actor_hash     => $window->{actor_hash},
+            action         => $input->{action},
+            window_start   => $window->{window_start},
+            window_seconds => $window->{window_seconds},
+            limit          => $window->{limit},
+            now            => $window->{now_iso},
+            expires_at     => $window->{expires_at},
+        },
+        $context
+    );
+}
 
 sub check ( $self, $input ) {
     my $limit          = $input->{limit}          || $DEFAULT_LIMIT;
@@ -203,6 +263,10 @@ and C<actor_hash>. A refused request is still counted.
 
 Returns C<< { buckets => $count, store => 'postgresql', status => 'ok' } >>,
 where C<$count> is the number of buckets that have not expired yet.
+
+=head2 check_p
+
+Checks and increments the PostgreSQL bucket with a native promise, preserving the synchronous window and decision fields.
 
 =head1 DIAGNOSTICS
 

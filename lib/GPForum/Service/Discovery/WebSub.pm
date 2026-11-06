@@ -5,6 +5,11 @@ package GPForum::Service::Discovery::WebSub;
 
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
+use Socket
+  qw(getaddrinfo getnameinfo NI_NUMERICHOST NI_NUMERICSERV SOCK_STREAM);
+use GPForum::Infrastructure::AsyncWork;
+use GPForum::Service::Integration::TrustedPeer;
 use Const::Fast;
 use Carp   qw(croak);
 use Encode qw(encode);
@@ -27,7 +32,51 @@ has ua => sub {
       ->max_response_size($MAX_RESPONSE_BYTES);
 };
 
+has resolve_host_p => sub {
+    return sub ($host) {
+        return GPForum::Infrastructure::AsyncWork->shared->run_p(
+            sub {
+                my ( $error, @peers ) =
+                  getaddrinfo( $host, undef, { socktype => SOCK_STREAM } );
+                croak 'WebSub hub resolution failed' if $error || !@peers;
+                for my $peer (@peers) {
+                    my ( $failure, $address ) = getnameinfo( $peer->{addr},
+                        NI_NUMERICHOST | NI_NUMERICSERV );
+                    return $address if !$failure;
+                }
+                croak 'WebSub hub resolution failed';
+            }
+        );
+    };
+};
+
 sub enabled ($self) { return length( $self->hub_url ) ? 1 : 0; }
+
+sub forward_p ( $self, $form ) {
+    my $url = $self->_hub;
+    my $ua  = $self->ua;
+
+    # Injected in-memory agents have no resolver or transport of their own.
+    return $ua->post_p( $self->hub_url => form => $form )
+      if !$ua->isa('Mojo::UserAgent');
+    return $self->resolve_host_p->( $url->host )->then(
+        sub ($address) {
+            $ua->transactor(
+                GPForum::Service::Integration::TrustedPeer->new(
+                    address => $address
+                )
+            );
+            $ua->tls_options(
+                {
+                    SSL_hostname        => $url->host,
+                    SSL_verifycn_name   => $url->host,
+                    SSL_verifycn_scheme => 'http'
+                }
+            );
+            return $ua->post_p( $self->hub_url => form => $form );
+        }
+    )->finally( sub { undef $ua; return; } );
+}
 
 sub publish ($self) {
     return { skipped => 1 } if !$self->enabled;
@@ -75,7 +124,7 @@ sub _hub ($self) {
       || !length( $url->host // q{} )
       || defined $url->userinfo
       || defined $url->fragment;
-    return;
+    return $url;
 }
 
 1;
@@ -116,6 +165,12 @@ Version 0.001.
 =head1 SYNOPSIS
 
     my $result = $publisher->publish;
+
+=head2 forward_p
+
+Resolves the trusted configured hub in the bounded executor, pins its numeric
+peer while retaining TLS hostname verification, and forwards the form with a
+native user-agent promise. The chain owns the agent until completion.
 
 =head1 DIAGNOSTICS
 

@@ -7,6 +7,7 @@ use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::PreparedQuery;
 use GPForum::Infrastructure::ResultRow;
@@ -72,6 +73,60 @@ sub list_categories ( $self, $request ) {
     return $self->_list_categories( $limit, $viewer );
 }
 
+sub list_categories_p ( $self, $request, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->list_categories($request) if !$self->functions;
+            my $limit  = _bounded_limit( $request ? $request->{limit} : undef );
+            my $viewer = _viewer($request);
+            my $cache  = $self->cache
+              && ( !$self->cache_epoch_required || defined $self->cache_epoch );
+            my $key     = $self->_cache_key( $limit, $viewer );
+            my $options = {
+                tags        => [ 'categories', 'forum-index' ],
+                ttl_seconds => $self->cache_ttl_seconds
+            };
+            if ($cache) {
+                my $cached = $self->cache->get($key);
+                return $cached if defined $cached;
+                if ( $self->cache->can('ticket') ) {
+                    $options->{ticket} =
+                      $self->cache->ticket( $options->{tags}, { mint => 1 } );
+                }
+            }
+            return $self->functions->rows_p(
+                @{ $self->categories_call( $limit, $viewer ) }, $context )
+              ->then(
+                sub ($rows) {
+                    return $self->cache->put( $key, $rows, $options ) if $cache;
+                    return [
+                        map { GPForum::Infrastructure::ResultRow->from($_) }
+                          @{$rows} ];
+                }
+              );
+        }
+    );
+}
+
+sub find_category_p ( $self, $category_id, $viewer = undef, $context = undef ) {
+    return Mojo::Promise->resolve->then(
+        sub {
+            return $self->find_category( $category_id, $viewer )
+              if !$self->functions;
+            return undef if !defined $category_id || !length $category_id;
+            return $self->functions->row_p( 'forum_find_category',
+                { category_id => $category_id }, $context )->then(
+                sub ($value) {
+                    my $row = GPForum::Infrastructure::ResultRow->from($value);
+                    return undef
+                      if !$row || defined $row->get_column('deleted_at');
+                    return _readable_category( $row, $viewer ) ? $row : undef;
+                }
+                );
+        }
+    );
+}
+
 # The category, if it exists and the viewer can read it; otherwise nothing,
 # so the caller answers 404 and existence is not confirmed.
 sub find_category ( $self, $category_id, $viewer = undef ) {
@@ -133,11 +188,7 @@ sub _viewer ($request) {
 }
 
 sub _cached_categories ( $self, $limit, $viewer ) {
-    my $key = join q{:}, 'categories', 'list', _standing($viewer),
-      _grants_digest($viewer), $limit;
-    if ( defined $self->cache_epoch ) {
-        $key .= q{:privacy:} . $self->cache_epoch;
-    }
+    my $key = $self->_cache_key( $limit, $viewer );
 
     # Plain column hashes, not rows: GlifiStore holds JSON and a row does not
     # encode, so the list never reached L2 and every fill counted as a shared
@@ -154,6 +205,16 @@ sub _cached_categories ( $self, $limit, $viewer ) {
             ttl_seconds => $self->cache_ttl_seconds,
         }
     );
+}
+
+sub _cache_key ( $self, $limit, $viewer ) {
+    my $key = join q{:}, 'categories', 'list', _standing($viewer),
+      _grants_digest($viewer), $limit;
+    if ( defined $self->cache_epoch ) {
+        $key .= q{:privacy:} . $self->cache_epoch;
+    }
+
+    return $key;
 }
 
 # The standing the list is decided by: which thread visibilities count, and
@@ -375,6 +436,14 @@ that actually runs.
 Takes a limit and an optional viewer. Returns the catalogue name and bound
 parameters the PostgreSQL category list executes, so nested plan evidence
 can inspect the same call.
+
+=head2 find_category_p
+
+Asynchronously finds a visible, live category for the supplied viewer, preserving the synchronous reader's visibility checks.
+
+=head2 list_categories_p
+
+Loads the category list asynchronously while keeping cache tickets and invalidation epochs in the parent process.
 
 =head1 DIAGNOSTICS
 

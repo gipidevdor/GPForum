@@ -51,3 +51,11 @@ paths = [
 ]
 regexTarget = "secret"
 regexes = ['''^[a-f0-9]{64}$''']
+
+[[allowlists]]
+description = "Scanner-truncated prefix of the archived Credential.pm SHA-256 fingerprint"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^benchmarks/throughput-regressions/2026-11-06/source-manifest\.json$''']
+regexTarget = "secret"
+regexes = ['''^e6df9ac9ad40c760ce8d8af0ef4ede0d551e49dda643b2e20a1$''']

@@ -45,8 +45,9 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 paths = [
   '''^benchmarks/http-complete/2026-11-05/source-manifest\.json$''',
-  '''^benchmarks/perl-review/2026-11-06-iteration-[2-5]/source-manifest\.json$''',
-  '''^benchmarks/perl-review/2026-11-06-iteration-[45]/runs/(?:final-(?:before|after)-[ab]|interrupted-before-a)-(?:http|micro)/run\.json$''',
+  '''^benchmarks/perl-review/2026-11-06-iteration-[2-6]/source-manifest\.json$''',
+  '''^benchmarks/perl-review/2026-11-06-iteration-[456]/runs/(?:final-(?:before|after)-[ab]|interrupted-before-a)-(?:http|micro)/run\.json$''',
+  '''^benchmarks/perl-review/2026-11-06-iteration-6/runs/excluded-before-b-http-(?:competing-test|after-quiescence|competing-tools)/run\.json$''',
   '''^benchmarks/throughput-regressions/2026-11-06/(?:source-manifest|validation-migrations(?:-initial)?)\.json$''',
 ]
 regexTarget = "secret"

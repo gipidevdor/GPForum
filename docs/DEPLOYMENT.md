@@ -733,7 +733,7 @@ media retains its existing one-chunk bound. HEAD, ranges and conditional
 responses keep their semantics.
 
 Each worker admits two concurrent native SQL operations, one subprocess and
-four outbound integration HTTP requests. Executor queues hold at most sixteen
+four outbound integration HTTP requests. Executor queues hold at most 256
 additional operations for at most fifteen seconds. Saturation rejects work.
 The database budget remains four connections per web worker: two native query
 leases, one shared listener and one isolated workflow connection, plus the

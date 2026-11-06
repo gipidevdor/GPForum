@@ -38,6 +38,11 @@ runs:
         set -euo pipefail
         sudo apt-get update
         sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client
+        # Disposable HTTP benchmark clusters use the runner's PostgreSQL 18
+        # binaries and execute the same vector migration as the service DB.
+        if [ "$POSTGRES_FEATURE" = 'true' ]; then
+          sudo apt-get install -y postgresql-18-pgvector
+        fi
         if [ -n "$REQUESTED_PERL" ]; then
           export GPFORUM_PERL="$REQUESTED_PERL"
         fi
@@ -47,6 +52,7 @@ runs:
         sudo "$perl_bin" /usr/bin/cpanm -M https://cpan.metacpan.org/ --notest App::cpm Carton
       env:
         REQUESTED_PERL: ${{ inputs.perl-executable }}
+        POSTGRES_FEATURE: ${{ inputs.postgres }}
 
     - name: Install versioned PostgreSQL client
       if: inputs.postgres-client-version != ''

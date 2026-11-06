@@ -46,7 +46,7 @@ jobs:
         name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client locales nodejs
+          sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client postgresql-18-pgvector locales nodejs
           # CLI tests compare complete English/Italian diagnostics. Perl's
           # startup warnings must not precede them on a runner missing a locale.
           sudo localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -230,7 +230,10 @@ jobs:
           DatabaseDirectory $dir/db
           LocalSocket $dir/clamd.sock
           TemporaryDirectory $dir
-          StreamMaxLength 26M
+          StreamMaxLength 251M
+          MaxFileSize 251M
+          MaxScanSize 300M
+          AlertExceedsMax yes
           CONF
           clamd --config-file="$dir/clamd.conf"
           for _ in $(seq 1 30); do

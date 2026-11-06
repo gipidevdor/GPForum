@@ -12,7 +12,7 @@ use GPForum::X::Unavailable;
 
 our $VERSION = '0.001';
 has concurrency   => 2;
-has max_pending   => 16;
+has max_pending   => 256;
 has queue_timeout => 15;
 has active        => 0;
 has pending       => sub { return []; };

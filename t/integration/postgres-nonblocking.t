@@ -19,9 +19,10 @@ use GPForum::Service::Operations::DbQueryStats;
 use GPForum::Test::PgDatabase;
 
 our $VERSION = '0.001';
-const my $SLOW_SECONDS => 0.15;
-const my $FAST_SECONDS => 0.03;
-const my $TICK_SECONDS => 0.01;
+const my $SLOW_SECONDS   => 0.15;
+const my $FAST_SECONDS   => 0.03;
+const my $TICK_SECONDS   => 0.01;
+const my $BURST_REQUESTS => 100;
 
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all => 'PostgreSQL required';
@@ -129,6 +130,8 @@ $functions->row_p( 'async_probe', { unknown => 1 } )
   ->wait;
 isa_ok( $rejected, 'GPForum::X::Argument',
     'parameter validation rejects through the promise' );
+subtest 'a concurrent request burst retains the fixed connection budget' =>
+  \&_burst_queries;
 subtest 'dedicated asynchronous leases stay fork-safe' => \&_forked_leases;
 $dbh->do('DROP FUNCTION api.async_probe_v1(text, jsonb, bytea)');
 $dbh->do(<<'SQL');
@@ -150,6 +153,34 @@ is_deeply( $after_change->{document},
 subtest 'failed and retired leases leave no reusable handles' =>
   \&_retired_leases;
 done_testing();
+
+sub _burst_queries {
+    my ( $failure, @rows );
+    my $all = Mojo::Promise->all(
+        map {
+            $functions->row_p( 'async_probe',
+                { delay => 0, document => { sequence => $_ }, bytes => $bytes }
+            )
+        } 1 .. $BURST_REQUESTS
+    );
+    $all->then(
+        sub (@results) {
+            @rows = map { $_->[0] } @results;
+            return;
+        }
+    )->catch( sub ($caught) { $failure = $caught; return; } )->wait;
+    ok( !$failure, 'all requests are admitted without capacity errors' )
+      or diag "$failure";
+    is( scalar @rows, $BURST_REQUESTS, 'every queued query completes' );
+    is_deeply(
+        [ map { $_->{document}{sequence} } @rows ],
+        [ 1 .. $BURST_REQUESTS ],
+        'results retain request identity and order'
+    );
+    my %backends = map { $_->{pid} => 1 } @rows;
+    is( scalar keys %backends, 2, 'the burst still uses only two SQL leases' );
+    return;
+}
 
 sub _forked_leases {
     my $work = GPForum::Infrastructure::AsyncWork->new;

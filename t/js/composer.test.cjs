@@ -10,8 +10,8 @@ const vm = require("node:vm");
 const source = fs.readFileSync(path.join(__dirname, "../../assets/js/composer.js"), "utf8");
 
 const tick = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
   for (let i = 0; i < 8; ++i) await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
 // Model only the browser interfaces the composer uses. Assertions drive public

@@ -15,6 +15,8 @@ sub register ( $class, $application ) {
     $application->hook(
         around_dispatch => sub ( $next, $controller ) {
             $controller->gp_begin_request;
+            return $controller->within_request($next)
+              if $controller->req->url->path->to_string eq '/health/live';
             $controller->render_later;
             $class->prepare_p($controller)->then(
                 sub {

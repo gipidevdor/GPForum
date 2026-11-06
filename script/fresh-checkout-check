@@ -119,6 +119,17 @@ db_dsn=${GPFORUM_DATABASE_DSN:-}
 db_user=${GPFORUM_DATABASE_USER:-}
 db_password=${GPFORUM_DATABASE_PASSWORD:-}
 
+# Read a finite amount of entropy. An unbounded tr | head pipeline can keep
+# reading forever when its parent ignores SIGPIPE (notably BSD tr).
+random_password() {
+    random_value=$(LC_ALL=C od -An -v -N24 -tx1 /dev/urandom | tr -d '[:space:]')
+    if [ "${#random_value}" -ne 48 ]; then
+        echo 'fresh-checkout-check: cannot read 24 random bytes' >&2
+        return 1
+    fi
+    printf '%s' "$random_value"
+}
+
 # The throwaway role and database the quick start's commands create and
 # migrate. The README's `createuser gpforum` makes a plain role, and the
 # application connects as it, so the run does too: migrating as the DSN's
@@ -128,7 +139,7 @@ db_password=${GPFORUM_DATABASE_PASSWORD:-}
 fresh_name="gpforum_fresh_$(date +%s)_$$"
 fresh_db=$fresh_name
 fresh_role=$fresh_name
-fresh_password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 32)
+fresh_password=$(random_password)
 maintenance_db=''
 fresh_dsn=''
 
@@ -139,7 +150,7 @@ fresh_dsn=''
 fresh_env=''
 # Expanded when the quick-start command string is evaluated.
 # shellcheck disable=SC2034
-fresh_admin_password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 24)
+fresh_admin_password=$(random_password)
 fresh_listen="http://127.0.0.1:$((20000 + $$ % 10000))"
 if [ -n "$db_dsn" ]; then
     case "$db_dsn" in

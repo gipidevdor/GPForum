@@ -59,6 +59,7 @@ jobs:
           prepare: |
             set -eu
             pkg install -y bash ca_root_nss curl git perl5 p5-App-cpanminus postgresql18-client postgresql18-server postgresql18-contrib postgresql18-pgvector gtar
+            pw useradd gpforum-ci -m -s /bin/sh
             # cpm prefers gtar, which ignores foreign macOS xattrs when a
             # locked archive is extracted as root on this VM.
             # cpm and Carton are host tools for the ports Perl; their packages are not
@@ -67,9 +68,16 @@ jobs:
               --mirror https://cpan.metacpan.org/ --mirror-only App::cpm Carton
           run: |
             set -eu
+            # Application builds, initdb and the native daemon drill run as
+            # an ordinary user; package installation above is the root phase.
+            cp -R . /home/gpforum-ci/checkout
+            chown -R gpforum-ci:gpforum-ci /home/gpforum-ci/checkout
+            su -l gpforum-ci -c 'cd /home/gpforum-ci/checkout && /bin/sh -s' <<'GATE'
+            set -eu
+            export CI=true GITHUB_ACTIONS=true
+            export PERL_CARTON_MIRROR=https://cpan.metacpan.org/
 
-            # The VM receives the runner checkout with its original owner.
-            git config --global --add safe.directory "$(pwd)"
+            # Record the exact commit from the user-owned checkout.
             git rev-parse --verify HEAD
 
             echo '--- ports perl'
@@ -111,5 +119,6 @@ jobs:
 
             echo '--- platform check'
             bin/gpforum platform-check --local
+            GATE
         env:
           PERL_CARTON_MIRROR: https://cpan.metacpan.org/

@@ -13,6 +13,11 @@ CI, evidence and internal refactors with no change in behaviour.
 
 ## Unreleased
 
+Native FreeBSD CI builds and tests as an ordinary user, with PostgreSQL server
+and extension prerequisites for the self-contained HTTP smoke test. Fresh-checkout
+checks consume a finite amount of entropy and complete when SIGPIPE is inherited
+as ignored, including on macOS. A bounded process regression covers that case.
+
 Supervised web starts now retain their original PID in a native prefork
 manager. TERM, INT and QUIT drain requests on every supported Unix platform;
 an exclusive lock protects the listener and PID ownership. FreeBSD now

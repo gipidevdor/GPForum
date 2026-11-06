@@ -14,6 +14,8 @@ use Mojo::File qw(path);
 use Test::More;
 
 use lib 'lib';
+use lib 'script/lib';
+use GPForum::Performance::Support qw(run_bounded);
 
 use GPForum::Service::Operations::DeployContract qw(
   deploy_match_text
@@ -23,8 +25,9 @@ use GPForum::Service::Operations::DeployContract qw(
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS => 32;
-const my $HOST_UNITS     => 3;
+const my $EXPECTED_TESTS  => 33;
+const my $ENTROPY_SECONDS => 5;
+const my $HOST_UNITS      => 3;
 
 const my $FRESH_CHECK  => 'script/fresh-checkout-check';
 const my $EXIT_FAILURE => 1;
@@ -71,6 +74,7 @@ const my @NEEDS_A_HOST => map { ( '--skip', $_ ) }
 const my @GPFORUM_CALLS => ( 'gpforum setup', 'gpforum admin' );
 
 plan tests => $EXPECTED_TESTS;
+subtest 'fresh checkout terminates with SIGPIPE ignored' => \&_bounded_entropy;
 
 is( scalar( deploy_nginx_checks() ), 1,
     q{one nginx contract: the socket site} );
@@ -184,6 +188,36 @@ subtest 'no step runs outside the clone, even once the clone is gone' =>
   \&_fresh_checkout_gone;
 subtest 'a usage error stops it before anything is cloned' =>
   \&_fresh_checkout_usage;
+
+sub _bounded_entropy {
+    if ( !_in_git_checkout() ) {
+        plan skip_all => 'not a git checkout: there is no commit to inspect';
+        return;
+    }
+    my ( %result, $output, $failure );
+    try {
+        $output = run_bounded(
+            [
+                '/bin/sh', '-c', q{trap '' PIPE; exec "$@"},
+                'fresh-checkout-entropy', '/bin/sh', $FRESH_CHECK, '--plan',
+            ],
+            { timeout => $ENTROPY_SECONDS, result => \%result }
+        );
+    }
+    catch ($error) { $failure = $error; };
+    ok( !defined $failure, 'the plan completes within its deadline' )
+      or diag "$failure";
+    if ( $result{timed_out} ) {
+        BAIL_OUT('fresh-checkout entropy did not terminate');
+    }
+    is( $result{returncode}, 0, 'ignored SIGPIPE does not prevent completion' );
+    like(
+        $output // q{},
+        qr/^fresh-checkout-check:[ ]plan[ ]for[ ]commit/msx,
+        'the real checkout plan is produced'
+    );
+    return;
+}
 
 sub _fresh_checkout_wiring {
     ok( -x $FRESH_CHECK, 'the fresh-checkout check is executable' );
@@ -348,7 +382,7 @@ sub _fresh_checkout_isolation {
         $throwaway, 'as the throwaway role of the same name' );
     like(
         $setup->{password} // q{},
-        qr/\A [[:alnum:]]{32} \z/msx,
+        qr/\A [[:xdigit:]]{48} \z/amsx,
         'which has a password of its own, in the file setup is given'
     );
     ok(

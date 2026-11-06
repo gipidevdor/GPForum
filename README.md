@@ -11,7 +11,7 @@
 
 <h1 align="center">Good Phorum</h1>
 
-<h3 align="center">A discussion forum, written in Perl, kept in PostgreSQL.</h3>
+<h3 align="center">A self-hosted Perl forum, powered by Mojolicious, Mojo::Pg and PostgreSQL.</h3>
 
 <p align="center">
   <a href="https://github.com/gipidevdor/GPForum/actions/workflows/ci.yml"><img src="https://github.com/gipidevdor/GPForum/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -30,32 +30,30 @@
 
 <p align="center"><img src="assets/img/gpforum-divider.svg" alt="" width="320"></p>
 
-**GP** means **Good Phorum**, also shortened to **GP Forum**. The **P** in
-**Phorum** stands for **Perl**. It is a general-purpose forum: a place to share
-interests, ask questions and keep conversations going.
-[About the name](docs/BRANDING.md).
+Good Phorum is a self-hosted forum for conversations that last. It runs as
+one Mojolicious application behind nginx or Caddy, with PostgreSQL for storage
+and search.
 
-Pages are rendered on the server, and read routes answer in JSON when asked.
-PostgreSQL holds every canonical row; search, feeds and caches derive from it.
-Perl reaches PostgreSQL on the same host over **Unix-domain sockets**: web
-processes, workers, realtime listeners and command-line tools use the local
-database connection. See the [socket configuration](docs/DEPLOYMENT.md#unix-socket-mode).
-One Mojolicious prefork process group behind nginx or Caddy runs the whole forum — no
-Redis, no OpenSearch, no Kubernetes.
+Pages render on the server; read routes also answer in JSON. Application reads
+and writes call versioned PostgreSQL functions through **Mojo::Pg**. Local
+processes reach PostgreSQL over [Unix sockets](docs/DEPLOYMENT.md#unix-socket-mode).
+
+**GP** means **Good Phorum**; the **P** stands for **Perl**.
+[About the name](docs/BRANDING.md).
 
 ## What it does
 
-|  |  |
+| Area | Features |
 | --- | --- |
 | **Conversation** | Threads, replies and revisions; reply to and quote a post; likes and reactions; polls; drafts with autosave and live preview. |
-| **Finding** | Full-text search by title or post, tags, similar threads while composing, bookmarks in folders, follows of threads and categories. |
+| **Discovery** | Full-text search by title or post, tags, similar threads while composing, bookmarks in folders, follows of threads and categories. |
 | **Members** | Verified accounts, [passkeys](docs/passkeys-registration.md), TOTP, invitations and staff approval, direct messages, avatars, ignore lists, digests and one-click unsubscribe, data export and erasure. |
-| **Moderation** | Queues, first-post review, automod and watched words, IP bans, suspensions with timed end, reversible actions, a hash-chained audit trail. |
+| **Moderation** | Queues, first-post review, automod and watched words, IP bans, timed suspensions, reversible actions, a hash-chained audit trail. |
 | **Files** | Images, PDFs and text up to 25 MiB, scanned by ClamAV before delivery. |
 | **Interfaces** | English and Italian; light, dark and high-contrast themes; keyboard-first semantic HTML. |
 | **Protocols** | Atom feeds, mbox export, Ed25519-signed revisions, mail-in replies, WebSub, a Gemini mirror ([guide](docs/ops/community-protocols.md)). |
 | **Integrations** | YouTube, Vimeo, GitHub, GitLab, Codeberg, Facebook, Instagram, Spotify, Apple Music, Wikipedia and Mathematics; optional allowlisted Mastodon/PeerTube; selected-topic Discord announcements, moderated feeds and opt-in OIDC; players load on click ([guide](docs/integrations.md)). |
-| **Operation** | One command, `gpforum`, to set up, run, check, back up and upgrade; an admin console with graphical plugin and forum settings. |
+| **Operation** | One command, `gpforum`, for setup, checks, backups and upgrades; an admin console for forum and plugin settings. |
 
 ## Requirements
 
@@ -153,27 +151,32 @@ lists every setting.
 
 ## How it is built
 
-- **Mojolicious on persistent Perl processes.** Controllers speak HTTP; services own the rules.
-- **SQL lives in PostgreSQL.** Every statement is a versioned `api.*` function installed by migrations, and a separate login can be held to that API alone ([ADR 0126](docs/adr/0126-sql-lives-in-postgresql-functions.md), [role guide](docs/ops/sql-api-role.md)).
-- **One transaction per write.** Rows, domain event and audit record commit together; an outbox carries events to workers that retry safely.
-- **Search without extra servers.** PostgreSQL full-text and `pg_trgm`, with optional [local semantic search through pgvector](docs/ops/hybrid-search.md); keyset pagination, never offsets.
-- **Caches are disposable.** A process-local cache, optionally GlifiStore shared between hosts; when it is gone, pages come from PostgreSQL.
-- **Secure by default.** Argon2id, server sessions, CSRF tokens, authorization on pages, search, feeds, files and realtime; targeting [OWASP ASVS 5.0](docs/adr/0149-owasp-asvs-5-is-the-security-bar.md) L2, L3 for accounts and moderation.
-- **Measured, then tuned.** [Performance results](docs/architecture/sql-functions-performance.md) carry raw numbers and the commands that reproduce them.
+- **Native EV.** Persistent Mojolicious workers use `Mojo::Reactor::EV`: epoll on Linux, kqueue on macOS and FreeBSD. Startup verifies the [actual backend](docs/ops/reactor-backend.md).
+- **PostgreSQL function API.** Mojo::Pg calls the typed, versioned `api.*_vN` catalogue. A [restricted runtime login](docs/ops/sql-api-role.md) can enforce that boundary. DBIx::Class remains a maintainer dependency for historical fixtures and comparisons ([ADR 0174](docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md)).
+- **Templates compiled before fork.** Startup waits for asynchronous warmup to finish. Workers inherit compiled EP templates and partials; [HTTP benchmarks verify each serving worker](benchmarks/README.md#complete-http-workload).
+- **Transactional events.** A write commits its rows, domain event and audit record together. Outbox workers deliver events with safe retries.
+- **PostgreSQL search.** Full-text search and `pg_trgm`, optional [pgvector semantic search](docs/ops/hybrid-search.md), and keyset pagination.
+- **Rebuildable caches.** Process-local caching, with optional GlifiStore sharing. PostgreSQL remains authoritative.
+- **Explicit security boundaries.** Argon2id, server sessions, CSRF protection and authorization across pages, search, feeds, files and realtime. The verification target is [OWASP ASVS 5.0](docs/adr/0149-owasp-asvs-5-is-the-security-bar.md) L2, with L3 for accounts and moderation.
+- **Reproducible measurements.** [Performance evidence](docs/architecture/sql-functions-performance.md) includes workloads, raw results and commands.
 
-[ARCHITECTURE.md](ARCHITECTURE.md) describes the design and the
-[decision records](docs/adr/README.md) explain each choice.
+[Architecture](ARCHITECTURE.md) explains the boundaries;
+[decision records](docs/adr/README.md) explain the choices.
 
 ## Status
 
-| Target | |
-| --- | --- |
-| Local and personal use | **Ready** |
-| Private beta | Not yet — needs staging evidence for TLS, mail delivery and load |
-| Public production | Not yet — plus an attachment restore drill and a rehearsed rollback |
+**In development.** Local setup and evaluation are available. A release requires
+passing quality gates and evidence from the target deployment.
 
-There is no tagged release and no independent security review yet.
-[Release criteria](ROADMAP.md#release-readiness) · [Current review](docs/release/readiness-review.md)
+| Target | Remaining qualification |
+| --- | --- |
+| Private beta | Staging TLS, mail delivery and representative load |
+| Public production | Beta qualification, an attachment restore drill and a rehearsed rollback |
+
+There is no tagged release or independent security review yet.
+Use the [release criteria](ROADMAP.md#release-readiness) and dated
+[readiness review](docs/release/readiness-review.md) to assess a deployment.
+Focused checks and historical benchmarks apply to the revisions they tested.
 
 ## Contributing
 

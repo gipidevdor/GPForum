@@ -1,11 +1,12 @@
 # Staging host bring-up (live Hypnotoad + TLS)
 
-Operator runbook for a long-lived **staging** host after the throwaway drills in
-[`staging-drills.md`](staging-drills.md). Passing
-`bin/gpforum staging-host-verify` does **not** mean private-beta readiness. It only
-checks that in-repo artifacts exist and, when you pass live flags, that the
-env file has required **key names**, selected systemd units are active, and
-HTTP health endpoints answer.
+Deploy a long-lived staging host after the [throwaway drills](staging-drills.md).
+Use the current prefork service and a TLS proxy, then collect host, mail and load
+evidence for the candidate revision.
+
+`bin/gpforum staging-host-verify` checks repository artifacts by default. Live
+flags add environment validation, installed units and HTTP health. It installs
+nothing and does not establish beta readiness by itself.
 
 ## Scope
 
@@ -27,14 +28,14 @@ HTTP health endpoints answer.
 
 - Install or enable systemd units.
 - Reload nginx or terminate TLS for you.
-- Start Hypnotoad or write secrets.
+- Start the application service or write secrets.
 - Claim private-beta or public production readiness.
 
 ## Bring-up sequence
 
 Use a CI-green commit on `main`. On the staging host:
 
-1. Checkout the commit; install deps with the OS system Perl
+1. Check out the commit; install dependencies with the selected Perl 5.40+
    (`make install-deps-production`). On macOS hosts,
    `eval "$(script/gpforum-homebrew-env)"` first.
 2. Set the host up with `sudo gpforum setup --environment staging`, as
@@ -59,7 +60,7 @@ sudo -u gpforum gpforum budgets --check
 ```
 
 5. Enable and start `gpforum` + `gpforum-outbox` (and scheduled jobs timer).
-6. Reload nginx/Caddy; confirm TLS reaches Hypnotoad.
+6. Reload nginx/Caddy; confirm TLS reaches the application service.
 
 ## Verify (non-destructive)
 

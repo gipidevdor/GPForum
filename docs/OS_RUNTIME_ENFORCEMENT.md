@@ -1,12 +1,15 @@
 # Good Phorum OS Runtime Enforcement
 
-This document records the step from descriptive OS posture to runtime behavior
-that Good Phorum can verify.
+Use `GPForum::OS::RuntimePolicy` to configure the prefork server's workers,
+listeners and timeouts. Compare the enforcement report with
+[observed runtime evidence](OS_RUNTIME_EVIDENCE.md) before treating a setting
+as active.
 
 ## Runtime Contract
 
-Good Phorum now builds a Hypnotoad runtime configuration during Mojolicious
-startup through `GPForum::OS::RuntimePolicy`.
+`GPForum::OS::RuntimePolicy` builds the server configuration at startup.
+The configuration retains Mojolicious/Hypnotoad setting names; deployed service
+lifecycle follows [the foreground manager contract](ops/unix-daemons.md).
 
 Applied directly to the application:
 
@@ -37,7 +40,7 @@ GPFORUM_RUNTIME_WORKER_POLICY=cap-to-cpu
 GPFORUM_RUNTIME_MAX_WEB_PER_CPU=2
 ```
 
-If `GPFORUM_WEB_PROCESSES` exceeds `cpu_count * max_web_per_cpu`, Hypnotoad is
+If `GPFORUM_WEB_PROCESSES` exceeds `cpu_count * max_web_per_cpu`, the server is
 configured with the capped value and the runtime enforcement report becomes
 `degraded`. Operators can choose `configured` to preserve an explicit worker
 count, but the preflight remains responsible for warning about oversubscription.
@@ -45,7 +48,7 @@ count, but the preflight remains responsible for warning about oversubscription.
 ## Socket Enforcement
 
 This section describes HTTP listener options, not the Perl-to-PostgreSQL
-connection. Deployed Hypnotoad services and their local PostgreSQL connections
+connection. Deployed application services and their local PostgreSQL connections
 use Unix sockets; the TCP examples illustrate runtime option handling only.
 
 `SO_REUSEPORT` is applied by adding `reuse=1` to Hypnotoad listen URLs only

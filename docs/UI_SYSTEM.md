@@ -1,9 +1,8 @@
 # Good Phorum SSR UI System
 
-Good Phorum uses a server-rendered UI system built from Mojolicious partials and a
-single tokenized stylesheet. The goal is durable product UI: dense discussion
-pages, clear admin/moderation workflows, predictable keyboard navigation, and
-localizable presentation text.
+Build interfaces with shared Mojolicious partials and one tokenized stylesheet.
+Keep reading and replying prominent, make staff actions clear, preserve keyboard
+navigation and translate presentation text.
 
 ## Principles
 

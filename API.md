@@ -1,12 +1,12 @@
 # Good Phorum API Preparation
 
-Good Phorum currently exposes SSR routes and JSON-compatible responses on selected
-routes. The API posture is preparation-first: do not introduce a separate API
-surface until contracts are explicit and tested.
+Selected page routes return JSON when requested. Use the existing response
+contracts below; a separate versioned REST API remains planned. New API surfaces
+require explicit contracts and tests.
 
 ## Versioning
 
-Future REST routes should live under:
+Reserve this prefix for future REST routes:
 
 ```text
 /api/v1/...
@@ -22,9 +22,8 @@ Versioned APIs must preserve:
 
 ## Internal Contracts
 
-Until `/api/v1` exists, JSON compatibility is maintained by presenters and
-controller response helpers. Existing JSON fields must not be renamed without a
-compatibility test.
+Presenters and controller response helpers maintain the current JSON contracts.
+Renaming an existing field requires a compatibility test.
 
 ### Private composer browser routes
 

@@ -1,37 +1,26 @@
 # Good Phorum Architecture
 
-Good Phorum is an SSR-first Mojolicious monolith with modular internal boundaries.
-The current direction is a layered modular monolith, not a distributed rewrite.
+Good Phorum is a modular Mojolicious application. It renders pages on the server,
+keeps canonical data in PostgreSQL and delivers durable events through an outbox.
 
 ## Architecture Audit
 
-The current repository already has strong boundaries:
+The current boundaries are enforced by `script/architecture-check` and the
+integration suite:
 
-- `GPForum.pm` is a small composition root that delegates to bootstrap modules.
-- Controllers are HTTP-oriented and increasingly delegate write flows to services.
-- Every statement the services send is a call to a versioned function in
-  PostgreSQL's `api` schema, made through `GPForum::Infrastructure::SqlFunction`
-  ([ADR 0126](docs/adr/0126-sql-lives-in-postgresql-functions.md)): Perl binds
-  the parameters and reads the rows, and the SQL lives in numbered migrations.
-- Controllers and templates reach no resultset, and `script/architecture-check`
-  refuses one.
-- Internal `GPForum::*` module dependency cycles are rejected by
-  `script/architecture-check`.
-- Forum read paths use reader services and presenter view models.
-- Event log and outbox tables are real, durable boundaries.
-- Minion-facing workers consume outbox domain event payloads.
-- SSR templates use shared components, i18n helpers, CSRF fields, and semantic landmarks.
+- `GPForum.pm` composes bootstrap modules. Controllers adapt HTTP requests;
+  services own workflows, readers and writes.
+- `GPForum::Infrastructure::SqlFunction` calls versioned PostgreSQL functions
+  ([ADR 0126](docs/adr/0126-sql-lives-in-postgresql-functions.md)). SQL lives
+  in migrations; controllers and templates cannot reach resultsets.
+- Reader services supply presenter view models. Shared SSR components handle
+  translation, CSRF fields and semantic landmarks.
+- Event, audit and outbox records commit with the write. Workers consume the
+  durable event envelope.
+- Internal module dependency cycles are rejected.
 
-Priority risks found during the audit:
-
-1. `Controller::Forum` remains too large and still owns several response/error helpers.
-   `Controller::Identity`, `Controller::Admin`, and `Controller::Moderation`
-   have the same drift risk at smaller scale.
-2. Event, audit, and outbox creation was duplicated in write stores.
-3. Raw HTML output existed in templates without a central rendering policy.
-4. Browser security headers lived directly in bootstrap, making policy drift harder to test.
-5. Theme tokens existed in CSS but lacked a runtime registry and explicit theme contract.
-6. The target `Application/Domain/Infrastructure/Web/Security/Theme` structure was not yet represented in code. ADR 0107 replaced it with the layers the code has, and a check.
+The [quality record](docs/QUALITY_PROGRAM.md) preserves dated audits and
+follow-up evidence. The sections below describe the current implementation.
 
 ## Layer Map
 
@@ -49,36 +38,32 @@ runs the same test.
 | service | `Service` | the application: rules, workflows, readers, stores |
 | foundation | `Base`, `X`, `Config`, `Log`, `Runtime`, `OS`, `Domain`, `Jobs`, `Schema`, `Migration`, `Infrastructure` | configuration, persistence, cross-cutting contracts |
 
-A new top-level namespace fails the check until it is placed in a layer. This
-is a layered architecture, not a hexagonal one: services call the database's
-functions directly, and ADR 0107 says so.
+A new top-level namespace must be assigned a layer before the check passes.
+Services call PostgreSQL functions directly, as specified in ADR 0107.
 
 ## Data Access
 
-**Perl-to-PostgreSQL connections use Unix-domain sockets on the same host.**
-This applies to web requests, background workers, command-line operations and
-`LISTEN` connections. The default DSN is `dbi:Pg:dbname=gpforum`; an explicit
-`host=/var/run/postgresql` names the socket directory on Debian/Ubuntu, while
-Homebrew and FreeBSD normally use `/tmp`. A hostname or IP address selects
-TCP and is an explicit remote-database configuration, not the local deployment
-shown here. See [ADR 0137](docs/adr/0137-the-forum-reaches-postgresql-and-its-proxy-over-unix-sockets.md)
-and the [socket runbook](docs/DEPLOYMENT.md#unix-socket-mode).
+**Local processes reach PostgreSQL over Unix-domain sockets.** This includes
+web requests, workers, command-line tools and `LISTEN` connections. The default
+DSN is `dbi:Pg:dbname=gpforum`. Debian/Ubuntu commonly use
+`host=/var/run/postgresql`; Homebrew and FreeBSD normally use `/tmp`.
+A hostname or IP explicitly selects TCP for a remote database.
+See [ADR 0137](docs/adr/0137-the-forum-reaches-postgresql-and-its-proxy-over-unix-sockets.md)
+and [socket configuration](docs/DEPLOYMENT.md#unix-socket-mode).
 
-ADR 0126 moves every statement into a function in the `api` schema,
-`api.<name>_v<N>`. A migration installs it (the current baseline uses
-`migrations/2012_api_core.sql` to `2025_api_entry_points.sql`,
-[ADR 0162](docs/adr/0162-a-fresh-database-baseline.md)), a change
-is a new version rather than a replacement, and
-`GPForum::Infrastructure::SqlFunctionCatalogue` lists it, which a PostgreSQL
-test checks against `pg_proc`. A separate runtime login can be limited to
-calling those functions
-([ADR 0127](docs/adr/0127-separate-runtime-role-for-the-function-api.md)).
+Application reads and writes call `api.<name>_v<N>` functions. Migrations install
+the SQL; the [current baseline](migrations/README.md) defines the API in
+`2012_api_core.sql` through `2025_api_entry_points.sql`. A changed contract gets
+a new version. `GPForum::Infrastructure::SqlFunctionCatalogue` declares names
+and types; integration tests compare it with `pg_proc`. A
+[restricted runtime login](docs/ops/sql-api-role.md) can enforce API-only access.
 
-DBIx::Class is still loaded while it leaves area by area (ADR 0126, section
-8): its storage owns the connection and the transaction a call joins, the
-unit tests' in-memory doubles answer the `resultset` branch a store keeps
-beside each call, and a few cold paths not yet moved still search through it. A new statement is a
-function, never a resultset.
+`GPForum::Schema` owns native Mojo::Pg connection and transaction storage
+([ADR 0174](docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md)).
+It exposes no ORM resultsets. DBIx::Class, historical models and comparison
+profilers remain in maintainer fixtures under `t/lib` and develop dependencies.
+Connection settings, notifications and schema administration belong to
+infrastructure.
 
 ## Flow
 
@@ -108,7 +93,7 @@ flowchart TD
 ## Current Decisions
 
 - Durable events use `GPForum::Domain::EventEnvelope`.
-- Forum, identity, moderation, privacy, export, attachment, admin role, mention fanout, and rate-limit write paths now use `GPForum::Infrastructure::EventRecorder` for event/outbox/audit coordination. Canonical audit hashing lives in `GPForum::Infrastructure::AuditRecord`.
+- Forum, identity, moderation, privacy, export, attachment, admin role, mention fanout and rate-limit writes use `GPForum::Infrastructure::EventRecorder` for event/outbox/audit coordination. Canonical audit hashing lives in `GPForum::Infrastructure::AuditRecord`.
 - Browser headers use `GPForum::Security::BrowserHeaders`.
 - Repeated web error hashes use `GPForum::Web::ErrorPayload`.
 - Health and realtime transport messages use dedicated `GPForum::Web::*Payload`
@@ -130,4 +115,4 @@ flowchart TD
 4. Add command handler interfaces around moderation, privacy, attachment, and identity writes.
 5. Normalize Minion job payloads through `Jobs::*`.
 6. Add i18n namespace validation and catalog extraction reporting.
-7. Move the remaining resultset paths into functions, then drop DBIx::Class (ADR 0126, section 8).
+7. Maintain stored-function-only runtime access through Mojo::Pg (ADR 0174).

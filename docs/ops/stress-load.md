@@ -1,12 +1,12 @@
 # Stress / load harness (100 / 500 / 1000 concurrency)
 
-Operator-runnable HTTP stress harness aimed at **100 / 500 / 1000 concurrent
-request slots** (equivalent concurrency targets for private-beta capacity
-evidence). It extends the existing Hypnotoad/benchmark route set and reporting
-style rather than introducing a second load-tool stack.
+Measure a running deployment at **100, 500 or 1000 concurrent request slots**.
+These are request-concurrency targets, not counts of distinct members. Start
+with `smoke`, then run capacity profiles on representative staging hardware.
 
-Passing a profile does **not** mean private beta is ready. Record JSON/human
-evidence on representative hardware; full staging deploy remains separate.
+Record JSON and human-readable results, including errors and tail latency.
+A passing profile supplies load evidence; complete staging qualification still
+requires deployment, mail and recovery checks.
 
 ## What this covers
 
@@ -25,7 +25,7 @@ req/s, and p50/p95/p99/max latency.
 
 ## What this does not cover
 
-- Starting Hypnotoad for you (point `--base-url` at a running instance).
+- Starting the service (point `--base-url` at a running instance).
 - Attachment deploy drills, dump/restore, or nginx/systemd rehearsal.
 - Claiming multicore saturation solely from a laptop smoke run.
 
@@ -48,7 +48,7 @@ gpforum migrate
 bin/gpforum performance-seed --profile small
 ```
 
-3. Running Hypnotoad (or reverse proxy) serving that database, for example:
+3. A running application service or reverse proxy serving that database:
 
 ```sh
 # operator-managed process; ports/workers per docs/DEPLOYMENT.md

@@ -1,33 +1,26 @@
 # Good Phorum SSR UI accessibility notes
 
-The SSR UI theme is derived from the logo palette:
+Use semantic components, visible focus and clear validation feedback. Color
+must support a message, never carry it alone.
 
-| Token | Color |
+The [theme registry](../lib/GPForum/Theme/Registry.pm),
+[stylesheet](../assets/css/gpforum-ssr.css) and
+[design system](ui/design-system.md) define current colors. Check those sources
+when changing a token; copied palette values and ratios become stale.
+
+| Check | Required evidence |
 | --- | --- |
-| Background | `#f8f6ef` |
-| Foreground | `#111412` |
-| Primary | `#214237` |
-| Secondary | `#3f5f72` |
-| Accent | `#a6532f` |
-| Danger | `#9d2424` |
-| Success | `#236b45` |
+| Text and action contrast | `t/65-accessible-theme.t` checks AA/AAA targets for defined color pairs |
+| Theme and surface contrast | `t/188-theme-contrast.t` checks supported themes and token parity |
+| Semantic shell and components | `t/67-ui-system.t` checks shared structure and landmarks |
 
-WCAG contrast checks are enforced in `t/65-accessible-theme.t`.
-
-| Pair | Ratio | Target |
-| --- | ---: | --- |
-| Foreground on background | 17.15:1 | AAA normal text |
-| Muted text on background | 9.80:1 | AAA normal text |
-| Primary links on background | 10.23:1 | AAA normal text |
-| Text-on-primary on primary button | 11.06:1 | AAA normal text |
-| White on secondary surface | 6.79:1 | AA normal text |
-| Text-on-accent on accent action | 5.38:1 | AA normal text |
-| White on danger state | 7.74:1 | AAA normal text |
-| White on success state | 6.44:1 | AA normal text |
+These checks cover specific contracts. A complete accessibility review also
+needs keyboard, screen-reader and workflow checks from the
+[accessibility guide](ui/accessibility.md).
 
 The shared stylesheet includes visible `:focus-visible` states, skip links,
 reduced-motion handling, semantic breadcrumb/flash styling, form styles, and
-validated `default`, `dark`, and `high_contrast` theme contracts. The SSR shell
+validated `auto`, `default`, `dark` and `high_contrast` theme contracts. The SSR shell
 uses the configured default theme unless a supported `gpforum_theme` cookie or
 authenticated `preferred_theme` session is present.
 

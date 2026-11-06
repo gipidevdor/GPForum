@@ -1,23 +1,27 @@
 # Good Phorum documentation
 
-Start with the [project README](../README.md) for the overview. The documents
-below go deeper, grouped by what you are trying to do.
+Choose a task. Each guide gives the procedure, checks and next step.
 
-**GP** stands for **Good Phorum**; the **P** in **Phorum** stands for **Perl**.
-The [name and brand guide](BRANDING.md) explains the short form **GP Forum**,
-the project's identity and how to write its technical names.
+| I want to… | Start here |
+| --- | --- |
+| Try the forum | [Quick start](../README.md#quick-start) |
+| Deploy it | [Deployment](DEPLOYMENT.md) |
+| Check or repair an installation | [Doctor](ops/doctor.md) |
+| Back up or upgrade | [Backups](ops/backup-and-restore.md) · [Upgrades](ops/upgrade.md) |
+| Change the code | [Contributing](../CONTRIBUTING.md) · [Architecture](../ARCHITECTURE.md) |
+| Improve the documentation | [Writing guide](WRITING.md) |
+| Measure performance | [Performance guide](PERFORMANCE.md) · [Benchmarks](../benchmarks/README.md) |
+| Assess release readiness | [Criteria](../ROADMAP.md#release-readiness) · [Dated review](release/readiness-review.md) |
 
-Implementation guides describe the running system; ADRs record design decisions
-and their consequences. Use [GOVERNANCE.md](../GOVERNANCE.md) and
-[CONTRIBUTING.md](../CONTRIBUTING.md) when changing either.
+Guides describe the current system. [ADRs](adr/README.md) record decisions;
+[quality reviews](QUALITY_PROGRAM.md) and [operator evidence](ops/evidence)
+record what was verified on a given date. Historical references may name retired
+migrations: use the [current migration map](../migrations/README.md) for the
+installed schema.
 
-[QUALITY_PROGRAM.md](QUALITY_PROGRAM.md) records dated audits, follow-up
-verification and remaining work. Start with its latest consolidation review;
-the original scores and measurements describe their recorded dates.
-
-Historical ADR references and audit evidence may name retired migration files.
-The [current migration map](../migrations/README.md) describes the installed
-schema; the [upgrade guide](ops/upgrade.md) gives the supported procedure.
+Use **Good Phorum** or **GP Forum** in prose; preserve technical identifiers.
+See [naming](BRANDING.md), [governance](../GOVERNANCE.md) and
+[contribution rules](../CONTRIBUTING.md) when changing the documentation.
 
 ## Understand the system
 
@@ -25,6 +29,7 @@ schema; the [upgrade guide](ops/upgrade.md) gives the supported procedure.
 | --- | --- |
 | [BRANDING.md](BRANDING.md) | Good Phorum, the P for Perl, the GP Forum short form and naming conventions |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | The SSR-first modular monolith and its boundaries |
+| [adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md](adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md) | Mojo::Pg transport, transaction ownership, notifications and maintainer fixtures |
 | [architecture/](architecture) | Bootstrap, presentation, web access, per-area workflow boundaries, operational profiles and partition lifecycle |
 | [architecture/composer-drafts.md](architecture/composer-drafts.md) | Private thread/reply drafts, native Save/Preview, progressive autosave, publication and retention contracts |
 | [EVENTS.md](../EVENTS.md) | Event envelope and delivery contracts |
@@ -46,9 +51,9 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | --- | --- |
 | [MVP.md](MVP.md) | Every route that is traversable today |
 | [PRODUCT_FLOWS.md](PRODUCT_FLOWS.md) | Product workflows present in the repository |
-| [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md) | Verified feature inventory and proposed post-MVP priorities, with acceptance criteria and licensing/privacy constraints |
+| [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md) | Implemented features and proposed priorities, with acceptance criteria |
 | [API.md](../API.md) | API posture: JSON responses today, versioning rules for later |
-| [passkeys-registration.md](passkeys-registration.md) | Integrated passkey registration, login, revocation and account lifecycle; includes the separate nonpersistent teaching example |
+| [passkeys-registration.md](passkeys-registration.md) | Passkey registration, login, revocation and account lifecycle |
 
 ## Deploy and operate
 
@@ -57,7 +62,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | [DEPLOYMENT.md](DEPLOYMENT.md) · [DEPLOYMENT_EVIDENCE.md](DEPLOYMENT_EVIDENCE.md) | Running Good Phorum behind a reverse proxy, and the evidence gate |
 | [OBSERVABILITY.md](OBSERVABILITY.md) | Health, logs, and metrics |
 | [POSTGRESQL_RELIABILITY.md](POSTGRESQL_RELIABILITY.md) | PostgreSQL 16–18 audit, feature matrix, implementation decisions and verification |
-| [Migrations](../migrations/README.md) | The current 2000–2025 baseline, how a migration is written and applied, and its rules |
+| [Migrations](../migrations/README.md) | Current baseline and migration rules |
 | [ops/postgres-diagnostics.md](ops/postgres-diagnostics.md) | Optional SQL cost statistics and read-only lock, vacuum, freeze, WAL and checkpoint diagnostics |
 | [ops/reactor-backend.md](ops/reactor-backend.md) | Declared versus actual event-loop reactor |
 | [ops/scheduled-jobs.md](ops/scheduled-jobs.md) | Hourly retention/orphan cleanup command |
@@ -65,18 +70,18 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | [ops/search-rebuild.md](ops/search-rebuild.md) | Rebuild the search index; tell a lagging indexer from a stalled one |
 | [ops/partition-maintenance.md](ops/partition-maintenance.md) | Rolling monthly log partitions: the daily timer, migrate's window step, conflicts |
 | [ops/sql-api-role.md](ops/sql-api-role.md) | Separate migration credentials and a runtime login restricted to the function API |
-| [ops/reload-and-restart.md](ops/reload-and-restart.md) | Why reload is unsupported, and how to restart or resize workers |
+| [ops/reload-and-restart.md](ops/reload-and-restart.md) | Restart services or resize the worker pool |
 | [ops/unix-daemons.md](ops/unix-daemons.md) | Service lifecycle, signal handling, file permissions and native supervisor acceptance checks |
-| [ops/backup-and-restore.md](ops/backup-and-restore.md) | The nightly backup (`gpforum backup`), its check (`gpforum restore --check`), restoring one, and point-in-time recovery |
-| [ops/doctor.md](ops/doctor.md) | `gpforum doctor` and `gpforum status`: every check, one line each, with its fix |
+| [ops/backup-and-restore.md](ops/backup-and-restore.md) | Create, verify and restore backups; point-in-time recovery |
+| [ops/doctor.md](ops/doctor.md) | Check an installation and act on each result |
 | [ops/upgrade.md](ops/upgrade.md) | The upgrade in three commands, ending with `gpforum doctor --upgrade` |
 | [ops/mail-check.md](ops/mail-check.md) | Identity mail transport dry-run / SMTP probe |
-| [ops/console-and-cli.md](ops/console-and-cli.md) | Every `bin/` command against the admin console route that covers it, or why none does |
+| [ops/console-and-cli.md](ops/console-and-cli.md) | Choose between the command line and admin console |
 | [ops/staging-drills.md](ops/staging-drills.md) | Throwaway migrate / dump / attachments / deploy checklist |
-| [ops/staging-host.md](ops/staging-host.md) | Live staging Hypnotoad+TLS bring-up and verify |
+| [ops/staging-host.md](ops/staging-host.md) | Bring up and verify staging behind TLS |
 | [ops/stress-load.md](ops/stress-load.md) | Concurrent HTTP stress profiles against a base URL |
-| [ops/private-beta-checklist.md](ops/private-beta-checklist.md) | Operator private-beta go/no-go aggregate (print-only) |
-| [ops/evidence/](ops/evidence) | Archived operator evidence blobs (laptop vs staging; never a beta claim) |
+| [ops/private-beta-checklist.md](ops/private-beta-checklist.md) | Print the private-beta readiness checklist |
+| [ops/evidence/](ops/evidence) | Dated local and staging evidence |
 | [ops/evidence-validate.md](ops/evidence-validate.md) | Validate operator-captured evidence JSON before archiving it |
 | [release/readiness-review.md](release/readiness-review.md) | Latest go / no-go review |
 
@@ -84,8 +89,8 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 
 | Document | What it covers |
 | --- | --- |
-| [PERFORMANCE.md](PERFORMANCE.md) | Principles and budgets; indexes, the plan gate, keyset pages and migrations; query budgets; caching; search costs; profiling; OS tuning; the evidence and how to reproduce it |
-| [architecture/sql-functions-performance.md](architecture/sql-functions-performance.md) | Completed stored-function conversion and the measured DBIx comparison |
+| [PERFORMANCE.md](PERFORMANCE.md) | Query budgets, caching, profiling, tuning and reproducible evidence |
+| [architecture/sql-functions-performance.md](architecture/sql-functions-performance.md) | Stored-function architecture and historical DBIx comparison; current transport uses Mojo::Pg |
 | [architecture/migration-baseline-2026-11.md](architecture/migration-baseline-2026-11.md) | Current fresh-database baseline, schema equivalence and validation |
 | [architecture/migration-baseline-1.0.md](architecture/migration-baseline-1.0.md) | Historical comparison of the earlier 1.0 baseline with the 0.x chain |
 | [OS_RUNTIME_ENFORCEMENT.md](OS_RUNTIME_ENFORCEMENT.md) · [OS_RUNTIME_EVIDENCE.md](OS_RUNTIME_EVIDENCE.md) | Runtime enforcement of the OS contract, and its evidence |
@@ -95,7 +100,7 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | Document | What it covers |
 | --- | --- |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, actors, trust boundaries, and the mitigation and test at each |
-| [security/asvs-5.0.md](security/asvs-5.0.md) | OWASP ASVS 5.0.0 verification record (ADR 0149): every requirement in scope, its state and evidence, and the prioritised gaps |
+| [security/asvs-5.0.md](security/asvs-5.0.md) | OWASP ASVS 5.0.0 requirements, evidence and remaining gaps |
 | [ENGINEERING_CORRECTNESS.md](ENGINEERING_CORRECTNESS.md) | Engineering correctness freeze |
 | [audit/](audit) | Audits of transactional correctness, failure modes, and the email lifecycle |
 | [CPAN_LICENSE_REVIEW.md](CPAN_LICENSE_REVIEW.md) | Dependency license gate |
@@ -106,5 +111,5 @@ The [layer map](../ARCHITECTURE.md#layer-map) describes the current module layou
 | --- | --- |
 | [UI_SYSTEM.md](UI_SYSTEM.md) · [ui/design-system.md](ui/design-system.md) | SSR design system built from Mojolicious partials |
 | [UI_ACCESSIBILITY.md](UI_ACCESSIBILITY.md) · [ui/accessibility.md](ui/accessibility.md) | WCAG 2.2 AA guidelines |
-| [ui/functional-coverage.md](ui/functional-coverage.md) | GUI entry points, executable feature manifest and complete PostgreSQL coverage gate |
+| [ui/functional-coverage.md](ui/functional-coverage.md) | Interface entry points, feature manifest and PostgreSQL coverage gate |
 | [THEMING.md](../THEMING.md) | Themes and design tokens |

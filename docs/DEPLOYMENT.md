@@ -1,14 +1,14 @@
 # Good Phorum Deployment
 
-Good Phorum is a Perl-first Mojolicious application intended to run as a persistent
-Mojolicious prefork process behind a reverse proxy. PostgreSQL remains authoritative.
-Redis, OpenSearch, Kubernetes, and SaaS control planes are not required.
-GlifiStore, a disposable shared L2 cache, is optional.
+Deploy the Mojolicious prefork service behind nginx or Caddy, with PostgreSQL
+and the outbox worker on the same host. Start with the procedure for your OS;
+use the later sections for configuration and verification.
 
 Install the pgvector package matching the PostgreSQL server major before
-setup or migrations. Setup installs the extension administratively; for a
-manually provisioned database and optional local inference, follow the
-[hybrid search runbook](ops/hybrid-search.md).
+setup or migrations. Setup installs the extension administratively. For a
+manually provisioned database or local inference, follow the
+[hybrid search runbook](ops/hybrid-search.md). GlifiStore is an optional,
+disposable shared cache.
 
 ## Production Shape
 
@@ -22,10 +22,9 @@ nginx or Caddy
 -> optional Minion workers
 ```
 
-The reverse proxy should handle TLS, compression, static files, large
-attachments, request buffering, and coarse network limits. Good Phorum should handle
-identity, authorization, forum domain workflows, event/audit/outbox writes,
-SSR, and API responses.
+The proxy handles TLS, compression, static files, attachment transfer, buffering
+and network limits. Good Phorum handles identity, authorization, forum workflows,
+transactional events, page rendering and JSON responses.
 
 ## Install on Debian or Ubuntu
 
@@ -53,16 +52,17 @@ site=forum.example.com
    sudo git clone https://github.com/gipidevdor/GPForum.git /opt/gpforum
    ```
 
-3. **Setup.** On a fresh clone it installs the dependencies first, as `make
-   install-deps-production` does, without the maintainer's tools, and links
-   `gpforum`, the command every step below uses, into `/usr/local/bin`.
-   Then three questions, Enter taking each suggestion: the address members
-   reach the forum at, the database (Enter makes `gpforum` on this host),
-   and how mail leaves (step 5).
+3. **Setup.** Install production dependencies and link `gpforum` into
+   `/usr/local/bin`. Answer three questions: public address, database and mail
+   transport (step 5). Enter accepts each suggestion; the database default
+   creates `gpforum` on this host.
 
    ```sh
    sudo /opt/gpforum/bin/gpforum setup
    ```
+
+   <details>
+   <summary>Example setup report (values vary by release)</summary>
 
    ```text
    gpforum setup installs the dependencies into /opt/gpforum/local first, as make install-deps-production does: cpm install ... --workers 5 --no-test --final-install all --top-level-phase configure,build,test,runtime --feature postgres
@@ -82,6 +82,8 @@ site=forum.example.com
    Then: install and start the services, with sudo gpforum service print systemd --to /etc/systemd/system
    Then: check the whole forum, with sudo -u gpforum gpforum doctor
    ```
+
+   </details>
 
    It makes the service's account, `gpforum`, and the directory its uploads
    go in. It writes `/etc/gpforum/gpforum.env`, readable by root and the

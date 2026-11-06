@@ -1,15 +1,12 @@
 # Good Phorum SSR View Models
 
-Good Phorum uses SSR-first templates. Controllers should stay focused on HTTP:
-authorization, CSRF, rate limits, service calls, status codes, redirects, and
-content negotiation. They should not hand-build large rendering hashes.
-
-Use `GPForum::ViewModel::*` presenters for page, domain payload, and mutation
-response shaping.
+Shape page data and JSON mutation responses with `GPForum::ViewModel::*`
+presenters. Controllers handle HTTP concerns: authorization, CSRF, rate limits,
+service calls, status codes, redirects and content negotiation.
 
 ## Rules
 
-- Return plain hashes and arrays only. Do not pass DBIx::Class result objects to
+- Return plain hashes and arrays. Keep database rows and storage objects out of
   templates.
 - Preserve existing public JSON field names unless the API change is deliberate.
 - JSON mutation responses should be shaped by presenters too. Controllers may

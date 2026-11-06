@@ -1,26 +1,24 @@
 # gpforum doctor and gpforum status
 
-Two commands answer "is this forum working, and if not, what do I do?":
+Use `doctor` to check the installation and get a fix for each problem.
+Use `status` for the running service's readiness report:
 
 ```sh
 sudo -u gpforum gpforum doctor     # everything, from the settings to the public address
 sudo -u gpforum gpforum status     # the running service's own readiness report
 ```
 
-Both read `/etc/gpforum/gpforum.env` as the service does (another file:
-`gpforum --env-file FILE doctor`, and then every `gpforum` command they offer
-carries the same `--env-file FILE`). A setting the shell's environment holds
-wins over the file, for them as for the service, so its fix says to change
-it there. Run them as the service's user, so they also have its
-permissions. They answer in Italian or English, as `LC_ALL`,
-`LC_MESSAGES` or `LANG` says.
+Run both commands as the service user so they use its permissions. They read
+`/etc/gpforum/gpforum.env`; shell settings take precedence. For another file,
+use `gpforum --env-file FILE doctor`: suggested commands preserve that option.
+Output follows `LC_ALL`, `LC_MESSAGES` or `LANG`, in Italian or English.
 
 ## gpforum doctor
 
-One line per check: `✓` fine, `!` works but should be fixed, `✗` stops the
-forum working as configured. Under each problem, `Fix:` lines say what to
-change -- the variable and the file -- and the command to type. The last
-line counts what there is to fix.
+Read one line per check: `✓` passes, `!` needs attention, `✗` blocks the
+configured operation. Each problem includes `Fix:` instructions and the
+setting, file or command to change. The final line counts outstanding items.
+The sample below illustrates the format; versions and values vary.
 
 ```text
 $ sudo -u gpforum gpforum doctor
@@ -112,7 +110,7 @@ $ sudo -u gpforum gpforum doctor --upgrade
 
 The running service's full readiness report, the one `/health/ready` gives
 a request carrying the metrics token, one line per check. It asks the
-service where Hypnotoad listens (`GPFORUM_RUNTIME_LISTEN`, the loopback for
+service where the prefork manager listens (`GPFORUM_RUNTIME_LISTEN`, the loopback for
 every interface), not through the proxy, with `GPFORUM_METRICS_TOKEN` from
 the environment file; `--url URL` asks another address.
 

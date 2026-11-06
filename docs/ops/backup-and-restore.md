@@ -1,10 +1,12 @@
 # Backup and Restore
 
-New uploads and profile pictures live in PostgreSQL (ADR 0161). Legacy files
-not yet imported still need a filesystem copy. ADR 0050 asks for point-in-time
-database recovery; this page covers both stores, restore verification and the
-archive that recovers PostgreSQL data to any covered instant. See
-[media operation](media-and-podcasts.md) for the import procedure.
+Back up PostgreSQL and any legacy upload files that remain on disk. New uploads
+and profile pictures live in PostgreSQL (ADR 0161); use the
+[media guide](media-and-podcasts.md) to import older files.
+
+Use `gpforum backup` for a portable snapshot and point-in-time recovery (PITR)
+for recovery to a covered instant, as required by ADR 0050. Verify both before
+relying on them.
 
 | | `gpforum backup` | Point-in-time recovery |
 | --- | --- | --- |
@@ -14,9 +16,8 @@ archive that recovers PostgreSQL data to any covered instant. See
 | Checked by | `gpforum restore --check` | `script/pitr-drill` |
 | Good for | a copy off the host, a bad deploy, a copy for staging | deletion, corruption, disk loss |
 
-A nightly backup alone means a bad afternoon costs a day of posts; PITR is
-what the ADR asks for. Run both: the backup is the copy you can carry off
-the host and check in one command.
+Run both. A nightly snapshot can lose changes since the last backup; PITR
+covers the verified base backup and continuous WAL archive.
 
 ## The nightly backup
 
@@ -29,9 +30,8 @@ $ sudo -u gpforum gpforum --env-file /etc/gpforum/admin.env backup --to /var/bac
 Next: check that it can be restored, with sudo -u gpforum gpforum restore --check /var/backups/gpforum/gpforum-20261009T031500Z
 ```
 
-Run under `sudo -u`, the check it offers runs as the same account, which
-alone can read the backup. Each run makes a new directory, named for the time in UTC and readable by
-`gpforum` alone, holding:
+Run the suggested check as the same operator account. Each backup creates a
+private directory named with its UTC timestamp, containing:
 
 | File | What it is |
 | --- | --- |

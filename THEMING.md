@@ -1,36 +1,32 @@
 # Good Phorum Theming
 
-Good Phorum uses a conservative institutional theme derived from the logo palette.
-The [name and brand guide](docs/BRANDING.md) explains Good Phorum, the GP Forum
-short form and the P for Perl; [artwork sources](assets/source/README.md)
-describe the mark.
+Use semantic tokens to keep light, dark and high-contrast pages consistent.
+`GPForum::Theme::Registry` declares supported themes; `assets/css/gpforum-ssr.css`
+and `themes/*/tokens.css` provide their values.
 
-The runtime registry is `GPForum::Theme::Registry`; CSS tokens live in
-`assets/css/gpforum-ssr.css` and synchronized reference copies live under
-`themes/`.
+See the [design system](docs/ui/design-system.md) for layout and typography,
+the [brand guide](docs/BRANDING.md) for naming and
+[artwork sources](assets/source/README.md) for the mark.
 
 ## Themes
 
-Current contracts:
+| Value | Behavior |
+| --- | --- |
+| `auto` | Follow the device's light or dark preference |
+| `default` | Always light; shown as “Light” |
+| `dark` | Always dark |
+| `high_contrast` | High-contrast palette |
 
-- `auto`: the light palette until the reader's device asks for dark, and the
-  dark one then. It has no tokens of its own: the stylesheet repeats the dark
-  block under `prefers-color-scheme: dark`, and `t/188-theme-contrast.t` holds
-  the two copies to the same declarations. The page states `color-scheme:
-  light dark` and a `theme-color` for each setting of the device.
-- `default`: the light palette, whatever the device asks. Shown as "Light".
-- `dark`
-- `high_contrast`
+`GPFORUM_DEFAULT_THEME` sets the SSR default (`auto` unless configured).
+The stylesheet's automatic dark palette matches the explicit dark theme;
+`t/188-theme-contrast.t` checks parity. The page declares both color schemes
+and a matching `theme-color` for each device preference.
 
-`GPFORUM_DEFAULT_THEME` configures the SSR default, which is `auto` unless
-set. Supported values are `auto`, `default`, `dark`, and `high_contrast`.
-Migration 050 lets `users.preferred_theme` hold `auto` and makes it what a
-new member starts with; a member who had `default` keeps the light theme.
-The SSR shell exposes a POST `/theme`
-selector backed by CSRF protection, and authenticated users can manage the same
-theme from `/settings`. Guests persist a validated `gpforum_theme` cookie;
-authenticated users also persist `users.preferred_theme`. Invalid values fall
-back to the configured default without entering HTML attributes.
+The CSRF-protected POST `/theme` selector and `/settings` use the same preference.
+Guests keep a validated `gpforum_theme` cookie; signed-in members also store
+`users.preferred_theme`. New members start with `auto`; existing `default`
+preferences stay light. Invalid values fall back to the configured default
+before entering HTML attributes.
 
 ## Token Files
 
@@ -40,22 +36,8 @@ themes/dark/tokens.css
 themes/high_contrast/tokens.css
 ```
 
-Theme tokens cover:
-
-- background;
-- foreground;
-- muted text;
-- surface and alternate surface;
-- primary;
-- secondary;
-- accent;
-- border;
-- danger;
-- success;
-- warning and info;
-- state surfaces;
-- text-on-action colors;
-- focus ring.
+Tokens cover text, surfaces, actions, borders, focus and semantic states.
+Keep their values synchronized with the registry and reference files.
 
 The stylesheet adds three colours the registry does not hold, each set per
 theme: `--color-subtle` for metadata, `--color-hairline` for the rules between
@@ -63,66 +45,30 @@ rows, and `--color-mark` for search highlights.
 
 ## Type and layout
 
-`assets/css/gpforum-ssr.css` is one file in eleven numbered sections, tokens
-first; the eleventh, Surfaces, sets the forum's pages after the platform's
-own apps. Three rules hold throughout: a colour is a token, a direction is
-logical (`inline`, `block`), and a size comes from the scale.
+Use [the design system](docs/ui/design-system.md) for the full visual contract.
+The stylesheet defines the implementation; keep these choices consistent:
 
-- **Faces.** Text is set in the platform's own face first (`-apple-system`,
-  `system-ui`): San Francisco on Apple devices, with its optical sizes. Inter
-  is shipped for platforms without a face of their own, as four variable
-  `woff2` files in `assets/css/` (Latin and Latin Extended, upright and
-  italic, 277 KB in all; a page in Italian or English fetches the 48 KB
-  Latin file, preloaded). Its licence, the SIL Open Font License, is
-  `assets/css/inter-LICENSE.txt`. The stylesheet names each file with the
-  digest of its bytes (`t/233-asset-fingerprints.t`), so replacing a file
-  means writing its new digest in the `@font-face` rule. Until Inter arrives
-  the text stands in Arial scaled to Inter's proportions ("Inter Fallback"),
-  so it does not move. Code is set in the platform's monospace: none is
-  shipped, so none is named.
-- **Sizes.** Six, `--font-size-xs` to `--font-size-xl`, and no literal size
-  beside them, after the platform's text styles: footnote `xs` (13px),
-  subheadline `sm` (15px) for controls and metadata, body `md` and `body`
-  (17px), title 2 `lg` (22px) and the large title `xl` (up to 34px). A
-  post's body is read at `--line-height-reading` (1.6). Headings are set tighter (`--tracking-display`,
-  `--tracking-heading`), as large type asks.
-- **Weights.** `--weight-regular` to `--weight-bold`. Hierarchy comes from
-  size and colour before weight: body text is regular, metadata is
-  `--color-subtle`.
-- **Tones.** Text has two: `--color-foreground` and the quieter
-  `--color-subtle`. `--color-muted` stays a registry token and sets no text
-  (`t/188-theme-contrast.t`): used beside `subtle` it could not be told from
-  it.
-- **Code.** Monospace at 0.875em and never below `--font-size-xs`, without
-  ligatures, so every character shows as typed. A fenced block scrolls
-  sideways rather than wrapping.
-- **Column.** Lists and consoles take the wide column (`--content-wide`,
-  68rem); text read at length keeps `--measure-readable` (68ch). Before the
-  surfaces a page was one column of 38rem. Beside its
-  avatar a post's text is 564px wide, which at 17px in Inter measured 67 to
-  71 characters a full line; at 44rem in the system face it had measured 80.
-  Text set outside a post (`.prose`) is held to `--measure-readable`. A
-  console asks for the wide column with `% layout 'default', shell => 'wide';`.
-- **Navigation.** The header holds places, not actions: starting a thread is
-  a button on the pages that list threads. The link to the page being read
-  carries `aria-current` and is set in ink and semibold; the bar is glass
-  (`--color-bar`, a backdrop blur) and stays at the top.
-- **Choices among a few.** Language and theme in the footer are `.segmented`
-  groups of buttons, one press each, the one in use marked `aria-pressed`.
-- **Lists.** Grouped: rows on one white rounded surface, a hairline between
-  two inset to the text's edge (`.ui-card-list`), not boxed rows. A row with
-  one destination is one target (`.ui-row`, `.ui-row__title`).
-- **Avatars.** `.avatar` is a name's initial on one of the palette's three
-  tints (`forest`, `steel`, `clay`), chosen from the username by
-  `ViewModel::Base::tint` and so always the same for a member.
-- **Console filters.** `.filter-form` lays its `.field`s out as a grid, as
-  many to a line as fit, so the list being filtered stays on the first screen.
-- **Sheets.** An action that needs a field or a second thought opens over the
-  page: `components/sheet` is an HTML popover, opened by a button's
-  `popovertarget`, closed by Escape or a click outside, with no script.
-  Without popover support it is a panel in the page and its form still
-  works; the buttons that would open or close it are hidden until the
-  stylesheet knows popovers are there (`t/320`).
+- **Type:** locally served Inter for controls and metadata; Source Serif 4 for
+  Latin headings and long-form prose. Native monospace for code.
+- **Scale:** semantic size and weight tokens. Reading text is 19px with a 1.72
+  line height and a 65ch measure; display titles scale with the viewport.
+- **Color:** semantic tokens for every theme. Use `--color-subtle` for metadata
+  and preserve tested contrast on each surface.
+- **Layout:** logical `inline`/`block` properties, shared spacing and width
+  tokens. Consoles can request the wide shell; prose keeps a readable measure.
+- **Navigation:** native links, `aria-current` for the active destination and
+  visible focus. Reading and reply controls stay prominent.
+- **Lists:** shared rounded surfaces with inset separators. A row with one
+  destination provides one clear link target.
+- **Choices:** language and theme controls expose the selected value with
+  `aria-pressed`.
+- **Sheets:** `components/sheet` uses native popovers with Escape and outside-click
+  dismissal. Without popover support, its form stays available in the page.
+- **Code:** preserve characters and spacing; let fenced blocks scroll horizontally.
+
+Font files, provenance and licenses are recorded in
+[Inter](assets/css/inter-LICENSE.txt) and
+[Source Serif 4](assets/css/source-serif-4.README.md).
 
 ## Accessibility
 

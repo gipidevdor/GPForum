@@ -20,10 +20,18 @@ data import in this reset. The [migration map](../../migrations/README.md) and
 [ADR 0162](../adr/0162-a-fresh-database-baseline.md) describe the new baseline.
 The ordinary upgrade procedure below applies to later releases on this baseline.
 
-`gpforum upgrade` prints the three commands that upgrade the forum, written
-for the host it runs on, and runs none of them. On a Debian or Ubuntu host
-installed as [DEPLOYMENT.md](../DEPLOYMENT.md#install-on-debian-or-ubuntu)
-shows, they are:
+`gpforum upgrade` prints a plan for the current host; it runs nothing.
+The procedure below applies to releases on the current baseline.
+
+**Back up before changing code.** On the first run, create the private backup
+directory with
+`sudo install -d -o gpforum -m 700 /var/backups/gpforum && sudo -u gpforum gpforum backup --to /var/backups/gpforum`.
+Later plans print the backup command alone. A restricted runtime database login
+needs separate operator credentials: follow the
+[backup guide](backup-and-restore.md#the-nightly-backup).
+
+On a Debian or Ubuntu host installed with the
+[deployment guide](../DEPLOYMENT.md#install-on-debian-or-ubuntu), run the plan:
 
 ```sh
 sudo git -C /opt/gpforum pull && sudo make -C /opt/gpforum install-deps-production
@@ -31,25 +39,13 @@ sudo -u gpforum gpforum migrate && sudo systemctl restart gpforum gpforum-outbox
 sudo -u gpforum gpforum doctor --upgrade
 ```
 
-Take a backup before the first one, so there is something to come back to.
-The first time, its directory is made too, by root for `gpforum`, since
-`/var/backups` is root's (and a fresh Debian host has no
-`/var/backups/gpforum`):
-`sudo install -d -o gpforum -m 700 /var/backups/gpforum && sudo -u gpforum gpforum backup --to /var/backups/gpforum`.
-Once the directory is there, `gpforum upgrade` prints the backup alone.
-
-1. **The code and its dependencies.** `git pull` brings the release, and
-   `make install-deps-production` installs what its `cpanfile.snapshot`
-   pins for the Perl the host runs. Run it after an upgrade of the system
-   Perl too (a new Debian release): modules built for the Perl before do
-   not load.
-2. **The schema, then the services.** `gpforum migrate` applies the new
-   migrations, keeps the monthly partitions ahead and syncs the query
-   budgets. When there is nothing to apply it prints `Schema is current`
-   and names no restart. The restart is on this line all the same: the web
-   service and the outbox worker read the code only when they start, and
-   the code changed. `systemctl reload` is refused on purpose
-   ([reload-and-restart.md](reload-and-restart.md)).
+1. **Update code and dependencies.** `git pull` gets the release;
+   `make install-deps-production` installs its snapshot for the selected Perl.
+   Reinstall after changing Perl or its ABI too.
+2. **Migrate, then restart.** `gpforum migrate` applies migrations, maintains
+   the partition window and syncs query budgets. Restart the web and outbox
+   services even when it prints `Schema is current`: they load new code at
+   startup. [Service reload is unsupported](reload-and-restart.md).
 3. **The check.** [`gpforum doctor --upgrade`](doctor.md#after-an-upgrade)
    says what the upgrade left behind, with the command for each:
    - a setting the new release needs, or one it retired;

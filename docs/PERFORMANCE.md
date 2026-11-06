@@ -1,17 +1,17 @@
 # Good Phorum Performance
 
-The one document on performance and the database: the principles and the
-budgets, how the schema and the queries stay fast and how that is checked,
-the caches, what search costs, how to profile, the operating-system posture,
-and where the evidence is and how to reproduce it. Checked against the code
-on 2026-10-03.
+Measure the workload before changing its configuration. Use this guide for
+query budgets, caching, profiling and OS tuning; use the
+[benchmark guide](../benchmarks/README.md) for repeatable runs.
 
-The target is one host, scaled vertically first: Mojolicious under
-Hypnotoad, PostgreSQL, the outbox workers, and GlifiStore as a disposable
-shared cache. No broker, search engine or load tool beyond those is
-required. The hot paths, in the order the May 2026 audit ranked them:
-outbox dispatch, the thread page, the category and home lists, search and
-autocomplete, notifications and the feed, realtime fan-out, uploads.
+The default target is one host: a Mojolicious prefork service, PostgreSQL and
+outbox workers. Shared GlifiStore caching is optional. Tune worker count and
+per-worker admission together, then compare throughput with p50/p95/p99 and
+errors under the same load.
+
+Dated results below describe their recorded revision, dataset, host and harness.
+They do not establish a new baseline for the Mojo::Pg transport. A runtime or
+harness change requires a new measurement before claiming a gain.
 
 The [6 November 2026 regression comparison](../benchmarks/throughput-regressions/2026-11-06/README.md)
 measures the transfer picker's repeated permission work and TCP connection
@@ -30,12 +30,11 @@ these results should not be mixed directly with older harness measurements.
    any time and the page is still right.
 3. **A hot read is bounded.** Keyset pages with a `LIMIT`, never `OFFSET`;
    a fixed number of statements per page, whatever its rows.
-4. **The gate checks what the application sends.** The plan gate EXPLAINs
-   the statement the reader method builds, not a transcription of it.
-5. **DBIx::Class outside hot loops.** Writes, admin and the page readers use
-   it (the plan gate renders their SQL from it); the loops -- the outbox claim
-   and acknowledgement, and the feed fan-out -- use fixed SQL with bind
-   parameters.
+4. **Check the executed SQL.** The plan gate explains statements inside hot
+   PostgreSQL functions, using the current catalogue.
+5. **Call the function API.** Runtime reads and writes use typed, versioned
+   `api.*_vN` functions through Mojo::Pg. DBIx comparisons below are historical
+   evidence ([ADR 0174](adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md)).
 6. **Gates fail on change, not on absolute speed.** Latency thresholds are
    deliberately loose release gates; plan shape, statement counts and the
    saved-baseline comparison are what catch a regression.
@@ -621,8 +620,8 @@ websocket fan-out, outbox dispatch and upload processing.
 Good Phorum reports the operating-system posture; it does not change it. It
 never modifies sysctl values, raises limits, requires root, pins CPU
 affinity, installs service units, or patches socket behaviour outside the
-Mojolicious and Hypnotoad runtime. The supervisor -- systemd, rc.d and
-jails, launchd -- owns the Hypnotoad process count, unit hardening,
+Mojolicious service runtime. The supervisor — systemd, rc.d and
+jails, launchd — owns the service lifecycle, unit hardening,
 file-descriptor limits and kernel tuning; the reverse proxy owns TLS,
 compression, buffering and static transfer.
 
@@ -638,7 +637,7 @@ The preflight reports the OS profile (`darwin`, `freebsd`, `linux` or
 recommended web workers; the configured web, worker and realtime processes;
 open file descriptors (from `/proc/$pid/fd` or `/dev/fd`) and the limit
 (`sysconf(_SC_OPEN_MAX)`); the socket posture; and the nice plan. The event
-backend is diagnostic: Mojolicious and Hypnotoad own the loop, and the
+backend is diagnostic: Mojolicious and native EV own the loop, and the
 actual reactor is in [ops/reactor-backend.md](ops/reactor-backend.md).
 
 | Setting | Values | Meaning |
@@ -663,13 +662,13 @@ pipes all draw on it.
 
 The plan is a declaration: nothing in Good Phorum calls `setpriority`, and the
 report says so: policy `declared-for-the-supervisor`. No Good Phorum process starts
-knowing its class -- the web workers run under Hypnotoad, the outbox
+knowing its class — web workers run under the prefork manager, the outbox
 dispatcher and the scheduled jobs under their own units -- so there is no
 start hook that could pick a delta. The supervisor sets the nice value;
 the shipped scheduled-jobs units (systemd and launchd) set 10.
 
 What the application does apply, through `GPForum::OS::RuntimePolicy`:
-Hypnotoad's workers, backlog, keep-alive, graceful shutdown and, where
+The prefork manager's workers, backlog, keep-alive, graceful shutdown and, where
 supported, `reuseport` listen URLs. The OS posture is on `/metrics`, in
 readiness (`os_preflight`) and in the platform check, with warnings for an
 excessive web worker count. Enforcement and production profiles are in

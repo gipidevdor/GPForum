@@ -1,24 +1,25 @@
 # Entrypoint Layout
 
-Good Phorum has two entrypoint directories. This is the rule that decides which
-one a new command belongs in. It is enforced by `check_entrypoint_layout` in
-`script/architecture-check`, so `make check` and CI fail when it drifts.
+Put application commands behind `bin/gpforum`; put repository and toolchain
+utilities in `script/`. `script/architecture-check` enforces the layout in
+`make check` and CI.
 
 ## The rule
 
 - **`bin/`** holds **one Perl application entrypoint**, `bin/gpforum`, the
-  front door. It is deployed, and it is the file Hypnotoad loads. Every
+  front door. It loads the application for commands and the web service. Every
   command is one of its verbs (`bin/gpforum migrate`): a `GPForum::CLI`
   adapter, listed in `GPForum::Command::Support::Verbs`, over the
   `GPForum::Command` class that does the work. `bin/` never contains shell.
 
-- **`script/`** holds **repository tooling** for developers and CI. It is not
-  deployed. A tool is POSIX `sh` unless it needs Perl: the gates
+- **`script/`** holds **repository and toolchain utilities**. Keep the runtime
+  wrappers available in deployed checkouts: `bin/gpforum` uses them to select
+  Perl and load dependencies. A tool is POSIX `sh` unless it needs Perl: the gates
   (`perl-syntax-check`, `query-plan-check`, `cpan-license-check`,
   `adr-index`), most benchmarks, and the schema and evidence tools are Perl,
   and most of those load `GPForum::*` code through `-Ilib`, as the `perl
-  -Ilib` one-liners in some `sh` tools do. Nothing in `script/` is a command
-  an operator runs: `system-preflight` runs `bin/gpforum os-preflight`.
+  -Ilib` one-liners in some `sh` tools do. Application operations go through
+  `gpforum`: for example, `system-preflight` runs `bin/gpforum os-preflight`.
 
 - **No wrappers.** A command is typed through the front door, `bin/gpforum
   VERB` (`bin/gpforum stress-load`), which finds the Perl and the
@@ -41,11 +42,11 @@ one a new command belongs in. It is enforced by `check_entrypoint_layout` in
 ## CPAN tools
 
 `script/bootstrap-deps` installs the locked distributions in parallel through
-`script/gpforum-cpm`, which runs App::cpm with the validated system Perl.
+`script/gpforum-cpm`, which runs App::cpm with the validated selected Perl.
 Carton still supplies snapshot parsing, lock updates, checks and bundles.
 
 The only script that invokes `carton` directly is `script/gpforum-carton`
-itself. Bare `carton` would bypass the system-Perl gate in
+itself. Bare `carton` would bypass interpreter selection in
 `script/gpforum-system-perl`, and on macOS the `carton` found first on `PATH`
 can belong to another Perl, so documentation uses `script/gpforum-carton exec`
 throughout.

@@ -1,9 +1,9 @@
 # Staging drills (migrate / dump / restore / attachments / deploy checklist)
 
-Operator-runnable rehearsal for private-beta *preparation*. Passing these drills
-does **not** mean Good Phorum is private-beta ready. A live Hypnotoad + TLS staging
-host deploy is covered by the operator runbook in
-[`staging-host.md`](staging-host.md) (`bin/gpforum staging-host-verify`).
+Rehearse migrations, backup/restore and deployment checks on throwaway data.
+These drills prepare an installation; they do not qualify a live host for beta.
+For deployment behind TLS, follow [staging host bring-up](staging-host.md) and
+run `bin/gpforum staging-host-verify`.
 
 ## What this covers
 
@@ -71,8 +71,8 @@ export GPFORUM_DATABASE_USER="$USER"
 # no password: trust on the local socket, and no TCP listener
 ```
 
-You still need OS system Perl 5.40+ (Homebrew's `perl` or distro
-`/usr/bin/perl`) and `make install-deps-postgres` before `bin/gpforum staging-drill`.
+Select Perl 5.40+ and run `make install-deps-postgres` before the drill.
+Use `GPFORUM_PERL` or `PATH` as described in the [runtime guide](perl-runtime.md).
 Stop with `pg_ctl -D "$HOME/gpforum-pgdata" stop` when finished.
 
 The DSN database name is only the admin/maintenance connection target. The drill

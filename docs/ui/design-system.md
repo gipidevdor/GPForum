@@ -1,17 +1,13 @@
 # SSR Design System
 
-Good Phorum's design system is SSR-first and implemented with Mojolicious partials
-and `assets/css/gpforum-ssr.css`. It has no Node.js build step and no SPA
-runtime.
+Use Mojolicious partials and `assets/css/gpforum-ssr.css` for consistent
+server-rendered pages. No frontend build step is required.
 
-The project name is **Good Phorum**, shortened to **GP Forum**; the **P** in
-**Phorum** stands for **Perl**. The [brand guide](../BRANDING.md) covers
-project naming and its distinction from an installation's community name.
+Keep content prominent: grouped backgrounds, restrained surfaces, subtle borders
+and one action tint. The amber line above page titles carries the Segni identity.
+Use **Good Phorum** or **GP Forum** for the project; an installation's community
+name is separate. See the [brand guide](../BRANDING.md).
 
-The visual language pairs an editorial reading voice with a restrained
-interface: grouped backgrounds, white rounded surfaces, inset hairlines,
-one action tint and a translucent navigation bar. The amber line over page
-titles echoes the Segni identity without competing with the content.
 The light palette:
 
 - grouped background: `#f2f2f7`; surfaces `#ffffff` and `#f5f5f7`;

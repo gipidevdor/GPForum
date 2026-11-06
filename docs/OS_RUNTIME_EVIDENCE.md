@@ -1,8 +1,7 @@
 # Good Phorum OS Runtime Evidence
 
-Good Phorum distinguishes OS-level performance posture from OS-level performance
-evidence. A feature is not considered materially active just because an OS
-profile declares support for it.
+Check what the benchmark observed, alongside what the configuration requested.
+An OS profile declaring support does not prove a feature was active.
 
 `GPForum::OS::RuntimeEvidence` is the benchmark evidence probe used by
 `bin/gpforum hypnotoad-benchmark`. It reports:

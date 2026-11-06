@@ -1,14 +1,12 @@
 # Good Phorum CI
 
-The pipeline enforces [ADR 0059](adr/0059-cicd-quality-release-engineering.md): code does not
-bypass automated validation, security scanning, critic enforcement or testing.
-This page maps every Good Phorum target to the workflow that proves it, and every
-mandatory pipeline stage to where it runs.
+Use this map to find the workflow that checks a platform, database or quality
+gate. [ADR 0059](adr/0059-cicd-quality-release-engineering.md) defines the required
+validation, security scans, critic checks and tests.
 
-Workflows live in [.github/workflows](../.github/workflows). Every job installs
-the locked tree the same way an operator does — the OS system Perl,
-`script/bootstrap-deps`, `cpanfile.snapshot` — so a green run means the
-documented host instructions work, not that CI has a private path.
+[Workflows](../.github/workflows) install locked dependencies through
+`script/bootstrap-deps` and `cpanfile.snapshot`, using the host's selected Perl.
+The tables distinguish blocking checks from scheduled or optional evidence.
 
 ## Platform targets
 

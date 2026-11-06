@@ -1,27 +1,17 @@
 # Console and command line
 
-Every verb of `gpforum`, the front door (ADR 0120), and where an
-administrator finds the same thing in the admin console, or why there is
-none. Quality program item 6.5 asked for the two to stop drifting apart;
-`t/214-console-cli-parity.t` keeps this page honest: it fails when a verb is
-missing from the table below, when the table names a verb that no longer
-exists, or when it names a console route that `lib/GPForum/Bootstrap/Routes.pm`
-does not register.
+Use the table below to find a `gpforum` command or its admin-console equivalent.
+`t/214-console-cli-parity.t` checks commands and routes against the code.
 
-`bin/gpforum` is the only command: `gpforum migrate`, `gpforum admin create`,
-`gpforum partitions`. It reads the service's environment file, re-runs itself
-under Carton when `local/` is not on `@INC`, and runs the verb's command;
-Hypnotoad loads the same file as the application that serves the console.
-`gpforum` alone lists the verbs by what the operator is doing, and `gpforum
-help --all` adds the benchmarks, seeds, drills and evidence commands, with
-Mojolicious's and Minion's own (`daemon`, `routes`, `minion`). `--dry-run`
-shows and does not do on `migrate`, `admin` and `secret`.
+`bin/gpforum` is the command entry point. It reads the service environment file
+and re-executes under Carton when needed. The web service reads the same file.
+Run `gpforum` to list everyday tasks, or `gpforum help --all` for benchmarks,
+seeds, drills, evidence tools and Mojolicious/Minion commands. `--dry-run` prints
+without applying changes on `migrate`, `admin` and `secret`.
 
-A verb without a console route is not a gap by default. Some run before
-there is a console (`gpforum setup`, `gpforum admin create`), at deploy
-(`gpforum migrate`) or on a timer; others are benchmarks, seeds, drills and
-evidence tools that belong to the operator's or developer's shell, not to a
-live forum's web process.
+Setup, migrations and service management run outside HTTP requests. Benchmarks,
+seeds and drills also belong in the operator's shell. Their lack of a console
+route is intentional.
 
 ## Commands
 

@@ -1,42 +1,41 @@
 # Good Phorum Observability
 
-Date: 2026-05-24.
-
-This document defines the current observability surface for Good Phorum production
-evidence. It is intentionally operational: every signal listed here must help
-diagnose load, query topology, replay safety, degradation behavior, or release
-regression without adding external mandatory infrastructure.
+Use request IDs, SQL counters and `/metrics` to diagnose slow requests,
+backlogs and delivery failures. These signals require no external monitoring
+service. Counters are process-local; aggregate across workers through logs
+or your scrape configuration.
 
 ## Request DB Query Counters
 
-Configured HTTP requests now attach a DBIx::Class storage statistics observer
-through `GPForum::Service::Operations::DbQueryStats`.
+`GPForum::Service::Operations::DbQueryStats` observes the native Mojo::Pg storage.
+It starts before session validation, so session lookups count toward the request.
+Request tokens keep overlapping asynchronous requests separate.
 
-Observed per-request data includes:
+Finished observations expose:
 
 | Field | Meaning |
 | --- | --- |
-| `query_count` | SQL statements observed during the request |
-| `transaction_count` | transaction begin/commit/rollback events observed |
-| `duplicate_queries` | repeated normalized SQL fingerprints in the request |
-| `route_name` | Mojolicious route name when available |
-| `method` | request method |
-| `path` | request path |
-| `duration_ms` | request duration measured by the observer |
-| `query_budget` | budget result when the route maps to the catalog |
+| `request_id` | Internal observer sequence number |
+| `correlation_id` | HTTP `X-Request-ID`, accepted from a safe incoming value or generated locally |
+| `route`, `endpoint_name` | Route and query-budget endpoint when known |
+| `status` | HTTP response status |
+| `queries` | Application SQL statements observed |
+| `connection_queries` | Connection setup statements counted separately |
+| `transactions` | Transaction starts observed |
+| `duplicate_queries`, `duplicate_fingerprints` | Repeated normalized statements and their fingerprints |
+| `duration_ms`, `db_duration_ms` | Request elapsed time and observed database time |
+| `attached` | Whether the native storage observer is active |
+| `query_budget_status`, `query_budget`, `query_budget_observed`, `query_budget_violations` | Budget evaluation, when recorded for a catalogued endpoint |
 
-The observer is wired before session validation so session lookup queries are
-included in the same request envelope.
-
-Every HTTP response includes `X-Request-ID`. Good Phorum accepts a safe incoming
-`X-Request-ID` from the reverse proxy or generates one through the application
-id service. The same value is recorded as the DB query observation
-`correlation_id`, and finished request observations include `duration_ms`.
+Every HTTP response carries `X-Request-ID`. Use that value to correlate the
+response with the observation's `correlation_id`; `request_id` is an internal
+counter.
 
 ## Benchmark Integration
 
 `script/benchmark-http --configured` and `gpforum benchmark --configured`
-now include observed DB query data in both text and JSON output.
+include query observations in text and JSON. Benchmark summaries use their
+own field names, shown below.
 
 Example text field:
 
@@ -64,7 +63,7 @@ query detection is also enforced for routes mapped to the query-budget catalog.
 
 ## Metrics Surface
 
-`/metrics` now includes `db_query_stats` from `MetricsSnapshot`. If
+`/metrics` includes `db_query_stats` from `MetricsSnapshot`. If
 `GPFORUM_METRICS_TOKEN` is set, the endpoint requires either
 `Authorization: Bearer $GPFORUM_METRICS_TOKEN` or
 `X-GPForum-Metrics-Token`, decided by `Web::OperationsAccess`. Reverse
@@ -74,19 +73,17 @@ The snapshot exposes:
 
 | Field | Meaning |
 | --- | --- |
-| `attached` | whether the DBIx::Class storage observer is active |
+| `attached` | whether the native Mojo::Pg storage observer is active |
 | `requests_observed` | number of finished observed requests kept in memory |
 | `total_queries` | process-local total SQL query observations |
-| `total_transactions` | process-local total transaction observations |
+| `total_transactions` | process-local total transaction starts |
 | `duplicate_query_warnings` | cumulative duplicate SQL fingerprint warnings |
 | `query_budget_mismatches` | cumulative query-budget mismatches |
 | `last_request` | latest observed request envelope |
 | `recent_requests` | bounded recent request observations |
 
-This is process-local observability. It is sufficient for local debugging and
-single-process benchmark evidence. Multi-process production aggregation remains
-the responsibility of logs, scrape configuration, or a future optional metrics
-adapter.
+A scrape reports the worker that served it. Use logs or a scrape strategy
+that reaches every process for production aggregation.
 
 ## Realtime And Outbox Signals
 

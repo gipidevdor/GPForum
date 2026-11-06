@@ -1,74 +1,58 @@
 # Reload and Restart
 
-**`systemctl reload gpforum` is not supported, and that is deliberate.** It
-used to be, and it killed the service.
+Restart the service to load new code or configuration. The manager drains
+active requests up to its graceful timeout; schedule a service interruption.
+`systemctl reload gpforum` is unsupported.
 
 ## What went wrong
 
-`ExecReload=` was byte-identical to `ExecStart=`. Running `hypnotoad` against a
-live instance is its hot-deploy path: the new manager starts, sends `QUIT` to
-the old one and takes over. Under `Type=forking` with `PIDFile=`, systemd read
-the pid file once at start and went on tracking the original manager, so a
-reload handed the service to a process systemd no longer supervised. The unit
-was then either restarted or marked failed, depending on `Restart=`.
-
-`ExecReload=/bin/kill -USR2 $MAINPID` does not fix it. `USR2` **is** the hot
-deploy — see `perldoc Mojo::Server::Hypnotoad` — so the manager moves either
-way. The current service manager keeps its original PID and handles signals as
-[ADR 0175](../adr/0175-foreground-services-own-their-unix-lifecycle.md) specifies:
+The former `Type=forking` unit tracked a manager PID that Hypnotoad hot deploy
+replaced. Reload could leave the replacement unsupervised and fail the service.
+The current foreground manager keeps its PID; hot deploy and `USR2` are
+unsupported ([ADR 0175](../adr/0175-foreground-services-own-their-unix-lifecycle.md)).
 
 | Signal | Effect in service mode |
 | --- | --- |
 | `INT`, `TERM`, `QUIT` | Drain active requests, bounded by the graceful timeout |
-| `HUP` | Reopen application logs in the manager and workers; configuration stays as loaded |
+| `HUP` | Reopen manager and worker logs; configuration stays as loaded |
 | `TTIN` / `TTOU` | Grow / shrink the worker pool by one |
 | `USR2` | Unsupported; use a controlled service restart |
 
-There is nothing honest to put in `ExecReload=`, so the directive is gone.
-`systemctl reload` now fails with "operation not supported" instead of stopping
-the forum.
-
 ## What to do instead
 
-Pick up new code or new configuration with a restart:
+Load new code or configuration:
 
 ```sh
 sudo systemctl restart gpforum
 ```
 
-Workers finish in-flight requests during the graceful stop, so this is a short
-interruption rather than a dropped connection, but it *is* an interruption.
-Schedule it like any other deploy step.
+Requests still active after the graceful timeout may be terminated. When
+continuous service is required, use the multiple-node procedure below.
 
-To change the worker pool without a restart, signal the manager directly. This
-does not move the pid, so systemd keeps supervising the same process:
+Resize the worker pool without changing the manager PID:
 
 ```sh
 sudo systemctl kill --kill-whom=main --signal=TTIN gpforum   # one more worker
 sudo systemctl kill --kill-whom=main --signal=TTOU gpforum   # one fewer
 ```
 
-The current `Type=notify` unit tracks the foreground manager directly, so
-the foreground manager owns its PID file under an exclusive instance lock. Its readiness and watchdog behavior is
-specified in [ADR 0155](../adr/0155-host-readiness-mail-and-reproducible-data.md).
+The `Type=notify` unit tracks the foreground manager. An exclusive instance
+lock protects its PID file. See [readiness and watchdog behavior](../adr/0155-host-readiness-mail-and-reproducible-data.md).
 
 ## Zero-downtime deploys
 
-The foreground `Type=notify` unit now reports readiness and feeds a watchdog.
-Service mode always stays foreground and does not invoke Hypnotoad hot deploy. Use multiple application nodes and
-drain them at the proxy around each restart when upgrades must keep serving
-requests. The native supervisor drill in [unix-daemons.md](unix-daemons.md) exercises restart, stop and watchdog recovery on Linux.
+Use multiple application nodes and drain each at the proxy before restarting
+it. The [native supervisor drill](unix-daemons.md) exercises restart, stop and
+watchdog recovery on Linux.
 
 ## Related
 
-The application's PostgreSQL connection is lazy in each worker. The warmup
-closes the manager's handle even when rendering fails, and the pre-server hook
-also closes an existing handle when warmup is disabled. DBIx discards an
-inherited handle on PID change without disconnecting the parent's backend.
-`t/integration/postgres-query-catalogue.t` exercises an actual fork and checks
-that the parent still queries afterwards. These guarantees concern database
-connection ownership; they do not change the systemd manager-tracking limit
-above. See [ADR 0153](../adr/0153-postgresql-and-operational-boundaries-are-tested.md).
+Mojo::Pg connections belong to the process that opens them. Startup closes the
+manager's connection before fork, including failed warmup and disabled warmup;
+workers open their own. The actual-fork check in
+`t/integration/postgres-mojo-pg.t` verifies native connection ownership.
+See [ADR 0174](../adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md)
+and [ADR 0153](../adr/0153-postgresql-and-operational-boundaries-are-tested.md).
 
-- `deploy/systemd/gpforum.service` — the unit, with the reasoning inline
-- `docs/ops/partition-maintenance.md` — another operation that needs a window
+- `deploy/systemd/gpforum.service` — service unit and lifecycle settings
+- [Partition maintenance](partition-maintenance.md) — operations that need a window

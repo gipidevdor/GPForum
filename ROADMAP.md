@@ -1,87 +1,52 @@
 # Roadmap
 
-The binding roadmap source is
-[ADR 0068](docs/adr/0068-mvp-roadmap-sequencing.md)
-(MVP sequencing). Architecture and event-catalog discipline follow
-[ADR 0091](docs/adr/0091-executable-architecture-contract.md).
-The [documentation index](docs/README.md) covers the implemented system and
-its operational procedures.
+The implemented system is documented in the [guide index](docs/README.md).
+[ADR 0068](docs/adr/0068-mvp-roadmap-sequencing.md) defines MVP sequencing;
+[ADR 0091](docs/adr/0091-executable-architecture-contract.md) defines architecture
+and event-catalog discipline.
 
 ## Where things stand
 
-Good Phorum has completed **Milestones 0–10** under
-[ADR 0068](docs/adr/0068-mvp-roadmap-sequencing.md) (Forum HTTP MVP through
-advanced community features). Earlier “Milestone 17” wording referred to the
-same HTTP MVP surface; the binding milestone set is ADR 0068.
-The latest [release-readiness review](docs/release/readiness-review.md)
-places it at:
+The implementation covers **Milestones 0–10** in
+[ADR 0068](docs/adr/0068-mvp-roadmap-sequencing.md), from the Forum HTTP MVP to
+advanced community features. Earlier “Milestone 17” references name the same
+HTTP MVP, outside that numbering.
 
-| Target | Status | Evidence and what is still open |
-| --- | --- | --- |
-| Local, personal use | Ready | Full suite, coverage, migrations, local backup/restore, query budget, and local benchmarks are green |
-| Private beta | Not yet | Staging host verify and stress `100`/`500`/`1000` on a representative host, staging TLS, SMTP `--send` and the target install are still open |
-| Public production | Not yet | Every private-beta item, plus stress 100/500/1000 on a TLS target, a live attachment restore drill, and a rehearsed rollback |
+Implemented features and release qualification are separate:
+
+| Target | Qualification |
+| --- | --- |
+| Local evaluation | Available; run the quality gates for the revision being evaluated |
+| Private beta | Requires representative staging TLS, target installation, SMTP `--send`, host verification and stress profiles `100`/`500`/`1000` |
+| Public production | Requires all beta evidence, TLS stress profiles `100`/`500`/`1000`, a live attachment restore drill and a rehearsed rollback |
+
+The [dated readiness review](docs/release/readiness-review.md) records verified
+evidence and remaining work. A passing local harness does not qualify a target host.
 
 ## Shipped
 
-- Identity and sessions: registration, login, server-side sessions, password
-  and email lifecycle tokens.
-- Mail delivery for identity lifecycle: `Identity::Mailer`,
-  `Worker::Handler::IdentityMail`, and lifecycle tests
-  (`t/146-identity-mailer.t`, `t/154-identity-mail.t`; see
-  [docs/audit/email-lifecycle.md](docs/audit/email-lifecycle.md)).
-- Forum read and write workflows with keyset pagination.
-- Outbox events connected to Minion worker handlers, with retries and dead
-  letters.
-- PostgreSQL-native search indexing and permission-aware querying.
-- Moderation, administration, and audit review interfaces.
-- Concurrent moderation correctness in code: `ActionStore` row locks
-  (`FOR UPDATE`) and unique `command_id`; report/moderation workflows use
-  command idempotency (migrations `026+`).
-- Database-backed and fake failure-mode coverage for writes with the DB
-  unavailable, lost-response retry, outbox handler idempotency, and related
-  engineering correctness (see
-  [docs/audit/failure-modes.md](docs/audit/failure-modes.md):
-  `t/152-write-unavailable.t`, `t/153-lost-response-retry.t`,
-  `t/150-outbox-handler-idempotency.t`, `t/86-engineering-correctness.t`).
-- Realtime domain fanout via PostgreSQL `LISTEN`/`NOTIFY`
-  (`docs/realtime.md`); each web process listens so websocket delivery stays
-  process-local by design.
-- Rate limits, feed/trust projections, and uniqueness migrations through
-  `036`.
-- Web access, workflow, and event boundaries recorded in [ADRs](docs/adr).
-- OS system Perl gate for bootstrap, Carton, make, and CI
-  (`script/gpforum-system-perl`; distro `/usr/bin/perl` / FreeBSD path /
-  Homebrew's perl on macOS; refuse version managers).
-- macOS Homebrew PATH helper for PostgreSQL client tools
-  (`script/gpforum-homebrew-env`; no-op on Linux).
-- PostgreSQL two-connection integration evidence (skip unless
-  `GPFORUM_DATABASE_DSN`): concurrency races in
-  `t/integration/postgres-concurrency.t`, idempotency/reputation in
-  `t/integration/postgres-idempotency.t`, expired outbox `running` lock
-  reclaim in `t/integration/postgres-outbox-reclaim.t` (wired in CI beside
-  `postgres.t`). Audits treat those residuals as evidence-closed.
-- Operator staging DB drill: `bin/gpforum staging-drill` /
-  `docs/ops/staging-drills.md` for fresh migrate, upgrade-from-previous, and
-  `pg_dump`/`pg_restore` on throwaway databases (Homebrew PostgreSQL path
-  notes included).
-- Attachment filesystem + deploy checklist drill:
-  `bin/gpforum staging-drill-attachments` (populated throwaway `var/attachments`
-  backup/restore; static nginx/systemd checks plus host `systemd-analyze
-  verify` / `nginx -t` when tools are on `PATH`). Live target install/
-  reload evidence remains open.
-- Staging host bring-up runbook + non-destructive verify:
-  `docs/ops/staging-host.md` / `bin/gpforum staging-host-verify` (repo artifacts;
-  optional env-file key presence, systemd `is-active`, HTTP health/metrics).
-  Does not install units; live staging evidence archive remains open.
-- Operator stress-load harness: `bin/gpforum stress-load` /
-  `docs/ops/stress-load.md` with profiles `smoke` / `100` / `500` / `1000`
-  (no run on a representative host recorded yet).
-- Operator private-beta go/no-go checklist aggregating system-perl,
-  homebrew-env, migrate, query-budget, staging-drill,
-  staging-drill-attachments, stress-load, and mail-check:
-  `docs/ops/private-beta-checklist.md` plus print-only
-  `script/gpforum-private-beta-checklist` (does not claim readiness).
+- **Identity and community:** accounts, server sessions, password and email
+  lifecycle, forum reads and writes, moderation, administration and audit review.
+  See the [feature inventory](docs/PRODUCT_BACKLOG.md) and
+  [mail lifecycle audit](docs/audit/email-lifecycle.md).
+- **Durable events:** transactional outbox, Minion handlers, retries and dead
+  letters. PostgreSQL `LISTEN`/`NOTIFY` supplies process-local websocket fanout
+  ([realtime guide](docs/realtime.md)).
+- **PostgreSQL data access:** versioned stored functions through Mojo::Pg,
+  permission-aware native search, rate limits and rebuildable projections.
+  The [migration map](migrations/README.md) starts at baseline 2000–2025.
+- **Concurrency and recovery tests:** row locks and command idempotency for
+  moderation; two-connection race, retry and outbox-reclaim tests. The
+  [failure-mode audit](docs/audit/failure-modes.md) records their evidence.
+- **Portable Perl selection:** distribution, Homebrew, perlbrew, plenv, asdf and
+  custom builds through `GPFORUM_PERL` or `PATH`. The
+  [runtime guide](docs/ops/perl-runtime.md) covers services and upgrades;
+  `script/gpforum-homebrew-env` supplies macOS PostgreSQL tool paths.
+- **Operator tools:** [database and attachment drills](docs/ops/staging-drills.md),
+  [host verification](docs/ops/staging-host.md),
+  [stress profiles](docs/ops/stress-load.md) and the print-only
+  [private-beta checklist](docs/ops/private-beta-checklist.md).
+  These tools prepare evidence; representative target-host runs remain required.
 
 ## Next
 
@@ -101,7 +66,7 @@ project's ADR and review rules.
 - Run `staging-host-verify` with `--unit-dir`, `--systemd`, and an
   `https://` `--base-url` (TLS observe phase), and `stress-load` profiles
   `100`, `500` and `1000`, on a representative **staging TLS** host.
-- Live target attachment restore + nginx/systemd **install/reload** evidence
+- Live target attachment restore and nginx/systemd **installation/restart** evidence
   (harness shipped; target install still open).
 - Walk
   [docs/ops/private-beta-checklist.md](docs/ops/private-beta-checklist.md)

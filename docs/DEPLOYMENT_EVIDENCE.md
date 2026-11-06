@@ -1,12 +1,12 @@
 # Good Phorum Deployment Evidence
 
-This document records the repeatable evidence gate for running Good Phorum under a
-deployment-like Mojolicious runtime: Hypnotoad prefork, PostgreSQL authoritative
-storage, and the existing query-budget observer.
+Check forum paths through a persistent multi-worker server with PostgreSQL and
+query-budget observation. This gate uses Hypnotoad; the deployed service uses
+the [foreground manager](ops/unix-daemons.md).
 
-The goal is not to claim production capacity. The goal is to prove that the MVP
-forum paths keep the same architectural guarantees when they leave the
-in-process `Test::Mojo` harness and run through a persistent multi-worker server.
+Record these results alongside target-host checks. A passing harness verifies
+its workload and contracts; production capacity needs representative load and
+deployment evidence.
 
 ## Gate
 

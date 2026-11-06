@@ -1,18 +1,16 @@
 # Private-beta go / no-go checklist (operator)
 
-Operator-facing aggregate of existing prep tools. Use it to walk a candidate
-commit toward **private beta evidence**, not to declare readiness.
-
-**This document and `script/gpforum-private-beta-checklist` never claim that
-Good Phorum is private-beta ready.** A printed command list or a green local phase
-is not a go decision. Record evidence per step; compare against
-[docs/release/readiness-review.md](../release/readiness-review.md).
+Use this checklist to gather evidence for a candidate commit.
+`script/gpforum-private-beta-checklist` prints the commands; it executes nothing.
+Record each result and compare it with the
+[readiness review](../release/readiness-review.md). A printed plan or a passing
+local phase does not establish beta readiness.
 
 ## Verdict posture (unchanged)
 
 | Target | Status |
 | --- | --- |
-| Local, personal use | Ready |
+| Local evaluation | Available; qualify the revision with current checks |
 | Private beta | **Not yet** — live staging evidence still open |
 | Public production | Not yet |
 
@@ -24,10 +22,10 @@ on a real target, and operator runbook evidence.
 
 | Phase | Tool | Docs | What PASS means here |
 | --- | --- | --- | --- |
-| System Perl | `script/gpforum-system-perl --preflight` | `CONTRIBUTING.md`, `Makefile` | Interpreter is OS/distro (or Homebrew) Perl 5.40+, not a version manager |
+| Selected Perl | `script/gpforum-system-perl --preflight` | `CONTRIBUTING.md`, `Makefile` | Selected interpreter is Perl 5.40+; distribution, Homebrew and custom/managed builds are supported |
 | Carton deps | `script/bootstrap-deps --postgres` (`--rebuild-local` if `local/` incomplete) | `script/bootstrap-deps`, `Makefile` | `script/gpforum-carton exec perl -MConst::Fast -e 1` succeeds |
 | Homebrew PATH | `script/gpforum-homebrew-env` | `docs/ops/staging-drills.md` | On macOS, `psql` / `pg_dump` / `pg_config` resolve under Homebrew's `postgresql@NN` keg (no-op skip on Linux) |
-| Migrations | `gpforum migrate` | `docs/DEPLOYMENT.md` | Target DB schema at current migration head (`001`–`036` on `main`) |
+| Migrations | `gpforum migrate` | `docs/DEPLOYMENT.md` | Target DB is at the current migration head (baseline 2000–2025 plus later migrations) |
 | Query budget | `bin/gpforum budgets --sync` then `--check` | `docs/PERFORMANCE.md#query-budgets` | Catalog synced; readiness not 503 for empty budgets |
 | Staging DB drill | `bin/gpforum staging-drill` | `docs/ops/staging-drills.md` | Fresh migrate, upgrade path, dump/restore on throwaway DBs |
 | Attachments + deploy checklist | `bin/gpforum staging-drill-attachments` | `docs/ops/staging-drills.md` | Populated throwaway `var/attachments` restore + static (and optional host) nginx/systemd checks — **not** live install/reload |

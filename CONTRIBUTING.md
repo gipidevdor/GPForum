@@ -1,39 +1,35 @@
 # Contributing
 
-Project attribution: **GPForum Contributors**. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for individual credits.
+Keep changes focused, operable and consistent with the project's Perl-first,
+PostgreSQL-native, SSR-first design.
 
-Good Phorum accepts changes that keep the project independent, Perl-first,
-PostgreSQL-authoritative, operable, and explicit.
-
-Use **Good Phorum** in project documentation and **GP Forum** as its short
-form. The **P** in **Phorum** stands for **Perl**. Keep technical identifiers
-such as `GPForum::*`, `gpforum` and `GPFORUM_*` as implemented; see the
-[name and brand guide](docs/BRANDING.md).
+Use **Good Phorum** or **GP Forum** in prose. Preserve identifiers such as
+`GPForum::*`, `gpforum` and `GPFORUM_*`. Follow the
+[name guide](docs/BRANDING.md) and [writing guide](docs/WRITING.md).
+Project attribution is **GPForum Contributors**; individual credits are in
+[CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## Development loop
 
 1. Select **Perl 5.40 or newer** from your distribution, Homebrew,
-   perlbrew/plenv/asdf, a custom prefix. Set
-   `GPFORUM_PERL=/absolute/path/to/perl` or activate it on `PATH`, then run
-   `make perl-runtime`. Install App::cpm and Carton for that interpreter with
-   `cpanm -M https://cpan.metacpan.org/ App::cpm Carton`. Build dependencies
-   include a C toolchain, `libpq-dev`, `libssl-dev` and `zlib1g-dev` on Debian
-   and Ubuntu. On macOS use `brew install perl cpanminus postgresql@18`, or
-   your selected Perl with Homebrew's PostgreSQL client tools. See the
-   [runtime runbook](docs/ops/perl-runtime.md) for persistent services and interpreter upgrades.
-2. Install dependencies with `make install-deps-postgres`
-   (`script/bootstrap-deps --postgres`), as the README quick start does.
-   That runs cpm with exclusive snapshot resolution from `cpanfile.snapshot` over
-   HTTPS MetaCPAN under the selected Perl, PostgreSQL driver included. Use
-   `script/bootstrap-deps --update --postgres` only when refreshing the lock
-   after a `cpanfile` change, as the README says (without `--postgres` the
-   PostgreSQL feature can drop out of the lock), then commit
-   `cpanfile.snapshot`.
-3. Run `script/system-preflight` to check the host.
-4. Make small changes around one bounded context.
-5. Update the relevant documentation and add or amend an ADR when a design
-   decision changes. Start with [docs/README.md](docs/README.md) and the
-   [ADR index](docs/adr/README.md).
+   perlbrew/plenv/asdf or a custom build. Set `GPFORUM_PERL=/absolute/path/to/perl`
+   or activate it on `PATH`; confirm with `make perl-runtime`. Install App::cpm
+   and Carton for that interpreter with
+   `cpanm -M https://cpan.metacpan.org/ App::cpm Carton`.
+2. Install build tools and PostgreSQL dependencies: a C toolchain,
+   `libpq-dev`, `libssl-dev` and `zlib1g-dev` on Debian/Ubuntu; or
+   `brew install perl cpanminus postgresql@18` on macOS. A selected custom Perl
+   can use Homebrew's PostgreSQL client tools. See the
+   [runtime runbook](docs/ops/perl-runtime.md).
+3. Run `make install-deps-postgres` (`script/bootstrap-deps --postgres`).
+   It installs from `cpanfile.snapshot` over HTTPS MetaCPAN with exclusive
+   snapshot resolution, including the PostgreSQL driver. After changing
+   `cpanfile`, refresh with `script/bootstrap-deps --update --postgres` and
+   commit the snapshot. Omitting `--postgres` can remove the driver from the lock.
+4. Run `script/system-preflight` to check the host.
+5. Make one focused change. Update the relevant guide and add or amend an ADR
+   when a design decision changes. Use the [documentation index](docs/README.md)
+   and [ADR index](docs/adr/README.md).
 6. Run the quality gate before opening a pull request:
 
 ```sh
@@ -48,14 +44,11 @@ start, `cpanfile` or `cpanfile.snapshot`, `script/bootstrap-deps`, or the
 make fresh-checkout
 ```
 
-It clones the last commit into a temporary directory and runs the quick start
-and `make check` there, so it catches what an already set-up checkout hides: a
-file that is present but untracked, a module only your `local/` has, a step the
-README leaves out. Commit first, since uncommitted changes are not part of the
-run. It installs every dependency again and takes a while; with
-`GPFORUM_DATABASE_DSN` set it also migrates a throwaway database and runs the
-integration tier. `t/166-deploy-contract.t` keeps its steps and the README's
-commands in step.
+Commit first: this check clones **HEAD**, so it excludes uncommitted changes.
+It reinstalls dependencies and runs the quick start and `make check` in a
+clean checkout, catching missing files, undeclared modules and omitted steps.
+With `GPFORUM_DATABASE_DSN` set, it also migrates a throwaway database and runs
+the integration tier. `t/166-deploy-contract.t` checks the README's command sequence.
 
 Run profiling for performance-sensitive changes:
 
@@ -65,8 +58,7 @@ script/profile-nytprof -- -Ilib -It/lib t/17-notifications.t
 
 ## Architectural rules
 
-- Keep boundaries narrow; do not introduce god classes.
-- Prefer domain services, stores, command handlers, and projections.
+- Give services, stores, command handlers and projections narrow responsibilities.
 - PostgreSQL is authoritative. Search, inboxes, feeds, and counters are rebuildable projections.
 - cpm, Carton, Perl::Critic, tests, coverage, and profiling are mandatory project surfaces.
 - Any deviation from Perl-first, PostgreSQL-native or SSR-first needs an ADR.

@@ -1,7 +1,7 @@
 # Good Phorum MVP HTTP Surface
 
-This document describes what is currently wired as a traversable forum surface.
-It is intentionally narrower than the full architectural contract.
+Find implemented routes by task below. This inventory covers the HTTP surface;
+[architecture decisions](adr/README.md) define the broader contracts.
 
 ## Available Routes
 

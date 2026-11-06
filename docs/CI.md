@@ -97,7 +97,7 @@ Until 2026-10-17 `ci.yml` was one sequential job of about two hours, with
 `cancel-in-progress` on every ref. Every push to `main` cancelled the run
 before it, so from a69a995 on `main` had no finished result; the integration
 tier ran twice (`make integration`, then again inside `prove -lr t`), and no
-`prove` ran in parallel. It is now four jobs that start together. A run on
+`prove` ran in parallel. The verification tiers now start independently. A run on
 `main` is never cancelled, and each commit on `main` has a concurrency group
 of its own, so runs of successive pushes go side by side. GitHub keeps one
 pending run per group and cancels it when a newer one queues: with one group
@@ -110,6 +110,7 @@ dropped the waiting one before it started (39810565640 and 39812192048 on
 | `lint` | every push and pull request | under 10 minutes |
 | `unit` | every push and pull request | under 10 minutes |
 | `integration` | every push and pull request, PostgreSQL 16 over its Unix socket | under 10 minutes |
+| `browser` | every push and pull request | under 15 minutes |
 | `coverage` | nightly at 02:17 UTC and on demand (`workflow_dispatch`) | under an hour |
 
 `t/706-ci-finishes.t` reads the two tables below: every check that ran before
@@ -153,7 +154,7 @@ every one-line step of `ci.yml` must be in the second table.
 is now `t/integration/postgres-backup.t`: the unit job has none, as on a
 developer's laptop.
 
-### After: four jobs
+### After: parallel jobs
 
 | Job | Command |
 | --- | --- |
@@ -171,6 +172,7 @@ developer's laptop.
 | `lint` | `script/gpforum-carton exec perl script/architecture-policies` |
 | `lint` | `script/gpforum-carton exec perl script/adr-index --check` |
 | `unit` | `script/gpforum-carton exec prove -l -j 4 t` |
+| `browser` | `NODE_PATH="$RUNNER_TEMP/gpforum-browser/node_modules" make test-browser` |
 | `integration` | `postgresql-client-16` |
 | `integration` | `bin/gpforum migrate` |
 | `integration` | `bin/gpforum performance-seed --profile small` |
@@ -299,3 +301,9 @@ completed its benchmark sequence before failing in the NYTProf step
 (`Tests were run but no plan was declared and done_testing() was not seen`,
 exit 254). The continuous harness preserves completed data when profiling
 fails; a local configured profile must still be verified independently.
+
+The browser job installs test-only Playwright 1.65.0 and Chromium outside the
+checkout. Posting journeys use a disposable migrated PostgreSQL clone, real
+services and real JavaScript, alongside isolated fragment scenarios. The browser
+job runs on each push and PR with no dependency on the unit or integration job;
+missing browser/database prerequisites fail it. See [browser checks](../t/browser/README.md).

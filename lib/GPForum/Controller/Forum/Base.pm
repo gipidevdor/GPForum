@@ -624,11 +624,8 @@ async sub thread_fragment ( $self, $status, %option ) {
             {
                 post_id      => $option{post_id},
                 thread_id    => $self->param('thread_id'),
-                viewer_scope => (
-                    await $self->call_p(
-                        $self->gp_thread_detail_reader,
-                        'post_scope', $viewer, $thread
-                    )
+                viewer_scope => $self->gp_thread_detail_reader->post_scope(
+                    $viewer, $thread
                 ),
                 viewer_user_id => $self->current_user_id,
             }
@@ -697,11 +694,8 @@ async sub post_fragment ( $self, $status ) {
             {
                 post_id      => $post_id,
                 thread_id    => $self->_column( $thread, 'thread_id' ),
-                viewer_scope => (
-                    await $self->call_p(
-                        $self->gp_thread_detail_reader,
-                        'post_scope', $viewer, $thread
-                    )
+                viewer_scope => $self->gp_thread_detail_reader->post_scope(
+                    $viewer, $thread
                 ),
                 viewer_user_id => $self->current_user_id,
             }

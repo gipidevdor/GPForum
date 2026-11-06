@@ -302,6 +302,27 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  browser:
+    name: Browser behavior with PostgreSQL
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    services: *postgres-service
+    env: *postgres-env
+    steps:
+      - *checkout
+      - *system-dependencies
+      - *verify-system-perl
+      - *perl-version
+      - *cpan-tree
+      - *perl-dependencies
+      - name: Install test browser
+        run: |
+          sudo apt-get install -y npm
+          npm install --prefix "$RUNNER_TEMP/gpforum-browser" --no-audit --no-fund playwright@1.65.0
+          node "$RUNNER_TEMP/gpforum-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Run browser journeys and fragment behavior
+        run: NODE_PATH="$RUNNER_TEMP/gpforum-browser/node_modules" make test-browser
+
   # The instrumented suite takes most of an hour even in parallel: nightly and
   # on demand, never on a push, so it can no longer hold the gate hostage.
   coverage:

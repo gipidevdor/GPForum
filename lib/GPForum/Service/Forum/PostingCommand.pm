@@ -7,6 +7,7 @@ use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Mojo::Util qw(encode);
 
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::Text qw(trimmed);
@@ -16,7 +17,7 @@ our $VERSION = '0.001';
 
 # What the command log keeps of each posting command, by command type:
 # - request: the input fields of its fingerprint, trimmed; body_hash is the
-#   SHA-256 of the trimmed body_source.
+#   SHA-256 of the UTF-8 bytes of the trimmed body_source.
 # - stored: on success, the fields of each stored row the response keeps
 #   (flat, under the field's name) and a replay rebuilds (under the row).
 # Both are part of the command log's contract with every command recorded
@@ -136,7 +137,7 @@ sub replay ( $self, $type, $response ) {
 }
 
 sub body_hash ( $self, $body_source ) {
-    return sha256_hex( trimmed($body_source) );
+    return sha256_hex( encode( 'UTF-8', trimmed($body_source) ) );
 }
 
 sub _command ($type) {
@@ -250,8 +251,10 @@ the first run.
 
 =head2 body_hash
 
-Takes a body source and returns the hex SHA-256 of it trimmed (undef as
-empty).
+Takes a body source and returns the hex SHA-256 of its trimmed UTF-8 bytes
+(undef as empty). ASCII fingerprints retain their previous values. Previously
+recorded Latin-1-only non-ASCII commands used character bytes; resubmitting one
+of those old command ids now returns a conflict rather than executing it again.
 
 =head1 DIAGNOSTICS
 

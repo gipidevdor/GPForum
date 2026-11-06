@@ -4,6 +4,7 @@
 package main;
 
 use v5.40;
+use utf8;
 
 use Const::Fast;
 use Test::Mojo;
@@ -52,6 +53,23 @@ is(
     'body is required',
     'no body is refused'
 );
+
+subtest 'Unicode limits count characters rather than UTF-8 bytes' => sub {
+    for my $character ( q{è}, q{🙂} ) {
+        is(
+            GPForum::Service::Forum::BodyLength->error( $character x $MAXIMUM ),
+            undef,
+            'a multibyte body at the character limit is accepted'
+        );
+        is(
+            GPForum::Service::Forum::BodyLength->error(
+                $character x ( $MAXIMUM + 1 )
+            ),
+            $TOO_LONG,
+            'one more Unicode character is refused'
+        );
+    }
+};
 
 subtest 'a reply and an edit' => sub {
     my $composer = GPForum::Service::Forum::PostComposer->new;

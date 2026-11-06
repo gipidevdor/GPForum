@@ -162,3 +162,50 @@ rebuild from event history.
   `t/50-security-hardening.t`, `t/86-engineering-correctness.t`,
   `t/144-cpan-install.t`.
 - Docs: `docs/ENGINEERING_CORRECTNESS.md`, `docs/PERFORMANCE.md#profiling`.
+
+## Behavior and suite consolidation amendment (2026-11-06)
+
+A passing assertion count does not establish user workflow coverage. A source
+scan that finds a route, form, helper or feature provider establishes presence
+only. A controller double cannot establish PostgreSQL persistence, and a service
+integration cannot establish browser behavior. Reports MUST identify which layer
+provided the evidence and MUST NOT count skipped prerequisites as verified flows.
+
+Use the following tiers through `script/test`, from any working directory:
+
+| Tier | Command | Evidence |
+| --- | --- | --- |
+| Contracts | `script/test unit` or `make test` | Domain, services, controllers and architectural contracts without a database |
+| Clients | `script/test clients` | JavaScript state transitions and recovery paths |
+| Persistence | `make integration` | Real PostgreSQL, transactions and HTTP integration on isolated databases |
+| Browser | `make test-browser` | Real Chromium; persistent posting journeys and isolated fragment cases |
+| Complete | `make test-all` | Every tier, including performance contracts; prerequisites must be installed |
+
+`script/test t/path.t` runs only the named tests. The default no longer recursively
+collects database tests only to report them as skipped. `make check` also runs the
+client contracts. CI runs persistent browser behavior on each push and PR.
+
+Organize tests by responsibility, not by the bug or iteration that created them.
+Before creating a test file, extend the suite owning that behavior with a named
+subtest or data table. Keep separate files when they require different isolation,
+external prerequisites or instrumentation. Do not concatenate unrelated tests
+just to reduce a count. Exact renderer markup rules and list cases formerly in
+the former renderer-rules and body-lists suites now live in
+`t/179-forum-body-renderer.t`, with all original expectations retained. Work-bound
+instrumentation and cache pressure tests retain their independent processes.
+
+For each critical GUI workflow, review these input and state partitions: empty,
+valid ASCII, accented and decomposed Unicode, non-Latin and non-BMP text; length
+boundaries; permissions and expired session/CSRF; slow or interrupted requests;
+duplicate submission; validation failure and retry. Cover applicable partitions
+at the cheapest layer that establishes the property, and keep at least one real
+browser/database journey for each critical persistent interaction. A workflow
+without that evidence remains a coverage gap, regardless of line coverage.
+
+GUI behavior follows [WCAG 2.2](https://www.w3.org/TR/WCAG22/), particularly keyboard
+operation (2.1.1), visible focus (2.4.7), error identification (3.3.1), labels and
+instructions (3.3.2), and status messages (4.1.3). Follow the official
+[Playwright testing practices](https://playwright.dev/docs/best-practices): exercise
+user-visible behavior, isolate state and prefer role/label locators with waiting
+for observable outcomes. These specific checks do not assert complete WCAG
+conformance; manual screen-reader and visual review remain necessary.

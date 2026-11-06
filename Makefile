@@ -32,8 +32,18 @@ homebrew-env: ## Check the Homebrew PostgreSQL tools this macOS host needs
 syntax: ## Compile every Perl file
 	script/gpforum-carton exec script/perl-syntax-check
 
-test: ## Run the test suite
-	script/gpforum-carton exec prove -lr t
+test: ## Run unit and controller contracts without PostgreSQL
+	script/test unit
+
+.PHONY: test-clients test-browser test-all
+test-clients: ## Run JavaScript client contracts
+	script/test clients
+
+test-browser: ## Run browser behavior against doubles and real PostgreSQL
+	script/test browser
+
+test-all: ## Run every test tier; missing browser/database prerequisites fail
+	script/test all
 
 # Each integration file starts its own socket-only cluster unless an explicit
 # DSN is supplied. The module runs in the test process, never in the harness.
@@ -66,7 +76,7 @@ architecture: ## Run the architecture invariants
 	script/architecture-check
 	script/gpforum-carton exec script/architecture-policies
 
-check: perl-runtime syntax test critic tidy architecture ## perl-runtime, syntax, test, critic, tidy, architecture
+check: perl-runtime syntax test test-clients critic tidy architecture ## Runtime, syntax, unit/client contracts, critic, tidy, architecture
 
 # The proof that the README is enough: clones the current commit into a
 # temporary directory and runs the quick start there, then every prerequisite

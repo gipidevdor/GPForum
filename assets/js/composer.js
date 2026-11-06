@@ -175,7 +175,11 @@
           flush(state, true).catch(() => {});
         } else if (!state.publishing) {
           state.publishing = true;
-          flush(state).then(() => {
+          flush(state).then(async () => {
+            // An already saved draft resolves within the submit event's task.
+            // Native forms ignore requestSubmit while dispatching that event;
+            // replay in the next task after the browser clears its guard.
+            await new Promise((resolve) => setTimeout(resolve, 0));
             if (!attached(state)) return;
             state.allowPublish = true;
             if (submitter) form.requestSubmit(submitter);

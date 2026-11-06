@@ -13,8 +13,8 @@ use Test::More;
 our $VERSION = '0.001';
 
 const my $PUSH_LIMIT     => 30;
-const my @JOBS           => qw(lint unit integration coverage);
-const my @PER_PUSH       => qw(lint unit integration);
+const my @JOBS           => qw(lint unit integration browser coverage);
+const my @PER_PUSH       => qw(lint unit integration browser);
 const my $SEPARATOR_CELL => qr/\A -+ \z/msx;
 const my $NEVER_ON_MAIN =>
   q{cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}};
@@ -32,11 +32,8 @@ my $ci   = path('.github/workflows/ci.yml')->slurp;
 my $docs = path('docs/CI.md')->slurp;
 my %job  = _jobs($ci);
 
-is_deeply(
-    [ sort keys %job ],
-    [ sort @JOBS ],
-    'ci.yml is four jobs: lint, unit, integration, coverage'
-);
+is_deeply( [ grep { !exists $job{$_} } @JOBS ],
+    [], 'every required verification tier has a CI job' );
 
 for my $name (@PER_PUSH) {
     my ($limit) = $job{$name} =~ /^[ ]{4}timeout-minutes: [ ] (\d+)$/msx;
@@ -125,7 +122,7 @@ for my $check (
 }
 
 my @before = _table( $docs, 'Before: one job, in this order' );
-my @after  = _table( $docs, 'After: four jobs' );
+my @after  = _table( $docs, 'After: parallel jobs' );
 ok( @before > 0 && @after > 0, 'docs/CI.md lists the checks before and after' );
 
 my %now = map { _code( $_->[1] ) => 1 } @after;

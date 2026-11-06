@@ -10,6 +10,7 @@ const vm = require("node:vm");
 const source = fs.readFileSync(path.join(__dirname, "../../assets/js/composer.js"), "utf8");
 
 const tick = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
   for (let i = 0; i < 8; ++i) await new Promise((resolve) => setImmediate(resolve));
 };
 
@@ -109,7 +110,10 @@ const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
         for (const [name, field] of this.selected.fields) yield [name, field.value];
       }
     },
-    setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; },
+    setTimeout(callback, delay) {
+      if (delay === 0) return setTimeout(callback, 0);
+      timers.set(++timerId, { callback, delay }); return timerId;
+    },
     clearTimeout(id) { timers.delete(id); },
     fetch(url, options) {
       return new Promise((resolve, reject) => {

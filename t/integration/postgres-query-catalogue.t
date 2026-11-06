@@ -15,6 +15,7 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Infrastructure::SqlFunctionCatalogue;
+use GPForum::Infrastructure::AsyncQuery;
 use GPForum::Test::PgDatabase;
 use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 use GPForum::Web::Warmup;
@@ -100,10 +101,13 @@ for my $name ( @{ $catalogue->names } ) {
     my $parameter = 0;
     $sql =~ s/[?]/q{$} . ++$parameter/gemsx;
     $allowed{ _normalized($sql) } = 1;
+    if ( !$parameter ) {
+        $allowed{ _normalized( $sql . q{ WHERE $1::boolean} ) } = 1;
+    }
 }
 
 # Transaction framing is protocol, never an alternative data query.
-for my $framing (qw(BEGIN COMMIT ROLLBACK)) {
+for my $framing ( qw(BEGIN COMMIT ROLLBACK), 'BEGIN READ ONLY' ) {
     $allowed{$framing} = 1;
 }
 
@@ -125,13 +129,25 @@ for my $page (@pages) {
     );
 }
 
-# Negative control: a harmless direct ORM read must appear as a violation,
+# Negative control: a harmless direct SQL read must appear as a violation,
 # even though its table is also read legitimately inside API functions.
 $admin->selectrow_array( 'SELECT pg_stat_statements_reset(0, ?::oid, 0)',
     undef, $dbid );
-$schema->resultset('User')->search( {}, { rows => 1 } )->all;
+my $direct_error;
+my $direct = GPForum::Infrastructure::AsyncQuery->for_schema($schema)->run_p(
+    sub ($db) {
+        return $db->query_p('SELECT id FROM users LIMIT 1')
+          ->then( sub ($result) { return $result->hashes->to_array; } );
+    }
+);
+$direct->catch( sub ($caught) { $direct_error = $caught; return; } )->wait;
+ok( !$direct_error, 'the negative control executed its direct read' )
+  or diag "$direct_error";
 my @escaped = grep { !$allowed{ _normalized($_) } } @{ _queries() };
-ok( @escaped, 'a direct DBIx read is detected outside the catalogue' );
+ok(
+    scalar( grep { index( $_, 'SELECT id FROM users' ) == 0 } @escaped ),
+    'the direct SQL read is detected outside the catalogue'
+) or diag join "\n", @escaped;
 $storage->disconnect;
 done_testing();
 
@@ -175,7 +191,8 @@ sub _queries {
 sub _normalized ($sql) {
     $sql =~ s/\s+/ /gmsx;
     $sql =~ s/\A\s+|\s+\z//gmsx;
-    my %framing = map { $_ => 1 } qw(BEGIN COMMIT ROLLBACK);
+    my %framing =
+      map { $_ => 1 } ( qw(BEGIN COMMIT ROLLBACK), 'BEGIN READ ONLY' );
     return $framing{ uc $sql } ? uc $sql : $sql;
 }
 

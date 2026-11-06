@@ -1,0 +1,11 @@
+lib/GPForum/Service/Forum/ReadState.pm syntax OK
+lib/GPForum/Service/Forum/BodyRenderer.pm syntax OK
+t/41-thread-read-state.t syntax OK
+t/766-mathematics-plugin.t syntax OK
+script/gpforum-system-perl --preflight
+✓ Perl 5.44.0 at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl
+
+Next: make install-deps-postgres, or sudo make install-deps-production on a server
+script/architecture-check
+script/gpforum-carton exec script/architecture-policies
+architecture policies: no new violations, none fixed and left listed

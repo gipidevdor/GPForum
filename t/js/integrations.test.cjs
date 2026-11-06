@@ -62,7 +62,7 @@ test("tampered IDs and providers cannot select an arbitrary frame address", () =
 test("cards inserted by a post swap or composer preview remain interactive", () => {
   const page = harness();
   page.button.hidden = true;
-  page.events["htmx:afterSwap"]({detail: {target: {querySelectorAll() {return [page.button];}}}});
+  page.events["htmx:after:process"]({target: {querySelectorAll() {return [page.button];}}});
   assert.equal(page.button.hidden, false);
   page.button.hidden = true;
   page.mutation([{ addedNodes: [{ nodeType: 1, querySelectorAll() { return [page.button]; } }] }]);

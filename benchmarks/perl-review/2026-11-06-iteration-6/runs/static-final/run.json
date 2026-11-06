@@ -1,0 +1,60 @@
+{
+  "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review6-after-cqp3bots",
+  "commands": [
+    [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "-Ilib",
+      "-It/lib",
+      "-c",
+      "lib/GPForum/Service/Forum/ReadState.pm"
+    ],
+    [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "-Ilib",
+      "-It/lib",
+      "-c",
+      "lib/GPForum/Service/Forum/BodyRenderer.pm"
+    ],
+    [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "-Ilib",
+      "-It/lib",
+      "-c",
+      "t/41-thread-read-state.t"
+    ],
+    [
+      "script/gpforum-carton",
+      "exec",
+      "perl",
+      "-Ilib",
+      "-It/lib",
+      "-c",
+      "t/766-mathematics-plugin.t"
+    ],
+    [
+      "script/gpforum-carton",
+      "exec",
+      "perltidy",
+      "--assert-tidy",
+      "--standard-error-output",
+      "--output-path=/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-review3-tidy-nt7mb71g",
+      "lib/GPForum/Service/Forum/ReadState.pm",
+      "lib/GPForum/Service/Forum/BodyRenderer.pm",
+      "t/41-thread-read-state.t",
+      "t/766-mathematics-plugin.t"
+    ],
+    [
+      "make",
+      "perl-runtime",
+      "architecture"
+    ]
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 32.286022167
+}

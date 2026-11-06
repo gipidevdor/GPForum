@@ -6,6 +6,7 @@ package main;
 use v5.40;
 
 use Const::Fast;
+use Test::Fatal;
 use Test::More;
 
 use lib 'lib';
@@ -90,6 +91,35 @@ for my $offset (qw(+00:60 -0060 +15:99)) {
         "an impossible $offset offset is not passed to a query"
     );
 }
+
+for my $value (
+    "\N{ARABIC-INDIC DIGIT ONE}",
+    "1\N{ARABIC-INDIC DIGIT ONE}",
+    "\N{FULLWIDTH DIGIT ONE}2",
+  )
+{
+    for my $kind ( undef, 'any', 'position' ) {
+        is(
+            GPForum::Service::Forum::PageWindow->acceptable_cursor(
+                $value, $ID, $kind
+            ),
+            0,
+            'a numeric cursor accepts ASCII digits only'
+        );
+    }
+}
+
+my $unknown_sort = exception {
+    GPForum::Service::Forum::PageWindow->acceptable_cursor( '12', $ID,
+        'unknown' );
+};
+ok( GPForum::X::Argument->caught($unknown_sort),
+    'an unsupported sort produces the declared argument exception' );
+is(
+    "$unknown_sort",
+    'a list sorts by position or timestamp, not unknown',
+    'the exception explains the unsupported sort'
+);
 
 done_testing();
 

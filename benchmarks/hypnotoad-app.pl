@@ -30,9 +30,13 @@ if (($ENV{GPFORUM_PERFORMANCE_FULL_HTTP} // '') eq '1') {
     # Raise admission quotas only in this benchmark entrypoint. PostgreSQL
     # counters, authorization, CSRF and command idempotency still execute.
     my $check = GPForum::Service::Operations::RateLimiter->can('check');
+    my $check_p = GPForum::Service::Operations::RateLimiter->can('check_p');
     no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- opt-in admission quota override in the disposable benchmark entrypoint
     *GPForum::Service::Operations::RateLimiter::check = sub ($self, $input) {
         return $check->($self, {%$input, limit => $COMPLETE_HTTP_LIMIT});
+    };
+    *GPForum::Service::Operations::RateLimiter::check_p = sub ($self, $input, $context = undef) {
+        return $check_p->($self, {%$input, limit => $COMPLETE_HTTP_LIMIT}, $context);
     };
     $app->hook(after_dispatch => sub ($c) {
         $c->res->headers->header('X-GPForum-Bench-Route' => $c->current_route // 'unknown');

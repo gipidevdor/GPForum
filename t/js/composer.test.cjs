@@ -138,7 +138,7 @@ const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
       form.isConnected = false;
       const next = makeForm(0, "");
       document.forms = [next];
-      listeners.get("htmx:oobAfterSwap")();
+      listeners.get("htmx:after:swap")();
       return next;
     },
   };

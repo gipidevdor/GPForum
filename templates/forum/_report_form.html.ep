@@ -5,7 +5,7 @@
 %# of its fields' ids.
 % my $field_id = stash('field_id');
 
-<form method="post" action="<%= stash('post_to') %>" hx-post="<%= stash('post_to') %>">
+<form method="post" action="<%= stash('post_to') %>" hx-boost="true" hx-push-url="false" hx-target="<%= stash('report_target') || 'this' %>" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
   <%= csrf_field %>
   <input type="hidden" name="command_id" value="<%= stash('command_id') || q{} %>">
   <label for="<%= $field_id %>-reason"><%= t('common.reason') %></label>

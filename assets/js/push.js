@@ -117,5 +117,5 @@
     if (event.data?.type !== "gpforum.push.active" || event.source?.scriptURL !== new URL("/push-worker.js", location.origin).href) return;
     document.querySelectorAll("[data-push-settings]").forEach((root) => refreshers.get(root)?.().catch(() => {}));
   });
-  document.addEventListener("htmx:afterSwap", scan);
+  document.addEventListener("htmx:after:swap", scan);
 })();

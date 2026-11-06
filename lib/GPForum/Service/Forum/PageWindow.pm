@@ -26,16 +26,8 @@ const my $MAX_ENCODED_CURSOR => 128;
 # which (sort => 'position' or 'timestamp'); a cursor of the other kind is
 # no cursor. Both passed when the kind was not said, and a timestamp
 # reached a thread page's bigint parameter, which failed the request.
-const my $POSITION  => qr{\d{1,18}}msx;
-const my $DAY       => qr{\d{4} - \d\d - \d\d}msx;
-const my $TIME      => qr{\d\d : \d\d : \d\d (?: [.] \d{1,6} )?}msx;
-const my $ZONE      => qr{Z | [+-] \d\d (?: :? \d\d )?}msx;
-const my $TIMESTAMP => qr{$DAY [T ] $TIME (?: $ZONE )?}msx;
-const my %SORT_VALUE => (
-    position  => qr{\A $POSITION \z}msxa,
-    timestamp => qr{\A $TIMESTAMP \z}msxa,
-    any       => qr{\A (?: $POSITION | $TIMESTAMP ) \z}msxa,
-);
+const my $POSITION  => qr{\A \d{1,18} \z}amsx;
+const my %SORT_KIND => map { $_ => 1 } qw(position timestamp any);
 
 # Seek by ordinal using the same indexed keyset as ordinary pagination.
 # The maximal UUID excludes every row at the preceding position.
@@ -100,11 +92,14 @@ sub acceptable_cursor ( $class, $sort_value, $id, $sort = undef ) {
     return 0 if !GPForum::Infrastructure::Id->is_uuid($id);
     return 0 if !defined $sort_value;
 
-    my $kind = $SORT_VALUE{ $sort // 'any' } // GPForum::X::Argument->throw(
-        message => "a list sorts by position or timestamp, not $sort" );
+    my $kind = $sort // 'any';
+    if ( !exists $SORT_KIND{$kind} ) {
+        GPForum::X::Argument->throw(
+            message => "a list sorts by position or timestamp, not $sort" );
+    }
 
-    return 0 if $sort_value !~ $kind;
-    return 1 if $sort_value =~ $SORT_VALUE{position};
+    return 1 if $kind ne 'timestamp' && $sort_value =~ $POSITION;
+    return 0 if $kind eq 'position';
 
     return GPForum::Infrastructure::CalendarDate->is_timestamp($sort_value);
 }
@@ -208,15 +203,17 @@ pinned cursors; each reader still validates the decoded fields before SQL.
 
 =head2 acceptable_cursor
 
-Class method. Takes a sort value and an id. Returns 1 when the id is a uuid
-and the sort value is a position (up to 18 digits) or a timestamp as
+Class method. Takes a sort value, an id and an optional sort kind:
+C<position>, C<timestamp>, or C<any> (the default). Returns 1 when the id is a uuid
+and the sort value is a position (up to 18 ASCII digits) or a timestamp as
 PostgreSQL or ISO 8601 writes it, one that exists
 (L<GPForum::Infrastructure::CalendarDate/is_timestamp>); 0 otherwise.
 
 =head1 DIAGNOSTICS
 
-None. An undecodable or unacceptable cursor is ignored rather than
-reported; C<page> dies only if a row cannot C<get_column>.
+An unknown sort kind raises L<GPForum::X::Argument>. An undecodable or
+unacceptable cursor is ignored rather than reported; C<page> dies only if
+a row cannot C<get_column>.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

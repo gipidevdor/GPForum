@@ -1,0 +1,10 @@
+guest.thread c=1 rep=1 requests=40 p95=3.40ms errors=0
+guest.thread c=1 rep=2 requests=40 p95=2.08ms errors=0
+member.home c=1 rep=1 requests=40 p95=6.24ms errors=0
+member.home c=32 rep=1 requests=4017 p95=60.63ms errors=0
+member.home c=1 rep=2 requests=40 p95=6.49ms errors=0
+member.home c=32 rep=2 requests=4014 p95=55.41ms errors=0
+member.thread c=1 rep=1 requests=40 p95=14.70ms errors=0
+member.thread c=32 rep=1 requests=2070 p95=108.96ms errors=0
+member.thread c=1 rep=2 requests=40 p95=14.03ms errors=0
+member.thread c=32 rep=2 requests=2094 p95=100.64ms errors=0

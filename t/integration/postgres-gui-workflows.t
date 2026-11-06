@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 package main;
 use v5.40;
+use utf8;
 use Test::More;
 use Test::Mojo;
 use Const::Fast;
@@ -73,8 +74,8 @@ $t->post_ok(
     '/threads' => form => {
         %{$create},
         category_id   => $category,
-        title         => 'A recorded episode',
-        body_source   => 'Description of my recording.',
+        title         => 'Una prova: è à é ì ò ù',
+        body_source   => 'è',
         after_publish => 'attachment'
     }
 )->status_is($HTTP_FOUND);
@@ -87,6 +88,14 @@ like(
 );
 my ($post_id) = $upload_path =~ m{/p/([^/]+)/attachments}msx;
 ok( $post_id, 'created post id' );
+my ($thread_id, $stored_title, $stored_body) = $dbh->selectrow_array(
+    q{SELECT p.thread_id,t.title,b.body_source FROM posts p JOIN threads t USING(thread_id) JOIN post_bodies b USING(post_id) WHERE p.post_id=?},
+    undef, $post_id
+);
+is($stored_title, 'Una prova: è à é ì ò ù', 'accented title survives storage');
+is($stored_body, 'è', 'accented body survives storage');
+$t->get_ok("/t/$thread_id")->status_is($HTTP_OK);
+$t->text_is("#post-$post_id .forum-post-body", 'è');
 $t->get_ok($upload_path)->status_is($HTTP_OK);
 $t->header_is( 'Cache-Control' => 'private, no-store' );
 $t->element_exists(

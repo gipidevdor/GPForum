@@ -81,5 +81,5 @@
   } else {
     initialize();
   }
-  document.addEventListener("htmx:afterSwap", initialize);
+  document.addEventListener("htmx:after:swap", initialize);
 })();

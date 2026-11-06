@@ -126,7 +126,7 @@ $drafts->entries->{$reply_id} = {
 };
 $test->get_ok("/drafts/$reply_id")->status_is($HTTP_OK);
 $test->text_is( '#reply-body' => 'reply draft' );
-$test->element_exists_not('form[data-composer][hx-post]');
+$test->element_exists_not('form[data-composer][hx-boost]');
 $test->get_ok('/__test/session/user-2')->status_is($HTTP_OK);
 $test->get_ok( "/drafts/$id"       => $json )->status_is($HTTP_NOT_FOUND);
 $test->get_ok( "/drafts/$reply_id" => $json )->status_is($HTTP_NOT_FOUND);

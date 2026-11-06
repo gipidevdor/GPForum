@@ -8,6 +8,40 @@ This document records dated audit verdicts, follow-up verification and the work
 plan derived from them. The original audit and scores below describe the dates
 they name; they are not a current readiness score.
 
+## Perl core follow-up, sixth iteration (2026-11-06)
+
+This iteration starts from commit `40064b8f`, including the first five Perl
+reviews and the passkey/Web Push work. The [sixth iteration evidence](../benchmarks/perl-review/2026-11-06-iteration-6/README.md)
+isolates two runtime modules from concurrent working-tree changes.
+
+Member read summaries now count unread posts, keep the first one in page order
+and find the maximum visible position in a single scan. They avoid a second
+column read for every post and an intermediate unread-post array. Anonymous
+summaries retain their existing single scan; empty-page values and ordering
+semantics remain unchanged.
+
+Body rendering resolves the plugin reference once and allocates mutable formula
+state only on a memo miss. Each new body retains its own fifty-formula budget;
+warmed bodies reuse identical HTML, and changing the plugin still selects the
+correct cache variant. SQL, authorization, quotas and cache bounds are unchanged.
+
+The new equivalence cases also pass on the preceding implementation. The final
+general suite passes 698 files / 20,876 assertions and four real PostgreSQL/HTTP
+files pass 1,306 assertions. Perl::Critic, syntax, perltidy, runtime and architecture
+checks pass without widening a baseline or policy. Measurements follow these
+checks: CPU measurements compare the same snapshots in ABBA order; real HTTP
+coverage includes the member thread, cached guest thread and home control.
+The HTTP reverse-baseline arm was excluded after three attempts overlapped
+external tools. The initial clean A-B pair and a separate candidate replication
+are preserved, without claiming a global HTTP improvement.
+
+CPU measurements improve the 25-post summary by 35.41% for hashes and 45.00%
+for ResultRow objects; mathematical body-cache hits improve 44.99%. Cold body
+renders and anonymous summaries have overlapping ranges. The first HTTP thread
+comparison loses 3.87% at concurrency 32; the candidate replication returns near
+the baseline. Both observations and the missing reverse-order confirmation
+remain explicit in the evidence.
+
 ## Perl core follow-up, fifth iteration (2026-11-06)
 
 This iteration starts from the fourth iteration's verified Perl candidate.

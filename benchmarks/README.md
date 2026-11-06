@@ -20,6 +20,20 @@ application/database commands use the existing locked Carton tree. The separate
 candidate service profiles and a staged benchmark procedure, including the
 current harness limits and the distinction between proposed and measured tuning.
 
+The current development runtime uses native **Mojo::Pg** and versioned
+PostgreSQL functions ([ADR 0174](../docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md)).
+The 6 November production-install checks passed without DBIx: 25 native
+PostgreSQL assertions and 354 HTTP assertions, including compiled templates
+inherited by workers. These are functional checks, not a new throughput
+baseline. Archived timings retain their recorded source checkpoints and
+transport; they do not measure the Mojo::Pg migration. The historical ORM
+comparison harness and models now live in the maintainer fixture boundary.
+
+[Perl core review, sixth iteration, 6 November 2026](perl-review/2026-11-06-iteration-6/README.md)
+records a single scan for unread-post summaries and deferred mathematical state
+allocation on rendered-body cache hits. Its isolated final comparison covers
+Perl CPU costs and HTTP member/guest threads with a home control.
+
 [Perl core review, fifth iteration, 6 November 2026](perl-review/2026-11-06-iteration-5/README.md)
 records notification read recovery, protection against invalidations during a
 cache fill, and less repeated work in idle polls. The isolated fourth-to-fifth

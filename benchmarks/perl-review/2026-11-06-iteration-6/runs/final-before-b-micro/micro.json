@@ -1,0 +1,218 @@
+{
+   "architecture" : "darwin-thread-multi-2level",
+   "method" : "Three fixed-iteration batches after 100 warmups, monotonic wall time. Read-state lookup uses an identical in-memory resultset; positions are hashes or actual ResultRow objects, with mixed read/unread positions. Anonymous and empty summaries are controls. Body rendering uses the real Mathematics registry and renderer; warm HTML has identical bytes, while cold cases generate a distinct source per operation and include that common generation cost. Every timed case checks its output. Values describe Perl CPU cost without SQL or network latency. HTTP separately exercises the real migrated PostgreSQL thread page.",
+   "perl" : "v5.44.0",
+   "platform" : "darwin",
+   "results" : [
+      {
+         "iterations" : 20000,
+         "name" : "summary_hash_25",
+         "operations_per_second" : 22823.3642781528,
+         "repetition" : 1,
+         "seconds" : 0.87629499999457
+      },
+      {
+         "iterations" : 20000,
+         "name" : "summary_hash_25",
+         "operations_per_second" : 22800.5713823165,
+         "repetition" : 2,
+         "seconds" : 0.877171000000089
+      },
+      {
+         "iterations" : 20000,
+         "name" : "summary_hash_25",
+         "operations_per_second" : 23027.5732164228,
+         "repetition" : 3,
+         "seconds" : 0.86852399999043
+      },
+      {
+         "iterations" : 12000,
+         "name" : "summary_result_rows_25",
+         "operations_per_second" : 17200.0596273608,
+         "repetition" : 1,
+         "seconds" : 0.69767199998023
+      },
+      {
+         "iterations" : 12000,
+         "name" : "summary_result_rows_25",
+         "operations_per_second" : 17274.8617651669,
+         "repetition" : 2,
+         "seconds" : 0.694650999997975
+      },
+      {
+         "iterations" : 12000,
+         "name" : "summary_result_rows_25",
+         "operations_per_second" : 17258.5386621311,
+         "repetition" : 3,
+         "seconds" : 0.695307999994839
+      },
+      {
+         "iterations" : 2000,
+         "name" : "summary_result_rows_200",
+         "operations_per_second" : 3085.78640504325,
+         "repetition" : 1,
+         "seconds" : 0.648132999980589
+      },
+      {
+         "iterations" : 2000,
+         "name" : "summary_result_rows_200",
+         "operations_per_second" : 3077.94116521679,
+         "repetition" : 2,
+         "seconds" : 0.649784999986878
+      },
+      {
+         "iterations" : 2000,
+         "name" : "summary_result_rows_200",
+         "operations_per_second" : 3123.60901785283,
+         "repetition" : 3,
+         "seconds" : 0.640285000001313
+      },
+      {
+         "iterations" : 30000,
+         "name" : "summary_empty_member",
+         "operations_per_second" : 55540.5390410062,
+         "repetition" : 1,
+         "seconds" : 0.540145999984816
+      },
+      {
+         "iterations" : 30000,
+         "name" : "summary_empty_member",
+         "operations_per_second" : 56445.6193480638,
+         "repetition" : 2,
+         "seconds" : 0.531485000014072
+      },
+      {
+         "iterations" : 30000,
+         "name" : "summary_empty_member",
+         "operations_per_second" : 56542.7500897824,
+         "repetition" : 3,
+         "seconds" : 0.530571999988751
+      },
+      {
+         "iterations" : 20000,
+         "name" : "summary_anonymous_25",
+         "operations_per_second" : 48400.2507138555,
+         "repetition" : 1,
+         "seconds" : 0.413220999995247
+      },
+      {
+         "iterations" : 20000,
+         "name" : "summary_anonymous_25",
+         "operations_per_second" : 48688.0991656102,
+         "repetition" : 2,
+         "seconds" : 0.410778000019491
+      },
+      {
+         "iterations" : 20000,
+         "name" : "summary_anonymous_25",
+         "operations_per_second" : 47971.1789162816,
+         "repetition" : 3,
+         "seconds" : 0.41691699999501
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_math",
+         "operations_per_second" : 507184.2651256,
+         "repetition" : 1,
+         "seconds" : 0.591500999988057
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_math",
+         "operations_per_second" : 510674.805693007,
+         "repetition" : 2,
+         "seconds" : 0.587457999994513
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_math",
+         "operations_per_second" : 515460.374846122,
+         "repetition" : 3,
+         "seconds" : 0.582003999996232
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_plain",
+         "operations_per_second" : 1592737.11881352,
+         "repetition" : 1,
+         "seconds" : 0.188354999991134
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_plain",
+         "operations_per_second" : 1585858.37216549,
+         "repetition" : 2,
+         "seconds" : 0.189172000013059
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_plain",
+         "operations_per_second" : 1584710.71098849,
+         "repetition" : 3,
+         "seconds" : 0.189309000008507
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_disabled_registry",
+         "operations_per_second" : 930578.820032428,
+         "repetition" : 1,
+         "seconds" : 0.322379999997793
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_disabled_registry",
+         "operations_per_second" : 936382.193740601,
+         "repetition" : 2,
+         "seconds" : 0.320382000005338
+      },
+      {
+         "iterations" : 300000,
+         "name" : "body_hit_disabled_registry",
+         "operations_per_second" : 936522.504582599,
+         "repetition" : 3,
+         "seconds" : 0.320334000018192
+      },
+      {
+         "iterations" : 3000,
+         "name" : "body_cold_math",
+         "operations_per_second" : 15242.8180925685,
+         "repetition" : 1,
+         "seconds" : 0.196813999995356
+      },
+      {
+         "iterations" : 3000,
+         "name" : "body_cold_math",
+         "operations_per_second" : 15511.3310262412,
+         "repetition" : 2,
+         "seconds" : 0.193407000013394
+      },
+      {
+         "iterations" : 3000,
+         "name" : "body_cold_math",
+         "operations_per_second" : 16156.7419389007,
+         "repetition" : 3,
+         "seconds" : 0.18568100000266
+      },
+      {
+         "iterations" : 3000,
+         "name" : "body_cold_plain",
+         "operations_per_second" : 39824.7710115893,
+         "repetition" : 1,
+         "seconds" : 0.0753299999923911
+      },
+      {
+         "iterations" : 3000,
+         "name" : "body_cold_plain",
+         "operations_per_second" : 40013.8714816957,
+         "repetition" : 2,
+         "seconds" : 0.0749739999882877
+      },
+      {
+         "iterations" : 3000,
+         "name" : "body_cold_plain",
+         "operations_per_second" : 40061.427517338,
+         "repetition" : 3,
+         "seconds" : 0.0748850000090897
+      }
+   ]
+}

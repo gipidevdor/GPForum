@@ -40,9 +40,14 @@ regexTarget = "secret"
 regexes = ['''^notifications_2026_10_pkey$''']
 
 [[allowlists]]
-description = "Verified SHA-256 file fingerprints in the November 5 benchmark source manifest"
+description = "Verified SHA-256 file fingerprints in archived benchmark manifests and run metadata"
 targetRules = ["generic-api-key"]
 condition = "AND"
-paths = ['''^benchmarks/http-complete/2026-11-05/source-manifest\.json$''']
+paths = [
+  '''^benchmarks/http-complete/2026-11-05/source-manifest\.json$''',
+  '''^benchmarks/perl-review/2026-11-06-iteration-[2-5]/source-manifest\.json$''',
+  '''^benchmarks/perl-review/2026-11-06-iteration-[45]/runs/(?:final-(?:before|after)-[ab]|interrupted-before-a)-(?:http|micro)/run\.json$''',
+  '''^benchmarks/throughput-regressions/2026-11-06/(?:source-manifest|validation-migrations(?:-initial)?)\.json$''',
+]
 regexTarget = "secret"
 regexes = ['''^[a-f0-9]{64}$''']

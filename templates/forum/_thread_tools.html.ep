@@ -5,7 +5,7 @@
 %# locking and hiding, each with the reason the audit log keeps. Going to what is unread is
 %# a place in the page, so it is a link in the line above, not an action.
 %#
-%# With the page's script each form posts in place (hx-post) and the bar
+%# With the page's script each form posts in place (hx-boost) and the bar
 %# comes back as it then is; "swap_oob" marks a copy sent to replace it.
 %#
 %# Takes "can_reply"; reads the page's "thread", "reading" and "engagement".
@@ -16,7 +16,7 @@
 % my $bookmark = $signed_in && $engagement->{bookmark} || {};
 % my $subscription = $signed_in && $engagement->{subscription} || {};
 
-<div class="toolbar" id="thread-toolbar" hx-target="#thread-toolbar" hx-swap="outerHTML"<%== stash('swap_oob') ? ' hx-swap-oob="true"' : q{} %>>
+<div class="toolbar" id="thread-toolbar" hx-target:inherited="#thread-toolbar" hx-swap:inherited="outerHTML"<%== stash('swap_oob') ? ' hx-swap-oob="true"' : q{} %>>
   % if ($can_reply) {
     <a class="button thread-reply" href="#reply-body"><%= ui_icon('reply') %><%= t('forum.reply') %></a>
   % }
@@ -26,13 +26,13 @@
         <section aria-labelledby="engagement-heading">
           <h2 class="visually-hidden" id="engagement-heading"><%= t('forum.thread_tools') %></h2>
           % if ($subscription->{subscribed}) {
-            <form method="post" action="<%= ui_path('thread_unsubscribe', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_unsubscribe', thread_id => $thread_id) %>">
+            <form method="post" action="<%= ui_path('thread_unsubscribe', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
               <%= csrf_field %>
               <input type="hidden" name="command_id" value="<%= $engagement->{unsubscribe_command_id} || q{} %>">
               <button type="submit" class="button--quiet"><%= ui_icon('bell') %><%= t('community.unfollow_thread') %></button>
             </form>
           % } else {
-            <form method="post" action="<%= ui_path('thread_subscribe', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_subscribe', thread_id => $thread_id) %>">
+            <form method="post" action="<%= ui_path('thread_subscribe', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
               <%= csrf_field %>
               <input type="hidden" name="command_id" value="<%= $engagement->{subscribe_command_id} || q{} %>">
               <input type="hidden" name="preference" value="all">
@@ -40,7 +40,7 @@
             </form>
           % }
           % if ($bookmark->{bookmarked}) {
-            <form method="post" action="<%= ui_path('thread_bookmark_remove', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_bookmark_remove', thread_id => $thread_id) %>">
+            <form method="post" action="<%= ui_path('thread_bookmark_remove', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
               <%= csrf_field %>
               <input type="hidden" name="command_id" value="<%= $engagement->{bookmark_remove_command_id} || q{} %>">
               <button type="submit" class="button--quiet"><%= ui_icon('bookmark') %><%= t('community.remove_bookmark') %></button>
@@ -48,7 +48,7 @@
           % } else {
             <button type="button" class="button--quiet" popovertarget="thread-bookmark"><%= ui_icon('bookmark') %><%= t('community.save_bookmark') %></button>
             <%= include 'components/sheet', sheet_id => 'thread-bookmark', component_title => t('community.save_bookmark'), sheet_body => begin %>
-              <form method="post" action="<%= ui_path('thread_bookmark', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_bookmark', thread_id => $thread_id) %>">
+              <form method="post" action="<%= ui_path('thread_bookmark', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
                 <%= csrf_field %>
                 <input type="hidden" name="command_id" value="<%= $engagement->{bookmark_command_id} || q{} %>">
                 <label for="bookmark-note"><%= t('community.bookmark_note') %></label>
@@ -74,7 +74,7 @@
           % if (!$reading->{first_unread_anchor}) {
             <p class="sheet__consequence"><%= t('forum.reading_caught_up') %></p>
           % }
-          <form method="post" action="<%= ui_path('thread_mark_read', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_mark_read', thread_id => $thread_id) %>">
+          <form method="post" action="<%= ui_path('thread_mark_read', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
             <%= csrf_field %>
             <input type="hidden" name="command_id" value="<%= $reading->{read_command_id} || q{} %>">
             <input type="hidden" name="last_read_position" value="<%= $reading->{last_visible_position} // 0 %>">
@@ -85,7 +85,7 @@
       % if ($engagement_ready && $subscription->{subscribed} && !$subscription->{muted}) {
         <details class="sheet__part sheet__disclosure">
           <summary><h3 id="thread-mute-heading"><%= t('nav.notifications') %></h3><%= ui_icon('arrow-right') %></summary>
-          <form method="post" action="<%= ui_path('thread_subscription_mute', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_subscription_mute', thread_id => $thread_id) %>">
+          <form method="post" action="<%= ui_path('thread_subscription_mute', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
             <%= csrf_field %>
             <input type="hidden" name="command_id" value="<%= $engagement->{mute_command_id} || q{} %>">
             <button type="submit" class="button--secondary"><%= ui_icon('bell') %><%= t('community.mute_notifications') %></button>
@@ -95,7 +95,7 @@
       % if ($thread->{can_edit_thread}) {
         <details class="sheet__part sheet__disclosure">
           <summary><h3 id="thread-edit-heading"><%= t('forum.edit_title') %></h3><%= ui_icon('arrow-right') %></summary>
-          <form method="post" action="<%= ui_path('thread_edit', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_edit', thread_id => $thread_id) %>" hx-target="#thread-header">
+          <form method="post" action="<%= ui_path('thread_edit', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)" hx-target="#thread-header">
             <%= csrf_field %>
             <input type="hidden" name="command_id" value="<%= $thread->{edit_thread_command_id} || q{} %>">
             <label for="thread-edit-title"><%= t('forum.thread_title') %></label>
@@ -108,7 +108,7 @@
         </details>
         <details class="sheet__part sheet__disclosure">
           <summary><h3 id="thread-move-heading"><%= t('forum.move_thread') %></h3><%= ui_icon('arrow-right') %></summary>
-          <form method="post" action="<%= ui_path('thread_move', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_move', thread_id => $thread_id) %>" hx-target="#thread-header">
+          <form method="post" action="<%= ui_path('thread_move', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)" hx-target="#thread-header">
             <%= csrf_field %>
             <input type="hidden" name="command_id" value="<%= $thread->{move_thread_command_id} || q{} %>">
             <label for="thread-move-category"><%= t('search.category') %></label>
@@ -126,6 +126,7 @@
           <summary><h3 id="thread-report-heading"><%= t('moderation.report_thread') %></h3><%= ui_icon('arrow-right') %></summary>
           <%= include 'forum/_report_form',
             post_to => ui_path('thread_report', thread_id => $thread_id),
+            report_target => '#thread-toolbar',
             command_id => $engagement->{thread_report_command_id},
             field_id => 'thread-report' %>
         </details>
@@ -133,7 +134,7 @@
       % if ($thread->{can_edit_thread}) {
         <details class="sheet__part sheet__disclosure">
           <summary><h3 id="thread-delete-heading"><%= t('forum.delete_thread') %></h3><%= ui_icon('arrow-right') %></summary>
-          <form method="post" action="<%= ui_path('thread_delete', thread_id => $thread_id) %>" hx-post="<%= ui_path('thread_delete', thread_id => $thread_id) %>" hx-target="#thread-header">
+          <form method="post" action="<%= ui_path('thread_delete', thread_id => $thread_id) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)" hx-target="#thread-header">
             <%= csrf_field %>
             <input type="hidden" name="command_id" value="<%= $thread->{delete_thread_command_id} || q{} %>">
             <p class="sheet__consequence"><%= t('forum.delete_thread_consequence') %></p>

@@ -12,7 +12,7 @@
     <p role="status"><%= t('forum.thread_deleted_notice') %></p>
   % }
   % if ($thread->{can_restore_thread}) {
-    <form method="post" action="<%= ui_path('thread_restore', thread_id => $thread->{thread_id}) %>" hx-post="<%= ui_path('thread_restore', thread_id => $thread->{thread_id}) %>" hx-target="#thread-header" hx-swap="outerHTML">
+    <form method="post" action="<%= ui_path('thread_restore', thread_id => $thread->{thread_id}) %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)" hx-target="#thread-header" hx-swap="outerHTML">
       <%= csrf_field %>
       <input type="hidden" name="command_id" value="<%= $thread->{restore_thread_command_id} || q{} %>">
       <button type="submit" class="button--secondary"><%= t('forum.restore_thread') %></button>

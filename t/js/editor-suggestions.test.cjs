@@ -80,7 +80,7 @@ test("stale responses cannot replace suggestions for new text", async () => {
 });
 test("blur releases requests and fragment swaps do not duplicate controls", async () => {
   const page = harness(); const list = page.list;
-  page.events["htmx:afterSwap"]();
+  page.events["htmx:after:swap"]();
   assert.equal(page.field.afterNodes[1], list);
   page.input("[[forum"); const pending = page.start(); page.field.handlers.blur();
   assert.equal(page.requests[0].options.signal.aborted, true);

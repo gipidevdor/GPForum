@@ -29,8 +29,10 @@
         "Copia non disponibile. Seleziona e copia manualmente il testo o il collegamento.");
     }
   };
-  const initialize = () => {
-    document.querySelectorAll("#posts .post[id]").forEach((post) => {
+  const initialize = (root = document) => {
+    const posts = [...root.querySelectorAll("#posts .post[id]")];
+    if (root.matches?.("#posts .post[id]")) posts.unshift(root);
+    posts.forEach((post) => {
       if (states.has(post)) return;
       const state = { selected: "" };
       states.set(post, state);
@@ -104,6 +106,5 @@
     });
   };
   initialize();
-  document.addEventListener("htmx:afterSwap", initialize);
-  document.addEventListener("htmx:oobAfterSwap", initialize);
+  document.addEventListener("htmx:after:process", (event) => initialize(event?.target || document));
 })();

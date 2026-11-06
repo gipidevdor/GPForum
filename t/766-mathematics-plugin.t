@@ -67,6 +67,28 @@ is(
     'the formula bound applies to the entire post across paragraphs'
 );
 my $plain = GPForum::Service::Forum::BodyRenderer->new;
+for my $prefix (qw(first second)) {
+    my $body     = "$prefix\n\n$many";
+    my $rendered = $renderer->render_safe($body);
+    is( Mojo::DOM->new($rendered)->find('.math-expression')->size,
+        $SPAN_LIMIT,
+        'each distinct body receives its complete formula budget' );
+    is( $renderer->render_safe($body),
+        $rendered,
+        'a warmed body preserves the bounded mathematical rendering' );
+}
+my $switch_body  = q{switch $x_i$};
+my $enabled_html = $renderer->render_safe($switch_body);
+$renderer->math_plugins(undef);
+is(
+    $renderer->render_safe($switch_body),
+    $plain->render_safe($switch_body),
+    'switching off selects the plain variant on the same renderer'
+);
+$renderer->math_plugins($plugins);
+is( $renderer->render_safe($switch_body),
+    $enabled_html,
+    'switching back selects the previously rendered mathematical variant' );
 is(
     $renderer->render_safe(q{[link](https://example.test/$x$)}),
     $plain->render_safe(q{[link](https://example.test/$x$)}),

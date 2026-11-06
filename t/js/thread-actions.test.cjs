@@ -9,6 +9,7 @@ const source = fs.readFileSync(`${__dirname}/../../assets/js/thread-actions.js`,
 function harness({ ignored = false, authenticated = true, failCopy = false, disclosure = false } = {}) {
   const events = {};
   const copied = [];
+  let documentScans = 0;
   const element = () => ({
     children: [], attributes: {}, handlers: {}, textContent: "",
     append(...items) { this.children.push(...items); },
@@ -45,7 +46,7 @@ function harness({ ignored = false, authenticated = true, failCopy = false, disc
   };
   const document = {
     documentElement: { lang: "it" }, createElement: element,
-    querySelectorAll: () => [post],
+    querySelectorAll() { documentScans++; return [post]; },
     querySelector: () => authenticated ? field : null,
     addEventListener(name, handler) { events[name] = handler; },
   };
@@ -54,7 +55,7 @@ function harness({ ignored = false, authenticated = true, failCopy = false, disc
     navigator: { clipboard: { async writeText(text) { if (failCopy) throw Error("denied"); copied.push(text); } } },
     Event: class { constructor(type) { this.type = type; } },
   });
-  return { post, field, block, selection, events, copied, menu, summary,
+  return { post, field, block, selection, events, copied, menu, summary, scans: () => documentScans,
     tools: disclosure ? menu.children[0] : post.children[0] };
 }
 test("quoting a selection appends to the unsaved draft and triggers autosave", () => {
@@ -111,8 +112,8 @@ test("ignored content and anonymous readers never get selection quote tools", ()
 });
 test("dynamic refreshes never duplicate reading controls", () => {
   const page = harness();
-  page.events["htmx:afterSwap"]();
-  page.events["htmx:oobAfterSwap"]();
+  page.events["htmx:after:process"]();
+  page.events["htmx:after:process"]();
   assert.equal(page.post.children.length, 1);
 });
 
@@ -120,8 +121,24 @@ test("secondary reading controls stay inside the native post disclosure", () => 
   const page = harness({ disclosure: true });
   assert.equal(page.post.children.length, 0);
   assert.equal(page.menu.children.length, 1);
-  page.events["htmx:afterSwap"]();
+  page.events["htmx:after:process"]();
   assert.equal(page.menu.children.length, 1);
+});
+
+test("processing a new fragment never scans the existing post list", () => {
+  const page = harness();
+  let fragmentScans = 0;
+  const root = {
+    matches: () => false,
+    querySelectorAll(selector) {
+      assert.equal(selector, "#posts .post[id]");
+      fragmentScans++;
+      return [];
+    },
+  };
+  page.events["htmx:after:process"]({target: root});
+  assert.equal(fragmentScans, 1);
+  assert.equal(page.scans(), 1, "the document is scanned only at initial load");
 });
 
 test("opening more actions preserves a selected passage for quoting", () => {

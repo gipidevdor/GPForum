@@ -251,12 +251,10 @@
     });
   };
   initializeFormatting();
-  document.addEventListener("htmx:afterSwap", initializeFormatting);
-  document.addEventListener("htmx:oobAfterSwap", initializeFormatting);
+  document.addEventListener("htmx:after:swap", initializeFormatting);
 
   initialize();
-  document.addEventListener("htmx:afterSwap", initialize);
-  document.addEventListener("htmx:oobAfterSwap", initialize);
+  document.addEventListener("htmx:after:swap", initialize);
   window.addEventListener("beforeunload", (event) => {
     const unsaved = [...document.querySelectorAll("form[data-composer]")].some((form) => {
       const state = composers.get(form);

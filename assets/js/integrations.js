@@ -33,9 +33,7 @@
   });
 
   reveal(document);
-  for (const event of ["htmx:afterSwap", "htmx:oobAfterSwap"]) {
-    document.addEventListener(event, (e) => reveal(e.detail?.target || e.target));
-  }
+  document.addEventListener("htmx:after:process", (event) => reveal(event.target));
   new MutationObserver((changes) => {
     for (const change of changes) {
       for (const node of change.addedNodes) {

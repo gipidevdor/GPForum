@@ -13,6 +13,7 @@ use lib 't/lib';
 
 use GPForum::Service::Forum::ReadState;
 use GPForum::Service::Forum::ReadWorkflow;
+use GPForum::Infrastructure::ResultRow;
 use GPForum::Test::CommandIdempotency;
 use GPForum::Test::FixedClock;
 use GPForum::Test::ReadStateResultSet;
@@ -20,7 +21,8 @@ use GPForum::Test::ReadStateSchema;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS     => 39;
+const my $EXPECTED_TESTS     => 40;
+const my $LAST_VISIBLE_INDEX => 4;
 const my $FIRST_POSITION     => 1;
 const my $SECOND_POSITION    => 2;
 const my $NO_POSITION        => 0;
@@ -67,6 +69,89 @@ is( $summary->{first_unread_anchor},
     'post-post-1', 'first unread anchor is stable' );
 is( $summary->{last_visible_position},
     $SECOND_POSITION, 'summary exposes last visible position' );
+
+subtest
+  'page summaries preserve ordering, empty values and row representations' =>
+  sub {
+    my @fields = qw(authenticated first_unread_anchor first_unread_position
+      first_unread_post_id last_visible_position unread_in_page);
+    my @cases = (
+        {
+            name     => 'empty page',
+            marker   => 1,
+            posts    => [],
+            expected => [ 1, undef, 0, undef, 0, 0 ],
+        },
+        {
+            name     => 'all read',
+            marker   => 2,
+            posts    => [ reverse @{$posts} ],
+            expected => [ 1, undef, 0, undef, 2, 0 ],
+        },
+        {
+            name     => 'mixed',
+            marker   => 1,
+            posts    => [ reverse @{$posts} ],
+            expected => [ 1, 'post-post-2', 2, 'post-2', 2, 1 ],
+        },
+        {
+            name     => 'first in page order',
+            marker   => 0,
+            posts    => [ reverse @{$posts} ],
+            expected => [ 1, 'post-post-2', 2, 'post-2', 2, 2 ],
+        },
+        {
+            name     => 'an unread row without an id',
+            marker   => 0,
+            posts    => [ { position => 2 }, $posts->[0] ],
+            expected => [ 1, undef, 2, undef, 2, 2 ],
+        },
+        {
+            name     => 'an absent row',
+            marker   => 0,
+            posts    => [ undef, $posts->[0] ],
+            expected => [ 1,     'post-post-1', 1, 'post-1', 1, 1 ],
+        },
+    );
+    for my $case (@cases) {
+        my $markers = GPForum::Test::ReadStateResultSet->new;
+        $markers->create(
+            {
+                user_id            => 'reader',
+                thread_id          => 'thread',
+                last_read_position => $case->{marker},
+                last_read_at       => 'recorded'
+            }
+        );
+        my $reader = GPForum::Service::Forum::ReadState->new(
+            schema => GPForum::Test::ReadStateSchema->new(
+                resultsets => { ThreadReadState => $markers }
+            )
+        );
+        for my $objects ( 0, 1 ) {
+            my $page = [
+                map {
+                    !defined $_ ? undef
+                      : $objects
+                      ? GPForum::Infrastructure::ResultRow->from( { %{$_} } )
+                      : { %{$_} }
+                } @{ $case->{posts} }
+            ];
+            my $result = $reader->summary_for_page( 'reader', 'thread', $page );
+            is_deeply( [ @{$result}{@fields} ],
+                $case->{expected}, "$case->{name}, objects=$objects" );
+            my $guest = $reader->summary_for_page( undef, 'thread', $page );
+            is_deeply(
+                [ @{$guest}{@fields} ],
+                [
+                    0, undef, undef, undef,
+                    $case->{expected}[$LAST_VISIBLE_INDEX], 0
+                ],
+                "anonymous $case->{name}, objects=$objects"
+            );
+        }
+    }
+  };
 
 my $marked = $read_state->mark_thread_read(
     {

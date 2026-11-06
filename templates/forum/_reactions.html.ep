@@ -21,7 +21,7 @@
     %   my $first = $shown[0];
     %   my $route = $first->{reacted} ? 'post_unreact' : 'post_react';
     %   $action = $paths->{$route . q{:} . $first->{reaction}} // ui_path($route, post_id => $post->{post_id}, reaction => $first->{reaction});
-      <form method="post" action="<%= $action %>" hx-post="<%= $action %>">
+      <form method="post" action="<%= $action %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
         <%= csrf_field %>
     % }
     % for my $reaction (@shown) {

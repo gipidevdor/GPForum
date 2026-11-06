@@ -4,8 +4,10 @@
 package main;
 
 use v5.40;
+use utf8;
 
 use Digest::SHA qw(sha256_hex);
+use Mojo::Util qw(encode);
 use Test::More;
 
 use lib 'lib';
@@ -32,6 +34,13 @@ is( $codec->body_hash(" body \n"),
     sha256_hex('body'), 'the body hash is of the trimmed source' );
 is( $codec->body_hash(undef),
     sha256_hex(q{}), 'an undefined body hashes as empty' );
+
+subtest 'text fingerprints use UTF-8 bytes' => sub {
+    for my $source ('è', 'à é ì ò ù', "e\x{300}", '中文 العربية 🙂') {
+        is($codec->body_hash($source), sha256_hex(encode('UTF-8', $source)),
+            'Unicode source is fingerprinted without an exception or byte loss');
+    }
+};
 
 is_deeply(
     $codec->request(

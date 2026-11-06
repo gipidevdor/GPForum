@@ -1,0 +1,21 @@
+{
+  "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review6-after-cqp3bots",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-j4",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/integration/postgres-thread-page-reads.t",
+    "t/integration/postgres-sql-function-thread-page.t",
+    "t/integration/postgres-request-work-reuse.t",
+    "t/integration/postgres-http-complete.t"
+  ],
+  "started_at": "2026-11-06T16:25:38.146188+00:00",
+  "exit_code": 0,
+  "elapsed_seconds": 27.530825292,
+  "finished_at": "2026-11-06T16:26:05.677446+00:00"
+}

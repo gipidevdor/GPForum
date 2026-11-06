@@ -91,16 +91,22 @@ sub render_safe ( $self, $source ) {
     if ( !defined $source || !length $source ) {
         return q{};
     }
-    my $math =
-      $self->math_plugins && $self->math_plugins->math_enabled
-      ? { plugins => $self->math_plugins, remaining => $MATH_SPAN_LIMIT }
-      : undef;
-    my $key = ( $math ? $self->math_plugins->cache_variant : q{plain} ) . q{:}
-      . $source;
+    my $plugins = $self->math_plugins;
+    if ( $plugins && !$plugins->math_enabled ) {
+        $plugins = undef;
+    }
+    my $key =
+      ( $plugins ? $plugins->cache_variant : q{plain} ) . q{:} . $source;
     return $ACTIVE{rendered}->{$key}
       if $ACTIVE{rendered} && exists $ACTIVE{rendered}->{$key};
     return $RENDERED{$key} if exists $RENDERED{$key};
 
+    # Only a miss needs mutable per-body state. A warm thread page renders
+    # every body again, but reuses its HTML without allocating a math budget.
+    my $math =
+      $plugins
+      ? { plugins => $plugins, remaining => $MATH_SPAN_LIMIT }
+      : undef;
     my $html = _render( $source, $math );
     return _remember( $key, $html );
 }

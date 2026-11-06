@@ -57,11 +57,8 @@ is( $group->find('form')->size, 1, 'four reactions share one form' );
 $test->element_exists('#post-post-1 details.post-reaction-picker:not([open])');
 my $form = $group->at('form');
 is( $form->attr('method'), 'post', 'native submission remains POST' );
-is(
-    $form->attr('hx-post'),
-    $form->attr('action'),
-    'enhancement uses the same default route'
-);
+is( $form->attr('hx-boost'),
+    'true', 'enhancement respects the selected reaction submitter action' );
 is( $form->find('input[name="csrf_token"]')->size,
     1, 'one CSRF field covers the form' );
 is( $form->find('input[name="command_id"]')->size,

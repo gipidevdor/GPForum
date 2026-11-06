@@ -69,6 +69,5 @@
     }
   };
   initialize();
-  document.addEventListener("htmx:afterSwap", initialize);
-  document.addEventListener("htmx:oobAfterSwap", initialize);
+  document.addEventListener("htmx:after:swap", initialize);
 })();

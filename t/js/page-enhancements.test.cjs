@@ -91,8 +91,8 @@ test("a fragment activates its client once across swaps and DOM mutations", () =
   const page = harness({initial: [card]});
   assert.equal(page.scripts.length, 1);
   assert.equal(page.scripts[0].src, "https://forum.test/integrations.js?v=123");
-  page.events["htmx:afterSwap"]({detail: {target: card}});
-  page.events["htmx:oobAfterSwap"]({target: card});
+  page.events["htmx:after:process"]({target: card});
+  page.events["htmx:after:process"]({target: card});
   page.mutation([{addedNodes: [card]}]);
   assert.equal(page.scripts.length, 1);
   const editor = widget("form[data-composer]");
@@ -112,7 +112,7 @@ test("equations wait for the local library and concurrent fragments share the lo
   await new Promise(setImmediate);
   assert.equal(page.scripts.length, 2);
   assert.equal(page.scripts[1].src, "https://forum.test/mathematics.js?v=abc");
-  page.events["htmx:afterSwap"]({target: formula});
+  page.events["htmx:after:process"]({target: formula});
   assert.equal(page.scripts.length, 2);
 });
 

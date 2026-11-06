@@ -7,6 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
+use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::X::Argument;
 
 our $VERSION = '0.001';
@@ -29,7 +30,9 @@ sub record ( $self, %input ) {    ## no critic (NamingConventions::ProhibitAmbig
         actor_id          => $input{actor_id},
         correlation_id => _required( correlation_id => $input{correlation_id} ),
         causation_id   => $input{causation_id},
-        idempotency_key => $input{idempotency_key} || $self->idempotency_key(
+        idempotency_key => has_text( $input{idempotency_key} )
+        ? $input{idempotency_key}
+        : $self->idempotency_key(
             event_type   => $input{event_type},
             aggregate_id => $input{aggregate_id},
         ),
@@ -37,7 +40,7 @@ sub record ( $self, %input ) {    ## no critic (NamingConventions::ProhibitAmbig
         metadata => _metadata(%input),
     };
 
-    if ( defined $input{timestamp} && length $input{timestamp} ) {
+    if ( has_text( $input{timestamp} ) ) {
         $event->{created_at} = $input{timestamp};
     }
 
@@ -46,12 +49,12 @@ sub record ( $self, %input ) {    ## no critic (NamingConventions::ProhibitAmbig
 
 sub transport_payload ( $self, $event ) {
     my $event_metadata = _hash( $event->{metadata} );
+    my $timestamp      = $event->{created_at} || $event_metadata->{timestamp};
     my $metadata       = _metadata(
         %{$event},
         metadata  => $event_metadata,
-        timestamp => $event->{created_at} || $event_metadata->{timestamp},
+        timestamp => $timestamp,
     );
-    my $timestamp = $event->{created_at} || $metadata->{timestamp};
 
     my $payload = {
         aggregate => {
@@ -78,7 +81,7 @@ sub transport_payload ( $self, $event ) {
         transport         => _transport_metadata($event),
     };
 
-    if ( defined $timestamp && length $timestamp ) {
+    if ( has_text($timestamp) ) {
         $payload->{timestamp}   = $timestamp;
         $payload->{occurred_at} = $timestamp;
     }
@@ -106,7 +109,7 @@ sub _metadata (%input) {
     $metadata->{causation_id}   = $input{causation_id};
     $metadata->{correlation_id} = $input{correlation_id};
     $metadata->{event_id}       = $input{event_id};
-    if ( defined $input{timestamp} && length $input{timestamp} ) {
+    if ( has_text( $input{timestamp} ) ) {
         $metadata->{timestamp} = $input{timestamp};
     }
     $metadata->{transport} = {
@@ -124,7 +127,9 @@ sub _transport_metadata ($event) {
         listen_notify_channel => 'gpforum_domain_events',
         minion_job            => 'domain_event.dispatch',
         nats_subject          => 'gpforum.domain_events',
-        partition_key         => $event->{aggregate_id} || $event->{event_id},
+        partition_key         => has_text( $event->{aggregate_id} )
+        ? $event->{aggregate_id}
+        : $event->{event_id},
     };
 }
 
@@ -134,17 +139,19 @@ sub _hash ($value) {
     return {};
 }
 
+# PostgreSQL versions use ASCII digits. Unicode digits can pass a Unicode
+# character class while failing Perl numeric conversion or the SQL cast.
 sub _positive_integer ($value) {
     return $value
       if defined $value
-      && $value =~ /\A [[:digit:]]+ \z/msx
+      && $value =~ /\A [[:digit:]]+ \z/amsx
       && $value >= $MIN_VERSION;
 
     return $DEFAULT_VERSION;
 }
 
 sub _required ( $name, $value ) {
-    if ( !defined $value || !length "$value" ) {
+    if ( !has_text($value) ) {
         GPForum::X::Argument->throw( message => "$name is required" );
     }
 

@@ -59,9 +59,8 @@
     }
   };
   scan(document);
-  for (const event of ["htmx:afterSwap", "htmx:oobAfterSwap"]) {
-    document.addEventListener(event, (e) => scan(e.detail?.target || e.target));
-  }
+  // htmx 4 processes each inserted subtree, including out-of-band content.
+  document.addEventListener("htmx:after:process", (event) => scan(event.target));
   new MutationObserver((changes) => {
     for (const change of changes) for (const node of change.addedNodes) scan(node);
   }).observe(document.body, {childList: true, subtree: true});

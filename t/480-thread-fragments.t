@@ -53,8 +53,10 @@ $test->get_ok('/__test/session/user-1')->status_is($HTTP_OK);
 $test->get_ok('/t/thread-1')->status_is($HTTP_OK);
 $test->element_exists('ol#posts');
 $test->element_exists('#posts-pagination a[hx-get][hx-target="#posts"]');
-$test->element_exists('#thread-toolbar[hx-target="#thread-toolbar"]');
-$test->element_exists('#reply form[hx-post="/t/thread-1/replies"]');
+$test->element_exists(
+    '#thread-toolbar[hx-target\:inherited="#thread-toolbar"]');
+$test->element_exists(
+    '#reply form[hx-boost="true"][action="/t/thread-1/replies"]');
 $test->element_exists('#flash');
 cmp_ok( $category_reads, '>', 0,
     'full page prepares the authorized category choices' );
@@ -91,7 +93,8 @@ $test->post_ok(
     }
 )->status_is($HTTP_OK);
 $test->content_unlike( qr/<html/msx, 'the bar comes back without a layout' );
-$test->element_exists('#thread-toolbar[hx-target="#thread-toolbar"]');
+$test->element_exists(
+    '#thread-toolbar[hx-target\:inherited="#thread-toolbar"]');
 $test->element_exists_not('#thread-toolbar[hx-swap-oob]');
 $test->element_exists('#flash[hx-swap-oob="true"] .flash--success');
 $test->element_exists_not('article.post');
@@ -119,7 +122,8 @@ $test->post_ok(
     }
 )->status_is($HTTP_OK);
 $test->content_unlike( qr/<html/msx, 'the post comes back without a layout' );
-$test->element_exists('li[hx-target="this"] article.post#post-post-1');
+$test->element_exists(
+    'li[hx-target\:inherited="this"] article.post#post-post-1');
 $test->element_exists('#flash[hx-swap-oob="true"] .flash--success');
 $test->element_exists_not('#thread-toolbar');
 $test->element_exists_not('#reply');
@@ -134,7 +138,8 @@ $test->post_ok(
 )->status_is($HTTP_FOUND);
 $test->get_ok('/t/thread-1')->status_is($HTTP_OK);
 $test->element_exists(
-    '#posts > li[hx-target="this"] form[hx-post="/p/post-1"]');
+'#posts > li[hx-target\:inherited="this"] form[hx-boost="true"][action="/p/post-1"]'
+);
 
 # A write that fails from the script -- here a form whose token has expired
 # -- gets the message for its place and nothing for the target it asked for,
@@ -171,7 +176,7 @@ $test->element_exists('#thread-header h1#thread-heading');
 $test->element_exists('#thread-header #thread-toolbar');
 $test->element_exists('#breadcrumbs[hx-swap-oob="true"] [aria-current="page"]');
 $test->element_exists('#thread-notices[hx-swap-oob="true"]');
-$test->element_exists('#reply[hx-swap-oob="true"] form[hx-post]');
+$test->element_exists('#reply[hx-swap-oob="true"] form[hx-boost="true"]');
 $test->element_exists('#flash[hx-swap-oob="true"] .flash--success');
 $test->element_exists_not('article.post');
 
@@ -193,7 +198,7 @@ $test->get_ok('/t/thread-deleted-1')->status_is($HTTP_OK);
 $test->element_exists('div#reply[hidden]');
 $test->element_exists_not('#reply form');
 $test->element_exists(
-'#thread-notices form[hx-post="/t/thread-deleted-1/restore"][hx-target="#thread-header"]'
+'#thread-notices form[hx-boost="true"][action="/t/thread-deleted-1/restore"][hx-target="#thread-header"]'
 );
 my $thread_restore_id = _command_id( $test, '/t/thread-deleted-1/restore' );
 $test->post_ok(
@@ -218,7 +223,7 @@ $test->post_ok(
 )->status_is($HTTP_OK);
 $test->content_unlike( qr/<html/msx, 'the reply comes back without a layout' );
 $test->element_exists('li.ui-card-list__item article.post#post-post-created');
-$test->element_exists('#reply[hx-swap-oob="true"] form[hx-post]');
+$test->element_exists('#reply[hx-swap-oob="true"] form[hx-boost="true"]');
 is( $category_reads,  0, 'reply fragment does not read thread move choices' );
 is( $metadata_builds, 0, 'reply fragment does not build page metadata' );
 my $fresh_id = _command_id( $test, '/t/thread-1/replies' );

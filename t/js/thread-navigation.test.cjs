@@ -93,8 +93,8 @@ test("dynamic swaps refresh one navigation bar and include appended replies", ()
   const navigation = page.navigation();
   assert.equal(navigation.attributes["aria-label"], "Messaggi in questa pagina");
   page.posts.push({ ...page.posts[1], id: "post-new" });
-  page.events["htmx:afterSwap"]();
-  page.events["htmx:oobAfterSwap"]();
+  page.events["htmx:after:swap"]();
+  page.events["htmx:after:swap"]();
   assert.equal(page.navigation(), navigation);
   assert.equal(navigation.children.length, 2);
   assert.equal(navigation.children[0].children.length, 4);
@@ -114,7 +114,7 @@ test("reading controls show loaded positions and jump without losing focus", () 
   assert.equal(page.posts[1].focused, true);
   assert.equal(progress.value, 2);
   assert.equal(next.disabled, true);
-  page.events["htmx:afterSwap"]();
+  page.events["htmx:after:swap"]();
   assert.equal(page.navigation().dataset.currentPost, "post-1");
 });
 
@@ -126,7 +126,7 @@ test("reading observation updates position without rewriting URL history and is 
   assert.equal(page.navigation().children[1].children[2].value, 2);
   assert.equal(page.location.hash, undefined);
   page.posts[1] = { ...page.posts[1] };
-  page.events["htmx:afterSwap"]();
+  page.events["htmx:after:swap"]();
   assert.equal(page.observers[0].disconnected, true);
   assert.equal(page.observers.length, 2);
 });
@@ -134,7 +134,7 @@ test("reading observation updates position without rewriting URL history and is 
 test("unrelated swaps preserve controls and do not rebuild reading observers", () => {
   const page = harness("en", 2, true);
   const selector = page.navigation().children[0];
-  page.events["htmx:afterSwap"]();
+  page.events["htmx:after:swap"]();
   assert.equal(page.navigation().children[0], selector);
   assert.equal(page.observers.length, 1);
 });
@@ -149,10 +149,10 @@ test("anchor clearance follows the actual header and navigation size", () => {
   page.sizeObservers[0].callback();
   assert.equal(page.properties.get('--header-clearance'), '117px');
   assert.equal(page.properties.get('--reading-clearance'), '133px');
-  page.events['htmx:afterSwap']();
+  page.events['htmx:after:swap']();
   assert.equal(page.sizeObservers.length, 1);
   page.posts[1] = { ...page.posts[1] };
-  page.events['htmx:afterSwap']();
+  page.events['htmx:after:swap']();
   assert.equal(page.sizeObservers[0].disconnected, true);
   assert.equal(page.sizeObservers.length, 2);
 });

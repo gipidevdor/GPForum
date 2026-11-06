@@ -18,8 +18,8 @@
     data-conflict="<%= t('forum.draft_conflict') %>"
     data-preview-failed="<%= t('forum.draft_preview_failed') %>">
     <div class="composer-draft-actions">
-      <button class="button--secondary" type="submit" name="composer_action" value="save" formaction="<%= ui_path('draft_save') %>" formnovalidate hx-post="<%= ui_path('draft_save') %>" hx-target="closest .composer" hx-select=".composer" hx-swap="outerHTML" hx-validate="false"><%= ui_icon('check') %><%= t('forum.draft_save') %></button>
-      <button class="button--secondary" type="submit" name="composer_action" value="preview" formaction="<%= ui_path('composer_preview') %>" formnovalidate hx-post="<%= ui_path('composer_preview') %>" hx-target="closest .composer" hx-select=".composer" hx-swap="outerHTML" hx-validate="false"><%= ui_icon('image') %><%= t('forum.draft_preview') %></button>
+      <button class="button--secondary" type="submit" name="composer_action" value="save" formaction="<%= ui_path('draft_save') %>" formnovalidate hx-sync="closest form:drop" hx-disable="this" hx-post="<%= ui_path('draft_save') %>" hx-target="closest .composer" hx-select=".composer" hx-swap="outerHTML" hx-validate="false"><%= ui_icon('check') %><%= t('forum.draft_save') %></button>
+      <button class="button--secondary" type="submit" name="composer_action" value="preview" formaction="<%= ui_path('composer_preview') %>" formnovalidate hx-sync="closest form:drop" hx-disable="this" hx-post="<%= ui_path('composer_preview') %>" hx-target="closest .composer" hx-select=".composer" hx-swap="outerHTML" hx-validate="false"><%= ui_icon('image') %><%= t('forum.draft_preview') %></button>
       <a href="<%= ui_path('drafts') %>"><%= t('nav.drafts') %></a>
     </div>
     <p class="ui-meta"><%= t('forum.draft_private_hint') %></p>

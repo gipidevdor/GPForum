@@ -91,11 +91,11 @@ test("modified links retain normal browser behavior", () => {
 test("fragment swaps initialize once and remove a detached draft placeholder", () => {
   const page = harness();
   const count = page.nodes.length;
-  page.events["htmx:afterSwap"]();
+  page.events["htmx:after:swap"]();
   assert.equal(page.nodes.length, count);
   page.reply();
   const placeholder = page.nodes.at(-1);
   page.section.isConnected = false;
-  page.events["htmx:oobAfterSwap"]();
+  page.events["htmx:after:swap"]();
   assert.equal(placeholder.removed, true);
 });

@@ -9,7 +9,7 @@
 %# written here, and the time is the ui_timestamp helper rather than the
 %# components/timestamp partial.
 %#
-%# With the page's script each post's forms post in place (hx-post), and the
+%# With the page's script each post's forms post in place (hx-boost), and the
 %# post comes back as the list now lists it, in its own place (hx-target on
 %# the item).
 %#
@@ -32,7 +32,7 @@
 %   my $dom_id = 'post-' . $post->{post_id};
 %   my $static = $fragments->render($self, $post);
 %   my $paths = $static->{paths};
-  <li class="ui-card-list__item" hx-target="this" hx-swap="outerHTML">
+  <li class="ui-card-list__item" hx-target:inherited="this" hx-swap:inherited="outerHTML">
     <article class="post" id="<%= $dom_id %>" data-page-url="<%= $page_url %>" aria-labelledby="<%= $dom_id %>-heading">
       <%= $static->{header} %>
           % if ($post->{created_at}) {
@@ -78,7 +78,7 @@
         <footer class="post__actions">
           % if ($post->{can_like}) {
           %   my $like_route = $post->{liked} ? 'post_unlike' : 'post_like';
-            <form method="post" action="<%= $paths->{$like_route} %>" hx-post="<%= $paths->{$like_route} %>">
+            <form method="post" action="<%= $paths->{$like_route} %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
               <%= csrf_field %>
               <input type="hidden" name="command_id" value="<%= $post->{like_command_id} || q{} %>">
               <%= $static->{like} %>
@@ -99,7 +99,7 @@
               <a href="<%= $paths->{post_verification} %>"><%= t('forum.signature_details') %></a>
           % if ($post->{can_edit}) {
             <%= $static->{edit_sheet} %>
-              <form method="post" action="<%= $paths->{post_edit} %>" hx-post="<%= $paths->{post_edit} %>">
+              <form method="post" action="<%= $paths->{post_edit} %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
                 <%= csrf_field %>
                 <input type="hidden" name="command_id" value="<%= $post->{edit_command_id} || q{} %>">
                 <label for="<%= $dom_id %>-edit-body"><%= t('forum.edit_body') %></label>
@@ -115,7 +115,7 @@
           % }
           % if ($post->{can_delete}) {
             <%= $static->{delete_sheet} %>
-              <form method="post" action="<%= $paths->{post_delete} %>" hx-post="<%= $paths->{post_delete} %>">
+              <form method="post" action="<%= $paths->{post_delete} %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
                 <%= csrf_field %>
                 <input type="hidden" name="command_id" value="<%= $post->{delete_command_id} || q{} %>">
                 <%= $static->{remove} %>
@@ -123,7 +123,7 @@
             </div>
           % }
           % if ($post->{can_restore}) {
-            <form method="post" action="<%= $paths->{post_restore} %>" hx-post="<%= $paths->{post_restore} %>">
+            <form method="post" action="<%= $paths->{post_restore} %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
               <%= csrf_field %>
               <input type="hidden" name="command_id" value="<%= $post->{restore_command_id} || q{} %>">
               <button type="submit" class="button--quiet"><%= t('forum.restore_post') %></button>
@@ -131,7 +131,7 @@
           % }
           % if ($signed_in) {
             <%= $static->{report_sheet} %>
-              <form method="post" action="<%= $paths->{post_report} %>" hx-post="<%= $paths->{post_report} %>">
+              <form method="post" action="<%= $paths->{post_report} %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
                 <%= csrf_field %>
                 <input type="hidden" name="command_id" value="<%= $post->{report_command_id} || q{} %>">
                 <%= $static->{report} %>

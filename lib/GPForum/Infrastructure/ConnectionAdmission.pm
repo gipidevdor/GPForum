@@ -14,9 +14,15 @@ our $VERSION = '0.001';
 const my $SINGLE_ACCEPT_CLIENTS => 250;
 const my $CLIENTS_PER_ACCEPT    => 64;
 const my $MAX_ACCEPT_BATCH      => 64;
+const my $BURST_CLIENTS         => 4096;
+const my $BURST_ACCEPT_BATCH    => 512;
 
 sub batch_size ( $, $clients ) {
     return 1 if $clients <= $SINGLE_ACCEPT_CLIENTS;
+
+    # Large cold bursts must enter before established keep-alive clients
+    # consume whole loop turns. Keep ordinary deployment budgets unchanged.
+    return $BURST_ACCEPT_BATCH if $clients > $BURST_CLIENTS;
     return min( $MAX_ACCEPT_BATCH,
         int( ( $clients + $CLIENTS_PER_ACCEPT - 1 ) / $CLIENTS_PER_ACCEPT ) );
 }
@@ -113,7 +119,8 @@ Version 0.001.
 =head1 DESCRIPTION
 
 At ordinary connection limits the server accepts one connection per turn.
-Larger limits use up to sixty-four accepts per turn, avoiding a long admission
+Larger limits use bounded batches, up to 64 accepts per turn below 4097 clients
+and 512 above that budget, avoiding a long admission
 queue while established keep-alive clients keep the loop busy. All accept,
 pause and resume operations use Mojolicious APIs. Re-registering the listener
 through IOLoop preserves its connection limit and graceful shutdown.

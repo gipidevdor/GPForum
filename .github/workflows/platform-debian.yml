@@ -81,7 +81,7 @@ jobs:
           # cpm installs in parallel; Carton supplies snapshot parsing, checks and bundles.
           /usr/bin/perl /usr/bin/cpanm -M https://cpan.metacpan.org/ --notest App::cpm Carton
 
-      - name: Install matching PostgreSQL 18 client
+      - name: Install PostgreSQL 18 test server and client
         run: |
           set -euo pipefail
           install -d /usr/share/postgresql-common/pgdg
@@ -90,7 +90,14 @@ jobs:
           printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main\n' \
             > /etc/apt/sources.list.d/pgdg.list
           apt-get update
-          apt-get install -y --no-install-recommends postgresql-client-18
+          # The shared socket belongs to the service container; tests create
+          # their own disposable clusters through Test::PostgreSQL.
+          apt-get install -y --no-install-recommends postgresql-common
+          sed -ri 's/^#?(create_main_cluster).*$/\1 = false/' \
+            /etc/postgresql-common/createcluster.conf
+          apt-get install -y --no-install-recommends \
+            postgresql-client-18 postgresql-18 postgresql-18-pgvector
+          printf '%s\n' /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -127,7 +134,13 @@ jobs:
         run: bin/gpforum os-preflight --json
 
       - name: Run tests
-        run: script/gpforum-carton exec prove -lr t
+        run: |
+          set -euo pipefail
+          # initdb refuses root. Keep disposable benchmark clusters enabled
+          # and give their owner a writable checkout and its own home.
+          useradd --create-home gpforum-ci
+          chown -R gpforum-ci:gpforum-ci "$GITHUB_WORKSPACE"
+          runuser -u gpforum-ci -- script/gpforum-carton exec prove -lr t
 
       - name: Run platform check
         run: bin/gpforum platform-check --with-db

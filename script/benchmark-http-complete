@@ -12,6 +12,7 @@ use List::Util   qw(max);
 use lib "$FindBin::Bin/lib", "$FindBin::Bin/../lib";
 use GPForum::Performance::HTTPComplete;
 use GPForum::Performance::HTTPCatalog qw(reads journeys);
+use GPForum::Performance::Support     qw(redact);
 our $VERSION = '0.001';
 const my $KEEP_EMPTY  => -1;
 const my $MAX_CLIENTS => 100;
@@ -107,4 +108,14 @@ if ( $o->{list} ) {
     exit 0;
 }
 validate( $o, \@names );
-exit GPForum::Performance::HTTPComplete->new( options => $o )->run;
+my $benchmark = GPForum::Performance::HTTPComplete->new( options => $o );
+my $status    = $benchmark->run;
+if ($status) {
+    for my $failure ( $benchmark->report->{failures}->@* ) {
+        print { \*STDERR } 'HTTP benchmark failed: ', redact($failure), "\n"
+          or croak 'cannot write benchmark failure';
+    }
+    print { \*STDERR } "Evidence: $o->{output}/http-complete.json\n"
+      or croak 'cannot write benchmark report path';
+}
+exit $status;

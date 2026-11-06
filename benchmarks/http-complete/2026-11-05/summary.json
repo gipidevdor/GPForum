@@ -1,0 +1,735 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-05",
+  "status": "completed_with_preserved_retry",
+  "hardware": {
+    "arch": "arm64",
+    "cpu_count": 10,
+    "cpu_model": "Apple M4",
+    "image": "Darwin",
+    "image_version": null,
+    "kernel": "27.2.0",
+    "label": "local-current-code-production-warmup",
+    "memory_bytes": 17179869184,
+    "name": "local",
+    "os": "Darwin"
+  },
+  "versions": {
+    "mojolicious": "9.51",
+    "perl": "v5.44.0",
+    "platform": "darwin-thread-multi-2level",
+    "postgres": "18.6 (Homebrew)"
+  },
+  "dataset": {
+    "categories": 8,
+    "posts": 4800,
+    "private_lists": "seeded members retain seeded inbox/feed/bookmark rows; writes use independent member identities",
+    "threads": 240,
+    "users": 103
+  },
+  "source": {
+    "captured_at": "20261105T215004Z",
+    "base_commit": "e116fcf152a6d0ef5c1e219d6949156be54271d4",
+    "working_tree_sha256": "72fc023801a22abfa7e809700ca161cbc0f0b5211a72e020566be9a2bc6785c6",
+    "dependency_lock_sha256": "81577047966405ddcaa874dae4f144282ea2dc315438f5ab754943fc08284657"
+  },
+  "phases": [
+    {
+      "name": "full-workers2",
+      "status": "ok",
+      "duration_seconds": 489.557691792
+    },
+    {
+      "name": "full-workers4",
+      "status": "ok",
+      "duration_seconds": 444.026983375
+    },
+    {
+      "name": "render",
+      "status": "fail",
+      "duration_seconds": 19.921642625000004
+    },
+    {
+      "name": "outbox",
+      "status": "ok",
+      "duration_seconds": 6.145599583000035
+    },
+    {
+      "name": "operations",
+      "status": "ok",
+      "duration_seconds": 314.4139715829999
+    },
+    {
+      "name": "operations-http",
+      "status": "ok",
+      "duration_seconds": 18.300082792000012
+    },
+    {
+      "name": "render-admitted",
+      "status": "ok",
+      "duration_seconds": 50.996667792
+    }
+  ],
+  "http": {
+    "2": {
+      "cells": 282,
+      "planned": 282,
+      "requests": 80756,
+      "invalid_responses": 0,
+      "duration_seconds": 487.580747999993,
+      "correctness": {
+        "created_replies": 370,
+        "created_threads": 190,
+        "post_delta": 560,
+        "status": "ok",
+        "thread_delta": 190,
+        "unique_write_identities": 1
+      },
+      "prefork_templates_verified_for_all_workers": true
+    },
+    "4": {
+      "cells": 282,
+      "planned": 282,
+      "requests": 123975,
+      "invalid_responses": 0,
+      "duration_seconds": 442.230016999994,
+      "correctness": {
+        "created_replies": 749,
+        "created_threads": 190,
+        "post_delta": 939,
+        "status": "ok",
+        "thread_delta": 190,
+        "unique_write_identities": 1
+      },
+      "prefork_templates_verified_for_all_workers": true
+    }
+  },
+  "coverage_union": {
+    "http": {
+      "total": 223,
+      "observed": 223,
+      "missing": []
+    },
+    "sql": {
+      "total": 358,
+      "observed": 344,
+      "missing": [
+        "community_like_post",
+        "community_react_post",
+        "community_unlike_post",
+        "community_unreact_post",
+        "ops_partition_horizon",
+        "ops_partition_registry",
+        "ops_replication_position",
+        "ops_replication_recovery",
+        "ops_replication_slots",
+        "ops_replication_standbys",
+        "ops_worker_aggregate",
+        "search_remove_document",
+        "search_tagged_thread_ranked",
+        "session_lookup"
+      ]
+    }
+  },
+  "outbox_comparison": [
+    {
+      "workers": 1,
+      "previous_messages_per_second": 1953.2547462187,
+      "current_messages_per_second": 2003.39798289545,
+      "delta_percent": 2.567163181035248,
+      "acknowledged": 3000,
+      "lost": 0,
+      "duplicates": 0
+    },
+    {
+      "workers": 2,
+      "previous_messages_per_second": 2978.27240057346,
+      "current_messages_per_second": 3013.36373779457,
+      "delta_percent": 1.1782447171170052,
+      "acknowledged": 3000,
+      "lost": 0,
+      "duplicates": 0
+    },
+    {
+      "workers": 4,
+      "previous_messages_per_second": 2957.89709746531,
+      "current_messages_per_second": 3049.55125259564,
+      "delta_percent": 3.0986255474834135,
+      "acknowledged": 3000,
+      "lost": 0,
+      "duplicates": 0
+    }
+  ],
+  "comparison_reference": "../2026-11-02/",
+  "render_recovery": "Original render attempt stopped at HTTP 429. Retry raises admission quotas only in the owned temporary database, retaining actual PostgreSQL counters and all other checks, as the HTTP capacity harness does.",
+  "comparison_method": "Median of three cell repetitions. p95 is the median of cell p95 values, not a pooled percentile. Existing historical observations only, no old revision rerun.",
+  "limitations": [
+    "Startup template warmup is now enabled; the November 2 complete HTTP harness disabled it.",
+    "Historical measurements were taken on another date; differences are observations, not a paired experiment isolating code changes.",
+    "Some pages now expose additional workflows and controls; response bytes are recorded because the generated HTML is not necessarily identical.",
+    "The previous four-worker run selected only four hot member pages; the current four-worker run executes the full workload.",
+    "Four-worker notifications already varied between about 272 and 617 requests/s in successful archived runs; the official reference alone cannot establish a proportional gain.",
+    "Generator, Hypnotoad and PostgreSQL share the local machine; no TLS, WAN, external services or browser rendering is measured.",
+    "Semantic inference is optional and disabled by the default empty model path; synthetic SQL vector fixtures in the diagnostic tier do not measure real model inference.",
+    "Operation diagnostics use varying fixtures and intentional exceptions and are not HTTP capacity comparisons."
+  ],
+  "single_client_2workers": {
+    "matched_scenarios": 71,
+    "lower_observed_p95": 60,
+    "higher_observed_p95": 11,
+    "largest_reductions": [
+      {
+        "workers": 2,
+        "scenario": "admin.jobs",
+        "clients": 1,
+        "current": {
+          "rps": 237.438325395694,
+          "p50_ms": 3.99400001333561,
+          "p95_ms": 4.46999999985565,
+          "p99_ms": 5.36199999623932,
+          "app_ms": 2.709,
+          "db_ms": 0.619,
+          "outside_ms": 1.28299999405444,
+          "bytes_per_request": 11596.0,
+          "rps_min": 221.309933500251,
+          "rps_max": 241.995397239824,
+          "p95_ms_min": 4.42300000577234,
+          "p95_ms_max": 6.23500000801869,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 104.284094903028,
+          "p50_ms": 8.91999999294057,
+          "p95_ms": 13.7359999935143,
+          "p99_ms": 15.6699999934062,
+          "app_ms": 5.93,
+          "db_ms": 1.163,
+          "outside_ms": 2.64300001361966,
+          "bytes_per_request": 11842.0,
+          "rps_min": 94.789604994359,
+          "rps_max": 108.393211546359,
+          "p95_ms_min": 12.784999969881,
+          "p95_ms_max": 14.6519999834709,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": 127.68412154939237,
+          "p50_ms": -55.224215061698146,
+          "p95_ms": -67.45777517496911,
+          "p99_ms": -65.78174857373578,
+          "app_ms": -54.31703204047218,
+          "db_ms": -46.775580395528806,
+          "outside_ms": -51.456678492508324,
+          "bytes_per_request": -2.0773517986826584
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "member.feed",
+        "clients": 1,
+        "current": {
+          "rps": 190.993874826459,
+          "p50_ms": 5.00499999907333,
+          "p95_ms": 5.58299999102019,
+          "p99_ms": 6.10700000834186,
+          "app_ms": 3.743,
+          "db_ms": 1.883,
+          "outside_ms": 1.26499999738578,
+          "bytes_per_request": 10225.0,
+          "rps_min": 189.937491572888,
+          "rps_max": 191.881862174417,
+          "p95_ms_min": 5.49500000488479,
+          "p95_ms_max": 5.70800001150928,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 74.9033372419026,
+          "p50_ms": 12.103000015486,
+          "p95_ms": 16.4920000243001,
+          "p99_ms": 27.6880000019446,
+          "app_ms": 8.624,
+          "db_ms": 3.826,
+          "outside_ms": 3.45299998673052,
+          "bytes_per_request": 10491.0,
+          "rps_min": 56.3559350678001,
+          "rps_max": 104.878969672589,
+          "p95_ms_min": 10.9079999965616,
+          "p95_ms_max": 37.9439999815077,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": 154.98713656727801,
+          "p50_ms": -58.6466166019223,
+          "p95_ms": -66.14722300027933,
+          "p99_ms": -77.9435134068443,
+          "app_ms": -56.597866419294995,
+          "db_ms": -50.78410872974386,
+          "outside_ms": -63.365189625049844,
+          "bytes_per_request": -2.5355066247259583
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "member.notifications",
+        "clients": 1,
+        "current": {
+          "rps": 212.243026755227,
+          "p50_ms": 4.46999999985565,
+          "p95_ms": 4.88400000904221,
+          "p99_ms": 5.2809999906458,
+          "app_ms": 3.191,
+          "db_ms": 0.649,
+          "outside_ms": 1.27799999649078,
+          "bytes_per_request": 12430.0,
+          "rps_min": 210.460297721221,
+          "rps_max": 217.962745804835,
+          "p95_ms_min": 4.82699999702163,
+          "p95_ms_max": 5.05500000144821,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 119.965785762728,
+          "p50_ms": 7.26399995619431,
+          "p95_ms": 12.2260000207461,
+          "p99_ms": 13.5390000068583,
+          "app_ms": 4.981,
+          "db_ms": 1.127,
+          "outside_ms": 2.25400000718236,
+          "bytes_per_request": 12676.0,
+          "rps_min": 101.288593487773,
+          "rps_max": 171.06971603442,
+          "p95_ms_min": 6.47000002209097,
+          "p95_ms_max": 13.8189999852329,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": 76.91963204826394,
+          "p50_ms": -38.46365601855629,
+          "p95_ms": -60.05234745006847,
+          "p99_ms": -60.99416509365048,
+          "app_ms": -35.936558923910866,
+          "db_ms": -42.41348713398403,
+          "outside_ms": -43.30079891666196,
+          "bytes_per_request": -1.9406752918901815
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "member.notification_summary",
+        "clients": 1,
+        "current": {
+          "rps": 341.335372241861,
+          "p50_ms": 2.76999999186955,
+          "p95_ms": 2.93599998985883,
+          "p99_ms": 3.43100000463892,
+          "app_ms": 1.701,
+          "db_ms": 0.487,
+          "outside_ms": 1.07000000929646,
+          "bytes_per_request": 18.0,
+          "rps_min": 341.085059799219,
+          "rps_max": 345.041750045303,
+          "p95_ms_min": 2.91899999137968,
+          "p95_ms_max": 2.99299998732749,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 169.575738458091,
+          "p50_ms": 5.52100001368672,
+          "p95_ms": 6.81400002213195,
+          "p99_ms": 7.25000002421439,
+          "app_ms": 3.274,
+          "db_ms": 1.081,
+          "outside_ms": 2.24499996788427,
+          "bytes_per_request": 18.0,
+          "rps_min": 168.806286350344,
+          "rps_max": 172.580422476475,
+          "p95_ms_min": 6.64799998048693,
+          "p95_ms_max": 6.86200003838167,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": 101.28785836083432,
+          "p50_ms": -49.827929994518406,
+          "p95_ms": -56.912239795675546,
+          "p99_ms": -52.675862163039056,
+          "app_ms": -48.04520464263897,
+          "db_ms": -54.94912118408881,
+          "outside_ms": -52.338528970900256,
+          "bytes_per_request": 0.0
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "member.avatar",
+        "clients": 1,
+        "current": {
+          "rps": 306.710833026697,
+          "p50_ms": 3.03100000019185,
+          "p95_ms": 3.4799999993993,
+          "p99_ms": 4.069000002346,
+          "app_ms": 1.8,
+          "db_ms": 0.23,
+          "outside_ms": 1.22799999528565,
+          "bytes_per_request": 8885.0,
+          "rps_min": 304.183434771551,
+          "rps_max": 312.1985332889,
+          "p95_ms_min": 3.29600000986829,
+          "p95_ms_max": 3.51000000955537,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 150.513325694196,
+          "p50_ms": 6.33900001412258,
+          "p95_ms": 7.86900002276525,
+          "p99_ms": 8.44599999254569,
+          "app_ms": 3.751,
+          "db_ms": 0.564,
+          "outside_ms": 2.56000000435114,
+          "bytes_per_request": 9131.0,
+          "rps_min": 148.904805169664,
+          "rps_max": 153.201294253925,
+          "p95_ms_min": 7.59200000902638,
+          "p95_ms_max": 8.1849999842234,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": 103.776530491296,
+          "p50_ms": -52.184887309684136,
+          "p95_ms": -55.775829338778024,
+          "p99_ms": -51.82334826027426,
+          "app_ms": -52.012796587576645,
+          "db_ms": -59.21985815602837,
+          "outside_ms": -52.03125026568506,
+          "bytes_per_request": -2.6941189354944717
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      }
+    ],
+    "largest_increases": [
+      {
+        "workers": 2,
+        "scenario": "moderator.transfers",
+        "clients": 1,
+        "current": {
+          "rps": 41.8612166711169,
+          "p50_ms": 23.7849999975879,
+          "p95_ms": 24.3379999883473,
+          "p99_ms": 24.7579999995651,
+          "app_ms": 22.32,
+          "db_ms": 20.33,
+          "outside_ms": 1.39099999625422,
+          "bytes_per_request": 14846.0,
+          "rps_min": 36.5666009443157,
+          "rps_max": 42.279168503988,
+          "p95_ms_min": 24.1390000010142,
+          "p95_ms_max": 35.3890000114916,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 260.737835909588,
+          "p50_ms": 3.66600003326312,
+          "p95_ms": 4.23800002317876,
+          "p99_ms": 5.09599997894838,
+          "app_ms": 2.219,
+          "db_ms": 0.441,
+          "outside_ms": 1.42900000771135,
+          "bytes_per_request": 9922.0,
+          "rps_min": 256.320215712906,
+          "rps_max": 262.116327241533,
+          "p95_ms_min": 4.22300002537668,
+          "p95_ms_max": 4.41899994621053,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": -83.94509315263609,
+          "p50_ms": 548.7997758258824,
+          "p95_ms": 474.28031749023705,
+          "p99_ms": 385.83202711618156,
+          "app_ms": 905.8584948174854,
+          "db_ms": 4509.977324263038,
+          "outside_ms": -2.659203026736845,
+          "bytes_per_request": 49.627091312235436
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "admin.integrations",
+        "clients": 1,
+        "current": {
+          "rps": 85.1680664028856,
+          "p50_ms": 11.4889999968,
+          "p95_ms": 13.3159999968484,
+          "p99_ms": 13.6590000038268,
+          "app_ms": 8.205,
+          "db_ms": 2.086,
+          "outside_ms": 3.26799999693595,
+          "bytes_per_request": 15048.0,
+          "rps_min": 84.7782370874218,
+          "rps_max": 86.6508326706499,
+          "p95_ms_min": 12.6750000054017,
+          "p95_ms_max": 13.8529999967432,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 210.764590696606,
+          "p50_ms": 4.50899999123067,
+          "p95_ms": 5.40399999590591,
+          "p99_ms": 6.08199997805059,
+          "app_ms": 3.024,
+          "db_ms": 1.045,
+          "outside_ms": 1.49899999291822,
+          "bytes_per_request": 8955.0,
+          "rps_min": 210.60346316753,
+          "rps_max": 211.846453680317,
+          "p95_ms_min": 5.1260000327602,
+          "p95_ms_max": 5.68800000473857,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": -59.59090370854354,
+          "p50_ms": 154.80150851950287,
+          "p95_ms": 146.4100667456819,
+          "p99_ms": 124.5807308964312,
+          "app_ms": 171.32936507936506,
+          "db_ms": 99.61722488038278,
+          "outside_ms": 118.01200883089264,
+          "bytes_per_request": 68.04020100502512
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "admin.registration",
+        "clients": 1,
+        "current": {
+          "rps": 130.499578486665,
+          "p50_ms": 7.5010000000475,
+          "p95_ms": 8.5630000103265,
+          "p99_ms": 9.17699999990873,
+          "app_ms": 4.587,
+          "db_ms": 1.082,
+          "outside_ms": 2.88000000310969,
+          "bytes_per_request": 9585.0,
+          "rps_min": 119.635112905021,
+          "rps_max": 135.845570754284,
+          "p95_ms_min": 8.55300000694115,
+          "p95_ms_max": 9.48399999469984,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 258.548251553503,
+          "p50_ms": 3.69500002125278,
+          "p95_ms": 4.38900000881404,
+          "p99_ms": 4.79400000767782,
+          "app_ms": 2.273,
+          "db_ms": 0.475,
+          "outside_ms": 1.41100003326312,
+          "bytes_per_request": 9831.0,
+          "rps_min": 253.676405301632,
+          "rps_max": 261.121831585677,
+          "p95_ms_min": 4.38399997074157,
+          "p95_ms_max": 4.4179999968037,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": -49.52602552809764,
+          "p50_ms": 103.00405837357225,
+          "p95_ms": 95.10138968170845,
+          "p99_ms": 91.42678317086623,
+          "app_ms": 101.80378354597445,
+          "db_ms": 127.78947368421055,
+          "outside_ms": 104.11055529526232,
+          "bytes_per_request": -2.5022886786695175
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "admin.plugins",
+        "clients": 1,
+        "current": {
+          "rps": 78.9398068180005,
+          "p50_ms": 12.2970000084024,
+          "p95_ms": 14.3729999981588,
+          "p99_ms": 15.1889999979176,
+          "app_ms": 8.901,
+          "db_ms": 0.783,
+          "outside_ms": 3.36500000554789,
+          "bytes_per_request": 47881.0,
+          "rps_min": 77.6048052890833,
+          "rps_max": 90.0454729640412,
+          "p95_ms_min": 11.9639999902574,
+          "p95_ms_max": 14.7049999941373,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 143.071955181845,
+          "p50_ms": 6.79600000148639,
+          "p95_ms": 7.67300004372373,
+          "p99_ms": 8.10499995714054,
+          "app_ms": 4.728,
+          "db_ms": 0.448,
+          "outside_ms": 2.0639999987781,
+          "bytes_per_request": 48145.0,
+          "rps_min": 134.562517074942,
+          "rps_max": 147.233555112215,
+          "p95_ms_min": 7.42799998261034,
+          "p95_ms_max": 8.61299998359755,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": -44.825100965687014,
+          "p50_ms": 80.94467342131924,
+          "p95_ms": 87.31917002809686,
+          "p99_ms": 87.40283871977105,
+          "app_ms": 88.26142131979695,
+          "db_ms": 74.77678571428572,
+          "outside_ms": 63.03294610174366,
+          "bytes_per_request": -0.5483435455395202
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      },
+      {
+        "workers": 2,
+        "scenario": "admin.user_roles",
+        "clients": 1,
+        "current": {
+          "rps": 100.647465143499,
+          "p50_ms": 9.68600000487641,
+          "p95_ms": 10.9249999950407,
+          "p99_ms": 12.272000007215,
+          "app_ms": 6.53,
+          "db_ms": 1.671,
+          "outside_ms": 3.13699999296106,
+          "bytes_per_request": 13030.0,
+          "rps_min": 77.5365100046471,
+          "rps_max": 105.438741145788,
+          "p95_ms_min": 10.5239999975311,
+          "p95_ms_max": 20.1319999905536,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "previous": {
+          "rps": 196.53045141725,
+          "p50_ms": 4.8149999929592,
+          "p95_ms": 6.32599997334182,
+          "p99_ms": 7.53400003304705,
+          "app_ms": 3.233,
+          "db_ms": 0.716,
+          "outside_ms": 1.54600002035499,
+          "bytes_per_request": 13276.0,
+          "rps_min": 155.958309227231,
+          "rps_max": 204.943650737648,
+          "p95_ms_min": 5.19900000654161,
+          "p95_ms_max": 8.26199998846278,
+          "repetitions": 3,
+          "requests": 300,
+          "invalid": 0,
+          "status": "ok"
+        },
+        "delta": {
+          "rps": -48.78785225511118,
+          "p50_ms": 101.16303258649842,
+          "p95_ms": 72.69996903381866,
+          "p99_ms": 62.88823936003774,
+          "app_ms": 101.97958552428084,
+          "db_ms": 133.37988826815646,
+          "outside_ms": 102.91073425993535,
+          "bytes_per_request": -1.8529677613739026
+        },
+        "observed_ranges_overlap": {
+          "rps": false,
+          "p95_ms": false
+        }
+      }
+    ]
+  }
+}

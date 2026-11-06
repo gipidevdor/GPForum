@@ -1,0 +1,40 @@
+{
+  "source": "/private/tmp/gpforum-throughput-after-jmfz1u2e",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/641-sql-function-migrations.t",
+    "t/694-render-work.t",
+    "t/715-post-reactions.t",
+    "t/771-reaction-forms.t",
+    "t/743-http-complete.t",
+    "t/integration/postgres-transfer-picker-work.t",
+    "t/integration/postgres-sql-function-catalogue.t",
+    "t/integration/postgres-sql-function-api-role.t",
+    "t/integration/postgres-gui-staff-features.t",
+    "t/integration/postgres-gui-workflows.t",
+    "t/integration/postgres-query-budget.t",
+    "t/integration/postgres-request-work-reuse.t",
+    "t/integration/postgres-sql-function-thread-page.t"
+  ],
+  "competing_load": [],
+  "started_at": "2026-11-05T22:50:50.105769+00:00",
+  "load_before": [
+    2.2646484375,
+    3.11865234375,
+    2.69140625
+  ],
+  "exit_code": 1,
+  "elapsed_seconds": 40.285331207999995,
+  "load_after": [
+    2.322265625,
+    3.0361328125,
+    2.6796875
+  ],
+  "finished_at": "2026-11-05T22:51:30.391723+00:00"
+}

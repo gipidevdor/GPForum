@@ -1,0 +1,37 @@
+[Unit]
+Description=GPForum encrypted Web Push dispatcher
+After=network-online.target postgresql.service gpforum.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gpforum
+Group=gpforum
+UMask=0027
+WorkingDirectory=/opt/gpforum
+# The mode, then the operator's settings. Every other setting keeps the
+# default GPForum::Config gives it: a value restated here would stay behind
+# when that default changes. Put an override in the env file.
+Environment=GPFORUM_ENV=production
+EnvironmentFile=/etc/gpforum/gpforum.env
+# Application logs have a stable destination independent of journal capture.
+Environment=GPFORUM_LOG_PATH=/var/log/gpforum/push.log
+# bin/gpforum finds the Perl and the dependencies this checkout installed.
+ExecStart=/opt/gpforum/bin/gpforum push --loop
+# Let the worker finish its current batch before forcing the process group.
+KillMode=mixed
+TimeoutStopSec=150
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/gpforum
+
+LogsDirectory=gpforum
+LogsDirectoryMode=0750
+
+[Install]
+WantedBy=multi-user.target

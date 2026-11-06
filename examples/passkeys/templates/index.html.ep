@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="<%= csrf_token %>">
+    <title>Good Phorum — prova registrazione passkey</title>
+    <link rel="stylesheet" href="/page.css">
+    <script type="module" src="/page.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <p>Good Phorum · esempio WebAuthn</p>
+      <h1>Prova la registrazione di una passkey</h1>
+      <p>Il dispositivo può chiedere Face ID, Touch ID o il PIN. Il server non riceve i dati biometrici.</p>
+      <p>Questa pagina usa un'identità dimostrativa temporanea. Verifica la risposta, senza salvare la chiave o abilitare il login del forum.</p>
+      <button id="register-passkey" type="button" disabled>Prova registrazione</button>
+      <button id="cancel-passkey" type="button" hidden>Annulla</button>
+      <p id="passkey-status" role="status" aria-live="polite"></p>
+      <noscript>Attiva JavaScript per usare l'API WebAuthn del browser.</noscript>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,686 @@
+{
+  "source": "/Users/gpicchiarelli/Documents/GPForum",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/641-sql-function-migrations.t",
+    "t/694-render-work.t",
+    "t/715-post-reactions.t",
+    "t/771-reaction-forms.t",
+    "t/743-http-complete.t",
+    "t/integration/postgres-transfer-picker-work.t",
+    "t/integration/postgres-sql-function-catalogue.t",
+    "t/integration/postgres-sql-function-api-role.t",
+    "t/integration/postgres-gui-staff-features.t",
+    "t/integration/postgres-gui-workflows.t",
+    "t/integration/postgres-query-budget.t",
+    "t/integration/postgres-request-work-reuse.t",
+    "t/integration/postgres-sql-function-thread-page.t",
+    "t/53-os-runtime-policy.t",
+    "t/424-os-runtime-policy-report.t",
+    "t/integration/postgres-schema-snapshot.t",
+    "t/integration/postgres-public-cache.t",
+    "t/integration/postgres-public-cache-revocation.t",
+    "t/performance/http.t"
+  ],
+  "competing_load": [
+    {
+      "at_seconds": 1.059133458,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 2.120314708,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 3.184543,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 4.247914167,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 5.306596417,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 6.366301583,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 7.4244502080000006,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 8.480014582999999,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 9.550461875,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 10.616289333,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 11.680477208,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 12.739569332999999,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 13.806365999999999,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 14.871405375,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 15.935102958,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 16.997989333,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 18.061583375,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 19.120057458,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 20.186314417000002,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 21.25377425,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 22.32031775,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 23.386742625,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 24.449145083,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 25.5150055,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 26.580047542000003,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 27.641228708,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 28.710113583000002,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 29.778057833000002,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 30.851633542000002,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 31.966809167000005,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 33.039506042,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 34.135768416999994,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 35.241009291999994,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 36.325770833,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 37.4120675,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 38.485167333,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 39.564085583,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 40.643406708,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 41.742727083,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 42.840540542,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 43.93344725,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 45.056073208,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 46.138779,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 47.227165792,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 48.324741917,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 49.399982208,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 50.50420225,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 51.599254208,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 52.689423458,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 53.769701708,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 54.857350583,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 55.948118083,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 57.048749957999995,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 58.137665917,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 59.225562542,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 60.31169825,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 61.388444791999994,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 62.4788855,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 63.572229916999994,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 64.662415917,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 65.738689417,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 66.827796375,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 67.909679833,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 68.986571667,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 70.064778875,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 71.204033333,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 72.295018458,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 73.379137,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 74.45508720800001,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 75.539072542,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 76.627705167,
+      "processes": [
+        {
+          "pid": 95339,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    }
+  ],
+  "started_at": "2026-11-05T23:47:39.600791+00:00",
+  "load_before": [
+    5.14208984375,
+    5.3330078125,
+    4.984375
+  ],
+  "exit_code": 1,
+  "elapsed_seconds": 77.385439625,
+  "load_after": [
+    18.36767578125,
+    8.69384765625,
+    6.24462890625
+  ],
+  "finished_at": "2026-11-05T23:48:56.986861+00:00"
+}

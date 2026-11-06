@@ -1,0 +1,17 @@
+%# ADR 0144: a member's picture, or, where they show none, the initial of
+%# their name on its tint. Takes "user_id" and "avatar_id" (the picture
+%# shown, or undef), "initial" and "tint", and optionally "size" (large for
+%# a profile's head) and "extra" (further classes). The picture is decoration
+%# beside the name it stands next to, so it says nothing to assistive
+%# technology, as the initial is hidden from it.
+% my $large = (stash('size') // q{}) eq 'large';
+% my $class = join q{ }, 'avatar', ($large ? 'avatar--large' : ()), 'avatar--' . (stash('tint') // q{}), (stash('extra') // ());
+% my $avatar_id = stash('avatar_id');
+% my $user_id = stash('user_id');
+% if ($avatar_id && $user_id) {
+%   my $side = $large ? 128 : 64;
+%   my $address = sub { my ($pixels) = @_; ui_path('avatar_image', user_id => $user_id, avatar_id => $avatar_id, size => $pixels) };
+<img class="<%= $class %> avatar--picture" src="<%= $address->($side) %>" srcset="<%= $address->(2 * $side) %> 2x" width="<%= $large ? 64 : 36 %>" height="<%= $large ? 64 : 36 %>" alt="" loading="lazy" decoding="async">
+% } else {
+<span class="<%= $class %>" aria-hidden="true"><%= stash('initial') %></span>
+% }

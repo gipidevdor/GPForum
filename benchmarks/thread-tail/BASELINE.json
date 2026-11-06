@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "kind": "local_authenticated_thread_reference",
+  "status": "confirmed_in_both_orders",
+  "application_commit": "2713b813f2553e16471dcaf93da154341e607e14",
+  "report": "2026-11-06/README.md",
+  "evidence": "2026-11-06/summary.json",
+  "workload": "member.thread",
+  "transport": "TCP loopback; generator, app and PostgreSQL on the same shared Apple M4 host",
+  "hardware": {
+    "cpu": "Apple M4",
+    "logical_cpus": 10,
+    "ram_gib": 16
+  },
+  "versions": {
+    "mojolicious": "9.51",
+    "perl": "v5.44.0",
+    "platform": "darwin-thread-multi-2level",
+    "postgres": "18.6 (Homebrew)"
+  },
+  "dataset": {
+    "categories": 8,
+    "posts": 4800,
+    "private_lists": "seeded members retain seeded inbox/feed/bookmark rows; writes use independent member identities",
+    "threads": 240,
+    "users": 103
+  },
+  "sessions": 100,
+  "workers": 8,
+  "worker_clients": 16,
+  "startup_template_precompilation": true,
+  "repetitions_per_order": 3,
+  "aggregation": "Median and observed range of individual repetition statistics. Combined rows use six cell statistics, not pooled request percentiles.",
+  "requests_per_second": {
+    "median": 491.75972387858553,
+    "min": 447.155253073471,
+    "max": 500.410149854071
+  },
+  "latency_p95_ms": {
+    "median": 302.5090000010095,
+    "min": 284.198000008473,
+    "max": 324.489999999059
+  },
+  "measured_responses_both_orders": 118259,
+  "invalid_responses": 0,
+  "accepted_cells_both_orders": 72,
+  "production_defaults_changed_by_this_campaign": false,
+  "pending_validations": [
+    "fixed offered arrival rate",
+    "representative mixed reads/writes and realtime",
+    "larger datasets"
+  ]
+}

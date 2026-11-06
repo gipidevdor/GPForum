@@ -1,0 +1,6 @@
+t/integration/clamav.t ................................... skipped: set GPFORUM_CLAMD_SOCKET to run against a real clamd
+t/integration/postgres-performance-control.t ............. skipped: requires an explicitly disposable cluster: GPFORUM_POSTGRES_CONTROLLED_TEST=1
+t/integration/postgres-query-catalogue.t ................. skipped: pg_stat_statements must be preloaded (PostgreSQL matrix enables it)
+All tests successful.
+Files=160, Tests=14298, 314 wallclock secs ( 0.95 usr  0.28 sys + 246.19 cusr 110.32 csys = 357.74 CPU)
+Result: PASS

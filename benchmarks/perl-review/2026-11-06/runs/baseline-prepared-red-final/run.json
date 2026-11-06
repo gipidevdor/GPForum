@@ -1,0 +1,17 @@
+{
+  "source": "/private/tmp/gpforum-perl-review-before-ni1e74uh",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/integration/postgres-prepared-queries.t"
+  ],
+  "started_at": "2026-11-06T00:43:37.057567+00:00",
+  "exit_code": 1,
+  "elapsed_seconds": 2.6394720830000002,
+  "finished_at": "2026-11-06T00:43:39.697256+00:00"
+}

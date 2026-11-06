@@ -1,0 +1,134 @@
+{
+   "architecture" : "darwin-thread-multi-2level",
+   "method" : "Three fixed-iteration batches after 100 warmups. Monotonic wall time. Units are complete service calls, not individual rows or HTTP requests. Home has 12 categories and 20 threads; search has 25 results with fresh function-row hashes. Readers and function calls are stubs without database, permissions-engine or network cost; real PostgreSQL/HTTP is measured separately.",
+   "perl" : "v5.44.0",
+   "platform" : "darwin",
+   "results" : [
+      {
+         "iterations" : 3000,
+         "name" : "home_hash_no_io",
+         "operations_per_second" : 2347.21581087373,
+         "repetition" : 1,
+         "seconds" : 1.27810999998474
+      },
+      {
+         "iterations" : 3000,
+         "name" : "home_hash_no_io",
+         "operations_per_second" : 2384.28849254603,
+         "repetition" : 2,
+         "seconds" : 1.25823700000183
+      },
+      {
+         "iterations" : 3000,
+         "name" : "home_hash_no_io",
+         "operations_per_second" : 2394.78320424424,
+         "repetition" : 3,
+         "seconds" : 1.25272300001234
+      },
+      {
+         "iterations" : 3000,
+         "name" : "home_mixed_function_rows_no_io",
+         "operations_per_second" : 2020.56259197027,
+         "repetition" : 1,
+         "seconds" : 1.48473500000546
+      },
+      {
+         "iterations" : 3000,
+         "name" : "home_mixed_function_rows_no_io",
+         "operations_per_second" : 2013.62958748146,
+         "repetition" : 2,
+         "seconds" : 1.48984699998982
+      },
+      {
+         "iterations" : 3000,
+         "name" : "home_mixed_function_rows_no_io",
+         "operations_per_second" : 2023.70432330201,
+         "repetition" : 3,
+         "seconds" : 1.48243000000366
+      },
+      {
+         "iterations" : 1500,
+         "name" : "ranked_search_one_term_stub_no_database",
+         "operations_per_second" : 614.295390902387,
+         "repetition" : 1,
+         "seconds" : 2.44182199999341
+      },
+      {
+         "iterations" : 1500,
+         "name" : "ranked_search_one_term_stub_no_database",
+         "operations_per_second" : 614.180192274947,
+         "repetition" : 2,
+         "seconds" : 2.44228000001749
+      },
+      {
+         "iterations" : 1500,
+         "name" : "ranked_search_one_term_stub_no_database",
+         "operations_per_second" : 611.032559479565,
+         "repetition" : 3,
+         "seconds" : 2.45486100000562
+      },
+      {
+         "iterations" : 1500,
+         "name" : "ranked_search_eight_terms_stub_no_database",
+         "operations_per_second" : 362.670210196211,
+         "repetition" : 1,
+         "seconds" : 4.13598900000216
+      },
+      {
+         "iterations" : 1500,
+         "name" : "ranked_search_eight_terms_stub_no_database",
+         "operations_per_second" : 363.3985908368,
+         "repetition" : 2,
+         "seconds" : 4.12769900000421
+      },
+      {
+         "iterations" : 1500,
+         "name" : "ranked_search_eight_terms_stub_no_database",
+         "operations_per_second" : 364.686129237607,
+         "repetition" : 3,
+         "seconds" : 4.113125999982
+      },
+      {
+         "iterations" : 5000,
+         "name" : "autocomplete_stub_no_database",
+         "operations_per_second" : 3954.18522825148,
+         "repetition" : 1,
+         "seconds" : 1.26448300000629
+      },
+      {
+         "iterations" : 5000,
+         "name" : "autocomplete_stub_no_database",
+         "operations_per_second" : 3956.73547165995,
+         "repetition" : 2,
+         "seconds" : 1.2636679999996
+      },
+      {
+         "iterations" : 5000,
+         "name" : "autocomplete_stub_no_database",
+         "operations_per_second" : 3957.22712347607,
+         "repetition" : 3,
+         "seconds" : 1.26351099999738
+      },
+      {
+         "iterations" : 50000,
+         "name" : "ranked_search_empty_stub_no_database",
+         "operations_per_second" : 62611.4483780308,
+         "repetition" : 1,
+         "seconds" : 0.798576000001049
+      },
+      {
+         "iterations" : 50000,
+         "name" : "ranked_search_empty_stub_no_database",
+         "operations_per_second" : 62480.6310032872,
+         "repetition" : 2,
+         "seconds" : 0.800248000014108
+      },
+      {
+         "iterations" : 50000,
+         "name" : "ranked_search_empty_stub_no_database",
+         "operations_per_second" : 62354.7912797609,
+         "repetition" : 3,
+         "seconds" : 0.801863000000594
+      }
+   ]
+}

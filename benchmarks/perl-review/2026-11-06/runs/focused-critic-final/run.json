@@ -1,0 +1,29 @@
+{
+  "source": "/private/tmp/gpforum-perl-review-after-87xw4en_",
+  "command": [
+    "script/perlcritic",
+    "lib/GPForum/Infrastructure/SqlFunction.pm",
+    "lib/GPForum/Infrastructure/PreparedQuery.pm",
+    "lib/GPForum/Infrastructure/CountedQuery.pm",
+    "lib/GPForum/Service/Operations/LocalCache.pm",
+    "lib/GPForum/Service/Operations/TieredCache.pm",
+    "lib/GPForum/Service/Operations/DbQueryStats.pm",
+    "lib/GPForum/Service/Forum/BodyRenderer.pm",
+    "t/40-local-cache.t",
+    "t/89-tiered-cache.t",
+    "t/703-sql-function-answers.t",
+    "t/723-forum-body-renderer-memo.t",
+    "t/502-prepared-query-guards.t",
+    "t/735-db-query-timing.t",
+    "t/56-db-query-stats.t",
+    "t/integration/postgres-prepared-queries.t",
+    "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm",
+    "script/lib/GPForum/Performance/Server.pm",
+    "t/performance/http.t",
+    "t/743-http-complete.t"
+  ],
+  "started_at": "2026-11-06T00:58:25.646647+00:00",
+  "exit_code": 2,
+  "elapsed_seconds": 4.879729667,
+  "finished_at": "2026-11-06T00:58:30.526620+00:00"
+}

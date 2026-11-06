@@ -1,0 +1,94 @@
+# Privacy Workflow Boundary
+
+`GPForum::Service::Privacy::Workflow` is the application boundary for privacy
+writes from HTTP controllers.
+
+Responsibilities:
+
+- validate required command fields before persistence;
+- request and complete member export bundles;
+- create member deletion requests;
+- approve deletion requests, create legal holds, and complete erasure jobs;
+- complete an incomplete legal-hold block without a second event, and skip
+  request status and job `last_error` writes when they already match;
+- complete the deletion request on an already-done erasure retry without a
+  second action, and skip the request restamp when already completed;
+- create the erasure job before the approval action and reuse it on unique
+  conflict without a second action or event;
+- leave transaction, event, audit, and outbox ownership inside existing
+  deletion, export, and hold stores;
+- leave deletion-request/job accessors on `Privacy::Record`, anonymized
+  user identity on `Privacy::Erasure`, approval/completion replay on
+  `Privacy::Completion`, and event/audit hashes (including retention-hold
+  created envelopes) on `Privacy::Event`;
+- return a normalized result hash.
+
+The normalized contract is:
+
+```perl
+{
+    ok     => 0 | 1,
+    status => 'ok' | 'invalid' | 'not_found' | 'conflict' | 'failed',
+    error  => $message_or_undef,
+    errors => $field_errors_or_undef,
+    stored => $store_result_or_undef,
+}
+```
+
+`conflict` maps store results that return `ok => 0`, including an active
+retention hold during approval or erasure.
+
+Controllers use this contract to map workflow outcomes to redirects, SSR form
+errors, or JSON responses. The workflow never performs HTTP rendering and never
+duplicates persistence logic owned by stores.
+
+## Unpublished composer drafts
+
+Draft source, title, target and account identifiers are private personal data
+used to restore unpublished work. Member exports include the requester's
+unexpired drafts under `drafts`, with a manifest count; internal save-retry
+bookkeeping is excluded. Erasure deletes every owned draft through the versioned
+`privacy_revoke_user` operation with source `ForumDraft`, within the existing
+deletion/retention-hold workflow. Drafts are removed rather than anonymized as
+published conversation content.
+
+Drafts expire 30 days after their last stored save, including unchanged content
+saved at the current revision. An exact retry of a previous save does not renew
+expiry. List/resume/export omit
+expired drafts immediately, and the hourly `forum_drafts` scheduled job deletes
+them in bounded batches, 100 by default. Each owner can keep at most 100 live
+drafts and can delete one manually using its current revision. Backup retention
+remains an operator policy separate from application deletion. The complete
+contract is in [composer-drafts.md](composer-drafts.md) and
+[ADR 0128](../adr/0128-private-composer-drafts-and-canonical-preview.md).
+
+## Ignore and block lists
+
+The members a member ignores or blocks are private to them. Member exports
+include the requester's own list under `member_relations` (username, kind and
+times), with a manifest count, and never who listed the requester. Erasure
+deletes the erased member's list and removes them from every other member's
+list through `privacy_revoke_user` with source `MemberRelation`. The contract
+is in [ADR 0130](../adr/0130-members-ignore-and-block-each-other.md).
+
+## Direct messages
+
+Member exports include the requester's conversations under `direct_messages`
+(the conversation id, the other member's username, when it started) with the
+messages the requester wrote, and a manifest count; never the other member's
+messages. Erasure deletes the messages the erased member wrote and their side
+of every conversation through `privacy_revoke_user` with source
+`DirectMessage`; the other member keeps their own messages, and a
+conversation nobody is left in is deleted. The contract is in
+[ADR 0139](../adr/0139-direct-messages.md).
+
+HTTP errors go through `GPForum::Web::Guard`, which renders existing
+`ErrorPayload` contracts via `Responder`. Page limits, the `privacy_http`
+write rate-limit hash, permission-target hashes, catalog `view` action,
+review write-success statuses, and blocked-hold payloads live on
+`Web::PrivacyAccess`.
+
+Coverage lives in `t/101-privacy-workflow.t`, `t/119-privacy-erasure.t`,
+`t/125-privacy-completion.t`, `t/128-privacy-event.t`, and
+`t/136-web-privacy-access.t`. HTTP route ownership is covered by
+`t/100-privacy-controllers.t`.

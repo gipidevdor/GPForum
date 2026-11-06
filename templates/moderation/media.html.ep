@@ -1,0 +1,43 @@
+% layout 'default';
+% title t('media.review_queue');
+<section aria-labelledby="media-review-heading">
+  <h1 id="media-review-heading"><%= t('media.review_queue') %></h1>
+  <p><%= t('media.review_intro') %></p>
+  <a href="<%= ui_path('moderation_review') %>"><%= t('moderation.review_queue') %></a>
+  % if (!@{$uploads}) {
+    <p><%= t('media.review_empty') %></p>
+  % }
+  <ol class="ui-card-list">
+    % for my $file (@{$uploads}) {
+      <li class="ui-card-list__item">
+        <article>
+          <h2><%= $file->{original_filename} %></h2>
+          <p><%= $file->{author_username} %> · <%= $file->{media_type} %> · <%= sprintf '%.1f MiB', $file->{byte_size} / (1024 * 1024) %></p>
+          <p><%= t($file->{source_kind} eq 'original' ? 'media.source_original' : 'media.source_authorized') %></p>
+          % if ($file->{source_url}) {
+            <a href="<%= $file->{source_url} %>" target="_blank" rel="noopener noreferrer"><%= $file->{source_url} %></a>
+          % }
+          % if ($file->{scan_status} eq 'clean') {
+            % my $preview = ui_path('moderation_media_preview', attachment_id => $file->{attachment_id});
+            <%= include 'components/attachment_media', attachment => $file, media_url => $preview %>
+            <a href="<%= $preview %>"><%= t('media.preview') %></a>
+          % } else {
+            <p><%= t('media.awaiting_scan') %></p>
+          % }
+          <form method="post" action="<%= ui_path('moderation_media_decide', attachment_id => $file->{attachment_id}) %>">
+            <%= csrf_field %>
+            <label for="reason-<%= $file->{attachment_id} %>"><%= t('media.decision_reason') %></label>
+            <textarea id="reason-<%= $file->{attachment_id} %>" name="reason" maxlength="500" required></textarea>
+            % if ($file->{scan_status} eq 'clean') {
+              <button type="submit" name="decision" value="approved"><%= ui_icon('check') %><%= t('moderation.review_approve') %></button>
+            % }
+            <button type="submit" name="decision" value="rejected" class="button--danger"><%= ui_icon('close') %><%= t('moderation.review_reject') %></button>
+          </form>
+        </article>
+      </li>
+    % }
+  </ol>
+  % if ($next) {
+    <a href="<%= $next %>"><%= t('media.next') %></a>
+  % }
+</section>

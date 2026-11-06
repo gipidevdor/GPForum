@@ -1,0 +1,40 @@
+--- a/script/lib/GPForum/Performance/Server.pm
++++ b/script/lib/GPForum/Performance/Server.pm
+@@ -142,7 +142,7 @@
+ sub _await_workers( $self, $until ) {
+     my $all;
+     while ( monotonic() < $until ) {
+-        probe_url( $self->{base} . '/health/live', { timeout => 1 } );
++        _probe_workers( $self, $until );
+         my $observed;
+         try { $self->telemetry; $observed = 1 } catch ($error) {
+             $observed = 0
+@@ -154,6 +154,28 @@
+         croak
+ 'all configured workers did not produce serving reactor telemetry before startup deadline';
+     }
++    return undef;
++}
++
++# Sequential health checks can keep reaching the same few idle TCP workers.
++# Issue a small concurrent burst, then require the same per-PID telemetry as
++# before. These requests and connections finish before measured cells begin.
++# Dependencies load only when an actual application server is being started.
++sub _probe_workers( $self, $until ) {
++    require Mojo::Promise;
++    require Mojo::UserAgent;
++    my $timeout = min( 1, $until - monotonic() );
++    return undef if $timeout <= 0;
++    my $ua = Mojo::UserAgent->new(
++        max_connections => $self->{workers} * 2,
++        max_redirects   => 0,
++        request_timeout => $timeout,
++    );
++    my @requests = map {
++        $ua->get_p( $self->{base} . '/health/live', { Connection => 'close' } )
++          ->catch( sub { return undef; } )
++    } 1 .. $self->{workers} * 2;
++    Mojo::Promise->all(@requests)->wait;
+     return undef;
+ }
+ 

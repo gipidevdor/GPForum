@@ -1,0 +1,5880 @@
+{
+   "baseline" : {
+      "commit" : "4a704a82e610749da755f94fba7f425199c59067",
+      "path" : "/home/runner/work/_temp/performance-history/benchmarks/results/2026-10-16/4a704a82e610749da755f94fba7f425199c59067/38956584980-1",
+      "reason" : "Compatible baseline."
+   },
+   "commit" : "26c849bd895a7353e2825989e1c1592669fc6320",
+   "comparison_signature" : "650210d2503733e3d697c76cc65806e9f7be0a0efe29390535264afbbd72d707",
+   "configuration" : {
+      "backlog" : 1024,
+      "cache" : "local-only; 4096 entries; SSR TTL 3600s; miss harness TTL -1s",
+      "cache_miss_policy" : "SSR store expires immediately; category model cache remains warm",
+      "clients_per_worker" : 2048,
+      "database_settings" : {
+         "effective_cache_size" : "4GB",
+         "effective_io_concurrency" : "1",
+         "jit" : "on",
+         "max_connections" : "100",
+         "random_page_cost" : "4",
+         "shared_buffers" : "128MB",
+         "synchronous_commit" : "on",
+         "work_mem" : "4MB"
+      },
+      "default_ev_backend" : 4,
+      "default_reactor" : "Mojo::Reactor::EV",
+      "fixed_workers" : null,
+      "harness_sha256" : {
+         "benchmarks/hypnotoad-app.pl" : "076b27d9062ce65ac88113864181b27bcededead02f49d136a0bf00f47727f12",
+         "benchmarks/wrk-metrics.lua" : "c66846fe8ad3a8c2b8d6b45816a8ff52cfd3267bb678b9b25e6e82d6b231af03",
+         "script/lib/GPForum/Performance/Budget.pm" : "3e9d4f074d1f76e120d1f3fccc9ae1e5b4f64bbb1b2687cc5c7eca4e6201fd60",
+         "script/lib/GPForum/Performance/CommandError.pm" : "52d4df71626c4ae94eb31b6485a03e737da62a4ecfd8937be9a0df3bd7f01433",
+         "script/lib/GPForum/Performance/Compare.pm" : "f9a8d9b5d719956d1ba5cef8b771d76640c4bbbcc30917ec47cc7311ea629991",
+         "script/lib/GPForum/Performance/Evidence.pm" : "dd2b0865398b3f53ed5bb258d4deca4108c84edbb9b9ba2eb2f654f89c24bed2",
+         "script/lib/GPForum/Performance/Extreme.pm" : "6967bd5c2fc2998783f3aab721a2d0aee597572a7d042941d108c78b17c94493",
+         "script/lib/GPForum/Performance/ExtremeContainer.pm" : "599387f39293a086909ef3466acb0fbae8ef177ad19c876e58ced71fe2eb502d",
+         "script/lib/GPForum/Performance/ExtremeDatabase.pm" : "b00625d4755d36dfe77c25afa5d0473bb8c9d9a33d0a8ce98b15beb3b6af76f8",
+         "script/lib/GPForum/Performance/ExtremeLoad.pm" : "a9bfb105ebc81e9e9569d7c5ad61652b89e45f125cf5043406ea4d9a0fd6c8f5",
+         "script/lib/GPForum/Performance/ExtremePlan.pm" : "8ba352f2330a6fc79ca69a68a5ffcc4d6de9f1dd7ee15368d9809792efbd096a",
+         "script/lib/GPForum/Performance/ExtremeReport.pm" : "4aaf6d15013dfba6b0d00e54a6253c7eb4ff28b4b3a55d95131d4cc6799a8c7a",
+         "script/lib/GPForum/Performance/ExtremeState.pm" : "a0bdc0dc088d338e20069c82f170668d3f51a5334ff58763b28c116d46b8a41a",
+         "script/lib/GPForum/Performance/ExtremeWorkload.pm" : "8efc82a576fecc353e9c9db52b24efdf4e6b4f6f8213f435c57bc0f0ee2224de",
+         "script/lib/GPForum/Performance/HTTP.pm" : "0c9bac68d5408df8c42da196a9e4ebf81fdac16fd34758e4f8d91777bc12004a",
+         "script/lib/GPForum/Performance/Hotpaths.pm" : "3ca99933a338e6c49ebb69631b96f1675999728e2649f4fc7e27bb82a275906f",
+         "script/lib/GPForum/Performance/Metadata.pm" : "e352c9776d2965dc7507c3cd679edf1c1608e5ac15ed4f2b7658d968278a89f3",
+         "script/lib/GPForum/Performance/Publish.pm" : "aa5110cd7580402a001aa9acfee12d35cf9b4813aa3e2c43e74479fe18774eb0",
+         "script/lib/GPForum/Performance/Report.pm" : "f645daaf7cb37572d2ceae3bf298260f19c3ddb33658e47cbe32004c89507ea9",
+         "script/lib/GPForum/Performance/Resources.pm" : "32c7647e7873266c538ea6d8f72cae137755cd61540acca55ce21d6014a3b4a8",
+         "script/lib/GPForum/Performance/Schema.pm" : "36d84e1fd192bcc133ccbc4476a9e4c3618e23e7d5380e11a6886af8d43bd5dd",
+         "script/lib/GPForum/Performance/Server.pm" : "f200d988680090647d0309ff77f42eacb2d766a6ec7b4f12274d9f2a9a71c302",
+         "script/lib/GPForum/Performance/Support.pm" : "1f63fb47e951f3b479bfeca01a9b7b6144871121bc1ef86cd1f5f2297cdbb663",
+         "script/lib/GPForum/Performance/WorkflowStatus.pm" : "9c0f1e57eea538db7d9bafb36d0c5c0b8f225fdf66bb7abad95774685fe0f692",
+         "script/performance-evidence" : "8ee0bcda6208e2d4ff47bacb8c9c47e4d66601ca477110bd8364b8a5db35c5f2",
+         "script/performance-hotpaths" : "e05854fa1bf68cd4ee278203986ff369c344550243a575c75f9580b2eabee152",
+         "script/performance-http" : "997d319a3144b409c0cf8f6cf7d2c2560fef64461c3135d5c63a3c6b83c4976e",
+         "script/performance-outbox.pl" : "ce7987b939d90c8392992b5fb600ec7f84ea0bb342161aec86103520fe63e4e4",
+         "t/lib/GPForum/Test/OutboxTransport.pm" : "c0df6d59ffb0966cb89af15f1a7a7c17b9cda8ddeec4ea875c92fc5d978d84ba",
+         "t/lib/GPForum/Test/PostgresHarness.pm" : "c608f802f29fbd9628e9b32d57dd71ab48e50c994fd4f6c30abfdf0333b28c87"
+      },
+      "hotpaths" : {
+         "analyze" : true,
+         "deadline_seconds" : 300,
+         "outbox" : {
+            "batch_size" : 100,
+            "database" : "fresh owned",
+            "messages" : 3000,
+            "repetitions" : 3,
+            "transport" : "recording no-op",
+            "workers" : [
+               1,
+               2
+            ]
+         },
+         "plan_cli_profile_label" : "medium",
+         "plan_repetitions" : 3,
+         "plans" : [
+            "readers",
+            "functions"
+         ],
+         "profiling" : "configured NYTProf deep only",
+         "sql_service_comparison" : {
+            "enabled" : false,
+            "proxy_delay_ms" : 0.5,
+            "read_iterations" : 30,
+            "warmup" : 5,
+            "write_iterations" : 10
+         }
+      },
+      "http_concurrency" : [
+         1,
+         10,
+         50,
+         100
+      ],
+      "http_duration_seconds" : 2,
+      "http_repetitions" : 3,
+      "http_scenarios" : [
+         "health_live",
+         "home",
+         "categories",
+         "category",
+         "thread",
+         "search",
+         "cache_hit",
+         "cache_miss"
+      ],
+      "mojo_requests" : "at least 100 total; at least 10 per client",
+      "read_rate_limit" : 100000000,
+      "wrk_binary_sha256" : "511730eb9a7223c9dd5597008704688d538f53fb611fdabd6bd3cffc99903e13",
+      "wrk_timeout_seconds" : 3,
+      "wrk_upstream_version_verified" : false
+   },
+   "dataset" : {
+      "counts" : {
+         "bookmarks" : 25,
+         "categories" : 8,
+         "feed_items" : 240,
+         "moderation_actions" : 25,
+         "notifications" : 75,
+         "permissions" : 6,
+         "posts" : 4800,
+         "posts_per_thread" : 20,
+         "read_states" : 75,
+         "reports" : 50,
+         "role_bindings" : 25,
+         "roles" : 3,
+         "sessions" : 25,
+         "subscriptions" : 25,
+         "threads" : 240,
+         "users" : 25
+      },
+      "implementation_sha256" : {
+         "lib/GPForum/Benchmark/SeedDataset.pm" : "8c3d32ab10783f871b4e5c4122a16a01cea73b686dde249c1af050a2559ed0cb",
+         "lib/GPForum/Command/PerformanceSeed.pm" : "106fdee0ce1639d8b80ec244444ef79168a4bb8b72bc428503b5e8233552c101"
+      },
+      "mode" : "main",
+      "profile" : "custom",
+      "seed_version" : "SeedDataset-v1",
+      "signature" : "2e1f34e5c38f1431f3e9e6df3fddd3d08e137a353c3cbcf2a4e85e3616d370e0"
+   },
+   "date" : "2026-10-16",
+   "kind" : "summary",
+   "limitations" : [
+      "Shared runners and a colocated load generator give comparative CI evidence, not production capacity.",
+      "Configured wrk latency budget: 3 seconds.",
+      "Shared runner and load generator share the host; values are comparative evidence, not production capacity.",
+      "wrk uses closed-loop fixed connections and corrected latency histograms; in-flight concurrency is not measured.",
+      "RSS is end-of-sample manager+workers residency, not peak; PostgreSQL and generator resources are separate.",
+      "Cache hits/misses verified by probes; warmed worker-local SSR cache; cache miss uses harness-only expiry policy.",
+      "Only anonymous GETs; migrations, seed and rate-limit accounting write only the dedicated disposable database."
+   ],
+   "measurements" : [
+      {
+         "attempted" : 3,
+         "cache_mode" : "miss",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 3.98,
+               "cpu_percent" : 0.441,
+               "duration_seconds" : 0.038,
+               "p50_ms" : -3.613,
+               "p95_ms" : -4.209,
+               "p99_ms" : -4.296,
+               "requests_per_second" : 3.909,
+               "rss_bytes" : -0.034
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 2,
+            "cpu_percent" : 0.00999999999999091,
+            "duration_seconds" : 1.00000000013978e-06,
+            "http_errors" : 0,
+            "p50_ms" : 0.0269999999999992,
+            "p95_ms" : 0.0660000000000007,
+            "p99_ms" : 0.137,
+            "requests_per_second" : 1.06195700000001,
+            "rss_bytes" : 229376,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 418,
+            "cpu_percent" : 99.989,
+            "duration_seconds" : 2.001846,
+            "http_errors" : 0,
+            "p50_ms" : 4.749,
+            "p95_ms" : 4.961,
+            "p99_ms" : 5.592,
+            "requests_per_second" : 208.744497,
+            "rss_bytes" : 394219520,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               418,
+               420,
+               414
+            ],
+            "cpu_percent" : [
+               99.999,
+               99.971,
+               99.989
+            ],
+            "duration_seconds" : [
+               2.002448,
+               2.001845,
+               2.001846
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               4.749,
+               4.722,
+               4.779
+            ],
+            "p95_ms" : [
+               4.961,
+               4.895,
+               5.03
+            ],
+            "p99_ms" : [
+               5.159,
+               5.592,
+               5.729
+            ],
+            "requests_per_second" : [
+               208.744497,
+               209.806454,
+               206.809115
+            ],
+            "rss_bytes" : [
+               393990144,
+               394596352,
+               394219520
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "miss",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 3.346,
+               "cpu_percent" : 0.045,
+               "duration_seconds" : -0.101,
+               "p50_ms" : -3.261,
+               "p95_ms" : -14.803,
+               "p99_ms" : -18.551,
+               "requests_per_second" : 3.438,
+               "rss_bytes" : -0.024
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 2,
+            "cpu_percent" : 0.177999999999997,
+            "duration_seconds" : 0.000331000000000081,
+            "http_errors" : 0,
+            "p50_ms" : 0.00200000000000244,
+            "p95_ms" : 0.329999999999998,
+            "p99_ms" : 0.212000000000003,
+            "requests_per_second" : 1.17634799999996,
+            "rss_bytes" : 290816,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 803,
+            "cpu_percent" : 200.351,
+            "duration_seconds" : 2.00242,
+            "http_errors" : 0,
+            "p50_ms" : 24.531,
+            "p95_ms" : 26.314,
+            "p99_ms" : 34.465,
+            "requests_per_second" : 400.837216,
+            "rss_bytes" : 394334208,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               805,
+               796,
+               803
+            ],
+            "cpu_percent" : [
+               200.822,
+               200.173,
+               200.351
+            ],
+            "duration_seconds" : [
+               2.00242,
+               2.002089,
+               2.003307
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               24.482,
+               24.531,
+               24.533
+            ],
+            "p95_ms" : [
+               25.984,
+               30.768,
+               26.314
+            ],
+            "p99_ms" : [
+               34.465,
+               37.024,
+               34.253
+            ],
+            "requests_per_second" : [
+               402.013564,
+               397.584723,
+               400.837216
+            ],
+            "rss_bytes" : [
+               394043392,
+               394657792,
+               394334208
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "miss",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : 1.691,
+               "cpu_percent" : -0.004,
+               "duration_seconds" : -0.047,
+               "p50_ms" : -1.644,
+               "p95_ms" : 89.357,
+               "p99_ms" : 157.868,
+               "requests_per_second" : 1.697,
+               "rss_bytes" : -0.065
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "cpu_percent" : 0.109999999999985,
+            "duration_seconds" : 0.000483000000000011,
+            "http_errors" : 0,
+            "p50_ms" : 0.143000000000001,
+            "p95_ms" : 11.129,
+            "p99_ms" : 2.95699999999999,
+            "requests_per_second" : 0.094237000000021,
+            "rss_bytes" : 241664,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 782,
+            "cpu_percent" : 201.326,
+            "duration_seconds" : 2.002255,
+            "http_errors" : 0,
+            "p50_ms" : 122.663,
+            "p95_ms" : 308.445,
+            "p99_ms" : 603.158,
+            "requests_per_second" : 390.559644,
+            "rss_bytes" : 396132352,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               782,
+               782,
+               774
+            ],
+            "cpu_percent" : [
+               201.825,
+               201.326,
+               201.216
+            ],
+            "duration_seconds" : [
+               2.002255,
+               2.001772,
+               2.003147
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               122.806,
+               122.379,
+               122.663
+            ],
+            "p95_ms" : [
+               308.445,
+               280.279,
+               319.574
+            ],
+            "p99_ms" : [
+               603.158,
+               567.559,
+               606.115
+            ],
+            "requests_per_second" : [
+               390.559644,
+               390.653881,
+               386.392012
+            ],
+            "rss_bytes" : [
+               395890688,
+               396480512,
+               396132352
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 5.87,
+               "cpu_percent" : -0.389,
+               "duration_seconds" : 4.952,
+               "p50_ms" : -1.084,
+               "p95_ms" : -1.12,
+               "p99_ms" : -1.679,
+               "requests_per_second" : 1.369,
+               "rss_bytes" : 0.03
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 18,
+            "cpu_percent" : 0.0720000000000027,
+            "duration_seconds" : 0.000218000000000274,
+            "http_errors" : 0,
+            "p50_ms" : 0.003,
+            "p95_ms" : 0.014,
+            "p99_ms" : 0.036,
+            "requests_per_second" : 8.69713299999989,
+            "rss_bytes" : 32768,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 2525,
+            "cpu_percent" : 99.53,
+            "duration_seconds" : 2.099786,
+            "http_errors" : 0,
+            "p50_ms" : 0.821,
+            "p95_ms" : 0.883,
+            "p99_ms" : 0.937,
+            "requests_per_second" : 1202.378662,
+            "rss_bytes" : 394223616,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               2525,
+               2543,
+               2313
+            ],
+            "cpu_percent" : [
+               99.53,
+               99.458,
+               99.981
+            ],
+            "duration_seconds" : [
+               2.100004,
+               2.099786,
+               2.000315
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               0.818,
+               0.821,
+               0.868
+            ],
+            "p95_ms" : [
+               0.883,
+               0.865,
+               0.897
+            ],
+            "p99_ms" : [
+               1.117,
+               0.901,
+               0.937
+            ],
+            "requests_per_second" : [
+               1202.378662,
+               1211.075795,
+               1156.31788
+            ],
+            "rss_bytes" : [
+               394170368,
+               394256384,
+               394223616
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : -0.632,
+               "cpu_percent" : 0.325,
+               "duration_seconds" : 0.03,
+               "p50_ms" : -2.923,
+               "p95_ms" : -15.661,
+               "p99_ms" : 3.458,
+               "requests_per_second" : -0.637,
+               "rss_bytes" : 0.03
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 17,
+            "cpu_percent" : 0.0169999999999959,
+            "duration_seconds" : 5.50000000001383e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0.0289999999999999,
+            "p95_ms" : 0.00300000000000011,
+            "p99_ms" : 0.169,
+            "requests_per_second" : 9.30468999999994,
+            "rss_bytes" : 32768,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4563,
+            "cpu_percent" : 199.402,
+            "duration_seconds" : 2.001635,
+            "http_errors" : 0,
+            "p50_ms" : 4.351,
+            "p95_ms" : 4.529,
+            "p99_ms" : 6.074,
+            "requests_per_second" : 2279.57376,
+            "rss_bytes" : 394223616,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4563,
+               4445,
+               4580
+            ],
+            "cpu_percent" : [
+               199.385,
+               199.402,
+               199.887
+            ],
+            "duration_seconds" : [
+               2.00169,
+               2.001635,
+               2.00098
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               4.351,
+               4.439,
+               4.322
+            ],
+            "p95_ms" : [
+               4.529,
+               4.689,
+               4.526
+            ],
+            "p99_ms" : [
+               5.905,
+               6.406,
+               6.074
+            ],
+            "requests_per_second" : [
+               2279.57376,
+               2220.68459,
+               2288.87845
+            ],
+            "rss_bytes" : [
+               394170368,
+               394256384,
+               394223616
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -3.987,
+               "cpu_percent" : 0.043,
+               "duration_seconds" : -0.124,
+               "p50_ms" : 4.328,
+               "p95_ms" : 1.353,
+               "p99_ms" : 90.041,
+               "requests_per_second" : -3.895,
+               "rss_bytes" : 0.024
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 10,
+            "cpu_percent" : 0.0519999999999925,
+            "duration_seconds" : 0.000156000000000045,
+            "http_errors" : 0,
+            "p50_ms" : 0.0440000000000005,
+            "p95_ms" : 0.213000000000001,
+            "p99_ms" : 3.045,
+            "requests_per_second" : 3.90290300000015,
+            "rss_bytes" : 36864,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4479,
+            "cpu_percent" : 200.336,
+            "duration_seconds" : 2.001791,
+            "http_errors" : 0,
+            "p50_ms" : 22.105,
+            "p95_ms" : 22.77,
+            "p99_ms" : 56.56,
+            "requests_per_second" : 2236.403699,
+            "rss_bytes" : 394887168,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4479,
+               4469,
+               4551
+            ],
+            "cpu_percent" : [
+               200.336,
+               200.388,
+               199.886
+            ],
+            "duration_seconds" : [
+               2.002769,
+               2.001791,
+               2.001635
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               22.149,
+               22.105,
+               21.769
+            ],
+            "p95_ms" : [
+               22.983,
+               22.77,
+               22.342
+            ],
+            "p99_ms" : [
+               59.855,
+               56.56,
+               53.515
+            ],
+            "requests_per_second" : [
+               2236.403699,
+               2232.500796,
+               2273.641298
+            ],
+            "rss_bytes" : [
+               394821632,
+               394924032,
+               394887168
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -3.958,
+               "cpu_percent" : -0.412,
+               "duration_seconds" : -0.046,
+               "p50_ms" : 4.833,
+               "p95_ms" : 141.628,
+               "p99_ms" : 437.017,
+               "requests_per_second" : -3.98,
+               "rss_bytes" : 0.012
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 37,
+            "cpu_percent" : 0.165999999999997,
+            "duration_seconds" : 0.00070300000000012,
+            "http_errors" : 0,
+            "p50_ms" : 0.214999999999996,
+            "p95_ms" : 7.875,
+            "p99_ms" : 8.96799999999996,
+            "requests_per_second" : 18.1968930000003,
+            "rss_bytes" : 40960,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4368,
+            "cpu_percent" : 199.394,
+            "duration_seconds" : 2.003755,
+            "http_errors" : 0,
+            "p50_ms" : 45.139,
+            "p95_ms" : 112.06,
+            "p99_ms" : 355.838,
+            "requests_per_second" : 2178.400422,
+            "rss_bytes" : 396279808,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4327,
+               4368,
+               4405
+            ],
+            "cpu_percent" : [
+               199.228,
+               199.394,
+               199.843
+            ],
+            "duration_seconds" : [
+               2.003052,
+               2.005141,
+               2.003755
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               45.139,
+               45.354,
+               44.257
+            ],
+            "p95_ms" : [
+               112.06,
+               104.185,
+               125.359
+            ],
+            "p99_ms" : [
+               355.838,
+               342.437,
+               364.806
+            ],
+            "requests_per_second" : [
+               2160.203529,
+               2178.400422,
+               2198.372556
+            ],
+            "rss_bytes" : [
+               396230656,
+               396320768,
+               396279808
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 3.614,
+               "cpu_percent" : -0.611,
+               "duration_seconds" : 0.021,
+               "p50_ms" : -4.582,
+               "p95_ms" : -9.468,
+               "p99_ms" : -24.51,
+               "requests_per_second" : 3.649,
+               "rss_bytes" : -0.052
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "cpu_percent" : 0.438000000000002,
+            "duration_seconds" : 8.00000000023005e-06,
+            "http_errors" : 0,
+            "p50_ms" : 0.0280000000000005,
+            "p95_ms" : 0.0730000000000004,
+            "p99_ms" : 0.724,
+            "requests_per_second" : 0.121594000000002,
+            "rss_bytes" : 98304,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 172,
+            "cpu_percent" : 88.495,
+            "duration_seconds" : 2.000782,
+            "http_errors" : 0,
+            "p50_ms" : 11.39,
+            "p95_ms" : 12.382,
+            "p99_ms" : 13.835,
+            "requests_per_second" : 85.966387,
+            "rss_bytes" : 396636160,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               172,
+               173,
+               172
+            ],
+            "cpu_percent" : [
+               89.531,
+               88.057,
+               88.495
+            ],
+            "duration_seconds" : [
+               2.003616,
+               2.000774,
+               2.000782
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               11.484,
+               11.39,
+               11.362
+            ],
+            "p95_ms" : [
+               12.382,
+               12.309,
+               13.194
+            ],
+            "p99_ms" : [
+               13.111,
+               13.835,
+               15.134
+            ],
+            "requests_per_second" : [
+               85.844793,
+               86.466537,
+               85.966387
+            ],
+            "rss_bytes" : [
+               396537856,
+               396636160,
+               396935168
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "home",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 3.226,
+               "cpu_percent" : -0.453,
+               "duration_seconds" : 4.827,
+               "p50_ms" : -3.728,
+               "p95_ms" : -2.907,
+               "p99_ms" : -22.466,
+               "requests_per_second" : -1.577,
+               "rss_bytes" : 0.009
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 21,
+            "cpu_percent" : 0.75200000000001,
+            "duration_seconds" : 0.000550999999999746,
+            "http_errors" : 0,
+            "p50_ms" : 1.013,
+            "p95_ms" : 1.904,
+            "p99_ms" : 7.732,
+            "requests_per_second" : 4.42113000000001,
+            "rss_bytes" : 65536,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 320,
+            "cpu_percent" : 177.078,
+            "duration_seconds" : 2.099771,
+            "http_errors" : 0,
+            "p50_ms" : 61.869,
+            "p95_ms" : 82.769,
+            "p99_ms" : 88.284,
+            "requests_per_second" : 152.357591,
+            "rss_bytes" : 397496320,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               296,
+               320,
+               341
+            ],
+            "cpu_percent" : [
+               177.83,
+               175.614,
+               177.078
+            ],
+            "duration_seconds" : [
+               2.000859,
+               2.100322,
+               2.099771
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               61.869,
+               62.882,
+               58.894
+            ],
+            "p95_ms" : [
+               84.673,
+               82.769,
+               68.216
+            ],
+            "p99_ms" : [
+               108.69,
+               88.284,
+               80.552
+            ],
+            "requests_per_second" : [
+               147.936461,
+               152.357591,
+               162.398662
+            ],
+            "rss_bytes" : [
+               397377536,
+               397561856,
+               397496320
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "home",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : 2.02,
+               "cpu_percent" : -0.594,
+               "duration_seconds" : -0.017,
+               "p50_ms" : -15.105,
+               "p95_ms" : 115.151,
+               "p99_ms" : 183.873,
+               "requests_per_second" : 2.021,
+               "rss_bytes" : -0.087
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 2,
+            "cpu_percent" : 0.845999999999975,
+            "duration_seconds" : 0.000369000000000064,
+            "http_errors" : 0,
+            "p50_ms" : 2.80700000000002,
+            "p95_ms" : 6.02500000000009,
+            "p99_ms" : 21.347,
+            "requests_per_second" : 1.19745499999999,
+            "rss_bytes" : 12288,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 303,
+            "cpu_percent" : 178.557,
+            "duration_seconds" : 2.002526,
+            "http_errors" : 0,
+            "p50_ms" : 258.892,
+            "p95_ms" : 1135.927,
+            "p99_ms" : 1672.875,
+            "requests_per_second" : 151.138251,
+            "rss_bytes" : 399577088,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               293,
+               305,
+               303
+            ],
+            "cpu_percent" : [
+               180.36,
+               177.711,
+               178.557
+            ],
+            "duration_seconds" : [
+               2.002526,
+               2.002157,
+               2.004787
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               256.085,
+               258.892,
+               275.927
+            ],
+            "p95_ms" : [
+               1141.952,
+               1125.941,
+               1135.927
+            ],
+            "p99_ms" : [
+               1694.222,
+               1629.293,
+               1672.875
+            ],
+            "requests_per_second" : [
+               146.315204,
+               152.335706,
+               151.138251
+            ],
+            "rss_bytes" : [
+               399577088,
+               399589376,
+               399433728
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "home",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : -1.007,
+               "cpu_percent" : 0.098,
+               "duration_seconds" : 0.047,
+               "p50_ms" : 1.551,
+               "p95_ms" : 1.359,
+               "p99_ms" : -11.351,
+               "requests_per_second" : -1.132,
+               "rss_bytes" : -0.087
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 5,
+            "cpu_percent" : 0.0769999999999982,
+            "duration_seconds" : 2.69999999997772e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0,
+            "p95_ms" : 0.0089999999999999,
+            "p99_ms" : 0.0509999999999999,
+            "requests_per_second" : 3.20683799999995,
+            "rss_bytes" : 86016,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 1770,
+            "cpu_percent" : 99.554,
+            "duration_seconds" : 2.002109,
+            "http_errors" : 0,
+            "p50_ms" : 1.113,
+            "p95_ms" : 1.193,
+            "p99_ms" : 1.273,
+            "requests_per_second" : 883.358279,
+            "rss_bytes" : 399577088,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               1775,
+               1744,
+               1770
+            ],
+            "cpu_percent" : [
+               99.903,
+               99.477,
+               99.554
+            ],
+            "duration_seconds" : [
+               2.002109,
+               2.002082,
+               2.003717
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               1.113,
+               1.146,
+               1.113
+            ],
+            "p95_ms" : [
+               1.181,
+               1.202,
+               1.193
+            ],
+            "p99_ms" : [
+               1.222,
+               1.273,
+               1.389
+            ],
+            "requests_per_second" : [
+               886.565117,
+               871.093192,
+               883.358279
+            ],
+            "rss_bytes" : [
+               399577088,
+               399679488,
+               399491072
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "categories",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 0.088,
+               "cpu_percent" : -0.001,
+               "duration_seconds" : 0.059,
+               "p50_ms" : -9.097,
+               "p95_ms" : -14.388,
+               "p99_ms" : -7.867,
+               "requests_per_second" : 0.006,
+               "rss_bytes" : -0.087
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 12,
+            "cpu_percent" : 0.0759999999999934,
+            "duration_seconds" : 0.000182000000000127,
+            "http_errors" : 0,
+            "p50_ms" : 0.00499999999999989,
+            "p95_ms" : 0.0860000000000003,
+            "p99_ms" : 0.224,
+            "requests_per_second" : 5.47835500000019,
+            "rss_bytes" : 86016,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3419,
+            "cpu_percent" : 199.32,
+            "duration_seconds" : 2.002833,
+            "http_errors" : 0,
+            "p50_ms" : 5.816,
+            "p95_ms" : 6.117,
+            "p99_ms" : 8.011,
+            "requests_per_second" : 1707.081918,
+            "rss_bytes" : 399577088,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3407,
+               3419,
+               3453
+            ],
+            "cpu_percent" : [
+               199.32,
+               199.396,
+               198.917
+            ],
+            "duration_seconds" : [
+               2.002229,
+               2.002833,
+               2.003015
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               5.821,
+               5.816,
+               5.767
+            ],
+            "p95_ms" : [
+               6.203,
+               6.117,
+               6.004
+            ],
+            "p99_ms" : [
+               8.235,
+               7.684,
+               8.011
+            ],
+            "requests_per_second" : [
+               1701.603563,
+               1707.081918,
+               1723.901219
+            ],
+            "rss_bytes" : [
+               399577088,
+               399679488,
+               399491072
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "categories",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -2.28,
+               "cpu_percent" : 0.566,
+               "duration_seconds" : -0.048,
+               "p50_ms" : 1.953,
+               "p95_ms" : 12.78,
+               "p99_ms" : 97.915,
+               "requests_per_second" : -2.284,
+               "rss_bytes" : -0.087
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 21,
+            "cpu_percent" : 0.00399999999999068,
+            "duration_seconds" : 0.000364000000000253,
+            "http_errors" : 0,
+            "p50_ms" : 0.164000000000001,
+            "p95_ms" : 0.0479999999999947,
+            "p99_ms" : 3.55199999999999,
+            "requests_per_second" : 11.07935,
+            "rss_bytes" : 86016,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3343,
+            "cpu_percent" : 201.88,
+            "duration_seconds" : 2.002867,
+            "http_errors" : 0,
+            "p50_ms" : 29.285,
+            "p95_ms" : 33.56,
+            "p99_ms" : 89.78,
+            "requests_per_second" : 1669.107335,
+            "rss_bytes" : 399577088,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3343,
+               3419,
+               3322
+            ],
+            "cpu_percent" : [
+               201.88,
+               201.884,
+               200.852
+            ],
+            "duration_seconds" : [
+               2.002867,
+               2.002503,
+               2.003585
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               29.285,
+               28.838,
+               29.449
+            ],
+            "p95_ms" : [
+               33.56,
+               30.457,
+               33.608
+            ],
+            "p99_ms" : [
+               89.78,
+               93.332,
+               83.817
+            ],
+            "requests_per_second" : [
+               1669.107335,
+               1707.363235,
+               1658.027985
+            ],
+            "rss_bytes" : [
+               399577088,
+               399679488,
+               399491072
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "categories",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : -1.778,
+               "cpu_percent" : 0.507,
+               "duration_seconds" : 0.059,
+               "p50_ms" : 3.348,
+               "p95_ms" : 1.251,
+               "p99_ms" : -2.822,
+               "requests_per_second" : -1.82,
+               "rss_bytes" : -0.096
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 13,
+            "cpu_percent" : 0.027000000000001,
+            "duration_seconds" : 0.000732999999999873,
+            "http_errors" : 0,
+            "p50_ms" : 0.00299999999999989,
+            "p95_ms" : 0.0130000000000001,
+            "p99_ms" : 0.0369999999999999,
+            "requests_per_second" : 6.12830199999996,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 1713,
+            "cpu_percent" : 99.948,
+            "duration_seconds" : 2.001949,
+            "http_errors" : 0,
+            "p50_ms" : 1.173,
+            "p95_ms" : 1.214,
+            "p99_ms" : 1.274,
+            "requests_per_second" : 855.666153,
+            "rss_bytes" : 399712256,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               1738,
+               1700,
+               1713
+            ],
+            "cpu_percent" : [
+               99.948,
+               99.476,
+               99.975
+            ],
+            "duration_seconds" : [
+               2.002682,
+               2.001088,
+               2.001949
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               1.141,
+               1.176,
+               1.173
+            ],
+            "p95_ms" : [
+               1.199,
+               1.227,
+               1.214
+            ],
+            "p99_ms" : [
+               1.237,
+               1.439,
+               1.274
+            ],
+            "requests_per_second" : [
+               867.836232,
+               849.537851,
+               855.666153
+            ],
+            "rss_bytes" : [
+               399740928,
+               399712256,
+               399523840
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "category",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : -1.804,
+               "cpu_percent" : -0.06,
+               "duration_seconds" : -0.076,
+               "p50_ms" : 1.984,
+               "p95_ms" : -0.207,
+               "p99_ms" : 2.059,
+               "requests_per_second" : -1.651,
+               "rss_bytes" : -0.096
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 31,
+            "cpu_percent" : 0.00199999999998113,
+            "duration_seconds" : 0.000674000000000063,
+            "http_errors" : 0,
+            "p50_ms" : 0.0759999999999996,
+            "p95_ms" : 0.0590000000000002,
+            "p99_ms" : 0.032,
+            "requests_per_second" : 16.043813,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3321,
+            "cpu_percent" : 199.287,
+            "duration_seconds" : 2.001923,
+            "http_errors" : 0,
+            "p50_ms" : 5.964,
+            "p95_ms" : 6.261,
+            "p99_ms" : 8.427,
+            "requests_per_second" : 1659.463665,
+            "rss_bytes" : 399712256,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3290,
+               3540,
+               3321
+            ],
+            "cpu_percent" : [
+               199.287,
+               198.912,
+               199.289
+            ],
+            "duration_seconds" : [
+               2.001923,
+               2.100478,
+               2.001249
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               6.04,
+               5.877,
+               5.964
+            ],
+            "p95_ms" : [
+               6.366,
+               6.202,
+               6.261
+            ],
+            "p99_ms" : [
+               8.459,
+               8.203,
+               8.427
+            ],
+            "requests_per_second" : [
+               1643.419852,
+               1685.330672,
+               1659.463665
+            ],
+            "rss_bytes" : [
+               399740928,
+               399712256,
+               399523840
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "category",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -4.326,
+               "cpu_percent" : -0.194,
+               "duration_seconds" : 0.026,
+               "p50_ms" : 1.967,
+               "p95_ms" : -0.835,
+               "p99_ms" : 150.026,
+               "requests_per_second" : -4.308,
+               "rss_bytes" : -0.096
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 106,
+            "cpu_percent" : 0.431000000000012,
+            "duration_seconds" : 2.50000000003858e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0.776,
+            "p95_ms" : 1.599,
+            "p99_ms" : 16.466,
+            "requests_per_second" : 52.1892780000001,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3251,
+            "cpu_percent" : 200.861,
+            "duration_seconds" : 2.002537,
+            "http_errors" : 0,
+            "p50_ms" : 30.229,
+            "p95_ms" : 31.93,
+            "p99_ms" : 100.563,
+            "requests_per_second" : 1624.163314,
+            "rss_bytes" : 399712256,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3251,
+               3357,
+               3012
+            ],
+            "cpu_percent" : [
+               201.292,
+               200.861,
+               199.595
+            ],
+            "duration_seconds" : [
+               2.001646,
+               2.002562,
+               2.002537
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               30.229,
+               29.453,
+               32.495
+            ],
+            "p95_ms" : [
+               31.93,
+               30.331,
+               42.18
+            ],
+            "p99_ms" : [
+               100.563,
+               82.128,
+               117.029
+            ],
+            "requests_per_second" : [
+               1624.163314,
+               1676.352592,
+               1504.092059
+            ],
+            "rss_bytes" : [
+               399740928,
+               399712256,
+               399523840
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "category",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 1.235,
+               "cpu_percent" : 0.552,
+               "duration_seconds" : 0.072,
+               "p50_ms" : -1.545,
+               "p95_ms" : -0.733,
+               "p99_ms" : -14.786,
+               "requests_per_second" : 1.162,
+               "rss_bytes" : -0.096
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "cpu_percent" : 0.414000000000001,
+            "duration_seconds" : 0.000467999999999691,
+            "http_errors" : 0,
+            "p50_ms" : 0.022,
+            "p95_ms" : 0.00299999999999989,
+            "p99_ms" : 0.014,
+            "requests_per_second" : 0.200875999999994,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 1722,
+            "cpu_percent" : 100.02,
+            "duration_seconds" : 2.002743,
+            "http_errors" : 0,
+            "p50_ms" : 1.147,
+            "p95_ms" : 1.219,
+            "p99_ms" : 1.314,
+            "requests_per_second" : 859.820756,
+            "rss_bytes" : 399843328,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               1722,
+               1740,
+               1722
+            ],
+            "cpu_percent" : [
+               100.02,
+               99.028,
+               100.434
+            ],
+            "duration_seconds" : [
+               2.002743,
+               2.000751,
+               2.003211
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               1.147,
+               1.125,
+               1.17
+            ],
+            "p95_ms" : [
+               1.219,
+               1.222,
+               1.21
+            ],
+            "p99_ms" : [
+               1.314,
+               1.328,
+               1.24
+            ],
+            "requests_per_second" : [
+               859.820756,
+               869.673438,
+               859.61988
+            ],
+            "rss_bytes" : [
+               399872000,
+               399843328,
+               399654912
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : -0.15,
+               "cpu_percent" : -0.265,
+               "duration_seconds" : 0.046,
+               "p50_ms" : 0.302,
+               "p95_ms" : 1.571,
+               "p99_ms" : -8.551,
+               "requests_per_second" : -1.295,
+               "rss_bytes" : -0.089
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 68,
+            "cpu_percent" : 0.0689999999999884,
+            "duration_seconds" : 0.0028220000000001,
+            "http_errors" : 0,
+            "p50_ms" : 0.0430000000000001,
+            "p95_ms" : 0.101,
+            "p99_ms" : 0.225,
+            "requests_per_second" : 15.971184,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3336,
+            "cpu_percent" : 199.292,
+            "duration_seconds" : 2.003911,
+            "http_errors" : 0,
+            "p50_ms" : 5.978,
+            "p95_ms" : 7.113,
+            "p99_ms" : 9.176,
+            "requests_per_second" : 1646.782133,
+            "rss_bytes" : 399872000,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3268,
+               3459,
+               3336
+            ],
+            "cpu_percent" : [
+               199.292,
+               199.361,
+               198.894
+            ],
+            "duration_seconds" : [
+               2.003911,
+               2.10046,
+               2.001089
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               6.021,
+               5.978,
+               5.901
+            ],
+            "p95_ms" : [
+               7.214,
+               6.42,
+               7.113
+            ],
+            "p99_ms" : [
+               9.401,
+               8.612,
+               9.176
+            ],
+            "requests_per_second" : [
+               1630.810949,
+               1646.782133,
+               1667.092268
+            ],
+            "rss_bytes" : [
+               399872000,
+               399974400,
+               399654912
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -4.723,
+               "cpu_percent" : 0.5,
+               "duration_seconds" : -0.085,
+               "p50_ms" : 5.254,
+               "p95_ms" : 1.507,
+               "p99_ms" : 96.608,
+               "requests_per_second" : -4.643,
+               "rss_bytes" : -0.089
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 4,
+            "cpu_percent" : 0.542000000000002,
+            "duration_seconds" : 2.30000000001063e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0.0999999999999979,
+            "p95_ms" : 0.193999999999999,
+            "p99_ms" : 0.0930000000000035,
+            "requests_per_second" : 1.58622700000001,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3248,
+            "cpu_percent" : 200.833,
+            "duration_seconds" : 2.002839,
+            "http_errors" : 0,
+            "p50_ms" : 30.231,
+            "p95_ms" : 31.654,
+            "p99_ms" : 90.418,
+            "requests_per_second" : 1621.679377,
+            "rss_bytes" : 399872000,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3281,
+               3244,
+               3248
+            ],
+            "cpu_percent" : [
+               200.833,
+               201.375,
+               200.287
+            ],
+            "duration_seconds" : [
+               2.002839,
+               2.002354,
+               2.002862
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               30.05,
+               30.331,
+               30.231
+            ],
+            "p95_ms" : [
+               31.46,
+               31.654,
+               32.467
+            ],
+            "p99_ms" : [
+               90.325,
+               93.732,
+               90.418
+            ],
+            "requests_per_second" : [
+               1638.174611,
+               1620.09315,
+               1621.679377
+            ],
+            "rss_bytes" : [
+               399872000,
+               399974400,
+               399654912
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -3.622,
+               "cpu_percent" : 0.211,
+               "duration_seconds" : -0.052,
+               "p50_ms" : 2.357,
+               "p95_ms" : 224.008,
+               "p99_ms" : 410.587,
+               "requests_per_second" : -3.551,
+               "rss_bytes" : -0.225
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 29,
+            "cpu_percent" : 0.497000000000014,
+            "duration_seconds" : 0.000118000000000062,
+            "http_errors" : 0,
+            "p50_ms" : 0.5,
+            "p95_ms" : 0.568999999999988,
+            "p99_ms" : 6.142,
+            "requests_per_second" : 14.1300709999998,
+            "rss_bytes" : 73728,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3220,
+            "cpu_percent" : 201.343,
+            "duration_seconds" : 2.004372,
+            "http_errors" : 0,
+            "p50_ms" : 60.675,
+            "p95_ms" : 210.106,
+            "p99_ms" : 505.777,
+            "requests_per_second" : 1606.826518,
+            "rss_bytes" : 402272256,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3220,
+               3249,
+               3190
+            ],
+            "cpu_percent" : [
+               200.81,
+               201.343,
+               201.84
+            ],
+            "duration_seconds" : [
+               2.00395,
+               2.004372,
+               2.00449
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               60.675,
+               60.115,
+               61.175
+            ],
+            "p95_ms" : [
+               219.362,
+               209.537,
+               210.106
+            ],
+            "p99_ms" : [
+               511.919,
+               499.574,
+               505.777
+            ],
+            "requests_per_second" : [
+               1606.826518,
+               1620.956589,
+               1591.427246
+            ],
+            "rss_bytes" : [
+               402161664,
+               402345984,
+               402272256
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 7.639,
+               "cpu_percent" : -2.139,
+               "duration_seconds" : -0.004,
+               "p50_ms" : -5.208,
+               "p95_ms" : -12.561,
+               "p99_ms" : -3.675,
+               "requests_per_second" : 7.557,
+               "rss_bytes" : -0.165
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "cpu_percent" : 0.0180000000000007,
+            "duration_seconds" : 0.00023200000000001,
+            "http_errors" : 0,
+            "p50_ms" : 0.0229999999999997,
+            "p95_ms" : 0.499000000000001,
+            "p99_ms" : 0.283000000000001,
+            "requests_per_second" : 0.0565820000000059,
+            "rss_bytes" : 81920,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 155,
+            "cpu_percent" : 68.135,
+            "duration_seconds" : 2.001185,
+            "http_errors" : 0,
+            "p50_ms" : 12.741,
+            "p95_ms" : 14.089,
+            "p99_ms" : 15.912,
+            "requests_per_second" : 77.397526,
+            "rss_bytes" : 402821120,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               151,
+               155,
+               155
+            ],
+            "cpu_percent" : [
+               68.135,
+               68.153,
+               67.632
+            ],
+            "duration_seconds" : [
+               2.000953,
+               2.001185,
+               2.002648
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               12.861,
+               12.718,
+               12.741
+            ],
+            "p95_ms" : [
+               14.658,
+               14.089,
+               13.59
+            ],
+            "p99_ms" : [
+               16.379,
+               15.912,
+               15.629
+            ],
+            "requests_per_second" : [
+               75.464041,
+               77.454108,
+               77.397526
+            ],
+            "rss_bytes" : [
+               402505728,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 1.515,
+               "cpu_percent" : -1.653,
+               "duration_seconds" : -0.073,
+               "p50_ms" : -9.062,
+               "p95_ms" : 2.444,
+               "p99_ms" : -25.067,
+               "requests_per_second" : 1.537,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 7,
+            "cpu_percent" : 0.149000000000001,
+            "duration_seconds" : 0.00120000000000031,
+            "http_errors" : 0,
+            "p50_ms" : 0.26400000000001,
+            "p95_ms" : 4.372,
+            "p99_ms" : 2.84699999999999,
+            "requests_per_second" : 3.23523700000001,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 268,
+            "cpu_percent" : 136.366,
+            "duration_seconds" : 2.002238,
+            "http_errors" : 0,
+            "p50_ms" : 71.293,
+            "p95_ms" : 89.506,
+            "p99_ms" : 106.17,
+            "requests_per_second" : 133.93049,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               268,
+               275,
+               254
+            ],
+            "cpu_percent" : [
+               136.366,
+               136.722,
+               136.217
+            ],
+            "duration_seconds" : [
+               2.001038,
+               2.004874,
+               2.002238
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               71.029,
+               71.293,
+               75.539
+            ],
+            "p95_ms" : [
+               89.506,
+               85.134,
+               98.424
+            ],
+            "p99_ms" : [
+               109.017,
+               97.382,
+               106.17
+            ],
+            "requests_per_second" : [
+               133.93049,
+               137.165727,
+               126.858046
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -0.803,
+               "cpu_percent" : -2.406,
+               "duration_seconds" : 0.036,
+               "p50_ms" : -14.431,
+               "p95_ms" : 85.328,
+               "p99_ms" : 145.153,
+               "requests_per_second" : -0.793,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 7,
+            "cpu_percent" : 1.459,
+            "duration_seconds" : 0.000353000000000048,
+            "http_errors" : 0,
+            "p50_ms" : 3.41400000000004,
+            "p95_ms" : 27.4400000000001,
+            "p99_ms" : 0.614000000000033,
+            "requests_per_second" : 3.473972,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 247,
+            "cpu_percent" : 136.827,
+            "duration_seconds" : 2.002449,
+            "http_errors" : 0,
+            "p50_ms" : 312.472,
+            "p95_ms" : 1159.366,
+            "p99_ms" : 1727.655,
+            "requests_per_second" : 123.370707,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               254,
+               233,
+               247
+            ],
+            "cpu_percent" : [
+               138.286,
+               135.259,
+               136.827
+            ],
+            "duration_seconds" : [
+               2.002449,
+               2.0091,
+               2.002096
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               312.472,
+               315.886,
+               304.31
+            ],
+            "p95_ms" : [
+               1159.366,
+               1113.047,
+               1186.806
+            ],
+            "p99_ms" : [
+               1728.873,
+               1727.041,
+               1727.655
+            ],
+            "requests_per_second" : [
+               126.844679,
+               115.972326,
+               123.370707
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : 34.343,
+               "cpu_percent" : -2.068,
+               "duration_seconds" : 0.028,
+               "p50_ms" : -55.001,
+               "p95_ms" : -41.929,
+               "p99_ms" : 18.307,
+               "requests_per_second" : 34.306,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "cpu_percent" : 0.481999999999999,
+            "duration_seconds" : 0.00015900000000002,
+            "http_errors" : 0,
+            "p50_ms" : 13.497,
+            "p95_ms" : 10.971,
+            "p99_ms" : 46.162,
+            "requests_per_second" : 0.0760789999999929,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 266,
+            "cpu_percent" : 136.832,
+            "duration_seconds" : 2.005774,
+            "http_errors" : 0,
+            "p50_ms" : 333.944,
+            "p95_ms" : 813.273,
+            "p99_ms" : 1725.877,
+            "requests_per_second" : 132.617134,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               266,
+               266,
+               264
+            ],
+            "cpu_percent" : [
+               136.35,
+               136.832,
+               138.703
+            ],
+            "duration_seconds" : [
+               2.004624,
+               2.005774,
+               2.005933
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               317.469,
+               333.944,
+               347.441
+            ],
+            "p95_ms" : [
+               813.273,
+               865.99,
+               802.302
+            ],
+            "p99_ms" : [
+               1725.877,
+               1772.039,
+               1650.748
+            ],
+            "requests_per_second" : [
+               132.693213,
+               132.617134,
+               131.60958
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 0.286,
+               "cpu_percent" : -0.005,
+               "duration_seconds" : -0.023,
+               "p50_ms" : -0.617,
+               "p95_ms" : -0.084,
+               "p99_ms" : -6.886,
+               "requests_per_second" : 0.328,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 5,
+            "cpu_percent" : 0.495000000000005,
+            "duration_seconds" : 0.000732000000000177,
+            "http_errors" : 0,
+            "p50_ms" : 0.0210000000000001,
+            "p95_ms" : 0.004,
+            "p99_ms" : 0.01,
+            "requests_per_second" : 2.81942500000002,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 1753,
+            "cpu_percent" : 99.479,
+            "duration_seconds" : 2.00095,
+            "http_errors" : 0,
+            "p50_ms" : 1.128,
+            "p95_ms" : 1.195,
+            "p99_ms" : 1.244,
+            "requests_per_second" : 876.404472,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               1748,
+               1753,
+               1805
+            ],
+            "cpu_percent" : [
+               100.014,
+               99.479,
+               98.984
+            ],
+            "duration_seconds" : [
+               2.00095,
+               2.000218,
+               2.001697
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               1.128,
+               1.149,
+               1.1
+            ],
+            "p95_ms" : [
+               1.199,
+               1.195,
+               1.152
+            ],
+            "p99_ms" : [
+               1.244,
+               1.254,
+               1.196
+            ],
+            "requests_per_second" : [
+               873.585047,
+               876.404472,
+               901.734878
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 0.47,
+               "cpu_percent" : -0.15,
+               "duration_seconds" : -0.012,
+               "p50_ms" : 0.675,
+               "p95_ms" : -9.722,
+               "p99_ms" : -18.51,
+               "requests_per_second" : 0.545,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 15,
+            "cpu_percent" : 0.00499999999999545,
+            "duration_seconds" : 0.000349000000000377,
+            "http_errors" : 0,
+            "p50_ms" : 0.0220000000000002,
+            "p95_ms" : 0.0640000000000001,
+            "p99_ms" : 0.19,
+            "requests_per_second" : 8.84392200000002,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3419,
+            "cpu_percent" : 199.417,
+            "duration_seconds" : 2.00227,
+            "http_errors" : 0,
+            "p50_ms" : 5.817,
+            "p95_ms" : 6.036,
+            "p99_ms" : 7.92,
+            "requests_per_second" : 1707.859601,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3419,
+               3442,
+               3404
+            ],
+            "cpu_percent" : [
+               199.391,
+               199.422,
+               199.417
+            ],
+            "duration_seconds" : [
+               2.001921,
+               2.00227,
+               2.003513
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               5.817,
+               5.771,
+               5.839
+            ],
+            "p95_ms" : [
+               6.1,
+               5.968,
+               6.036
+            ],
+            "p99_ms" : [
+               8.11,
+               7.92,
+               7.599
+            ],
+            "requests_per_second" : [
+               1707.859601,
+               1719.04888,
+               1699.015679
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -3.028,
+               "cpu_percent" : 0.123,
+               "duration_seconds" : -0.037,
+               "p50_ms" : 2.638,
+               "p95_ms" : 12.495,
+               "p99_ms" : 99.52,
+               "requests_per_second" : -2.979,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 17,
+            "cpu_percent" : 0.445999999999998,
+            "duration_seconds" : 0.000369000000000064,
+            "http_errors" : 0,
+            "p50_ms" : 0.0569999999999986,
+            "p95_ms" : 0.543000000000006,
+            "p99_ms" : 5.551,
+            "requests_per_second" : 7.30587200000014,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3363,
+            "cpu_percent" : 200.886,
+            "duration_seconds" : 2.002104,
+            "http_errors" : 0,
+            "p50_ms" : 29.294,
+            "p95_ms" : 33.419,
+            "p99_ms" : 79.792,
+            "requests_per_second" : 1678.855802,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3346,
+               3382,
+               3363
+            ],
+            "cpu_percent" : [
+               200.381,
+               200.886,
+               201.332
+            ],
+            "duration_seconds" : [
+               2.001735,
+               2.002104,
+               2.00315
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               29.294,
+               28.991,
+               29.351
+            ],
+            "p95_ms" : [
+               33.962,
+               33.419,
+               30.936
+            ],
+            "p99_ms" : [
+               74.241,
+               79.792,
+               89.434
+            ],
+            "requests_per_second" : [
+               1671.54993,
+               1689.222937,
+               1678.855802
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "confirmed-regression",
+            "deltas_pct" : {
+               "completed" : -1.853,
+               "cpu_percent" : 0.095,
+               "duration_seconds" : -0.011,
+               "p50_ms" : 2.634,
+               "p95_ms" : 228.911,
+               "p99_ms" : 420.442,
+               "requests_per_second" : -1.874,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 13,
+            "cpu_percent" : 0.00100000000000477,
+            "duration_seconds" : 0.00031900000000018,
+            "http_errors" : 0,
+            "p50_ms" : 0.137,
+            "p95_ms" : 8.91200000000001,
+            "p99_ms" : 4.084,
+            "requests_per_second" : 7.76760600000011,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3337,
+            "cpu_percent" : 201.333,
+            "duration_seconds" : 2.003884,
+            "http_errors" : 0,
+            "p50_ms" : 58.887,
+            "p95_ms" : 202.175,
+            "p99_ms" : 483.959,
+            "requests_per_second" : 1665.531191,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3337,
+               3373,
+               3324
+            ],
+            "cpu_percent" : [
+               201.333,
+               201.35,
+               201.332
+            ],
+            "duration_seconds" : [
+               2.003565,
+               2.003884,
+               2.005111
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               59.024,
+               58.207,
+               58.887
+            ],
+            "p95_ms" : [
+               202.175,
+               193.263,
+               215.525
+            ],
+            "p99_ms" : [
+               483.959,
+               479.875,
+               494.661
+            ],
+            "requests_per_second" : [
+               1665.531191,
+               1683.231165,
+               1657.763585
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 0,
+               "concurrency_effective" : 0,
+               "cpu_percent" : 10.136,
+               "duration_seconds" : 0,
+               "p50_ms" : -3.003,
+               "p95_ms" : -6.345,
+               "p99_ms" : -6.426,
+               "requests_per_second" : 0.92,
+               "rss_bytes" : -0.226
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "concurrency_effective" : 0,
+            "cpu_percent" : 1.189,
+            "duration_seconds" : 0.00399999999999999,
+            "http_errors" : 0,
+            "p50_ms" : 0.334,
+            "p95_ms" : 0.130000000000001,
+            "p99_ms" : 0.965999999999999,
+            "requests_per_second" : 51.5919999999999,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 24.796,
+            "duration_seconds" : 0.084,
+            "http_errors" : 0,
+            "p50_ms" : 7.977,
+            "p95_ms" : 10.613,
+            "p99_ms" : 11.998,
+            "requests_per_second" : 1196.69,
+            "rss_bytes" : 402849792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               100,
+               100,
+               100
+            ],
+            "concurrency_effective" : [
+               10,
+               10,
+               10
+            ],
+            "cpu_percent" : [
+               21.258,
+               24.796,
+               25.985
+            ],
+            "duration_seconds" : [
+               0.088,
+               0.084,
+               0.08
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               8.311,
+               7.977,
+               7.28
+            ],
+            "p95_ms" : [
+               10.613,
+               10.743,
+               10.431
+            ],
+            "p99_ms" : [
+               11.998,
+               12.985,
+               11.032
+            ],
+            "requests_per_second" : [
+               1142.361,
+               1196.69,
+               1248.282
+            ],
+            "rss_bytes" : [
+               402849792,
+               402903040,
+               402821120
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "possible-regression",
+            "deltas_pct" : {
+               "completed" : 0,
+               "concurrency_effective" : 0,
+               "cpu_percent" : 0.228,
+               "duration_seconds" : -1.724,
+               "p50_ms" : 9.282,
+               "p95_ms" : 1.978,
+               "p99_ms" : 16.815,
+               "requests_per_second" : 1.91,
+               "rss_bytes" : -0.222
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "concurrency_effective" : 0,
+            "cpu_percent" : 0.0130000000000052,
+            "duration_seconds" : 0.003,
+            "http_errors" : 0,
+            "p50_ms" : 0.105,
+            "p95_ms" : 1.391,
+            "p99_ms" : 0.779,
+            "requests_per_second" : 21.322,
+            "rss_bytes" : 20480,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 33.825,
+            "duration_seconds" : 0.114,
+            "http_errors" : 0,
+            "p50_ms" : 10.69,
+            "p95_ms" : 15.464,
+            "p99_ms" : 17.93,
+            "requests_per_second" : 877.332,
+            "rss_bytes" : 403161088,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               100,
+               100,
+               100
+            ],
+            "concurrency_effective" : [
+               10,
+               10,
+               10
+            ],
+            "cpu_percent" : [
+               36.083,
+               33.825,
+               33.812
+            ],
+            "duration_seconds" : [
+               0.114,
+               0.111,
+               0.117
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               9.415,
+               10.795,
+               10.69
+            ],
+            "p95_ms" : [
+               16.855,
+               13.652,
+               15.464
+            ],
+            "p99_ms" : [
+               18.709,
+               14.528,
+               17.93
+            ],
+            "requests_per_second" : [
+               877.332,
+               902.071,
+               856.01
+            ],
+            "rss_bytes" : [
+               403161088,
+               403222528,
+               403140608
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 3.629,
+               "cpu_percent" : -0.855,
+               "duration_seconds" : 0.016,
+               "p50_ms" : -2.707,
+               "p95_ms" : -15.724,
+               "p99_ms" : -23.871,
+               "requests_per_second" : 3.334,
+               "rss_bytes" : -0.04
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 49,
+            "cpu_percent" : 0.983000000000004,
+            "duration_seconds" : 0.00114600000000031,
+            "http_errors" : 0,
+            "p50_ms" : 0.141999999999999,
+            "p95_ms" : 1.443,
+            "p99_ms" : 1.736,
+            "requests_per_second" : 17.6996830000003,
+            "rss_bytes" : 208896,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5026,
+            "cpu_percent" : 385.166,
+            "duration_seconds" : 2.005424,
+            "http_errors" : 0,
+            "p50_ms" : 19.944,
+            "p95_ms" : 26.059,
+            "p99_ms" : 33.658,
+            "requests_per_second" : 2499.469124,
+            "rss_bytes" : 655409152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               5026,
+               4977,
+               5094
+            ],
+            "cpu_percent" : [
+               384.183,
+               385.166,
+               388.861
+            ],
+            "duration_seconds" : [
+               2.010827,
+               2.005424,
+               2.004278
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               21.957,
+               19.802,
+               19.944
+            ],
+            "p95_ms" : [
+               26.059,
+               27.502,
+               24.42
+            ],
+            "p99_ms" : [
+               33.658,
+               35.394,
+               31.18
+            ],
+            "requests_per_second" : [
+               2499.469124,
+               2481.769441,
+               2541.563595
+            ],
+            "rss_bytes" : [
+               655626240,
+               655409152,
+               655200256
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 3.213,
+               "cpu_percent" : -0.951,
+               "duration_seconds" : 0.107,
+               "p50_ms" : -8.983,
+               "p95_ms" : -18.086,
+               "p99_ms" : 3.16,
+               "requests_per_second" : 2.988,
+               "rss_bytes" : -0.12
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 34,
+            "cpu_percent" : 1.23099999999999,
+            "duration_seconds" : 0.00215100000000001,
+            "http_errors" : 0,
+            "p50_ms" : 0.907000000000004,
+            "p95_ms" : 0.597000000000001,
+            "p99_ms" : 3.682,
+            "requests_per_second" : 22.3591110000002,
+            "rss_bytes" : 126976,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4979,
+            "cpu_percent" : 385.726,
+            "duration_seconds" : 2.008695,
+            "http_errors" : 0,
+            "p50_ms" : 37.295,
+            "p95_ms" : 47.365,
+            "p99_ms" : 82.66,
+            "requests_per_second" : 2475.966368,
+            "rss_bytes" : 659017728,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4828,
+               4979,
+               5013
+            ],
+            "cpu_percent" : [
+               378.692,
+               386.957,
+               385.726
+            ],
+            "duration_seconds" : [
+               2.008695,
+               2.010932,
+               2.006544
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               40.304,
+               36.388,
+               37.295
+            ],
+            "p95_ms" : [
+               57.33,
+               47.365,
+               46.768
+            ],
+            "p99_ms" : [
+               96.982,
+               78.978,
+               82.66
+            ],
+            "requests_per_second" : [
+               2403.550564,
+               2475.966368,
+               2498.325479
+            ],
+            "rss_bytes" : [
+               659017728,
+               659144704,
+               658763776
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 11.765,
+               "cpu_percent" : 19.922,
+               "duration_seconds" : -0.07,
+               "p50_ms" : 8.109,
+               "p95_ms" : -43.77,
+               "p99_ms" : -24.853,
+               "requests_per_second" : 11.898,
+               "rss_bytes" : -0.165
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 2,
+            "cpu_percent" : 1.35399999999998,
+            "duration_seconds" : 0.000980999999999899,
+            "http_errors" : 0,
+            "p50_ms" : 1.38300000000001,
+            "p95_ms" : 13.827,
+            "p99_ms" : 146.598,
+            "requests_per_second" : 1.08045100000001,
+            "rss_bytes" : 118784,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 342,
+            "cpu_percent" : 259.347,
+            "duration_seconds" : 2.005954,
+            "http_errors" : 0,
+            "p50_ms" : 256.75,
+            "p95_ms" : 387.612,
+            "p99_ms" : 636.831,
+            "requests_per_second" : 170.575863,
+            "rss_bytes" : 660258816,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               342,
+               340,
+               358
+            ],
+            "cpu_percent" : [
+               263.895,
+               259.347,
+               257.993
+            ],
+            "duration_seconds" : [
+               2.004973,
+               2.005954,
+               2.00809
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               256.75,
+               266.384,
+               255.367
+            ],
+            "p95_ms" : [
+               387.612,
+               449.104,
+               373.785
+            ],
+            "p99_ms" : [
+               636.831,
+               783.429,
+               415.326
+            ],
+            "requests_per_second" : [
+               170.575863,
+               169.495412,
+               178.278862
+            ],
+            "rss_bytes" : [
+               660377600,
+               660258816,
+               660140032
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 10.726,
+               "cpu_percent" : -1.45,
+               "duration_seconds" : 0.016,
+               "p50_ms" : 4.678,
+               "p95_ms" : 15.665,
+               "p99_ms" : 49.72,
+               "requests_per_second" : 10.756,
+               "rss_bytes" : -0.302
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 11,
+            "cpu_percent" : 0.271999999999991,
+            "duration_seconds" : 0.000497999999999887,
+            "http_errors" : 0,
+            "p50_ms" : 40.042,
+            "p95_ms" : 12.7289999999998,
+            "p99_ms" : 39.3899999999999,
+            "requests_per_second" : 5.28015400000001,
+            "rss_bytes" : 159744,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 351,
+            "cpu_percent" : 259.801,
+            "duration_seconds" : 2.009659,
+            "http_errors" : 0,
+            "p50_ms" : 471.813,
+            "p95_ms" : 1174.843,
+            "p99_ms" : 1798.535,
+            "requests_per_second" : 174.849908,
+            "rss_bytes" : 660815872,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               351,
+               318,
+               362
+            ],
+            "cpu_percent" : [
+               261.373,
+               259.801,
+               259.529
+            ],
+            "duration_seconds" : [
+               2.007436,
+               2.010157,
+               2.009659
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               431.771,
+               471.813,
+               589.691
+            ],
+            "p95_ms" : [
+               1187.572,
+               1174.843,
+               684.573
+            ],
+            "p99_ms" : [
+               1837.925,
+               1798.535,
+               1036.018
+            ],
+            "requests_per_second" : [
+               174.849908,
+               158.196599,
+               180.130062
+            ],
+            "rss_bytes" : [
+               660656128,
+               660815872,
+               661221376
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "improvement",
+            "deltas_pct" : {
+               "completed" : 19.748,
+               "cpu_percent" : 27.612,
+               "duration_seconds" : 0.094,
+               "p50_ms" : -11.47,
+               "p95_ms" : -11.345,
+               "p99_ms" : 13.564,
+               "requests_per_second" : 19.759,
+               "rss_bytes" : -0.302
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 36,
+            "cpu_percent" : 3.93599999999998,
+            "duration_seconds" : 0.00207399999999991,
+            "http_errors" : 0,
+            "p50_ms" : 3.865,
+            "p95_ms" : 1.924,
+            "p99_ms" : 13.381,
+            "requests_per_second" : 9.26580999999987,
+            "rss_bytes" : 16384,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5124,
+            "cpu_percent" : 384.687,
+            "duration_seconds" : 2.00514,
+            "http_errors" : 0,
+            "p50_ms" : 23.156,
+            "p95_ms" : 26.436,
+            "p99_ms" : 43.111,
+            "requests_per_second" : 2558.078466,
+            "rss_bytes" : 660832256,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               5124,
+               5160,
+               4773
+            ],
+            "cpu_percent" : [
+               388.623,
+               384.687,
+               379.935
+            ],
+            "duration_seconds" : [
+               2.003066,
+               2.009859,
+               2.00514
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               19.291,
+               23.156,
+               31.347
+            ],
+            "p95_ms" : [
+               24.512,
+               26.436,
+               40.446
+            ],
+            "p99_ms" : [
+               29.73,
+               43.111,
+               127.632
+            ],
+            "requests_per_second" : [
+               2558.078466,
+               2567.344276,
+               2380.382417
+            ],
+            "rss_bytes" : [
+               660832256,
+               660815872,
+               661237760
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "completed" : 0.588,
+               "cpu_percent" : -0.829,
+               "duration_seconds" : 0.002,
+               "p50_ms" : 5.449,
+               "p95_ms" : -22.25,
+               "p99_ms" : 29.649,
+               "requests_per_second" : 0.477,
+               "rss_bytes" : -0.328
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 19,
+            "cpu_percent" : 1.25999999999999,
+            "duration_seconds" : 0.000553000000000026,
+            "http_errors" : 0,
+            "p50_ms" : 0.0150000000000006,
+            "p95_ms" : 0.245999999999995,
+            "p99_ms" : 18.49,
+            "requests_per_second" : 11.5767220000002,
+            "rss_bytes" : 16384,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5135,
+            "cpu_percent" : 387.244,
+            "duration_seconds" : 2.005236,
+            "http_errors" : 0,
+            "p50_ms" : 37.874,
+            "p95_ms" : 47.126,
+            "p99_ms" : 101.877,
+            "requests_per_second" : 2559.403328,
+            "rss_bytes" : 660832256,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4937,
+               5154,
+               5135
+            ],
+            "cpu_percent" : [
+               385.407,
+               388.504,
+               387.244
+            ],
+            "duration_seconds" : [
+               2.005236,
+               2.004683,
+               2.006327
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               37.889,
+               37.874,
+               36.19
+            ],
+            "p95_ms" : [
+               51.583,
+               47.126,
+               46.88
+            ],
+            "p99_ms" : [
+               120.367,
+               80.566,
+               101.877
+            ],
+            "requests_per_second" : [
+               2462.054342,
+               2570.98005,
+               2559.403328
+            ],
+            "rss_bytes" : [
+               660832256,
+               660815872,
+               661237760
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 1,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No matching valid baseline scenario."
+         },
+         "evidence_quality" : "indicative",
+         "kind" : "database",
+         "mad" : {},
+         "metrics" : {},
+         "repetitions" : 1,
+         "samples" : {},
+         "scenario" : "query-budget-catalog",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -2.414
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "home",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.00800000000000001
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.485
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.477,
+               0.507,
+               0.485
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -1.351
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "categories",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 8,
+            "sql_execution_ms" : 0.438
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               8,
+               8,
+               8
+            ],
+            "sql_execution_ms" : [
+               0.438,
+               0.412,
+               0.439
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -5.219
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.00600000000000001
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.454
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.454,
+               0.448,
+               0.472
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 1.259
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.0439999999999999
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.563
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.763,
+               0.563,
+               0.519
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -1.031
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "sql_execution_ms" : 0.096
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "sql_execution_ms" : [
+               0.134,
+               0.096,
+               0.096
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -0.143
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "search",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.00999999999999979
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "sql_execution_ms" : 3.5
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "sql_execution_ms" : [
+               3.51,
+               3.5,
+               3.471
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 3.063
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "autocomplete",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.0190000000000001
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 2.019
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               2,
+               2.019,
+               2.053
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 1.98
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "feed",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 0.103
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               0.101,
+               0.103,
+               0.103
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -1.205
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "notifications",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 3,
+            "sql_execution_ms" : 0.082
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               3,
+               3,
+               3
+            ],
+            "sql_execution_ms" : [
+               0.082,
+               0.084,
+               0.081
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "sql_execution_ms" : 0
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "outbox_claim",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.006
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               0,
+               0,
+               0
+            ],
+            "sql_execution_ms" : [
+               0.006,
+               0.006,
+               0.006
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 4
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "moderation_queue",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.026
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.026,
+               0.025,
+               0.026
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "sql_execution_ms" : 0
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "health_ready",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.007
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               0,
+               0,
+               0
+            ],
+            "sql_execution_ms" : [
+               0.007,
+               0.007,
+               0.009
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 0
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "metrics",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "sql_execution_ms" : 0.004
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "sql_execution_ms" : [
+               0.004,
+               0.004,
+               0.003
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 13.734
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "home_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.052
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.53
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.584,
+               0.478,
+               0.53
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 3.875
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "home_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.017
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.563
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.563,
+               0.531,
+               0.58
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -0.375
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.004
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "sql_execution_ms" : 0.266
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "sql_execution_ms" : [
+               0.262,
+               0.266,
+               0.298
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -0.272
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "sql_execution_ms" : 0.366
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "sql_execution_ms" : [
+               0.366,
+               0.343,
+               0.366
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : -11
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.002
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "sql_execution_ms" : 0.089
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "sql_execution_ms" : [
+               0.106,
+               0.087,
+               0.089
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 7.895
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.014
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 0.082
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               0.054,
+               0.096,
+               0.082
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "sql_execution_ms" : 1.923
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 0.053
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               0.051,
+               0.054,
+               0.053
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -22.83
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "categories_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.061
+         },
+         "metrics" : {
+            "actual_rows" : 8,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.409
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               8,
+               8,
+               8
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.348,
+               0.485,
+               0.409
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -9.82
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "home_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.038
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.45
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.499,
+               0.412,
+               0.45
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -3.463
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "home_function_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.004
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.446
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.45,
+               0.446,
+               0.41
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : 4.167
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "home_function_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.00700000000000001
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.575
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.575,
+               0.555,
+               0.582
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -12.284
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.457
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.42,
+               0.457,
+               0.457
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : 9.449
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads_function_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.0259999999999999
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.556
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.51,
+               0.582,
+               0.556
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -19.251
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads_function_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.003
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.302
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.299,
+               0.302,
+               0.306
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -4.098
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "category_threads_function_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.025
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.351
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.376,
+               0.351,
+               0.315
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -1.949
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "search_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.0289999999999999
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 2.867
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               2.867,
+               2.914,
+               2.838
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -1.634
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "autocomplete_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.00700000000000012
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 1.264
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               1.264,
+               1.333,
+               1.257
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -1.07
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "feed_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.185
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.227,
+               0.185,
+               0.185
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : 0.613
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "bookmarks_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.164
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.204,
+               0.164,
+               0.163
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "nested_statements" : 0,
+               "sql_execution_ms" : 0
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "mentions_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 0,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.007
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               0,
+               0,
+               0
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.007,
+               0.007,
+               0.007
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -4.145
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "notifications_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 3,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.185
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               3,
+               3,
+               3
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.184,
+               0.185,
+               0.187
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : 1.887
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "notification_badge_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.054
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.054,
+               0.054,
+               0.055
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -6.25
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_head_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.015
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.024,
+               0.015,
+               0.015
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -12.844
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.002
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.095
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.107,
+               0.093,
+               0.095
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : 40.23
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view_function_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.02
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.122
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.142,
+               0.101,
+               0.122
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : 0
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view_function_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.028
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.084
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.053,
+               0.112,
+               0.084
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "actual_rows" : 0,
+               "nested_statements" : 0,
+               "sql_execution_ms" : -4.124
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "endpoint" : "thread_view_function_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.093
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.094,
+               0.059,
+               0.093
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "stable",
+            "deltas_pct" : {
+               "acknowledged" : 0,
+               "completed" : 0,
+               "duration_seconds" : 6.726,
+               "messages_per_second" : -6.303,
+               "p50_ms" : 7.634,
+               "p95_ms" : 8.752,
+               "p99_ms" : 7.593
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "evidence_quality" : "measured-comparative",
+         "kind" : "outbox",
+         "mad" : {
+            "acknowledged" : 0,
+            "completed" : 0,
+            "duplicates" : 0,
+            "duration_seconds" : 0.00543808937071999,
+            "lost" : 0,
+            "messages_per_second" : 1.19283648106602,
+            "p50_ms" : 0.59700012207,
+            "p95_ms" : 4.97293472290102,
+            "p99_ms" : 2.264738082886
+         },
+         "metrics" : {
+            "acknowledged" : 3000,
+            "completed" : 3000,
+            "duplicates" : 0,
+            "duration_seconds" : 3.69550704956055,
+            "lost" : 0,
+            "messages_per_second" : 811.796584275694,
+            "p50_ms" : 121.663808822632,
+            "p95_ms" : 133.630990982056,
+            "p99_ms" : 136.251926422119
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "acknowledged" : [
+               3000,
+               3000,
+               3000
+            ],
+            "completed" : [
+               3000,
+               3000,
+               3000
+            ],
+            "duplicates" : [
+               0,
+               0,
+               0
+            ],
+            "duration_seconds" : [
+               3.69550704956055,
+               3.70094513893127,
+               3.66086101531982
+            ],
+            "lost" : [
+               0,
+               0,
+               0
+            ],
+            "messages_per_second" : [
+               811.796584275694,
+               810.603747794628,
+               819.479348559183
+            ],
+            "p50_ms" : [
+               121.663808822632,
+               122.335910797119,
+               121.066808700562
+            ],
+            "p95_ms" : [
+               140.40207862854,
+               133.630990982056,
+               128.658056259155
+            ],
+            "p99_ms" : [
+               141.52193069458,
+               133.987188339233,
+               136.251926422119
+            ]
+         },
+         "scenario" : "postgres-dispatch-noop",
+         "status" : "ok",
+         "workers" : 1
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "possible-regression",
+            "deltas_pct" : {
+               "acknowledged" : 0,
+               "completed" : 0,
+               "duration_seconds" : 10.139,
+               "messages_per_second" : -9.206,
+               "p50_ms" : 10.39,
+               "p95_ms" : 11.445,
+               "p99_ms" : 12.072
+            },
+            "reason" : "Median comparison; tolerance >=10% and 3x relative MAD; confirmation needs >=3 repeats, >=15% change and separated sample ranges. Timing classifications are advisory."
+         },
+         "evidence_quality" : "measured-comparative",
+         "kind" : "outbox",
+         "mad" : {
+            "acknowledged" : 0,
+            "completed" : 0,
+            "duplicates" : 0,
+            "duration_seconds" : 0.11087918281555,
+            "lost" : 0,
+            "messages_per_second" : 60.9114371015901,
+            "p50_ms" : 6.842851638794,
+            "p95_ms" : 3.16286087036099,
+            "p99_ms" : 5.131721496582
+         },
+         "metrics" : {
+            "acknowledged" : 3000,
+            "completed" : 3000,
+            "duplicates" : 0,
+            "duration_seconds" : 2.39297604560852,
+            "lost" : 0,
+            "messages_per_second" : 1253.66904758845,
+            "p50_ms" : 160.21990776062,
+            "p95_ms" : 184.486865997314,
+            "p99_ms" : 187.023878097534
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "acknowledged" : [
+               3000,
+               3000,
+               3000
+            ],
+            "completed" : [
+               3000,
+               3000,
+               3000
+            ],
+            "duplicates" : [
+               0,
+               0,
+               0
+            ],
+            "duration_seconds" : [
+               2.28209686279297,
+               2.73260498046875,
+               2.39297604560852
+            ],
+            "lost" : [
+               0,
+               0,
+               0
+            ],
+            "messages_per_second" : [
+               1314.58048469004,
+               1097.8535212526,
+               1253.66904758845
+            ],
+            "p50_ms" : [
+               153.377056121826,
+               178.421020507812,
+               160.21990776062
+            ],
+            "p95_ms" : [
+               181.324005126953,
+               212.788105010986,
+               184.486865997314
+            ],
+            "p99_ms" : [
+               181.892156600952,
+               213.356971740723,
+               187.023878097534
+            ]
+         },
+         "scenario" : "postgres-dispatch-noop",
+         "status" : "ok",
+         "workers" : 2
+      }
+   ],
+   "mode" : "main",
+   "run_attempt" : "1",
+   "run_id" : "38959475413",
+   "runner" : {
+      "arch" : "x86_64",
+      "cpu_count" : 4,
+      "cpu_model" : "AMD EPYC 7763 64-Core Processor",
+      "image" : "ubuntu26",
+      "image_version" : "20261012.163.1",
+      "kernel" : "7.0.0-1017-azure",
+      "label" : "ubuntu-26.04",
+      "memory_bytes" : 16759443456,
+      "name" : "GitHub Actions 1000067922",
+      "os" : "Linux"
+   },
+   "schema_version" : 1,
+   "status" : "failed",
+   "suites" : {
+      "connections_workflow" : {
+         "failure_kind" : "deterministic_or_infrastructure",
+         "reason" : "GitHub Actions step outcome: failure",
+         "status" : "failed"
+      },
+      "contracts" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "database" : {
+         "reason" : "See individual gates and artifacts; skipped suites never imply execution",
+         "status" : "ok"
+      },
+      "database-plans-functions" : {
+         "failure_kind" : null,
+         "reason" : "Nested function plans require auto_explain LOAD; unavailable or unmeasured is never PASS",
+         "skipped_repetitions" : 0,
+         "status" : "ok"
+      },
+      "database-plans-readers" : {
+         "failure_kind" : null,
+         "reason" : "Nested function plans require auto_explain LOAD; unavailable or unmeasured is never PASS",
+         "skipped_repetitions" : 0,
+         "status" : "ok"
+      },
+      "databases" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "hotpaths_workflow" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "http" : {
+         "reason" : "completed planned HTTP measurements",
+         "skipped" : [
+            {
+               "reason" : "read-only anonymous suite; safe durable auth fixture unavailable",
+               "scenario" : "authenticated"
+            },
+            {
+               "reason" : "bounded targeted plan: every endpoint at low load; high concurrency on health/thread/search/cache_hit; extra workers only thread/search/cache_hit",
+               "scenario" : "full_cartesian_matrix"
+            },
+            {
+               "reason" : "bounded PR/main modes; use deep sweep",
+               "scenario" : "concurrency_250_500"
+            },
+            {
+               "reason" : "eight-worker sweep reserved for capable deep runners",
+               "scenario" : "workers_8"
+            },
+            {
+               "reason" : "requires explicit --allow-1000 and capable runner",
+               "scenario" : "concurrency_1000"
+            },
+            {
+               "reason" : "wrk (distribution package 4.1.0-4build3; CLI upstream unspecified)",
+               "scenario" : "wrk_upstream_version"
+            }
+         ],
+         "status" : "ok"
+      },
+      "http_workflow" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "migrations" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "outbox" : {
+         "reason" : "See individual gates and artifacts; skipped suites never imply execution",
+         "status" : "ok"
+      },
+      "outbox-postgres" : {
+         "diagnostic" : "diagnostics/outbox-postgres.log",
+         "failure_kind" : null,
+         "reason" : "Owned database is dropped on completion or caught signals; delivery IDs verify losses and duplicates",
+         "status" : "ok"
+      },
+      "pr_comment" : {
+         "reason" : "Job Summary and artifacts provide PR results with a read-only token; no privileged fork artifact/comment workflow is enabled.",
+         "status" : "skipped"
+      },
+      "profiling" : {
+         "reason" : "Reserved for bounded weekly/manual deep mode",
+         "status" : "skipped"
+      },
+      "query-budget" : {
+         "diagnostic" : "diagnostics/query-budget.log",
+         "failure_kind" : null,
+         "reason" : "Catalog drift is deterministic; N+1 request counts remain blocking in the integration tier",
+         "status" : "ok"
+      },
+      "query-plan-static" : {
+         "diagnostic" : "diagnostics/query-plan-static.log",
+         "reason" : "Required index and forbidden OFFSET checks",
+         "status" : "ok"
+      },
+      "setup" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "sql-functions" : {
+         "reason" : "Reserved for bounded weekly/manual deep mode",
+         "status" : "skipped"
+      },
+      "tools" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      }
+   },
+   "timestamp" : "2026-10-16T20:05:05.091403+00:00"
+}

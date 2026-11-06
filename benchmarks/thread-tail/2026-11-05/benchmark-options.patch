@@ -1,0 +1,196 @@
+diff --git a/benchmarks/hypnotoad-app.pl b/benchmarks/hypnotoad-app.pl
+index a1bb12f9..5a100bc8 100644
+--- a/benchmarks/hypnotoad-app.pl
++++ b/benchmarks/hypnotoad-app.pl
+@@ -74,6 +74,7 @@ $app->hook(before_dispatch => sub ($controller) {
+     print {$file} encode_json({pid => 0 + $$, reactor => $reactor,
+         ev_backend => $backend, perl => "$^V",
+         mojolicious => Mojolicious->VERSION,
++        worker_clients => 0 + $app->config->{hypnotoad}{clients},
+         precompiled_templates => \%compiled});
+     close $file or die 'cannot close benchmark worker telemetry';
+ });
+diff --git a/script/benchmark-http-complete b/script/benchmark-http-complete
+index db2cf05f..bedf449d 100755
+--- a/script/benchmark-http-complete
++++ b/script/benchmark-http-complete
+@@ -21,6 +21,7 @@ sub options {
+     my %o = (
+         profile          => 'full',
+         workers          => 2,
++        worker_clients   => 2048,
+         iterations       => 20,
+         repetitions      => 3,
+         warmup           => 3,
+@@ -31,7 +32,7 @@ sub options {
+         scenario         => [],
+     );
+     GetOptions( \%o,
+-        qw(output=s profile=s workers=i iterations=i repetitions=i warmup=i duration=i deadline=i write-clients=i write-iterations=i scenario=s@ concurrency=s help list)
++        qw(output=s profile=s workers=i worker-clients=i iterations=i repetitions=i warmup=i duration=i deadline=i write-clients=i write-iterations=i scenario=s@ concurrency=s help list)
+     ) or exit 2;
+     return \%o;
+ }
+@@ -47,7 +48,7 @@ sub validate ( $o, $names ) {
+             qw(iterations repetitions warmup duration write_clients write_iterations)
+         } = ( 1, 1, 0, 1, 1, 1 );
+     }
+-    for my $key (qw(write-clients write-iterations)) {
++    for my $key (qw(worker-clients write-clients write-iterations)) {
+         if ( defined $o->{$key} ) {
+             my $normal = $key;
+             $normal =~ tr/-/_/;
+@@ -80,7 +81,7 @@ sub _concurrency ($o) {
+ 
+ sub _bounds ($o) {
+     for my $key (
+-        qw(workers iterations repetitions duration deadline write_clients write_iterations)
++        qw(workers worker_clients iterations repetitions duration deadline write_clients write_iterations)
+       )
+     {
+         croak "$key must be positive" if $o->{$key} < 1;
+@@ -94,7 +95,7 @@ sub _bounds ($o) {
+ my $o = options();
+ if ( $o->{help} ) {
+     print
+-"Usage: script/gpforum-carton exec script/benchmark-http-complete --output DIR [--profile full|smoke] [--workers 2] [--concurrency 1,10,50,100] [--scenario NAME]\nOwns temporary PostgreSQL, real Hypnotoad and real HTTP sessions. Writes stay in its temporary database.\n"
++"Usage: script/gpforum-carton exec script/benchmark-http-complete --output DIR [--profile full|smoke] [--workers 2] [--worker-clients 2048] [--concurrency 1,10,50,100] [--scenario NAME]\nOwns temporary PostgreSQL, real Hypnotoad and real HTTP sessions. Writes stay in its temporary database.\n"
+       or croak 'cannot write help';
+     exit 0;
+ }
+diff --git a/script/lib/GPForum/Performance/HTTPComplete.pm b/script/lib/GPForum/Performance/HTTPComplete.pm
+index 473d85aa..d3ec83ec 100644
+--- a/script/lib/GPForum/Performance/HTTPComplete.pm
++++ b/script/lib/GPForum/Performance/HTTPComplete.pm
+@@ -80,7 +80,7 @@ sub run ($self) {
+       };
+     $self->report->{configuration} =
+       { map { $_ => $o->{$_} }
+-          qw(profile workers concurrency iterations write_clients write_iterations repetitions duration warmup deadline scenario)
++          qw(profile workers worker_clients concurrency iterations write_clients write_iterations repetitions duration warmup deadline scenario)
+       };
+     $self->report->{planned_cells} = $self->planned_cells;
+     $self->_save;
+@@ -214,6 +214,7 @@ q{SELECT name,setting,unit FROM pg_settings WHERE name IN ('fsync','full_page_wr
+                 output     => $o->{output},
+                 index      => 1,
+                 workers    => $o->{workers},
++                clients    => $o->{worker_clients},
+                 reactor    => 'EV',
+                 cache_mode => 'normal',
+                 deadline   => $o->{expires}
+@@ -663,7 +664,7 @@ sub _finish ( $self, $elapsed ) {
+     $self->report->{workload_coverage} = $workload;
+     $self->report->{configuration} =
+       { map { $_ => $self->options->{$_} }
+-          qw(profile workers concurrency iterations write_clients write_iterations repetitions duration warmup deadline scenario)
++          qw(profile workers worker_clients concurrency iterations write_clients write_iterations repetitions duration warmup deadline scenario)
+       };
+     $self->report->{generator} =
+ 'Mojo::UserAgent asynchronous HTTP clients; not interchangeable with wrk throughput';
+diff --git a/script/lib/GPForum/Performance/Server.pm b/script/lib/GPForum/Performance/Server.pm
+index 3dee9776..4970c12d 100644
+--- a/script/lib/GPForum/Performance/Server.pm
++++ b/script/lib/GPForum/Performance/Server.pm
+@@ -46,7 +46,7 @@ sub new ( $class, $args ) {
+     my $until = min( $args->{deadline}, monotonic() + STARTUP_SECONDS );
+     try {
+         _await_live( $self, $until );
+-        _read_master($self);
++        _read_master( $self, $until );
+         _await_workers( $self, $until );
+     }
+     catch ($error) { $self->close; croak $error; };
+@@ -118,7 +118,14 @@ sub _await_live( $self, $until ) {
+     return undef;
+ }
+ 
+-sub _read_master($self) {
++sub _read_master( $self, $until ) {
++    # A first worker can answer while Prefork is still spawning its siblings.
++    # The manager writes its PID after that loop, so liveness can precede it.
++    while ( !-s "$self->{directory}/hypnotoad.pid" ) {
++        croak 'Missing Hypnotoad PID before startup deadline'
++          if monotonic() >= $until;
++        sleep READY_INTERVAL;
++    }
+     open my $fh, '<', "$self->{directory}/hypnotoad.pid"
+       or croak 'Missing Hypnotoad PID';
+     my $master = <$fh>;
+diff --git a/t/integration/postgres-http-complete.t b/t/integration/postgres-http-complete.t
+index 2c5fb80e..31bc4649 100644
+--- a/t/integration/postgres-http-complete.t
++++ b/t/integration/postgres-http-complete.t
+@@ -12,6 +12,7 @@ use lib "$FindBin::Bin/../../script/lib", "$FindBin::Bin/../../lib";
+ use GPForum::Performance::Support qw(run_bounded read_json);
+ our $VERSION = '0.001';
+ const my $TIMEOUT => 180;
++const my $WORKER_CLIENTS => 32;
+ my $directory = tempdir( CLEANUP => 1 );
+ my $output    = "$directory/http";
+ local $ENV{GPFORUM_WARMUP_ENABLED} = 0;
+@@ -20,12 +21,14 @@ my $log = run_bounded(
+         "$FindBin::Bin/../../script/gpforum-carton",          'exec',
+         "$FindBin::Bin/../../script/benchmark-http-complete", '--output',
+         $output,                                              '--profile',
+-        'smoke',
++        'smoke', '--worker-clients', $WORKER_CLIENTS,
+     ],
+     { timeout => $TIMEOUT }
+ );
+ my $report = read_json("$output/http-complete.json");
+ is( $report->{status}, 'ok', 'all real HTTP smoke scenarios passed' );
++is( $report->{configuration}{worker_clients}, $WORKER_CLIENTS,
++    'the selected per-worker admission limit is recorded' );
+ is_deeply( $report->{failures}, [], 'no swallowed HTTP or business failure' );
+ is(
+     scalar @{ $report->{worker_telemetry} },
+@@ -34,6 +37,8 @@ is(
+ );
+ 
+ for my $worker ( @{ $report->{worker_telemetry} } ) {
++    is( $worker->{worker_clients}, $WORKER_CLIENTS,
++        "worker $worker->{pid} uses the requested admission limit" );
+     is_deeply(
+         $worker->{precompiled_templates},
+         {
+diff --git a/t/performance/http.t b/t/performance/http.t
+index a2912a9c..4a467186 100644
+--- a/t/performance/http.t
++++ b/t/performance/http.t
+@@ -69,6 +69,35 @@ my $metrics = {
+     p99_ms              => 8.03
+ };
+ my $raw = 'noise' . "\nGPFORUM_WRK " . encode_json($metrics) . "\n";
++{
++    my $dir = tempdir( CLEANUP => 1 );
++    my $server = bless { directory => $dir }, 'GPForum::Performance::Server';
++    my $clock = 0;
++    my $waits = 0;
++    local *GPForum::Performance::Server::monotonic = sub { return $clock; };
++    local *GPForum::Performance::Server::sleep = sub ($seconds) {
++        $clock += $seconds;
++        ++$waits;
++        open my $pid, '>', "$dir/hypnotoad.pid" or croak $ERRNO;
++        print {$pid} WORKER_ONE, "\n" or croak $ERRNO;
++        close $pid or croak $ERRNO;
++        return undef;
++    };
++    GPForum::Performance::Server->can('_read_master')->( $server, 1 );
++    is( $server->{master}, WORKER_ONE,
++        'a responsive worker may precede the manager PID file' );
++    is( $waits, 1, 'startup waits for the delayed PID file' );
++    my $missing = bless { directory => "$dir/absent" },
++      'GPForum::Performance::Server';
++    dies(
++        sub {
++            GPForum::Performance::Server->can('_read_master')
++              ->( $missing, $clock );
++        },
++        qr/Missing [ ] Hypnotoad [ ] PID/msx,
++        'a missing PID cannot wait past the startup deadline'
++    );
++}
+ is_deeply( parse_wrk($raw), $metrics, 'wrk actual duration and percentiles' );
+ for my $bad ( q{}, "GPFORUM_WRK {}\n", $raw . $raw ) {
+     dies( sub { parse_wrk($bad) },

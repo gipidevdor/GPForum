@@ -1,0 +1,65 @@
+name: Portable Perl runtime
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'cpanfile*'
+      - 'bin/gpforum'
+      - 'script/gpforum-*'
+      - 'script/bootstrap-deps'
+      - 'lib/GPForum/CLI/FrontDoor/**'
+      - 'lib/GPForum/Infrastructure/PerlRuntime.pm'
+      - 't/854-perl-runtime.t'
+      - '.github/workflows/portable-perl.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'cpanfile*'
+      - 'bin/gpforum'
+      - 'script/gpforum-*'
+      - 'script/bootstrap-deps'
+      - 'lib/GPForum/CLI/FrontDoor/**'
+      - 'lib/GPForum/Infrastructure/PerlRuntime.pm'
+      - 't/854-perl-runtime.t'
+      - '.github/workflows/portable-perl.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-perl-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: Perl ${{ matrix.perl }} on ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        perl: ['5.40.5', '5.44.0']
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the target runtime and its locked native dependencies
+        env:
+          PERL_VERSION: ${{ matrix.perl }}
+        run: |
+          docker build --build-arg "PERL_IMAGE=perl:${PERL_VERSION}-slim-bookworm" \
+            --tag gpforum-runtime:test .
+      - name: Smoke test the non-root entry point and native modules
+        run: |
+          docker run --rm gpforum-runtime:test help
+          docker run --rm --entrypoint /opt/gpforum/script/gpforum-carton gpforum-runtime:test \
+            exec perl -MDBD::Pg -MEV -MCpanel::JSON::XS -MCrypt::Argon2 -e 'print "native dependencies load\n"'

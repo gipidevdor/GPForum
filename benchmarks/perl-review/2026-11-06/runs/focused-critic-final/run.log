@@ -1,0 +1,19 @@
+[BuiltinFunctions::ProhibitUselessTopic] Useless use of $_ at lib/GPForum/Infrastructure/SqlFunction.pm line 141, column 17. Severity: 2. $_ should be omitted when calling "length".               . length($_) . q{:}
+lib/GPForum/Infrastructure/PreparedQuery.pm source OK
+lib/GPForum/Infrastructure/CountedQuery.pm source OK
+lib/GPForum/Service/Operations/LocalCache.pm source OK
+lib/GPForum/Service/Operations/TieredCache.pm source OK
+lib/GPForum/Service/Operations/DbQueryStats.pm source OK
+lib/GPForum/Service/Forum/BodyRenderer.pm source OK
+t/40-local-cache.t source OK
+t/89-tiered-cache.t source OK
+t/703-sql-function-answers.t source OK
+t/723-forum-body-renderer-memo.t source OK
+t/502-prepared-query-guards.t source OK
+t/735-db-query-timing.t source OK
+t/56-db-query-stats.t source OK
+t/integration/postgres-prepared-queries.t source OK
+lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm source OK
+script/lib/GPForum/Performance/Server.pm source OK
+[Variables::ProtectPrivateVars] Private variable used at t/performance/http.t line 111, column 11. Severity: 3. Use published APIs. local *GPForum::Performance::Server::_probe_workers = sub { ++$bursts; };
+t/743-http-complete.t source OK

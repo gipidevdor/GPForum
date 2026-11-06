@@ -1,0 +1,165 @@
+[
+  {
+    "name": "after-a-http",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "status": "ok",
+    "cells": 6,
+    "errors": []
+  },
+  {
+    "name": "after-a-micro",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "after-b-http",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate",
+    "status": "fail",
+    "cells": 0,
+    "errors": [
+      "all configured workers did not produce serving reactor telemetry before startup deadline at /private/tmp/gpforum-perl-review-after-87xw4en_/script/lib/GPForum/Performance/HTTPComplete.pm line 223.\n at /private/tmp/gpforum-perl-review-after-87xw4en_/script/lib/GPForum/Performance/HTTPComplete.pm line 223.\n"
+    ]
+  },
+  {
+    "name": "after-b-micro",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "baseline-core-red",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "baseline-prepared-red",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "baseline-prepared-red-final",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "before-a-http",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "status": "ok",
+    "cells": 6,
+    "errors": []
+  },
+  {
+    "name": "before-a-micro",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "candidate-prepared-final",
+    "exit_code": 0,
+    "classification": "verification"
+  },
+  {
+    "name": "critic",
+    "exit_code": 0,
+    "classification": "verification"
+  },
+  {
+    "name": "final-after-a-http",
+    "exit_code": 0,
+    "classification": "final measurement",
+    "status": "ok",
+    "cells": 6,
+    "errors": []
+  },
+  {
+    "name": "final-after-a-micro",
+    "exit_code": 0,
+    "classification": "final measurement"
+  },
+  {
+    "name": "final-after-b-http",
+    "exit_code": 0,
+    "classification": "final measurement",
+    "status": "ok",
+    "cells": 6,
+    "errors": []
+  },
+  {
+    "name": "final-after-b-micro",
+    "exit_code": 0,
+    "classification": "final measurement"
+  },
+  {
+    "name": "final-before-a-http",
+    "exit_code": 0,
+    "classification": "final measurement",
+    "status": "ok",
+    "cells": 6,
+    "errors": []
+  },
+  {
+    "name": "final-before-a-micro",
+    "exit_code": 0,
+    "classification": "final measurement"
+  },
+  {
+    "name": "final-before-b-http",
+    "exit_code": 0,
+    "classification": "final measurement",
+    "status": "ok",
+    "cells": 6,
+    "errors": []
+  },
+  {
+    "name": "final-before-b-micro",
+    "exit_code": 0,
+    "classification": "final measurement"
+  },
+  {
+    "name": "focused-critic",
+    "exit_code": 2,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "focused-critic-final",
+    "exit_code": 2,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "focused-critic-pass-2",
+    "exit_code": 0,
+    "classification": "verification"
+  },
+  {
+    "name": "integration",
+    "exit_code": 2,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "refinement-integration",
+    "exit_code": 0,
+    "classification": "verification"
+  },
+  {
+    "name": "refinement-unit",
+    "exit_code": 0,
+    "classification": "verification"
+  },
+  {
+    "name": "static",
+    "exit_code": 0,
+    "classification": "verification"
+  },
+  {
+    "name": "unit",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate"
+  },
+  {
+    "name": "unit-final",
+    "exit_code": 0,
+    "classification": "verification"
+  }
+]

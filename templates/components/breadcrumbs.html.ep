@@ -1,0 +1,22 @@
+% my $breadcrumbs = stash('breadcrumbs') || ui_breadcrumbs;
+
+% if (@{$breadcrumbs}) {
+  <nav class="breadcrumbs page-shell" id="breadcrumbs" aria-label="<%= t('nav.breadcrumbs') %>"<%== stash('swap_oob') ? ' hx-swap-oob="true"' : q{} %>>
+    <ol>
+      % my $first = 1;
+      % for my $item (@{$breadcrumbs}) {
+        <li>
+          % if (!$first) {
+            <%= ui_icon('arrow-right') %>
+          % }
+          % $first = 0;
+          % if ($item->{current}) {
+            <span aria-current="page"><%= $item->{label} %></span>
+          % } else {
+            <a href="<%= $item->{url} %>"><%= $item->{label} %></a>
+          % }
+        </li>
+      % }
+    </ol>
+  </nav>
+% }

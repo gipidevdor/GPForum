@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:gpforum:plugin-api:v1",
+  "title": "GPForum Plugin API v1",
+  "$ref": "#/$defs/manifest",
+  "$defs": {
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api_version",
+        "id",
+        "name",
+        "version",
+        "capabilities",
+        "url_hosts",
+        "frame_hosts"
+      ],
+      "properties": {
+        "api_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+){1,2}$",
+          "maxLength": 256
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "link.resolve.v1",
+              "media.embed.v1",
+              "math.render.v1"
+            ]
+          }
+        },
+        "url_hosts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$"
+          },
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "minItems": 0
+        },
+        "frame_hosts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$"
+          },
+          "maxItems": 1024,
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "capabilities": {
+                "contains": {
+                  "const": "math.render.v1"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "capabilities": {
+                "const": [
+                  "math.render.v1"
+                ]
+              },
+              "url_hosts": {
+                "maxItems": 0
+              },
+              "frame_hosts": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "capabilities": {
+                "contains": {
+                  "const": "link.resolve.v1"
+                }
+              },
+              "url_hosts": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "capabilities": {
+                "contains": {
+                  "const": "media.embed.v1"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "frame_hosts": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "frame_hosts": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api_version",
+        "url"
+      ],
+      "properties": {
+        "api_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048,
+          "pattern": "^[hH][tT][tT][pP][sS]://[^\\s<>\"'\\\\]+$"
+        }
+      }
+    },
+    "response": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "api_version",
+            "provider",
+            "kind",
+            "label",
+            "url"
+          ],
+          "properties": {
+            "api_version": {
+              "type": "integer",
+              "const": 1
+            },
+            "provider": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+            },
+            "kind": {
+              "enum": [
+                "video",
+                "audio",
+                "post",
+                "article",
+                "repository",
+                "issue",
+                "pull_request",
+                "commit",
+                "release"
+              ]
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 2048,
+              "pattern": "^[hH][tT][tT][pP][sS]://[^\\s<>\"'\\\\]+$"
+            },
+            "embed": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "url",
+                "kind"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "maxLength": 2048,
+                  "pattern": "^[hH][tT][tT][pP][sS]://[^\\s<>\"'\\\\]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "audio",
+                    "video"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "math_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api_version",
+        "source"
+      ],
+      "properties": {
+        "api_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 50000,
+          "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]*$"
+        }
+      }
+    },
+    "math_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api_version",
+        "provider",
+        "spans"
+      ],
+      "properties": {
+        "api_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+        },
+        "spans": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "start",
+              "length",
+              "source",
+              "display"
+            ],
+            "properties": {
+              "start": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50000
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4100
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]*$"
+              },
+              "display": {
+                "enum": [
+                  "inline",
+                  "block"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

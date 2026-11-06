@@ -1,0 +1,7 @@
+lib/GPForum/Infrastructure/Row.pm source OK
+lib/GPForum/Service/Forum/HomePageReader.pm source OK
+lib/GPForum/Service/Search/Searcher.pm source OK
+t/183-row-column-reader.t source OK
+t/860-search-decoration-contract.t source OK
+[ValuesAndExpressions::ProhibitMagicNumbers] -1 is not one of the allowed literal values (0, 1, 2). Use the Readonly or Const::Fast module or the "constant" pragma instead at t/861-home-reader-contract.t line 65, column 54. Severity: 2. Unnamed numeric literals make code less maintainable. undef, q{}, 'garbage', -1, 0, '1.5',
+t/integration/postgres-search-results.t source OK

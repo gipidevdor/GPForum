@@ -1,0 +1,28 @@
+--- a/script/lib/GPForum/Performance/Server.pm
++++ b/script/lib/GPForum/Performance/Server.pm
+@@ -46,7 +46,7 @@
+     my $until = min( $args->{deadline}, monotonic() + STARTUP_SECONDS );
+     try {
+         _await_live( $self, $until );
+-        _read_master($self);
++        _read_master( $self, $until );
+         _await_workers( $self, $until );
+     }
+     catch ($error) { $self->close; croak $error; };
+@@ -118,7 +118,15 @@
+     return undef;
+ }
+ 
+-sub _read_master($self) {
++sub _read_master( $self, $until ) {
++
++    # A first worker can answer while Prefork is still spawning its siblings.
++    # The manager writes its PID after that loop, so liveness can precede it.
++    while ( !-s "$self->{directory}/hypnotoad.pid" ) {
++        croak 'Missing Hypnotoad PID before startup deadline'
++          if monotonic() >= $until;
++        sleep READY_INTERVAL;
++    }
+     open my $fh, '<', "$self->{directory}/hypnotoad.pid"
+       or croak 'Missing Hypnotoad PID';
+     my $master = <$fh>;

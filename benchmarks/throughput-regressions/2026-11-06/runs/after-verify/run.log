@@ -1,0 +1,267 @@
+t/641-sql-function-migrations.t .................... ok
+{"db_duration_ms":0,"duration_ms":11.0180000046967,"event":"http.request","level":"info","message":"","pid":35834,"request_id":"01a1ade8-74dc-758d-9637-522be3001a48","route":"__worksessionuser","status":200,"timestamp":1793919055.0732,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"duration_ms":73.3449999970617,"level":"warn","message":"announcements degraded: ERROR:  schema \"api\" does not exist","pid":35834,"request_id":"01a1ade8-74e4-7370-ac3d-7859e367c46b","timestamp":1793919055.14951,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":2.96900000830647,"duration_ms":78.7239999917801,"event":"http.request","level":"info","message":"","pid":35834,"request_id":"01a1ade8-74e4-7370-ac3d-7859e367c46b","route":"thread","status":200,"timestamp":1793919055.1549,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"duration_ms":6.17500000225846,"level":"warn","message":"announcements degraded: ERROR:  schema \"api\" does not exist","pid":35834,"request_id":"01a1ade8-753e-7cb0-ad8b-80d38bb902db","timestamp":1793919055.17289,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":2.01400001242291,"duration_ms":7.34700000612065,"event":"http.request","level":"info","message":"","pid":35834,"request_id":"01a1ade8-753e-7cb0-ad8b-80d38bb902db","route":"thread","status":200,"timestamp":1793919055.17407,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+t/694-render-work.t ................................ ok
+t/715-post-reactions.t ............................. ok
+{"duration_ms":75.1600000075996,"level":"warn","message":"announcements degraded: ERROR:  schema \"api\" does not exist","pid":36003,"request_id":"01a1ade8-8404-7564-aad6-6c5036eb5d78","timestamp":1793919059.01739,"user_hash":null}
+{"db_duration_ms":2.81000000541098,"duration_ms":80.1680000004126,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8404-7564-aad6-6c5036eb5d78","route":"thread","status":200,"timestamp":1793919059.0224,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":2.46800000604708,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8455-7449-814f-ec295d687fa1","route":"__reactionsessionuser","status":200,"timestamp":1793919059.03165,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"duration_ms":10.3170000074897,"level":"warn","message":"announcements degraded: ERROR:  schema \"api\" does not exist","pid":36003,"request_id":"01a1ade8-8459-7b74-a818-013d05afa1ab","timestamp":1793919059.044,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":1.79399999615271,"duration_ms":11.4830000093207,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8459-7b74-a818-013d05afa1ab","route":"thread","status":200,"timestamp":1793919059.04516,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":0,"duration_ms":1.07299999217503,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8470-72b4-8b0f-dab6a8b71f03","route":"__reactionsessionuser","status":200,"timestamp":1793919059.0572,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":5.54200001352001,"level":"warn","message":"announcements degraded: ERROR:  schema \"api\" does not exist","pid":36003,"request_id":"01a1ade8-8473-7218-ad38-38ab9ae12590","timestamp":1793919059.06464,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":1.74800000968389,"duration_ms":6.49000001430977,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8473-7218-ad38-38ab9ae12590","route":"thread","status":200,"timestamp":1793919059.06559,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":1.32799999846611,"level":"warn","message":"address ban lookup failed: ERROR:  schema \"api\" does not exist\nLINE 1: SELECT * FROM api.admin_address_ban_covering_v2($1::inet, $2...\n                      ^\n","pid":36003,"request_id":"01a1ade8-8484-7bf3-a2a8-0ffe2c60698c","timestamp":1793919059.07804,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":0.63699999009259,"duration_ms":6.2750000070082,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8484-7bf3-a2a8-0ffe2c60698c","route":"post_unreact","status":200,"timestamp":1793919059.08298,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":0.964000006206334,"level":"warn","message":"address ban lookup failed: ERROR:  schema \"api\" does not exist\nLINE 1: SELECT * FROM api.admin_address_ban_covering_v2($1::inet, $2...\n                      ^\n","pid":36003,"request_id":"01a1ade8-848e-7845-8662-01da2471085a","timestamp":1793919059.08745,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":0.497000000905246,"duration_ms":2.61600001249462,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-848e-7845-8662-01da2471085a","route":"post_react","status":200,"timestamp":1793919059.0891,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":0.848000010591932,"level":"warn","message":"address ban lookup failed: ERROR:  schema \"api\" does not exist\nLINE 1: SELECT * FROM api.admin_address_ban_covering_v2($1::inet, $2...\n                      ^\n","pid":36003,"request_id":"01a1ade8-8494-7506-bc6e-38ab891db3e7","timestamp":1793919059.09313,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":0.442000004113652,"duration_ms":2.3430000001099,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8494-7506-bc6e-38ab891db3e7","route":"post_react","status":200,"timestamp":1793919059.09463,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":0.824000002467074,"level":"warn","message":"address ban lookup failed: ERROR:  schema \"api\" does not exist\nLINE 1: SELECT * FROM api.admin_address_ban_covering_v2($1::inet, $2...\n                      ^\n","pid":36003,"request_id":"01a1ade8-8499-7c8f-bb77-164b1afa1c25","timestamp":1793919059.09858,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":0.433999986853451,"duration_ms":2.31699999130797,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-8499-7c8f-bb77-164b1afa1c25","route":"post_react","status":200,"timestamp":1793919059.10007,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":0.486999997519888,"level":"warn","message":"address ban lookup failed: ERROR:  schema \"api\" does not exist\nLINE 1: SELECT * FROM api.admin_address_ban_covering_v2($1::inet, $2...\n                      ^\n","pid":36003,"request_id":"01a1ade8-849f-7497-a2e4-880aa43f594c","timestamp":1793919059.10374,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":0.469999999040738,"duration_ms":1.31700000201818,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-849f-7497-a2e4-880aa43f594c","route":"post_react","status":302,"timestamp":1793919059.10457,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":0.459000002592802,"level":"warn","message":"address ban lookup failed: ERROR:  schema \"api\" does not exist\nLINE 1: SELECT * FROM api.admin_address_ban_covering_v2($1::inet, $2...\n                      ^\n","pid":36003,"request_id":"01a1ade8-84a2-7000-8790-007b30840818","timestamp":1793919059.10643,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":4.73600000259466,"level":"warn","message":"announcements degraded: ERROR:  schema \"api\" does not exist","pid":36003,"request_id":"01a1ade8-84a2-7000-8790-007b30840818","timestamp":1793919059.11071,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":1.93999998737127,"duration_ms":5.37800000165589,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-84a2-7000-8790-007b30840818","route":"post_react","status":403,"timestamp":1793919059.11135,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"duration_ms":4.86499999533407,"level":"warn","message":"announcements degraded: ERROR:  schema \"api\" does not exist","pid":36003,"request_id":"01a1ade8-84a8-7c31-b624-32508f891875","timestamp":1793919059.11759,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+{"db_duration_ms":1.66199999512173,"duration_ms":5.80499999341555,"event":"http.request","level":"info","message":"","pid":36003,"request_id":"01a1ade8-84a8-7c31-b624-32508f891875","route":"thread","status":200,"timestamp":1793919059.11853,"user_hash":"ba264137c576ca6f3d190ebb9518cde362c57fc2ebb8e160c95de46e2a78fe9f"}
+t/771-reaction-forms.t ............................. ok
+t/743-http-complete.t .............................. ok
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+
+#   Failed test 'only public/member ancestors are visible without read grants'
+#   at t/integration/postgres-transfer-picker-work.t line 95.
+#          got: '0'
+#     expected: '8'
+
+#   Failed test 'the scoped read grant actually exposes additional choices'
+#   at t/integration/postgres-transfer-picker-work.t line 115.
+#     '0'
+#         >
+#     '0'
+
+#   Failed test 'the scoped read grant actually exposes additional choices'
+#   at t/integration/postgres-transfer-picker-work.t line 115.
+#     '0'
+#         >
+#     '0'
+
+#   Failed test 'the scoped read grant actually exposes additional choices'
+#   at t/integration/postgres-transfer-picker-work.t line 115.
+#     '0'
+#         >
+#     '0'
+
+#   Failed test 'the scoped read grant actually exposes additional choices'
+#   at t/integration/postgres-transfer-picker-work.t line 115.
+#     '0'
+#         >
+#     '0'
+
+#   Failed test 'the global read grant reaches every fixture scope'
+#   at t/integration/postgres-transfer-picker-work.t line 121.
+#          got: '0'
+#     expected: '18'
+
+#   Failed test 'the full page retains its limit'
+#   at t/integration/postgres-transfer-picker-work.t line 181.
+#          got: '0'
+#     expected: '50'
+
+#   Failed test 'a full page resolves the viewer once, independent of candidate count'
+#   at t/integration/postgres-transfer-picker-work.t line 193.
+#          got: '0'
+#     expected: '1'
+# Looks like you failed 8 tests of 80.
+t/integration/postgres-transfer-picker-work.t ...... 
+Dubious, test returned 8 (wstat 2048, 0x800)
+Failed 8/80 subtests 
+NOTICE:  database "gpforum_tpl_bare_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+t/integration/postgres-sql-function-catalogue.t .... ok
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+{"db_duration_ms":12.6620000082767,"duration_ms":52.1180000068853,"event":"http.request","level":"info","message":"","pid":36207,"request_id":"01a1ade8-b020-7c76-be08-cca362aa6c9a","route":"home","status":200,"timestamp":1793919070.2928,"user_hash":null}
+{"db_duration_ms":0.169999999343418,"duration_ms":6.64599999436177,"event":"http.request","level":"info","message":"","pid":36207,"request_id":"01a1ade8-b056-7de3-9e9b-06a3ca9ac71e","route":"login","status":200,"timestamp":1793919070.30147,"user_hash":null}
+{"db_duration_ms":13.7339999928372,"duration_ms":81.0770000098273,"event":"http.request","level":"info","message":"","pid":36207,"request_id":"01a1ade8-b061-750a-8b72-69d4ab370585","route":"login_submit","status":302,"timestamp":1793919070.38636,"user_hash":"a935e7a81af63ea2f73f0cfd0a745c8a93545a4caac9e67d856e33944f1b0b9f"}
+{"db_duration_ms":2.27599999925587,"duration_ms":13.4569999936502,"event":"http.request","level":"info","message":"","pid":36207,"request_id":"01a1ade8-b0b4-74e5-8802-55e72dd8d12d","route":"settings","status":200,"timestamp":1793919070.40172,"user_hash":"a935e7a81af63ea2f73f0cfd0a745c8a93545a4caac9e67d856e33944f1b0b9f"}
+{"db_duration_ms":8.10099999944214,"duration_ms":14.1189999994822,"event":"http.request","level":"info","message":"","pid":36207,"request_id":"01a1ade8-b0c3-7afd-bf6f-9e5187d7536d","route":"notifications","status":200,"timestamp":1793919070.41777,"user_hash":"a935e7a81af63ea2f73f0cfd0a745c8a93545a4caac9e67d856e33944f1b0b9f"}
+{"db_duration_ms":1.90300001122523,"duration_ms":9.23499999043997,"event":"http.request","level":"info","message":"","pid":36207,"request_id":"01a1ade8-b0d3-77ba-bd2c-b3aceaf3aaaf","route":"privacy_dashboard","status":200,"timestamp":1793919070.42869,"user_hash":"a935e7a81af63ea2f73f0cfd0a745c8a93545a4caac9e67d856e33944f1b0b9f"}
+t/integration/postgres-sql-function-api-role.t ..... ok
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+{"db_duration_ms":0,"duration_ms":4.90499999432359,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-be82-7181-95f3-ec3015e22efa","route":"__featuressessionid","status":200,"timestamp":1793919073.9269,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":8.73800000408664,"duration_ms":68.5490000032587,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-be90-7f53-8aa3-4921439aaf86","route":"moderation_reports","status":200,"timestamp":1793919074.00546,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":17.1430000336841,"duration_ms":21.0349999979371,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bee6-76f1-9b58-2f2646eb8625","route":"moderation_report_assign","status":302,"timestamp":1793919074.04341,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.979000018560328,"duration_ms":7.70200000260957,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-befd-7da9-994a-b0b963fd8c68","route":"moderation_reports","status":200,"timestamp":1793919074.05352,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":1.83800001104828,"duration_ms":4.20300000405405,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bf14-7a10-817f-2c9ee8f6eb4f","route":"moderation_report_release","status":302,"timestamp":1793919074.0728,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.761000002967194,"duration_ms":6.7259999923408,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bf1a-7acc-8ce9-94fa9a28abff","route":"moderation_reports","status":200,"timestamp":1793919074.08137,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":1.67199996940326,"duration_ms":3.84600000688806,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bf30-745a-bc01-71ac6c11d05b","route":"moderation_report_resolve","status":302,"timestamp":1793919074.10009,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":9.93699999526143,"duration_ms":50.4279999877326,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bf37-7a6a-8ed5-33afa52e09b8","route":"thread","status":200,"timestamp":1793919074.15405,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":4.07100000302307,"duration_ms":7.61099999363068,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bf7f-7b26-86ec-10224622bfac","route":"moderation_thread_hide","status":302,"timestamp":1793919074.18326,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.697000024956651,"duration_ms":11.3689999998314,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bf89-7e28-9a1e-507524e91dc7","route":"moderation_actions","status":200,"timestamp":1793919074.19722,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":2.07300001056865,"duration_ms":4.3839999998454,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bf9c-7e04-989c-26c96f0100d6","route":"moderation_action_reverse","status":302,"timestamp":1793919074.20922,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":3.97400000656489,"duration_ms":11.6080000007059,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bfa7-7028-a1e4-ac19d18831e3","route":"moderation_transfers","status":200,"timestamp":1793919074.22658,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":8.9060000173049,"duration_ms":10.5069999990519,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bfb9-7112-aef6-40ee47a1a45c","route":"moderation_transfer","status":302,"timestamp":1793919074.24354,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.996000002487563,"duration_ms":3.59600000956561,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bfc6-72d9-95fc-9eac9c20338e","route":"moderation_transfers","status":200,"timestamp":1793919074.24973,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":4.3199999636272,"duration_ms":5.684999996447,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bfce-74b4-9820-acd55662f98e","route":"moderation_transfer_undo","status":302,"timestamp":1793919074.25994,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.308999995468184,"duration_ms":13.2880000019213,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bfd7-701c-8bca-e5e3f66c4a0a","route":"admin_settings","status":200,"timestamp":1793919074.27626,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.993999972706661,"duration_ms":4.73799998871982,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bff3-7199-86a9-6fa00f591830","route":"admin_mail_test","status":302,"timestamp":1793919074.29579,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.191999992239289,"duration_ms":4.83099999837577,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-bff9-7a5e-ac08-452a2993d6b3","route":"admin_settings","status":200,"timestamp":1793919074.30245,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":1.02900000638328,"duration_ms":61.5490000054706,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c00d-7122-b4d0-089269453c60","route":"admin_antivirus_check","status":302,"timestamp":1793919074.37857,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":2.48999999894295,"duration_ms":12.5290000141831,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c052-7795-81a7-bee1a1ed6b27","route":"admin_jobs","status":200,"timestamp":1793919074.39895,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":2.06799997249618,"duration_ms":3.94199999573175,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c066-7a35-9e82-ecdba92cdb88","route":"admin_dead_letter_replay","status":302,"timestamp":1793919074.41054,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.0940000027185306,"duration_ms":4.53999999444932,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c06c-7bba-bee8-4d41fc291242","route":"legal_notice","status":200,"timestamp":1793919074.41724,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.111999994260259,"duration_ms":0.697000010404736,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c075-789f-887b-419c2c6abb04","route":"security_txt","status":200,"timestamp":1793919074.4222,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.0940000027185306,"duration_ms":0.673000002279878,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c077-7a00-9c20-72857300cc90","route":"site_icon","status":200,"timestamp":1793919074.42427,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":1.37499999254942,"duration_ms":5.57300000218675,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c07b-77df-ac89-85b664d8209d","route":"tags","status":200,"timestamp":1793919074.43304,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":2.3230000078911,"duration_ms":7.72999999753665,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c084-7ce1-bb9f-10debb201a87","route":"tag","status":200,"timestamp":1793919074.44451,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.226999982260168,"duration_ms":2.60799999523442,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c08e-79ef-9b93-a6517e728666","route":"websub_subscribe","status":202,"timestamp":1793919074.4492,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0,"duration_ms":0.348000001395121,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c093-70a3-88cb-23d48099fe86","route":"__featuressessionid","status":200,"timestamp":1793919074.45136,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.127999999676831,"duration_ms":1.45799999882001,"event":"http.request","level":"info","message":"","pid":36322,"request_id":"01a1ade8-c094-7c51-bd7f-d3adeab5c80d","route":"realtime","status":101,"timestamp":1793919074.45419,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+t/integration/postgres-gui-staff-features.t ........ ok
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+{"db_duration_ms":0,"duration_ms":4.36200000694953,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce21-791a-a7b8-401cdf073a27","route":"post_attachment_form","status":302,"timestamp":1793919077.92583,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":2.04899998789188,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce2e-7bba-b862-d8aec7e4a457","route":"__testguisessionid","status":200,"timestamp":1793919077.93674,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":3.7540000048466,"duration_ms":48.7690000009025,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce32-79ae-9d96-2d63f9b050b8","route":"navigation","status":200,"timestamp":1793919077.98734,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":2.74100000387989,"duration_ms":8.48899999982677,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce69-7b4f-a94b-9896ca7e58d4","route":"messages","status":200,"timestamp":1793919078.00215,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.113000001874752,"duration_ms":3.22400000004563,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce75-7e7e-925d-24041232920a","route":"message_new","status":200,"timestamp":1793919078.0091,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.796000007539988,"duration_ms":3.69599999976344,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce7c-7bf7-aaf9-61f55b352b7b","route":"message_new","status":200,"timestamp":1793919078.01642,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.186999997822568,"duration_ms":2.41899999673478,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce84-71e3-ad14-be099c903936","route":"message_new","status":404,"timestamp":1793919078.02251,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":3.68700000399258,"duration_ms":12.8830000030575,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce8a-713f-9cd9-b7412843879d","route":"new_media","status":200,"timestamp":1793919078.03893,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":24.9739999853773,"duration_ms":33.6059999972349,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ce9c-77b6-829b-c53eafc3913d","route":"thread_create","status":302,"timestamp":1793919078.07806,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":3.00499999138992,"duration_ms":9.71399999980349,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cec0-73df-a16c-41cb64295e6d","route":"post_attachment_form","status":200,"timestamp":1793919078.08992,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":2.53599999996368,"duration_ms":7.58400000631809,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cecf-7493-84c7-7624969a0bbb","route":"post_attachment_upload","status":400,"timestamp":1793919078.10284,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":9.81400003365707,"duration_ms":13.7739999918267,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cedd-763d-b5bb-0f2d0df98563","route":"post_attachment_upload","status":302,"timestamp":1793919078.12313,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.761000002967194,"duration_ms":3.31100000767037,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-ceed-763d-9028-df7b4d9e5af9","route":"post_attachment_form","status":200,"timestamp":1793919078.12867,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0,"duration_ms":1.08699999691453,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cef5-7631-ae49-e9bfb7392810","route":"__testguisessionid","status":200,"timestamp":1793919078.13444,"user_hash":"5a2c8ac0d04966bba5879bc47600d18ce20d8d7a8df12b19c596404104a6c8b1"}
+{"db_duration_ms":0.414999987697229,"duration_ms":3.45800000650343,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cef7-7ec4-96e9-4b57c9f3c303","route":"post_attachment_form","status":403,"timestamp":1793919078.13935,"user_hash":"5a2c8ac0d04966bba5879bc47600d18ce20d8d7a8df12b19c596404104a6c8b1"}
+{"db_duration_ms":0,"duration_ms":0.32600000849925,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cefc-7b33-a2e5-5cab42c8abe3","route":"__testguisessionid","status":200,"timestamp":1793919078.141,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.567999974009581,"duration_ms":2.55699999979697,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cefe-74fd-b03c-d56cce0e7ba5","route":"post_attachment_form","status":200,"timestamp":1793919078.14484,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":2.08099999872502,"duration_ms":4.55299999157432,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cf04-7d4b-aaff-6a68e340a583","route":"post_attachment_delete","status":302,"timestamp":1793919078.15336,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.604000000748783,"duration_ms":2.69599999592174,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cf0a-7b68-b56c-6739067373cb","route":"post_attachment_form","status":200,"timestamp":1793919078.15738,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":1.06799999775831,"duration_ms":4.53900000138674,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cf1e-79df-b153-aaed6d581f9c","route":"post_attachment_form","status":200,"timestamp":1793919078.17912,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.681999998050742,"duration_ms":2.88699999509845,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cf30-72f9-9686-6951966591a7","route":"post_attachment_form","status":200,"timestamp":1793919078.19504,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":0.356000004103407,"duration_ms":0.906999994185753,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cf38-71b2-9735-96a5dd3537a2","route":"post_attachment_form","status":400,"timestamp":1793919078.20098,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+{"db_duration_ms":11.599000019487,"duration_ms":48.955999998725,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cf77-7958-b8da-6ea061447e53","route":"post_verification","status":200,"timestamp":1793919078.31247,"user_hash":null}
+{"db_duration_ms":0.813000006019138,"duration_ms":3.74099999316968,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cfac-7e24-88aa-faec85b21b7f","route":"post_signature","status":200,"timestamp":1793919078.32058,"user_hash":null}
+{"db_duration_ms":0.366000007488765,"duration_ms":0.994000001810491,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cfb3-7062-9513-617ea1fcf249","route":"post_verification","status":404,"timestamp":1793919078.32399,"user_hash":null}
+{"db_duration_ms":2.10499999229796,"duration_ms":7.69100000616163,"event":"http.request","level":"info","message":"","pid":36376,"request_id":"01a1ade8-cfb5-75be-a166-54243d45b04b","route":"post_verification","status":200,"timestamp":1793919078.33301,"user_hash":"d6a69314a88b248cba296c89fa33d59a0ed4dc4ce9db76e360dbd4416cc74c66"}
+t/integration/postgres-gui-workflows.t ............. ok
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+{"db_duration_ms":2.08099999872502,"duration_ms":46.1809999978868,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dda2-7ce1-83c5-28dbb18c49c6","route":"login","status":200,"timestamp":1793919081.93691,"user_hash":null}
+{"db_duration_ms":16.8030000058934,"duration_ms":87.4350000085542,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-ddd6-7241-8059-3b2cee3cd257","route":"login_submit","status":302,"timestamp":1793919082.02951,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":2.41299998015165,"duration_ms":14.3959999986691,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de2f-77eb-8693-925ea87ce567","route":"settings","status":200,"timestamp":1793919082.04585,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":3.84800000756513,"duration_ms":38.8309999980265,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de43-78e9-80ee-207a5314b75a","route":"categories","status":200,"timestamp":1793919082.09035,"user_hash":null}
+{"db_duration_ms":0.580999985686503,"duration_ms":3.53800000448246,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de6c-7851-b808-f6f2df92d0b0","route":"categories","status":200,"timestamp":1793919082.09602,"user_hash":null}
+{"db_duration_ms":0.536999985342845,"duration_ms":3.24299999920186,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de71-7b9d-a1b7-d1a9ddb89768","route":"categories","status":200,"timestamp":1793919082.10094,"user_hash":null}
+# anonymous categories: 2 statements for 1 rows, 2 for 50
+{"db_duration_ms":3.06499999715015,"duration_ms":11.1420000030193,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de77-74b8-8a1b-161c3f1908d2","route":"category","status":200,"timestamp":1793919082.11441,"user_hash":null}
+{"db_duration_ms":0.446000005467795,"duration_ms":4.38600000052247,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de84-7191-81fb-f1ca0cb5f335","route":"category","status":200,"timestamp":1793919082.12045,"user_hash":null}
+{"db_duration_ms":0.455000001238659,"duration_ms":3.42199999431614,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de8a-7360-9655-422cc8ce17ab","route":"category","status":200,"timestamp":1793919082.1256,"user_hash":null}
+# anonymous category: 4 statements for 1 rows, 4 for 50
+{"db_duration_ms":2.78300000354648,"duration_ms":10.4480000009062,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de8f-797c-bc3b-f1197d3002dd","route":"home","status":200,"timestamp":1793919082.13801,"user_hash":null}
+{"db_duration_ms":0.911000010091811,"duration_ms":4.24700000439771,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-de9c-7297-a3b6-c834f228407b","route":"home","status":200,"timestamp":1793919082.14438,"user_hash":null}
+{"db_duration_ms":0.851000004331581,"duration_ms":3.91600000148173,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dea2-73eb-8b61-75beab1e1208","route":"home","status":200,"timestamp":1793919082.15013,"user_hash":null}
+# anonymous home: 4 statements for 1 rows, 4 for 50
+{"db_duration_ms":5.72799998917617,"duration_ms":19.3980000040028,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dea8-74d4-81cf-5ef65ec1e174","route":"profile","status":200,"timestamp":1793919082.17167,"user_hash":null}
+{"db_duration_ms":0.973999980487861,"duration_ms":3.74900001042988,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-debd-7c7e-b8fb-c220e3499ae1","route":"profile","status":200,"timestamp":1793919082.1775,"user_hash":null}
+{"db_duration_ms":0.900999992154539,"duration_ms":4.34099999256432,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dec3-7404-a5b5-5915518f8f5a","route":"profile","status":200,"timestamp":1793919082.18356,"user_hash":null}
+# anonymous profile: 7 statements for 1 rows, 7 for 50
+{"db_duration_ms":6.40399999974761,"duration_ms":14.3959999986691,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dec9-7a10-838a-9a81ef80d6f6","route":"forum_search","status":200,"timestamp":1793919082.2,"user_hash":null}
+{"db_duration_ms":1.31100001453888,"duration_ms":3.72899998910725,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-ded9-7df3-9c8c-d5fa26e13f4b","route":"forum_search","status":200,"timestamp":1793919082.20557,"user_hash":null}
+{"db_duration_ms":1.2399999977788,"duration_ms":3.48100000701379,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dedf-752f-b06b-ab7b56e9a699","route":"forum_search","status":200,"timestamp":1793919082.21077,"user_hash":null}
+# anonymous search: 4 statements for 1 rows, 4 for 50
+{"db_duration_ms":6.57200001296587,"duration_ms":39.4300000043586,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dee4-7db2-9ca9-08d3b87e9b67","route":"thread","status":200,"timestamp":1793919082.25226,"user_hash":null}
+{"db_duration_ms":0.973999995039776,"duration_ms":5.37499999336433,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df0e-7d0e-a079-ce7698f3f2ca","route":"thread","status":200,"timestamp":1793919082.26015,"user_hash":null}
+{"db_duration_ms":0.867999988258816,"duration_ms":5.62900000659283,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df16-708b-9650-c8268d1187af","route":"thread","status":200,"timestamp":1793919082.26763,"user_hash":null}
+# anonymous thread: 4 statements for 1 rows, 4 for 50
+{"db_duration_ms":8.69599998986814,"duration_ms":15.4900000052294,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df1e-76b0-aac4-6d66e9c6106b","route":"bookmarks","status":200,"timestamp":1793919082.28587,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":3.54299998434726,"duration_ms":5.87699998868629,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df2f-7fa5-86f2-1c2046320cec","route":"bookmarks","status":200,"timestamp":1793919082.29382,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":3.30999998550396,"duration_ms":5.42400000267662,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df37-79d7-936f-3ddb64911901","route":"bookmarks","status":200,"timestamp":1793919082.30101,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in bookmarks: 5 statements for 1 rows, 5 for 50
+{"db_duration_ms":1.2189999979455,"duration_ms":6.12399999226909,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df3f-735c-bfdc-6f8439227198","route":"categories","status":200,"timestamp":1793919082.3093,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":0.755000000935979,"duration_ms":3.14299999445211,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df47-73e7-ac02-8ee409d270de","route":"categories","status":200,"timestamp":1793919082.31436,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":0.756000023102388,"duration_ms":3.17199999699369,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df4c-7214-940c-727ee7fae82a","route":"categories","status":200,"timestamp":1793919082.31928,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in categories: 4 statements for 1 rows, 4 for 50
+{"db_duration_ms":2.93899999815039,"duration_ms":10.0160000001779,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df51-75ce-8fdb-81b75c6eec28","route":"category","status":200,"timestamp":1793919082.33135,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":0.723999983165413,"duration_ms":4.38800000119954,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df5d-7522-b613-828da4187eee","route":"category","status":200,"timestamp":1793919082.33768,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":0.668999986373819,"duration_ms":3.52299999212846,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df63-77d2-8dc8-cd4a1919800a","route":"category","status":200,"timestamp":1793919082.34298,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in category: 6 statements for 1 rows, 6 for 50
+{"db_duration_ms":3.25499998871237,"duration_ms":7.4460000032559,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df69-71eb-a2d2-1953c9db5d5c","route":"feed","status":200,"timestamp":1793919082.35254,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.87999999616295,"duration_ms":3.82399999944028,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df72-75db-ba31-c17880f5d41b","route":"feed","status":200,"timestamp":1793919082.35816,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.92700000479817,"duration_ms":3.85199999436736,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df77-7e41-a6ed-aaab9b3e6e29","route":"feed","status":200,"timestamp":1793919082.36371,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in feed: 4 statements for 1 rows, 4 for 50
+{"db_duration_ms":2.44600001315121,"duration_ms":9.18500000261702,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df7d-7d33-a1ee-9516bafb58ca","route":"home","status":200,"timestamp":1793919082.37498,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.11800000013318,"duration_ms":4.37799999781419,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df88-7ff3-94e1-393c21b6a11f","route":"home","status":200,"timestamp":1793919082.38134,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.04500002635177,"duration_ms":4.1579999960959,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df8f-727a-8358-3a594bcf9f99","route":"home","status":200,"timestamp":1793919082.38728,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in home: 6 statements for 1 rows, 6 for 50
+{"db_duration_ms":7.24099998478778,"duration_ms":12.2009999904549,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-df95-76b0-b483-ffba08b763f8","route":"notifications","status":200,"timestamp":1793919082.40159,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":0.690000000759028,"duration_ms":2.87799999932759,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfa3-78c8-95f3-f5de33b959e4","route":"notifications","status":200,"timestamp":1793919082.4064,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":0.631000002613291,"duration_ms":2.67799998982809,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfa8-72c4-8814-4ca183d1a9db","route":"notifications","status":200,"timestamp":1793919082.41082,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in notifications: 5 statements for 1 rows, 5 for 50
+{"db_duration_ms":5.8920000155922,"duration_ms":18.835000009858,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfac-7e0c-ae7b-0c55a6089dbb","route":"profile","status":200,"timestamp":1793919082.43169,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.12999997509178,"duration_ms":4.24900000507478,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfc1-7c31-917f-7c3556a7d7ef","route":"profile","status":200,"timestamp":1793919082.43798,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.07900000875816,"duration_ms":4.85199999820907,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfc7-7d6c-b734-81d611a4ea2b","route":"profile","status":200,"timestamp":1793919082.44466,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in profile: 10 statements for 1 rows, 10 for 50
+{"db_duration_ms":5.95000000612345,"duration_ms":13.0409999983385,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfce-7d4f-9158-11474d931dd8","route":"forum_search","status":200,"timestamp":1793919082.45984,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.73999997787178,"duration_ms":4.26699999661651,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfdd-7d3f-9453-7c9756c28eca","route":"forum_search","status":200,"timestamp":1793919082.46606,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.55100000847597,"duration_ms":3.89800000994001,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfe3-7de7-9d0e-7e070f68439c","route":"forum_search","status":200,"timestamp":1793919082.47174,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in search: 6 statements for 1 rows, 6 for 50
+{"db_duration_ms":6.04800001019612,"duration_ms":41.5000000066357,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-dfe9-7e66-ac9f-42dc7645d0df","route":"thread","status":200,"timestamp":1793919082.51537,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.20400000014342,"duration_ms":6.24099999549799,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-e016-7293-ae52-4db68e31d249","route":"thread","status":200,"timestamp":1793919082.52437,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+{"db_duration_ms":1.12800000351854,"duration_ms":7.117000001017,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-e01e-7722-872b-7882e5c99184","route":"thread","status":200,"timestamp":1793919082.53353,"user_hash":"e40900e9d9b43c1da365c8017a76f44e20e337d3fc223bfe147ce5b9316086ad"}
+# signed in thread: 6 statements for 1 rows, 6 for 50
+{"db_duration_ms":1.17599999066442,"duration_ms":7.52300000749528,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-e027-7e9b-9c6a-079f217ab6bd","route":"thread","status":200,"timestamp":1793919082.5434,"user_hash":null}
+{"db_duration_ms":0.571999989915639,"duration_ms":3.85799999639858,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-e037-7656-8bcb-4637867dc07f","route":"category","status":200,"timestamp":1793919082.55522,"user_hash":null}
+{"db_duration_ms":0.100999997812323,"duration_ms":1.09299999894574,"event":"http.request","level":"info","message":"","pid":36426,"request_id":"01a1ade8-e03f-755c-b5f0-9efc9e427f79","route":"thread","status":200,"timestamp":1793919082.5604,"user_hash":null}
+t/integration/postgres-query-budget.t .............. ok
+NOTICE:  database "gpforum_tpl_bare_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+{"db_duration_ms":4.19400000828318,"duration_ms":23.3670000015991,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed4c-7000-9c70-61f357922862","route":"__requestpolicy","status":200,"timestamp":1793919085.92327,"user_hash":null}
+{"db_duration_ms":0.241000001551583,"duration_ms":1.15799999912269,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed65-7dc6-be76-fd40e1d278f7","route":"__requestpolicy","status":200,"timestamp":1793919085.92697,"user_hash":null}
+{"db_duration_ms":3.99700000707526,"duration_ms":11.718000008841,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed69-7526-ac96-a14cf4836e09","route":"__requestpolicy","status":200,"timestamp":1793919085.941,"user_hash":null}
+{"db_duration_ms":0.11399999493733,"duration_ms":0.797000000602566,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed76-79ae-a764-bb472c5acb00","route":"__requestpolicy","status":200,"timestamp":1793919085.94337,"user_hash":null}
+{"db_duration_ms":0.121999997645617,"duration_ms":2.00600000971463,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed78-7e51-b839-214c492cd8d2","route":"__requestpolicy","status":200,"timestamp":1793919085.94687,"user_hash":null}
+{"db_duration_ms":0.0940000027185306,"duration_ms":1.83900000411086,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed7c-728f-8fa1-6e475037e140","route":"__requestpolicy","status":200,"timestamp":1793919085.94997,"user_hash":null}
+{"db_duration_ms":0.115000002551824,"duration_ms":1.99599999177735,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed7f-766e-b156-862b7556dfbc","route":"__requestpolicy","status":200,"timestamp":1793919085.95337,"user_hash":null}
+{"db_duration_ms":0.101000012364239,"duration_ms":1.89600000157952,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed82-7820-9ec4-4969593d6958","route":"__requestpolicy","status":200,"timestamp":1793919085.95638,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.853999998071231,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed85-7ad4-bda9-eb30caacc953","route":"__requestpolicy","status":200,"timestamp":1793919085.9585,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.547000003280118,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed87-7b95-b152-73b447bbcff8","route":"__requestpolicy","status":200,"timestamp":1793919085.96025,"user_hash":null}
+{"db_duration_ms":0.124000012874603,"duration_ms":1.92000000970438,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed89-7693-99e5-2bdd19d678c2","route":"__requestpolicy","status":200,"timestamp":1793919085.96331,"user_hash":null}
+{"db_duration_ms":0.0939999881666154,"duration_ms":1.82299999869429,"event":"http.request","level":"info","message":"","pid":36481,"request_id":"01a1ade8-ed8c-76ed-a8ba-9cd12a2828cc","route":"__requestpolicy","status":200,"timestamp":1793919085.96623,"user_hash":null}
+t/integration/postgres-request-work-reuse.t ........ ok
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+t/integration/postgres-sql-function-thread-page.t .. ok
+
+Test Summary Report
+-------------------
+t/integration/postgres-transfer-picker-work.t    (Wstat: 2048 (exited 8) Tests: 80 Failed: 8)
+  Failed tests:  3, 6, 13, 20, 27-28, 75-76
+  Non-zero exit status: 8
+Files=13, Tests=6863, 40 wallclock secs ( 0.21 usr  0.04 sys + 18.85 cusr  8.83 csys = 27.93 CPU)
+Result: FAIL

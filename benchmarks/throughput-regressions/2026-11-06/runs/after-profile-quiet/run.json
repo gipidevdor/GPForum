@@ -1,0 +1,38 @@
+{
+  "source": "/private/tmp/gpforum-throughput-after-jmfz1u2e",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "perl",
+    "-Ilib",
+    "-It/lib",
+    "-MGPForum::Test::TemporaryPostgres",
+    "script/bench-render",
+    "--page",
+    "thread_member",
+    "--iterations",
+    "100",
+    "--warmup",
+    "10",
+    "--nytprof",
+    "/Users/gpicchiarelli/Documents/GPForum/artifacts/throughput-regressions-20261105/after-profile-quiet/render.nyt",
+    "--top",
+    "35",
+    "--json"
+  ],
+  "competing_load": [],
+  "started_at": "2026-11-05T22:50:27.857229+00:00",
+  "load_before": [
+    2.84326171875,
+    3.28857421875,
+    2.73681640625
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 8.385535417,
+  "load_after": [
+    2.6328125,
+    3.22900390625,
+    2.72216796875
+  ],
+  "finished_at": "2026-11-05T22:50:36.243106+00:00"
+}

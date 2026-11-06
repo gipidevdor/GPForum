@@ -1,0 +1,325 @@
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+
+#   Failed test 'a post result retains its loaded discussion id for the link'
+#   at t/integration/postgres-search-results.t line 94.
+#          got: undef
+#     expected: '018f1004-0002-7000-8000-000000000002'
+# Looks like you failed 1 test of 33.
+t/integration/postgres-search-results.t ............ 
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/33 subtests 
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+t/integration/postgres-search-hidden-content.t ..... ok
+
+#   Failed test 'public/anonymous exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'public/anonymous thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'public/category_grant exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'public/category_grant thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'public/global exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'public/global thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'public/global_without_member exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'public/global_without_member thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'public/member exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'public/member thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'public/space_grant exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'public/space_grant thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'public/suspended exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'public/suspended thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+t/integration/postgres-hybrid-search.t ............. ok
+
+#   Failed test 'members/anonymous exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'members/category_grant exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'members/global exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'members/global thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'members/global_without_member exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'members/member exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'members/member thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'members/space_grant exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'members/space_grant thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'members/suspended exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'private/anonymous exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'private/category_grant exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'private/category_grant thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'private/global exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'private/global thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'private/global_without_member exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'private/global_without_member thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'private/member exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'private/space_grant exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'private/space_grant thread-scoped exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0001-7000-8000-000000000001'
+
+#   Failed test 'private/suspended exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'query [perfomance] exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'query [  ] exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'filters/0 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'filters/1 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'filters/2 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'filters/3 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000a-7000-8000-00000000000a'
+
+#   Failed test 'filters/4 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000b-7000-8000-00000000000b'
+
+#   Failed test 'filters/5 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+
+#   Failed test 'filters/6 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-0006-7000-8000-000000000006'
+
+#   Failed test 'filters/7 exact ranking, bounds, snippets and cap metadata agree'
+#   at t/integration/postgres-sql-function-search.t line 240.
+#     Structures begin differing at:
+#          $got->{results}[0]{source_thread_id} = undef
+#     $expected->{results}[0]{source_thread_id} = '018f1004-000c-7000-8000-00000000000c'
+# Looks like you failed 45 tests of 93.
+t/integration/postgres-sql-function-search.t ....... 
+Dubious, test returned 45 (wstat 11520, 0x2d00)
+Failed 45/93 subtests 
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+NOTICE:  database "gpforum_tpl_seed_20ff741731fd_202611_building" does not exist, skipping
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+t/integration/postgres-thread-list-excerpts.t ...... ok
+t/integration/postgres-sql-function-forum-reads.t .. ok
+t/integration/postgres-http-complete.t ............. ok
+
+Test Summary Report
+-------------------
+t/integration/postgres-search-results.t          (Wstat: 256 (exited 1) Tests: 33 Failed: 1)
+  Failed test:  10
+  Non-zero exit status: 1
+t/integration/postgres-sql-function-search.t     (Wstat: 11520 (exited 45) Tests: 93 Failed: 45)
+  Failed tests:  6-7, 9-10, 12-13, 15-16, 18-19, 21-22, 24-25
+                27, 30, 33-34, 36, 39-40, 42-43, 45, 48
+                51-52, 54-55, 57-58, 60, 63-64, 66, 70
+                72, 75-82
+  Non-zero exit status: 45
+Files=7, Tests=563, 25 wallclock secs ( 0.37 usr  0.05 sys + 23.81 cusr  9.29 csys = 33.52 CPU)
+Result: FAIL

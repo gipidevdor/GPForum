@@ -1,0 +1,197 @@
+{
+   "architecture" : "darwin-thread-multi-2level",
+   "method" : "Three fixed-iteration batches after 100 warmups, monotonic wall time. Validators and plans run without database or network. All timed inputs have identical semantic results before/after. The oversized 4096-character cursor is an invalid-input resource case, not a normal page. HTTP measurements use a different, explicitly cumulative baseline to revisit the preceding home latency concern.",
+   "perl" : "v5.44.0",
+   "platform" : "darwin",
+   "results" : [
+      {
+         "iterations" : 500000,
+         "name" : "etag_exact_weak",
+         "operations_per_second" : 843515.977069278,
+         "repetition" : 1,
+         "seconds" : 0.5927569999767
+      },
+      {
+         "iterations" : 500000,
+         "name" : "etag_exact_weak",
+         "operations_per_second" : 843181.695550329,
+         "repetition" : 2,
+         "seconds" : 0.592991999990772
+      },
+      {
+         "iterations" : 500000,
+         "name" : "etag_exact_weak",
+         "operations_per_second" : 841589.324598086,
+         "repetition" : 3,
+         "seconds" : 0.594114000006812
+      },
+      {
+         "iterations" : 500000,
+         "name" : "etag_wildcard",
+         "operations_per_second" : 911073.736869527,
+         "repetition" : 1,
+         "seconds" : 0.548802999983309
+      },
+      {
+         "iterations" : 500000,
+         "name" : "etag_wildcard",
+         "operations_per_second" : 921718.451871656,
+         "repetition" : 2,
+         "seconds" : 0.542465000005905
+      },
+      {
+         "iterations" : 500000,
+         "name" : "etag_wildcard",
+         "operations_per_second" : 922851.463367748,
+         "repetition" : 3,
+         "seconds" : 0.541798999998719
+      },
+      {
+         "iterations" : 200000,
+         "name" : "etag_list_eight_members",
+         "operations_per_second" : 220022.970395,
+         "repetition" : 1,
+         "seconds" : 0.908996000012849
+      },
+      {
+         "iterations" : 200000,
+         "name" : "etag_list_eight_members",
+         "operations_per_second" : 222932.137228376,
+         "repetition" : 2,
+         "seconds" : 0.897133999998914
+      },
+      {
+         "iterations" : 200000,
+         "name" : "etag_list_eight_members",
+         "operations_per_second" : 222995.769770357,
+         "repetition" : 3,
+         "seconds" : 0.89687799999956
+      },
+      {
+         "iterations" : 100000,
+         "name" : "stale_etag_with_older_date",
+         "operations_per_second" : 113066.022644297,
+         "repetition" : 1,
+         "seconds" : 0.884438999986742
+      },
+      {
+         "iterations" : 100000,
+         "name" : "stale_etag_with_older_date",
+         "operations_per_second" : 112644.45243136,
+         "repetition" : 2,
+         "seconds" : 0.887748999986798
+      },
+      {
+         "iterations" : 100000,
+         "name" : "stale_etag_with_older_date",
+         "operations_per_second" : 111793.423641314,
+         "repetition" : 3,
+         "seconds" : 0.894506999989972
+      },
+      {
+         "iterations" : 200000,
+         "name" : "ordinary_plan_no_cursor",
+         "operations_per_second" : 835764.013666913,
+         "repetition" : 1,
+         "seconds" : 0.239302000001771
+      },
+      {
+         "iterations" : 200000,
+         "name" : "ordinary_plan_no_cursor",
+         "operations_per_second" : 841612.698255808,
+         "repetition" : 2,
+         "seconds" : 0.237638999999035
+      },
+      {
+         "iterations" : 200000,
+         "name" : "ordinary_plan_no_cursor",
+         "operations_per_second" : 844152.555260158,
+         "repetition" : 3,
+         "seconds" : 0.236923999997089
+      },
+      {
+         "iterations" : 50000,
+         "name" : "ordinary_plan_timestamp_cursor",
+         "operations_per_second" : 144606.049742205,
+         "repetition" : 1,
+         "seconds" : 0.345766999991611
+      },
+      {
+         "iterations" : 50000,
+         "name" : "ordinary_plan_timestamp_cursor",
+         "operations_per_second" : 146208.663154136,
+         "repetition" : 2,
+         "seconds" : 0.341977000003681
+      },
+      {
+         "iterations" : 50000,
+         "name" : "ordinary_plan_timestamp_cursor",
+         "operations_per_second" : 146737.726862364,
+         "repetition" : 3,
+         "seconds" : 0.340743999986444
+      },
+      {
+         "iterations" : 100000,
+         "name" : "ordinary_plan_oversized_4096",
+         "operations_per_second" : 109637.58200716,
+         "repetition" : 1,
+         "seconds" : 0.912096000014571
+      },
+      {
+         "iterations" : 100000,
+         "name" : "ordinary_plan_oversized_4096",
+         "operations_per_second" : 109630.730807968,
+         "repetition" : 2,
+         "seconds" : 0.91215300001204
+      },
+      {
+         "iterations" : 100000,
+         "name" : "ordinary_plan_oversized_4096",
+         "operations_per_second" : 109478.303043606,
+         "repetition" : 3,
+         "seconds" : 0.913422999990871
+      },
+      {
+         "iterations" : 50000,
+         "name" : "category_call_no_cursor_no_database",
+         "operations_per_second" : 231653.076363759,
+         "repetition" : 1,
+         "seconds" : 0.215839999989839
+      },
+      {
+         "iterations" : 50000,
+         "name" : "category_call_no_cursor_no_database",
+         "operations_per_second" : 228007.533382734,
+         "repetition" : 2,
+         "seconds" : 0.219290999986697
+      },
+      {
+         "iterations" : 50000,
+         "name" : "category_call_no_cursor_no_database",
+         "operations_per_second" : 228305.289842177,
+         "repetition" : 3,
+         "seconds" : 0.219004999991739
+      },
+      {
+         "iterations" : 30000,
+         "name" : "category_call_pinned_cursor_no_database",
+         "operations_per_second" : 72875.3200443592,
+         "repetition" : 1,
+         "seconds" : 0.411661999998614
+      },
+      {
+         "iterations" : 30000,
+         "name" : "category_call_pinned_cursor_no_database",
+         "operations_per_second" : 73894.3557045581,
+         "repetition" : 2,
+         "seconds" : 0.405984999990324
+      },
+      {
+         "iterations" : 30000,
+         "name" : "category_call_pinned_cursor_no_database",
+         "operations_per_second" : 74430.4211982304,
+         "repetition" : 3,
+         "seconds" : 0.403061000019079
+      }
+   ]
+}

@@ -1,0 +1,115 @@
+name: FreeBSD target
+
+# FreeBSD is a named deployment platform (README, deploy/freebsd/gpforum).
+# GitHub has no FreeBSD runner, so the gate runs inside a FreeBSD VM on an
+# Ubuntu runner. Advisory, not a merge blocker: it is scheduled and manual, and
+# path-triggered on the OS abstraction and the rc(8) unit.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/GPForum/OS/**'
+      - 'lib/GPForum/OS.pm'
+      - 'deploy/freebsd/**'
+      - 'lib/GPForum/CLI/start.pm'
+      - 'lib/GPForum/Log.pm'
+      - 'lib/GPForum/Log/**'
+      - 't/865-unix-service-manager.t'
+      - 't/866-native-unix-supervisor.t'
+      - 't/fixtures/unix-service.pl'
+      - 'script/gpforum-system-perl'
+      - 'script/bootstrap-deps'
+      - 'script/gpforum-carton'
+      - 'script/gpforum-cpm'
+      - 't/700-ev-fork-drill.t'
+      - 'cpanfile'
+      - 'cpanfile.postgres'
+      - 'cpanfile.snapshot'
+      - '.github/workflows/platform-freebsd.yml'
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-freebsd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  freebsd:
+    name: FreeBSD system Perl
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run the GPForum gate in a FreeBSD VM
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
+        with:
+          # Supported 14.x release: https://www.freebsd.org/security/#sup
+          release: '14.5'
+          copyback: false
+          envs: 'PERL_CARTON_MIRROR'
+          prepare: |
+            set -eu
+            pkg install -y bash ca_root_nss curl git perl5 p5-App-cpanminus postgresql18-client postgresql18-server postgresql18-contrib postgresql18-pgvector gtar
+            # cpm prefers gtar, which ignores foreign macOS xattrs when a
+            # locked archive is extracted as root on this VM.
+            # cpm and Carton are host tools for the ports Perl; their packages are not
+            # available in every FreeBSD repository snapshot.
+            /usr/local/bin/perl /usr/local/bin/cpanm --notest \
+              --mirror https://cpan.metacpan.org/ --mirror-only App::cpm Carton
+          run: |
+            set -eu
+
+            # The VM receives the runner checkout with its original owner.
+            git config --global --add safe.directory "$(pwd)"
+            git rev-parse --verify HEAD
+
+            echo '--- ports perl'
+            perl -v | sed -n '1,4p'
+
+            echo '--- system Perl contract'
+            script/gpforum-system-perl --preflight
+            script/gpforum-system-perl --require
+
+            echo '--- locked CPAN distributions'
+            if ! script/bootstrap-deps --postgres; then
+              cat local/build.log
+              exit 1
+            fi
+
+            echo '--- dependency lock'
+            script/gpforum-carton check
+
+            echo '--- Perl syntax'
+            script/gpforum-carton exec script/perl-syntax-check
+
+            echo '--- rc(8) unit syntax'
+            for unit in deploy/freebsd/gpforum*; do
+              [ "$(head -n 1 "$unit")" = '#!/bin/sh' ] || continue
+              sh -n "$unit"
+            done
+
+            echo '--- native daemon(8) restart and graceful stop'
+            GPFORUM_REQUIRE_NATIVE_SUPERVISOR=1 script/gpforum-carton exec \
+              prove -lv t/866-native-unix-supervisor.t
+
+            echo '--- OS preflight'
+            bin/gpforum os-preflight --json
+
+            # The HTTP smoke test creates its own PostgreSQL cluster; keep
+            # server tools installed even without an external integration DSN.
+            echo '--- tests (self-contained clusters; DSN-guarded tests remain opt-in)'
+            script/gpforum-carton exec prove -lr -j 2 t
+
+            echo '--- platform check'
+            bin/gpforum platform-check --local
+        env:
+          PERL_CARTON_MIRROR: https://cpan.metacpan.org/

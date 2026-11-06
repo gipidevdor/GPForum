@@ -1,0 +1,23 @@
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+member.thread c=1 rep=1 requests=40 p95=12.76ms errors=0
+member.thread c=10 rep=1 requests=494 p95=104.10ms errors=0
+member.thread c=1 rep=2 requests=40 p95=13.13ms errors=0
+member.thread c=10 rep=2 requests=515 p95=83.37ms errors=0
+moderator.transfers c=1 rep=1 requests=40 p95=20.51ms errors=0
+moderator.transfers c=1 rep=2 requests=40 p95=21.25ms errors=0
+admin.status c=1 rep=1 requests=40 p95=70.53ms errors=0
+admin.status c=1 rep=2 requests=40 p95=71.10ms errors=0
+admin.registration c=1 rep=1 requests=40 p95=3.75ms errors=0
+admin.registration c=1 rep=2 requests=40 p95=3.66ms errors=0
+admin.settings c=1 rep=1 requests=40 p95=6.23ms errors=0
+admin.settings c=1 rep=2 requests=40 p95=6.32ms errors=0
+admin.plugins c=1 rep=1 requests=40 p95=6.82ms errors=0
+admin.plugins c=1 rep=2 requests=40 p95=6.84ms errors=0
+admin.configuration c=1 rep=1 requests=40 p95=5.20ms errors=0
+admin.configuration c=1 rep=2 requests=40 p95=4.82ms errors=0
+journey.publishing_community c=10 rep=1 requests=400 p95=67.78ms errors=0
+journey.publishing_community c=10 rep=2 requests=400 p95=88.25ms errors=0
+mixed c=10 rep=1 requests=700 p95=69.63ms errors=0
+mixed c=10 rep=2 requests=700 p95=70.39ms errors=0

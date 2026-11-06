@@ -1,0 +1,5598 @@
+{
+   "kind" : "http",
+   "limitations" : [
+      "Configured wrk latency budget: 3 seconds.",
+      "Shared runner and load generator share the host; values are comparative evidence, not production capacity.",
+      "wrk uses closed-loop fixed connections and corrected latency histograms; in-flight concurrency is not measured.",
+      "RSS is end-of-sample manager+workers residency, not peak; PostgreSQL and generator resources are separate.",
+      "Cache hits/misses verified by probes; warmed worker-local SSR cache; cache miss uses harness-only expiry policy.",
+      "Only anonymous GETs; migrations, seed and rate-limit accounting write only the dedicated disposable database."
+   ],
+   "measurements" : [
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.009328509,
+         "metrics" : {
+            "completed" : 730,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.536,
+            "duration_seconds" : 2.001837,
+            "http_errors" : 0,
+            "p50_ms" : 2.712,
+            "p95_ms" : 2.816,
+            "p99_ms" : 3.505,
+            "requests_per_second" : 364.665055,
+            "rss_bytes" : 406380544,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6789,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6790,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01133531300002,
+         "metrics" : {
+            "completed" : 1434,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.37,
+            "duration_seconds" : 2.002076,
+            "http_errors" : 0,
+            "p50_ms" : 14.029,
+            "p95_ms" : 16.922,
+            "p99_ms" : 20.441,
+            "requests_per_second" : 716.256526,
+            "rss_bytes" : 406740992,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6789,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6790,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01137434200001,
+         "metrics" : {
+            "completed" : 1421,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.858,
+            "duration_seconds" : 2.003158,
+            "http_errors" : 0,
+            "p50_ms" : 68.515,
+            "p95_ms" : 69.999,
+            "p99_ms" : 120.509,
+            "requests_per_second" : 709.379889,
+            "rss_bytes" : 408752128,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6789,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6790,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.109912624,
+         "metrics" : {
+            "completed" : 2509,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.53,
+            "duration_seconds" : 2.099541,
+            "http_errors" : 0,
+            "p50_ms" : 0.831,
+            "p95_ms" : 0.873,
+            "p99_ms" : 0.908,
+            "requests_per_second" : 1195.023103,
+            "rss_bytes" : 406364160,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11179167300003,
+         "metrics" : {
+            "completed" : 4814,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.883,
+            "duration_seconds" : 2.099711,
+            "http_errors" : 0,
+            "p50_ms" : 3.705,
+            "p95_ms" : 5.322,
+            "p99_ms" : 8.224,
+            "requests_per_second" : 2292.696471,
+            "rss_bytes" : 406384640,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01096930200003,
+         "metrics" : {
+            "completed" : 4688,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.406,
+            "duration_seconds" : 2.001603,
+            "http_errors" : 0,
+            "p50_ms" : 21.437,
+            "p95_ms" : 22.388,
+            "p99_ms" : 25.035,
+            "requests_per_second" : 2342.122789,
+            "rss_bytes" : 407416832,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01140683400001,
+         "metrics" : {
+            "completed" : 4599,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.854,
+            "duration_seconds" : 2.003542,
+            "http_errors" : 0,
+            "p50_ms" : 42.743,
+            "p95_ms" : 44.69,
+            "p99_ms" : 63.996,
+            "requests_per_second" : 2295.434785,
+            "rss_bytes" : 408838144,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01033911499997,
+         "metrics" : {
+            "completed" : 310,
+            "concurrency_effective" : null,
+            "cpu_percent" : 81.578,
+            "duration_seconds" : 2.001441,
+            "http_errors" : 0,
+            "p50_ms" : 6.388,
+            "p95_ms" : 6.566,
+            "p99_ms" : 7.312,
+            "requests_per_second" : 154.888403,
+            "rss_bytes" : 409440256,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01315353400003,
+         "metrics" : {
+            "completed" : 548,
+            "concurrency_effective" : null,
+            "cpu_percent" : 162.432,
+            "duration_seconds" : 2.002887,
+            "http_errors" : 0,
+            "p50_ms" : 34.169,
+            "p95_ms" : 45.507,
+            "p99_ms" : 58.705,
+            "requests_per_second" : 273.605051,
+            "rss_bytes" : 410083328,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03240535500004,
+         "metrics" : {
+            "completed" : 498,
+            "concurrency_effective" : null,
+            "cpu_percent" : 161.877,
+            "duration_seconds" : 2.005197,
+            "http_errors" : 0,
+            "p50_ms" : 197.137,
+            "p95_ms" : 267.848,
+            "p99_ms" : 337.048,
+            "requests_per_second" : 248.35465,
+            "rss_bytes" : 412606464,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01244689000004,
+         "metrics" : {
+            "completed" : 1721,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.382,
+            "duration_seconds" : 2.002484,
+            "http_errors" : 0,
+            "p50_ms" : 1.159,
+            "p95_ms" : 1.203,
+            "p99_ms" : 1.261,
+            "requests_per_second" : 859.432585,
+            "rss_bytes" : 412606464,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01099656700001,
+         "metrics" : {
+            "completed" : 3532,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.901,
+            "duration_seconds" : 2.001311,
+            "http_errors" : 0,
+            "p50_ms" : 5.643,
+            "p95_ms" : 5.928,
+            "p99_ms" : 7.838,
+            "requests_per_second" : 1764.843145,
+            "rss_bytes" : 412606464,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01142046699999,
+         "metrics" : {
+            "completed" : 3529,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.864,
+            "duration_seconds" : 2.001513,
+            "http_errors" : 0,
+            "p50_ms" : 27.91,
+            "p95_ms" : 28.586,
+            "p99_ms" : 35.876,
+            "requests_per_second" : 1763.166165,
+            "rss_bytes" : 412606464,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01026146500004,
+         "metrics" : {
+            "completed" : 1722,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.49,
+            "duration_seconds" : 2.00102,
+            "http_errors" : 0,
+            "p50_ms" : 1.143,
+            "p95_ms" : 1.226,
+            "p99_ms" : 1.347,
+            "requests_per_second" : 860.561114,
+            "rss_bytes" : 412622848,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01114187100001,
+         "metrics" : {
+            "completed" : 3360,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.892,
+            "duration_seconds" : 2.000876,
+            "http_errors" : 0,
+            "p50_ms" : 6.171,
+            "p95_ms" : 7.223,
+            "p99_ms" : 9.152,
+            "requests_per_second" : 1679.264482,
+            "rss_bytes" : 412639232,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03165538799999,
+         "metrics" : {
+            "completed" : 3473,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.345,
+            "duration_seconds" : 2.005968,
+            "http_errors" : 0,
+            "p50_ms" : 24.714,
+            "p95_ms" : 34.318,
+            "p99_ms" : 38.372,
+            "requests_per_second" : 1731.3337,
+            "rss_bytes" : 412639232,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01054977499996,
+         "metrics" : {
+            "completed" : 1730,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.475,
+            "duration_seconds" : 2.000283,
+            "http_errors" : 0,
+            "p50_ms" : 1.132,
+            "p95_ms" : 1.183,
+            "p99_ms" : 6.953,
+            "requests_per_second" : 864.87762,
+            "rss_bytes" : 412770304,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11166733800002,
+         "metrics" : {
+            "completed" : 3531,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.895,
+            "duration_seconds" : 2.099828,
+            "http_errors" : 0,
+            "p50_ms" : 5.824,
+            "p95_ms" : 6.589,
+            "p99_ms" : 10.163,
+            "requests_per_second" : 1681.5663,
+            "rss_bytes" : 412770304,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01155993199995,
+         "metrics" : {
+            "completed" : 3456,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.845,
+            "duration_seconds" : 2.004041,
+            "http_errors" : 0,
+            "p50_ms" : 28.657,
+            "p95_ms" : 30.157,
+            "p99_ms" : 47.985,
+            "requests_per_second" : 1724.515616,
+            "rss_bytes" : 412770304,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.031931418,
+         "metrics" : {
+            "completed" : 3376,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.778,
+            "duration_seconds" : 2.005682,
+            "http_errors" : 0,
+            "p50_ms" : 58.647,
+            "p95_ms" : 61.15,
+            "p99_ms" : 98.563,
+            "requests_per_second" : 1683.217978,
+            "rss_bytes" : 416059392,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01080981199999,
+         "metrics" : {
+            "completed" : 195,
+            "concurrency_effective" : null,
+            "cpu_percent" : 56.694,
+            "duration_seconds" : 2.000618,
+            "http_errors" : 0,
+            "p50_ms" : 10.14,
+            "p95_ms" : 10.971,
+            "p99_ms" : 12.227,
+            "requests_per_second" : 97.469882,
+            "rss_bytes" : 416468992,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11279041099999,
+         "metrics" : {
+            "completed" : 354,
+            "concurrency_effective" : null,
+            "cpu_percent" : 115.96,
+            "duration_seconds" : 2.100082,
+            "http_errors" : 0,
+            "p50_ms" : 56.317,
+            "p95_ms" : 75.232,
+            "p99_ms" : 102.876,
+            "requests_per_second" : 168.564847,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03202839900001,
+         "metrics" : {
+            "completed" : 300,
+            "concurrency_effective" : null,
+            "cpu_percent" : 119.585,
+            "duration_seconds" : 2.005539,
+            "http_errors" : 0,
+            "p50_ms" : 310.849,
+            "p95_ms" : 495.185,
+            "p99_ms" : 559.645,
+            "requests_per_second" : 149.585722,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.031915035,
+         "metrics" : {
+            "completed" : 299,
+            "concurrency_effective" : null,
+            "cpu_percent" : 114.67,
+            "duration_seconds" : 2.004036,
+            "http_errors" : 0,
+            "p50_ms" : 560.951,
+            "p95_ms" : 1053.6,
+            "p99_ms" : 1134.028,
+            "requests_per_second" : 149.198917,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11007372799997,
+         "metrics" : {
+            "completed" : 1857,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.523,
+            "duration_seconds" : 2.099873,
+            "http_errors" : 0,
+            "p50_ms" : 1.121,
+            "p95_ms" : 1.173,
+            "p99_ms" : 1.232,
+            "requests_per_second" : 884.339196,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.012242598,
+         "metrics" : {
+            "completed" : 3432,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.28,
+            "duration_seconds" : 2.002658,
+            "http_errors" : 0,
+            "p50_ms" : 5.783,
+            "p95_ms" : 6.1,
+            "p99_ms" : 7.526,
+            "requests_per_second" : 1713.722463,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01209598100002,
+         "metrics" : {
+            "completed" : 3419,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.792,
+            "duration_seconds" : 2.000747,
+            "http_errors" : 0,
+            "p50_ms" : 29.006,
+            "p95_ms" : 31.82,
+            "p99_ms" : 43.041,
+            "requests_per_second" : 1708.86174,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03217767699999,
+         "metrics" : {
+            "completed" : 3446,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.786,
+            "duration_seconds" : 2.004576,
+            "http_errors" : 0,
+            "p50_ms" : 56.853,
+            "p95_ms" : 60.222,
+            "p99_ms" : 94.166,
+            "requests_per_second" : 1719.066775,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "canonical_endpoint" : "/health/live",
+         "capacity_class" : "indicative fixed-request Mojo comparison; not sustained capacity",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 27.284,
+            "duration_seconds" : 0.077,
+            "http_errors" : 0,
+            "p50_ms" : 7.404,
+            "p95_ms" : 9.884,
+            "p99_ms" : 10.49,
+            "requests_per_second" : 1298.53,
+            "rss_bytes" : 416878592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "capacity_class" : "indicative fixed-request Mojo comparison; not sustained capacity",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 31.572,
+            "duration_seconds" : 0.107,
+            "http_errors" : 0,
+            "p50_ms" : 9.969,
+            "p95_ms" : 13.95,
+            "p99_ms" : 14.153,
+            "requests_per_second" : 938.88,
+            "rss_bytes" : 417214464,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6866,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 6867,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11657331399999,
+         "metrics" : {
+            "completed" : 5144,
+            "concurrency_effective" : null,
+            "cpu_percent" : 386.001,
+            "duration_seconds" : 2.100964,
+            "http_errors" : 0,
+            "p50_ms" : 15.358,
+            "p95_ms" : 33.235,
+            "p99_ms" : 42.624,
+            "requests_per_second" : 2448.399877,
+            "rss_bytes" : 676995072,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7239,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7240,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7241,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7242,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01825157399998,
+         "metrics" : {
+            "completed" : 4877,
+            "concurrency_effective" : null,
+            "cpu_percent" : 388.455,
+            "duration_seconds" : 2.004562,
+            "http_errors" : 0,
+            "p50_ms" : 34.07,
+            "p95_ms" : 64.774,
+            "p99_ms" : 73.861,
+            "requests_per_second" : 2432.95044,
+            "rss_bytes" : 681136128,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7239,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7240,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7241,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7242,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.02320648200003,
+         "metrics" : {
+            "completed" : 431,
+            "concurrency_effective" : null,
+            "cpu_percent" : 218.465,
+            "duration_seconds" : 2.007845,
+            "http_errors" : 0,
+            "p50_ms" : 163.835,
+            "p95_ms" : 452.49,
+            "p99_ms" : 666.96,
+            "requests_per_second" : 214.658004,
+            "rss_bytes" : 682778624,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7239,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7240,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7241,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7242,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.054602418,
+         "metrics" : {
+            "completed" : 432,
+            "concurrency_effective" : null,
+            "cpu_percent" : 223.888,
+            "duration_seconds" : 2.009107,
+            "http_errors" : 0,
+            "p50_ms" : 388.119,
+            "p95_ms" : 739.298,
+            "p99_ms" : 877.378,
+            "requests_per_second" : 215.020902,
+            "rss_bytes" : 684007424,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7239,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7240,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7241,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7242,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11806014799998,
+         "metrics" : {
+            "completed" : 5350,
+            "concurrency_effective" : null,
+            "cpu_percent" : 387.619,
+            "duration_seconds" : 2.10103,
+            "http_errors" : 0,
+            "p50_ms" : 16.449,
+            "p95_ms" : 28.38,
+            "p99_ms" : 37.918,
+            "requests_per_second" : 2546.370114,
+            "rss_bytes" : 684007424,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7239,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7240,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7241,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7242,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03716527400002,
+         "metrics" : {
+            "completed" : 5048,
+            "concurrency_effective" : null,
+            "cpu_percent" : 386.321,
+            "duration_seconds" : 2.009473,
+            "http_errors" : 0,
+            "p50_ms" : 31.743,
+            "p95_ms" : 65.638,
+            "p99_ms" : 77.983,
+            "requests_per_second" : 2512.101432,
+            "rss_bytes" : 684007424,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 1,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7239,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7240,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7241,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7242,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01753068699998,
+         "metrics" : {
+            "completed" : 4969,
+            "concurrency_effective" : null,
+            "cpu_percent" : 387.603,
+            "duration_seconds" : 2.006034,
+            "http_errors" : 0,
+            "p50_ms" : 16.476,
+            "p95_ms" : 36.957,
+            "p99_ms" : 53.457,
+            "requests_per_second" : 2477.02681,
+            "rss_bytes" : 677023744,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7374,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7377,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03602110699995,
+         "metrics" : {
+            "completed" : 5012,
+            "concurrency_effective" : null,
+            "cpu_percent" : 386.538,
+            "duration_seconds" : 2.007453,
+            "http_errors" : 0,
+            "p50_ms" : 33.269,
+            "p95_ms" : 65.601,
+            "p99_ms" : 75.741,
+            "requests_per_second" : 2496.696062,
+            "rss_bytes" : 681320448,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7374,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7377,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03535494199997,
+         "metrics" : {
+            "completed" : 451,
+            "concurrency_effective" : null,
+            "cpu_percent" : 220.109,
+            "duration_seconds" : 2.00811,
+            "http_errors" : 0,
+            "p50_ms" : 229.064,
+            "p95_ms" : 569.538,
+            "p99_ms" : 732.423,
+            "requests_per_second" : 224.58929,
+            "rss_bytes" : 683253760,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7374,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7377,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.05068758799996,
+         "metrics" : {
+            "completed" : 422,
+            "concurrency_effective" : null,
+            "cpu_percent" : 217.488,
+            "duration_seconds" : 2.009121,
+            "http_errors" : 0,
+            "p50_ms" : 468.662,
+            "p95_ms" : 783.737,
+            "p99_ms" : 898.279,
+            "requests_per_second" : 210.042103,
+            "rss_bytes" : 684978176,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7374,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7377,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.033044168,
+         "metrics" : {
+            "completed" : 1692,
+            "concurrency_effective" : null,
+            "cpu_percent" : 107.72,
+            "duration_seconds" : 2.004606,
+            "http_errors" : 0,
+            "p50_ms" : 55.774,
+            "p95_ms" : 72.471,
+            "p99_ms" : 118.175,
+            "requests_per_second" : 844.056139,
+            "rss_bytes" : 686014464,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7374,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7377,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11683376299999,
+         "metrics" : {
+            "completed" : 5408,
+            "concurrency_effective" : null,
+            "cpu_percent" : 389.733,
+            "duration_seconds" : 2.101592,
+            "http_errors" : 0,
+            "p50_ms" : 38.013,
+            "p95_ms" : 68.679,
+            "p99_ms" : 90.845,
+            "requests_per_second" : 2573.287298,
+            "rss_bytes" : 686014464,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7374,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7377,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11025376999999,
+         "metrics" : {
+            "completed" : 2500,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.988,
+            "duration_seconds" : 2.099451,
+            "http_errors" : 0,
+            "p50_ms" : 0.829,
+            "p95_ms" : 0.888,
+            "p99_ms" : 0.934,
+            "requests_per_second" : 1190.787496,
+            "rss_bytes" : 406413312,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01088523800001,
+         "metrics" : {
+            "completed" : 4594,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.917,
+            "duration_seconds" : 2.002398,
+            "http_errors" : 0,
+            "p50_ms" : 4.283,
+            "p95_ms" : 4.701,
+            "p99_ms" : 6.233,
+            "requests_per_second" : 2294.249195,
+            "rss_bytes" : 406413312,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01162685499997,
+         "metrics" : {
+            "completed" : 4723,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.33,
+            "duration_seconds" : 2.003807,
+            "http_errors" : 0,
+            "p50_ms" : 21.057,
+            "p95_ms" : 21.633,
+            "p99_ms" : 28.24,
+            "requests_per_second" : 2357.013425,
+            "rss_bytes" : 407429120,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01170121299998,
+         "metrics" : {
+            "completed" : 4597,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.328,
+            "duration_seconds" : 2.003354,
+            "http_errors" : 0,
+            "p50_ms" : 42.62,
+            "p95_ms" : 44.794,
+            "p99_ms" : 63.797,
+            "requests_per_second" : 2294.651869,
+            "rss_bytes" : 408850432,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01032588499999,
+         "metrics" : {
+            "completed" : 305,
+            "concurrency_effective" : null,
+            "cpu_percent" : 79.092,
+            "duration_seconds" : 2.00119,
+            "http_errors" : 0,
+            "p50_ms" : 6.497,
+            "p95_ms" : 6.763,
+            "p99_ms" : 7.456,
+            "requests_per_second" : 152.409316,
+            "rss_bytes" : 409546752,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01177140800002,
+         "metrics" : {
+            "completed" : 541,
+            "concurrency_effective" : null,
+            "cpu_percent" : 160.555,
+            "duration_seconds" : 2.00246,
+            "http_errors" : 0,
+            "p50_ms" : 36.398,
+            "p95_ms" : 43.302,
+            "p99_ms" : 60.926,
+            "requests_per_second" : 270.167694,
+            "rss_bytes" : 410198016,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01495718500001,
+         "metrics" : {
+            "completed" : 524,
+            "concurrency_effective" : null,
+            "cpu_percent" : 158.316,
+            "duration_seconds" : 2.002392,
+            "http_errors" : 0,
+            "p50_ms" : 177.951,
+            "p95_ms" : 274.674,
+            "p99_ms" : 359.152,
+            "requests_per_second" : 261.687022,
+            "rss_bytes" : 412737536,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.00978025500001,
+         "metrics" : {
+            "completed" : 1756,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.016,
+            "duration_seconds" : 2.001664,
+            "http_errors" : 0,
+            "p50_ms" : 1.123,
+            "p95_ms" : 1.198,
+            "p99_ms" : 1.223,
+            "requests_per_second" : 877.270111,
+            "rss_bytes" : 412737536,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11143480500004,
+         "metrics" : {
+            "completed" : 3638,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.917,
+            "duration_seconds" : 2.10006,
+            "http_errors" : 0,
+            "p50_ms" : 5.719,
+            "p95_ms" : 5.958,
+            "p99_ms" : 7.966,
+            "requests_per_second" : 1732.331457,
+            "rss_bytes" : 412737536,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03111939299998,
+         "metrics" : {
+            "completed" : 3523,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.905,
+            "duration_seconds" : 2.005512,
+            "http_errors" : 0,
+            "p50_ms" : 28.155,
+            "p95_ms" : 28.887,
+            "p99_ms" : 36.091,
+            "requests_per_second" : 1756.658649,
+            "rss_bytes" : 412737536,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.010965156,
+         "metrics" : {
+            "completed" : 1727,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.455,
+            "duration_seconds" : 2.002712,
+            "http_errors" : 0,
+            "p50_ms" : 1.141,
+            "p95_ms" : 1.215,
+            "p99_ms" : 1.557,
+            "requests_per_second" : 862.33068,
+            "rss_bytes" : 412819456,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01107056700005,
+         "metrics" : {
+            "completed" : 3350,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.396,
+            "duration_seconds" : 2.004458,
+            "http_errors" : 0,
+            "p50_ms" : 6.027,
+            "p95_ms" : 7.282,
+            "p99_ms" : 7.897,
+            "requests_per_second" : 1671.274729,
+            "rss_bytes" : 412901376,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01120419699998,
+         "metrics" : {
+            "completed" : 3398,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.88,
+            "duration_seconds" : 2.002213,
+            "http_errors" : 0,
+            "p50_ms" : 29.053,
+            "p95_ms" : 29.815,
+            "p99_ms" : 38.532,
+            "requests_per_second" : 1697.122134,
+            "rss_bytes" : 412901376,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.00930435800001,
+         "metrics" : {
+            "completed" : 1735,
+            "concurrency_effective" : null,
+            "cpu_percent" : 100.035,
+            "duration_seconds" : 2.00229,
+            "http_errors" : 0,
+            "p50_ms" : 1.146,
+            "p95_ms" : 1.188,
+            "p99_ms" : 1.238,
+            "requests_per_second" : 866.507849,
+            "rss_bytes" : 412966912,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01124293399994,
+         "metrics" : {
+            "completed" : 3337,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.882,
+            "duration_seconds" : 2.001064,
+            "http_errors" : 0,
+            "p50_ms" : 5.946,
+            "p95_ms" : 6.447,
+            "p99_ms" : 10.213,
+            "requests_per_second" : 1667.61283,
+            "rss_bytes" : 413032448,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01157155099997,
+         "metrics" : {
+            "completed" : 3361,
+            "concurrency_effective" : null,
+            "cpu_percent" : 202.329,
+            "duration_seconds" : 2.004184,
+            "http_errors" : 0,
+            "p50_ms" : 29.149,
+            "p95_ms" : 31.853,
+            "p99_ms" : 48.342,
+            "requests_per_second" : 1676.991733,
+            "rss_bytes" : 413032448,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.011722867,
+         "metrics" : {
+            "completed" : 3342,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.32,
+            "duration_seconds" : 2.00361,
+            "http_errors" : 0,
+            "p50_ms" : 58.53,
+            "p95_ms" : 61.466,
+            "p99_ms" : 99.159,
+            "requests_per_second" : 1667.989279,
+            "rss_bytes" : 416260096,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.00963154299995,
+         "metrics" : {
+            "completed" : 189,
+            "concurrency_effective" : null,
+            "cpu_percent" : 56.229,
+            "duration_seconds" : 2.002692,
+            "http_errors" : 0,
+            "p50_ms" : 10.447,
+            "p95_ms" : 10.847,
+            "p99_ms" : 13.236,
+            "requests_per_second" : 94.372974,
+            "rss_bytes" : 416538624,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01208702300005,
+         "metrics" : {
+            "completed" : 321,
+            "concurrency_effective" : null,
+            "cpu_percent" : 114.309,
+            "duration_seconds" : 2.000629,
+            "http_errors" : 0,
+            "p50_ms" : 57.311,
+            "p95_ms" : 74.857,
+            "p99_ms" : 100.225,
+            "requests_per_second" : 160.449539,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03181857899995,
+         "metrics" : {
+            "completed" : 349,
+            "concurrency_effective" : null,
+            "cpu_percent" : 113.691,
+            "duration_seconds" : 2.003613,
+            "http_errors" : 0,
+            "p50_ms" : 277.554,
+            "p95_ms" : 463.867,
+            "p99_ms" : 547.551,
+            "requests_per_second" : 174.185334,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03223383700004,
+         "metrics" : {
+            "completed" : 299,
+            "concurrency_effective" : null,
+            "cpu_percent" : 114.652,
+            "duration_seconds" : 2.004595,
+            "http_errors" : 0,
+            "p50_ms" : 562.032,
+            "p95_ms" : 1053.951,
+            "p99_ms" : 1135.072,
+            "requests_per_second" : 149.157311,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01171593799995,
+         "metrics" : {
+            "completed" : 1682,
+            "concurrency_effective" : null,
+            "cpu_percent" : 100.412,
+            "duration_seconds" : 2.001303,
+            "http_errors" : 0,
+            "p50_ms" : 1.184,
+            "p95_ms" : 1.223,
+            "p99_ms" : 1.255,
+            "requests_per_second" : 840.452445,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01381823399993,
+         "metrics" : {
+            "completed" : 3432,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.124,
+            "duration_seconds" : 2.002154,
+            "http_errors" : 0,
+            "p50_ms" : 5.768,
+            "p95_ms" : 6.065,
+            "p99_ms" : 8.726,
+            "requests_per_second" : 1714.153856,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01175889900003,
+         "metrics" : {
+            "completed" : 3495,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.316,
+            "duration_seconds" : 2.002063,
+            "http_errors" : 0,
+            "p50_ms" : 28.456,
+            "p95_ms" : 29.098,
+            "p99_ms" : 38.893,
+            "requests_per_second" : 1745.699311,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.012896114,
+         "metrics" : {
+            "completed" : 3041,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.203,
+            "duration_seconds" : 2.003534,
+            "http_errors" : 0,
+            "p50_ms" : 60.225,
+            "p95_ms" : 77.4,
+            "p99_ms" : 97.313,
+            "requests_per_second" : 1517.818016,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "canonical_endpoint" : "/health/live",
+         "capacity_class" : "indicative fixed-request Mojo comparison; not sustained capacity",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 28.34,
+            "duration_seconds" : 0.076,
+            "http_errors" : 0,
+            "p50_ms" : 7.518,
+            "p95_ms" : 9.825,
+            "p99_ms" : 12.226,
+            "requests_per_second" : 1320.67,
+            "rss_bytes" : 416817152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "capacity_class" : "indicative fixed-request Mojo comparison; not sustained capacity",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 31.551,
+            "duration_seconds" : 0.111,
+            "http_errors" : 0,
+            "p50_ms" : 10.1,
+            "p95_ms" : 14.485,
+            "p99_ms" : 17.811,
+            "requests_per_second" : 903.195,
+            "rss_bytes" : 417153024,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7489,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7490,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01088536000009,
+         "metrics" : {
+            "completed" : 742,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.459,
+            "duration_seconds" : 2.001465,
+            "http_errors" : 0,
+            "p50_ms" : 2.677,
+            "p95_ms" : 2.774,
+            "p99_ms" : 2.898,
+            "requests_per_second" : 370.728441,
+            "rss_bytes" : 406343680,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7861,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7862,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01116707599999,
+         "metrics" : {
+            "completed" : 1455,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.387,
+            "duration_seconds" : 2.001504,
+            "http_errors" : 0,
+            "p50_ms" : 13.602,
+            "p95_ms" : 14.084,
+            "p99_ms" : 19.418,
+            "requests_per_second" : 726.953331,
+            "rss_bytes" : 406716416,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7861,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7862,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01310222799998,
+         "metrics" : {
+            "completed" : 1421,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.182,
+            "duration_seconds" : 2.004438,
+            "http_errors" : 0,
+            "p50_ms" : 68.267,
+            "p95_ms" : 75.682,
+            "p99_ms" : 117.848,
+            "requests_per_second" : 708.926891,
+            "rss_bytes" : 408743936,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 2,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7861,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7862,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01111175400001,
+         "metrics" : {
+            "completed" : 729,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.447,
+            "duration_seconds" : 2.000617,
+            "http_errors" : 0,
+            "p50_ms" : 2.723,
+            "p95_ms" : 2.818,
+            "p99_ms" : 2.968,
+            "requests_per_second" : 364.387586,
+            "rss_bytes" : 406618112,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7935,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7936,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11171993200003,
+         "metrics" : {
+            "completed" : 1491,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.837,
+            "duration_seconds" : 2.099592,
+            "http_errors" : 0,
+            "p50_ms" : 12.003,
+            "p95_ms" : 16.97,
+            "p99_ms" : 21.495,
+            "requests_per_second" : 710.13797,
+            "rss_bytes" : 406962176,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7935,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7936,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "miss",
+         "cache_observed" : "miss",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03203802399992,
+         "metrics" : {
+            "completed" : 1409,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.784,
+            "duration_seconds" : 2.004009,
+            "http_errors" : 0,
+            "p50_ms" : 71.006,
+            "p95_ms" : 76.714,
+            "p99_ms" : 123.962,
+            "requests_per_second" : 703.090655,
+            "rss_bytes" : 408969216,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7935,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 7936,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.10976965299994,
+         "metrics" : {
+            "completed" : 2541,
+            "concurrency_effective" : null,
+            "cpu_percent" : 100.485,
+            "duration_seconds" : 2.099632,
+            "http_errors" : 0,
+            "p50_ms" : 0.816,
+            "p95_ms" : 0.881,
+            "p99_ms" : 0.906,
+            "requests_per_second" : 1210.212075,
+            "rss_bytes" : 406392832,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01098941700002,
+         "metrics" : {
+            "completed" : 4804,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.907,
+            "duration_seconds" : 2.003895,
+            "http_errors" : 0,
+            "p50_ms" : 4.139,
+            "p95_ms" : 4.279,
+            "p99_ms" : 5.355,
+            "requests_per_second" : 2397.331197,
+            "rss_bytes" : 406392832,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01222969100002,
+         "metrics" : {
+            "completed" : 4824,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.778,
+            "duration_seconds" : 2.002185,
+            "http_errors" : 0,
+            "p50_ms" : 20.481,
+            "p95_ms" : 21.127,
+            "p99_ms" : 23.79,
+            "requests_per_second" : 2409.367766,
+            "rss_bytes" : 407416832,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/health/live",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03174612800001,
+         "metrics" : {
+            "completed" : 4797,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.32,
+            "duration_seconds" : 2.004838,
+            "http_errors" : 0,
+            "p50_ms" : 41.566,
+            "p95_ms" : 42.416,
+            "p99_ms" : 61.63,
+            "requests_per_second" : 2392.71203,
+            "rss_bytes" : 408846336,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.00996146499995,
+         "metrics" : {
+            "completed" : 306,
+            "concurrency_effective" : null,
+            "cpu_percent" : 79.604,
+            "duration_seconds" : 2.002948,
+            "http_errors" : 0,
+            "p50_ms" : 6.465,
+            "p95_ms" : 6.744,
+            "p99_ms" : 8.658,
+            "requests_per_second" : 152.77481,
+            "rss_bytes" : 409161728,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01157285599993,
+         "metrics" : {
+            "completed" : 525,
+            "concurrency_effective" : null,
+            "cpu_percent" : 161.565,
+            "duration_seconds" : 2.000989,
+            "http_errors" : 0,
+            "p50_ms" : 37.724,
+            "p95_ms" : 42.881,
+            "p99_ms" : 66.642,
+            "requests_per_second" : 262.370258,
+            "rss_bytes" : 410169344,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03199343200004,
+         "metrics" : {
+            "completed" : 549,
+            "concurrency_effective" : null,
+            "cpu_percent" : 158.957,
+            "duration_seconds" : 2.004724,
+            "http_errors" : 0,
+            "p50_ms" : 182.097,
+            "p95_ms" : 238.458,
+            "p99_ms" : 317.769,
+            "requests_per_second" : 273.853159,
+            "rss_bytes" : 412831744,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "home",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.0115192510001,
+         "metrics" : {
+            "completed" : 1787,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.924,
+            "duration_seconds" : 2.005268,
+            "http_errors" : 0,
+            "p50_ms" : 1.103,
+            "p95_ms" : 1.18,
+            "p99_ms" : 1.232,
+            "requests_per_second" : 891.152704,
+            "rss_bytes" : 412831744,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01101158500001,
+         "metrics" : {
+            "completed" : 3532,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.905,
+            "duration_seconds" : 2.001736,
+            "http_errors" : 0,
+            "p50_ms" : 5.646,
+            "p95_ms" : 5.916,
+            "p99_ms" : 7.81,
+            "requests_per_second" : 1764.468441,
+            "rss_bytes" : 412831744,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01272352000001,
+         "metrics" : {
+            "completed" : 3565,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.717,
+            "duration_seconds" : 2.003715,
+            "http_errors" : 0,
+            "p50_ms" : 28.13,
+            "p95_ms" : 30.676,
+            "p99_ms" : 41.227,
+            "requests_per_second" : 1779.195145,
+            "rss_bytes" : 412831744,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "categories",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.10958780399994,
+         "metrics" : {
+            "completed" : 1853,
+            "concurrency_effective" : null,
+            "cpu_percent" : 100.02,
+            "duration_seconds" : 2.100182,
+            "http_errors" : 0,
+            "p50_ms" : 1.121,
+            "p95_ms" : 1.183,
+            "p99_ms" : 1.227,
+            "requests_per_second" : 882.304486,
+            "rss_bytes" : 412864512,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01108371500004,
+         "metrics" : {
+            "completed" : 3443,
+            "concurrency_effective" : null,
+            "cpu_percent" : 198.898,
+            "duration_seconds" : 2.001181,
+            "http_errors" : 0,
+            "p50_ms" : 5.765,
+            "p95_ms" : 5.988,
+            "p99_ms" : 7.441,
+            "requests_per_second" : 1720.484054,
+            "rss_bytes" : 412864512,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.0115855549999,
+         "metrics" : {
+            "completed" : 3519,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.339,
+            "duration_seconds" : 2.003204,
+            "http_errors" : 0,
+            "p50_ms" : 28.133,
+            "p95_ms" : 29.094,
+            "p99_ms" : 38.186,
+            "requests_per_second" : 1756.685789,
+            "rss_bytes" : 412864512,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "category",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11061363700003,
+         "metrics" : {
+            "completed" : 1808,
+            "concurrency_effective" : null,
+            "cpu_percent" : 99.497,
+            "duration_seconds" : 2.099349,
+            "http_errors" : 0,
+            "p50_ms" : 1.156,
+            "p95_ms" : 1.215,
+            "p99_ms" : 1.536,
+            "requests_per_second" : 861.219359,
+            "rss_bytes" : 412995584,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01116382199996,
+         "metrics" : {
+            "completed" : 3404,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.387,
+            "duration_seconds" : 2.001094,
+            "http_errors" : 0,
+            "p50_ms" : 5.844,
+            "p95_ms" : 6.06,
+            "p99_ms" : 9.023,
+            "requests_per_second" : 1701.069515,
+            "rss_bytes" : 412995584,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01172835099999,
+         "metrics" : {
+            "completed" : 3508,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.325,
+            "duration_seconds" : 2.00192,
+            "http_errors" : 0,
+            "p50_ms" : 28.234,
+            "p95_ms" : 28.981,
+            "p99_ms" : 44.617,
+            "requests_per_second" : 1752.317775,
+            "rss_bytes" : 412995584,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01205542499997,
+         "metrics" : {
+            "completed" : 3390,
+            "concurrency_effective" : null,
+            "cpu_percent" : 200.79,
+            "duration_seconds" : 2.003135,
+            "http_errors" : 0,
+            "p50_ms" : 57.628,
+            "p95_ms" : 60.727,
+            "p99_ms" : 97.593,
+            "requests_per_second" : 1692.347246,
+            "rss_bytes" : 416083968,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01007636599991,
+         "metrics" : {
+            "completed" : 195,
+            "concurrency_effective" : null,
+            "cpu_percent" : 56.714,
+            "duration_seconds" : 2.002595,
+            "http_errors" : 0,
+            "p50_ms" : 10.131,
+            "p95_ms" : 10.437,
+            "p99_ms" : 13.837,
+            "requests_per_second" : 97.373658,
+            "rss_bytes" : 416894976,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01981703199999,
+         "metrics" : {
+            "completed" : 297,
+            "concurrency_effective" : null,
+            "cpu_percent" : 111.396,
+            "duration_seconds" : 2.003608,
+            "http_errors" : 0,
+            "p50_ms" : 63.885,
+            "p95_ms" : 100.857,
+            "p99_ms" : 132.364,
+            "requests_per_second" : 148.232588,
+            "rss_bytes" : 416894976,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03365748099998,
+         "metrics" : {
+            "completed" : 350,
+            "concurrency_effective" : null,
+            "cpu_percent" : 112.113,
+            "duration_seconds" : 2.002825,
+            "http_errors" : 0,
+            "p50_ms" : 280.234,
+            "p95_ms" : 455.245,
+            "p99_ms" : 533.583,
+            "requests_per_second" : 174.753161,
+            "rss_bytes" : 416894976,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03205008999998,
+         "metrics" : {
+            "completed" : 299,
+            "concurrency_effective" : null,
+            "cpu_percent" : 115.647,
+            "duration_seconds" : 2.004731,
+            "http_errors" : 0,
+            "p50_ms" : 605.878,
+            "p95_ms" : 1144.021,
+            "p99_ms" : 1270.783,
+            "requests_per_second" : 149.147192,
+            "rss_bytes" : 416940032,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 1,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.012338086,
+         "metrics" : {
+            "completed" : 1706,
+            "concurrency_effective" : null,
+            "cpu_percent" : 111.81,
+            "duration_seconds" : 2.001415,
+            "http_errors" : 0,
+            "p50_ms" : 1.159,
+            "p95_ms" : 1.211,
+            "p99_ms" : 1.516,
+            "requests_per_second" : 852.396929,
+            "rss_bytes" : 416940032,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01108132900004,
+         "metrics" : {
+            "completed" : 3500,
+            "concurrency_effective" : null,
+            "cpu_percent" : 199.395,
+            "duration_seconds" : 2.003962,
+            "http_errors" : 0,
+            "p50_ms" : 5.666,
+            "p95_ms" : 6.97,
+            "p99_ms" : 10.15,
+            "requests_per_second" : 1746.540104,
+            "rss_bytes" : 416940032,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01220499199997,
+         "metrics" : {
+            "completed" : 3591,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.272,
+            "duration_seconds" : 2.001993,
+            "http_errors" : 0,
+            "p50_ms" : 27.605,
+            "p95_ms" : 28.132,
+            "p99_ms" : 40.025,
+            "requests_per_second" : 1793.712565,
+            "rss_bytes" : 416940032,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01172075299996,
+         "metrics" : {
+            "completed" : 3495,
+            "concurrency_effective" : null,
+            "cpu_percent" : 201.32,
+            "duration_seconds" : 2.00309,
+            "http_errors" : 0,
+            "p50_ms" : 55.734,
+            "p95_ms" : 58.84,
+            "p99_ms" : 91.435,
+            "requests_per_second" : 1744.804277,
+            "rss_bytes" : 416940032,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "canonical_endpoint" : "/health/live",
+         "capacity_class" : "indicative fixed-request Mojo comparison; not sustained capacity",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/health/live",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 23.613,
+            "duration_seconds" : 0.082,
+            "http_errors" : 0,
+            "p50_ms" : 8.017,
+            "p95_ms" : 10.661,
+            "p99_ms" : 11.549,
+            "requests_per_second" : 1215.73,
+            "rss_bytes" : 416940032,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "health_live",
+         "status" : "ok",
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "capacity_class" : "indicative fixed-request Mojo comparison; not sustained capacity",
+         "concurrency" : 10,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 36.084,
+            "duration_seconds" : 0.115,
+            "http_errors" : 0,
+            "p50_ms" : 10.457,
+            "p95_ms" : 15.009,
+            "p99_ms" : 17.223,
+            "requests_per_second" : 871.513,
+            "rss_bytes" : 417300480,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8016,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8017,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 2,
+         "workers_actual" : 2
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.11701616099992,
+         "metrics" : {
+            "completed" : 5141,
+            "concurrency_effective" : null,
+            "cpu_percent" : 384.976,
+            "duration_seconds" : 2.101701,
+            "http_errors" : 0,
+            "p50_ms" : 15.924,
+            "p95_ms" : 34.016,
+            "p99_ms" : 48.446,
+            "requests_per_second" : 2446.113886,
+            "rss_bytes" : 677052416,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8377,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8378,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01952729300001,
+         "metrics" : {
+            "completed" : 4914,
+            "concurrency_effective" : null,
+            "cpu_percent" : 389.695,
+            "duration_seconds" : 2.006106,
+            "http_errors" : 0,
+            "p50_ms" : 40.353,
+            "p95_ms" : 45.764,
+            "p99_ms" : 64.37,
+            "requests_per_second" : 2449.521611,
+            "rss_bytes" : 681324544,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "thread",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8377,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8378,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.05044038799997,
+         "metrics" : {
+            "completed" : 431,
+            "concurrency_effective" : null,
+            "cpu_percent" : 218.002,
+            "duration_seconds" : 2.013316,
+            "http_errors" : 0,
+            "p50_ms" : 134.167,
+            "p95_ms" : 576.235,
+            "p99_ms" : 697.672,
+            "requests_per_second" : 214.074691,
+            "rss_bytes" : 682536960,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8377,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8378,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : null,
+         "canonical_endpoint" : "/search?q=performance",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03657640200004,
+         "metrics" : {
+            "completed" : 419,
+            "concurrency_effective" : null,
+            "cpu_percent" : 224.887,
+            "duration_seconds" : 2.011662,
+            "http_errors" : 0,
+            "p50_ms" : 283.17,
+            "p95_ms" : 710.531,
+            "p99_ms" : 712.63,
+            "requests_per_second" : 208.285487,
+            "rss_bytes" : 684081152,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "search",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8377,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8378,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 50,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.01688092800009,
+         "metrics" : {
+            "completed" : 4254,
+            "concurrency_effective" : null,
+            "cpu_percent" : 306.91,
+            "duration_seconds" : 2.006237,
+            "http_errors" : 0,
+            "p50_ms" : 27.698,
+            "p95_ms" : 36.064,
+            "p99_ms" : 45.549,
+            "requests_per_second" : 2120.387571,
+            "rss_bytes" : 684101632,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8377,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8378,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      },
+      {
+         "cache_mode" : "normal",
+         "cache_observed" : "hit",
+         "canonical_endpoint" : "/categories",
+         "concurrency" : 100,
+         "cpu_source" : "Linux /proc manager+workers CPU time delta / generator wall duration",
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "generator_wall_seconds" : 2.03383327400002,
+         "metrics" : {
+            "completed" : 4991,
+            "concurrency_effective" : null,
+            "cpu_percent" : 381.054,
+            "duration_seconds" : 2.004731,
+            "http_errors" : 0,
+            "p50_ms" : 39.27,
+            "p95_ms" : 47.88,
+            "p99_ms" : 75.634,
+            "requests_per_second" : 2489.610826,
+            "rss_bytes" : 684101632,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetition" : 3,
+         "rss_source" : "ps manager+workers resident memory at end; not peak",
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "validation_error" : null,
+         "worker_telemetry" : [
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8375,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8376,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8377,
+               "reactor" : "Mojo::Reactor::EV"
+            },
+            {
+               "ev_backend" : 4,
+               "mojolicious" : "9.49",
+               "perl" : "v5.40.1",
+               "pid" : 8378,
+               "reactor" : "Mojo::Reactor::EV"
+            }
+         ],
+         "workers" : 4,
+         "workers_actual" : 4
+      }
+   ],
+   "provenance" : {
+      "commit" : "4f443a9676e0ea9516b7668284e718ac9adb72fa",
+      "configuration" : {
+         "backlog" : 1024,
+         "cache" : "local-only; 4096 entries; SSR TTL 3600s; miss harness TTL -1s",
+         "cache_miss_policy" : "SSR store expires immediately; category model cache remains warm",
+         "clients_per_worker" : 2048,
+         "database_settings" : {
+            "effective_cache_size" : "4GB",
+            "effective_io_concurrency" : "1",
+            "jit" : "on",
+            "max_connections" : "100",
+            "random_page_cost" : "4",
+            "shared_buffers" : "128MB",
+            "synchronous_commit" : "on",
+            "work_mem" : "4MB"
+         },
+         "default_ev_backend" : 4,
+         "default_reactor" : "Mojo::Reactor::EV",
+         "fixed_workers" : null,
+         "harness_sha256" : {
+            "benchmarks/hypnotoad-app.pl" : "076b27d9062ce65ac88113864181b27bcededead02f49d136a0bf00f47727f12",
+            "benchmarks/wrk-metrics.lua" : "c66846fe8ad3a8c2b8d6b45816a8ff52cfd3267bb678b9b25e6e82d6b231af03",
+            "script/lib/GPForum/Performance/Budget.pm" : "3e9d4f074d1f76e120d1f3fccc9ae1e5b4f64bbb1b2687cc5c7eca4e6201fd60",
+            "script/lib/GPForum/Performance/CommandError.pm" : "52d4df71626c4ae94eb31b6485a03e737da62a4ecfd8937be9a0df3bd7f01433",
+            "script/lib/GPForum/Performance/Compare.pm" : "f9a8d9b5d719956d1ba5cef8b771d76640c4bbbcc30917ec47cc7311ea629991",
+            "script/lib/GPForum/Performance/Evidence.pm" : "dd2b0865398b3f53ed5bb258d4deca4108c84edbb9b9ba2eb2f654f89c24bed2",
+            "script/lib/GPForum/Performance/Extreme.pm" : "6967bd5c2fc2998783f3aab721a2d0aee597572a7d042941d108c78b17c94493",
+            "script/lib/GPForum/Performance/ExtremeContainer.pm" : "599387f39293a086909ef3466acb0fbae8ef177ad19c876e58ced71fe2eb502d",
+            "script/lib/GPForum/Performance/ExtremeDatabase.pm" : "b00625d4755d36dfe77c25afa5d0473bb8c9d9a33d0a8ce98b15beb3b6af76f8",
+            "script/lib/GPForum/Performance/ExtremeLoad.pm" : "a9bfb105ebc81e9e9569d7c5ad61652b89e45f125cf5043406ea4d9a0fd6c8f5",
+            "script/lib/GPForum/Performance/ExtremePlan.pm" : "8ba352f2330a6fc79ca69a68a5ffcc4d6de9f1dd7ee15368d9809792efbd096a",
+            "script/lib/GPForum/Performance/ExtremeReport.pm" : "4aaf6d15013dfba6b0d00e54a6253c7eb4ff28b4b3a55d95131d4cc6799a8c7a",
+            "script/lib/GPForum/Performance/ExtremeState.pm" : "a0bdc0dc088d338e20069c82f170668d3f51a5334ff58763b28c116d46b8a41a",
+            "script/lib/GPForum/Performance/ExtremeWorkload.pm" : "8efc82a576fecc353e9c9db52b24efdf4e6b4f6f8213f435c57bc0f0ee2224de",
+            "script/lib/GPForum/Performance/HTTP.pm" : "957acc7cd204d43b16e4c274135177aca74a6015cbed5e81d023a80076793a55",
+            "script/lib/GPForum/Performance/Hotpaths.pm" : "3ca99933a338e6c49ebb69631b96f1675999728e2649f4fc7e27bb82a275906f",
+            "script/lib/GPForum/Performance/Metadata.pm" : "b135517b66bf0cc19384b75fcf8077c02de2b05e869ee2c664f48de9cb3feb86",
+            "script/lib/GPForum/Performance/Publish.pm" : "99575ef96eacd17d2f116444e475d4562fb16ecfdc2bf47734add2cce7863a58",
+            "script/lib/GPForum/Performance/Report.pm" : "f645daaf7cb37572d2ceae3bf298260f19c3ddb33658e47cbe32004c89507ea9",
+            "script/lib/GPForum/Performance/Resources.pm" : "32c7647e7873266c538ea6d8f72cae137755cd61540acca55ce21d6014a3b4a8",
+            "script/lib/GPForum/Performance/Schema.pm" : "36d84e1fd192bcc133ccbc4476a9e4c3618e23e7d5380e11a6886af8d43bd5dd",
+            "script/lib/GPForum/Performance/Server.pm" : "f200d988680090647d0309ff77f42eacb2d766a6ec7b4f12274d9f2a9a71c302",
+            "script/lib/GPForum/Performance/Support.pm" : "1f63fb47e951f3b479bfeca01a9b7b6144871121bc1ef86cd1f5f2297cdbb663",
+            "script/lib/GPForum/Performance/WorkflowStatus.pm" : "ea59bdd08904355140f31cdddd7ce1449be93f2022113c9c9317101fb9220b46",
+            "script/performance-evidence" : "8ee0bcda6208e2d4ff47bacb8c9c47e4d66601ca477110bd8364b8a5db35c5f2",
+            "script/performance-hotpaths" : "e05854fa1bf68cd4ee278203986ff369c344550243a575c75f9580b2eabee152",
+            "script/performance-http" : "997d319a3144b409c0cf8f6cf7d2c2560fef64461c3135d5c63a3c6b83c4976e",
+            "script/performance-outbox.pl" : "ce7987b939d90c8392992b5fb600ec7f84ea0bb342161aec86103520fe63e4e4",
+            "t/lib/GPForum/Test/OutboxTransport.pm" : "c0df6d59ffb0966cb89af15f1a7a7c17b9cda8ddeec4ea875c92fc5d978d84ba",
+            "t/lib/GPForum/Test/PostgresHarness.pm" : "c608f802f29fbd9628e9b32d57dd71ab48e50c994fd4f6c30abfdf0333b28c87"
+         },
+         "hotpaths" : {
+            "analyze" : true,
+            "deadline_seconds" : 300,
+            "outbox" : {
+               "batch_size" : 100,
+               "database" : "fresh owned",
+               "messages" : 3000,
+               "repetitions" : 3,
+               "transport" : "recording no-op",
+               "workers" : [
+                  1,
+                  2
+               ]
+            },
+            "plan_cli_profile_label" : "medium",
+            "plan_repetitions" : 3,
+            "plans" : [
+               "readers",
+               "functions"
+            ],
+            "profiling" : "configured NYTProf deep only",
+            "sql_service_comparison" : {
+               "enabled" : false,
+               "proxy_delay_ms" : 0.5,
+               "read_iterations" : 30,
+               "warmup" : 5,
+               "write_iterations" : 10
+            }
+         },
+         "http_concurrency" : [
+            1,
+            10,
+            50,
+            100
+         ],
+         "http_duration_seconds" : 2,
+         "http_repetitions" : 3,
+         "http_scenarios" : [
+            "health_live",
+            "home",
+            "categories",
+            "category",
+            "thread",
+            "search",
+            "cache_hit",
+            "cache_miss"
+         ],
+         "listen_queue_limit" : 4096,
+         "mojo_requests" : "at least 100 total; at least 10 per client",
+         "read_rate_limit" : 100000000,
+         "stress_warmup_seconds" : null,
+         "wrk_binary_sha256" : "511730eb9a7223c9dd5597008704688d538f53fb611fdabd6bd3cffc99903e13",
+         "wrk_timeout_seconds" : 3,
+         "wrk_upstream_version_verified" : false
+      },
+      "dataset" : {
+         "counts" : {
+            "bookmarks" : 25,
+            "categories" : 8,
+            "feed_items" : 240,
+            "moderation_actions" : 25,
+            "notifications" : 75,
+            "permissions" : 6,
+            "posts" : 4800,
+            "posts_per_thread" : 20,
+            "read_states" : 75,
+            "reports" : 50,
+            "role_bindings" : 25,
+            "roles" : 3,
+            "sessions" : 25,
+            "subscriptions" : 25,
+            "threads" : 240,
+            "users" : 25
+         },
+         "implementation_sha256" : {
+            "lib/GPForum/Benchmark/SeedDataset.pm" : "8c3d32ab10783f871b4e5c4122a16a01cea73b686dde249c1af050a2559ed0cb",
+            "lib/GPForum/Command/PerformanceSeed.pm" : "106fdee0ce1639d8b80ec244444ef79168a4bb8b72bc428503b5e8233552c101"
+         },
+         "mode" : "main",
+         "profile" : "custom",
+         "seed_version" : "SeedDataset-v1",
+         "signature" : "2e1f34e5c38f1431f3e9e6df3fddd3d08e137a353c3cbcf2a4e85e3616d370e0"
+      },
+      "date" : "2026-10-17",
+      "run_attempt" : "1",
+      "run_id" : "39019384107",
+      "runner" : {
+         "arch" : "x86_64",
+         "cpu_count" : 4,
+         "cpu_model" : "AMD EPYC 7763 64-Core Processor",
+         "image" : "ubuntu26",
+         "image_version" : "20261012.163.1",
+         "kernel" : "7.0.0-1017-azure",
+         "label" : "ubuntu-26.04",
+         "memory_bytes" : 16759443456,
+         "name" : "GitHub Actions 1000068472",
+         "os" : "Linux"
+      },
+      "timestamp" : "2026-10-17T08:59:26.345221+00:00",
+      "versions" : {
+         "ev" : "4.37",
+         "mojolicious" : "9.49",
+         "perl" : "v5.40.1",
+         "postgres" : "16.15 (Debian 16.15-1.pgdg13+2)",
+         "wrk" : "wrk (distribution package 4.1.0-4build3; CLI upstream unspecified)"
+      }
+   },
+   "schema_version" : 1,
+   "status" : "ok"
+}

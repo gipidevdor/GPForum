@@ -1,0 +1,155 @@
+# Stress / load harness (100 / 500 / 1000 concurrency)
+
+Operator-runnable HTTP stress harness aimed at **100 / 500 / 1000 concurrent
+request slots** (equivalent concurrency targets for private-beta capacity
+evidence). It extends the existing Hypnotoad/benchmark route set and reporting
+style rather than introducing a second load-tool stack.
+
+Passing a profile does **not** mean private beta is ready. Record JSON/human
+evidence on representative hardware; full staging deploy remains separate.
+
+## What this covers
+
+| Profile | Concurrency | Default requests/slot | Total requests |
+| --- | ---: | ---: | ---: |
+| `smoke` | 4 | 5 | 20 |
+| `100` | 100 | 10 | 1 000 |
+| `500` | 500 | 10 | 5 000 |
+| `1000` | 1 000 | 10 | 10 000 |
+
+Default routes match the seeded Hypnotoad bench hot paths (`/`, `/categories`,
+seeded category/thread, search, `/health/live`, `/health/ready`).
+
+Evidence includes wall time, completed/errors, error rate, peak in-flight,
+req/s, and p50/p95/p99/max latency.
+
+## What this does not cover
+
+- Starting Hypnotoad for you (point `--base-url` at a running instance).
+- Attachment deploy drills, dump/restore, or nginx/systemd rehearsal.
+- Claiming multicore saturation solely from a laptop smoke run.
+
+Related sequential benches remain:
+
+- `bin/gpforum hypnotoad-benchmark` / `bin/gpforum hypnotoad-scaling`
+- `script/benchmark-http` / `gpforum benchmark`
+- `script/bench-outbox-dispatcher`
+
+## Prerequisites
+
+1. App dependencies: `make install-deps-postgres` (or existing Carton local lib).
+2. Migrated PostgreSQL for the **server** process:
+
+```sh
+export GPFORUM_DATABASE_DSN='dbi:Pg:dbname=gpforum'   # the local socket
+export GPFORUM_DATABASE_USER='…'
+export GPFORUM_DATABASE_PASSWORD='…'
+gpforum migrate
+bin/gpforum performance-seed --profile small
+```
+
+3. Running Hypnotoad (or reverse proxy) serving that database, for example:
+
+```sh
+# operator-managed process; ports/workers per docs/DEPLOYMENT.md
+bin/gpforum hypnotoad-benchmark --seed --profile small --workers 2 ...
+# or a long-lived Hypnotoad started from the normal deploy unit
+```
+
+4. Client only needs network reachability to `--base-url` (optional
+   `GPFORUM_STRESS_BASE_URL`).
+
+## Commands
+
+Dry-run plan (safe; no HTTP; fine for CI unit tests):
+
+```sh
+bin/gpforum stress-load --dry-run --profile 100 --human
+gpforum stress-load --dry-run --profile 1000 --json
+```
+
+Local smoke against the service's socket, past the proxy:
+
+```sh
+bin/gpforum stress-load --profile smoke \
+  --base-url http+unix://%2Fopt%2Fgpforum%2Fvar%2Frun%2Fgpforum.sock \
+  --human
+```
+
+Capacity profiles:
+
+```sh
+bin/gpforum stress-load --profile 100 --base-url https://forum.example --check --json
+bin/gpforum stress-load --profile 500 --base-url https://forum.example --check --json
+bin/gpforum stress-load --profile 1000 --base-url https://forum.example --check --json
+```
+
+Concurrency knobs without changing the named profile:
+
+```sh
+bin/gpforum stress-load --profile 100 --concurrency 120 \
+  --requests-per-client 20 \
+  --base-url http+unix://%2Fopt%2Fgpforum%2Fvar%2Frun%2Fgpforum.sock \
+  --route /categories --route /health/live \
+  --human
+```
+
+Optional Make target (**not** part of `make check` / default CI):
+
+```sh
+make stress-load PROFILE=smoke BASE_URL=http+unix://%2Fopt%2Fgpforum%2Fvar%2Frun%2Fgpforum.sock
+# defaults: PROFILE=smoke, FORMAT=human; BASE_URL required for a live run
+make stress-load-dry   # dry-run only
+```
+
+## Evidence shape
+
+JSON includes at least:
+
+- `status`: `dry-run`, `ok`/`pass` (with `--check`), `fail`, or `ok` without check
+- `plan.profile`, `plan.concurrency`, `plan.total_requests`, `plan.routes`
+- `prerequisites` reminding operators about DSN, seed, and running app
+- live runs: `wall_seconds`, `completed`, `errors`, `error_rate_pct`,
+  `peak_inflight`, `req_per_sec`, `p50_ms` / `p95_ms` / `p99_ms` / `max_ms`,
+  `status_codes`
+- `residual_gaps` stating this is not a private-beta gate by itself
+
+With `--check`, exit status is non-zero when `error_rate_pct` exceeds
+`--max-error-rate` (default 1%) or `p95_ms` exceeds `--p95-limit-ms`
+(default 2000).
+
+A live run with neither `--base-url` nor `GPFORUM_STRESS_BASE_URL` is misuse:
+exit `2`, the usage on standard error. An error the harness raises instead of
+reporting exits `1`, with the reason on standard error (an inline `password=`
+shown as `[redacted]`) and JSON evidence of `mode` `stress-load`, `status`
+`fail` and the reason in `error`.
+
+## Recording a run
+
+1. Run the intended profile on staging-like hardware with a seeded DB and live
+   Hypnotoad.
+2. Paste JSON (or `--human` lines) into ops notes for that commit.
+3. Keep `bin/gpforum hypnotoad-scaling` worker evidence alongside this external
+   concurrency evidence.
+4. Do not mark private beta ready from a smoke profile alone.
+
+## Rate limit note for single-IP capacity runs
+
+Anonymous forum reads use `forum_retrieval` at **60 requests / 60 seconds** per
+client address by default. A single load-generator IP will therefore see HTTP
+`429` under profile `100+` unless the operator raises the ceiling for the
+capacity window:
+
+```sh
+export GPFORUM_FORUM_READ_RATE_LIMIT=100000   # Hypnotoad/process env
+```
+
+Unset the variable (or restart without it) to restore the product default.
+Health routes are not subject to that forum retrieval limit; the default
+stress route set includes seeded forum pages, so capacity profiles should set
+the override when measuring stack throughput rather than abuse-protection
+behavior.
+
+Also run `bin/gpforum budgets --sync` after migrate so `/health/ready` returns
+`200` (an empty budget catalog yields `503` and inflates error rate).
+

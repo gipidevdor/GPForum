@@ -1,0 +1,37 @@
+{
+  "source": "/private/tmp/gpforum-throughput-scale-final-048n_rfp",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "perl",
+    "-Ilib",
+    "-It/lib",
+    "-MGPForum::Test::TemporaryPostgres",
+    "/private/tmp/gpforum-throughput-schema.pl"
+  ],
+  "competing_load": [
+    {
+      "at_seconds": 2.128555833,
+      "processes": [
+        {
+          "pid": 92533,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt2 --workers 4 --worker-clients 2048 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    }
+  ],
+  "started_at": "2026-11-05T23:46:09.890894+00:00",
+  "load_before": [
+    4.05712890625,
+    5.1494140625,
+    4.88525390625
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 2.8752108329999997,
+  "load_after": [
+    4.05712890625,
+    5.1494140625,
+    4.88525390625
+  ],
+  "finished_at": "2026-11-05T23:46:12.766415+00:00"
+}

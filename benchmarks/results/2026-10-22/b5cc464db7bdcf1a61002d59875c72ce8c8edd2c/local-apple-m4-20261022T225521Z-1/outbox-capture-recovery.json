@@ -1,0 +1,23 @@
+{
+  "status": "complete_and_schema_valid",
+  "reason": "Original run_bounded diagnostic capture retains only 200000 bytes; PostgreSQL 18 outbox result is larger. Repeated the same command with separate untruncated stdout.",
+  "original_capture_bytes": 200000,
+  "full_capture_bytes": 356724,
+  "argv": [
+    "script/gpforum-carton",
+    "exec",
+    "script/performance-outbox.pl",
+    "--json",
+    "--messages",
+    "3000",
+    "--workers",
+    "1,2",
+    "--repetitions",
+    "3"
+  ],
+  "started_at": "2026-10-22T23:25:41.610440+00:00",
+  "capture_elapsed_seconds": 8.928241125,
+  "exit_code": 0,
+  "application_or_workload_source_changed": false,
+  "import": "existing Hotpaths collect provided-runner API; validates exact command and all six delivery outcomes"
+}

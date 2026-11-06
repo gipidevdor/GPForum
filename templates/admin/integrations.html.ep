@@ -1,0 +1,97 @@
+% layout 'default', shell => 'wide';
+% title t('admin.integrations_network') . ' - ' . t('app.name');
+<section aria-labelledby="integrations-heading">
+  <h1 id="integrations-heading"><%= t('admin.integrations_network') %></h1>
+  <p><a href="<%= ui_path('admin_plugins') %>"><%= t('admin.plugins') %></a> · <a href="<%= ui_path('admin_configuration') %>"><%= t('admin.configuration_general') %></a></p>
+  % if (length $notice) {
+    <p role="status"><%= t('admin.integrations_result') %> <%= $notice %></p>
+  % }
+  <nav class="ui-row-links integration-shortcuts" aria-label="<%= t('admin.integrations_network') %>">
+    <a href="#discord-heading">Discord</a>
+    <a href="#feeds-heading"><%= t('admin.integrations_feeds') %></a>
+    <a href="#integration-catalogue"><%= t('admin.integrations_overview') %></a>
+  </nav>
+  <div class="integration-workflows">
+  <section class="integration-card" aria-labelledby="discord-heading">
+    <h2 id="discord-heading">Discord</h2>
+    <p><%= t('admin.integrations_discord_help') %></p>
+    % if ($discord_enabled) {
+      <form method="post" action="<%= ui_path('admin_integration_announce') %>">
+        <%= csrf_field %>
+        <label for="announce-thread"><%= t('admin.integrations_topic') %></label>
+        <select id="announce-thread" name="thread_id" required>
+          % for my $topic (@{$topics}) {
+            <option value="<%= $topic->{thread_id} %>"><%= $topic->{title} %></option>
+          % }
+        </select>
+        <button type="submit"><%= t('admin.integrations_announce') %></button>
+      </form>
+    % } else {
+      <p><%= t('admin.integrations_discord_disabled') %></p>
+    % }
+    % if (@{$deliveries}) {
+      <ul>
+        % for my $delivery (@{$deliveries}) {
+          <li><%= $delivery->{title} %> — <%= $delivery->{status_label} %></li>
+          % if ($delivery->{status} eq 'uncertain' || $delivery->{status} eq 'failed') {
+            <li>
+              <form method="post" action="<%= ui_path('admin_integration_announce_retry', announcement_id => $delivery->{announcement_id}) %>">
+                <%= csrf_field %>
+                <label><input type="checkbox" name="checked" value="1" required> <%= t('admin.integrations_checked') %></label>
+                <label for="retry-<%= $delivery->{announcement_id} %>"><%= t('admin.integrations_retry_reason') %></label>
+                <input id="retry-<%= $delivery->{announcement_id} %>" name="reason" maxlength="500" required>
+                <button type="submit"><%= t('admin.integrations_retry') %></button>
+              </form>
+            </li>
+          % }
+
+        % }
+      </ul>
+      <p class="ui-meta"><%= t('admin.integrations_uncertain_help') %></p>
+    % }
+  </section>
+  <section class="integration-card" aria-labelledby="feeds-heading">
+    <h2 id="feeds-heading"><%= t('admin.integrations_feeds') %></h2>
+    <p><%= t('admin.integrations_feeds_help') %></p>
+    % if (@{$sources}) {
+      <form method="post" action="<%= ui_path('admin_integration_feed_fetch') %>">
+        <%= csrf_field %>
+        <label for="feed-source"><%= t('admin.integrations_source') %></label>
+        <select id="feed-source" name="source_url" required>
+          % for my $source (@{$sources}) {
+            <option value="<%= $source %>"><%= $source %></option>
+          % }
+        </select>
+        <button type="submit"><%= t('admin.integrations_fetch') %></button>
+      </form>
+    % } else {
+      <p><%= t('admin.integrations_feeds_disabled') %></p>
+    % }
+    % for my $item (@{$items}) {
+      <article class="integration-card">
+        <h3><a href="<%= $item->{url} %>" rel="noopener noreferrer" target="_blank"><%= $item->{title} %></a></h3>
+        <p><%= t('admin.integrations_source') %>: <%= $item->{source_url} %></p>
+        <form method="post" action="<%= ui_path('admin_integration_feed_decide', item_id => $item->{item_id}) %>">
+          <%= csrf_field %>
+          <label for="category-<%= $item->{item_id} %>"><%= t('admin.integrations_category') %></label>
+          <select id="category-<%= $item->{item_id} %>" name="category_id">
+            % for my $category (@{$categories}) {
+              <option value="<%= $category->{category_id} %>"><%= $category->{title} %></option>
+            % }
+          </select>
+          <button type="submit" name="decision" value="published"><%= t('admin.integrations_publish') %></button>
+          <button type="submit" name="decision" value="rejected" class="button--secondary"><%= t('admin.integrations_reject') %></button>
+        </form>
+      </article>
+    % }
+    % if ($next) {
+      <p><a href="<%= $next %>"><%= t('admin.integrations_next') %></a></p>
+    % }
+    <p><a href="<%= ui_path('public_feed') %>"><%= t('admin.integrations_outgoing_feed') %></a></p>
+  </section>
+  </div>
+  <details id="integration-catalogue" class="integration-catalogue">
+    <summary><%= t('admin.integrations_overview') %></summary>
+    <%= include 'admin/_integration_overview', overview => $overview %>
+  </details>
+</section>

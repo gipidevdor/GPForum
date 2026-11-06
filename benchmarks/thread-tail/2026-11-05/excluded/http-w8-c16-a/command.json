@@ -1,0 +1,29 @@
+{
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "script/benchmark-http-complete",
+    "--output",
+    "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a",
+    "--workers",
+    "8",
+    "--worker-clients",
+    "16",
+    "--scenario",
+    "member.thread",
+    "--concurrency",
+    "1,10,50,100",
+    "--iterations",
+    "100",
+    "--warmup",
+    "10",
+    "--duration",
+    "6",
+    "--repetitions",
+    "3",
+    "--deadline",
+    "900"
+  ],
+  "exit": 1,
+  "seconds": 37.400471210479736
+}

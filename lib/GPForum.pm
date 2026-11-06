@@ -1,0 +1,171 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum;
+
+use GPForum::OS::Reactor;
+use Mojo::Base 'Mojolicious', -signatures;
+use v5.40;
+
+use GPForum::Bootstrap::Admin;
+use GPForum::Bootstrap::Config;
+use GPForum::Bootstrap::Configuration;
+use GPForum::Bootstrap::Core;
+use GPForum::Bootstrap::Discovery;
+use GPForum::Bootstrap::Forum;
+use GPForum::Bootstrap::I18N;
+use GPForum::Bootstrap::Identity;
+use GPForum::Bootstrap::Moderation;
+use GPForum::Bootstrap::Operations;
+use GPForum::Bootstrap::Privacy;
+use GPForum::Bootstrap::Push;
+use GPForum::Bootstrap::Routes;
+use GPForum::Bootstrap::Security;
+use GPForum::Bootstrap::Workers;
+use GPForum::OS::RuntimePolicy;
+use GPForum::Runtime;
+
+our $VERSION = '0.001';
+
+sub startup ($self) {
+
+    # bin/gpforum started Mojolicious::Commands without registering a
+    # namespace, so it listed the framework's own commands -- including
+    # cpanify, "Upload distribution to CPAN" -- and none of this project's 22
+    # operational ones. Registering the namespace gives `gpforum`, `gpforum
+    # help <command>` and shell completion over the real commands.
+    # Mojolicious::Command::Author is dropped with it: an operator front door
+    # should not offer `cpanify`, "Upload distribution to CPAN", or the
+    # application generators. daemon, prefork, get, routes and eval stay,
+    # because those are things an operator does use.
+    $self->commands->namespaces( [ 'GPForum::CLI', 'Mojolicious::Command' ] );
+
+    my $config              = GPForum::Bootstrap::Config->load;
+    my $installation_config = $config;
+    $config = GPForum::Bootstrap::Configuration->load($config);
+
+    # A runner that loaded Mojo::IOLoop first (morbo, Test::Mojo under a bare
+    # prove or an IDE, a profiler) has already chosen libev's default; only
+    # production refuses it.
+    my $reactor =
+      GPForum::OS::Reactor->assert_native( strict => $config->is_production );
+    my $runtime = GPForum::Runtime->from_config($config);
+    my $runtime_policy =
+      GPForum::OS::RuntimePolicy->new( config => $config, runtime => $runtime );
+
+    GPForum::Bootstrap::Core->register(
+        application => $self,
+        config      => $config,
+    );
+    GPForum::Bootstrap::Security->register(
+        application => $self,
+        config      => $config,
+    );
+    GPForum::Bootstrap::I18N->register(
+        application => $self,
+        config      => $config,
+    );
+    GPForum::Bootstrap::Operations->register(
+        application         => $self,
+        config              => $config,
+        installation_config => $installation_config,
+        runtime             => $runtime,
+        runtime_policy      => $runtime_policy,
+    );
+
+    # Said once GPForum::Log has configured the log (Bootstrap::Operations),
+    # so it reaches GPFORUM_LOG_PATH as JSON with every other line.
+    if ( $reactor && $reactor->{fallback} ) {
+        $self->log->warn( $reactor->{fallback} );
+    }
+    GPForum::Bootstrap::Identity->register(
+        application => $self,
+        config      => $config,
+    );
+    GPForum::Bootstrap::Discovery->register(
+        application => $self,
+        config      => $config,
+    );
+    GPForum::Bootstrap::Forum->register(
+        application => $self,
+        config      => $config,
+    );
+    GPForum::Bootstrap::Workers->register(
+        application => $self,
+        config      => $config,
+    );
+    GPForum::Bootstrap::Admin->register( application => $self );
+    GPForum::Bootstrap::Moderation->register( application => $self );
+    GPForum::Bootstrap::Privacy->register( application => $self );
+    GPForum::Bootstrap::Push->register(
+        application => $self,
+        config      => $config
+    );
+    GPForum::Bootstrap::Routes->register( application => $self );
+
+    return;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum - Mojolicious application root.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $app = GPForum->new;
+
+=head1 DESCRIPTION
+
+Bootstraps the Good Phorum web application by loading configuration, building the
+runtime policy, and delegating service/helper/route registration to focused
+bootstrap modules.
+
+The project name is Good Phorum, shortened to GP Forum. GP stands for
+Good Phorum; the P in Phorum stands for Perl. The application class and
+module namespace remain C<GPForum>.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 startup
+
+Configures application dependencies and routes through modular bootstrap units.
+
+=head1 DIAGNOSTICS
+
+Startup delegates configuration validation to L<GPForum::Config>.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+Reads runtime configuration through L<GPForum::Config>.
+
+=head1 DEPENDENCIES
+
+Uses L<Mojolicious> plus Good Phorum configuration, runtime, and bootstrap modules.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+The application is still an MVP. Some advanced boundaries remain operational
+contracts before becoming complete product workflows.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

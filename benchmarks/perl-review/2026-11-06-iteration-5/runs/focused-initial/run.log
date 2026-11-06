@@ -1,0 +1,18 @@
+t/863-cache-inflight-invalidation.t .... ok
+t/864-pg-notification-read-contract.t .. ok
+t/89-tiered-cache.t .................... ok
+t/207-pg-notifications.t ............... ok
+Cannot detect source of 't/56-cache-invalidation-bus.t'! at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Parser/IteratorFactory.pm line 256.
+	TAP::Parser::IteratorFactory::detect_source(TAP::Parser::IteratorFactory=HASH(0x77d1757bb8), TAP::Parser::Source=HASH(0x77d1729300)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Parser/IteratorFactory.pm line 211
+	TAP::Parser::IteratorFactory::make_iterator(TAP::Parser::IteratorFactory=HASH(0x77d1757bb8), TAP::Parser::Source=HASH(0x77d1729300)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Parser.pm line 472
+	TAP::Parser::_initialize(TAP::Parser=HASH(0x77d17570c0), HASH(0x77d16a8870)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Object.pm line 53
+	TAP::Object::new("TAP::Parser", HASH(0x77d16a8870)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Object.pm line 128
+	TAP::Object::_construct(TAP::Harness=HASH(0x77d13b54c8), "TAP::Parser", HASH(0x77d16a8870)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Harness.pm line 870
+	TAP::Harness::make_parser(TAP::Harness=HASH(0x77d13b54c8), TAP::Parser::Scheduler::Job=HASH(0x77d15a1990)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Harness.pm line 669
+	TAP::Harness::_aggregate_single(TAP::Harness=HASH(0x77d13b54c8), TAP::Parser::Aggregator=HASH(0x77d13f8690), TAP::Parser::Scheduler=HASH(0x77d1599fa8)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Harness.pm line 761
+	TAP::Harness::aggregate_tests(TAP::Harness=HASH(0x77d13b54c8), TAP::Parser::Aggregator=HASH(0x77d13f8690), "t/863-cache-inflight-invalidation.t", "t/864-pg-notification-read-contract.t", "t/89-tiered-cache.t", "t/207-pg-notifications.t", "t/56-cache-invalidation-bus.t", "t/767-public-cache-revocation.t", ...) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Harness.pm line 559
+	eval {...} called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Harness.pm line 560
+	TAP::Harness::__ANON__() called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/TAP/Harness.pm line 578
+	TAP::Harness::runtests(TAP::Harness=HASH(0x77d13b54c8), "t/863-cache-inflight-invalidation.t", "t/864-pg-notification-read-contract.t", "t/89-tiered-cache.t", "t/207-pg-notifications.t", "t/56-cache-invalidation-bus.t", "t/767-public-cache-revocation.t", "t/711-cached-page-csrf.t") called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/App/Prove.pm line 547
+	App::Prove::_runtests(App::Prove=HASH(0x77d1008990), HASH(0x77d1383108), "t/863-cache-inflight-invalidation.t", "t/864-pg-notification-read-contract.t", "t/89-tiered-cache.t", "t/207-pg-notifications.t", "t/56-cache-invalidation-bus.t", "t/767-public-cache-revocation.t", ...) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/lib/5.44.0/App/Prove.pm line 505
+	App::Prove::run(App::Prove=HASH(0x77d1008990)) called at /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/prove line 13

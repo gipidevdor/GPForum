@@ -1,0 +1,308 @@
+--- a/lib/GPForum/Infrastructure/PgNotifications.pm
++++ b/lib/GPForum/Infrastructure/PgNotifications.pm
+@@ -34,6 +34,7 @@
+ has connection  => undef;               # optional: state, set by the first take
+ has connections_seen => 0;
+ has handle           => undef;          # optional: state, set by the first take
++has sync_needed      => 1;
+ has stats            => sub {
+     return {
+         dropped         => 0,
+@@ -47,8 +48,12 @@
+ };
+ 
+ sub listen_to ( $self, $channel ) {
+-    my $entry = $self->channels->{$channel} ||=
+-      { connection => undef, failed => 0, gap => 0, queue => [] };
++    my $entry = $self->channels->{$channel};
++    if ( !$entry ) {
++        $entry = { connection => undef, failed => 0, gap => 0, queue => [] };
++        $self->channels->{$channel} = $entry;
++        $self->sync_needed(1);
++    }
+ 
+     my $dbh = $self->_dbh;
+     if ($dbh) {
+@@ -131,16 +136,18 @@
+             return { handle => $handle, read => $self->_pump($handle) };
+         }
+     );
+-    my $dbh = $taken ? $taken->{handle} : undef;
+-    if ( $dbh && !$taken->{read} ) {
+-        $dbh = $self->_dbh;
++    my $read = $taken && $taken->{read};
++    if ( $taken && !$read ) {
++        $self->_read_unavailable;
++        my $dbh = $self->_dbh;
+         if ($dbh) {
+             $self->_sync($dbh);
+-            $self->_pump($dbh);
++            $read = $self->_pump($dbh);
+         }
+     }
+-    if ( !$dbh ) {
++    if ( !$read ) {
+         $self->stats->{unavailable} += 1;
++        $self->_read_unavailable;
+     }
+ 
+     my @notifications = splice @{ $entry->{queue} };
+@@ -148,7 +155,7 @@
+     $entry->{gap} = 0;
+ 
+     return {
+-        available     => $dbh ? 1 : 0,
++        available     => $read ? 1 : 0,
+         gap           => $gap,
+         notifications => \@notifications,
+     };
+@@ -178,6 +185,9 @@
+     }
+ 
+     my $connection = $self->_identify($dbh);
++    return if !$self->sync_needed;
++
++    my $pending = 0;
+     for my $channel ( sort keys %{ $self->channels } ) {
+         my $entry = $self->channels->{$channel};
+         next
+@@ -185,7 +195,11 @@
+           && $entry->{connection} eq $connection;
+ 
+         $self->_listen_on( $dbh, $channel );
+-    }
++        if ( !$self->listening($channel) ) {
++            $pending = 1;
++        }
++    }
++    $self->sync_needed($pending);
+ 
+     return;
+ }
+@@ -208,8 +222,23 @@
+     $self->connection( join q{/}, $pid, $self->connections_seen );
+     $self->handle($dbh);
+     weaken( $self->{handle} );
++    $self->sync_needed(1);
+ 
+     return $self->connection;
++}
++
++# An unreadable socket cannot vouch for any registered channel. Retire all
++# registrations, including on a handle that storage might return again, and
++# keep each consumer's gap until that consumer takes it.
++sub _read_unavailable ($self) {
++    for my $entry ( values %{ $self->channels } ) {
++        $entry->{connection} = undef;
++        $entry->{failed}     = 1;
++        $entry->{gap}        = 1;
++        $self->stats->{gaps} += 1;
++    }
++    $self->sync_needed(1);
++    return;
+ }
+ 
+ sub _listen_on ( $self, $dbh, $channel ) {
+@@ -396,8 +425,11 @@
+ Reads the handle's buffer and returns C<{ available, gap, notifications }>
+ for one channel: the notifications that arrived since its last take, as
+ DBD::Pg returns them (C<[ channel, sender_pid, payload ]>), and whether any
+-were lost. C<available> is false when the handle could not be obtained.
+-Notifications are read only outside a transaction.
++were lost. C<available> is false when the handle could not be obtained or
++the read still fails after one recovery attempt. An unreadable handle
++marks every registered channel with a gap and retires its LISTEN state,
++including when recovery returns the same handle. Notifications are read
++only outside a transaction.
+ 
+ =head2 snapshot
+ 
+@@ -426,9 +458,12 @@
+ 
+ =head1 BUGS AND LIMITATIONS
+ 
+-The handle is obtained through C<storage-E<gt>dbh>, which pings the server,
+-so each take costs one round trip. That ping is also what notices a lost
+-backend.
++Healthy takes read the current handle without a ping and identify its
++backend on every call. Channel synchronization is repeated only after a
++new registration, a changed connection or a failed LISTEN/read. A failed
++read uses C<storage-E<gt>dbh> once to let storage ping and reconnect. Each
++take reads at most C<max_queued> notifications; excess messages wait in
++libpq for the next consumer poll.
+ 
+ =head1 AUTHOR
+ 
+--- a/lib/GPForum/Service/Operations/TieredCache.pm
++++ b/lib/GPForum/Service/Operations/TieredCache.pm
+@@ -5,10 +5,12 @@
+ 
+ use Mojo::Base 'GPForum::Base', -signatures;
+ use v5.40;
++use English qw(-no_match_vars);
+ 
+ our $VERSION = '0.001';
+ 
+ has bus => undef;    # optional: without one workers do not hear each other
++has invalidation_epoch => sub { return _next_epoch(); };
+ __PACKAGE__->requires(qw(l1 l2));
+ has stats => sub {
+     return {
+@@ -38,6 +40,14 @@
+ }
+ 
+ sub put ( $self, $key, $value, $options ) {
++    my $ticket = $options && $options->{ticket};
++    if (   $ticket
++        && defined $ticket->{local_epoch}
++        && $ticket->{local_epoch} ne $self->invalidation_epoch )
++    {
++        return $value;
++    }
++
+     $self->l1->put( $key, $value, $options );
+     $self->l2->put( $key, $value, $options );
+     $self->stats->{writes} += 1;
+@@ -50,29 +60,29 @@
+         return $cached;
+     }
+ 
+-    my %put    = %{ $options || {} };
+-    my $ticket = $self->ticket( $put{tags}, { mint => 1 } );
+-    if ($ticket) {
+-        $put{ticket} = $ticket;
+-    }
++    my %put = %{ $options || {} };
++    $put{ticket} = $self->ticket( $put{tags}, { mint => 1 } );
+     my $generated = $producer->();
+     $self->put( $key, $generated, \%put );
+     return $generated;
+ }
+ 
+ # L2's tokens for the tags, taken before a value is computed and passed to put
+-# as its ticket (SharedCache::ticket). L1 takes none: another process's purge
+-# reaches it on the bus at the next get, which drops the entry if it is
+-# already written. Nothing when L2 keeps no tokens.
++# as its ticket (SharedCache::ticket). The local epoch also retires fills
++# whose invalidation was already absorbed by a nested read before put.
++# Without shared tokens the ticket still protects the local layer.
+ sub ticket ( $self, $tags, $options = undef ) {
+-    if ( !$self->l2->can('ticket') ) {
+-        return undef;
+-    }
+-
+-    return $self->l2->ticket( $tags, $options );
++    my $epoch  = $self->invalidation_epoch;
++    my $shared = {};
++    if ( $self->l2->can('ticket') ) {
++        $shared = $self->l2->ticket( $tags, $options ) || { failed => 1 };
++    }
++
++    return { %{$shared}, local_epoch => $epoch };
+ }
+ 
+ sub invalidate ( $self, $key ) {
++    $self->invalidation_epoch( _next_epoch() );
+     my $removed = $self->l1->invalidate($key);
+     $self->l2->invalidate($key);
+     $self->stats->{invalidations} += $removed;
+@@ -85,6 +95,7 @@
+ # purge can say its entries there stay current until their TTL. The count
+ # alone read the same whether L2 had been purged or skipped.
+ sub invalidate_tag ( $self, $tag ) {
++    $self->invalidation_epoch( _next_epoch() );
+     my $removed = $self->l1->invalidate_tag($tag);
+     my $shared  = $self->l2->invalidate_tag($tag);
+     $self->stats->{invalidations} += $removed;
+@@ -104,6 +115,7 @@
+     my @tags = grep { defined && length } @{ $tags || [] };
+     return 0 if !@tags;
+ 
++    $self->invalidation_epoch( _next_epoch() );
+     my ( $removed, $unreached ) = ( 0, 0 );
+     for my $tag (@tags) {
+         $removed += $self->l1->invalidate_tag($tag);
+@@ -139,6 +151,7 @@
+ }
+ 
+ sub _apply_remote ( $self, $request ) {
++    $self->invalidation_epoch( _next_epoch() );
+     if ( $request->{clear} ) {
+         return $self->l1->clear;
+     }
+@@ -170,6 +183,7 @@
+ }
+ 
+ sub clear ($self) {
++    $self->invalidation_epoch( _next_epoch() );
+     my $removed = $self->l1->clear;
+     $self->l2->clear;
+     $self->stats->{invalidations} += $removed;
+@@ -235,6 +249,13 @@
+     return $options;
+ }
+ 
++# One bounded scalar per cache, with no per-key tombstones. A process-wide
++# sequence also keeps a ticket distinct from those of other cache instances.
++sub _next_epoch {
++    state $sequence = 0;
++    return join q{/}, $PROCESS_ID, ++$sequence;
++}
++
+ 1;
+ 
+ __END__
+@@ -320,26 +341,30 @@
+ 
+ Takes a key, a value and an options hash reference, which must be passed
+ but may be C<undef>: C<tags>, C<ttl_seconds> and C<ticket>, handed unchanged
+-to both layers. Counts a write and returns the value, also when L2 failed
+-to store it. Publishes nothing on the bus.
++to both layers. A ticket from an earlier local invalidation epoch skips
++both stores and the write counter. Otherwise counts a write, also when L2
++failed to store it. Always returns the value. Publishes nothing on the bus.
+ 
+ =head2 get_or_set
+ 
+ Takes a key, a code reference and the optional options of L</put>. Returns
+ the cached value on a hit (L</get>). On a miss takes a ticket for the
+ options' C<tags> with C<mint> set (L</ticket>), calls the code reference with
+-no arguments, stores its result with L</put> under that ticket when there is
+-one, and returns it.
++no arguments, and passes its result and ticket to L</put>. An invalidation
++absorbed during the computation retires that ticket even when no entry
++existed to remove. The computed result is returned to the current caller.
+ 
+ =head2 ticket
+ 
+ Takes an array reference of tags and an optional options hash reference
+-(C<mint>), and returns L2's C<ticket> for them, to be passed to L</put> as
+-its C<ticket> option once the value is computed. With SharedCache that is
+-C<< { tokens => {...} } >>, or C<< { failed => 1 } >> when GlifiStore could
+-not read or mint a token. Returns C<undef> when L2 has no C<ticket>
+-method. L1 takes no ticket: a purge from another process reaches it on the
+-bus at the next L</get>, which drops the entry if it is already written.
++(C<mint>), and returns an opaque ticket to pass to L</put> once the value
++is computed. It contains a process-local C<local_epoch> even without a
++shared layer. With SharedCache it also contains its tag C<tokens>, or
++C<failed> when GlifiStore could not read or mint them. A purge absorbed by
++a nested read retires the pending local fill; a purge still on the bus
++removes an already stored entry at the next L</get>. The epoch keeps one
++scalar per cache rather than a tombstone for every invalidated key. An
++unrelated invalidation can also discard a pending fill, causing a safe miss.
+ 
+ =head2 invalidate
+ 
+--- a/lib/GPForum/Web/PublicHttpCache.pm
++++ b/lib/GPForum/Web/PublicHttpCache.pm
+@@ -56,8 +56,8 @@
+     if ( !$entry ) {
+         $options->{known_miss} = 1;
+ 
+-        # Optional capability: only a TieredCache issues tickets. CacheFactory
+-        # builds a bare LocalCache when no shared cache is configured.
++        # TieredCache issues a local ticket even without a shared layer;
++        # standalone LocalCache users have no ticket capability.
+         if ( $self->cache->can('ticket') ) {
+             $options->{ticket} = $self->cache->ticket( $options->{tags} );
+         }

@@ -1,0 +1,50 @@
+t/863-cache-inflight-invalidation.t .... ok
+t/864-pg-notification-read-contract.t .. ok
+t/89-tiered-cache.t .................... ok
+t/207-pg-notifications.t ............... ok
+t/767-public-cache-revocation.t ........ ok
+{"db_duration_ms":1.11599999945611,"duration_ms":53.6850000207778,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-289d-7487-8777-9904038c4cb5","route":"categories","status":200,"timestamp":1793980639.43958,"user_hash":null}
+{"db_duration_ms":1.2820000119973,"duration_ms":5.01200000871904,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28d6-7a9f-a443-15e7d9ad712f","route":"categories","status":200,"timestamp":1793980639.45159,"user_hash":null}
+
+    #   Failed test 'the second visitor is served the same page'
+    #   at t/711-cached-page-csrf.t line 52.
+    #          got: 'miss'
+    #     expected: 'hit'
+    # Looks like you failed 1 test of 11.
+
+#   Failed test 'a cached page carries no session token'
+#   at t/711-cached-page-csrf.t line 55.
+{"db_duration_ms":0,"duration_ms":2.36000001314096,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28e0-740c-a1d7-e811d9d4b2e5","route":"locale_update","status":302,"timestamp":1793980639.45857,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.452000007499009,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28e4-7522-84b5-c20d111075e4","route":"locale_update","status":302,"timestamp":1793980639.46074,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.981999997748062,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28e6-7399-9266-87604475e3f9","route":"theme_update","status":302,"timestamp":1793980639.46318,"user_hash":null}
+{"db_duration_ms":1.13399999099784,"duration_ms":1.71599999885075,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28e9-7c83-8656-1756b8f714b4","route":"theme_update","status":302,"timestamp":1793980639.46747,"user_hash":null}
+{"db_duration_ms":0.983000005362555,"duration_ms":3.17999999970198,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28ec-7b43-b99b-9fe0489d66d2","route":"categories","status":200,"timestamp":1793980639.47185,"user_hash":null}
+{"db_duration_ms":1.03799998760223,"duration_ms":4.16799998492934,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28f2-72ac-a228-986e0d34724b","route":"categories","status":200,"timestamp":1793980639.4783,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.539000000571832,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28f8-799d-9268-044802181f1d","route":"locale_update","status":403,"timestamp":1793980639.48111,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.3629999991972,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28fb-76f9-a1a6-21d67b4099fb","route":"locale_update","status":403,"timestamp":1793980639.48377,"user_hash":null}
+{"db_duration_ms":0.948999979300424,"duration_ms":1.40400000964291,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-28fd-7e1c-9758-0464da50b549","route":"theme_update","status":403,"timestamp":1793980639.48726,"user_hash":null}
+{"db_duration_ms":0.948999979300424,"duration_ms":1.38299999525771,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2900-7604-81a5-a3cfe6b5401f","route":"theme_update","status":403,"timestamp":1793980639.48973,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.348000001395121,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2902-7d4b-8896-0550fe30bf20","route":"theme_update","status":403,"timestamp":1793980639.49115,"user_hash":null}
+{"db_duration_ms":0.92900000163354,"duration_ms":14.7409999917727,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2905-797c-8c94-c06ffca8f7ae","route":"login","status":200,"timestamp":1793980639.5083,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.462000025436282,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2916-7039-bfa6-c8e20453e74b","route":"locale_update","status":403,"timestamp":1793980639.51044,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.47999998787418,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2918-7efd-af12-d87101400728","route":"locale_update","status":302,"timestamp":1793980639.51338,"user_hash":null}
+{"db_duration_ms":0.980999990133569,"duration_ms":2.51999997999519,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-291b-7199-bd5f-31cb2490fc26","route":"login","status":200,"timestamp":1793980639.51759,"user_hash":null}
+{"duration_ms":1.814999995986,"level":"warn","message":"address ban lookup failed: DBIx::Class::Storage::DBI::catch {...} (): DBI Connection failed: DBI connect('dbname=gpforum;application_name=gpforum;connect_timeout=5','gpforum',...) failed: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory\n\tIs the server running locally and accepting connections on that socket? at /private/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review5-after-xvoxp0w6/local/lib/perl5/DBIx/Class/Storage/DBI.pm line 1639. at lib/GPForum/Infrastructure/SqlFunction.pm line 281\n","pid":56987,"request_id":"01a1b194-2921-711e-b368-281f8f976f30","timestamp":1793980639.52285,"user_hash":null}
+{"db_duration_ms":0.975000002654269,"duration_ms":2.98799999291077,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2921-711e-b368-281f8f976f30","route":"login_submit","status":302,"timestamp":1793980639.52402,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":0.96299999859184,"duration_ms":2.72300001233816,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2925-7851-8d37-dd012d9d8a4f","route":"login","status":200,"timestamp":1793980639.52821,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":0,"duration_ms":0.437999988207594,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-292c-7262-8775-eb95077711a1","route":"locale_update","status":403,"timestamp":1793980639.53255,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":0,"duration_ms":0.396000017644837,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-292e-7fdf-b769-cea046929549","route":"locale_update","status":403,"timestamp":1793980639.53536,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":1.91799999447539,"duration_ms":4.75399999413639,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2931-7a20-9ce9-8fbf0993de3c","route":"logout","status":202,"timestamp":1793980639.54236,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.406999984988943,"event":"http.request","level":"info","message":"","pid":56987,"request_id":"01a1b194-2939-7635-9480-10117ceb2c9a","route":"locale_update","status":403,"timestamp":1793980639.54576,"user_hash":null}
+# Looks like you failed 1 test of 6.
+t/711-cached-page-csrf.t ............... 
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/6 subtests 
+
+Test Summary Report
+-------------------
+t/711-cached-page-csrf.t             (Wstat: 256 (exited 1) Tests: 6 Failed: 1)
+  Failed test:  1
+  Non-zero exit status: 1
+Files=6, Tests=173,  2 wallclock secs ( 0.03 usr  0.01 sys +  1.84 cusr  0.34 csys =  2.22 CPU)
+Result: FAIL

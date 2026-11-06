@@ -1,0 +1,10 @@
+# <%= $title %>
+
+% for my $item (@$items) {
+=> <%= $item->{url} %> <%= $item->{title} %>
+% }
+% if ($next) {
+=> <%= $next %> Next page
+% }
+
+=> / Categories

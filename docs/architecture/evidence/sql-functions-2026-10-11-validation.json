@@ -1,0 +1,232 @@
+{
+  "captured_at_utc": "2026-10-11 12:33:43 UTC",
+  "repository": "gpicchiarelli/GPForum",
+  "implementation_pr": "https://github.com/gpicchiarelli/GPForum/pull/59",
+  "implementation_commit": "7e78c8480eccc8f1a92fdcffa85c95af0a17002e",
+  "published_head": "e8ed651a9c41ced751a141b36d8169ebcc1c530d",
+  "merge_commit": "70547ce5dd27e0254c9f2830ef2e3ae7c72d5a77",
+  "local_validation": {
+    "unit": {
+      "scope": "Full local workspace; includes pre-existing unpublished edits",
+      "files": 401,
+      "assertions": 16137,
+      "result": "PASS"
+    },
+    "postgresql": {
+      "scope": "Complete integration suite on disposable PostgreSQL 18 with mandatory SCRAM authentication",
+      "files": 94,
+      "assertions": 9263,
+      "result": "PASS"
+    },
+    "role_tests": {
+      "files": 2,
+      "assertions": 75,
+      "result": "PASS"
+    },
+    "publication_snapshot": {
+      "unit_assertions": 368,
+      "postgresql_assertions": 2686,
+      "result": "PASS"
+    },
+    "coverage": {
+      "locally_run": false
+    }
+  },
+  "workflows": [
+    {
+      "scope": "pull_request",
+      "name": "PostgreSQL targets",
+      "run_id": 38138925678,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38138925678",
+      "jobs": [
+        {
+          "id": 114468528400,
+          "name": "PostgreSQL 18",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114468528462,
+          "name": "PostgreSQL 16",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114468528543,
+          "name": "PostgreSQL 17",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        }
+      ]
+    },
+    {
+      "scope": "pull_request",
+      "name": "Security scanning",
+      "run_id": 38138925751,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38138925751",
+      "jobs": [
+        {
+          "id": 114468528660,
+          "name": "Workflow and shell static analysis",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114468528717,
+          "name": "Dependency advisories and licenses",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114468528742,
+          "name": "Secret scanning",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114468529294,
+          "name": "OpenSSF Scorecard",
+          "status": "completed",
+          "conclusion": "skipped",
+          "active_step": null
+        }
+      ]
+    },
+    {
+      "scope": "pull_request",
+      "name": "Deployment units",
+      "run_id": 38138925582,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38138925582",
+      "jobs": [
+        {
+          "id": 114468527855,
+          "name": "systemd, nginx, Caddy and rc(8)",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        }
+      ]
+    },
+    {
+      "scope": "pull_request",
+      "name": "Project Hygiene",
+      "run_id": 38138925690,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38138925690",
+      "jobs": [
+        {
+          "id": 114468528136,
+          "name": "Repository hygiene",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        }
+      ]
+    },
+    {
+      "scope": "pull_request",
+      "name": "CI",
+      "run_id": 38138925676,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38138925676",
+      "jobs": [
+        {
+          "id": 114468576405,
+          "name": "Perl quality gate",
+          "status": "in_progress",
+          "conclusion": null,
+          "active_step": "Run Perl::Critic"
+        }
+      ]
+    },
+    {
+      "scope": "main_merge",
+      "name": "PostgreSQL targets",
+      "run_id": 38139267582,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38139267582",
+      "jobs": [
+        {
+          "id": 114469553293,
+          "name": "PostgreSQL 17",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114469553448,
+          "name": "PostgreSQL 16",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114469553487,
+          "name": "PostgreSQL 18",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        }
+      ]
+    },
+    {
+      "scope": "main_merge",
+      "name": "CI",
+      "run_id": 38139267621,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38139267621",
+      "jobs": [
+        {
+          "id": 114469553504,
+          "name": "Perl quality gate",
+          "status": "in_progress",
+          "conclusion": null,
+          "active_step": "Check Perl formatting"
+        }
+      ]
+    },
+    {
+      "scope": "main_merge",
+      "name": "Security scanning",
+      "run_id": 38139267664,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/38139267664",
+      "jobs": [
+        {
+          "id": 114469553561,
+          "name": "Secret scanning",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114469553632,
+          "name": "Dependency advisories and licenses",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114469553663,
+          "name": "Workflow and shell static analysis",
+          "status": "completed",
+          "conclusion": "success",
+          "active_step": null
+        },
+        {
+          "id": 114469554646,
+          "name": "OpenSSF Scorecard",
+          "status": "completed",
+          "conclusion": "skipped",
+          "active_step": null
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Workflow states are a dated snapshot, not a claim that pending checks have passed.",
+    "The PostgreSQL jobs include integration tests and migration/restore drills.",
+    "The two benchmark JSON files contain summary statistics, not raw sample arrays."
+  ]
+}

@@ -1,0 +1,126 @@
+% layout 'default', shell => 'wide';
+% title t('moderation.organize') . ' - ' . t('app.name');
+% my %operation_label = (move => 'moderation.transfer_move',split => 'moderation.transfer_split',merge => 'moderation.transfer_merge');
+<section class="transfer-page" aria-labelledby="transfers-heading">
+  <h1 id="transfers-heading"><%= t('moderation.organize') %></h1>
+  <p><%= t('moderation.transfer_help') %></p>
+  % if ($transfer_error) {
+    <%= include 'components/error_summary', summary_id => 'transfer-error', errors => {$transfer_error_field => $transfer_error}, fields => [{name => $transfer_error_field, id => 'transfer-' . $transfer_error_field}] %>
+  % }
+  % if (!$picker->{source}) {
+    <form method="get" action="<%= ui_path('moderation_transfers') %>">
+      <label for="transfer-search"><%= t('moderation.transfer_search') %></label>
+      <input id="transfer-search" type="search" name="q" maxlength="100" value="<%= $transfer_values->{q} %>">
+      <button type="submit"><%= t('search.submit') %></button>
+    </form>
+    <form method="get" action="<%= ui_path('moderation_transfers') %>">
+      <label for="transfer-source"><%= t('moderation.transfer_source') %></label>
+      <select id="transfer-source" name="source" required>
+        % for my $choice (@{$picker->{choices}}) {
+          <option value="<%= $choice->{thread_id} %>"><%= $choice->{title} %> · <%= $choice->{category_title} %></option>
+        % }
+      </select>
+      <button type="submit"><%= t('moderation.transfer_choose_source') %></button>
+    </form>
+  % } else {
+    <p><%= t('moderation.transfer_source') %>: <a href="<%= ui_path('thread',thread_id=>$picker->{source}{thread_id}) %>"><%= $picker->{source}{title} %></a> · <a href="<%= ui_path('moderation_transfers') %>"><%= t('moderation.transfer_change_source') %></a></p>
+    <form method="post" action="<%= ui_path('moderation_transfer') %>" data-transfer-form<%== $transfer_error ? ' aria-describedby="transfer-error"' : q{} %>>
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $transfer_command_id %>">
+      <input type="hidden" name="source" value="<%= $picker->{source}{thread_id} %>">
+      <input type="hidden" name="after_position" value="<%= $transfer_values->{after_position} %>">
+      <label for="transfer-operation"><%= t('moderation.transfer_operation') %></label>
+      <select id="transfer-operation" name="operation"<%== $transfer_error && $transfer_error_field eq 'operation' ? ' aria-invalid="true" aria-describedby="transfer-operation-error"' : q{} %>>
+        % for my $op (qw(move split merge)) {
+          <option value="<%= $op %>"<%== $transfer_values->{operation} eq $op ? ' selected' : q{} %>><%= t($operation_label{$op}) %></option>
+        % }
+      </select>
+      % if ($transfer_error && $transfer_error_field eq 'operation') {
+        <%= include 'components/field_error', field_id => 'transfer-operation-error', message => $transfer_error %>
+      % }
+      <details class="transfer-search">
+        <summary><%= t('moderation.transfer_search') %></summary>
+        <label for="transfer-search"><%= t('moderation.transfer_search') %></label>
+        <input id="transfer-search" type="search" name="q" maxlength="100" value="<%= $transfer_values->{q} %>">
+        <button type="submit" name="page_after" value="0" formnovalidate class="button--secondary"><%= t('search.submit') %></button>
+      </details>
+      <div data-transfer-target>
+        <label for="transfer-target"><%= t('moderation.transfer_target') %></label>
+        <select id="transfer-target" name="target"<%== $transfer_error && $transfer_error_field eq 'target' ? ' aria-invalid="true"' : q{} %> aria-describedby="transfer-target-help<%= $transfer_error_field eq 'target' && $transfer_error ? ' transfer-target-error' : q{} %>">
+          <option value=""><%= t('moderation.transfer_choose_target') %></option>
+          % if (length $transfer_values->{target} && !grep { $_->{thread_id} eq $transfer_values->{target} } @{$picker->{choices}}) {
+            <option value="<%= $transfer_values->{target} %>" selected><%= t('moderation.transfer_current_target') %></option>
+          % }
+          % for my $choice (@{$picker->{choices}}) {
+            <option value="<%= $choice->{thread_id} %>"<%== $transfer_values->{target} eq $choice->{thread_id} ? ' selected' : q{} %>><%= $choice->{title} %></option>
+          % }
+        </select>
+      % if ($transfer_error && $transfer_error_field eq 'target') {
+        <%= include 'components/field_error', field_id => 'transfer-target-error', message => $transfer_error %>
+      % }
+        <p class="ui-hint" id="transfer-target-help"><%= t('moderation.transfer_target_help') %></p>
+        <p class="ui-hint"><%= t('moderation.transfer_audience_help') %></p>
+      </div>
+      <div data-transfer-title>
+        <label for="transfer-title"><%= t('forum.thread_title') %></label>
+        <input id="transfer-title" name="title"<%== $transfer_error && $transfer_error_field eq 'title' ? ' aria-invalid="true"' : q{} %> maxlength="200" value="<%= $transfer_values->{title} %>" aria-describedby="transfer-title-help<%= $transfer_error_field eq 'title' && $transfer_error ? ' transfer-title-error' : q{} %>">
+      % if ($transfer_error && $transfer_error_field eq 'title') {
+        <%= include 'components/field_error', field_id => 'transfer-title-error', message => $transfer_error %>
+      % }
+        <p class="ui-hint" id="transfer-title-help"><%= t('moderation.transfer_title_help') %></p>
+      </div>
+      <label for="transfer-reason"><%= t('moderation.reason') %></label>
+      <input id="transfer-reason"<%== $transfer_error && $transfer_error_field eq 'reason' ? ' aria-describedby="transfer-reason-error"' : q{} %> name="reason"<%== $transfer_error && $transfer_error_field eq 'reason' ? ' aria-invalid="true"' : q{} %> required maxlength="500" value="<%= $transfer_values->{reason} %>">
+      % if ($transfer_error && $transfer_error_field eq 'reason') {
+        <%= include 'components/field_error', field_id => 'transfer-reason-error', message => $transfer_error %>
+      % }
+      <div class="transfer-actions">
+        <p role="status"><span data-transfer-count><%= scalar keys %{$selected_posts} %></span> <%= t('moderation.transfer_selected') %></p>
+        <button type="submit" data-transfer-submit><%= ui_icon('arrow-right') %><%= t('moderation.organize') %></button>
+      </div>
+      <fieldset id="transfer-posts" data-transfer-posts tabindex="-1"<%== $transfer_error && $transfer_error_field eq 'posts' ? ' aria-invalid="true" aria-describedby="transfer-posts-error"' : q{} %>>
+        <legend><%= t('moderation.transfer_select_posts') %></legend>
+        % if ($transfer_error && $transfer_error_field eq 'posts') {
+          <%= include 'components/field_error', field_id => 'transfer-posts-error', message => $transfer_error %>
+        % }
+        <p class="ui-hint"><%= t('moderation.transfer_select_help') %></p>
+        % if (@{$offpage_posts}) {
+          <div class="transfer-previous">
+            <p><%= t('moderation.transfer_previous_selection') %></p>
+            % for my $number (@{$offpage_posts}) {
+              <label class="checkbox-field"><input type="checkbox" name="post_numbers" value="<%= $number %>" checked> #<%= $number %></label>
+            % }
+          </div>
+        % }
+        % for my $post (@{$picker->{posts}}) {
+          <label class="checkbox-field"><input type="checkbox" name="post_numbers" value="<%= $post->{position} %>"<%== $selected_posts->{$post->{position}} ? ' checked' : q{} %>> #<%= $post->{position} %> · <%= $post->{display_name} %> — <%= $post->{excerpt} // q{} %></label>
+        % }
+      </fieldset>
+      <nav class="transfer-pagination" aria-label="<%= t('forum.post_pagination') %>">
+        % if ($transfer_values->{after_position}) {
+          <button type="submit" name="page_after" value="0" formnovalidate class="button--secondary"><%= t('moderation.transfer_first_posts') %></button>
+        % }
+        % if ($next_posts) {
+          <button type="submit" name="page_after" value="<%= $next_posts %>" formnovalidate class="button--secondary"><%= t('moderation.transfer_more_posts') %></button>
+        % }
+      </nav>
+    </form>
+  % }
+  <details class="transfer-history">
+    <summary><%= t('moderation.transfer_history') %></summary>
+    <ul>
+      % for my $transfer (@{$transfers}) {
+        <li><%= t($operation_label{$transfer->{operation}}) %> — <%= $transfer->{post_count} %> — <%= dt($transfer->{created_at}) %>
+          <p><a href="<%= ui_path('thread',thread_id=>$transfer->{source_id}) %>"><%= t('moderation.transfer_source') %></a> → <a href="<%= ui_path('thread',thread_id=>$transfer->{target_id}) %>"><%= t('moderation.transfer_target') %></a></p>
+          % if (!$transfer->{undone_at}) {
+            <form method="post" action="<%= ui_path('moderation_transfer_undo', transfer_id => $transfer->{transfer_id}) %>">
+              <%= csrf_field %>
+              <input type="hidden" name="command_id" value="<%= $transfer->{undo_command_id} %>">
+              <button type="submit" class="button--secondary"><%= ui_icon('arrow-left') %><%= t('moderation.transfer_undo') %></button>
+            </form>
+          % }
+        </li>
+      % }
+    </ul>
+  </details>
+</section>

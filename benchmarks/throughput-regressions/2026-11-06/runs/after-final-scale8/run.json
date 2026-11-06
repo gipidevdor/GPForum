@@ -1,0 +1,51 @@
+{
+  "source": "/private/tmp/gpforum-throughput-final-candidate-9c9ncur_",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "script/benchmark-http-complete",
+    "--output",
+    "/Users/gpicchiarelli/Documents/GPForum/artifacts/throughput-regressions-20261105/after-final-scale8/http",
+    "--workers",
+    "8",
+    "--iterations",
+    "100",
+    "--warmup",
+    "10",
+    "--duration",
+    "4",
+    "--repetitions",
+    "3",
+    "--concurrency",
+    "1,10,32,100",
+    "--deadline",
+    "900",
+    "--scenario",
+    "member.home",
+    "--scenario",
+    "member.thread",
+    "--scenario",
+    "guest.thread",
+    "--scenario",
+    "moderator.transfers",
+    "--scenario",
+    "journey.publishing_community",
+    "--scenario",
+    "mixed"
+  ],
+  "competing_load": [],
+  "started_at": "2026-11-05T23:37:20.985760+00:00",
+  "load_before": [
+    2.8837890625,
+    4.08935546875,
+    4.08203125
+  ],
+  "exit_code": 1,
+  "elapsed_seconds": 8.491371167,
+  "load_after": [
+    2.66748046875,
+    4.00341796875,
+    4.0517578125
+  ],
+  "finished_at": "2026-11-05T23:37:29.477465+00:00"
+}

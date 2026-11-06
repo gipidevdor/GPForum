@@ -1,0 +1,3 @@
+# Preserve archived patch context and original test output byte for byte.
+*.patch -text -whitespace
+**/runs/**/run.log -text -whitespace

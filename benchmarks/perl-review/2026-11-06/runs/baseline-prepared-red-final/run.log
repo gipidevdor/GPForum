@@ -1,0 +1,41 @@
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+
+    #   Failed test 'a longer IN list does not silently lose its later elements'
+    #   at t/integration/postgres-prepared-queries.t line 190.
+    #     Structures begin differing at:
+    #          $got->[1] = Does not exist
+    #     $expected->[1] = '018f1002-0002-7000-8000-000000000002'
+
+    #   Failed test 'a NULL predicate is not reused as equality to a NULL bind'
+    #   at t/integration/postgres-prepared-queries.t line 199.
+    #     Structures begin differing at:
+    #          $got->[0] = Does not exist
+    #     $expected->[0] = '018f1002-0001-7000-8000-000000000001'
+
+    #   Failed test 'a missing cached limit cannot turn a bounded lookup into an unbounded one'
+    #   at t/integration/postgres-prepared-queries.t line 218.
+    #          got: '5'
+    #     expected: '1'
+
+    #   Failed test 'an unnamed bind is accepted only when it matches the resultset limit'
+    #   at t/integration/postgres-prepared-queries.t line 223.
+    #          got: '2'
+    #     expected: '1'
+    # Looks like you failed 4 tests of 7.
+
+#   Failed test 'changed bind shapes use the current resultset'
+#   at t/integration/postgres-prepared-queries.t line 227.
+# Looks like you failed 1 test of 40.
+t/integration/postgres-prepared-queries.t .. 
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/40 subtests 
+
+Test Summary Report
+-------------------
+t/integration/postgres-prepared-queries.t (Wstat: 256 (exited 1) Tests: 40 Failed: 1)
+  Failed test:  24
+  Non-zero exit status: 1
+Files=1, Tests=40,  2 wallclock secs ( 0.01 usr  0.00 sys +  1.01 cusr  0.57 csys =  1.59 CPU)
+Result: FAIL

@@ -1,0 +1,260 @@
+{
+   "architecture" : "darwin-thread-multi-2level",
+   "method" : "Three fixed-iteration batches per case, after 100 untimed warmups. Monotonic wall time. Projection inputs match selected page columns. Realtime uses a successful no-IO hub stub. Mixed source case uses a configured 1024-character cache, not its default budget. No HTTP or database in microbenchmarks. The orchestration records known competing jobs separately.",
+   "perl" : "v5.44.0",
+   "platform" : "darwin",
+   "results" : [
+      {
+         "iterations" : 100000,
+         "name" : "projection_autocomplete_suggestion_hash",
+         "operations_per_second" : 460284.363717899,
+         "repetition" : 1,
+         "seconds" : 0.217256999982055
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_autocomplete_suggestion_hash",
+         "operations_per_second" : 465289.410016214,
+         "repetition" : 2,
+         "seconds" : 0.214919999998529
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_autocomplete_suggestion_hash",
+         "operations_per_second" : 452722.218710238,
+         "repetition" : 3,
+         "seconds" : 0.220885999995517
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_autocomplete_suggestion_function_row",
+         "operations_per_second" : 277919.82568015,
+         "repetition" : 1,
+         "seconds" : 0.359816000011051
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_autocomplete_suggestion_function_row",
+         "operations_per_second" : 279008.515338792,
+         "repetition" : 2,
+         "seconds" : 0.358412000001408
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_autocomplete_suggestion_function_row",
+         "operations_per_second" : 279151.045835544,
+         "repetition" : 3,
+         "seconds" : 0.35822900000494
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_category_hash",
+         "operations_per_second" : 377374.155170104,
+         "repetition" : 1,
+         "seconds" : 0.264988999988418
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_category_hash",
+         "operations_per_second" : 378426.653355248,
+         "repetition" : 2,
+         "seconds" : 0.264251999993576
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_category_hash",
+         "operations_per_second" : 379067.872109619,
+         "repetition" : 3,
+         "seconds" : 0.263804999995045
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_category_function_row",
+         "operations_per_second" : 172040.938858095,
+         "repetition" : 1,
+         "seconds" : 0.581257000012556
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_category_function_row",
+         "operations_per_second" : 172820.21857698,
+         "repetition" : 2,
+         "seconds" : 0.578636000020197
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_category_function_row",
+         "operations_per_second" : 176147.823246099,
+         "repetition" : 3,
+         "seconds" : 0.567705000023125
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_search_result_hash",
+         "operations_per_second" : 261211.184035891,
+         "repetition" : 1,
+         "seconds" : 0.38283199997386
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_search_result_hash",
+         "operations_per_second" : 261756.121809711,
+         "repetition" : 2,
+         "seconds" : 0.382035000016913
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_search_result_hash",
+         "operations_per_second" : 262522.314399503,
+         "repetition" : 3,
+         "seconds" : 0.380919999995967
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_search_result_function_row",
+         "operations_per_second" : 144648.092882132,
+         "repetition" : 1,
+         "seconds" : 0.691333000024315
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_search_result_function_row",
+         "operations_per_second" : 144789.671284179,
+         "repetition" : 2,
+         "seconds" : 0.690656999999192
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_search_result_function_row",
+         "operations_per_second" : 145387.297219843,
+         "repetition" : 3,
+         "seconds" : 0.687818000005791
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_thread_hash",
+         "operations_per_second" : 176049.209275035,
+         "repetition" : 1,
+         "seconds" : 0.568022999999812
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_thread_hash",
+         "operations_per_second" : 177101.799888113,
+         "repetition" : 2,
+         "seconds" : 0.564646999991965
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_thread_hash",
+         "operations_per_second" : 177389.885230508,
+         "repetition" : 3,
+         "seconds" : 0.563729999994393
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_thread_function_row",
+         "operations_per_second" : 85483.2367386662,
+         "repetition" : 1,
+         "seconds" : 1.16981999998097
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_thread_function_row",
+         "operations_per_second" : 85490.0331444551,
+         "repetition" : 2,
+         "seconds" : 1.16972700000042
+      },
+      {
+         "iterations" : 100000,
+         "name" : "projection_thread_function_row",
+         "operations_per_second" : 86210.7611731013,
+         "repetition" : 3,
+         "seconds" : 1.15994799998589
+      },
+      {
+         "iterations" : 100000,
+         "name" : "source_hit_default",
+         "operations_per_second" : 952880.080049791,
+         "repetition" : 1,
+         "seconds" : 0.104944999999134
+      },
+      {
+         "iterations" : 100000,
+         "name" : "source_hit_default",
+         "operations_per_second" : 957560.900672344,
+         "repetition" : 2,
+         "seconds" : 0.104432000021916
+      },
+      {
+         "iterations" : 100000,
+         "name" : "source_hit_default",
+         "operations_per_second" : 956855.390471838,
+         "repetition" : 3,
+         "seconds" : 0.104508999997051
+      },
+      {
+         "iterations" : 30000,
+         "name" : "source_mixed_small_budget",
+         "operations_per_second" : 322924.403409868,
+         "repetition" : 1,
+         "seconds" : 0.0929009999963455
+      },
+      {
+         "iterations" : 30000,
+         "name" : "source_mixed_small_budget",
+         "operations_per_second" : 323697.92511743,
+         "repetition" : 2,
+         "seconds" : 0.0926789999939501
+      },
+      {
+         "iterations" : 30000,
+         "name" : "source_mixed_small_budget",
+         "operations_per_second" : 324163.118881923,
+         "repetition" : 3,
+         "seconds" : 0.0925459999998566
+      },
+      {
+         "iterations" : 200000,
+         "name" : "realtime_duplicate_stub_no_io",
+         "operations_per_second" : 1161939.50929758,
+         "repetition" : 1,
+         "seconds" : 0.172126000019489
+      },
+      {
+         "iterations" : 200000,
+         "name" : "realtime_duplicate_stub_no_io",
+         "operations_per_second" : 1176920.58719591,
+         "repetition" : 2,
+         "seconds" : 0.169935000012629
+      },
+      {
+         "iterations" : 200000,
+         "name" : "realtime_duplicate_stub_no_io",
+         "operations_per_second" : 1150642.05830171,
+         "repetition" : 3,
+         "seconds" : 0.173815999994986
+      },
+      {
+         "iterations" : 100000,
+         "name" : "realtime_success_stub_no_io",
+         "operations_per_second" : 212603.112519729,
+         "repetition" : 1,
+         "seconds" : 0.470359999977518
+      },
+      {
+         "iterations" : 100000,
+         "name" : "realtime_success_stub_no_io",
+         "operations_per_second" : 211899.424058715,
+         "repetition" : 2,
+         "seconds" : 0.471921999996994
+      },
+      {
+         "iterations" : 100000,
+         "name" : "realtime_success_stub_no_io",
+         "operations_per_second" : 211555.14183691,
+         "repetition" : 3,
+         "seconds" : 0.472690000024159
+      }
+   ]
+}

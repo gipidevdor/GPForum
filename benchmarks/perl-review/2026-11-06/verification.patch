@@ -1,0 +1,543 @@
+--- a/t/40-local-cache.t
++++ b/t/40-local-cache.t
+@@ -17,7 +17,7 @@
+ 
+ our $VERSION = '0.001';
+ 
+-const my $EXPECTED_TESTS      => 17;
++const my $EXPECTED_TESTS      => 19;
+ const my $SHORT_TTL_SECONDS   => 5;
+ const my $AFTER_TTL_EPOCH     => 106;
+ const my $CACHE_LIMIT         => 2;
+@@ -96,4 +96,41 @@
+ );
+ is( $cache->clear, $CACHE_LIMIT, 'clear removes remaining entries' );
+ 
++subtest 'lookup has the same recency and observation contract as get' => sub {
++    my $local = GPForum::Service::Operations::LocalCache->new(
++        clock       => GPForum::Test::OperationsClock->new,
++        max_entries => $CACHE_LIMIT,
++        ttl_seconds => $SHORT_TTL_SECONDS,
++    );
++    $local->put( a => undef, { tags => ['original'] } );
++    $local->put( b => $SECOND_VALUE );
++    my $payload = $local->lookup('a');
++    ok( $payload, 'a cached undef still has a lookup payload' );
++    is( $payload->{value}, undef, 'the stored value is unchanged' );
++    is(
++        $payload->{expires_at_epoch},
++        $local->clock->now_epoch + $SHORT_TTL_SECONDS,
++        'the lookup reports the actual expiry to its parent cache'
++    );
++    is( $local->stats->{hits}, 1, 'lookup records its hit' );
++    $local->put( c => $THIRD_VALUE );
++    ok( $local->lookup('a'), 'the recently looked-up entry survives eviction' );
++    is( $local->get('b'), undef, 'the untouched entry was the oldest' );
++};
++
++subtest 'tag ownership cannot corrupt invalidation or grow the index' => sub {
++    my $local = GPForum::Service::Operations::LocalCache->new;
++    my $tags  = [ 'original', undef, q{} ];
++    $local->put( tagged => $FIRST_VALUE, { tags => $tags } );
++    @{$tags} = ('changed');
++    my $payload = $local->lookup('tagged');
++    is_deeply( $payload->{tags}, ['original'],
++        'only valid tags are stored independently of the caller' );
++    @{ $payload->{tags} } = ('also changed');
++    is( $local->invalidate_tag('original'),
++        1, 'the original tag continues to find its entry' );
++    is( $local->get('tagged'),    undef, 'tag invalidation removes the entry' );
++    is( $local->snapshot->{tags}, 0,     'removal leaves no orphan tag index' );
++};
++
+ 1;
+--- a/t/89-tiered-cache.t
++++ b/t/89-tiered-cache.t
+@@ -54,6 +54,28 @@
+ const my $PUBLIC_TAG             => 'forum:public-html';
+ const my $HTTP_MOVED_PERMANENTLY => 301;
+ const my $CANONICAL_SLUG         => 'caf%C3%A9';
++
++subtest 'a local L2 cannot extend the original expiry when filling L1' => sub {
++    my $clock = GPForum::Test::OperationsClock->new( epoch => $START_EPOCH );
++    my $local = GPForum::Service::Operations::LocalCache->new(
++        clock       => $clock,
++        ttl_seconds => $DEFAULT_TTL_SECONDS
++    );
++    my $backing_cache = GPForum::Service::Operations::LocalCache->new(
++        clock       => $clock,
++        ttl_seconds => $SHORT_TTL_SECONDS
++    );
++    my $cache = GPForum::Service::Operations::TieredCache->new(
++        l1 => $local,
++        l2 => $backing_cache
++    );
++    $backing_cache->put( hot => 'original', { tags => ['thread'] } );
++    $clock->epoch($FILL_READ_EPOCH);
++    is( $cache->get('hot'), 'original', 'L1 fills from a nearly expired L2' );
++    $clock->epoch($FILL_EXPIRY_EPOCH);
++    is( $cache->get('hot'), undef,
++        'both layers expire at the original deadline' );
++};
+ 
+ my $clock  = GPForum::Test::OperationsClock->new;
+ my $client = GPForum::Test::SharedCacheClient->new;
+--- a/t/703-sql-function-answers.t
++++ b/t/703-sql-function-answers.t
+@@ -10,6 +10,7 @@
+ use lib 'lib';
+ 
+ use GPForum::Infrastructure::SqlFunction;
++use GPForum::Infrastructure::SqlFunctionCatalogue;
+ 
+ our $VERSION = '0.001';
+ 
+@@ -109,6 +110,71 @@
+ is_deeply( $empty, [], 'a value PostgreSQL would refuse is no call at all' );
+ is( scalar @sent, 0, 'and nothing is sent for it' );
+ 
++subtest 'answer keys preserve parameter and array boundaries' => sub {
++    my $probe = GPForum::Infrastructure::SqlFunction->new(
++        schema    => bless( {}, 'Schema' ),
++        catalogue => GPForum::Infrastructure::SqlFunctionCatalogue->new(
++            entries => {
++                text_pair => {
++                    version    => 1,
++                    parameters => [ first => 'text', second => 'text' ]
++                },
++                text_array => {
++                    version    => 1,
++                    parameters => [ items => 'text[]' ]
++                },
++            }
++        ),
++    );
++    my $embedded_separator =
++      { first => "a\N{INFORMATION SEPARATOR ONE}b", second => 'c' };
++    my $shifted_separator =
++      { first => 'a', second => "b\N{INFORMATION SEPARATOR ONE}c" };
++    isnt(
++        $probe->answer_key( 'text_pair', $embedded_separator ),
++        $probe->answer_key( 'text_pair', $shifted_separator ),
++        'a delimiter inside text cannot move a parameter boundary'
++    );
++    isnt(
++        $probe->answer_key( 'text_array', { items => [] } ),
++        $probe->answer_key( 'text_array', { items => [q{}] } ),
++        'an empty array differs from one empty element'
++    );
++    isnt(
++        $probe->answer_key( 'text_array', { items => undef } ),
++        $probe->answer_key( 'text_array', { items => [undef] } ),
++        'a NULL array differs from an array containing NULL'
++    );
++    is(
++        $probe->answer_key(
++            'text_array', { items => [ [ 'a', undef ], [ q{}, 'b' ] ] }
++        ),
++        $probe->answer_key(
++            'text_array', { items => [ [ 'a', undef ], [ q{}, 'b' ] ] }
++        ),
++        'nested arrays are keyed by values rather than reference addresses'
++    );
++    isnt(
++        $probe->answer_key(
++            'text_array', { items => ["a\N{INFORMATION SEPARATOR TWO}b"] }
++        ),
++        $probe->answer_key( 'text_array', { items => [ 'a', 'b' ] } ),
++        'an array delimiter inside an element cannot split it'
++    );
++    my $answer = GPForum::Infrastructure::SqlFunction->answering(
++        {
++            $probe->answer_key( 'text_pair', $embedded_separator ) =>
++              [ { wrong => 1 } ]
++        },
++        sub { return $probe->rows( 'text_pair', $shifted_separator ); }
++    );
++    is_deeply(
++        $answer,
++        [ { sent => 1 } ],
++'a different call reaches SQL instead of taking the wrong preloaded answer'
++    );
++};
++
+ done_testing();
+ 
+ 1;
+--- a/t/723-forum-body-renderer-memo.t
++++ b/t/723-forum-body-renderer-memo.t
+@@ -54,6 +54,18 @@
+     "the memo never held more than its budget ($largest of $budget)" );
+ ok( $largest > 0, 'and still kept what fits' );
+ 
++my $held_before    = GPForum::Service::Forum::BodyRenderer->held_characters;
++my $oversized      = q{"} x ( int( $budget / ( 1 + $EXPANSION ) ) + 1 );
++my $oversized_html = $renderer->render_safe($oversized);
++cmp_ok( length($oversized) + length($oversized_html),
++    '>', $budget, 'the oversized result cannot fit in the memo' );
++is( GPForum::Service::Forum::BodyRenderer->held_characters,
++    $held_before, 'an oversized render leaves the existing hot bodies cached' );
++is( $renderer->render_safe($source),
++    $html, 'the previously cached body still has the same rendering' );
++is( GPForum::Service::Forum::BodyRenderer->held_characters,
++    $held_before, 'and reading it does not insert it again' );
++
+ done_testing();
+ 
+ 1;
+--- a/t/502-prepared-query-guards.t
++++ b/t/502-prepared-query-guards.t
+@@ -12,6 +12,7 @@
+ 
+ use GPForum::Infrastructure::PreparedQuery;
+ use GPForum::Schema;
++use GPForum::Service::Operations::DbQueryStats;
+ 
+ our $VERSION = '0.001';
+ 
+@@ -40,6 +41,9 @@
+ is_deeply( lookup('018f1000-0000-7000-8000-0000000000ff-x'),
+     [], 'as does a uuid with a tail' );
+ 
++my $stats = GPForum::Service::Operations::DbQueryStats->new;
++$stats->attach_to_schema($schema);
++my $token   = $stats->start_request( { route => 'prepared-error' } );
+ my $reached = eval { lookup('018f1000-0000-7000-8000-0000000000ff'); 1 };
+ like(
+     $EVAL_ERROR,
+@@ -47,6 +51,9 @@
+     'a uuid reaches the database (which is not there)'
+ );
+ ok( !$reached, 'and the statement was sent' );
++my $failed = $stats->finish_request( $token, {} );
++cmp_ok( $failed->{db_duration_ms},
++    '>', 0, 'a failed prepared read closes and records its SQL observation' );
+ 
+ # A statement built from a request without a value for a column does not
+ # serve a request that has one: that request runs its own resultset.
+--- a/t/735-db-query-timing.t
++++ b/t/735-db-query-timing.t
+@@ -5,17 +5,24 @@
+ 
+ use v5.40;
+ use Const::Fast;
++use English qw(-no_match_vars);
+ use Test::More;
+ use Time::HiRes qw(usleep);
+ 
+ use lib 'lib';
++use lib 't/lib';
++use GPForum::Infrastructure::CountedQuery;
+ use GPForum::Service::Operations::DbQueryStats;
++use GPForum::Test::DbQueryStatsSchema;
+ 
+ our $VERSION = '0.001';
+ const my $QUERY_MICROSECONDS  => 20_000;
+ const my $RENDER_MICROSECONDS => 80_000;
+ const my $MINIMUM_QUERY_MS    => 35;
+ const my $RENDER_MARGIN_MS    => 50;
++const my $CLOCK_JUMP_SECONDS  => 3_600;
++const my $ELAPSED_SECONDS     => 0.125;
++const my $ELAPSED_MS          => 125;
+ 
+ my $stats = GPForum::Service::Operations::DbQueryStats->new;
+ my $token = $stats->start_request( { route => 'timing' } );
+@@ -46,6 +53,55 @@
+ my $cached = $stats->finish_request( $empty, {} );
+ is( $cached->{db_duration_ms},
+     0, 'a cached request has zero SQL time and no previous request state' );
++
++subtest 'failed counted reads balance their SQL observation' => sub {
++    my $counted_stats = GPForum::Service::Operations::DbQueryStats->new;
++    my $schema        = GPForum::Test::DbQueryStatsSchema->new;
++    $counted_stats->attach_to_schema($schema);
++    my $counted_token =
++      $counted_stats->start_request( { route => 'counted-error' } );
++    my $reached = eval {
++        GPForum::Infrastructure::CountedQuery->select_row( $schema,
++            'SELECT 1' );
++        1;
++    };
++    ok( !$reached, 'the connection error still propagates' );
++    like(
++        $EVAL_ERROR,
++        qr/test[ ]double[ ]has[ ]no[ ]database/msx,
++        'the original database failure is retained'
++    );
++    my $failed = $counted_stats->finish_request( $counted_token, {} );
++    cmp_ok( $failed->{db_duration_ms},
++        '>', 0, 'the failed read ends its observation before propagating' );
++};
++
++subtest 'request duration follows a monotonic clock' => sub {
++    my ( $wall, $monotonic ) = ( $CLOCK_JUMP_SECONDS, 0 );
++    no warnings qw(redefine once);    ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- replace only the two clocks, restored when this subtest returns
++    local *GPForum::Service::Operations::DbQueryStats::time =
++      sub { return $wall; };
++    local *GPForum::Service::Operations::DbQueryStats::clock_gettime =
++      sub { return $monotonic; };
++    ## use critic
++    my $elapsed_stats = GPForum::Service::Operations::DbQueryStats->new;
++    for my $jump ( -$CLOCK_JUMP_SECONDS, $CLOCK_JUMP_SECONDS ) {
++        my $elapsed_token =
++          $elapsed_stats->start_request( { route => 'clock-adjustment' } );
++        $wall      += $jump;
++        $monotonic += $ELAPSED_SECONDS;
++        my $elapsed_request =
++          $elapsed_stats->finish_request( $elapsed_token, {} );
++        is( $elapsed_request->{duration_ms},
++            $ELAPSED_MS,
++            'changing wall time does not change elapsed request time' );
++        ok(
++            !exists $elapsed_request->{started_monotonic},
++            'the internal clock state is not exported'
++        );
++    }
++};
++
+ done_testing();
+ 
+ 1;
+--- a/t/56-db-query-stats.t
++++ b/t/56-db-query-stats.t
+@@ -7,6 +7,7 @@
+ 
+ use Carp qw(croak);
+ use Const::Fast;
++use Test::Exception;
+ use Test::More;
+ 
+ use lib 'lib';
+@@ -17,7 +18,7 @@
+ 
+ our $VERSION = '0.001';
+ 
+-const my $EXPECTED_TESTS       => 24;
++const my $EXPECTED_TESTS       => 25;
+ const my $HTTP_OK              => 200;
+ const my $HTTP_ACCEPTED        => 202;
+ const my $EXPECTED_QUERY_COUNT => 3;
+@@ -156,4 +157,14 @@
+     'and the second its own, with the statement it ran'
+ );
+ 
++subtest 'history limits are validated before requests can be collected' => sub {
++    for my $limit ( '-1', 'many', '1.5' ) {
++        throws_ok {
++            GPForum::Service::Operations::DbQueryStats->new(
++                recent_limit => $limit );
++        }
++        'GPForum::X::Argument', 'an invalid history limit cannot hang eviction';
++    }
++};
++
+ 1;
+--- a/t/integration/postgres-prepared-queries.t
++++ b/t/integration/postgres-prepared-queries.t
+@@ -21,6 +21,7 @@
+ use GPForum::Service::Forum::ThreadDetailReader;
+ use GPForum::Service::Forum::Viewer;
+ use GPForum::Service::Operations::DbQueryStats;
++use GPForum::Infrastructure::PreparedQuery;
+ use GPForum::Test::PostgresHarness;
+ 
+ our $VERSION = '0.001';
+@@ -158,6 +159,72 @@
+ $threads->find_thread_row($thread);
+ is( $stats->{total_queries} - $before,
+     2, 'two prepared runs are two statements to the statistics' );
++
++subtest 'changed bind shapes use the current resultset' => sub {
++    my $query_cache = GPForum::Infrastructure::PreparedQuery->new;
++    my $users       = $schema->resultset('User');
++    my $read        = sub ( $shape, $column, $value ) {
++        return $query_cache->rows(
++            schema    => $schema,
++            shape     => $shape,
++            source    => 'User',
++            as        => ['id'],
++            values    => { $column => $value },
++            resultset => sub {
++                return $users->search_rs(
++                    {
++                        $column => ref $value eq 'ARRAY'
++                        ? { -in => $value }
++                        : $value
++                    },
++                    { columns => ['id'], order_by => 'me.id' }
++                );
++            },
++        );
++    };
++    my $one = $read->( 'review:users:in-list', 'me.id', [$author] );
++    is_deeply( [ map { $_->get_column('id') } @{$one} ],
++        [$author], 'the initial one-element statement is usable' );
++    my $two = $read->( 'review:users:in-list', 'me.id', [ $author, $other ] );
++    is_deeply(
++        [ map { $_->get_column('id') } @{$two} ],
++        [ sort $author, $other ],
++        'a longer IN list does not silently lose its later elements'
++    );
++    $read->( 'review:users:nullable', 'me.deleted_at', '2000-01-01T00:00:00Z' );
++    my $nullable = $read->( 'review:users:nullable', 'me.deleted_at', undef );
++    my @expected = $users->search_rs( { 'me.deleted_at' => undef },
++        { columns => ['id'], order_by => 'me.id' } )->get_column('id')->all;
++    ok( @expected, 'the fixture has users whose deletion time is NULL' );
++    is_deeply( [ map { $_->get_column('id') } @{$nullable} ],
++        \@expected,
++        'a NULL predicate is not reused as equality to a NULL bind' );
++    my $limited_read = sub ( $shape, $limit ) {
++        return $query_cache->rows(
++            schema    => $schema,
++            shape     => $shape,
++            source    => 'User',
++            as        => ['id'],
++            values    => { limit => $limit },
++            resultset => sub {
++                return $users->search_rs( {},
++                    { columns => ['id'], order_by => 'me.id', rows => 1 } );
++            },
++        );
++    };
++    is( scalar @{ $limited_read->( 'review:users:limit', 1 ) },
++        1, 'the initial bound limit matches the resultset' );
++    is(
++        scalar @{ $limited_read->( 'review:users:limit', undef ) },
++        1,
++'a missing cached limit cannot turn a bounded lookup into an unbounded one'
++    );
++    is(
++        scalar @{ $limited_read->( 'review:users:limit:mismatch', 2 ) },
++        1,
++        'an unnamed bind is accepted only when it matches the resultset limit'
++    );
++};
+ 
+ # The lookups by a key a signed-in page runs -- the viewer's read state,
+ # bookmark and subscription for the thread, and the session the cookie
+--- a/t/performance/http.t
++++ b/t/performance/http.t
+@@ -18,6 +18,7 @@
+     CONNECTIONS           => 10,
+     PR_CELLS              => 16,
+     HIGH_WORKERS          => 8,
++    WORKER_PROBE_ROUNDS   => 3,
+     SCALING_CPUS          => 4,
+     HIGH_HOME_CONCURRENCY => 50,
+     WORKER_ONE            => 101,
+@@ -99,6 +100,37 @@
+     );
+ }
+ is_deeply( parse_wrk($raw), $metrics, 'wrk actual duration and percentiles' );
++{
++    my $clock = 0;
++    my ( $bursts, $observations ) = ( 0, 0 );
++    my $server = bless { workers => STRESS_WORKERS },
++      'GPForum::Performance::Server';
++    local *GPForum::Performance::Server::monotonic = sub { return $clock; };
++    local *GPForum::Performance::Server::sleep =
++      sub ($seconds) { $clock += $seconds; };
++    local *GPForum::Performance::Server::_probe_workers = sub { ++$bursts; };  ## no critic (Variables::ProtectPrivateVars) -- count startup probe batches without opening network connections
++    local *GPForum::Performance::Server::probe_url =
++      sub { croak 'serial startup probes cannot prove worker coverage'; };
++    local *GPForum::Performance::Server::telemetry = sub {
++        ++$observations;
++        croak 'one worker has not served yet'
++          if $observations < WORKER_PROBE_ROUNDS;
++        return [];
++    };
++    GPForum::Performance::Server->can('_await_workers')->( $server, 1 );
++    is( $observations, WORKER_PROBE_ROUNDS,
++        'startup waits for all worker telemetry' );
++    is( $bursts, WORKER_PROBE_ROUNDS,
++        'coverage is checked after concurrent probe bursts' );
++    dies(
++        sub {
++            GPForum::Performance::Server->can('_await_workers')
++              ->( $server, $clock );
++        },
++        qr/all[ ]configured[ ]workers/msx,
++        'incomplete worker coverage still fails at the startup deadline'
++    );
++}
+ for my $bad ( q{}, "GPFORUM_WRK {}\n", $raw . $raw ) {
+     dies( sub { parse_wrk($bad) },
+         qr/wrk|metric/msx, 'incomplete or duplicated wrk rejected' );
+--- a/t/743-http-complete.t
++++ b/t/743-http-complete.t
+@@ -7,11 +7,15 @@
+ use File::Temp qw(tempdir);
+ use Mojo::File qw(path);
+ use Mojo::Message::Response;
++use Mojo::IOLoop;
++use Mojo::Promise;
++use Mojo::UserAgent;
+ use Test::More;
+ use lib "$FindBin::Bin/../script/lib", "$FindBin::Bin/../lib";
+ use GPForum::Performance::HTTPClient;
+ use GPForum::Performance::HTTPCatalog qw(reads journeys);
+ use GPForum::Performance::HTTPComplete;
++use GPForum::Performance::Server;
+ use GPForum::Performance::HTTPReport       qw(write_report);
+ use GPForum::Performance::HTTPIntegrations qw(link_fixtures);
+ use GPForum::Service::Integration::Registry;
+@@ -229,5 +233,48 @@
+ like( $html, qr/&lt;script&gt;/msx, 'report escapes failure text' );
+ unlike( $html, qr/<script>/msx,
+     'failure text cannot inject executable report markup' );
++
++subtest 'startup probes reach workers concurrently before measurement' => sub {
++    my @probe_requests;
++    my $first_completion_count;
++    my $expected_probes = 2 * 2;
++    no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- observe public HTTP calls without opening a network connection
++    local *Mojo::UserAgent::get_p = sub ( $probe_agent, $url, $headers ) {
++        push @probe_requests, { url => $url, headers => $headers };
++        is( $probe_agent->max_connections,
++            $expected_probes,
++            'the startup pool accommodates the concurrent burst' );
++        my $pending_probe = Mojo::Promise->new;
++        Mojo::IOLoop->next_tick(
++            sub {
++                $first_completion_count //= scalar @probe_requests;
++                $pending_probe->resolve(1);
++            }
++        );
++        return $pending_probe;
++    };
++    my $probe_server = bless { workers => 2, base => 'http://127.0.0.1:1' },
++      'GPForum::Performance::Server';
++    GPForum::Performance::Server->can('_probe_workers')
++      ->( $probe_server, monotonic() + 1 );
++    is( scalar @probe_requests, $expected_probes, 'two requests per worker' );
++    is( $first_completion_count, $expected_probes,
++        'all requests start before the first response completes' );
++    is_deeply(
++        [ map { $_->{url} } @probe_requests ],
++        [ ( $probe_server->{base} . '/health/live' ) x $expected_probes ],
++        'only the existing health endpoint is probed'
++    );
++    is_deeply(
++        [ map { $_->{headers}{Connection} } @probe_requests ],
++        [ ('close') x $expected_probes ],
++        'probe sockets are not kept idle'
++    );
++    GPForum::Performance::Server->can('_probe_workers')
++      ->( $probe_server, monotonic() );
++    is( scalar @probe_requests,
++        $expected_probes, 'an expired deadline launches no more requests' );
++};
++
+ done_testing();
+ 1;
+--- a/t/722-documentation-says-what-is-built.t
++++ b/t/722-documentation-says-what-is-built.t
+@@ -165,7 +165,7 @@
+         push @documents, path($root)->list_tree->grep(
+             sub {
+                 return $_->basename =~ /[.]md\z/msx
+-                  && "$_" !~ m{/(?:evidence|results)/}msx;
++                  && "$_" !~ m{/(?:evidence|results|source-untracked)/}msx;
+             }
+         )->each;
+     }

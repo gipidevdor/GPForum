@@ -1,0 +1,286 @@
+[
+  {
+    "name": "after-clean-a4",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "ok",
+    "cells": 60,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "after-clean-b4",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate",
+    "reason": "Startup failed before any measured cell: only three workers produced telemetry.",
+    "status": "fail",
+    "cells": 0,
+    "invalid_responses": 0,
+    "failures": [
+      "all configured workers did not produce serving reactor telemetry before startup deadline at /private/tmp/gpforum-throughput-after-jmfz1u2e/script/lib/GPForum/Performance/HTTPComplete.pm line 222.\n at /private/tmp/gpforum-throughput-after-jmfz1u2e/script/lib/GPForum/Performance/HTTPComplete.pm line 222.\n"
+    ]
+  },
+  {
+    "name": "after-clean-b4-retry",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "ok",
+    "cells": 60,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "after-diagnose",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "fail",
+    "cells": 0,
+    "invalid_responses": 0,
+    "failures": [
+      "Failed to start postgres after trying 10 potential ports: Failed to open /var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/pgtest.jw9yt/data/postmaster.pid: No such file or directory at /private/tmp/gpforum-throughput-after-jmfz1u2e/local/lib/perl5/Test/PostgreSQL.pm line 484.\n"
+    ]
+  },
+  {
+    "name": "after-diagnose-retry",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": "Concurrent independent benchmark observed; excluded from the capacity comparison.",
+    "status": "ok",
+    "cells": 20,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "after-fair-a4",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate",
+    "reason": "Seven premature connection closes; failed run retained, never used as capacity evidence.",
+    "status": "fail",
+    "cells": 36,
+    "invalid_responses": 7,
+    "failures": [
+      "member.home: transport failure: Premature connection close at /private/tmp/gpforum-throughput-fair-fu4zo459/local/lib/perl5/Mojo/Promise.pm line 250.\n",
+      "member.home: transport failure: Premature connection close at /private/tmp/gpforum-throughput-fair-fu4zo459/local/lib/perl5/Mojo/Promise.pm line 250.\n",
+      "member.home: transport failure: Premature connection close at /private/tmp/gpforum-throughput-fair-fu4zo459/local/lib/perl5/Mojo/Promise.pm line 250.\n",
+      "member.home: transport failure: Premature connection close at /private/tmp/gpforum-throughput-fair-fu4zo459/local/lib/perl5/Mojo/Promise.pm line 250.\n",
+      "member.home: transport failure: Premature connection close at /private/tmp/gpforum-throughput-fair-fu4zo459/local/lib/perl5/Mojo/Promise.pm line 250.\n",
+      "member.home: transport failure: Premature connection close at /private/tmp/gpforum-throughput-fair-fu4zo459/local/lib/perl5/Mojo/Promise.pm line 250.\n",
+      "member.home: transport failure: Premature connection close at /private/tmp/gpforum-throughput-fair-fu4zo459/local/lib/perl5/Mojo/Promise.pm line 250.\n"
+    ]
+  },
+  {
+    "name": "after-fair-policy-tests",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null
+  },
+  {
+    "name": "after-final-a4",
+    "exit_code": 0,
+    "classification": "final paired comparison",
+    "reason": null,
+    "status": "ok",
+    "cells": 36,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "after-final-b4",
+    "exit_code": 0,
+    "classification": "final paired comparison",
+    "reason": null,
+    "status": "ok",
+    "cells": 36,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "after-final-scale8",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate",
+    "reason": "Startup failed before any measured cell: PID file not yet visible.",
+    "status": "fail",
+    "cells": 0,
+    "invalid_responses": 0,
+    "failures": [
+      "Missing Hypnotoad PID at /private/tmp/gpforum-throughput-final-candidate-9c9ncur_/script/lib/GPForum/Performance/HTTPComplete.pm line 222.\n at /private/tmp/gpforum-throughput-final-candidate-9c9ncur_/script/lib/GPForum/Performance/HTTPComplete.pm line 222.\n"
+    ]
+  },
+  {
+    "name": "after-final-scale8-retry",
+    "exit_code": 0,
+    "classification": "scaling",
+    "reason": null,
+    "status": "ok",
+    "cells": 36,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "after-final-schema",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-final-verify",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-profile-quiet",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null
+  },
+  {
+    "name": "after-root-http-smoke-verify",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-root-schema",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-root-schema-final",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-root-schema-final-verify",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-root-schema-verify",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-scale8",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "ok",
+    "cells": 60,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "after-verify",
+    "exit_code": 1,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-verify-correct-fixture",
+    "exit_code": 0,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "after-working-tree-verify",
+    "exit_code": 1,
+    "classification": "functional verification",
+    "reason": null
+  },
+  {
+    "name": "before-a4",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": "Concurrent independent benchmark recorded by the monitor; entire run excluded.",
+    "status": "ok",
+    "cells": 60,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "before-clean-a4",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "ok",
+    "cells": 60,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "before-clean-b4",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "ok",
+    "cells": 60,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "before-diagnose",
+    "exit_code": 1,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "fail",
+    "cells": 0,
+    "invalid_responses": 0,
+    "failures": [
+      "Failed to start postgres after trying 10 potential ports: Failed to open /var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/pgtest.enWuZ/data/postmaster.pid: No such file or directory at /private/tmp/gpforum-throughput-before-l4v33ugv/local/lib/perl5/Test/PostgreSQL.pm line 484.\n"
+    ]
+  },
+  {
+    "name": "before-diagnose-retry",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "ok",
+    "cells": 20,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "before-fair-a4",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null,
+    "status": "ok",
+    "cells": 36,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "before-final-a4",
+    "exit_code": 0,
+    "classification": "final paired comparison",
+    "reason": null,
+    "status": "ok",
+    "cells": 36,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "before-final-b4",
+    "exit_code": 0,
+    "classification": "final paired comparison",
+    "reason": null,
+    "status": "ok",
+    "cells": 36,
+    "invalid_responses": 0,
+    "failures": []
+  },
+  {
+    "name": "before-profile",
+    "exit_code": 0,
+    "classification": "diagnostic/intermediate",
+    "reason": null
+  }
+]

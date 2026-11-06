@@ -1,0 +1,47 @@
+{
+  "source": "/private/tmp/gpforum-perl-review-after-87xw4en_",
+  "source_sha256": {
+    "lib/GPForum/Infrastructure/SqlFunction.pm": "99ffebb99e300d5472c458b52a3681ce2e68edfca03af00e7e64be324d3cfaac",
+    "lib/GPForum/Infrastructure/PreparedQuery.pm": "f9978894029ac3a0bff338c59973a5fb300286ce41a92ff131bba32f5ade215d",
+    "lib/GPForum/Infrastructure/CountedQuery.pm": "e620ccf811b70605be0b1e3e275f800e5ce385a0eac6d946c15b420d27f6a3e1",
+    "lib/GPForum/Service/Operations/LocalCache.pm": "93af5a9e01f77ee813590cd361fc63aa6d7d8ad909bdd6b556dfcebc849e130c",
+    "lib/GPForum/Service/Operations/TieredCache.pm": "cc5c5d5017aa16732bde70467afa3ebbb48d590be20f53c8a790694e6d8b7f9c",
+    "lib/GPForum/Service/Operations/DbQueryStats.pm": "c8b9e969f46a2c2f3661405a36a65c9ebb1e1f97766c818f58a6b5fd8b24f10a",
+    "lib/GPForum/Service/Forum/BodyRenderer.pm": "dcc64881f47374c50a4762f6f568db6b50a5520d3e7f41688756f5bceadeaaff",
+    "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+    "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+    "t/703-sql-function-answers.t": "230e29a8b677eea87df3dd694002507265dfb972eef90a35e2a05e3cc4b75920",
+    "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+    "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+    "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+    "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+    "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+    "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "f310e500b80c7a3ceda879b14105921f187633c232c55b96d496183fcd5d3a13",
+    "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+    "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+    "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+    "t/722-documentation-says-what-is-built.t": "a7ae3823767fe154414bfde568c86e72ef34245ba33a573324ac35b79cebb89e"
+  },
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "perl",
+    "/private/tmp/gpforum-perl-review-bench.pl"
+  ],
+  "started_at": "2026-11-06T01:03:20.017554+00:00",
+  "competing_load": [],
+  "load_before": [
+    2.7666015625,
+    2.2216796875,
+    2.78369140625
+  ],
+  "source_unchanged": true,
+  "exit_code": 0,
+  "elapsed_seconds": 9.59722649999999,
+  "finished_at": "2026-11-06T01:03:29.614859+00:00",
+  "load_after": [
+    2.80859375,
+    2.2470703125,
+    2.78564453125
+  ]
+}

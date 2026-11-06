@@ -1,0 +1,10 @@
+%# The tags a thread carries (ADR 0135), each a link to its tag page; a
+%# thread without any shows nothing. Takes "tags".
+% my $tags = stash('tags') || [];
+% if (@{$tags}) {
+  <ul class="tag-list" aria-label="<%= t('forum.tags') %>">
+    % for my $tag (@{$tags}) {
+      <li><a class="tag" href="<%= ui_path('tag', slug => $tag->{slug}) %>"><%= $tag->{name} %></a></li>
+    % }
+  </ul>
+% }

@@ -1,0 +1,15 @@
+<header class="site-header<%= session('user_id') ? ' site-header--member' : q{} %>">
+  <div class="site-header__inner">
+    <a class="brand" href="<%= ui_path('home') %>"><%= t('app.name') %></a>
+    % if (stash('forum_layout')) {
+      <form class="header-search" method="get" action="<%= ui_path('forum_search') %>" role="search">
+        <%= ui_icon('search') %>
+        <label class="visually-hidden" for="header-search-query"><%= t('search.query') %></label>
+        <input id="header-search-query" type="search" name="q" placeholder="<%= t('search.query') %>">
+        <button type="submit"><%= ui_icon('search') %><%= t('nav.search') %></button>
+      </form>
+    % }
+    <%= include 'components/primary_nav' %>
+    <%= include 'components/identity_nav' %>
+  </div>
+</header>

@@ -1,0 +1,20 @@
+{
+  "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review5-after-xvoxp0w6",
+  "command": [
+    "script/perlcritic",
+    "lib/GPForum/Infrastructure/PgNotifications.pm",
+    "lib/GPForum/Service/Operations/TieredCache.pm",
+    "t/863-cache-inflight-invalidation.t",
+    "t/864-pg-notification-read-contract.t",
+    "t/207-pg-notifications.t",
+    "t/integration/postgres-realtime-listen.t",
+    "t/711-cached-page-csrf.t",
+    "lib/GPForum/Web/PublicHttpCache.pm",
+    "t/32-forum-web.t",
+    "t/281-relative-times.t"
+  ],
+  "started_at": "2026-11-06T16:02:32.300191+00:00",
+  "exit_code": 0,
+  "elapsed_seconds": 2.554330167,
+  "finished_at": "2026-11-06T16:02:34.854744+00:00"
+}

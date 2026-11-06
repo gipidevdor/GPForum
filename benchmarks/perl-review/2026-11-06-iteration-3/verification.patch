@@ -1,0 +1,365 @@
+--- a/t/183-row-column-reader.t
++++ b/t/183-row-column-reader.t
+@@ -12,7 +12,9 @@
+ use lib 't/lib';
+ 
+ use GPForum::Infrastructure::Row;
++use GPForum::Infrastructure::ResultRow;
+ use GPForum::Test::RowDouble;
++use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
+ use GPForum::Infrastructure::UniqueConflict;
+ 
+ our $VERSION = '0.001';
+@@ -23,6 +25,64 @@
+ const my $KEPT_KEYS   => 3;
+ 
+ my $reader = 'GPForum::Infrastructure::Row';
++
++subtest 'loaded snapshots preserve the row contracts' => sub {
++    my $values = { score => $HASH_SCORE, optional => 0 };
++    is_deeply( $reader->columns( $values, 'score' ),
++        $values, 'hashes expose their loaded values' );
++    is_deeply(
++        $reader->columns(
++            GPForum::Infrastructure::ResultRow->from( { %{$values} } ), 'score'
++        ),
++        $values,
++        'function rows expose one loaded snapshot'
++    );
++    is_deeply(
++        $reader->columns(
++            GPForum::Test::RowDouble->new( columns => $values ), 'score',
++            'missing'
++        ),
++        { score => $HASH_SCORE, missing => undef },
++        'column-only rows read the requested names'
++    );
++    is_deeply( $reader->columns( undef, 'score' ),
++        {}, 'a missing snapshot is empty' );
++    is_deeply(
++        $reader->columns( bless( {}, 'GPForum::Test::Opaque' ), 'score' ),
++        {}, 'unsupported rows have an empty snapshot' );
++
++    my $row        = GPForum::Infrastructure::ResultRow->from( { %{$values} } );
++    my $get_column = GPForum::Infrastructure::ResultRow->can('get_column');
++    with_replaced_subs(
++        'GPForum::Infrastructure::ResultRow',
++        {
++            can        => sub { die "row can override must not be invoked\n"; },
++            get_column => sub ( $record, $name ) {
++                die "unloaded column queried\n" if $name eq 'missing';
++                return $get_column->( $record, $name );
++            },
++        },
++        sub {
++            is_deeply( $reader->columns( $row, 'score' ),
++                $values, 'capability probes bypass a row can override' );
++            is( $reader->loaded_column( $row, 'optional' ),
++                0, 'optional zero values remain present' );
++            my @missing = $reader->loaded_column( $row, 'missing' );
++            is_deeply( \@missing, [undef],
++                'an unloaded column yields exactly one undef without reading it'
++            );
++        }
++    );
++    is(
++        $reader->loaded_column(
++            GPForum::Test::RowDouble->new( columns => $values ), 'score'
++        ),
++        $HASH_SCORE,
++        'column-only rows remain supported for optional values'
++    );
++    is_deeply( [ $reader->loaded_column( undef, 'missing' ) ],
++        [undef], 'missing rows preserve list context' );
++};
+ 
+ is( $reader->column( { score => $HASH_SCORE }, 'score' ),
+     $HASH_SCORE, 'reads a hashref column' );
+--- /dev/null
++++ b/t/860-search-decoration-contract.t
+@@ -0,0 +1,138 @@
++# SPDX-FileCopyrightText: 2026 GPForum Contributors
++# SPDX-License-Identifier: BSD-3-Clause
++
++package main;
++use v5.40;
++use Const::Fast;
++use Test::More;
++use lib 'lib', 't/lib';
++use GPForum::Infrastructure::ResultRow;
++use GPForum::Service::Search::Searcher;
++use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
++
++our $VERSION = '0.001';
++const my $RESULTS        => 3;
++const my $PREFIX_REPEATS => 60;
++
++sub _search ( $query, $bodies ) {
++    my @rows = map {
++        GPForum::Infrastructure::ResultRow->from(
++            {
++                entity_type         => 'post',
++                entity_id           => "post-$_",
++                category_id         => 'category-1',
++                author_user_id      => 'user-1',
++                author_username     => 'elena',
++                author_display_name => 'Elena',
++                title               => 'Thread title',
++                body                => $bodies->[ $_ - 1 ],
++                visibility          => 'public',
++                rank_score          => 1,
++            }
++        )
++    } 1 .. @{$bodies};
++    my $searcher = GPForum::Service::Search::Searcher->new(
++        schema    => {},
++        functions => undef
++    );
++    return with_replaced_subs(
++        'GPForum::Service::Search::Searcher',
++        {
++            search_resultset => sub { return \@rows; },
++        },
++        sub { return $searcher->ranked_search( {}, $query, {} ); }
++    );
++}
++
++subtest 'Unicode matches determine both the excerpt and its highlighting' =>
++  sub {
++    my $word = "Stra\N{LATIN SMALL LETTER SHARP S}e";
++    my $short =
++      _search( 'STRASSE', ["$word & caf\N{LATIN SMALL LETTER E WITH ACUTE}"] )
++      ->{results}[0];
++    is(
++        $short->{snippet_html},
++        "<mark>$word</mark> &amp; caf\N{LATIN SMALL LETTER E WITH ACUTE}",
++        'case folds that change length are marked while text is escaped'
++    );
++    my $long = _search( 'STRASSE', [ ( 'prima ' x $PREFIX_REPEATS ) . $word ] )
++      ->{results}[0];
++    like( $long->{snippet}, qr/\Q$word\E/msx,
++        'the excerpt includes the Unicode match beyond its first window' );
++    like(
++        $long->{snippet_html},
++        qr/<mark>\Q$word\E<\/mark>/msx,
++        'the same match is highlighted'
++    );
++  };
++
++subtest 'query preparation and row reads have a per-page budget' => sub {
++    my $terms   = GPForum::Service::Search::Searcher->can('_terms');
++    my $columns = GPForum::Infrastructure::ResultRow->can('get_columns');
++    my $column  = GPForum::Infrastructure::ResultRow->can('get_column');
++    my ( $preparations, $snapshots, $reads ) = ( 0, 0, 0 );
++    my $page;
++    with_replaced_subs(
++        'GPForum::Service::Search::Searcher',
++        {
++            _terms =>
++              sub ($query) { ++$preparations; return $terms->($query); },
++        },
++        sub {
++            with_replaced_subs(
++                'GPForum::Infrastructure::ResultRow',
++                {
++                    get_columns =>
++                      sub ($row) { ++$snapshots; return $columns->($row); },
++                    get_column => sub ( $row, $name ) {
++                        ++$reads;
++                        return $column->( $row, $name );
++                    },
++                },
++                sub {
++                    $page = _search( 'for forum FORUM',
++                        [ ('forum FOR') x $RESULTS ] );
++                }
++            );
++        }
++    );
++    is( $preparations, 1,        'terms are prepared once for the whole page' );
++    is( $snapshots,    $RESULTS, 'one loaded snapshot per result' );
++    cmp_ok(
++        $reads, '<=',
++        $RESULTS + 1,
++        'only the candidate count needs an individual getter'
++    );
++    is(
++        $page->{results}[0]{snippet_html},
++        '<mark>for</mark>um <mark>FOR</mark>',
++        'term order and prefix matching remain compatible'
++    );
++    is_deeply(
++        $page->{results}[0]{highlight_terms},
++        [ 'for', 'forum' ],
++        'terms retain order and deduplication'
++    );
++    $page->{results}[0]{highlight_terms}[0] = 'poison';
++    is_deeply(
++        $page->{results}[1]{highlight_terms},
++        [ 'for', 'forum' ],
++        'callers receive independent term arrays'
++    );
++};
++
++subtest 'markup remains escaped and punctuation has no highlight terms' => sub {
++    my $result =
++      _search( 'forum', ['&lt;script&gt;forum&lt;/script&gt; &amp;'] )
++      ->{results}[0];
++    is(
++        $result->{snippet_html},
++        '&lt;script&gt;<mark>forum</mark>&lt;/script&gt; &amp;',
++        'decoded text is escaped around generated mark tags'
++    );
++    is( _search( '!!!', ['a & b'] )->{results}[0]{snippet_html},
++        'a &amp; b', 'empty term lists still escape the whole snippet' );
++};
++
++done_testing();
++1;
+--- /dev/null
++++ b/t/861-home-reader-contract.t
+@@ -0,0 +1,144 @@
++# SPDX-FileCopyrightText: 2026 GPForum Contributors
++# SPDX-License-Identifier: BSD-3-Clause
++
++package main;
++use v5.40;
++use Const::Fast;
++use Test::More;
++use lib 'lib', 't/lib';
++use GPForum::Infrastructure::ResultRow;
++use GPForum::Service::Forum::HomePageReader;
++use GPForum::Test::ForumWebServices;
++use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
++
++our $VERSION = '0.001';
++const my $CATEGORY_LIMIT => 12;
++const my $THREAD_LIMIT   => 20;
++const my $MAX_LIMIT      => 50;
++const my $OPTIONAL_READS => 3;
++const my $INVALID_LIMIT  => -1;
++
++my $services = GPForum::Test::ForumWebServices->new;
++my $reader   = GPForum::Service::Forum::HomePageReader->new(
++    category_reader => $services,
++    thread_reader   => $services,
++);
++my $category = {
++    category_id  => 'category-1',
++    description  => 'Description',
++    title        => 'Category',
++    slug         => 'category',
++    position     => 1,
++    visibility   => 'public',
++    thread_count => 0
++};
++my $thread = {
++    thread_id           => 'thread-1',
++    category_id         => 'category-1',
++    author_user_id      => 'user-1',
++    author_username     => 'elena',
++    author_display_name => 'Elena',
++    title               => 'Title',
++    slug                => 'title',
++    visibility          => 'public',
++    reply_count         => 0,
++    pinned              => 0,
++    moderation_state    => 'visible',
++    excerpt             => '<p>A &amp; B</p>'
++};
++my ( $category_request, $thread_request );
++with_replaced_subs(
++    'GPForum::Test::ForumWebServices',
++    {
++        list_categories => sub ( $self, $request ) {
++            $category_request = $request;
++            return [$category];
++        },
++        list_public_threads => sub ( $self, $request ) {
++            $thread_request = $request;
++            return { items => [$thread], next_cursor => 'next' };
++        },
++    },
++    sub {
++        subtest 'home limits remain positive bounded ASCII integers' => sub {
++            my @warnings;
++            local $SIG{__WARN__} = sub ($warning) { push @warnings, $warning; };
++            for my $invalid ( undef, q{}, 'garbage', $INVALID_LIMIT, 0, '1.5',
++                "\N{ARABIC-INDIC DIGIT ONE}" )
++            {
++                $reader->home_page(
++                    { category_limit => $invalid, thread_limit => $invalid } );
++                is( $category_request->{limit},
++                    $CATEGORY_LIMIT,
++                    'invalid category size uses the home default' );
++                is( $thread_request->{limit},
++                    $THREAD_LIMIT,
++                    'invalid thread size uses the home default' );
++            }
++            is_deeply( \@warnings, [],
++                'invalid sizes do not produce numeric conversion warnings' );
++            $reader->home_page(
++                {
++                    category_limit => $MAX_LIMIT + 1,
++                    thread_limit   => $MAX_LIMIT + 1
++                }
++            );
++            is( $category_request->{limit},
++                $MAX_LIMIT, 'categories stay under the cap' );
++            is( $thread_request->{limit},
++                $MAX_LIMIT, 'threads stay under the cap' );
++            $reader->home_page(
++                { category_limit => 1, thread_limit => 1, after => 'cursor' } );
++            is( $category_request->{limit},
++                1, 'an explicit category size remains valid' );
++            is( $thread_request->{limit},
++                1, 'an explicit thread size remains valid' );
++            is( $thread_request->{after},
++                'cursor', 'pagination input is preserved' );
++        };
++
++        subtest
++'home projection reads loaded columns once without changing its output'
++          => sub {
++            my $expected = $reader->home_page( {} );
++            $category =
++              GPForum::Infrastructure::ResultRow->from( { %{$category} } );
++            $thread =
++              GPForum::Infrastructure::ResultRow->from( { %{$thread} } );
++            my $columns =
++              GPForum::Infrastructure::ResultRow->can('get_columns');
++            my $column = GPForum::Infrastructure::ResultRow->can('get_column');
++            my ( $snapshots, $reads ) = ( 0, 0 );
++            with_replaced_subs(
++                'GPForum::Infrastructure::ResultRow',
++                {
++                    get_columns =>
++                      sub ($row) { ++$snapshots; return $columns->($row); },
++                    get_column => sub ( $row, $name ) {
++                        ++$reads;
++                        return $column->( $row, $name );
++                    },
++                },
++                sub {
++                    is_deeply( $reader->home_page( {} ),
++                        $expected,
++                        'function rows and hashes give the same page' );
++                }
++            );
++            is( $snapshots, 2, 'one snapshot per listed row' );
++            cmp_ok( $reads, '<=', $OPTIONAL_READS,
++                'required values do not dispatch individual getters' );
++            is( $expected->{latest_threads}{items}[0]{excerpt},
++                'A & B', 'safe excerpts retain decoded text' );
++            is( $expected->{categories}[0]{thread_count},
++                0, 'optional zero values are preserved' );
++            ok(
++                exists $expected->{categories}[0]{last_activity_at},
++                'missing optional values retain their keys'
++            );
++          };
++    }
++);
++
++done_testing();
++1;

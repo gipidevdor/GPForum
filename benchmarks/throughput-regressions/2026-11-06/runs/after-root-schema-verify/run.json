@@ -1,0 +1,28 @@
+{
+  "source": "/Users/gpicchiarelli/Documents/GPForum",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/integration/postgres-schema-snapshot.t"
+  ],
+  "competing_load": [],
+  "started_at": "2026-11-05T23:52:13.754552+00:00",
+  "load_before": [
+    7.31005859375,
+    7.93408203125,
+    6.41650390625
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 3.6890081670000003,
+  "load_after": [
+    6.884765625,
+    7.83544921875,
+    6.390625
+  ],
+  "finished_at": "2026-11-05T23:52:17.444015+00:00"
+}

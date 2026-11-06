@@ -1,0 +1,1325 @@
+{
+   "cells" : [
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 0.245798000018112,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 40
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 40,
+               "max_ms" : 6.91399999777786,
+               "mean_ms" : 6.03952499805018,
+               "p50_ms" : 5.86299999849871,
+               "p95_ms" : 6.70800000079907,
+               "p99_ms" : 6.86799999675713
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 40,
+               "max_ms" : 1.91200000417419,
+               "mean_ms" : 1.50454999805018,
+               "p50_ms" : 1.43799997210316,
+               "p95_ms" : 1.78899999675714,
+               "p99_ms" : 1.86599999777786
+            },
+            "requests" : 40,
+            "requests_per_second" : 162.735254139792,
+            "response_bytes" : 1450920,
+            "server_app" : {
+               "count" : 40,
+               "max_ms" : 5.079,
+               "mean_ms" : 4.534975,
+               "p50_ms" : 4.433,
+               "p95_ms" : 5.048,
+               "p99_ms" : 5.076
+            },
+            "server_db" : {
+               "count" : 40,
+               "max_ms" : 0.868,
+               "mean_ms" : 0.72975,
+               "p50_ms" : 0.707,
+               "p95_ms" : 0.82,
+               "p99_ms" : 0.861
+            },
+            "status_codes" : {
+               "200" : 40
+            },
+            "worker_requests" : {
+               "26967" : 40
+            }
+         },
+         "repetition" : 1,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 129.4,
+            "rss_bytes" : 585793536
+         },
+         "scenario" : "member.home",
+         "status" : "ok"
+      },
+      {
+         "clients" : 32,
+         "elapsed_seconds" : 3.05121999999392,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 1968
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 1968,
+               "max_ms" : 112.593999976525,
+               "mean_ms" : 48.4045381100015,
+               "p50_ms" : 47.69700000179,
+               "p95_ms" : 63.2929999846965,
+               "p99_ms" : 83.2240000017919
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 1968,
+               "max_ms" : 107.143999999838,
+               "mean_ms" : 43.2818043701641,
+               "p50_ms" : 42.6590000035185,
+               "p95_ms" : 58.1189999765307,
+               "p99_ms" : 78.3650000172388
+            },
+            "requests" : 1968,
+            "requests_per_second" : 644.987906478039,
+            "response_bytes" : 71385264,
+            "server_app" : {
+               "count" : 1968,
+               "max_ms" : 17.077,
+               "mean_ms" : 5.1227337398374,
+               "p50_ms" : 4.998,
+               "p95_ms" : 5.86,
+               "p99_ms" : 6.45
+            },
+            "server_db" : {
+               "count" : 1968,
+               "max_ms" : 9.467,
+               "mean_ms" : 0.887091971544716,
+               "p50_ms" : 0.839,
+               "p95_ms" : 1.122,
+               "p99_ms" : 1.3
+            },
+            "status_codes" : {
+               "200" : 1968
+            },
+            "worker_requests" : {
+               "26964" : 494,
+               "26965" : 487,
+               "26966" : 496,
+               "26967" : 491
+            }
+         },
+         "repetition" : 1,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 337.9,
+            "rss_bytes" : 596443136
+         },
+         "scenario" : "member.home",
+         "status" : "ok"
+      },
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 0.24571799999103,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 40
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 40,
+               "max_ms" : 8.29999998677522,
+               "mean_ms" : 6.02960000032908,
+               "p50_ms" : 5.93700000899844,
+               "p95_ms" : 6.28999999025837,
+               "p99_ms" : 6.56800001161173
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 40,
+               "max_ms" : 2.59899998677522,
+               "mean_ms" : 1.49752500032908,
+               "p50_ms" : 1.46100000917539,
+               "p95_ms" : 1.57499999025837,
+               "p99_ms" : 1.60100001161173
+            },
+            "requests" : 40,
+            "requests_per_second" : 162.788236927943,
+            "response_bytes" : 1450920,
+            "server_app" : {
+               "count" : 40,
+               "max_ms" : 5.701,
+               "mean_ms" : 4.532075,
+               "p50_ms" : 4.468,
+               "p95_ms" : 4.715,
+               "p99_ms" : 4.967
+            },
+            "server_db" : {
+               "count" : 40,
+               "max_ms" : 1.011,
+               "mean_ms" : 0.7246,
+               "p50_ms" : 0.717,
+               "p95_ms" : 0.766,
+               "p99_ms" : 0.821
+            },
+            "status_codes" : {
+               "200" : 40
+            },
+            "worker_requests" : {
+               "26967" : 40
+            }
+         },
+         "repetition" : 2,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 169.2,
+            "rss_bytes" : 596443136
+         },
+         "scenario" : "member.home",
+         "status" : "ok"
+      },
+      {
+         "clients" : 32,
+         "elapsed_seconds" : 3.0648199999996,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 2081
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 2081,
+               "max_ms" : 96.6719999851193,
+               "mean_ms" : 46.0398049016835,
+               "p50_ms" : 45.6399999966379,
+               "p95_ms" : 51.2649999873247,
+               "p99_ms" : 62.8900000010617
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 2081,
+               "max_ms" : 91.3830000145156,
+               "mean_ms" : 40.9622287363784,
+               "p50_ms" : 40.6110000048988,
+               "p95_ms" : 46.0159999837317,
+               "p99_ms" : 57.5580000010617
+            },
+            "requests" : 2081,
+            "requests_per_second" : 678.995830097778,
+            "response_bytes" : 75484113,
+            "server_app" : {
+               "count" : 2081,
+               "max_ms" : 8.324,
+               "mean_ms" : 5.07757616530515,
+               "p50_ms" : 4.983,
+               "p95_ms" : 5.733,
+               "p99_ms" : 6.182
+            },
+            "server_db" : {
+               "count" : 2081,
+               "max_ms" : 1.936,
+               "mean_ms" : 0.862371936568957,
+               "p50_ms" : 0.835,
+               "p95_ms" : 1.057,
+               "p99_ms" : 1.229
+            },
+            "status_codes" : {
+               "200" : 2081
+            },
+            "worker_requests" : {
+               "26964" : 521,
+               "26965" : 522,
+               "26966" : 520,
+               "26967" : 518
+            }
+         },
+         "repetition" : 2,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 365.8,
+            "rss_bytes" : 596590592
+         },
+         "scenario" : "member.home",
+         "status" : "ok"
+      },
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 0.281516999995802,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 40
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 40,
+               "max_ms" : 18.1839999859221,
+               "mean_ms" : 6.92427499816404,
+               "p50_ms" : 6.57100000535138,
+               "p95_ms" : 7.19599999138154,
+               "p99_ms" : 7.56999998702668
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 40,
+               "max_ms" : 2.67199998592213,
+               "mean_ms" : 1.50454999816404,
+               "p50_ms" : 1.45299999249726,
+               "p95_ms" : 1.68899999138154,
+               "p99_ms" : 1.82999998702668
+            },
+            "requests" : 40,
+            "requests_per_second" : 142.08733398195,
+            "response_bytes" : 1059200,
+            "server_app" : {
+               "count" : 40,
+               "max_ms" : 15.512,
+               "mean_ms" : 5.419725,
+               "p50_ms" : 5.121,
+               "p95_ms" : 5.507,
+               "p99_ms" : 5.74
+            },
+            "server_db" : {
+               "count" : 40,
+               "max_ms" : 2.488,
+               "mean_ms" : 0.8414,
+               "p50_ms" : 0.787,
+               "p95_ms" : 0.923,
+               "p99_ms" : 0.965
+            },
+            "status_codes" : {
+               "200" : 40
+            },
+            "worker_requests" : {
+               "26967" : 40
+            }
+         },
+         "repetition" : 1,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 143.4,
+            "rss_bytes" : 604487680
+         },
+         "scenario" : "member.category",
+         "status" : "ok"
+      },
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 0.289455999998609,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 40
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 40,
+               "max_ms" : 21.5289999905508,
+               "mean_ms" : 7.1142000000691,
+               "p50_ms" : 6.66700000874698,
+               "p95_ms" : 7.22400000086054,
+               "p99_ms" : 8.28500001807697
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 40,
+               "max_ms" : 3.6999999905508,
+               "mean_ms" : 1.5795000000691,
+               "p50_ms" : 1.50100000874698,
+               "p95_ms" : 1.68000000086054,
+               "p99_ms" : 1.99800001807697
+            },
+            "requests" : 40,
+            "requests_per_second" : 138.190260351115,
+            "response_bytes" : 1059200,
+            "server_app" : {
+               "count" : 40,
+               "max_ms" : 17.829,
+               "mean_ms" : 5.5347,
+               "p50_ms" : 5.163,
+               "p95_ms" : 5.595,
+               "p99_ms" : 6.287
+            },
+            "server_db" : {
+               "count" : 40,
+               "max_ms" : 2.996,
+               "mean_ms" : 0.8687,
+               "p50_ms" : 0.795,
+               "p95_ms" : 0.932,
+               "p99_ms" : 1.154
+            },
+            "status_codes" : {
+               "200" : 40
+            },
+            "worker_requests" : {
+               "26966" : 40
+            }
+         },
+         "repetition" : 2,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 90.9,
+            "rss_bytes" : 608419840
+         },
+         "scenario" : "member.category",
+         "status" : "ok"
+      },
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 0.426474000007147,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 40
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 40,
+               "max_ms" : 13.1800000090152,
+               "mean_ms" : 10.5438000042341,
+               "p50_ms" : 10.2100000076462,
+               "p95_ms" : 11.9770000164863,
+               "p99_ms" : 12.4080000096001
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 40,
+               "max_ms" : 2.44400001648627,
+               "mean_ms" : 1.52057500423407,
+               "p50_ms" : 1.43000002050027,
+               "p95_ms" : 1.90000001848675,
+               "p99_ms" : 2.0450000090152
+            },
+            "requests" : 40,
+            "requests_per_second" : 93.7923531078792,
+            "response_bytes" : 922160,
+            "server_app" : {
+               "count" : 40,
+               "max_ms" : 11.135,
+               "mean_ms" : 9.023225,
+               "p50_ms" : 8.788,
+               "p95_ms" : 9.922,
+               "p99_ms" : 10.568
+            },
+            "server_db" : {
+               "count" : 40,
+               "max_ms" : 5.813,
+               "mean_ms" : 4.511325,
+               "p50_ms" : 4.409,
+               "p95_ms" : 4.913,
+               "p99_ms" : 5.205
+            },
+            "status_codes" : {
+               "200" : 40
+            },
+            "worker_requests" : {
+               "26966" : 40
+            }
+         },
+         "repetition" : 1,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 56.2,
+            "rss_bytes" : 610156544
+         },
+         "scenario" : "member.search",
+         "status" : "ok"
+      },
+      {
+         "clients" : 32,
+         "elapsed_seconds" : 3.04213400001754,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 1036
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 1036,
+               "max_ms" : 200.887000013608,
+               "mean_ms" : 92.6389324320195,
+               "p50_ms" : 92.5670000142418,
+               "p95_ms" : 98.25800001272,
+               "p99_ms" : 124.030999984825
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 1036,
+               "max_ms" : 189.848000013608,
+               "mean_ms" : 81.8275067563438,
+               "p50_ms" : 81.824999996366,
+               "p95_ms" : 87.4599999948777,
+               "p99_ms" : 113.292999984825
+            },
+            "requests" : 1036,
+            "requests_per_second" : 340.55041625189,
+            "response_bytes" : 23883944,
+            "server_app" : {
+               "count" : 1036,
+               "max_ms" : 22.221,
+               "mean_ms" : 10.8114256756757,
+               "p50_ms" : 10.754,
+               "p95_ms" : 11.385,
+               "p99_ms" : 12.108
+            },
+            "server_db" : {
+               "count" : 1036,
+               "max_ms" : 10.011,
+               "mean_ms" : 5.27961872586873,
+               "p50_ms" : 5.262,
+               "p95_ms" : 5.608,
+               "p99_ms" : 5.838
+            },
+            "status_codes" : {
+               "200" : 1036
+            },
+            "worker_requests" : {
+               "26964" : 258,
+               "26965" : 260,
+               "26966" : 260,
+               "26967" : 258
+            }
+         },
+         "repetition" : 1,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 230.3,
+            "rss_bytes" : 616071168
+         },
+         "scenario" : "member.search",
+         "status" : "ok"
+      },
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 0.435169000003953,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 40
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 40,
+               "max_ms" : 13.4390000021085,
+               "mean_ms" : 10.7509749999736,
+               "p50_ms" : 10.6059999961872,
+               "p95_ms" : 11.5269999951124,
+               "p99_ms" : 11.662000004435
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 40,
+               "max_ms" : 2.72000000210851,
+               "mean_ms" : 1.58784999997355,
+               "p50_ms" : 1.52799999618717,
+               "p95_ms" : 1.82500000443496,
+               "p99_ms" : 1.8380000226032
+            },
+            "requests" : 40,
+            "requests_per_second" : 91.9183121951166,
+            "response_bytes" : 922160,
+            "server_app" : {
+               "count" : 40,
+               "max_ms" : 10.719,
+               "mean_ms" : 9.163125,
+               "p50_ms" : 9.053,
+               "p95_ms" : 9.785,
+               "p99_ms" : 9.837
+            },
+            "server_db" : {
+               "count" : 40,
+               "max_ms" : 5.236,
+               "mean_ms" : 4.54405,
+               "p50_ms" : 4.509,
+               "p95_ms" : 4.751,
+               "p99_ms" : 4.759
+            },
+            "status_codes" : {
+               "200" : 40
+            },
+            "worker_requests" : {
+               "26965" : 40
+            }
+         },
+         "repetition" : 2,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 75.6,
+            "rss_bytes" : 616071168
+         },
+         "scenario" : "member.search",
+         "status" : "ok"
+      },
+      {
+         "clients" : 32,
+         "elapsed_seconds" : 3.06718799998634,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 1057
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 1057,
+               "max_ms" : 192.256000009365,
+               "mean_ms" : 91.3084853353955,
+               "p50_ms" : 91.1560000095051,
+               "p95_ms" : 98.5750000108965,
+               "p99_ms" : 118.068999989191
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 1057,
+               "max_ms" : 181.212000009365,
+               "mean_ms" : 80.6550151367201,
+               "p50_ms" : 80.5379999824837,
+               "p95_ms" : 87.9320000037719,
+               "p99_ms" : 107.024000000514
+            },
+            "requests" : 1057,
+            "requests_per_second" : 344.615328439178,
+            "response_bytes" : 24368078,
+            "server_app" : {
+               "count" : 1057,
+               "max_ms" : 12.554,
+               "mean_ms" : 10.6534701986755,
+               "p50_ms" : 10.604,
+               "p95_ms" : 11.319,
+               "p99_ms" : 11.804
+            },
+            "server_db" : {
+               "count" : 1057,
+               "max_ms" : 6.456,
+               "mean_ms" : 5.22261494796594,
+               "p50_ms" : 5.205,
+               "p95_ms" : 5.566,
+               "p99_ms" : 5.739
+            },
+            "status_codes" : {
+               "200" : 1057
+            },
+            "worker_requests" : {
+               "26964" : 264,
+               "26965" : 264,
+               "26966" : 265,
+               "26967" : 264
+            }
+         },
+         "repetition" : 2,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 233.5,
+            "rss_bytes" : 616071168
+         },
+         "scenario" : "member.search",
+         "status" : "ok"
+      }
+   ],
+   "configuration" : {
+      "concurrency" : [
+         1,
+         32
+      ],
+      "deadline" : 300,
+      "duration" : 3,
+      "iterations" : 40,
+      "profile" : "full",
+      "repetitions" : 2,
+      "scenario" : [
+         "member.home",
+         "member.category",
+         "member.search"
+      ],
+      "warmup" : 5,
+      "worker_clients" : 2048,
+      "workers" : 4,
+      "write_clients" : 10,
+      "write_iterations" : 2
+   },
+   "connection_policy" : "Fresh connections per cell; authenticated cookies retained; keep-alive within cells; no transport retries",
+   "correctness" : {
+      "created_replies" : 0,
+      "created_threads" : 0,
+      "post_delta" : 0,
+      "status" : "ok",
+      "thread_delta" : 0,
+      "unique_write_identities" : 1
+   },
+   "coverage" : {
+      "missing" : [
+         "admin_address_ban_create",
+         "admin_address_ban_lift",
+         "admin_address_ban_update",
+         "admin_address_bans",
+         "admin_announcement_create",
+         "admin_announcement_retire",
+         "admin_announcements",
+         "admin_antivirus_check",
+         "admin_audit",
+         "admin_automod",
+         "admin_automod_links",
+         "admin_automod_review",
+         "admin_automod_word_add",
+         "admin_automod_word_remove",
+         "admin_cache_purge",
+         "admin_categories",
+         "admin_category_create",
+         "admin_category_update",
+         "admin_configuration",
+         "admin_configuration_change",
+         "admin_configuration_reset",
+         "admin_dashboard",
+         "admin_dead_letter_replay",
+         "admin_integration_announce",
+         "admin_integration_announce_retry",
+         "admin_integration_feed_decide",
+         "admin_integration_feed_fetch",
+         "admin_integrations",
+         "admin_jobs",
+         "admin_mail_test",
+         "admin_permission_create",
+         "admin_plugin_change",
+         "admin_plugin_probe",
+         "admin_plugin_probe_math",
+         "admin_plugins",
+         "admin_registration",
+         "admin_registration_change",
+         "admin_role_bind",
+         "admin_role_binding_revoke",
+         "admin_role_create",
+         "admin_role_permission_attach",
+         "admin_roles",
+         "admin_search_rebuild",
+         "admin_second_factor",
+         "admin_second_factor_policy",
+         "admin_second_factor_reset",
+         "admin_settings",
+         "admin_status",
+         "admin_user_roles",
+         "admin_users",
+         "attachment_download",
+         "avatar_image",
+         "bookmark_folder",
+         "bookmarks",
+         "categories",
+         "category_mbox",
+         "category_subscription",
+         "composer_preview",
+         "draft_delete",
+         "draft_resume",
+         "draft_save",
+         "drafts",
+         "email_confirm",
+         "email_confirm_form",
+         "email_verify",
+         "email_verify_form",
+         "email_verify_request",
+         "email_verify_request_submit",
+         "feed",
+         "following",
+         "health",
+         "health_live",
+         "health_ready",
+         "legal_cookies",
+         "legal_notice",
+         "legal_privacy",
+         "legal_terms",
+         "locale_update",
+         "login",
+         "login_second_factor",
+         "login_second_factor_submit",
+         "login_submit",
+         "logout",
+         "member_relations",
+         "mentions",
+         "message_compose",
+         "message_conversation",
+         "message_new",
+         "message_reply",
+         "message_report",
+         "message_start",
+         "messages",
+         "metrics",
+         "moderation_action_reverse",
+         "moderation_actions",
+         "moderation_avatar_remove",
+         "moderation_media",
+         "moderation_media_decide",
+         "moderation_media_preview",
+         "moderation_member_note_create",
+         "moderation_member_note_delete",
+         "moderation_member_note_update",
+         "moderation_post_hide",
+         "moderation_post_restore",
+         "moderation_report_assign",
+         "moderation_report_release",
+         "moderation_report_resolve",
+         "moderation_reported_message",
+         "moderation_reports",
+         "moderation_review",
+         "moderation_review_approve",
+         "moderation_review_reject",
+         "moderation_suspension_revoke",
+         "moderation_suspensions",
+         "moderation_thread_hide",
+         "moderation_thread_lock",
+         "moderation_thread_pin",
+         "moderation_thread_restore",
+         "moderation_thread_unlock",
+         "moderation_thread_unpin",
+         "moderation_transfer",
+         "moderation_transfer_undo",
+         "moderation_transfers",
+         "moderation_user_suspend",
+         "navigation",
+         "new_media",
+         "new_thread",
+         "notification_read",
+         "notifications",
+         "notifications_read_all",
+         "notifications_summary",
+         "openid_callback",
+         "openid_start",
+         "password_reset_complete",
+         "password_reset_form",
+         "password_reset_request",
+         "password_reset_request_submit",
+         "pending_post_withdraw",
+         "pending_posts",
+         "post_attachment_delete",
+         "post_attachment_form",
+         "post_attachment_upload",
+         "post_delete",
+         "post_edit",
+         "post_like",
+         "post_react",
+         "post_report",
+         "post_restore",
+         "post_signature",
+         "post_unlike",
+         "post_unreact",
+         "post_verification",
+         "privacy_dashboard",
+         "privacy_deletion_approve",
+         "privacy_deletion_hold",
+         "privacy_deletion_request",
+         "privacy_erasure_run",
+         "privacy_export_download",
+         "privacy_export_request",
+         "privacy_hold_release",
+         "privacy_review",
+         "profile",
+         "profile_block",
+         "profile_follow",
+         "profile_ignore",
+         "profile_relation_remove",
+         "profile_report",
+         "public_feed",
+         "realtime",
+         "register",
+         "register_submit",
+         "reply_create",
+         "robots",
+         "search_autocomplete",
+         "security_txt",
+         "settings",
+         "settings_avatar",
+         "settings_avatar_remove",
+         "settings_avatar_upload",
+         "settings_email_update",
+         "settings_openid",
+         "settings_openid_link",
+         "settings_openid_unlink",
+         "settings_password_update",
+         "settings_profile_update",
+         "settings_security",
+         "settings_security_begin",
+         "settings_security_cancel",
+         "settings_security_confirm",
+         "settings_security_disable",
+         "settings_security_renew",
+         "settings_update",
+         "signing_keys",
+         "site_icon",
+         "sitemap",
+         "sitemap_page",
+         "tag",
+         "tagged_threads",
+         "tags",
+         "theme_update",
+         "thread",
+         "thread_bookmark",
+         "thread_bookmark_remove",
+         "thread_canonical",
+         "thread_create",
+         "thread_delete",
+         "thread_edit",
+         "thread_mark_read",
+         "thread_mbox",
+         "thread_move",
+         "thread_poll",
+         "thread_poll_change",
+         "thread_report",
+         "thread_restore",
+         "thread_subscribe",
+         "thread_subscription_mute",
+         "thread_unsubscribe",
+         "unsubscribe",
+         "unsubscribe_confirm",
+         "websub_subscribe"
+      ],
+      "observed" : 3,
+      "total" : 223
+   },
+   "dataset" : {
+      "categories" : 8,
+      "posts" : 4800,
+      "private_lists" : "seeded members retain seeded inbox/feed/bookmark rows; writes use independent member identities",
+      "threads" : 240,
+      "users" : 35
+   },
+   "diagnostic_trace" : 0,
+   "duration_seconds" : 23.824569999997,
+   "failures" : [],
+   "final_counts" : {
+      "events" : 0,
+      "posts" : 4800,
+      "threads" : 240
+   },
+   "generator" : "Mojo::UserAgent asynchronous HTTP clients; not interchangeable with wrk throughput",
+   "harness_sha256" : {
+      "benchmarks/hypnotoad-app.pl" : "f1e89adbcdc240f6f26b6cb608a790dd5dba2d4a9a72bf8ef598f9fe1f099e4b",
+      "script/benchmark-http-complete" : "8e241841e352c7e4398c34c6ca1d91a85a66fb8fcc2cefb125f34612a380f121",
+      "script/lib/GPForum/Performance/HTTPCatalog.pm" : "f7738b1d0f510afba6060c72446922d42d435ca5f3250f09d178fb244b613c4f",
+      "script/lib/GPForum/Performance/HTTPClient.pm" : "bdafdea087900e4039259abcfc52e05a75ca6366e30403278fe2dd685afb6975",
+      "script/lib/GPForum/Performance/HTTPComplete.pm" : "48a9eabc9bd360c5ceb7e2717d458f59ef79f0b4247298ac7e1112bf16a282a5",
+      "script/lib/GPForum/Performance/HTTPIntegrations.pm" : "1770227203e97a1d68ff0777acc1aea1ee4a6bf0d31042f502d64bc3fdfdfb64",
+      "script/lib/GPForum/Performance/HTTPReport.pm" : "01cdce4e89ec1d4edc24ecd5f019a543336642e73f955c7f28a105fb8d3e97c8"
+   },
+   "initial_counts" : {
+      "events" : 0,
+      "posts" : 4800,
+      "threads" : 240
+   },
+   "integration_fixture" : {
+      "enabled" : [
+         "youtube",
+         "vimeo",
+         "gitlab",
+         "codeberg",
+         "github",
+         "facebook",
+         "instagram",
+         "spotify",
+         "apple_music",
+         "wikipedia",
+         "mathematics",
+         "mastodon",
+         "peertube"
+      ],
+      "mastodon_hosts" : [
+         "social.example.org"
+      ],
+      "network" : "Local URL recognition and source preparation only; no third-party fetches or players",
+      "peertube_hosts" : [
+         "video.example.org"
+      ]
+   },
+   "metadata" : {
+      "artifact_url" : "",
+      "commit" : "0000000000000000000000000000000000000000",
+      "configuration" : {
+         "harness_sha256" : {
+            "benchmarks/hypnotoad-app.pl" : "f1e89adbcdc240f6f26b6cb608a790dd5dba2d4a9a72bf8ef598f9fe1f099e4b",
+            "benchmarks/wrk-metrics.lua" : "693d2fe37fe559b46e5af47be21deca9129b130235ffae13c7ea6435f6be08bb",
+            "script/lib/GPForum/Performance/Budget.pm" : "ca126c258bfacee7a0803a6246c586c2ed1d8b27088fccc103ec7fe423eb0a3a",
+            "script/lib/GPForum/Performance/CommandError.pm" : "ff7cd09d47a8677ddf59630ec2adf25324feb9b2ff99346e0978dcca1775dd83",
+            "script/lib/GPForum/Performance/Compare.pm" : "f3367e527f64d26017be076e387e14051c9da685c9c602768e50e5ff1e2bf532",
+            "script/lib/GPForum/Performance/Evidence.pm" : "5ae1f7cb35be666b8a0ae0ea4ebed7d33c7e8b88ba663277246c723a0230bcf6",
+            "script/lib/GPForum/Performance/Extreme.pm" : "1dabfcb0e866d8e3233bbd58f506f26723a280f721323bf7ea0c260fa4cb892e",
+            "script/lib/GPForum/Performance/ExtremeContainer.pm" : "d359a2166211bce30c21cdae32e18bb7779b8b153e65f41c14b63068105b4bfc",
+            "script/lib/GPForum/Performance/ExtremeDatabase.pm" : "ceef589282fb99278ff300b705ad3915df71207ea552af9527c61a930b4c6cb8",
+            "script/lib/GPForum/Performance/ExtremeLoad.pm" : "c0150518626024562b68057a6c764f25854b254e7595606ff7542c498d6c0f07",
+            "script/lib/GPForum/Performance/ExtremePlan.pm" : "f5e99550fdf463701acc3c41f3fe0f0559c067d27f8e45a39de6902f73af4f71",
+            "script/lib/GPForum/Performance/ExtremeReport.pm" : "ca6bf385efb897938fdc6aaf5b5af3cfaa38243b20215fd333dd0a9c8d375906",
+            "script/lib/GPForum/Performance/ExtremeState.pm" : "a48390f768bd1edc603cfa561848d0e51c128497ffd738a67a08ef9893587e74",
+            "script/lib/GPForum/Performance/ExtremeWorkload.pm" : "b43040628f9940ce55dddf8427598bf698116e6d0ce04f63f539d6a690b2d35c",
+            "script/lib/GPForum/Performance/HTTP.pm" : "c0dcf6929d102e75069884067d81cd59cd25965c1a3412f738aae9f4d479902e",
+            "script/lib/GPForum/Performance/HTTPCatalog.pm" : "f7738b1d0f510afba6060c72446922d42d435ca5f3250f09d178fb244b613c4f",
+            "script/lib/GPForum/Performance/HTTPClient.pm" : "bdafdea087900e4039259abcfc52e05a75ca6366e30403278fe2dd685afb6975",
+            "script/lib/GPForum/Performance/HTTPComplete.pm" : "48a9eabc9bd360c5ceb7e2717d458f59ef79f0b4247298ac7e1112bf16a282a5",
+            "script/lib/GPForum/Performance/HTTPIntegrations.pm" : "1770227203e97a1d68ff0777acc1aea1ee4a6bf0d31042f502d64bc3fdfdfb64",
+            "script/lib/GPForum/Performance/HTTPReport.pm" : "01cdce4e89ec1d4edc24ecd5f019a543336642e73f955c7f28a105fb8d3e97c8",
+            "script/lib/GPForum/Performance/Hotpaths.pm" : "7a815146e4fd23d22814516e0aa3a40c7101ecc0afd7e3cb5180db515a84eef0",
+            "script/lib/GPForum/Performance/Metadata.pm" : "176fc0e9d10d9b534bf819a97d97fd17496bc2565b87126421d4869d26cf0091",
+            "script/lib/GPForum/Performance/OperationProbe.pm" : "c092e51c956be64c5622816088fdde1b1d44e31a63e4715213d1e72f4a98d78e",
+            "script/lib/GPForum/Performance/Operations.pm" : "ff02ec5f21ee39eef0e9dc928292f90202853e698b8538c63ed16701d48493d1",
+            "script/lib/GPForum/Performance/Publish.pm" : "4d4db1a3e7fc1ef78eceb37e0844448eb24219501fd77e1485c05c9aaf60195f",
+            "script/lib/GPForum/Performance/Report.pm" : "1781d8347307af3bced4d033f98b8dd598e171e4d616aa3a0f615211ca9a7076",
+            "script/lib/GPForum/Performance/Resources.pm" : "588d24296d00816970358eac2f85c8c3a4d83b74980afd86f4d41025098692bf",
+            "script/lib/GPForum/Performance/Schema.pm" : "0f0cb2a590e62124db63ee1688977e6832faebb242e63bb5ae3464776ad8fde0",
+            "script/lib/GPForum/Performance/Server.pm" : "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+            "script/lib/GPForum/Performance/Support.pm" : "7e9cd89543307a19de1183c2df164df15393c7becc2836b5ca5997f22402510c",
+            "script/lib/GPForum/Performance/WorkflowStatus.pm" : "8e9d2dfe42d6a3f2ce689cd5f1d7bd5d6b23192f832800c223dbbe21ae82b86a",
+            "script/performance-evidence" : "e887288eb6c0ff4c9b27e2013c709e98c7d8f34656bdaf08b79aaaf8757192b8",
+            "script/performance-hotpaths" : "df750bb4ed5bb66538621168f5a8d6c14b911ef082bf6c5c3d863aafed817fc5",
+            "script/performance-http" : "addf0139d7c03fd7195c89c9e98953eebf96625380ad8716cbecf81a3dd35c50",
+            "script/performance-outbox.pl" : "8655a9c61f7da2c9f7c9fb5fdb45406e8ade12bdbc357edba409d8c28149a299",
+            "t/lib/GPForum/Test/OutboxTransport.pm" : "9aab04e93e80d23d344ba5936cef5bb6733c348d52edb066e11936f867b2d37c",
+            "t/lib/GPForum/Test/PostgresHarness.pm" : "65b2533aa6954812acd2fd5b594eeba22fbf8f4222a1cb9752476957ee375a4a"
+         }
+      },
+      "dataset" : {},
+      "date" : "2026-11-06",
+      "dirty" : false,
+      "history_url" : "https://github.com/gipidevdor/GPForum/tree/performance-data/benchmarks/results",
+      "kind" : "metadata",
+      "limitations" : [
+         "Shared runners and a colocated load generator give comparative CI evidence, not production capacity."
+      ],
+      "mode" : "main",
+      "run_attempt" : "1",
+      "run_id" : "local-4e19f7e6a0cf09a513490f19d513f0b2",
+      "run_url" : "",
+      "runner" : {
+         "arch" : "arm64",
+         "cpu_count" : 10,
+         "cpu_model" : "Apple M4",
+         "image" : "Darwin",
+         "image_version" : null,
+         "kernel" : "27.2.0",
+         "label" : "local",
+         "memory_bytes" : 17179869184,
+         "name" : "local",
+         "os" : "Darwin"
+      },
+      "schema_version" : 1,
+      "timestamp" : "2026-11-06T02:09:43.956366+00:00",
+      "versions" : {},
+      "working_tree_diff_sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "operations" : [
+      {
+         "cache_outcomes" : {
+            "not_reported" : 80
+         },
+         "invalid_responses" : 0,
+         "latency" : {
+            "count" : 80,
+            "max_ms" : 21.5289999905508,
+            "mean_ms" : 7.01923749911657,
+            "p50_ms" : 6.59699999960139,
+            "p95_ms" : 7.22400000086054,
+            "p99_ms" : 18.1839999859221
+         },
+         "low_sample_count" : 0,
+         "name" : "member:member.category",
+         "outside_app" : {
+            "count" : 80,
+            "max_ms" : 3.6999999905508,
+            "mean_ms" : 1.54202499911657,
+            "p50_ms" : 1.46800000721589,
+            "p95_ms" : 1.68899999138154,
+            "p99_ms" : 2.67199998592213
+         },
+         "requests" : 80,
+         "requests_per_second" : null,
+         "response_bytes" : 2118400,
+         "server_app" : {
+            "count" : 80,
+            "max_ms" : 17.829,
+            "mean_ms" : 5.4772125,
+            "p50_ms" : 5.143,
+            "p95_ms" : 5.595,
+            "p99_ms" : 15.512
+         },
+         "server_db" : {
+            "count" : 80,
+            "max_ms" : 2.996,
+            "mean_ms" : 0.85505,
+            "p50_ms" : 0.79,
+            "p95_ms" : 0.932,
+            "p99_ms" : 2.488
+         },
+         "status_codes" : {
+            "200" : 80
+         },
+         "worker_requests" : {
+            "26966" : 40,
+            "26967" : 40
+         }
+      },
+      {
+         "cache_outcomes" : {
+            "not_reported" : 4129
+         },
+         "invalid_responses" : 0,
+         "latency" : {
+            "count" : 4129,
+            "max_ms" : 112.593999976525,
+            "mean_ms" : 46.3917970454884,
+            "p50_ms" : 46.174000017345,
+            "p95_ms" : 59.7129999950994,
+            "p99_ms" : 74.3720000027679
+         },
+         "low_sample_count" : 0,
+         "name" : "member:member.home",
+         "outside_app" : {
+            "count" : 4129,
+            "max_ms" : 107.143999999838,
+            "mean_ms" : 41.3032385567503,
+            "p50_ms" : 41.0960000029393,
+            "p95_ms" : 54.4440000243597,
+            "p99_ms" : 69.5650000027679
+         },
+         "requests" : 4129,
+         "requests_per_second" : null,
+         "response_bytes" : 149771217,
+         "server_app" : {
+            "count" : 4129,
+            "max_ms" : 17.077,
+            "mean_ms" : 5.08855848873818,
+            "p50_ms" : 4.985,
+            "p95_ms" : 5.796,
+            "p99_ms" : 6.35
+         },
+         "server_db" : {
+            "count" : 4129,
+            "max_ms" : 9.467,
+            "mean_ms" : 0.871534754177767,
+            "p50_ms" : 0.835,
+            "p95_ms" : 1.089,
+            "p99_ms" : 1.253
+         },
+         "status_codes" : {
+            "200" : 4129
+         },
+         "worker_requests" : {
+            "26964" : 1015,
+            "26965" : 1009,
+            "26966" : 1016,
+            "26967" : 1089
+         }
+      },
+      {
+         "cache_outcomes" : {
+            "not_reported" : 2173
+         },
+         "invalid_responses" : 0,
+         "latency" : {
+            "count" : 2173,
+            "max_ms" : 200.887000013608,
+            "mean_ms" : 88.9732139895322,
+            "p50_ms" : 91.881000000285,
+            "p95_ms" : 98.2549999898765,
+            "p99_ms" : 123.036999983015
+         },
+         "low_sample_count" : 0,
+         "name" : "member:member.search",
+         "outside_app" : {
+            "count" : 2173,
+            "max_ms" : 189.848000013608,
+            "mean_ms" : 78.30187988921,
+            "p50_ms" : 81.1999999933373,
+            "p95_ms" : 87.3879999794923,
+            "p99_ms" : 111.787999981558
+         },
+         "requests" : 2173,
+         "requests_per_second" : null,
+         "response_bytes" : 50096342,
+         "server_app" : {
+            "count" : 2173,
+            "max_ms" : 22.221,
+            "mean_ms" : 10.6713341003221,
+            "p50_ms" : 10.678,
+            "p95_ms" : 11.334,
+            "p99_ms" : 11.868
+         },
+         "server_db" : {
+            "count" : 2173,
+            "max_ms" : 10.011,
+            "mean_ms" : 5.22420800736308,
+            "p50_ms" : 5.224,
+            "p95_ms" : 5.585,
+            "p99_ms" : 5.813
+         },
+         "status_codes" : {
+            "200" : 2173
+         },
+         "worker_requests" : {
+            "26964" : 522,
+            "26965" : 564,
+            "26966" : 565,
+            "26967" : 522
+         }
+      }
+   ],
+   "planned_cells" : [
+      {
+         "clients" : 1,
+         "repetition" : 1,
+         "scenario" : "member.home"
+      },
+      {
+         "clients" : 32,
+         "repetition" : 1,
+         "scenario" : "member.home"
+      },
+      {
+         "clients" : 1,
+         "repetition" : 2,
+         "scenario" : "member.home"
+      },
+      {
+         "clients" : 32,
+         "repetition" : 2,
+         "scenario" : "member.home"
+      },
+      {
+         "clients" : 1,
+         "repetition" : 1,
+         "scenario" : "member.category"
+      },
+      {
+         "clients" : 1,
+         "repetition" : 2,
+         "scenario" : "member.category"
+      },
+      {
+         "clients" : 1,
+         "repetition" : 1,
+         "scenario" : "member.search"
+      },
+      {
+         "clients" : 32,
+         "repetition" : 1,
+         "scenario" : "member.search"
+      },
+      {
+         "clients" : 1,
+         "repetition" : 2,
+         "scenario" : "member.search"
+      },
+      {
+         "clients" : 32,
+         "repetition" : 2,
+         "scenario" : "member.search"
+      }
+   ],
+   "policy" : "Real Hypnotoad TCP HTTP; separate real cookies per client; real login, CSRF and PostgreSQL command paths; admission quotas raised in benchmark entrypoint, PostgreSQL counters retained; background delivery disabled; outside_app includes queue/network/client overhead, not pure queue time.",
+   "postgres_settings" : [
+      {
+         "name" : "fsync",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "full_page_writes",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "jit",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "max_connections",
+         "setting" : "80",
+         "unit" : null
+      },
+      {
+         "name" : "shared_buffers",
+         "setting" : "16384",
+         "unit" : "8kB"
+      },
+      {
+         "name" : "synchronous_commit",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "work_mem",
+         "setting" : "4096",
+         "unit" : "kB"
+      }
+   ],
+   "schema_version" : 1,
+   "skipped" : [],
+   "status" : "ok",
+   "versions" : {
+      "mojolicious" : "9.51",
+      "perl" : "v5.44.0",
+      "platform" : "darwin-thread-multi-2level",
+      "postgres" : "18.6 (Homebrew)"
+   },
+   "worker_telemetry" : [
+      {
+         "ev_backend" : 8,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 26964,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 2048
+      },
+      {
+         "ev_backend" : 8,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 26965,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 2048
+      },
+      {
+         "ev_backend" : 8,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 26966,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 2048
+      },
+      {
+         "ev_backend" : 8,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 26967,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 2048
+      }
+   ],
+   "workload_coverage" : {
+      "duplicates" : [],
+      "missing" : [],
+      "observed" : 10,
+      "planned" : 10,
+      "unexpected" : []
+   }
+}

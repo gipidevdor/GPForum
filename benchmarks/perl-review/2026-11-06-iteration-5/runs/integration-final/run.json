@@ -1,0 +1,22 @@
+{
+  "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review5-after-xvoxp0w6",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-j4",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/integration/postgres-public-cache.t",
+    "t/integration/postgres-public-cache-revocation.t",
+    "t/integration/postgres-realtime-listen.t",
+    "t/integration/postgres-admin-cache-purge.t",
+    "t/integration/postgres-http-complete.t"
+  ],
+  "started_at": "2026-11-06T15:59:40.660977+00:00",
+  "exit_code": 0,
+  "elapsed_seconds": 27.965888875,
+  "finished_at": "2026-11-06T16:00:08.627238+00:00"
+}

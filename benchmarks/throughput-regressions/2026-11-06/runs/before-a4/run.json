@@ -1,0 +1,523 @@
+{
+  "source": "/private/tmp/gpforum-throughput-before-l4v33ugv",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "script/benchmark-http-complete",
+    "--output",
+    "/Users/gpicchiarelli/Documents/GPForum/artifacts/throughput-regressions-20261105/before-a4/http",
+    "--workers",
+    "4",
+    "--iterations",
+    "100",
+    "--warmup",
+    "10",
+    "--duration",
+    "5",
+    "--repetitions",
+    "3",
+    "--concurrency",
+    "1,10,32,100",
+    "--deadline",
+    "900",
+    "--scenario",
+    "member.home",
+    "--scenario",
+    "member.thread",
+    "--scenario",
+    "guest.thread",
+    "--scenario",
+    "moderator.transfers",
+    "--scenario",
+    "admin.status",
+    "--scenario",
+    "admin.registration",
+    "--scenario",
+    "admin.settings",
+    "--scenario",
+    "admin.plugins",
+    "--scenario",
+    "admin.configuration",
+    "--scenario",
+    "admin.privacy",
+    "--scenario",
+    "admin.integrations",
+    "--scenario",
+    "admin.user_roles",
+    "--scenario",
+    "journey.publishing_community",
+    "--scenario",
+    "mixed"
+  ],
+  "competing_load": [
+    {
+      "at_seconds": 47.769893792,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 48.829368124999995,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 49.888271124999996,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 50.955586292,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 52.018457333,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 53.081062333,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 54.148138374999995,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 55.213683249999995,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 56.275279624999996,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 57.342188832999994,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 58.4055185,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 59.464580583,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 60.527931875,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 61.593513916999996,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 62.649252624999995,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 63.708424125,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 64.77191470800001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 65.83269516700001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 66.897149583,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 67.95905462500001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 69.02672158300001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 70.09029075000001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 71.15474204200001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 72.21729904200001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 73.277573,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 74.341143833,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 75.404212125,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 76.467136083,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 77.536804,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 78.605400542,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 79.67190266700001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 80.73977025,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 81.805417292,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 82.8677565,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    },
+    {
+      "at_seconds": 83.92720641700001,
+      "processes": [
+        {
+          "pid": 39152,
+          "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python /private/tmp/gpforum-thread-tail-investigate.py http 8 16"
+        },
+        {
+          "pid": 39153,
+          "command": "/Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl script/benchmark-http-complete --output /Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-20261105/http-w8-c16-a --workers 8 --worker-clients 16 --scenario member.thread --concurrency 1,10,50,100 --iterations 100 --warmup 10 --duration 6 --repetitions 3 --deadline 900"
+        }
+      ]
+    }
+  ],
+  "started_at": "2026-11-05T22:53:51.958092+00:00",
+  "load_before": [
+    7.93798828125,
+    4.673828125,
+    3.35693359375
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 196.59908670800002,
+  "load_after": [
+    4.6220703125,
+    4.50537109375,
+    3.54345703125
+  ],
+  "finished_at": "2026-11-05T22:57:08.558435+00:00"
+}

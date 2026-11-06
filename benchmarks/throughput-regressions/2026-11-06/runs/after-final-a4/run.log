@@ -1,0 +1,39 @@
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+guest.thread c=1 rep=1 requests=100 p95=2.12ms errors=0
+guest.thread c=1 rep=2 requests=100 p95=2.12ms errors=0
+guest.thread c=1 rep=3 requests=100 p95=2.21ms errors=0
+member.home c=1 rep=1 requests=100 p95=6.23ms errors=0
+member.home c=10 rep=1 requests=2386 p95=27.98ms errors=0
+member.home c=32 rep=1 requests=2651 p95=55.16ms errors=0
+member.home c=100 rep=1 requests=2727 p95=164.43ms errors=0
+member.home c=1 rep=2 requests=100 p95=6.66ms errors=0
+member.home c=10 rep=2 requests=2408 p95=27.97ms errors=0
+member.home c=32 rep=2 requests=2567 p95=62.68ms errors=0
+member.home c=100 rep=2 requests=2742 p95=159.00ms errors=0
+member.home c=1 rep=3 requests=100 p95=7.14ms errors=0
+member.home c=10 rep=3 requests=2376 p95=28.11ms errors=0
+member.home c=32 rep=3 requests=2621 p95=62.12ms errors=0
+member.home c=100 rep=3 requests=2710 p95=188.38ms errors=0
+member.thread c=1 rep=1 requests=100 p95=13.16ms errors=0
+member.thread c=10 rep=1 requests=1249 p95=55.14ms errors=0
+member.thread c=32 rep=1 requests=1397 p95=112.93ms errors=0
+member.thread c=100 rep=1 requests=1437 p95=338.39ms errors=0
+member.thread c=1 rep=2 requests=100 p95=12.80ms errors=0
+member.thread c=10 rep=2 requests=1244 p95=55.74ms errors=0
+member.thread c=32 rep=2 requests=1393 p95=100.06ms errors=0
+member.thread c=100 rep=2 requests=1443 p95=328.39ms errors=0
+member.thread c=1 rep=3 requests=100 p95=13.45ms errors=0
+member.thread c=10 rep=3 requests=1216 p95=56.41ms errors=0
+member.thread c=32 rep=3 requests=1364 p95=115.28ms errors=0
+member.thread c=100 rep=3 requests=1402 p95=343.78ms errors=0
+moderator.transfers c=1 rep=1 requests=100 p95=4.57ms errors=0
+moderator.transfers c=1 rep=2 requests=100 p95=5.19ms errors=0
+moderator.transfers c=1 rep=3 requests=100 p95=4.71ms errors=0
+journey.publishing_community c=10 rep=1 requests=400 p95=42.15ms errors=0
+journey.publishing_community c=10 rep=2 requests=400 p95=40.53ms errors=0
+journey.publishing_community c=10 rep=3 requests=400 p95=42.97ms errors=0
+mixed c=10 rep=1 requests=1280 p95=55.54ms errors=0
+mixed c=10 rep=2 requests=1530 p95=52.29ms errors=0
+mixed c=10 rep=3 requests=1450 p95=50.05ms errors=0

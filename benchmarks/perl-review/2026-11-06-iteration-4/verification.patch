@@ -1,0 +1,308 @@
+--- a/t/115-web-public-cache-access.t
++++ b/t/115-web-public-cache-access.t
+@@ -11,13 +11,19 @@
+ use Const::Fast;
+ use GPForum::Test::PublicCacheRequest;
+ use GPForum::Web::PublicCacheAccess;
++use GPForum::Web::PublicHttpCache;
++use GPForum::Service::Operations::LocalCache;
++use GPForum::Test::PublicPageController;
++use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
+ use Mojo::Date;
+ use Test::More;
+ 
+ our $VERSION = '0.001';
+ 
+-const my $EPOCH => 1_716_464_000;
+-const my $ETAG  => 'W/"abc123"';
++const my $EPOCH             => 1_716_464_000;
++const my $ETAG              => 'W/"abc123"';
++const my $HTTP_OK           => 200;
++const my $HTTP_NOT_MODIFIED => 304;
+ 
+ my $access = GPForum::Web::PublicCacheAccess->new;
+ my $get    = GPForum::Test::PublicCacheRequest->new;
+@@ -98,6 +104,102 @@
+ is( $access->revalidated_state('miss'),
+     'miss-revalidated', 'revalidated_state labels a stored miss' );
+ 
++subtest 'If-None-Match uses weak comparison and quoted list members' => sub {
++    for my $case (
++        [ q{"abc123"},                  $ETAG,            1 ],
++        [ $ETAG,                        q{"abc123"},      1 ],
++        [ q{W/""},                      q{""},            1 ],
++        [ q{"other", "a,b"},            q{W/"a,b"},       1 ],
++        [ q{"a,b"},                     q{"a"},           0 ],
++        [ q{W/"literal\tag"},           q{"literal\tag"}, 1 ],
++        [ " \t*\t ",                    $ETAG,            1 ],
++        [ q{,, W/"other",, "abc123", }, $ETAG,            1 ],
++        [ q{garbage,"abc123"},          $ETAG,            0 ],
++        [ q{"abc123",garbage},          $ETAG,            0 ],
++        [ q{*, "abc123"},               $ETAG,            0 ],
++        [ q{"abc123"junk},              $ETAG,            0 ],
++        [ q{w/"abc123"},                $ETAG,            0 ],
++        [ q{W/"ABC123"},                $ETAG,            0 ],
++        [ q{garbage},                   q{garbage},       0 ],
++      )
++    {
++        is( $access->etag_matches( $case->[0], $case->[1] ),
++            $case->[2], "comparison of $case->[0] against $case->[1]" );
++    }
++};
++
++subtest 'an ETag decides freshness without parsing a competing date' => sub {
++    my $date_checks = 0;
++    my $modified_since =
++      GPForum::Web::PublicCacheAccess->can('modified_since_matches');
++    with_replaced_subs(
++        'GPForum::Web::PublicCacheAccess',
++        {
++            modified_since_matches => sub ( $self, @args ) {
++                ++$date_checks;
++                return $modified_since->( $self, @args );
++            },
++        },
++        sub {
++            for my $candidate ( 'W/"old"', q{}, 'malformed' ) {
++                my $request = GPForum::Test::PublicCacheRequest->new(
++                    if_none_match     => $candidate,
++                    if_modified_since => $date,
++                );
++                ok(
++                    !$access->client_has_fresh_copy(
++                        $request,
++                        { etag => $ETAG, last_modified_epoch => $EPOCH }
++                    ),
++                    'a nonmatching or invalid ETag cannot fall back to the date'
++                );
++            }
++            is( $date_checks, 0,
++'If-Modified-Since is never consulted while If-None-Match is present'
++            );
++        }
++    );
++    my $date_only =
++      GPForum::Test::PublicCacheRequest->new( if_modified_since => $date );
++    ok(
++        $access->client_has_fresh_copy(
++            $date_only, { etag => $ETAG, last_modified_epoch => $EPOCH }
++        ),
++        'date-only clients retain their validator'
++    );
++};
++
++subtest 'cached responses use the same validators as direct decisions' => sub {
++    my $http_cache = GPForum::Web::PublicHttpCache->new(
++        cache => GPForum::Service::Operations::LocalCache->new, );
++    my $page = GPForum::Test::PublicPageController->new;
++    $http_cache->render(
++        controller => $page,
++        key        => 'page',
++        template   => 'page',
++        status     => $HTTP_OK
++    );
++    my $entry_tag      = $page->res->headers->etag;
++    my $stale_response = GPForum::Test::PublicPageController->new(
++        if_none_match     => 'W/"stale"',
++        if_modified_since => 'Thu, 01 Jan 2099 00:00:00 GMT',
++    );
++    ok( $http_cache->serve_cached( $stale_response, { key => 'page' } ),
++        'the cache answers the request' );
++    is( $stale_response->last_render->{status},
++        $HTTP_OK, 'a changed ETag receives the current representation' );
++    is( $stale_response->last_render->{data},
++        '<p>page</p>', 'the current body is sent' );
++    my $strong = $entry_tag =~ s/\A W\///rmsx;
++    my $fresh_response =
++      GPForum::Test::PublicPageController->new( if_none_match => $strong );
++    $http_cache->serve_cached( $fresh_response, { key => 'page' } );
++    is( $fresh_response->last_render->{status},
++        $HTTP_NOT_MODIFIED,
++        'a strong spelling of the current weak tag revalidates' );
++    is( $fresh_response->last_render->{data}, q{}, 'the 304 has no body' );
++};
++
+ done_testing();
+ 
+ 1;
+--- /dev/null
++++ b/t/862-pagination-boundaries.t
+@@ -0,0 +1,148 @@
++# SPDX-FileCopyrightText: 2026 GPForum Contributors
++# SPDX-License-Identifier: BSD-3-Clause
++package main;
++use v5.40;
++use Const::Fast;
++use MIME::Base64 qw(encode_base64url);
++use Test::More;
++use lib 'lib', 't/lib';
++use GPForum::Service::Forum::CategoryReader;
++use GPForum::Service::Forum::PageWindow;
++use GPForum::Service::Forum::ThreadReader;
++use GPForum::Service::Search::Searcher;
++use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
++
++our $VERSION = '0.001';
++const my $CATEGORY_DEFAULT => 100;
++const my $SEARCH_DEFAULT   => 20;
++const my $CATEGORY_MAX     => 200;
++const my $SEARCH_MAX       => 50;
++const my $LARGE_LIMIT      => 1000;
++const my $OVERSIZED_CURSOR => 4096;
++const my $ID               => '018f1000-0000-7000-8000-000000000001';
++const my $INSTANT          => '2026-11-06 01:02:03.123456+14:00';
++
++subtest 'list limits reject Unicode digits before numeric conversion' => sub {
++    my $category = GPForum::Service::Forum::CategoryReader->new(
++        schema    => {},
++        functions => undef
++    );
++    my $search = GPForum::Service::Search::Searcher->new(
++        schema    => {},
++        functions => undef
++    );
++    my $category_limit;
++    my @warnings;
++    local $SIG{__WARN__} = sub ($warning) { push @warnings, $warning; };
++    with_replaced_subs(
++        'GPForum::Service::Forum::CategoryReader',
++        {
++            _list_categories => sub ( $self, $limit, $viewer ) {
++                $category_limit = $limit;
++                return [];
++            },
++        },
++        sub {
++            for my $invalid (
++                "\N{ARABIC-INDIC DIGIT ONE}",
++                "1\N{ARABIC-INDIC DIGIT ONE}",
++                "1\N{FULLWIDTH DIGIT ONE}"
++              )
++            {
++                $category->list_categories( { limit => $invalid } );
++                is( $category_limit, $CATEGORY_DEFAULT,
++                    'the category size uses its default' );
++                is(
++                    $search->ranked_call( {}, 'term', { limit => $invalid } )
++                      ->[1]{row_limit},
++                    $SEARCH_DEFAULT,
++                    'the search call receives an ASCII integer default'
++                );
++            }
++            is_deeply( \@warnings, [],
++                'invalid numeric text produces no conversion warnings' );
++            $category->list_categories( { limit => $LARGE_LIMIT } );
++            is( $category_limit, $CATEGORY_MAX, 'the category cap remains' );
++            is(
++                $search->ranked_call( {}, 'term', { limit => $LARGE_LIMIT } )
++                  ->[1]{row_limit},
++                $SEARCH_MAX,
++                'the search cap remains'
++            );
++        }
++    );
++};
++
++subtest 'cursor decoding is bounded and a pinned cursor is decoded once' =>
++  sub {
++    my $window = GPForum::Service::Forum::PageWindow->new;
++    my $reader = GPForum::Service::Forum::ThreadReader->new(
++        schema    => {},
++        functions => undef
++    );
++    my $decode  = MIME::Base64->can('decode_base64url');
++    my $decodes = 0;
++    my $count_decode =
++      sub ($encoded) { ++$decodes; return $decode->($encoded); };
++    with_replaced_subs(
++        'GPForum::Service::Forum::PageWindow',
++        { decode_base64url => $count_decode },
++        sub {
++            with_replaced_subs(
++                'GPForum::Service::Forum::ThreadReader',
++                { decode_base64url => $count_decode },
++                sub {
++                    my $oversized = 'A' x $OVERSIZED_CURSOR;
++                    is(
++                        $window->plan( { after => $oversized } )->{after},
++                        undef,
++'an oversized ordinary cursor falls back to the first page'
++                    );
++                    my $call = $reader->category_threads_call(
++                        { category_id => $ID, after => $oversized } );
++                    is( $call->[1]{after_thread_id}, undef,
++'an oversized pinned cursor falls back to the first page'
++                    );
++                    is( $decodes, 0,
++                        'oversized values never enter the base64 decoder' );
++
++                    my $ordinary = encode_base64url("$INSTANT|$ID");
++                    is_deeply(
++                        $window->plan(
++                            { after => $ordinary, sort => 'timestamp' }
++                        )->{after},
++                        { sort_value => $INSTANT, id => $ID },
++                        'microseconds and full timezone offsets remain valid'
++                    );
++                    $decodes = 0;
++                    my $pinned = encode_base64url("1|$INSTANT|$ID");
++                    $call = $reader->category_threads_call(
++                        { category_id => $ID, after => $pinned } );
++                    is( $call->[1]{after_activity},
++                        $INSTANT, 'the pinned timestamp remains intact' );
++                    is( $call->[1]{after_thread_id},
++                        $ID, 'the pinned id remains intact' );
++                    is( $call->[1]{after_pinned},
++                        1, 'the pinned ordering remains intact' );
++                    is( $decodes, 1,
++                        'the category cursor is decoded only in its own format'
++                    );
++
++                    for my $flag (qw(0 f false)) {
++                        $call = $reader->category_threads_call(
++                            {
++                                category_id => $ID,
++                                after => encode_base64url("$flag|$INSTANT|$ID")
++                            }
++                        );
++                        is( $call->[1]{after_pinned},
++                            0, 'legacy false spellings remain valid' );
++                    }
++                }
++            );
++        }
++    );
++  };
++
++done_testing();
++1;
+--- a/t/integration/postgres-public-cache.t
++++ b/t/integration/postgres-public-cache.t
+@@ -20,6 +20,7 @@
+ const my $HTTP_OK                => 200;
+ const my $HTTP_MOVED_PERMANENTLY => 301;
+ const my $THREAD_PAGE_SIZE       => 25;
++const my $HTTP_NOT_MODIFIED      => 304;
+ 
+ if ( !$ENV{GPFORUM_DATABASE_DSN} ) {
+     plan skip_all => 'set GPFORUM_DATABASE_DSN to run the public cache test';
+@@ -149,6 +150,19 @@
+     'the cache hit performs no forum-content query'
+ );
+ 
++my $cached_headers = $client->tx->res->headers;
++my $weak_tag       = $cached_headers->etag;
++my $strong_tag     = $weak_tag =~ s/\A W\///rmsx;
++$client->get_ok( "/c/$category" =>
++      { 'Accept-Language' => 'en', 'If-None-Match' => $strong_tag } );
++$client->status_is($HTTP_NOT_MODIFIED);
++$client->content_is(q{});
++$client->header_is( 'X-GPForum-Cache' => 'revalidated' );
++$client->head_ok( "/c/$category" =>
++      { 'Accept-Language' => 'en', 'If-None-Match' => $strong_tag } );
++$client->status_is($HTTP_NOT_MODIFIED);
++$client->content_is(q{});
++
+ # The router reads a path with a trailing slash, or with a letter written as
+ # an escape, as the page's own, and the key named the path as typed: each
+ # such spelling of a page minted an entry of its own.

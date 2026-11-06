@@ -1,0 +1,51 @@
+{
+  "source": "/private/tmp/gpforum-throughput-before-l4v33ugv",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "script/benchmark-http-complete",
+    "--output",
+    "/Users/gpicchiarelli/Documents/GPForum/artifacts/throughput-regressions-20261105/before-fair-a4/http",
+    "--workers",
+    "4",
+    "--iterations",
+    "100",
+    "--warmup",
+    "10",
+    "--duration",
+    "4",
+    "--repetitions",
+    "3",
+    "--concurrency",
+    "1,10,32,100",
+    "--deadline",
+    "900",
+    "--scenario",
+    "member.home",
+    "--scenario",
+    "member.thread",
+    "--scenario",
+    "guest.thread",
+    "--scenario",
+    "moderator.transfers",
+    "--scenario",
+    "journey.publishing_community",
+    "--scenario",
+    "mixed"
+  ],
+  "competing_load": [],
+  "started_at": "2026-11-05T23:18:05.717744+00:00",
+  "load_before": [
+    2.900390625,
+    3.80810546875,
+    3.68408203125
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 118.71629762500001,
+  "load_after": [
+    3.75927734375,
+    3.84716796875,
+    3.7119140625
+  ],
+  "finished_at": "2026-11-05T23:20:04.435008+00:00"
+}

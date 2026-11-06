@@ -1,0 +1,113 @@
+{
+   "architecture" : "darwin-thread-multi-2level",
+   "method" : "Three fixed-iteration batches after 100 untimed warmups; wall-clock monotonic time; SQL row case uses a bounded stub without PostgreSQL or statement history.",
+   "perl" : "v5.44.0",
+   "platform" : "darwin",
+   "results" : [
+      {
+         "iterations" : 100000,
+         "name" : "sql_bind",
+         "operations_per_second" : 218642.796705926,
+         "repetition" : 1,
+         "seconds" : 0.457366999995429
+      },
+      {
+         "iterations" : 100000,
+         "name" : "sql_bind",
+         "operations_per_second" : 219849.798619202,
+         "repetition" : 2,
+         "seconds" : 0.454855999996653
+      },
+      {
+         "iterations" : 100000,
+         "name" : "sql_bind",
+         "operations_per_second" : 217704.13571469,
+         "repetition" : 3,
+         "seconds" : 0.459339000022737
+      },
+      {
+         "iterations" : 50000,
+         "name" : "sql_rows_stub_no_database",
+         "operations_per_second" : 83781.7050913422,
+         "repetition" : 1,
+         "seconds" : 0.5967890000029
+      },
+      {
+         "iterations" : 50000,
+         "name" : "sql_rows_stub_no_database",
+         "operations_per_second" : 84758.835684527,
+         "repetition" : 2,
+         "seconds" : 0.589909000002081
+      },
+      {
+         "iterations" : 50000,
+         "name" : "sql_rows_stub_no_database",
+         "operations_per_second" : 84678.4505215714,
+         "repetition" : 3,
+         "seconds" : 0.590468999987934
+      },
+      {
+         "iterations" : 50000,
+         "name" : "sql_answer_key_25_posts",
+         "operations_per_second" : 186511.489101522,
+         "repetition" : 1,
+         "seconds" : 0.268080000008922
+      },
+      {
+         "iterations" : 50000,
+         "name" : "sql_answer_key_25_posts",
+         "operations_per_second" : 188231.750925392,
+         "repetition" : 2,
+         "seconds" : 0.265630000008969
+      },
+      {
+         "iterations" : 50000,
+         "name" : "sql_answer_key_25_posts",
+         "operations_per_second" : 187608.81311022,
+         "repetition" : 3,
+         "seconds" : 0.266512000001967
+      },
+      {
+         "iterations" : 500000,
+         "name" : "local_cache_get",
+         "operations_per_second" : 349694.367118392,
+         "repetition" : 1,
+         "seconds" : 1.42982000001939
+      },
+      {
+         "iterations" : 500000,
+         "name" : "local_cache_get",
+         "operations_per_second" : 352693.378246972,
+         "repetition" : 2,
+         "seconds" : 1.41766200002166
+      },
+      {
+         "iterations" : 500000,
+         "name" : "local_cache_get",
+         "operations_per_second" : 354637.84737606,
+         "repetition" : 3,
+         "seconds" : 1.40988900000229
+      },
+      {
+         "iterations" : 50000,
+         "name" : "local_cache_replace",
+         "operations_per_second" : 103013.770881836,
+         "repetition" : 1,
+         "seconds" : 0.48537199999555
+      },
+      {
+         "iterations" : 50000,
+         "name" : "local_cache_replace",
+         "operations_per_second" : 102563.261015438,
+         "repetition" : 2,
+         "seconds" : 0.487504000018816
+      },
+      {
+         "iterations" : 50000,
+         "name" : "local_cache_replace",
+         "operations_per_second" : 102732.689540004,
+         "repetition" : 3,
+         "seconds" : 0.486700000008568
+      }
+   ]
+}

@@ -1,0 +1,475 @@
+--- a/lib/GPForum/Infrastructure/SqlFunction.pm
++++ b/lib/GPForum/Infrastructure/SqlFunction.pm
+@@ -5,7 +5,6 @@
+ 
+ use Carp qw(croak);
+ use Const::Fast;
+-use List::Util qw(any);
+ use JSON::MaybeXS;
+ use Mojo::Base 'GPForum::Base', -signatures;
+ use v5.40;
+@@ -52,12 +51,6 @@
+ # under its key, taken once. Every layer makes its own SqlFunction, so the
+ # answers are the process's, held only for the time of one answering.
+ my %ANSWERING = ( answers => undef );
+-
+-# What separates the parts of a key: the function, then each bound value,
+-# an array's elements in order, a NULL as itself.
+-const my $KEY_UNIT    => "\N{INFORMATION SEPARATOR ONE}";
+-const my $KEY_ELEMENT => "\N{INFORMATION SEPARATOR TWO}";
+-const my $KEY_NULL    => "\N{NULL}";
+ 
+ __PACKAGE__->requires('schema');
+ has catalogue => sub { return $CATALOGUE; };
+@@ -132,12 +125,25 @@
+ }
+ 
+ sub _key ( $entry, $bound ) {
+-    return join $KEY_UNIT, $entry->{function}, map {
+-           !defined $_ ? $KEY_NULL
+-          : ref $_ eq 'ARRAY'
+-          ? join( $KEY_ELEMENT, map { $_ // $KEY_NULL } @{$_} )
+-          : $_
+-    } @{$bound};
++    return join q{}, map { _key_part($_) } $entry->{function}, @{$bound};
++}
++
++# Text may contain either separator an unframed join would use. Each scalar
++# carries its character count; arrays carry their element count and recurse.
++# NULL, an empty array and an array containing empty text are distinct calls.
++sub _key_part ($value) {
++    return 'u' if !defined $value;
++    if ( ref $value eq 'ARRAY' ) {
++        return join q{}, 'a', scalar @{$value}, q{:}, map {
++               !defined $_        ? 'u'
++              : ref $_ eq 'ARRAY' ? _key_part($_)
++              : 's'
++              . length . q{:}
++              . $_
++        } @{$value};
++    }
++
++    return 's' . length($value) . q{:} . $value;
+ }
+ 
+ # The first row, or undef.
+@@ -157,19 +163,20 @@
+ # or one the function does not have is the caller's mistake: an undefined
+ # value is a NULL, a missing one is a typo.
+ sub _bound ( $entry, $values ) {
+-    my %given = %{ $values // {} };
++    my $given = $values // {};
+     my @bound;
+     for my $index ( 0 .. $#{ $entry->{names} } ) {
+         my $parameter = $entry->{names}[$index];
+-        if ( !exists $given{$parameter} ) {
++        if ( !exists $given->{$parameter} ) {
+             GPForum::X::Argument->throw( message =>
+                   "$entry->{function} needs $parameter, which was not given" );
+         }
+-        push @bound,
+-          _typed( $entry->{types}[$index], delete $given{$parameter} );
+-    }
+-    if (%given) {
+-        my $unknown = join q{, }, sort keys %given;
++        push @bound, _typed( $entry->{types}[$index], $given->{$parameter} );
++    }
++    if ( keys %{$given} != @{ $entry->{names} } ) {
++        my %expected = map { $_ => 1 } @{ $entry->{names} };
++        my $unknown  = join q{, },
++          sort grep { !exists $expected{$_} } keys %{$given};
+         GPForum::X::Argument->throw(
+             message => "$entry->{function} has no $unknown" );
+     }
+@@ -194,10 +201,7 @@
+ # the one shape $WRITTEN_UUID matches, read at half the cost of every
+ # spelling PostgreSQL accepts; only another is held to those.
+ sub _malformed_id ( $entry, $bound ) {
+-    for my $index ( 0 .. $#{$bound} ) {
+-        next
+-          if $entry->{types}[$index] ne 'uuid'
+-          && $entry->{types}[$index] ne 'uuid[]';
++    for my $index ( @{ $entry->{uuid_parameters} } ) {
+         next if !defined $bound->[$index];
+         for my $value (
+             ref $bound->[$index] eq 'ARRAY'
+@@ -312,7 +316,7 @@
+     my $handle = $dbh->prepare_cached( $entry->{sql}, $PREPARED_NOW );
+     my ( $rows, $failure );
+     try {
+-        if ( any { $_ eq 'bytea' } @{ $entry->{types} } ) {
++        if ( $entry->{has_binary} ) {
+             require DBD::Pg;
+             for my $index ( 0 .. $#{$bound} ) {
+                 my $attributes =
+@@ -381,8 +385,9 @@
+ }
+ 
+ sub _decode_json ( $entry, $rows ) {
++    my @columns = keys %{ $entry->{json} };
+     for my $row ( @{$rows} ) {
+-        for my $column ( keys %{ $entry->{json} } ) {
++        for my $column (@columns) {
+             next if !defined $row->{$column};
+             $row->{$column} = $JSON->decode( $row->{$column} );
+         }
+--- a/lib/GPForum/Infrastructure/PreparedQuery.pm
++++ b/lib/GPForum/Infrastructure/PreparedQuery.pm
+@@ -93,6 +93,10 @@
+     for my $slot ( @{$slots} ) {
+         if ( !defined $slot->{column} ) {
+             $unnamed++;
++            return 0
++              if !defined $values->{limit}
++              || !defined $slot->{value}
++              || $slot->{value} ne $values->{limit};
+             next;
+         }
+         next if !exists $values->{ $slot->{column} };
+@@ -114,16 +118,26 @@
+     return $unnamed <= 1 ? 1 : 0;
+ }
+ 
+-# A request whose value for a column the statement does not bind -- the
+-# statement was built from a request that had none, and wrote IS NULL or
+-# nothing for it -- is not this statement's: it runs its resultset.
++# A changed NULL predicate, IN-list length or missing limit is not the
++# cached statement's shape. Run the current resultset instead: IS NULL is
++# not equality to a NULL bind, and an extra IN element must never be lost.
+ sub _fits ( $statement, $values ) {
+-    my %bound = map { ( $_->{column} // q{} ) => 1 } @{ $statement->{slots} };
++    my %bound;
++    for my $slot ( @{ $statement->{slots} } ) {
++        $bound{ $slot->{column} // q{} }++;
++    }
+     for my $column ( keys %{$values} ) {
+-        next     if $column eq 'limit';
+-        next     if !defined $values->{$column};
++        next if $column eq 'limit';
++        if ( !defined $values->{$column} ) {
++            return 0 if $bound{$column};
++            next;
++        }
+         return 0 if !$bound{$column};
+-    }
++        return 0
++          if ref $values->{$column} eq 'ARRAY'
++          && @{ $values->{$column} } != $bound{$column};
++    }
++    return 0 if $bound{q{}} && !defined $values->{limit};
+ 
+     return 1;
+ }
+@@ -184,16 +198,21 @@
+     if ($stats) {
+         $stats->query_start( $sql, @{$values} );
+     }
+-    my $rows = $storage->dbh_do(
+-        sub ( $, $dbh ) {
+-            my $handle = $dbh->prepare_cached($sql);
+-            $handle->execute( @{$values} );
+-            return $handle->fetchall_arrayref;
+-        }
+-    );
++    my ( $rows, $failure );
++    try {
++        $rows = $storage->dbh_do(
++            sub ( $, $dbh ) {
++                my $handle = $dbh->prepare_cached($sql);
++                $handle->execute( @{$values} );
++                return $handle->fetchall_arrayref;
++            }
++        );
++    }
++    catch ($error) { $failure = $error; };
+     if ($stats) {
+         $stats->query_end( $sql, @{$values} );
+     }
++    die $failure if defined $failure;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original SQL exception after balancing its observation
+ 
+     return $rows;
+ }
+@@ -260,9 +279,9 @@
+ when the statement is not prepared (a double that answers C<find> but not
+ a search, say). Returns an array reference of result rows.
+ 
+-A request whose value for a column the kept statement does not bind runs
+-its resultset instead: the statement was built from a request without that
+-value. A value bound for a uuid column of the source that PostgreSQL would
++A request with a changed NULL predicate or IN-list length, or without a
++limit required by the cached statement, runs its resultset instead. A value
++bound for a uuid column of the source that PostgreSQL would
+ not read as a uuid (L<GPForum::Infrastructure::Id/is_uuid_spelling>) sends
+ no statement and answers no rows, as a row that is not there would.
+ 
+--- a/lib/GPForum/Infrastructure/CountedQuery.pm
++++ b/lib/GPForum/Infrastructure/CountedQuery.pm
+@@ -20,14 +20,19 @@
+         $stats->query_start( $sql, @bind );
+     }
+ 
+-    my $row = $storage->dbh_do(
+-        sub ( $, $dbh ) {
+-            return $dbh->selectrow_hashref( $sql, undef, @bind );
+-        }
+-    );
++    my ( $row, $failure );
++    try {
++        $row = $storage->dbh_do(
++            sub ( $, $dbh ) {
++                return $dbh->selectrow_hashref( $sql, undef, @bind );
++            }
++        );
++    }
++    catch ($error) { $failure = $error; };
+     if ($stats) {
+         $stats->query_end( $sql, @bind );
+     }
++    die $failure if defined $failure;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original SQL exception after balancing its observation
+ 
+     return $row;
+ }
+--- a/lib/GPForum/Service/Operations/LocalCache.pm
++++ b/lib/GPForum/Service/Operations/LocalCache.pm
+@@ -52,17 +52,14 @@
+ # The same read contract SharedCache exposes, so TieredCache can be composed
+ # from any two layers instead of hard-coding which class may sit underneath.
+ sub lookup ( $self, $key ) {
+-    $self->_validate_key($key);
++    my ( $found, $value ) = $self->_lookup($key);
++    return undef if !$found;
+     my $entry = $self->entries->{$key};
+-    if ( !$entry || $self->_is_expired($entry) ) {
+-        my ( $found, undef ) = $self->_lookup($key);
+-        return undef if !$found;
+-        $entry = $self->entries->{$key};
+-    }
+ 
+     return {
+-        tags  => [ @{ $entry->{tags} || [] } ],
+-        value => $entry->{value},
++        expires_at_epoch => $entry->{expires_at_epoch},
++        tags             => [ @{ $entry->{tags} } ],
++        value            => $value,
+     };
+ }
+ 
+@@ -79,8 +76,8 @@
+         created_at_epoch     => $now,
+         expires_at_epoch     => $now + $ttl,
+         last_access_at_epoch => $now,
+-        tags                 => $options->{tags} || [],
+-        value                => $value,
++        tags  => [ grep { defined && length } @{ $options->{tags} || [] } ],
++        value => $value,
+     };
+ 
+     $self->entries->{$key} = $entry;
+@@ -124,8 +121,9 @@
+ 
+ sub purge_expired ($self) {
+     my $removed = 0;
++    my $now     = $self->clock->now_epoch;
+     for my $key ( keys %{ $self->entries } ) {
+-        next if !$self->_is_expired( $self->entries->{$key} );
++        next if $now < $self->entries->{$key}{expires_at_epoch};
+ 
+         $removed += $self->_remove_key($key);
+     }
+@@ -166,14 +164,15 @@
+         return ( 0, undef );
+     }
+ 
+-    if ( $self->_is_expired($entry) ) {
++    my $now = $self->clock->now_epoch;
++    if ( $now >= $entry->{expires_at_epoch} ) {
+         $self->_remove_key($key);
+         $self->stats->{expired} += 1;
+         $self->stats->{misses}  += 1;
+         return ( 0, undef );
+     }
+ 
+-    $entry->{last_access_at_epoch} = $self->clock->now_epoch;
++    $entry->{last_access_at_epoch} = $now;
+     $self->_touch($key);
+     $self->stats->{hits} += 1;
+ 
+@@ -276,10 +275,6 @@
+     return 0 if !defined $one || !defined $two;
+ 
+     return $one eq $two ? 1 : 0;
+-}
+-
+-sub _is_expired ( $self, $entry ) {
+-    return $self->clock->now_epoch >= $entry->{expires_at_epoch} ? 1 : 0;
+ }
+ 
+ sub _validate_key ( $self, $key ) {
+@@ -361,19 +356,20 @@
+ 
+ =head2 lookup
+ 
+-Takes a key. Returns C<< { value => ..., tags => [...] } >> for a live
+-entry, or C<undef> when it is missing or expired; the same read contract
++Takes a key. Returns C<< { value => ..., tags => [...], expires_at_epoch => ... } >>
++for a live entry, or C<undef> when it is missing or expired; the same read contract
+ L<GPForum::Service::Operations::SharedCache> offers, so either can sit
+ under L<GPForum::Service::Operations::TieredCache>. A miss is counted as in
+-L</get>; a hit is returned without refreshing the entry's recency or
+-counting a hit.
++L</get>; a hit refreshes recency and counts a hit. The original expiry lets
++a parent cache fill its own layer without extending the entry's lifetime.
+ 
+ =head2 put
+ 
+ Takes a key, a value and an optional hash reference with C<ttl_seconds>
+ (the cache's default when absent or zero) and C<tags> (an array reference).
+ Replaces any entry under the key, evicting the least recently used entry
+-first when the key is new and the cache is full. Returns the value.
++first when the key is new and the cache is full. Tags are copied; undefined
++and empty tags are ignored. Returns the value.
+ 
+ =head2 get_or_set
+ 
+--- a/lib/GPForum/Service/Operations/TieredCache.pm
++++ b/lib/GPForum/Service/Operations/TieredCache.pm
+@@ -218,7 +218,7 @@
+ # to take L1's default TTL, so an entry with a second left in L2 lived another
+ # minute in every process, and a missed invalidation was no longer bounded by
+ # one TTL, the recovery ADR 0067 counts on. A layer that reports no lifetime
+-# (LocalCache as L2) keeps the default. Nothing when the entry has run out.
++# keeps the default. Nothing when the entry has run out.
+ sub _fill_options ( $self, $payload ) {
+     my $options = { tags => $payload->{tags} || [] };
+     my $expires = $payload->{expires_at_epoch};
+--- a/lib/GPForum/Service/Operations/DbQueryStats.pm
++++ b/lib/GPForum/Service/Operations/DbQueryStats.pm
+@@ -8,7 +8,9 @@
+ use Const::Fast;
+ use List::Util  qw(max);
+ use parent      qw(DBIx::Class::Storage::Statistics);
+-use Time::HiRes qw(time clock_gettime CLOCK_MONOTONIC);
++use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
++
++use GPForum::X::Argument;
+ 
+ our $VERSION = '0.001';
+ 
+@@ -25,6 +27,12 @@
+       @arguments == 1 && ref $arguments[0] eq 'HASH'
+       ? %{ $arguments[0] }
+       : @arguments;
++
++    my $recent_limit = $arguments{recent_limit} || $DEFAULT_RECENT_LIMIT;
++    if ( ref $recent_limit || $recent_limit !~ /\A [1-9]\d* \z/amsx ) {
++        GPForum::X::Argument->throw( message =>
++              'query statistics recent_limit must be a positive integer' );
++    }
+ 
+     return bless {
+         attached           => 0,
+@@ -32,11 +40,11 @@
+             map { _fingerprint($_) => 1 }
+               @{ $arguments{connection_actions} || [] }
+         },
+-        current          => undef,
+-        open             => {},
+-        recent_limit     => $arguments{recent_limit} || $DEFAULT_RECENT_LIMIT,
+-        recent_requests  => [],
+-        request_sequence => 0,
++        current                  => undef,
++        open                     => {},
++        recent_limit             => $recent_limit,
++        recent_requests          => [],
++        request_sequence         => 0,
+         total_connection_queries => 0,
+         total_queries            => 0,
+         total_transactions       => 0,
+@@ -66,7 +74,7 @@
+         route                  => $metadata->{route} || 'unknown',
+         endpoint_name          => $metadata->{endpoint_name},
+         status                 => undef,
+-        started_at             => time,
++        started_monotonic      => clock_gettime(CLOCK_MONOTONIC),
+         duration_ms            => undef,
+         db_duration_ms         => 0,
+         queries                => 0,
+@@ -103,8 +111,9 @@
+         }
+     }
+     $request->{duration_ms} =
+-      int( ( time - $request->{started_at} ) * $MILLISECONDS_PER_SECOND );
+-    delete $request->{started_at};
++      int( ( clock_gettime(CLOCK_MONOTONIC) - $request->{started_monotonic} ) *
++          $MILLISECONDS_PER_SECOND );
++    delete $request->{started_monotonic};
+     delete $request->{query_started_at};
+     delete $request->{query_depth};
+ 
+@@ -327,6 +336,8 @@
+ connection's, C<connection_queries> on the request and
+ C<total_connection_queries> overall, never as the request's queries.
+ Returns a detached collector with no requests.
++An invalid nonzero history limit throws L<GPForum::X::Argument> before any
++request is collected. Elapsed request and SQL times use the monotonic clock.
+ 
+ =head2 attach_to_schema
+ 
+--- a/lib/GPForum/Service/Forum/BodyRenderer.pm
++++ b/lib/GPForum/Service/Forum/BodyRenderer.pm
+@@ -44,6 +44,7 @@
+ # A body renders to the same HTML every time, and a thread page renders its
+ # 25 bodies on every read, so the HTML is kept by source. The memo is
+ # cleared when full rather than kept in order: a bound is all it needs.
++# A render too large to store leaves the existing memo untouched.
+ my %RENDERED;
+ my $HELD = 0;
+ has math_plugins =>
+@@ -63,16 +64,16 @@
+ 
+     my $html = _render( $source, $math );
+     my $size = length($key) + length $html;
++    return $html if $size > $RENDERED_CHARACTERS;
++
+     if ( keys %RENDERED >= $RENDERED_LIMIT
+         || $HELD + $size > $RENDERED_CHARACTERS )
+     {
+         %RENDERED = ();
+         $HELD     = 0;
+     }
+-    if ( $size <= $RENDERED_CHARACTERS ) {
+-        $RENDERED{$key} = $html;
+-        $HELD += $size;
+-    }
++    $RENDERED{$key} = $html;
++    $HELD += $size;
+ 
+     return $html;
+ }
+--- a/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm
++++ b/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm
+@@ -2358,13 +2358,18 @@
+     my $function = "api.${name}_v$entry->{version}";
+ 
+     return {
+-        function => $function,
+-        json     => { map { $_ => 1 } @{ _listed( $entry, 'json' ) } },
+-        name     => $name,
+-        names    => \@names,
+-        sql      => "SELECT * FROM $function("
++        function   => $function,
++        has_binary => ( grep { $_ eq 'bytea' } @types ) ? 1 : 0,
++        json       => { map { $_ => 1 } @{ _listed( $entry, 'json' ) } },
++        name       => $name,
++        names      => \@names,
++        sql        => "SELECT * FROM $function("
+           . join( q{, }, map { "?::$_" } @types ) . ')',
+-        types   => \@types,
++        types           => \@types,
++        uuid_parameters => [
++            grep { $types[$_] eq 'uuid' || $types[$_] eq 'uuid[]' }
++              0 .. $#types
++        ],
+         version => $entry->{version},
+     };
+ }

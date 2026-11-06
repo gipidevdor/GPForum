@@ -1,0 +1,33 @@
+{
+  "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review3-before-hgegwg2_",
+  "source_sha256": {
+    "lib/GPForum/Infrastructure/Row.pm": "e4dd5e33f7bdf38f3efc6af440268700b0475d2523e6687ae77796c5ffb4998b",
+    "lib/GPForum/Service/Forum/HomePageReader.pm": "4f5584a84c4dac8e44fba05c0431d7696b6407ebe490482a992301b52ee755a2",
+    "lib/GPForum/Service/Search/Searcher.pm": "6f7c97cf0370f833204fd748ec569a76e2c493d170f237239357d5986700396d",
+    "t/183-row-column-reader.t": "3ff534966a1fc3317cf708836c2056d80350e9d2cf805d80af61f88c7328443b",
+    "t/860-search-decoration-contract.t": "d021357aac2e03a6db8072dcf695879890b9a47b82ae9d0cb3c86c7152ba3755",
+    "t/861-home-reader-contract.t": "cdda667b2af563454455193ed7d64e65eaef6ef245c25c15ead1f6e966774fbe"
+  },
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "perl",
+    "/private/tmp/gpforum-perl-review3-bench.pl"
+  ],
+  "started_at": "2026-11-06T02:10:08.084525+00:00",
+  "competing_load": [],
+  "load_before": [
+    3.203125,
+    3.41015625,
+    3.25390625
+  ],
+  "source_unchanged": true,
+  "exit_code": 0,
+  "elapsed_seconds": 34.70462270899998,
+  "finished_at": "2026-11-06T02:10:42.789338+00:00",
+  "load_after": [
+    2.83056640625,
+    3.298828125,
+    3.21923828125
+  ]
+}

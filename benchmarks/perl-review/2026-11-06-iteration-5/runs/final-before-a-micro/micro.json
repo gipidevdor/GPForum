@@ -1,0 +1,176 @@
+{
+   "architecture" : "darwin-thread-multi-2level",
+   "method" : "Three fixed-iteration batches after 100 warmups, monotonic wall time. Notification handles and shared cache clients are identical in-memory test doubles: these are Perl CPU costs, without SQL, network or storage latency. Empty idle polls still read pg_notifies on each call. Invalidate-and-fill cases include both the purge and a valid fresh fill. All timed results have the same semantics before/after; failed-read and stale-fill correctness is covered separately by red/green tests and real PostgreSQL integration. Eight channels are a scaling case; one or two are the common configuration. HTTP measures the real migrated database separately.",
+   "perl" : "v5.44.0",
+   "platform" : "darwin",
+   "results" : [
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_1_channels",
+         "operations_per_second" : 113641.313922886,
+         "repetition" : 1,
+         "seconds" : 0.527976999990642
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_1_channels",
+         "operations_per_second" : 114769.495034574,
+         "repetition" : 2,
+         "seconds" : 0.522786999994423
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_1_channels",
+         "operations_per_second" : 115276.432890467,
+         "repetition" : 3,
+         "seconds" : 0.520487999980105
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_2_channels",
+         "operations_per_second" : 110669.04973652,
+         "repetition" : 1,
+         "seconds" : 0.542157000018051
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_2_channels",
+         "operations_per_second" : 110955.77302843,
+         "repetition" : 2,
+         "seconds" : 0.540756000002148
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_2_channels",
+         "operations_per_second" : 110603.971419454,
+         "repetition" : 3,
+         "seconds" : 0.542476000002353
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_8_channels",
+         "operations_per_second" : 87496.9740629639,
+         "repetition" : 1,
+         "seconds" : 0.685738000000129
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_8_channels",
+         "operations_per_second" : 88667.6794478872,
+         "repetition" : 2,
+         "seconds" : 0.67668400000548
+      },
+      {
+         "iterations" : 60000,
+         "name" : "idle_notify_8_channels",
+         "operations_per_second" : 88687.2076085798,
+         "repetition" : 3,
+         "seconds" : 0.67653500000597
+      },
+      {
+         "iterations" : 200000,
+         "name" : "l1_hit_without_bus",
+         "operations_per_second" : 281955.019713258,
+         "repetition" : 1,
+         "seconds" : 0.709333000006154
+      },
+      {
+         "iterations" : 200000,
+         "name" : "l1_hit_without_bus",
+         "operations_per_second" : 284268.981000509,
+         "repetition" : 2,
+         "seconds" : 0.703558999986853
+      },
+      {
+         "iterations" : 200000,
+         "name" : "l1_hit_without_bus",
+         "operations_per_second" : 283490.103357183,
+         "repetition" : 3,
+         "seconds" : 0.705492000008235
+      },
+      {
+         "iterations" : 60000,
+         "name" : "l1_hit_with_bus_two_channels",
+         "operations_per_second" : 56404.7605611376,
+         "repetition" : 1,
+         "seconds" : 1.06374000001233
+      },
+      {
+         "iterations" : 60000,
+         "name" : "l1_hit_with_bus_two_channels",
+         "operations_per_second" : 57721.8346306436,
+         "repetition" : 2,
+         "seconds" : 1.03946800000267
+      },
+      {
+         "iterations" : 60000,
+         "name" : "l1_hit_with_bus_two_channels",
+         "operations_per_second" : 58754.8093246707,
+         "repetition" : 3,
+         "seconds" : 1.02119300002232
+      },
+      {
+         "iterations" : 30000,
+         "name" : "local_invalidate_and_fill",
+         "operations_per_second" : 49277.5095785394,
+         "repetition" : 1,
+         "seconds" : 0.608797000022605
+      },
+      {
+         "iterations" : 30000,
+         "name" : "local_invalidate_and_fill",
+         "operations_per_second" : 48370.401184495,
+         "repetition" : 2,
+         "seconds" : 0.62021399999503
+      },
+      {
+         "iterations" : 30000,
+         "name" : "local_invalidate_and_fill",
+         "operations_per_second" : 49383.5289473957,
+         "repetition" : 3,
+         "seconds" : 0.607489999994868
+      },
+      {
+         "iterations" : 6000,
+         "name" : "shared_invalidate_and_fill",
+         "operations_per_second" : 15812.0682974799,
+         "repetition" : 1,
+         "seconds" : 0.379457000002731
+      },
+      {
+         "iterations" : 6000,
+         "name" : "shared_invalidate_and_fill",
+         "operations_per_second" : 15297.381089096,
+         "repetition" : 2,
+         "seconds" : 0.39222399998107
+      },
+      {
+         "iterations" : 6000,
+         "name" : "shared_invalidate_and_fill",
+         "operations_per_second" : 15765.9078000464,
+         "repetition" : 3,
+         "seconds" : 0.380568000022322
+      },
+      {
+         "iterations" : 120000,
+         "name" : "local_empty_tag_purge",
+         "operations_per_second" : 530992.247531038,
+         "repetition" : 1,
+         "seconds" : 0.225991999992402
+      },
+      {
+         "iterations" : 120000,
+         "name" : "local_empty_tag_purge",
+         "operations_per_second" : 530914.721797322,
+         "repetition" : 2,
+         "seconds" : 0.22602500001085
+      },
+      {
+         "iterations" : 120000,
+         "name" : "local_empty_tag_purge",
+         "operations_per_second" : 531568.525852318,
+         "repetition" : 3,
+         "seconds" : 0.225746999989497
+      }
+   ]
+}

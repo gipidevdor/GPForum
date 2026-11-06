@@ -1,0 +1,16 @@
+[CodeLayout::ProhibitParensWithBuiltins] Builtin function called with parentheses at lib/GPForum/Infrastructure/SqlFunction.pm line 136, column 37. Severity: 1. See page 13 of PBP. return 'a' . @{$value} . q{:} . join( q{}, map { _key_part($_) } @{$value} )
+lib/GPForum/Infrastructure/PreparedQuery.pm source OK
+lib/GPForum/Infrastructure/CountedQuery.pm source OK
+lib/GPForum/Service/Operations/LocalCache.pm source OK
+lib/GPForum/Service/Operations/TieredCache.pm source OK
+[RegularExpressions::ProhibitEnumeratedClasses] Use named character classes ([0-9] vs. \d) at lib/GPForum/Service/Operations/DbQueryStats.pm line 32, column 48. Severity: 1. See page 248 of PBP. ref $recent_limit || $recent_limit !~ /\A [1-9][0-9]* \z/msx
+lib/GPForum/Service/Forum/BodyRenderer.pm source OK
+t/40-local-cache.t source OK
+t/89-tiered-cache.t source OK
+t/703-sql-function-answers.t source OK
+t/723-forum-body-renderer-memo.t source OK
+t/502-prepared-query-guards.t source OK
+t/735-db-query-timing.t source OK
+t/56-db-query-stats.t source OK
+t/integration/postgres-prepared-queries.t source OK
+lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm source OK

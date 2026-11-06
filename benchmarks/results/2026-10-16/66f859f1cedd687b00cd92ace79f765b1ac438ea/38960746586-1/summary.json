@@ -1,0 +1,5405 @@
+{
+   "baseline" : {
+      "commit" : null,
+      "path" : null,
+      "reason" : "No baseline available."
+   },
+   "commit" : "66f859f1cedd687b00cd92ace79f765b1ac438ea",
+   "comparison_signature" : "6440b7c7de549f7d3955214bca7ab2e802b28e1dd790d2aa21b354c586886020",
+   "configuration" : {
+      "backlog" : 1024,
+      "cache" : "local-only; 4096 entries; SSR TTL 3600s; miss harness TTL -1s",
+      "cache_miss_policy" : "SSR store expires immediately; category model cache remains warm",
+      "clients_per_worker" : {
+         "1" : 2048,
+         "2" : 2048,
+         "4" : 2048,
+         "8" : 2048
+      },
+      "database_settings" : {
+         "effective_cache_size" : "4GB",
+         "effective_io_concurrency" : "1",
+         "jit" : "on",
+         "max_connections" : "100",
+         "random_page_cost" : "4",
+         "shared_buffers" : "128MB",
+         "synchronous_commit" : "on",
+         "work_mem" : "4MB"
+      },
+      "default_ev_backend" : 4,
+      "default_reactor" : "Mojo::Reactor::EV",
+      "fixed_workers" : null,
+      "harness_sha256" : {
+         "benchmarks/hypnotoad-app.pl" : "076b27d9062ce65ac88113864181b27bcededead02f49d136a0bf00f47727f12",
+         "benchmarks/wrk-metrics.lua" : "c66846fe8ad3a8c2b8d6b45816a8ff52cfd3267bb678b9b25e6e82d6b231af03",
+         "script/lib/GPForum/Performance/Budget.pm" : "3e9d4f074d1f76e120d1f3fccc9ae1e5b4f64bbb1b2687cc5c7eca4e6201fd60",
+         "script/lib/GPForum/Performance/CommandError.pm" : "52d4df71626c4ae94eb31b6485a03e737da62a4ecfd8937be9a0df3bd7f01433",
+         "script/lib/GPForum/Performance/Compare.pm" : "f9a8d9b5d719956d1ba5cef8b771d76640c4bbbcc30917ec47cc7311ea629991",
+         "script/lib/GPForum/Performance/Evidence.pm" : "dd2b0865398b3f53ed5bb258d4deca4108c84edbb9b9ba2eb2f654f89c24bed2",
+         "script/lib/GPForum/Performance/Extreme.pm" : "6967bd5c2fc2998783f3aab721a2d0aee597572a7d042941d108c78b17c94493",
+         "script/lib/GPForum/Performance/ExtremeContainer.pm" : "599387f39293a086909ef3466acb0fbae8ef177ad19c876e58ced71fe2eb502d",
+         "script/lib/GPForum/Performance/ExtremeDatabase.pm" : "b00625d4755d36dfe77c25afa5d0473bb8c9d9a33d0a8ce98b15beb3b6af76f8",
+         "script/lib/GPForum/Performance/ExtremeLoad.pm" : "a9bfb105ebc81e9e9569d7c5ad61652b89e45f125cf5043406ea4d9a0fd6c8f5",
+         "script/lib/GPForum/Performance/ExtremePlan.pm" : "8ba352f2330a6fc79ca69a68a5ffcc4d6de9f1dd7ee15368d9809792efbd096a",
+         "script/lib/GPForum/Performance/ExtremeReport.pm" : "4aaf6d15013dfba6b0d00e54a6253c7eb4ff28b4b3a55d95131d4cc6799a8c7a",
+         "script/lib/GPForum/Performance/ExtremeState.pm" : "a0bdc0dc088d338e20069c82f170668d3f51a5334ff58763b28c116d46b8a41a",
+         "script/lib/GPForum/Performance/ExtremeWorkload.pm" : "8efc82a576fecc353e9c9db52b24efdf4e6b4f6f8213f435c57bc0f0ee2224de",
+         "script/lib/GPForum/Performance/HTTP.pm" : "03b0c7fa05a54572fb554e7dd78402d870e20465680c377e1e83b39050eeea65",
+         "script/lib/GPForum/Performance/Hotpaths.pm" : "3ca99933a338e6c49ebb69631b96f1675999728e2649f4fc7e27bb82a275906f",
+         "script/lib/GPForum/Performance/Metadata.pm" : "e352c9776d2965dc7507c3cd679edf1c1608e5ac15ed4f2b7658d968278a89f3",
+         "script/lib/GPForum/Performance/Publish.pm" : "aa5110cd7580402a001aa9acfee12d35cf9b4813aa3e2c43e74479fe18774eb0",
+         "script/lib/GPForum/Performance/Report.pm" : "f645daaf7cb37572d2ceae3bf298260f19c3ddb33658e47cbe32004c89507ea9",
+         "script/lib/GPForum/Performance/Resources.pm" : "32c7647e7873266c538ea6d8f72cae137755cd61540acca55ce21d6014a3b4a8",
+         "script/lib/GPForum/Performance/Schema.pm" : "36d84e1fd192bcc133ccbc4476a9e4c3618e23e7d5380e11a6886af8d43bd5dd",
+         "script/lib/GPForum/Performance/Server.pm" : "f200d988680090647d0309ff77f42eacb2d766a6ec7b4f12274d9f2a9a71c302",
+         "script/lib/GPForum/Performance/Support.pm" : "1f63fb47e951f3b479bfeca01a9b7b6144871121bc1ef86cd1f5f2297cdbb663",
+         "script/lib/GPForum/Performance/WorkflowStatus.pm" : "9c0f1e57eea538db7d9bafb36d0c5c0b8f225fdf66bb7abad95774685fe0f692",
+         "script/performance-evidence" : "8ee0bcda6208e2d4ff47bacb8c9c47e4d66601ca477110bd8364b8a5db35c5f2",
+         "script/performance-hotpaths" : "e05854fa1bf68cd4ee278203986ff369c344550243a575c75f9580b2eabee152",
+         "script/performance-http" : "997d319a3144b409c0cf8f6cf7d2c2560fef64461c3135d5c63a3c6b83c4976e",
+         "script/performance-outbox.pl" : "ce7987b939d90c8392992b5fb600ec7f84ea0bb342161aec86103520fe63e4e4",
+         "t/lib/GPForum/Test/OutboxTransport.pm" : "c0df6d59ffb0966cb89af15f1a7a7c17b9cda8ddeec4ea875c92fc5d978d84ba",
+         "t/lib/GPForum/Test/PostgresHarness.pm" : "c608f802f29fbd9628e9b32d57dd71ab48e50c994fd4f6c30abfdf0333b28c87"
+      },
+      "hotpaths" : {
+         "analyze" : true,
+         "deadline_seconds" : 300,
+         "outbox" : {
+            "batch_size" : 100,
+            "database" : "fresh owned",
+            "messages" : 3000,
+            "repetitions" : 3,
+            "transport" : "recording no-op",
+            "workers" : [
+               1,
+               2
+            ]
+         },
+         "plan_cli_profile_label" : "medium",
+         "plan_repetitions" : 3,
+         "plans" : [
+            "readers",
+            "functions"
+         ],
+         "profiling" : "configured NYTProf deep only",
+         "sql_service_comparison" : {
+            "enabled" : false,
+            "proxy_delay_ms" : 0.5,
+            "read_iterations" : 30,
+            "warmup" : 5,
+            "write_iterations" : 10
+         }
+      },
+      "http_concurrency" : [
+         1,
+         10,
+         50,
+         100
+      ],
+      "http_duration_seconds" : 2,
+      "http_repetitions" : 3,
+      "http_scenarios" : [
+         "health_live",
+         "home",
+         "categories",
+         "category",
+         "thread",
+         "search",
+         "cache_hit",
+         "cache_miss"
+      ],
+      "mojo_requests" : "at least 100 total; at least 10 per client",
+      "read_rate_limit" : 100000000,
+      "wrk_binary_sha256" : "511730eb9a7223c9dd5597008704688d538f53fb611fdabd6bd3cffc99903e13",
+      "wrk_timeout_seconds" : 3,
+      "wrk_upstream_version_verified" : false
+   },
+   "dataset" : {
+      "counts" : {
+         "bookmarks" : 25,
+         "categories" : 8,
+         "feed_items" : 240,
+         "moderation_actions" : 25,
+         "notifications" : 75,
+         "permissions" : 6,
+         "posts" : 4800,
+         "posts_per_thread" : 20,
+         "read_states" : 75,
+         "reports" : 50,
+         "role_bindings" : 25,
+         "roles" : 3,
+         "sessions" : 25,
+         "subscriptions" : 25,
+         "threads" : 240,
+         "users" : 25
+      },
+      "implementation_sha256" : {
+         "lib/GPForum/Benchmark/SeedDataset.pm" : "8c3d32ab10783f871b4e5c4122a16a01cea73b686dde249c1af050a2559ed0cb",
+         "lib/GPForum/Command/PerformanceSeed.pm" : "106fdee0ce1639d8b80ec244444ef79168a4bb8b72bc428503b5e8233552c101"
+      },
+      "mode" : "main",
+      "profile" : "custom",
+      "seed_version" : "SeedDataset-v1",
+      "signature" : "2e1f34e5c38f1431f3e9e6df3fddd3d08e137a353c3cbcf2a4e85e3616d370e0"
+   },
+   "date" : "2026-10-16",
+   "kind" : "summary",
+   "limitations" : [
+      "Shared runners and a colocated load generator give comparative CI evidence, not production capacity.",
+      "Configured wrk latency budget: 3 seconds.",
+      "Shared runner and load generator share the host; values are comparative evidence, not production capacity.",
+      "wrk uses closed-loop fixed connections and corrected latency histograms; in-flight concurrency is not measured.",
+      "RSS is end-of-sample manager+workers residency, not peak; PostgreSQL and generator resources are separate.",
+      "Cache hits/misses verified by probes; warmed worker-local SSR cache; cache miss uses harness-only expiry policy.",
+      "Only anonymous GETs; migrations, seed and rate-limit accounting write only the dedicated disposable database."
+   ],
+   "measurements" : [
+      {
+         "attempted" : 3,
+         "cache_mode" : "miss",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 21,
+            "cpu_percent" : 0.034000000000006,
+            "duration_seconds" : 0.000255000000000116,
+            "http_errors" : 0,
+            "p50_ms" : 0.167,
+            "p95_ms" : 0.551,
+            "p99_ms" : 1.182,
+            "requests_per_second" : 10.528217,
+            "rss_bytes" : 135168,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 537,
+            "cpu_percent" : 99.426,
+            "duration_seconds" : 2.00114,
+            "http_errors" : 0,
+            "p50_ms" : 3.56,
+            "p95_ms" : 4.5,
+            "p99_ms" : 4.889,
+            "requests_per_second" : 268.381241,
+            "rss_bytes" : 394145792,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               619,
+               537,
+               516
+            ],
+            "cpu_percent" : [
+               100.523,
+               99.392,
+               99.426
+            ],
+            "duration_seconds" : [
+               2.002697,
+               2.000885,
+               2.00114
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               3.195,
+               3.56,
+               3.727
+            ],
+            "p95_ms" : [
+               3.421,
+               4.5,
+               5.051
+            ],
+            "p99_ms" : [
+               3.707,
+               4.889,
+               6.413
+            ],
+            "requests_per_second" : [
+               309.083201,
+               268.381241,
+               257.853024
+            ],
+            "rss_bytes" : [
+               394280960,
+               394145792,
+               393986048
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "miss",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 46,
+            "cpu_percent" : 0.157000000000011,
+            "duration_seconds" : 0.00120799999999965,
+            "http_errors" : 0,
+            "p50_ms" : 0.641,
+            "p95_ms" : 0.0809999999999995,
+            "p99_ms" : 1.914,
+            "requests_per_second" : 7.64398300000005,
+            "rss_bytes" : 81920,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 1183,
+            "cpu_percent" : 199.345,
+            "duration_seconds" : 2.002982,
+            "http_errors" : 0,
+            "p50_ms" : 16.602,
+            "p95_ms" : 24.068,
+            "p99_ms" : 31.781,
+            "requests_per_second" : 563.151248,
+            "rss_bytes" : 394276864,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               1229,
+               1112,
+               1183
+            ],
+            "cpu_percent" : [
+               199.502,
+               199.345,
+               198.869
+            ],
+            "duration_seconds" : [
+               2.002982,
+               2.001774,
+               2.100679
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               15.961,
+               19.324,
+               16.602
+            ],
+            "p95_ms" : [
+               22.313,
+               24.068,
+               24.149
+            ],
+            "p99_ms" : [
+               31.781,
+               27.901,
+               33.695
+            ],
+            "requests_per_second" : [
+               613.585145,
+               555.507265,
+               563.151248
+            ],
+            "rss_bytes" : [
+               394358784,
+               394276864,
+               394063872
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "miss",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 27,
+            "cpu_percent" : 0.168000000000006,
+            "duration_seconds" : 4.90000000001878e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0.195999999999998,
+            "p95_ms" : 5.499,
+            "p99_ms" : 9.464,
+            "requests_per_second" : 12.982886,
+            "rss_bytes" : 86016,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 1090,
+            "cpu_percent" : 200.473,
+            "duration_seconds" : 2.00417,
+            "http_errors" : 0,
+            "p50_ms" : 88.307,
+            "p95_ms" : 101.448,
+            "p99_ms" : 163.001,
+            "requests_per_second" : 543.852743,
+            "rss_bytes" : 396238848,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               1191,
+               1090,
+               1063
+            ],
+            "cpu_percent" : [
+               200.473,
+               200.305,
+               201.773
+            ],
+            "duration_seconds" : [
+               2.00417,
+               2.004219,
+               2.002374
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               80.641,
+               88.307,
+               88.503
+            ],
+            "p95_ms" : [
+               101.448,
+               95.949,
+               113.445
+            ],
+            "p99_ms" : [
+               153.537,
+               163.001,
+               178.228
+            ],
+            "requests_per_second" : [
+               594.260966,
+               543.852743,
+               530.869857
+            ],
+            "rss_bytes" : [
+               396324864,
+               396238848,
+               396038144
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_miss",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 144,
+            "cpu_percent" : 0.0499999999999972,
+            "duration_seconds" : 0.00030299999999972,
+            "http_errors" : 0,
+            "p50_ms" : 0.01,
+            "p95_ms" : 0.002,
+            "p99_ms" : 0.011,
+            "requests_per_second" : 13.5049260000001,
+            "rss_bytes" : 98304,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 3737,
+            "cpu_percent" : 99.422,
+            "duration_seconds" : 2.099915,
+            "http_errors" : 0,
+            "p50_ms" : 0.543,
+            "p95_ms" : 0.602,
+            "p99_ms" : 0.636,
+            "requests_per_second" : 1792.844023,
+            "rss_bytes" : 394207232,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               3737,
+               3881,
+               3586
+            ],
+            "cpu_percent" : [
+               99.095,
+               99.472,
+               99.422
+            ],
+            "duration_seconds" : [
+               2.100218,
+               2.099915,
+               2.000174
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               0.553,
+               0.532,
+               0.543
+            ],
+            "p95_ms" : [
+               0.604,
+               0.588,
+               0.602
+            ],
+            "p99_ms" : [
+               0.625,
+               0.636,
+               0.93
+            ],
+            "requests_per_second" : [
+               1779.339097,
+               1848.170045,
+               1792.844023
+            ],
+            "rss_bytes" : [
+               394108928,
+               394321920,
+               394207232
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 32,
+            "cpu_percent" : 0.599999999999994,
+            "duration_seconds" : 0.00023799999999996,
+            "http_errors" : 0,
+            "p50_ms" : 0.00600000000000023,
+            "p95_ms" : 0.135,
+            "p99_ms" : 0.0459999999999998,
+            "requests_per_second" : 75.841727,
+            "rss_bytes" : 98304,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 7207,
+            "cpu_percent" : 199.042,
+            "duration_seconds" : 2.00148,
+            "http_errors" : 0,
+            "p50_ms" : 2.803,
+            "p95_ms" : 3.043,
+            "p99_ms" : 4,
+            "requests_per_second" : 3521.812954,
+            "rss_bytes" : 394207232,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               7048,
+               7207,
+               7239
+            ],
+            "cpu_percent" : [
+               199.042,
+               199.958,
+               198.442
+            ],
+            "duration_seconds" : [
+               2.001242,
+               2.00148,
+               2.100714
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               2.803,
+               2.748,
+               2.809
+            ],
+            "p95_ms" : [
+               3.043,
+               2.908,
+               3.815
+            ],
+            "p99_ms" : [
+               4,
+               3.954,
+               4.915
+            ],
+            "requests_per_second" : [
+               3521.812954,
+               3600.835382,
+               3445.971227
+            ],
+            "rss_bytes" : [
+               394108928,
+               394321920,
+               394207232
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 30,
+            "cpu_percent" : 0.466000000000008,
+            "duration_seconds" : 0.00108499999999978,
+            "http_errors" : 0,
+            "p50_ms" : 0.135999999999999,
+            "p95_ms" : 0.289,
+            "p99_ms" : 0.208000000000002,
+            "requests_per_second" : 16.8741690000002,
+            "rss_bytes" : 77824,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 6979,
+            "cpu_percent" : 199.935,
+            "duration_seconds" : 2.002122,
+            "http_errors" : 0,
+            "p50_ms" : 13.856,
+            "p95_ms" : 15.625,
+            "p99_ms" : 20.962,
+            "requests_per_second" : 3487.691632,
+            "rss_bytes" : 394874880,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               6949,
+               7339,
+               6979
+            ],
+            "cpu_percent" : [
+               200.401,
+               199.935,
+               199.342
+            ],
+            "duration_seconds" : [
+               2.002122,
+               2.004155,
+               2.001037
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               13.856,
+               13.72,
+               14.072
+            ],
+            "p95_ms" : [
+               15.914,
+               14.768,
+               15.625
+            ],
+            "p99_ms" : [
+               20.962,
+               19.926,
+               21.17
+            ],
+            "requests_per_second" : [
+               3470.817463,
+               3661.892419,
+               3487.691632
+            ],
+            "rss_bytes" : [
+               394797056,
+               394956800,
+               394874880
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 54,
+            "cpu_percent" : 0.405000000000001,
+            "duration_seconds" : 0.000504000000000282,
+            "http_errors" : 0,
+            "p50_ms" : 0.335999999999999,
+            "p95_ms" : 0.456,
+            "p99_ms" : 2.33900000000001,
+            "requests_per_second" : 28.7467379999998,
+            "rss_bytes" : 86016,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 6881,
+            "cpu_percent" : 199.29,
+            "duration_seconds" : 2.004621,
+            "http_errors" : 0,
+            "p50_ms" : 28.474,
+            "p95_ms" : 31.256,
+            "p99_ms" : 41.142,
+            "requests_per_second" : 3430.760072,
+            "rss_bytes" : 396283904,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               6935,
+               6881,
+               6775
+            ],
+            "cpu_percent" : [
+               200.817,
+               198.885,
+               199.29
+            ],
+            "duration_seconds" : [
+               2.004621,
+               2.005678,
+               2.004117
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               28.474,
+               28.138,
+               29.061
+            ],
+            "p95_ms" : [
+               30.8,
+               38.583,
+               31.256
+            ],
+            "p99_ms" : [
+               38.803,
+               41.142,
+               46.805
+            ],
+            "requests_per_second" : [
+               3459.50681,
+               3430.760072,
+               3380.541156
+            ],
+            "rss_bytes" : [
+               396193792,
+               396369920,
+               396283904
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 4,
+            "cpu_percent" : 0.432000000000002,
+            "duration_seconds" : 0.00102400000000014,
+            "http_errors" : 0,
+            "p50_ms" : 0.384,
+            "p95_ms" : 0.215999999999999,
+            "p99_ms" : 0.204000000000001,
+            "requests_per_second" : 2.108423,
+            "rss_bytes" : 94208,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 205,
+            "cpu_percent" : 87.464,
+            "duration_seconds" : 2.002853,
+            "http_errors" : 0,
+            "p50_ms" : 9.626,
+            "p95_ms" : 11.042,
+            "p99_ms" : 11.396,
+            "requests_per_second" : 102.465264,
+            "rss_bytes" : 396681216,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               205,
+               222,
+               201
+            ],
+            "cpu_percent" : [
+               87.032,
+               88.053,
+               87.464
+            ],
+            "duration_seconds" : [
+               2.000678,
+               2.003877,
+               2.002853
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               9.626,
+               8.898,
+               10.01
+            ],
+            "p95_ms" : [
+               11.042,
+               10.826,
+               11.688
+            ],
+            "p99_ms" : [
+               11.396,
+               11.192,
+               11.998
+            ],
+            "requests_per_second" : [
+               102.465264,
+               110.785243,
+               100.356841
+            ],
+            "rss_bytes" : [
+               396787712,
+               396681216,
+               396587008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "home",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 8,
+            "cpu_percent" : 0.657000000000011,
+            "duration_seconds" : 0.000141000000000169,
+            "http_errors" : 0,
+            "p50_ms" : 0.845999999999997,
+            "p95_ms" : 0.639000000000003,
+            "p99_ms" : 2.075,
+            "requests_per_second" : 6.147693,
+            "rss_bytes" : 90112,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 429,
+            "cpu_percent" : 173.294,
+            "duration_seconds" : 2.100241,
+            "http_errors" : 0,
+            "p50_ms" : 46.364,
+            "p95_ms" : 54.514,
+            "p99_ms" : 87.982,
+            "requests_per_second" : 208.071359,
+            "rss_bytes" : 397459456,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               429,
+               437,
+               410
+            ],
+            "cpu_percent" : [
+               174.506,
+               173.294,
+               172.637
+            ],
+            "duration_seconds" : [
+               2.002623,
+               2.100241,
+               2.100382
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               45.518,
+               46.364,
+               48.808
+            ],
+            "p95_ms" : [
+               53.875,
+               54.514,
+               70.025
+            ],
+            "p99_ms" : [
+               83.741,
+               87.982,
+               90.057
+            ],
+            "requests_per_second" : [
+               214.219052,
+               208.071359,
+               195.202587
+            ],
+            "rss_bytes" : [
+               397369344,
+               397582336,
+               397459456
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "home",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 1,
+            "cpu_percent" : 0.108000000000004,
+            "duration_seconds" : 0.000835000000000363,
+            "http_errors" : 0,
+            "p50_ms" : 12.908,
+            "p95_ms" : 28.943,
+            "p99_ms" : 22.379,
+            "requests_per_second" : 0.581360999999987,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 397,
+            "cpu_percent" : 176.019,
+            "duration_seconds" : 2.004453,
+            "http_errors" : 0,
+            "p50_ms" : 242.874,
+            "p95_ms" : 392.176,
+            "p99_ms" : 459.552,
+            "requests_per_second" : 197.97655,
+            "rss_bytes" : 399953920,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               397,
+               398,
+               349
+            ],
+            "cpu_percent" : [
+               176.019,
+               174.727,
+               176.127
+            ],
+            "duration_seconds" : [
+               2.005288,
+               2.004453,
+               2.002687
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               229.966,
+               242.874,
+               267.368
+            ],
+            "p95_ms" : [
+               363.233,
+               392.176,
+               442.423
+            ],
+            "p99_ms" : [
+               437.173,
+               459.552,
+               517.543
+            ],
+            "requests_per_second" : [
+               197.97655,
+               198.557911,
+               174.265874
+            ],
+            "rss_bytes" : [
+               399851520,
+               400064512,
+               399953920
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "home",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 32,
+            "cpu_percent" : 0.0369999999999919,
+            "duration_seconds" : 0.000482000000000316,
+            "http_errors" : 0,
+            "p50_ms" : 0.002,
+            "p95_ms" : 0.001,
+            "p99_ms" : 0.014,
+            "requests_per_second" : 2.70805100000007,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 2729,
+            "cpu_percent" : 100.002,
+            "duration_seconds" : 2.099607,
+            "http_errors" : 0,
+            "p50_ms" : 0.758,
+            "p95_ms" : 0.81,
+            "p99_ms" : 0.859,
+            "requests_per_second" : 1302.475103,
+            "rss_bytes" : 399953920,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               2729,
+               2761,
+               2606
+            ],
+            "cpu_percent" : [
+               99.965,
+               100.002,
+               100.89
+            ],
+            "duration_seconds" : [
+               2.099607,
+               2.100089,
+               2.000806
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               0.758,
+               0.743,
+               0.76
+            ],
+            "p95_ms" : [
+               0.813,
+               0.81,
+               0.809
+            ],
+            "p99_ms" : [
+               0.859,
+               1.035,
+               0.845
+            ],
+            "requests_per_second" : [
+               1299.767052,
+               1314.706186,
+               1302.475103
+            ],
+            "rss_bytes" : [
+               399851520,
+               400064512,
+               399953920
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "categories",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 96,
+            "cpu_percent" : 0.0169999999999959,
+            "duration_seconds" : 0.000277000000000083,
+            "http_errors" : 0,
+            "p50_ms" : 0.259,
+            "p95_ms" : 0.199,
+            "p99_ms" : 0.0170000000000003,
+            "requests_per_second" : 47.2286280000003,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5070,
+            "cpu_percent" : 198.89,
+            "duration_seconds" : 2.001767,
+            "http_errors" : 0,
+            "p50_ms" : 4.019,
+            "p95_ms" : 5.068,
+            "p99_ms" : 7.647,
+            "requests_per_second" : 2533.491306,
+            "rss_bytes" : 399953920,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               5070,
+               5166,
+               4933
+            ],
+            "cpu_percent" : [
+               198.89,
+               198.873,
+               199.372
+            ],
+            "duration_seconds" : [
+               2.001191,
+               2.001767,
+               2.002044
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               4.019,
+               3.76,
+               4.331
+            ],
+            "p95_ms" : [
+               4.869,
+               5.068,
+               5.406
+            ],
+            "p99_ms" : [
+               7.647,
+               7.63,
+               9.142
+            ],
+            "requests_per_second" : [
+               2533.491306,
+               2580.719934,
+               2463.981811
+            ],
+            "rss_bytes" : [
+               399851520,
+               400064512,
+               399953920
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "categories",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 30,
+            "cpu_percent" : 0.537999999999982,
+            "duration_seconds" : 0.000140000000000029,
+            "http_errors" : 0,
+            "p50_ms" : 0.199999999999999,
+            "p95_ms" : 0.146000000000001,
+            "p99_ms" : 1.83,
+            "requests_per_second" : 14.8027909999996,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5128,
+            "cpu_percent" : 200.806,
+            "duration_seconds" : 2.002423,
+            "http_errors" : 0,
+            "p50_ms" : 19.337,
+            "p95_ms" : 20.901,
+            "p99_ms" : 32.731,
+            "requests_per_second" : 2561.076531,
+            "rss_bytes" : 399953920,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               5128,
+               5158,
+               4925
+            ],
+            "cpu_percent" : [
+               200.806,
+               201.344,
+               199.287
+            ],
+            "duration_seconds" : [
+               2.002283,
+               2.002423,
+               2.002887
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               19.337,
+               19.137,
+               19.641
+            ],
+            "p95_ms" : [
+               20.901,
+               20.755,
+               22.944
+            ],
+            "p99_ms" : [
+               29.269,
+               34.561,
+               32.731
+            ],
+            "requests_per_second" : [
+               2561.076531,
+               2575.879322,
+               2458.950505
+            ],
+            "rss_bytes" : [
+               399851520,
+               400064512,
+               399953920
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "categories",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 50,
+            "cpu_percent" : 0.10199999999999,
+            "duration_seconds" : 0.000758999999999954,
+            "http_errors" : 0,
+            "p50_ms" : 0.002,
+            "p95_ms" : 0.0159999999999999,
+            "p99_ms" : 0.001,
+            "requests_per_second" : 8.92588999999998,
+            "rss_bytes" : 28672,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 2627,
+            "cpu_percent" : 99.406,
+            "duration_seconds" : 2.09987,
+            "http_errors" : 0,
+            "p50_ms" : 0.769,
+            "p95_ms" : 0.828,
+            "p99_ms" : 0.857,
+            "requests_per_second" : 1279.140676,
+            "rss_bytes" : 400117760,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               2577,
+               2687,
+               2627
+            ],
+            "cpu_percent" : [
+               99.406,
+               99.508,
+               98.956
+            ],
+            "duration_seconds" : [
+               2.000673,
+               2.100629,
+               2.09987
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               0.769,
+               0.771,
+               0.766
+            ],
+            "p95_ms" : [
+               0.812,
+               0.828,
+               0.908
+            ],
+            "p99_ms" : [
+               0.857,
+               0.856,
+               2.458
+            ],
+            "requests_per_second" : [
+               1288.066566,
+               1279.140676,
+               1251.029826
+            ],
+            "rss_bytes" : [
+               399933440,
+               400146432,
+               400117760
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "category",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 14,
+            "cpu_percent" : 0.0120000000000005,
+            "duration_seconds" : 0.000531000000000059,
+            "http_errors" : 0,
+            "p50_ms" : 0.14,
+            "p95_ms" : 0.387,
+            "p99_ms" : 0.96,
+            "requests_per_second" : 7.2864169999998,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5138,
+            "cpu_percent" : 198.907,
+            "duration_seconds" : 2.099668,
+            "http_errors" : 0,
+            "p50_ms" : 4.07,
+            "p95_ms" : 5.266,
+            "p99_ms" : 6.897,
+            "requests_per_second" : 2453.721255,
+            "rss_bytes" : 400117760,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               5152,
+               5103,
+               5138
+            ],
+            "cpu_percent" : [
+               198.895,
+               198.907,
+               198.927
+            ],
+            "duration_seconds" : [
+               2.099668,
+               2.001564,
+               2.100199
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               4.07,
+               3.93,
+               4.647
+            ],
+            "p95_ms" : [
+               5.653,
+               4.221,
+               5.266
+            ],
+            "p99_ms" : [
+               7.857,
+               6.897,
+               5.873
+            ],
+            "requests_per_second" : [
+               2453.721255,
+               2549.506286,
+               2446.434838
+            ],
+            "rss_bytes" : [
+               400015360,
+               400228352,
+               400117760
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "category",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/c/018f1001-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 97,
+            "cpu_percent" : 0.466000000000008,
+            "duration_seconds" : 0.00117399999999979,
+            "http_errors" : 0,
+            "p50_ms" : 0.489999999999998,
+            "p95_ms" : 0.478999999999999,
+            "p99_ms" : 1.261,
+            "requests_per_second" : 5.08398200000011,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4964,
+            "cpu_percent" : 200.315,
+            "duration_seconds" : 2.003954,
+            "http_errors" : 0,
+            "p50_ms" : 20.489,
+            "p95_ms" : 22.361,
+            "p99_ms" : 34.622,
+            "requests_per_second" : 2428.698463,
+            "rss_bytes" : 400117760,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4964,
+               4867,
+               5090
+            ],
+            "cpu_percent" : [
+               200.315,
+               199.849,
+               201.177
+            ],
+            "duration_seconds" : [
+               2.00278,
+               2.003954,
+               2.100169
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               19.855,
+               20.979,
+               20.489
+            ],
+            "p95_ms" : [
+               22.361,
+               23.797,
+               21.882
+            ],
+            "p99_ms" : [
+               35.883,
+               34.622,
+               31.018
+            ],
+            "requests_per_second" : [
+               2478.554809,
+               2428.698463,
+               2423.614481
+            ],
+            "rss_bytes" : [
+               400015360,
+               400228352,
+               400117760
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "category",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 7,
+            "cpu_percent" : 0.0339999999999918,
+            "duration_seconds" : 7.5999999999965e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0.001,
+            "p95_ms" : 0.01,
+            "p99_ms" : 0.014,
+            "requests_per_second" : 3.45098499999995,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 2543,
+            "cpu_percent" : 99.418,
+            "duration_seconds" : 2.000487,
+            "http_errors" : 0,
+            "p50_ms" : 0.781,
+            "p95_ms" : 0.834,
+            "p99_ms" : 0.875,
+            "requests_per_second" : 1267.73948,
+            "rss_bytes" : 400248832,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               2543,
+               2583,
+               2536
+            ],
+            "cpu_percent" : [
+               99.418,
+               99.452,
+               99.383
+            ],
+            "duration_seconds" : [
+               2.000487,
+               2.099792,
+               2.000411
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               0.78,
+               0.808,
+               0.781
+            ],
+            "p95_ms" : [
+               0.824,
+               0.854,
+               0.834
+            ],
+            "p99_ms" : [
+               0.861,
+               1.143,
+               0.875
+            ],
+            "requests_per_second" : [
+               1271.190465,
+               1230.121841,
+               1267.73948
+            ],
+            "rss_bytes" : [
+               400146432,
+               400359424,
+               400248832
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 89,
+            "cpu_percent" : 0.490000000000009,
+            "duration_seconds" : 0.000382000000000104,
+            "http_errors" : 0,
+            "p50_ms" : 0.0999999999999996,
+            "p95_ms" : 0.232,
+            "p99_ms" : 0.787999999999999,
+            "requests_per_second" : 44.9314960000002,
+            "rss_bytes" : 102400,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4841,
+            "cpu_percent" : 199.364,
+            "duration_seconds" : 2.001736,
+            "http_errors" : 0,
+            "p50_ms" : 4.098,
+            "p95_ms" : 5.229,
+            "p99_ms" : 6.409,
+            "requests_per_second" : 2418.400828,
+            "rss_bytes" : 400248832,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4841,
+               4930,
+               4731
+            ],
+            "cpu_percent" : [
+               199.364,
+               199.915,
+               198.874
+            ],
+            "duration_seconds" : [
+               2.001736,
+               2.001354,
+               2.003963
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               4.703,
+               3.998,
+               4.098
+            ],
+            "p95_ms" : [
+               5.229,
+               4.997,
+               5.901
+            ],
+            "p99_ms" : [
+               5.621,
+               6.409,
+               7.599
+            ],
+            "requests_per_second" : [
+               2418.400828,
+               2463.332324,
+               2360.822031
+            ],
+            "rss_bytes" : [
+               400146432,
+               400359424,
+               400248832
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 65,
+            "cpu_percent" : 0.467999999999989,
+            "duration_seconds" : 9.99999999997669e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0.690000000000001,
+            "p95_ms" : 1.467,
+            "p99_ms" : 1.066,
+            "requests_per_second" : 30.3400629999996,
+            "rss_bytes" : 8192,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4777,
+            "cpu_percent" : 199.792,
+            "duration_seconds" : 2.002487,
+            "http_errors" : 0,
+            "p50_ms" : 20.817,
+            "p95_ms" : 23.1,
+            "p99_ms" : 34.626,
+            "requests_per_second" : 2383.531529,
+            "rss_bytes" : 400351232,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4712,
+               4912,
+               4777
+            ],
+            "cpu_percent" : [
+               199.257,
+               200.26,
+               199.792
+            ],
+            "duration_seconds" : [
+               2.002387,
+               2.002487,
+               2.004169
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               20.817,
+               20.127,
+               25.279
+            ],
+            "p95_ms" : [
+               23.1,
+               21.633,
+               28.093
+            ],
+            "p99_ms" : [
+               35.692,
+               34.626,
+               32.974
+            ],
+            "requests_per_second" : [
+               2353.191466,
+               2452.949757,
+               2383.531529
+            ],
+            "rss_bytes" : [
+               400146432,
+               400359424,
+               400351232
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 19,
+            "cpu_percent" : 0.0260000000000105,
+            "duration_seconds" : 0.000557999999999836,
+            "http_errors" : 0,
+            "p50_ms" : 0.148999999999994,
+            "p95_ms" : 2.835,
+            "p99_ms" : 2.483,
+            "requests_per_second" : 12.4926270000001,
+            "rss_bytes" : 81920,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4697,
+            "cpu_percent" : 201.738,
+            "duration_seconds" : 2.0041,
+            "http_errors" : 0,
+            "p50_ms" : 41.788,
+            "p95_ms" : 49.366,
+            "p99_ms" : 69.65,
+            "requests_per_second" : 2346.057754,
+            "rss_bytes" : 403197952,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4697,
+               4730,
+               4678
+            ],
+            "cpu_percent" : [
+               201.764,
+               201.738,
+               201.21
+            ],
+            "duration_seconds" : [
+               2.002082,
+               2.0041,
+               2.004658
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               41.788,
+               41.955,
+               41.639
+            ],
+            "p95_ms" : [
+               55.916,
+               46.531,
+               49.366
+            ],
+            "p99_ms" : [
+               69.65,
+               67.167,
+               73.195
+            ],
+            "requests_per_second" : [
+               2346.057754,
+               2360.161669,
+               2333.565127
+            ],
+            "rss_bytes" : [
+               403070976,
+               403279872,
+               403197952
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 2,
+            "cpu_percent" : 3.982,
+            "duration_seconds" : 0.000173999999999896,
+            "http_errors" : 0,
+            "p50_ms" : 0.0189999999999984,
+            "p95_ms" : 8.093,
+            "p99_ms" : 31.794,
+            "requests_per_second" : 1.005262,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 148,
+            "cpu_percent" : 63.637,
+            "duration_seconds" : 2.002325,
+            "http_errors" : 0,
+            "p50_ms" : 12.787,
+            "p95_ms" : 26.039,
+            "p99_ms" : 71.106,
+            "requests_per_second" : 73.907652,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               148,
+               102,
+               150
+            ],
+            "cpu_percent" : [
+               63.637,
+               44.245,
+               67.619
+            ],
+            "duration_seconds" : [
+               2.002499,
+               2.001233,
+               2.002325
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               12.231,
+               12.787,
+               12.806
+            ],
+            "p95_ms" : [
+               26.039,
+               105.401,
+               17.946
+            ],
+            "p99_ms" : [
+               71.106,
+               149.589,
+               39.312
+            ],
+            "requests_per_second" : [
+               73.907652,
+               50.968578,
+               74.912914
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 3,
+            "cpu_percent" : 7.748,
+            "duration_seconds" : 0.00174800000000008,
+            "http_errors" : 0,
+            "p50_ms" : 0.027000000000001,
+            "p95_ms" : 44.477,
+            "p99_ms" : 10.45,
+            "requests_per_second" : 4.172963,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 245,
+            "cpu_percent" : 102.73,
+            "duration_seconds" : 2.004324,
+            "http_errors" : 0,
+            "p50_ms" : 65.785,
+            "p95_ms" : 179.494,
+            "p99_ms" : 226.322,
+            "requests_per_second" : 120.844352,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               279,
+               242,
+               245
+            ],
+            "cpu_percent" : [
+               126.268,
+               94.982,
+               102.73
+            ],
+            "duration_seconds" : [
+               2.004324,
+               2.002576,
+               2.099915
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               65.785,
+               63.508,
+               65.812
+            ],
+            "p95_ms" : [
+               120.191,
+               223.971,
+               179.494
+            ],
+            "p99_ms" : [
+               133.352,
+               226.322,
+               236.772
+            ],
+            "requests_per_second" : [
+               139.199052,
+               120.844352,
+               116.671389
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 8,
+            "cpu_percent" : 5.43599999999998,
+            "duration_seconds" : 0.000229000000000035,
+            "http_errors" : 0,
+            "p50_ms" : 25.246,
+            "p95_ms" : 19.5649999999999,
+            "p99_ms" : 8.43499999999995,
+            "requests_per_second" : 3.93156999999999,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 264,
+            "cpu_percent" : 130.407,
+            "duration_seconds" : 2.00191,
+            "http_errors" : 0,
+            "p50_ms" : 376.615,
+            "p95_ms" : 635.015,
+            "p99_ms" : 748.294,
+            "requests_per_second" : 131.889147,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               272,
+               199,
+               264
+            ],
+            "cpu_percent" : [
+               130.407,
+               90.557,
+               135.843
+            ],
+            "duration_seconds" : [
+               2.00264,
+               2.00191,
+               2.001681
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               376.615,
+               401.861,
+               323.927
+            ],
+            "p95_ms" : [
+               615.45,
+               922.816,
+               635.015
+            ],
+            "p99_ms" : [
+               739.859,
+               1116.766,
+               748.294
+            ],
+            "requests_per_second" : [
+               135.820717,
+               99.405068,
+               131.889147
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "cpu_percent" : 3.929,
+            "duration_seconds" : 0.000534000000000034,
+            "http_errors" : 0,
+            "p50_ms" : 21.023,
+            "p95_ms" : 56.9449999999999,
+            "p99_ms" : 22.883,
+            "requests_per_second" : 0.0264519999999919,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 199,
+            "cpu_percent" : 100.9,
+            "duration_seconds" : 2.004059,
+            "http_errors" : 0,
+            "p50_ms" : 757.252,
+            "p95_ms" : 1478.107,
+            "p99_ms" : 1525.799,
+            "requests_per_second" : 99.298474,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               200,
+               199,
+               199
+            ],
+            "cpu_percent" : [
+               119.516,
+               100.9,
+               96.971
+            ],
+            "duration_seconds" : [
+               2.003492,
+               2.004059,
+               2.004593
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               757.252,
+               778.275,
+               731.209
+            ],
+            "p95_ms" : [
+               1421.162,
+               1478.107,
+               1746.182
+            ],
+            "p99_ms" : [
+               1502.916,
+               1525.799,
+               1794.064
+            ],
+            "requests_per_second" : [
+               99.825704,
+               99.298474,
+               99.272022
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 1,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 32,
+            "cpu_percent" : 0.325000000000003,
+            "duration_seconds" : 5.99999999995049e-06,
+            "http_errors" : 0,
+            "p50_ms" : 0.00900000000000001,
+            "p95_ms" : 0.012,
+            "p99_ms" : 0,
+            "requests_per_second" : 16.773498,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 2690,
+            "cpu_percent" : 99.56,
+            "duration_seconds" : 2.09969,
+            "http_errors" : 0,
+            "p50_ms" : 0.746,
+            "p95_ms" : 0.797,
+            "p99_ms" : 0.829,
+            "requests_per_second" : 1327.815058,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               2658,
+               2690,
+               2788
+            ],
+            "cpu_percent" : [
+               99.885,
+               99.56,
+               99.085
+            ],
+            "duration_seconds" : [
+               2.099696,
+               2.000612,
+               2.09969
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               0.791,
+               0.737,
+               0.746
+            ],
+            "p95_ms" : [
+               0.82,
+               0.785,
+               0.797
+            ],
+            "p99_ms" : [
+               0.871,
+               0.829,
+               0.829
+            ],
+            "requests_per_second" : [
+               1265.897539,
+               1344.588556,
+               1327.815058
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 200,
+            "cpu_percent" : 0.0529999999999973,
+            "duration_seconds" : 0.000757999999999814,
+            "http_errors" : 0,
+            "p50_ms" : 0.0570000000000004,
+            "p95_ms" : 0.499,
+            "p99_ms" : 0.324999999999999,
+            "requests_per_second" : 41.217572,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5239,
+            "cpu_percent" : 198.88,
+            "duration_seconds" : 2.09925,
+            "http_errors" : 0,
+            "p50_ms" : 3.841,
+            "p95_ms" : 5.431,
+            "p99_ms" : 6.797,
+            "requests_per_second" : 2495.653209,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               5239,
+               5439,
+               4915
+            ],
+            "cpu_percent" : [
+               198.815,
+               198.933,
+               198.88
+            ],
+            "duration_seconds" : [
+               2.09925,
+               2.100008,
+               2.002497
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               3.784,
+               3.841,
+               4.145
+            ],
+            "p95_ms" : [
+               5.93,
+               4.666,
+               5.431
+            ],
+            "p99_ms" : [
+               8.628,
+               6.472,
+               6.797
+            ],
+            "requests_per_second" : [
+               2495.653209,
+               2589.990133,
+               2454.435637
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 156,
+            "cpu_percent" : 0.0679999999999836,
+            "duration_seconds" : 0.000417999999999807,
+            "http_errors" : 0,
+            "p50_ms" : 0.719000000000001,
+            "p95_ms" : 1.807,
+            "p99_ms" : 3.163,
+            "requests_per_second" : 76.0448780000002,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4935,
+            "cpu_percent" : 200.313,
+            "duration_seconds" : 2.002512,
+            "http_errors" : 0,
+            "p50_ms" : 20.186,
+            "p95_ms" : 22.247,
+            "p99_ms" : 31.999,
+            "requests_per_second" : 2464.404708,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4935,
+               5091,
+               4594
+            ],
+            "cpu_percent" : [
+               200.804,
+               200.313,
+               200.245
+            ],
+            "duration_seconds" : [
+               2.002512,
+               2.003976,
+               2.002094
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               20.186,
+               19.467,
+               20.94
+            ],
+            "p95_ms" : [
+               22.247,
+               20.44,
+               28.341
+            ],
+            "p99_ms" : [
+               28.836,
+               31.999,
+               37.535
+            ],
+            "requests_per_second" : [
+               2464.404708,
+               2540.449586,
+               2294.597556
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 96,
+            "cpu_percent" : 0.946999999999974,
+            "duration_seconds" : 1.69999999997117e-05,
+            "http_errors" : 0,
+            "p50_ms" : 0.872,
+            "p95_ms" : 0.545000000000002,
+            "p99_ms" : 1.325,
+            "requests_per_second" : 45.011383,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 4817,
+            "cpu_percent" : 201.318,
+            "duration_seconds" : 2.003316,
+            "http_errors" : 0,
+            "p50_ms" : 40.251,
+            "p95_ms" : 47.421,
+            "p99_ms" : 67.859,
+            "requests_per_second" : 2401.62415,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4817,
+               5131,
+               4721
+            ],
+            "cpu_percent" : [
+               199.721,
+               201.318,
+               202.265
+            ],
+            "duration_seconds" : [
+               2.005726,
+               2.003316,
+               2.003299
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               40.251,
+               38.307,
+               41.123
+            ],
+            "p95_ms" : [
+               47.421,
+               40.945,
+               47.966
+            ],
+            "p99_ms" : [
+               67.859,
+               62.495,
+               69.184
+            ],
+            "requests_per_second" : [
+               2401.62415,
+               2561.253442,
+               2356.612767
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/health/live",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "concurrency_effective" : 0,
+            "cpu_percent" : 0.0180000000000007,
+            "duration_seconds" : 0.000999999999999994,
+            "http_errors" : 0,
+            "p50_ms" : 0.156000000000001,
+            "p95_ms" : 0.328,
+            "p99_ms" : 0.0650000000000013,
+            "requests_per_second" : 48.509,
+            "rss_bytes" : 4096,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 24.752,
+            "duration_seconds" : 0.059,
+            "http_errors" : 0,
+            "p50_ms" : 5.616,
+            "p95_ms" : 7.797,
+            "p99_ms" : 8.302,
+            "requests_per_second" : 1687.903,
+            "rss_bytes" : 403759104,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               100,
+               100,
+               100
+            ],
+            "concurrency_effective" : [
+               10,
+               10,
+               10
+            ],
+            "cpu_percent" : [
+               21.664,
+               24.77,
+               24.752
+            ],
+            "duration_seconds" : [
+               0.058,
+               0.059,
+               0.061
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               4.977,
+               5.772,
+               5.616
+            ],
+            "p95_ms" : [
+               7.302,
+               7.797,
+               8.125
+            ],
+            "p99_ms" : [
+               7.825,
+               8.302,
+               8.367
+            ],
+            "requests_per_second" : [
+               1736.412,
+               1687.903,
+               1638.835
+            ],
+            "rss_bytes" : [
+               403759104,
+               403836928,
+               403755008
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "health_live",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 10,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "indicative",
+         "generator" : "mojo",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "concurrency_effective" : 0,
+            "cpu_percent" : 5.759,
+            "duration_seconds" : 0,
+            "http_errors" : 0,
+            "p50_ms" : 0.137,
+            "p95_ms" : 0.444000000000001,
+            "p99_ms" : 1.353,
+            "requests_per_second" : 1.30299999999988,
+            "rss_bytes" : 20480,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 100,
+            "concurrency_effective" : 10,
+            "cpu_percent" : 38.553,
+            "duration_seconds" : 0.09,
+            "http_errors" : 0,
+            "p50_ms" : 8.59,
+            "p95_ms" : 13.503,
+            "p99_ms" : 15.031,
+            "requests_per_second" : 1114.046,
+            "rss_bytes" : 404078592,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               100,
+               100,
+               100
+            ],
+            "concurrency_effective" : [
+               10,
+               10,
+               10
+            ],
+            "cpu_percent" : [
+               32.054,
+               38.553,
+               44.312
+            ],
+            "duration_seconds" : [
+               0.09,
+               0.09,
+               0.117
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               8.453,
+               8.59,
+               10.434
+            ],
+            "p95_ms" : [
+               13.503,
+               13.059,
+               17.545
+            ],
+            "p99_ms" : [
+               13.678,
+               15.031,
+               17.792
+            ],
+            "requests_per_second" : [
+               1114.046,
+               1115.349,
+               857.214
+            ],
+            "rss_bytes" : [
+               404078592,
+               404148224,
+               404058112
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 2
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 9,
+            "cpu_percent" : 1.14499999999998,
+            "duration_seconds" : 0.0016989999999999,
+            "http_errors" : 0,
+            "p50_ms" : 2.476,
+            "p95_ms" : 0.418000000000003,
+            "p99_ms" : 1.287,
+            "requests_per_second" : 7.34659099999999,
+            "rss_bytes" : 73728,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 6758,
+            "cpu_percent" : 384.563,
+            "duration_seconds" : 2.005899,
+            "http_errors" : 0,
+            "p50_ms" : 13.858,
+            "p95_ms" : 29.237,
+            "p99_ms" : 35.342,
+            "requests_per_second" : 3369.062949,
+            "rss_bytes" : 655319040,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               6758,
+               6767,
+               6640
+            ],
+            "cpu_percent" : [
+               385.893,
+               383.418,
+               384.563
+            ],
+            "duration_seconds" : [
+               2.005899,
+               2.0042,
+               2.101917
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               13.858,
+               18.21,
+               11.382
+            ],
+            "p95_ms" : [
+               27.188,
+               29.655,
+               29.237
+            ],
+            "p99_ms" : [
+               34.055,
+               47.003,
+               35.342
+            ],
+            "requests_per_second" : [
+               3369.062949,
+               3376.40954,
+               3159.021027
+            ],
+            "rss_bytes" : [
+               655319040,
+               655728640,
+               655245312
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/t/018f1004-0001-7000-8000-000000000001",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 357,
+            "cpu_percent" : 0.248999999999967,
+            "duration_seconds" : 0.0018410000000002,
+            "http_errors" : 0,
+            "p50_ms" : 3.184,
+            "p95_ms" : 7.159,
+            "p99_ms" : 6.548,
+            "requests_per_second" : 173.120455,
+            "rss_bytes" : 12288,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 6483,
+            "cpu_percent" : 387.925,
+            "duration_seconds" : 2.006723,
+            "http_errors" : 0,
+            "p50_ms" : 29.007,
+            "p95_ms" : 56.141,
+            "p99_ms" : 59.862,
+            "requests_per_second" : 3230.640203,
+            "rss_bytes" : 659783680,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               6483,
+               6840,
+               6035
+            ],
+            "cpu_percent" : [
+               387.925,
+               387.623,
+               388.174
+            ],
+            "duration_seconds" : [
+               2.006723,
+               2.009542,
+               2.004882
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               32.214,
+               25.823,
+               29.007
+            ],
+            "p95_ms" : [
+               63.3,
+               42.71,
+               56.141
+            ],
+            "p99_ms" : [
+               68.967,
+               53.314,
+               59.862
+            ],
+            "requests_per_second" : [
+               3230.640203,
+               3403.760658,
+               3010.152218
+            ],
+            "rss_bytes" : [
+               659795968,
+               659783680,
+               659480576
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "thread",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 0,
+            "cpu_percent" : 24.91,
+            "duration_seconds" : 0.000221999999999944,
+            "http_errors" : 0,
+            "p50_ms" : 27.842,
+            "p95_ms" : 101.62,
+            "p99_ms" : 52.327,
+            "requests_per_second" : 7.561104,
+            "rss_bytes" : 323584,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 342,
+            "cpu_percent" : 196.663,
+            "duration_seconds" : 2.007978,
+            "http_errors" : 0,
+            "p50_ms" : 229.65,
+            "p95_ms" : 742.904,
+            "p99_ms" : 958.694,
+            "requests_per_second" : 162.759487,
+            "rss_bytes" : 661266432,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               342,
+               342,
+               233
+            ],
+            "cpu_percent" : [
+               221.573,
+               196.663,
+               141.763
+            ],
+            "duration_seconds" : [
+               2.007978,
+               2.10126,
+               2.007756
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               179.914,
+               229.65,
+               257.492
+            ],
+            "p95_ms" : [
+               641.284,
+               742.904,
+               895.748
+            ],
+            "p99_ms" : [
+               958.694,
+               906.367,
+               1296.877
+            ],
+            "requests_per_second" : [
+               170.320591,
+               162.759487,
+               116.049958
+            ],
+            "rss_bytes" : [
+               662269952,
+               660942848,
+               661266432
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/search?q=performance",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 95,
+            "cpu_percent" : 50.525,
+            "duration_seconds" : 0.00137400000000021,
+            "http_errors" : 0,
+            "p50_ms" : 59.058,
+            "p95_ms" : 305.388,
+            "p99_ms" : 251.265,
+            "requests_per_second" : 47.330479,
+            "rss_bytes" : 1048576,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 257,
+            "cpu_percent" : 164.605,
+            "duration_seconds" : 2.009502,
+            "http_errors" : 0,
+            "p50_ms" : 491.003,
+            "p95_ms" : 1094.608,
+            "p99_ms" : 1194.088,
+            "requests_per_second" : 127.892383,
+            "rss_bytes" : 662953984,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               408,
+               257,
+               162
+            ],
+            "cpu_percent" : [
+               241.375,
+               164.605,
+               114.08
+            ],
+            "duration_seconds" : [
+               2.007521,
+               2.009502,
+               2.010876
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               491.003,
+               431.945,
+               590.617
+            ],
+            "p95_ms" : [
+               789.22,
+               1094.608,
+               1445.075
+            ],
+            "p99_ms" : [
+               791.073,
+               1194.088,
+               1445.353
+            ],
+            "requests_per_second" : [
+               203.235732,
+               127.892383,
+               80.561904
+            ],
+            "rss_bytes" : [
+               664002560,
+               662953984,
+               661286912
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "search",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 50,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 266,
+            "cpu_percent" : 5.47299999999996,
+            "duration_seconds" : 0.00116399999999972,
+            "http_errors" : 0,
+            "p50_ms" : 2.805,
+            "p95_ms" : 4.201,
+            "p99_ms" : 1.506,
+            "requests_per_second" : 134.682082,
+            "rss_bytes" : 1032192,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 5783,
+            "cpu_percent" : 297.153,
+            "duration_seconds" : 2.002852,
+            "http_errors" : 0,
+            "p50_ms" : 15.915,
+            "p95_ms" : 26.445,
+            "p99_ms" : 27.191,
+            "requests_per_second" : 2885.511122,
+            "rss_bytes" : 662970368,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               4940,
+               6049,
+               5783
+            ],
+            "cpu_percent" : [
+               212.336,
+               302.626,
+               297.153
+            ],
+            "duration_seconds" : [
+               2.001688,
+               2.002852,
+               2.004151
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               23.555,
+               13.11,
+               15.915
+            ],
+            "p95_ms" : [
+               30.646,
+               26.445,
+               21.854
+            ],
+            "p99_ms" : [
+               43.829,
+               27.191,
+               25.685
+            ],
+            "requests_per_second" : [
+               2467.917078,
+               3020.193204,
+               2885.511122
+            ],
+            "rss_bytes" : [
+               664002560,
+               662970368,
+               661286912
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 3,
+         "cache_mode" : "normal",
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "concurrency" : 100,
+         "endpoint" : "/categories",
+         "evidence_quality" : "measured-comparative",
+         "generator" : "wrk",
+         "kind" : "http",
+         "mad" : {
+            "completed" : 167,
+            "cpu_percent" : 2.71899999999999,
+            "duration_seconds" : 0.00062500000000032,
+            "http_errors" : 0,
+            "p50_ms" : 0.370000000000001,
+            "p95_ms" : 3.087,
+            "p99_ms" : 13.158,
+            "requests_per_second" : 85.685086,
+            "rss_bytes" : 1032192,
+            "transport_errors" : 0
+         },
+         "metrics" : {
+            "completed" : 6772,
+            "cpu_percent" : 386.144,
+            "duration_seconds" : 2.008787,
+            "http_errors" : 0,
+            "p50_ms" : 22.555,
+            "p95_ms" : 54.489,
+            "p99_ms" : 66.054,
+            "requests_per_second" : 3371.188683,
+            "rss_bytes" : 662970368,
+            "transport_errors" : 0
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "repetitions" : 3,
+         "samples" : {
+            "completed" : [
+               6772,
+               6939,
+               6142
+            ],
+            "cpu_percent" : [
+               386.144,
+               383.425,
+               389.619
+            ],
+            "duration_seconds" : [
+               2.008787,
+               2.007305,
+               2.009412
+            ],
+            "http_errors" : [
+               0,
+               0,
+               0
+            ],
+            "p50_ms" : [
+               23.469,
+               22.185,
+               22.555
+            ],
+            "p95_ms" : [
+               49.554,
+               54.489,
+               57.576
+            ],
+            "p99_ms" : [
+               52.896,
+               87.121,
+               66.054
+            ],
+            "requests_per_second" : [
+               3371.188683,
+               3456.873769,
+               3056.615567
+            ],
+            "rss_bytes" : [
+               664002560,
+               662970368,
+               661327872
+            ],
+            "transport_errors" : [
+               0,
+               0,
+               0
+            ]
+         },
+         "scenario" : "cache_hit",
+         "status" : "ok",
+         "workers" : 4
+      },
+      {
+         "attempted" : 1,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "evidence_quality" : "indicative",
+         "kind" : "database",
+         "mad" : {},
+         "metrics" : {},
+         "repetitions" : 1,
+         "samples" : {},
+         "scenario" : "query-budget-catalog",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "home",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.005
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.437
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.428,
+               0.442,
+               0.437
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "categories",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.00299999999999995
+         },
+         "metrics" : {
+            "actual_rows" : 8,
+            "sql_execution_ms" : 0.345
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               8,
+               8,
+               8
+            ],
+            "sql_execution_ms" : [
+               0.345,
+               0.342,
+               0.357
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.00600000000000001
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.409
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.409,
+               0.415,
+               0.402
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.02
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.494
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.469,
+               0.494,
+               0.514
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "sql_execution_ms" : 0.092
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "sql_execution_ms" : [
+               0.092,
+               0.09,
+               0.092
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "search",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.032
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "sql_execution_ms" : 3.269
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "sql_execution_ms" : [
+               3.237,
+               3.353,
+               3.269
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "autocomplete",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.022
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 1.925
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               1.947,
+               1.867,
+               1.925
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "feed",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 0.105
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               0.105,
+               0.099,
+               0.106
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "notifications",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.003
+         },
+         "metrics" : {
+            "actual_rows" : 3,
+            "sql_execution_ms" : 0.082
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               3,
+               3,
+               3
+            ],
+            "sql_execution_ms" : [
+               0.086,
+               0.079,
+               0.082
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "outbox_claim",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.007
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               0,
+               0,
+               0
+            ],
+            "sql_execution_ms" : [
+               0.007,
+               0.006,
+               0.007
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "moderation_queue",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.002
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.024
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.024,
+               0.022,
+               0.026
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "health_ready",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.007
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               0,
+               0,
+               0
+            ],
+            "sql_execution_ms" : [
+               0.008,
+               0.007,
+               0.007
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "metrics",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "sql_execution_ms" : 0.005
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "sql_execution_ms" : [
+               0.005,
+               0.005,
+               0.005
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "home_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.011
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.4
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.4,
+               0.42,
+               0.389
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "home_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "sql_execution_ms" : 0.489
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "sql_execution_ms" : [
+               0.488,
+               0.498,
+               0.489
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "sql_execution_ms" : 0.224
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "sql_execution_ms" : [
+               0.223,
+               0.224,
+               0.238
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "sql_execution_ms" : 0.295
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "sql_execution_ms" : [
+               0.294,
+               0.314,
+               0.295
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.003
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "sql_execution_ms" : 0.082
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "sql_execution_ms" : [
+               0.105,
+               0.079,
+               0.082
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.002
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 0.053
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               0.037,
+               0.055,
+               0.053
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "sql_execution_ms" : 0.003
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "sql_execution_ms" : 0.042
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "sql_execution_ms" : [
+               0.038,
+               0.042,
+               0.045
+            ]
+         },
+         "scenario" : "sql-plan-readers",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "categories_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.042
+         },
+         "metrics" : {
+            "actual_rows" : 8,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.346
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               8,
+               8,
+               8
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.304,
+               0.425,
+               0.346
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "home_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.028
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.515
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.515,
+               0.355,
+               0.543
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "home_function_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.004
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.386
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.386,
+               0.39,
+               0.353
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "home_function_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.04
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.608
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.608,
+               0.648,
+               0.454
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.003
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.51
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.51,
+               0.384,
+               0.513
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads_function_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 26,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.435
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               26,
+               26,
+               26
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.435,
+               0.435,
+               0.412
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads_function_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.002
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.226
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.226,
+               0.257,
+               0.224
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "category_threads_function_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.016
+         },
+         "metrics" : {
+            "actual_rows" : 15,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.281
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               15,
+               15,
+               15
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.404,
+               0.265,
+               0.281
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "search_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.00099999999999989
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 2.356
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               2.447,
+               2.356,
+               2.355
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "autocomplete_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.0209999999999999
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 1.492
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               1.235,
+               1.513,
+               1.492
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "feed_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.153
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.153,
+               0.153,
+               0.149
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "bookmarks_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.002
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.129
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.129,
+               0.136,
+               0.127
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "mentions_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 0,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.007
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               0,
+               0,
+               0
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.007,
+               0.009,
+               0.007
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "notifications_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.002
+         },
+         "metrics" : {
+            "actual_rows" : 3,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.158
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               3,
+               3,
+               3
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.152,
+               0.158,
+               0.16
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "notification_badge_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.044
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.043,
+               0.044,
+               0.058
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_head_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.001
+         },
+         "metrics" : {
+            "actual_rows" : 1,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.016
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               1,
+               1,
+               1
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.016,
+               0.017,
+               0.014
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view_function",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.057
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.059,
+               0.057,
+               0.057
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view_function_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.013
+         },
+         "metrics" : {
+            "actual_rows" : 20,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.079
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               20,
+               20,
+               20
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.098,
+               0.066,
+               0.079
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view_function_deep",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.00199999999999999
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.05
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.041,
+               0.052,
+               0.05
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "endpoint" : "thread_view_function_deep_signed_in",
+         "evidence_quality" : "measured-comparative",
+         "kind" : "database",
+         "mad" : {
+            "actual_rows" : 0,
+            "nested_statements" : 0,
+            "sql_execution_ms" : 0.01
+         },
+         "metrics" : {
+            "actual_rows" : 10,
+            "nested_statements" : 2,
+            "sql_execution_ms" : 0.057
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "actual_rows" : [
+               10,
+               10,
+               10
+            ],
+            "nested_statements" : [
+               2,
+               2,
+               2
+            ],
+            "sql_execution_ms" : [
+               0.057,
+               0.067,
+               0.047
+            ]
+         },
+         "scenario" : "sql-plan-functions",
+         "status" : "ok"
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "evidence_quality" : "measured-comparative",
+         "kind" : "outbox",
+         "mad" : {
+            "acknowledged" : 0,
+            "completed" : 0,
+            "duplicates" : 0,
+            "duration_seconds" : 0.282382965087891,
+            "lost" : 0,
+            "messages_per_second" : 26.1850272086671,
+            "p50_ms" : 6.218910217285,
+            "p95_ms" : 143.401861190796,
+            "p99_ms" : 82.713842391968
+         },
+         "metrics" : {
+            "acknowledged" : 3000,
+            "completed" : 3000,
+            "duplicates" : 0,
+            "duration_seconds" : 5.5484790802002,
+            "lost" : 0,
+            "messages_per_second" : 540.688710660464,
+            "p50_ms" : 108.397006988525,
+            "p95_ms" : 393.640995025635,
+            "p99_ms" : 730.617046356201
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "acknowledged" : [
+               3000,
+               3000,
+               3000
+            ],
+            "completed" : [
+               3000,
+               3000,
+               3000
+            ],
+            "duplicates" : [
+               0,
+               0,
+               0
+            ],
+            "duration_seconds" : [
+               5.83086204528809,
+               3.44072008132935,
+               5.5484790802002
+            ],
+            "lost" : [
+               0,
+               0,
+               0
+            ],
+            "messages_per_second" : [
+               514.503683451797,
+               871.910509744498,
+               540.688710660464
+            ],
+            "p50_ms" : [
+               108.397006988525,
+               102.17809677124,
+               146.337985992432
+            ],
+            "p95_ms" : [
+               537.042856216431,
+               174.528837203979,
+               393.640995025635
+            ],
+            "p99_ms" : [
+               813.330888748169,
+               283.75506401062,
+               730.617046356201
+            ]
+         },
+         "scenario" : "postgres-dispatch-noop",
+         "status" : "ok",
+         "workers" : 1
+      },
+      {
+         "attempted" : 3,
+         "comparison" : {
+            "classification" : "not-comparable",
+            "deltas_pct" : {},
+            "reason" : "No baseline available."
+         },
+         "evidence_quality" : "measured-comparative",
+         "kind" : "outbox",
+         "mad" : {
+            "acknowledged" : 0,
+            "completed" : 0,
+            "duplicates" : 0,
+            "duration_seconds" : 0.51056909561157,
+            "lost" : 0,
+            "messages_per_second" : 211.50084819931,
+            "p50_ms" : 64.287900924683,
+            "p95_ms" : 126.071929931641,
+            "p99_ms" : 130.429029464721
+         },
+         "metrics" : {
+            "acknowledged" : 3000,
+            "completed" : 3000,
+            "duplicates" : 0,
+            "duration_seconds" : 2.95847821235657,
+            "lost" : 0,
+            "messages_per_second" : 1014.03484652008,
+            "p50_ms" : 197.659969329834,
+            "p95_ms" : 502.893924713135,
+            "p99_ms" : 508.519887924194
+         },
+         "repetitions" : 3,
+         "samples" : {
+            "acknowledged" : [
+               3000,
+               3000,
+               3000
+            ],
+            "completed" : [
+               3000,
+               3000,
+               3000
+            ],
+            "duplicates" : [
+               0,
+               0,
+               0
+            ],
+            "duration_seconds" : [
+               7.21532487869263,
+               2.447909116745,
+               2.95847821235657
+            ],
+            "lost" : [
+               0,
+               0,
+               0
+            ],
+            "messages_per_second" : [
+               415.781693885914,
+               1225.53569471939,
+               1014.03484652008
+            ],
+            "p50_ms" : [
+               456.206083297729,
+               133.372068405151,
+               197.659969329834
+            ],
+            "p95_ms" : [
+               1374.09901618958,
+               502.893924713135,
+               376.821994781494
+            ],
+            "p99_ms" : [
+               1375.07891654968,
+               508.519887924194,
+               378.090858459473
+            ]
+         },
+         "scenario" : "postgres-dispatch-noop",
+         "status" : "ok",
+         "workers" : 2
+      }
+   ],
+   "mode" : "main",
+   "run_attempt" : "1",
+   "run_id" : "38960746586",
+   "runner" : {
+      "arch" : "x86_64",
+      "cpu_count" : 4,
+      "cpu_model" : "AMD EPYC 9V74 80-Core Processor",
+      "image" : "ubuntu26",
+      "image_version" : "20261012.163.1",
+      "kernel" : "7.0.0-1017-azure",
+      "label" : "ubuntu-26.04",
+      "memory_bytes" : 16759443456,
+      "name" : "GitHub Actions 1000067937",
+      "os" : "Linux"
+   },
+   "schema_version" : 1,
+   "status" : "ok",
+   "suites" : {
+      "connections_workflow" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "contracts" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "database" : {
+         "reason" : "See individual gates and artifacts; skipped suites never imply execution",
+         "status" : "ok"
+      },
+      "database-plans-functions" : {
+         "failure_kind" : null,
+         "reason" : "Nested function plans require auto_explain LOAD; unavailable or unmeasured is never PASS",
+         "skipped_repetitions" : 0,
+         "status" : "ok"
+      },
+      "database-plans-readers" : {
+         "failure_kind" : null,
+         "reason" : "Nested function plans require auto_explain LOAD; unavailable or unmeasured is never PASS",
+         "skipped_repetitions" : 0,
+         "status" : "ok"
+      },
+      "databases" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "hotpaths_workflow" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "http" : {
+         "reason" : "completed planned HTTP measurements",
+         "skipped" : [
+            {
+               "reason" : "read-only anonymous suite; safe durable auth fixture unavailable",
+               "scenario" : "authenticated"
+            },
+            {
+               "reason" : "bounded targeted plan: every endpoint at low load; high concurrency on health/thread/search/cache_hit; extra workers only thread/search/cache_hit",
+               "scenario" : "full_cartesian_matrix"
+            },
+            {
+               "reason" : "bounded PR/main modes; use deep sweep",
+               "scenario" : "concurrency_250_500"
+            },
+            {
+               "reason" : "eight-worker sweep reserved for capable deep runners",
+               "scenario" : "workers_8"
+            },
+            {
+               "reason" : "requires explicit --allow-1000 and capable runner",
+               "scenario" : "concurrency_1000"
+            },
+            {
+               "reason" : "wrk (distribution package 4.1.0-4build3; CLI upstream unspecified)",
+               "scenario" : "wrk_upstream_version"
+            }
+         ],
+         "status" : "ok"
+      },
+      "http_workflow" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "migrations" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "outbox" : {
+         "reason" : "See individual gates and artifacts; skipped suites never imply execution",
+         "status" : "ok"
+      },
+      "outbox-postgres" : {
+         "diagnostic" : "diagnostics/outbox-postgres.log",
+         "failure_kind" : null,
+         "reason" : "Owned database is dropped on completion or caught signals; delivery IDs verify losses and duplicates",
+         "status" : "ok"
+      },
+      "pr_comment" : {
+         "reason" : "Job Summary and artifacts provide PR results with a read-only token; no privileged fork artifact/comment workflow is enabled.",
+         "status" : "skipped"
+      },
+      "profiling" : {
+         "reason" : "Reserved for bounded weekly/manual deep mode",
+         "status" : "skipped"
+      },
+      "query-budget" : {
+         "diagnostic" : "diagnostics/query-budget.log",
+         "failure_kind" : null,
+         "reason" : "Catalog drift is deterministic; N+1 request counts remain blocking in the integration tier",
+         "status" : "ok"
+      },
+      "query-plan-static" : {
+         "diagnostic" : "diagnostics/query-plan-static.log",
+         "reason" : "Required index and forbidden OFFSET checks",
+         "status" : "ok"
+      },
+      "setup" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      },
+      "sql-functions" : {
+         "reason" : "Reserved for bounded weekly/manual deep mode",
+         "status" : "skipped"
+      },
+      "tools" : {
+         "reason" : "GitHub Actions step outcome: success",
+         "status" : "ok"
+      }
+   },
+   "timestamp" : "2026-10-16T20:14:45.791384+00:00"
+}

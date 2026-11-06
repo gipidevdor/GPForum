@@ -1,0 +1,20 @@
+%# What goes on in a category, on one line of facts under its name: how many
+%# discussions the reader may read in it, and when the last of them moved.
+%# A list that carries neither (a double's, or one cached before the columns
+%# existed) shows nothing.
+%#
+%# Takes "category".
+% my $category = stash('category') || {};
+% if (defined $category->{thread_count} || $category->{last_activity_at}) {
+  <p class="ui-meta">
+    % if (defined $category->{thread_count}) {
+      <span class="ui-count"><%= tc('forum.discussion_count', $category->{thread_count}) %></span>
+    % }
+    % if ($category->{last_activity_at}) {
+      <span>
+        <%= t('forum.last_activity') %>
+        <%= ui_timestamp($category->{last_activity_at}) %>
+      </span>
+    % }
+  </p>
+% }

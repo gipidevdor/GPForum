@@ -1,0 +1,79 @@
+{
+   "configuration" : {
+      "backlog" : 1024,
+      "cache" : "local-only; 4096 entries; SSR TTL 3600s; miss harness TTL -1s",
+      "cache_miss_policy" : "SSR store expires immediately; category model cache remains warm",
+      "clients_per_worker" : 2048,
+      "database_settings" : {
+         "effective_cache_size" : "6GB",
+         "effective_io_concurrency" : "100",
+         "jit" : "off",
+         "max_connections" : "100",
+         "random_page_cost" : "1.1",
+         "shared_buffers" : "2GB",
+         "synchronous_commit" : "on",
+         "work_mem" : "4MB"
+      },
+      "default_ev_backend" : 8,
+      "default_reactor" : "Mojo::Reactor::EV",
+      "fixed_workers" : null,
+      "http_concurrency" : [
+         1,
+         10,
+         50
+      ],
+      "http_duration_seconds" : 3,
+      "http_repetitions" : 3,
+      "http_scenarios" : [
+         "health_live",
+         "home",
+         "categories",
+         "category",
+         "thread",
+         "search",
+         "cache_hit",
+         "cache_miss"
+      ],
+      "listen_queue_limit" : null,
+      "mojo_requests" : "at least 100 total; at least 10 per client",
+      "read_rate_limit" : 100000000,
+      "stress_warmup_seconds" : null,
+      "wrk_timeout_seconds" : 3,
+      "wrk_upstream_version_verified" : true
+   },
+   "dataset" : {
+      "counts" : {
+         "bookmarks" : 40,
+         "categories" : 4,
+         "feed_items" : 600,
+         "moderation_actions" : 40,
+         "notifications" : 120,
+         "permissions" : 6,
+         "posts" : 72000,
+         "posts_per_thread" : 120,
+         "read_states" : 120,
+         "reports" : 80,
+         "role_bindings" : 40,
+         "roles" : 3,
+         "sessions" : 40,
+         "subscriptions" : 40,
+         "threads" : 600,
+         "users" : 40
+      },
+      "implementation_sha256" : {
+         "lib/GPForum/Benchmark/SeedDataset.pm" : "70087aabd98bfe86e49cea30c90d786068d53c2470b6d679f9f21e7bf82e1809",
+         "lib/GPForum/Command/PerformanceSeed.pm" : "106fdee0ce1639d8b80ec244444ef79168a4bb8b72bc428503b5e8233552c101"
+      },
+      "mode" : "deep",
+      "profile" : "custom",
+      "seed_version" : "SeedDataset-v1",
+      "signature" : "614d33848bb4b3042ae2453b31754ec77a67f4af6d245b2db2741b813c86c6bb"
+   },
+   "versions" : {
+      "ev" : "4.37",
+      "mojolicious" : "9.49",
+      "perl" : "v5.44.0",
+      "postgres" : "18.6 (Homebrew)",
+      "wrk" : "wrk 4.2.0 [kqueue] Copyright (C) 2012 Will Glozer"
+   }
+}

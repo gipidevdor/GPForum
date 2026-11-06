@@ -1,0 +1,10 @@
+NOTICE:  index "idx_attachments_owner_retained" does not exist, skipping
+NOTICE:  index "idx_attachment_post_uploads_page" does not exist, skipping
+NOTICE:  index "idx_threads_transfer_title" does not exist, skipping
+GET /notifications/summary answered 429 at script/bench-render line 384.
+	main::_request(Test::Mojo=HASH(0x7c80db8c60), "/notifications/summary", HASH(0x7c80db0528)) called at script/bench-render line 339
+	main::_measure_page(Test::Mojo=HASH(0x7c80db8c60), "notification_summary", "/notifications/summary", HASH(0x7c80db0528), HASH(0x7c80d868e8)) called at script/bench-render line 224
+	main::_bench("DBI:Pg:dbname=gpforum_bench_render_14880;host=/var/folders/07"..., 1, HASH(0x7c80d868e8)) called at script/bench-render line 116
+	main::main("--iterations", 200, "--warmup", 20, "--json") called at script/bench-render line 97
+ at script/bench-render line 120.
+	main::main("--iterations", 200, "--warmup", 20, "--json") called at script/bench-render line 97

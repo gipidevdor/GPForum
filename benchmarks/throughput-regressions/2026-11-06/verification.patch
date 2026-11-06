@@ -1,0 +1,426 @@
+--- a/t/53-os-runtime-policy.t
++++ b/t/53-os-runtime-policy.t
+@@ -69,8 +69,11 @@
+     [ '127.0.0.1', '::1' ],
+     'X-Forwarded-For is believed from the loopback only, by default'
+ );
+-is( $hypnotoad->{listen}[0],
+-    'http://*:9000?reuse=1', 'runtime policy enables reuseport in listen URL' );
++is(
++    $hypnotoad->{listen}[0],
++    'http://*:9000?single_accept=1&reuse=1',
++    'TCP acceptance is fair while retaining reuseport'
++);
+ is( $hypnotoad->{backlog},
+     $CONFIGURED_BACKLOG, 'runtime policy applies configured backlog' );
+ is( $hypnotoad->{clients},
+@@ -125,10 +128,38 @@
+     config  => $unknown_config,
+     runtime => $unknown_runtime,
+ );
+-is( $unknown_policy->hypnotoad_config->{listen}[0],
+-    'http://*:9000', 'unsupported reuseport is not applied to listen URL' );
++is(
++    $unknown_policy->hypnotoad_config->{listen}[0],
++    'http://*:9000?single_accept=1',
++    'fair acceptance does not require reuseport support'
++);
+ is( $unknown_policy->report->{status},
+     'degraded', 'unsupported requested runtime feature degrades policy' );
++
++for my $case (
++    [
++        'http://*:9000?single_accept=0',
++        'http://*:9000?single_accept=0&reuse=1'
++    ],
++    [ 'http://*:9000?reuse=0', 'http://*:9000?reuse=0&single_accept=1' ],
++    [ 'http://*:9000?fd=3',    'http://*:9000?fd=3&single_accept=1' ],
++    [
++        'http+unix://var%2Frun%2Fgpforum.sock',
++        'http+unix://var%2Frun%2Fgpforum.sock?single_accept=1'
++    ],
++    [
++        'http+unix://var%2Frun%2Fgpforum.sock?single_accept=0',
++        'http+unix://var%2Frun%2Fgpforum.sock?single_accept=0'
++    ],
++  )
++{
++    my $listener_policy = GPForum::OS::RuntimePolicy->new(
++        config  => GPForum::Config->new( runtime_listen => $case->[0] ),
++        runtime => $runtime,
++    );
++    is( $listener_policy->hypnotoad_config->{listen}[0],
++        $case->[1], 'acceptance preserves explicit socket options' );
++}
+ 
+ my $low_backlog_policy = GPForum::OS::RuntimePolicy->new(
+     config => GPForum::Config->new(
+--- a/t/424-os-runtime-policy-report.t
++++ b/t/424-os-runtime-policy-report.t
+@@ -153,12 +153,12 @@
+         _policy( _profile( reuseport => 1 ), runtime_listen => $listen )
+           ->hypnotoad_config->{listen},
+         [
+-            'http://*:8080?reuse=1',
+-            'http://*:8081?x=1&reuse=1',
++            'http://*:8080?single_accept=1&reuse=1',
++            'http://*:8081?x=1&single_accept=1&reuse=1',
+             'http+unix://%2Ftmp%2Fgp.sock?single_accept=1',
+-            'http://*:8082?fd=3',
+-            'http://*:8083?reuse=0',
+-            'https://*:8443?cert=/c.pem&reuse=0',
++            'http://*:8082?fd=3&single_accept=1',
++            'http://*:8083?reuse=0&single_accept=1',
++            'https://*:8443?cert=/c.pem&reuse=0&single_accept=1',
+         ],
+         'not on a UNIX socket, an inherited descriptor or a reuse already set'
+     );
+@@ -166,19 +166,20 @@
+         _policy( _profile( reuseport => 0 ), runtime_listen => $listen )
+           ->hypnotoad_config->{listen},
+         [
+-            map { m{\A http[+]unix:}msx ? "$_?single_accept=1" : $_ }
+-              split /,/msx,
+-            $listen
++            'http://*:8080?single_accept=1',
++            'http://*:8081?x=1&single_accept=1',
++            'http+unix://%2Ftmp%2Fgp.sock?single_accept=1',
++            'http://*:8082?fd=3&single_accept=1',
++            'http://*:8083?reuse=0&single_accept=1',
++            'https://*:8443?cert=/c.pem&reuse=0&single_accept=1',
+         ],
+         'and nowhere when SO_REUSEPORT is off'
+     );
+ };
+ 
+-# A burst of connections to a UNIX socket is queued at once, and a worker
+-# accepting until the queue is empty kept most of them: each worker takes
+-# one at a time there. A TCP listener is left as Mojolicious has it, and a
+-# choice the location already makes is kept.
+-subtest 'a UNIX socket is accepted from one connection at a time' => sub {
++# Both socket transports give other workers a turn to accept a burst. An
++# explicit operator choice, including opting out, is kept.
++subtest 'listeners accept one connection at a time by default' => sub {
+     my $listen = join q{,}, 'http+unix://%2Ftmp%2Fa.sock',
+       'http+unix://%2Ftmp%2Fb.sock?single_accept=0',
+       'http+unix://%2Ftmp%2Fc.sock?fd=4', 'http://*:8080';
+@@ -190,9 +191,9 @@
+             'http+unix://%2Ftmp%2Fa.sock?single_accept=1',
+             'http+unix://%2Ftmp%2Fb.sock?single_accept=0',
+             'http+unix://%2Ftmp%2Fc.sock?fd=4&single_accept=1',
+-            'http://*:8080?reuse=1',
+-        ],
+-        'single_accept=1 on each UNIX socket that does not say otherwise'
++            'http://*:8080?single_accept=1&reuse=1',
++        ],
++        'single_accept=1 on each listener that does not say otherwise'
+     );
+ };
+ 
+--- a/t/641-sql-function-migrations.t
++++ b/t/641-sql-function-migrations.t
+@@ -104,6 +104,7 @@
+ # Keep exactly these shipped forwarding boundaries for rolling deployments.
+ # Their arguments stay fixed even as the current catalogue moves forward.
+ my %previous_arguments = (
++    moderation_transfer_picker => [qw(actor source_id query after_position)],
+     admin_configuration_state  => [],
+     admin_configuration_change =>
+       [qw(actor command expected section key operation value request_hash)],
+--- a/t/694-render-work.t
++++ b/t/694-render-work.t
+@@ -66,7 +66,18 @@
+ $app->helper(
+     include => sub (@arguments) {
+         ++$count{include};
++        my ( $controller, $name, %values ) = @arguments;
++        if ( $name eq 'forum/_integrations' && !@{ $values{integrations} } ) {
++            ++$count{empty_integrations};
++        }
+         return $include->(@arguments);
++    }
++);
++my $icon = $app->renderer->helpers->{ui_icon};
++$app->helper(
++    ui_icon => sub ( $controller, $name, @arguments ) {
++        ++$count{"icon.$name"};
++        return $icon->( $controller, $name, @arguments );
+     }
+ );
+ $app->hook( before_render => sub (@) { ++$count{render} } );
+@@ -134,6 +145,13 @@
+     $before{misses}, 'no post presentation is rendered again' );
+ is( $fragments->stats->{hits} - $before{hits},
+     $posts, 'each post\'s presentation is one lookup' );
++is( $count{empty_integrations} // 0,
++    0, 'posts without integration cards do not render an empty partial' );
++
++for my $reaction (qw(heart laugh celebrate think)) {
++    cmp_ok( $count{"icon.emote-$reaction"} // 0,
++        '<=', 1, "$reaction markup is built at most once for the response" );
++}
+ 
+ done_testing();
+ 
+--- /dev/null
++++ b/t/integration/postgres-transfer-picker-work.t
+@@ -0,0 +1,234 @@
++# SPDX-FileCopyrightText: 2026 GPForum Contributors
++# SPDX-License-Identifier: BSD-3-Clause
++
++package main;
++use v5.40;
++use Const::Fast;
++use JSON::MaybeXS qw(decode_json);
++use Test::More;
++use lib 'lib', 't/lib';
++use GPForum::Benchmark::SeedDataset qw(seed_id);
++use GPForum::Infrastructure::Id;
++use GPForum::Test::PgDatabase;
++
++our $VERSION = '0.001';
++const my $CHOICE_LIMIT   => 50;
++const my $PUBLIC_CHOICES => 8;
++const my $ALL_CHOICES    => 18;
++const my $EXTRA_THREADS  => 100;
++const my $OTHER_USER     => 3;
++const my $POST_CURSOR    => 3;
++const my @VERSIONS       => ( 2, 4 );
++
++if ( !GPForum::Test::PgDatabase->admin_dsn ) {
++    plan skip_all => 'requires PostgreSQL';
++}
++my $database = GPForum::Test::PgDatabase->fresh( seed => 1 );
++my $dbh      = $database->dbh;
++my $ids      = GPForum::Infrastructure::Id->new;
++my $actor    = seed_id( user => 2 );
++my $other    = seed_id( user => $OTHER_USER );
++my ( $moderator, $reader ) = ( $ids->uuid, $ids->uuid );
++$dbh->do( 'DELETE FROM role_bindings WHERE user_id=?', undef, $actor );
++
++for my $role (
++    [ $moderator, 'picker-work-moderator', 'thread',   'moderate' ],
++    [ $reader,    'picker-work-reader',    'category', 'read' ]
++  )
++{
++    $dbh->do( 'INSERT INTO roles(role_id,name) VALUES(?,?)',
++        undef, @{$role}[ 0, 1 ] );
++    $dbh->do(
++q{INSERT INTO permissions(permission_id,name,resource_type,action) VALUES(?,?,?,?) ON CONFLICT (resource_type,action) DO NOTHING},
++        undef, $ids->uuid, $role->[1], $role->[2], $role->[-1]
++    );
++    $dbh->do(
++q{INSERT INTO role_permissions(role_id,permission_id) SELECT ?,permission_id FROM permissions WHERE resource_type=? AND action=?},
++        undef, $role->[0], $role->[2], $role->[-1]
++    );
++}
++$dbh->do(
++q{INSERT INTO role_bindings(binding_id,user_id,role_id,resource_type) VALUES(?,?,?,'global')},
++    undef, $ids->uuid, $actor, $moderator
++);
++
++my ( @spaces, @categories, @threads );
++_visibility_fixture();
++
++sub _visibility_fixture {
++    for my $space_visibility (qw(public members private)) {
++        my $space = $ids->uuid;
++        push @spaces, $space;
++        $dbh->do(
++q{INSERT INTO spaces(space_id,slug,title,visibility) VALUES(?,?,?,?)},
++            undef, $space, $space, 'Picker space', $space_visibility
++        );
++        for my $category_visibility (qw(public members private)) {
++            my $category = $ids->uuid;
++            push @categories, $category;
++            $dbh->do(
++q{INSERT INTO categories(category_id,space_id,slug,title,visibility) VALUES(?,?,?,?,?)},
++                undef,
++                $category,
++                $space,
++                $category,
++                'Picker category',
++                $category_visibility
++            );
++            for my $thread_visibility (qw(public members)) {
++                my $thread = $ids->uuid;
++                push @threads, $thread;
++                $dbh->do(
++q{INSERT INTO threads(thread_id,category_id,author_user_id,title,slug,visibility) VALUES(?,?,?,?,?,?)},
++                    undef,
++                    $thread,
++                    $category,
++                    $other,
++"Picker $space_visibility $category_visibility $thread_visibility",
++                    $thread,
++                    $thread_visibility
++                );
++            }
++        }
++    }
++    return;
++}
++
++my $public = _same('active moderator without private read grants');
++is(
++    scalar grep( { $_->{title} =~ /\APicker /msx } @{ $public->{choices} } ),
++    $PUBLIC_CHOICES,
++    'only public/member ancestors are visible without read grants'
++);
++for my $binding (
++    [ category => $categories[-1], undef ],
++    [ space    => $spaces[-1],     undef ],
++    [ space    => undef,           $spaces[-1] ],
++    [ global   => undef,           undef ]
++  )
++{
++    my $binding_id = $ids->uuid;
++    $dbh->do(
++q{INSERT INTO role_bindings(binding_id,user_id,role_id,resource_type,resource_id,space_id) VALUES(?,?,?,?,?,?)},
++        undef, $binding_id, $actor, $reader, @{$binding}
++    );
++    my $granted = _same("$binding->[0] read grant");
++    cmp_ok(
++        scalar @{ $granted->{choices} },
++        '>',
++        scalar @{ $public->{choices} },
++        'the scoped read grant actually exposes additional choices'
++    );
++    if ( $binding->[0] eq 'global' ) {
++        is(
++            scalar grep( { $_->{title} =~ /\APicker /msx }
++                @{ $granted->{choices} } ),
++            $ALL_CHOICES,
++            'the global read grant reaches every fixture scope'
++        );
++    }
++    _same( 'selected source and matching destination audience', $threads[-1] );
++    $dbh->do( 'UPDATE role_bindings SET revoked_at=now() WHERE binding_id=?',
++        undef, $binding_id );
++    _same('revocation is visible on the next call');
++}
++for my $query ( 'Picker public', 'unmatched', q{%}, '_' ) {
++    _same( "query $query", undef, $query );
++}
++for my $state (
++    q{locked_at=now()},           q{deleted_at=now()},
++    q{moderation_state='hidden'}, q{visibility='private'}
++  )
++{
++    $dbh->begin_work;
++    $dbh->do( "UPDATE threads SET $state WHERE thread_id=?",
++        undef, $threads[0] );
++    _same("ineligible thread: $state");
++    _same( 'ineligible source is refused', $threads[0] );
++    $dbh->rollback;
++}
++for my $relation (qw(categories spaces)) {
++    $dbh->begin_work;
++    my $key = $relation eq 'categories' ? 'category_id'  : 'space_id';
++    my $id  = $relation eq 'categories' ? $categories[0] : $spaces[0];
++    $dbh->do( "UPDATE $relation SET deleted_at=now() WHERE $key=?", undef,
++        $id );
++    _same("deleted $relation are excluded");
++    $dbh->rollback;
++}
++$dbh->do(
++q{INSERT INTO thread_polls(thread_id,question,closes_at) VALUES(?,'Picker poll',now()+interval '1 day')},
++    undef, $threads[0]
++);
++_same('polls are excluded');
++_same( 'poll source is refused', $threads[0] );
++_same( 'seeded source posts',    seed_id( thread => 1 ) );
++_same( 'source post cursor',     seed_id( thread => 1 ), q{}, $POST_CURSOR );
++my $suspension = $ids->uuid;
++$dbh->do(
++q{INSERT INTO suspensions(suspension_id,user_id,actor_user_id,reason) VALUES(?,?,?,'Picker test')},
++    undef, $suspension, $actor, $other
++);
++_same('active suspension refuses the picker');
++$dbh->do( 'UPDATE suspensions SET revoked_at=now() WHERE suspension_id=?',
++    undef, $suspension );
++_same('revoked suspension permits the picker again');
++
++for my $number ( 1 .. $EXTRA_THREADS ) {
++    my $thread = $ids->uuid;
++    $dbh->do(
++q{INSERT INTO threads(thread_id,category_id,author_user_id,title,slug) VALUES(?,?,?,'Extra picker candidate',?)},
++        undef, $thread, $categories[0], $other, $thread
++    );
++}
++my $bounded = _same('more candidates than the page size');
++is( scalar @{ $bounded->{choices} },
++    $CHOICE_LIMIT, 'the full page retains its limit' );
++SKIP: {
++    if ( $dbh->selectrow_array(q{SHOW is_superuser}) ne 'on' ) {
++        skip 'function counters require a superuser fixture', 1;
++    }
++    $dbh->do(q{SET track_functions='all'});
++    my $before = _viewer_calls();
++    $dbh->selectrow_array(
++q{SELECT result FROM api.moderation_transfer_picker_v4(?::uuid,NULL::uuid,''::text,0::bigint)},
++        undef, $actor
++    );
++    is(
++        _viewer_calls() - $before,
++        1,
++        'a full page resolves the viewer once, independent of candidate count'
++    );
++}
++$dbh->do( q{UPDATE users SET status='suspended' WHERE id=?}, undef, $actor );
++_same('inactive moderator is refused');
++$dbh->do( q{UPDATE users SET status='active' WHERE id=?}, undef, $actor );
++$dbh->do( 'DELETE FROM role_bindings WHERE user_id=?',    undef, $actor );
++_same('revoked moderation permission is refused');
++
++done_testing();
++
++sub _same ( $label, $source = undef, $query = q{}, $after = 0 ) {
++    my @answers;
++    for my $version (@VERSIONS) {
++        my ($raw) = $dbh->selectrow_array(
++"SELECT result FROM api.moderation_transfer_picker_v$version(?::uuid,?::uuid,?::text,?::bigint)",
++            undef, $actor, $source, $query, $after
++        );
++        push @answers, decode_json($raw);
++    }
++    is_deeply( $answers[1], $answers[0], $label );
++    cmp_ok( scalar @{ $answers[1]{choices} // [] },
++        '<=', $CHOICE_LIMIT, 'choice count stays bounded' );
++    return $answers[1];
++}
++
++sub _viewer_calls {
++    $dbh->do('SELECT pg_stat_force_next_flush()');
++    $dbh->do('SELECT pg_stat_clear_snapshot()');
++    return $dbh->selectrow_array(
++q{SELECT coalesce((SELECT calls FROM pg_stat_user_functions WHERE funcid='api.forum_resolve_viewer_v5(uuid)'::regprocedure),0)}
++    );
++}
++
++1;
+--- a/t/integration/postgres-sql-function-catalogue.t
++++ b/t/integration/postgres-sql-function-catalogue.t
+@@ -96,6 +96,12 @@
+ 
+     # Exact previous-release signatures remain supported during rolling deploys.
+     my %previous = (
++        moderation_transfer_picker_v2 => [
++            [ actor          => 'uuid' ],
++            [ source_id      => 'uuid' ],
++            [ query          => 'text' ],
++            [ after_position => 'bigint' ],
++        ],
+         admin_configuration_state_v2  => [],
+         admin_configuration_change_v2 => [
+             [ actor        => 'uuid' ],
+--- a/migrations/README.md
++++ b/migrations/README.md
+@@ -30,6 +30,7 @@
+ | `2033_navigation_context.sql`–`2038_moderation_transfer_title_index.sql` | Navigation, member profiles, upload pagination and indexed moderation thread selection. |
+ | `2039_hot_table_autovacuum.sql` | Earlier vacuum/analyze eligibility for frequently updated forum, search, outbox and session tables. |
+ | `2040_hybrid_search.sql` | pgvector, an invalidated embedding projection and typed semantic search/indexing boundaries. See the [hybrid search prerequisites](../docs/ops/hybrid-search.md). |
++| `2041_moderation_transfer_picker_work.sql` | Resolve picker membership/read grants once per statement, preserving the previous boundary for rolling workers. |
+ 
+ Within the 2000–2025 baseline, every table and function is created once. No version is retained solely for
+ older workers; there are no data backfills, temporary indexes or add/drop-column

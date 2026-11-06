@@ -1,0 +1,5 @@
+% layout 'default';
+% title t('forum.draft_reply_title') . ' - ' . t('app.name');
+<h1><%= t('forum.draft_reply_title') %>: <%= $thread->{title} // t('forum.thread') %></h1>
+<p><a href="<%= ui_path('thread', thread_id => $thread->{thread_id}) %>"><%= t('forum.draft_back_to_thread') %></a></p>
+<%= include 'forum/_composer' %>

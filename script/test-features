@@ -1,0 +1,105 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+package main;
+use v5.40;
+use Carp qw(croak);
+use Const::Fast;
+use English    qw(-no_match_vars);
+use File::Path qw(make_path);
+use File::Spec;
+use Getopt::Long qw(GetOptions);
+use Mojo::File   qw(path);
+use JSON::MaybeXS;
+use FindBin;
+use lib "$FindBin::Bin/lib", "$FindBin::Bin/../lib";
+use GPForum::Testing::FeatureCoverage;
+our $VERSION = '0.001';
+const my $DEFAULT_JOBS => 8;
+my ( $output, $manifest, $jobs, $help, $configured ) =
+  ( undef, 'etc/feature-coverage.json', $DEFAULT_JOBS, 0, 0 );
+GetOptions(
+    'output=s'   => \$output,
+    'manifest=s' => \$manifest,
+    'jobs=i'     => \$jobs,
+    'configured' => \$configured,
+    'help'       => \$help
+) or croak 'Invalid feature-test options';
+
+if ($help) {
+    say
+'Usage: script/gpforum-carton exec script/test-features --output NEW_DIR [--jobs 8] [--configured]'
+      or croak 'Cannot write usage';
+    exit 0;
+}
+_validate_options( $output, $jobs, $configured );
+$output   = File::Spec->rel2abs($output);
+$manifest = File::Spec->rel2abs($manifest);
+my $catalogue = JSON::MaybeXS->new->decode( path($manifest)->slurp );
+my $passed    = _run( $output, $manifest, $jobs, $catalogue, $configured );
+my $report =
+  GPForum::Testing::FeatureCoverage->report( $manifest, "$output/traces",
+    $passed );
+path( $output, 'features.json' )
+  ->spew( JSON::MaybeXS->new( canonical => 1, pretty => 1, utf8 => 1 )
+      ->encode($report) );
+say JSON::MaybeXS->new( canonical => 1 )->encode(
+    {
+        status  => $report->{status},
+        covered => $report->{covered},
+        total   => $report->{total},
+        report  => "$output/features.json",
+        tests   => "$output/tests.log"
+    }
+) or croak 'Cannot write result';
+exit( $report->{status} eq 'ok' ? 0 : 1 );
+
+sub _run ( $output, $manifest, $jobs, $catalogue, $configured ) {
+    my %tests = map { $_ => 1 } (
+        't/integration',
+        map {
+            map { $_->{test} }
+              @{ $_->{proofs} }
+        } @{ $catalogue->{features} }
+    );
+
+    # Unit evidence is run without a PostgreSQL bootstrap. All integration files,
+    # including those absent from a feature's own proof list, remain mandatory.
+    my @tests = grep { $_ eq 't/integration' || !m{\At/integration/}msx }
+      sort keys %tests;
+    make_path("$output/traces");
+    local %ENV = %ENV;
+    if ( !$configured ) {
+        delete @ENV{
+            qw(GPFORUM_DATABASE_DSN GPFORUM_TEST_DSN GPFORUM_DATABASE_USER GPFORUM_DATABASE_PASSWORD GPFORUM_POSTGRES_CONTROLLED_TEST)
+        };
+    }
+    local $ENV{GPFORUM_FEATURE_MANIFEST}    = $manifest;
+    local $ENV{GPFORUM_FEATURE_TRACE_DIR}   = "$output/traces";
+    local $ENV{GPFORUM_BENCHMARK_TRACE_DIR} = "$output/traces";
+    my $pid = fork;
+    croak "Cannot fork feature tests: $OS_ERROR" if !defined $pid;
+
+    if ( !$pid ) {
+        open STDOUT, '>', "$output/tests.log"
+          or croak 'Cannot capture feature tests';
+        open STDERR, '>&', \*STDOUT or croak 'Cannot capture diagnostics';
+        exec {$EXECUTABLE_NAME} $EXECUTABLE_NAME, '-S', 'prove', '-l', '-j',
+          $jobs,
+          '-It/lib', '-Iscript/lib', '--exec',
+          'perl -Ilib -It/lib -Iscript/lib -MGPForum::Test::FeatureBootstrap',
+          '-r', @tests
+          or croak 'Cannot execute feature tests';
+    }
+    waitpid $pid, 0;
+    return $CHILD_ERROR == 0;
+}
+
+sub _validate_options ( $output, $jobs, $configured ) {
+    croak 'Choose a new output directory and positive job count'
+      if !$output || -e $output || $jobs < 1 || @ARGV;
+    croak
+      '--configured requires an explicitly selected disposable test database'
+      if $configured && !$ENV{GPFORUM_DATABASE_DSN} && !$ENV{GPFORUM_TEST_DSN};
+    return;
+}

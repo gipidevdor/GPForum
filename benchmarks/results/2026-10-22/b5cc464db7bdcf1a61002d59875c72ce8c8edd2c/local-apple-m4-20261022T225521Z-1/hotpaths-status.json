@@ -1,0 +1,47 @@
+{
+   "database" : {
+      "reason" : "See individual gates and artifacts; skipped suites never imply execution",
+      "status" : "ok"
+   },
+   "database-plans-functions" : {
+      "failure_kind" : null,
+      "reason" : "Nested function plans require auto_explain LOAD; unavailable or unmeasured is never PASS",
+      "skipped_repetitions" : 0,
+      "status" : "ok"
+   },
+   "database-plans-readers" : {
+      "failure_kind" : null,
+      "reason" : "Nested function plans require auto_explain LOAD; unavailable or unmeasured is never PASS",
+      "skipped_repetitions" : 0,
+      "status" : "ok"
+   },
+   "outbox" : {
+      "reason" : "See individual gates and artifacts; skipped suites never imply execution",
+      "status" : "ok"
+   },
+   "outbox-postgres" : {
+      "diagnostic" : "outbox-full.json",
+      "failure_kind" : null,
+      "reason" : "Full stdout capture recovery; original truncated capture retained separately",
+      "status" : "ok"
+   },
+   "profiling" : {
+      "reason" : "Reserved for bounded weekly/manual deep mode",
+      "status" : "skipped"
+   },
+   "query-budget" : {
+      "diagnostic" : "diagnostics/query-budget.log",
+      "failure_kind" : null,
+      "reason" : "Catalog drift is deterministic; N+1 request counts remain blocking in the integration tier",
+      "status" : "ok"
+   },
+   "query-plan-static" : {
+      "diagnostic" : "diagnostics/query-plan-static.log",
+      "reason" : "Required index and forbidden OFFSET checks",
+      "status" : "ok"
+   },
+   "sql-functions" : {
+      "reason" : "Reserved for bounded weekly/manual deep mode",
+      "status" : "skipped"
+   }
+}

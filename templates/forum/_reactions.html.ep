@@ -1,0 +1,48 @@
+%# Takes "post". Eligible readers open a native picker with one form; others see
+%# only nonzero counts. Pressed buttons remove the reader's reaction.
+%# Each submitter sends its own command_id to its formaction, with or without
+%# htmx. CSRF and commands stay fresh per response, outside fragment caches.
+%# Translated labels are reused across posts within this request.
+% my $post = stash('post');
+% my @reactions = @{ $post->{reactions} || [] };
+% my %label_key = ( heart => 'forum.reaction_heart', laugh => 'forum.reaction_laugh', celebrate => 'forum.reaction_celebrate', think => 'forum.reaction_think' );
+% my $texts = $c->stash->{'gp.reaction_texts'} //= {};
+% my @shown = grep { $post->{can_react} || $_->{count} } @reactions;
+% my $paths = stash('reaction_paths') || {};
+% my $action;
+% if (@shown) {
+%   my $group_label = $texts->{group_label} //= t('forum.reactions');
+  <div class="post__reactions" role="group" aria-label="<%= $group_label %>">
+    % if ($post->{can_react}) {
+      <details class="post-reaction-picker">
+        % my $total = 0; $total += $_->{count} // 0 for @shown;
+        <summary><%= $group_label %><% if ($total) { %> <span class="post__reaction-count"><%= $total %></span><% } %><% if (grep { $_->{reacted} } @shown) { %><%= ($texts->{check_icon} //= ui_icon('check')) %><% } %></summary>
+        <div class="post-reaction-picker__choices">
+    %   my $first = $shown[0];
+    %   my $route = $first->{reacted} ? 'post_unreact' : 'post_react';
+    %   $action = $paths->{$route . q{:} . $first->{reaction}} // ui_path($route, post_id => $post->{post_id}, reaction => $first->{reaction});
+      <form method="post" action="<%= $action %>" hx-post="<%= $action %>">
+        <%= csrf_field %>
+    % }
+    % for my $reaction (@shown) {
+    %   my $name = $reaction->{reaction};
+%   my $text = $texts->{$name} //= { label => t($label_key{$name}), icon => ui_icon('emote-' . $name) };
+      % if ($post->{can_react}) {
+      %   my $route = $reaction->{reacted} ? 'post_unreact' : 'post_react';
+      %   my $path = $name eq $shown[0]{reaction} ? $action : $paths->{$route . q{:} . $name} // ui_path($route, post_id => $post->{post_id}, reaction => $name);
+      %   my $aria = $reaction->{reacted}
+      %     ? $text->{remove} //= t('forum.remove_reaction', { reaction => $text->{label} })
+      %     : $text->{react} //= t('forum.react_with', { reaction => $text->{label} });
+      %   my $accessible = $aria . ($reaction->{count} ? q{, } . $group_label . q{: } . $reaction->{count} : q{});
+        <button type="submit" name="command_id" value="<%= $reaction->{command_id} || q{} %>" formaction="<%= $path %>" class="post__reaction" aria-pressed="<%= $reaction->{reacted} ? 'true' : 'false' %>" aria-label="<%= $accessible %>" title="<%= $aria %>"><%= $text->{icon} %><% if ($reaction->{reacted}) { %><span class="post__reaction-state" aria-hidden="true"><%= ($texts->{check_icon} //= ui_icon('check')) %></span><% } %><%== $reaction->{count} ? q{<span class="post__reaction-count">} . $reaction->{count} . q{</span>} : q{} %></button>
+      % } else {
+        <span class="post__reaction post__reaction--static"><%= $text->{icon} %><span class="visually-hidden"><%= $text->{label} %></span><span class="post__reaction-count"><%= $reaction->{count} %></span></span>
+      % }
+    % }
+    % if ($post->{can_react}) {
+      </form>
+        </div>
+      </details>
+    % }
+  </div>
+% }

@@ -1,0 +1,239 @@
+--- a/lib/GPForum/Web/PublicCacheAccess.pm
++++ b/lib/GPForum/Web/PublicCacheAccess.pm
+@@ -13,7 +13,9 @@
+ 
+ our $VERSION = '0.001';
+ 
+-const my $ANY_ETAG => q{*};
++# RFC 9110: the opaque value permits commas and literal backslashes, but
++# excludes double quotes, spaces and control characters.
++const my $OPAQUE_TAG => qr{" [\x21\x23-\x7e\x80-\xff]* "}msx;
+ 
+ has access => sub { return GPForum::Web::Access->new; };
+ 
+@@ -36,14 +38,12 @@
+ }
+ 
+ sub client_has_fresh_copy ( $self, $controller, $entry ) {
+-    my $headers = $controller->req->headers;
+-    if (
+-        $self->etag_matches(
+-            $headers->header('If-None-Match'), $entry->{etag}
+-        )
+-      )
+-    {
+-        return 1;
++    my $headers   = $controller->req->headers;
++    my $candidate = $headers->header('If-None-Match');
++    if ( defined $candidate ) {
++
++        # A differing ETag cannot be overridden by a date, even a future one.
++        return $self->etag_matches( $candidate, $entry->{etag} );
+     }
+     if (
+         $self->modified_since_matches(
+@@ -101,15 +101,22 @@
+ }
+ 
+ sub _etag_token_matches ( $, $candidate, $etag ) {
+-    my %tokens = map { $_ => 1 } split m{\s*,\s*}msx, $candidate;
+-    if ( $tokens{$ANY_ETAG} ) {
+-        return 1;
+-    }
+-    if ( $tokens{$etag} ) {
+-        return 1;
+-    }
+-
+-    return 0;
++    my ($opaque) = $etag =~ /\A (?: W\/ )? ($OPAQUE_TAG) \z/msx;
++    return 0 if !defined $opaque;
++    return 1 if $candidate eq $etag || $candidate eq $opaque;
++    return 1 if $candidate =~ /\A [\t ]* [*] [\t ]* \z/msx;
++
++    # Parse quoted members without splitting an opaque value's commas.
++    # Consume the complete list before accepting a match: malformed trailing
++    # input must not accidentally validate a stale representation.
++    my $matched = 0;
++    pos $candidate = 0;
++    while ( $candidate =~
++        /\G [\t ,]* (?: W\/ )? ($OPAQUE_TAG) [\t ]* (?: , | \z )/gcmsx )
++    {
++        if ( $1 eq $opaque ) { $matched = 1; }
++    }
++    return $candidate =~ /\G [\t ,]* \z/gcmsx ? $matched : 0;
+ }
+ 
+ sub _epoch_not_after ( $, $candidate, $last_modified_epoch ) {
+@@ -159,11 +166,18 @@
+ 
+ =head2 client_has_fresh_copy
+ 
+-True when If-None-Match or If-Modified-Since matches the cache entry.
++True when the applicable request validator matches the cached representation.
++
++If C<If-None-Match> is present, only that validator decides freshness;
++C<If-Modified-Since> is ignored, including when the entity tag differs.
+ 
+ =head2 etag_matches
+ 
+ True when the candidate lists the entry ETag or C<*>.
++
++Uses weak comparison for C<If-None-Match>: matching quoted opaque values
++are equivalent with or without C<W/>. Commas inside a quoted value remain
++part of that value; a malformed list cannot produce a match.
+ 
+ =head2 modified_since_matches
+ 
+--- a/lib/GPForum/Service/Forum/PageWindow.pm
++++ b/lib/GPForum/Service/Forum/PageWindow.pm
+@@ -17,6 +17,9 @@
+ const my $MAX_LIMIT     => 100;
+ const my $MIN_LIMIT     => 1;
+ const my $CURSOR_PARTS  => 2;
++
++# Even a pinned cursor with microseconds and a full timezone fits below this.
++const my $MAX_ENCODED_CURSOR => 128;
+ 
+ # A position, or a timestamp as PostgreSQL or ISO 8601 writes it. Each list
+ # sorts by one of them and binds the cursor as that type, so a plan says
+@@ -106,12 +109,25 @@
+     return GPForum::Infrastructure::CalendarDate->is_timestamp($sort_value);
+ }
+ 
+-sub _decode_cursor ( $cursor, $sort = undef ) {
+-    return undef if !defined $cursor || !length $cursor;
+-
++# Shared by ordinary and pinned cursors. Bound input before decoding or
++# allocating the decoded string; semantic validation stays with the reader.
++sub decode_cursor_text ( $class, $cursor ) {
++    return undef
++      if !defined $cursor
++      || ref $cursor
++      || !length $cursor
++      || length $cursor > $MAX_ENCODED_CURSOR;
+     my $decoded;
+     try { $decoded = decode_base64url($cursor); }
+     catch ($error) { return undef; };
++
++    return $decoded;
++}
++
++sub _decode_cursor ( $cursor, $sort = undef ) {
++    return undef if !defined $cursor || !length $cursor;
++
++    my $decoded = __PACKAGE__->decode_cursor_text($cursor);
+     return undef if !defined $decoded;
+ 
+     my @parts = split /[|]/msx, $decoded, $CURSOR_PARTS;
+@@ -184,6 +200,12 @@
+ the cursor columns of the last item kept, read with C<get_column>;
+ otherwise C<has_next> is 0 and C<next_cursor> undef.
+ 
++=head2 decode_cursor_text
++
++Decodes an encoded cursor of at most 128 characters, or returns undef for
++missing, oversized, non-scalar or undecodable input. Shared by ordinary and
++pinned cursors; each reader still validates the decoded fields before SQL.
++
+ =head2 acceptable_cursor
+ 
+ Class method. Takes a sort value and an id. Returns 1 when the id is a uuid
+--- a/lib/GPForum/Service/Forum/ThreadReader.pm
++++ b/lib/GPForum/Service/Forum/ThreadReader.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Forum::ThreadReader;
+ 
+ use Const::Fast;
+-use MIME::Base64 qw(decode_base64url encode_base64url);
++use MIME::Base64 qw(encode_base64url);
+ use Mojo::Base 'GPForum::Base', -signatures;
+ use v5.40;
+ 
+@@ -43,7 +43,7 @@
+ };
+ 
+ sub list_category_threads ( $self, $request ) {
+-    my $plan = $self->page_window->plan($request);
++    my $plan = $self->_category_plan($request);
+ 
+     if ( my $functions = $self->functions ) {
+         my $rows = $functions->rows(
+@@ -69,7 +69,7 @@
+ 
+ # The calls the readers execute, also used by the nested query-plan gate.
+ sub category_threads_call ( $self, $request, $plan = undef ) {
+-    $plan ||= $self->page_window->plan($request);
++    $plan ||= $self->_category_plan($request);
+     my $scope = $request->{viewer_scope}
+       || GPForum::Service::Forum::Viewer->anonymous;
+     my $after = _decode_pinned_cursor( $request->{after} ) || {};
+@@ -91,7 +91,7 @@
+ 
+ # The original resultset, retained for doubles and differential plan tests.
+ sub category_threads_resultset ( $self, $request, $plan = undef ) {
+-    $plan ||= $self->page_window->plan($request);
++    $plan ||= $self->_category_plan($request);
+ 
+     # Scalar first: with no cursor the decoder returns an empty list, which as
+     # an argument would remove the parameter rather than pass undef.
+@@ -223,8 +223,13 @@
+     );
+ }
+ 
+-# The latest list's plan: it sorts by last_activity_at, so only a timestamp
+-# cursor is one.
++# A category has its own three-part cursor. PageWindow only needs its size:
++# decoding that cursor as a two-part cursor first did the same work twice.
++sub _category_plan ( $self, $request ) {
++    return $self->page_window->plan( { limit => $request->{limit} } );
++}
++
++# The latest list sorts by last_activity_at, so only a timestamp cursor is one.
+ sub _latest_plan ( $self, $request ) {
+     return $self->page_window->plan( { %{$request}, sort => 'timestamp' } );
+ }
+@@ -370,9 +375,8 @@
+ sub _decode_pinned_cursor ($cursor) {
+     return if !defined $cursor || !length $cursor;
+ 
+-    my $decoded;
+-    try { $decoded = decode_base64url($cursor); }
+-    catch ($error) { return; };
++    my $decoded =
++      GPForum::Service::Forum::PageWindow->decode_cursor_text($cursor);
+     return if !defined $decoded;
+ 
+     my @parts        = split /[|]/msx, $decoded, $PINNED_CURSOR_PARTS;
+--- a/lib/GPForum/Service/Forum/CategoryReader.pm
++++ b/lib/GPForum/Service/Forum/CategoryReader.pm
+@@ -252,7 +252,7 @@
+ 
+ sub _bounded_limit ($requested) {
+     return $DEFAULT_LIMIT if !defined $requested;
+-    return $DEFAULT_LIMIT if $requested !~ /\A [[:digit:]]+ \z/msx;
++    return $DEFAULT_LIMIT if $requested !~ /\A [[:digit:]]+ \z/amsx;
+     return $DEFAULT_LIMIT if $requested < 1;
+     return $MAX_LIMIT     if $requested > $MAX_LIMIT;
+ 
+--- a/lib/GPForum/Service/Search/Searcher.pm
++++ b/lib/GPForum/Service/Search/Searcher.pm
+@@ -828,7 +828,7 @@
+ 
+ sub _bounded_limit ($limit) {
+     return $DEFAULT_LIMIT
+-      if !defined $limit || $limit !~ /\A [[:digit:]]+ \z/msx || $limit < 1;
++      if !defined $limit || $limit !~ /\A [[:digit:]]+ \z/amsx || $limit < 1;
+ 
+     return $MAX_LIMIT if $limit > $MAX_LIMIT;
+ 
+--- a/etc/architecture-policy-baseline.json
++++ b/etc/architecture-policy-baseline.json
+@@ -76,7 +76,7 @@
+    "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadDetailReader.pm|8943ff86c8011e9d27d033efa7569ce3183f91cbe2aa9905a41eeaf39e021c53": 1,
+    "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadReader.pm|3342cbf8cb1324070996e208cd12d3cd6fcaece0c276e4268e36495d99eae38a": 1,
+    "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadReader.pm|ead0e1cfb01e315003cae08ebb5709908587ae9e23ae68f08b01db2d2bb9d08b": 1,
+-   "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadReader.pm|f16437ad6a34295298e15ae958e1ba60d6415085936d93ad63a3117da8037cf9": 1,
++   "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadReader.pm|c67a45ab8366712a2cfb00230f3196eba8f80e63c72040c36c1a7890244179ed": 1,
+    "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadStore.pm|283ccc6c284d69f659c8b7f5a30c8fa1983ca44e1197bcafb0b6861d6567e018": 1,
+    "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadStore.pm|502cb62c84094140507b00854dbdfd9586a3ed7544ae73d1ef1b6d73b854fd20": 1,
+    "Perl::Critic::Policy::GPForum::ResultsetBoundary|lib/GPForum/Service/Forum/ThreadStore.pm|5894dc564bc638f39b526ff3eccc0fa972a81dcbb980c805c90a9a521d62ac9d": 1,

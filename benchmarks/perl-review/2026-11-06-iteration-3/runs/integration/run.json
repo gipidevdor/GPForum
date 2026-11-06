@@ -1,0 +1,24 @@
+{
+  "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review3-after-aopylafy",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-j4",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/integration/postgres-search-results.t",
+    "t/integration/postgres-search-hidden-content.t",
+    "t/integration/postgres-hybrid-search.t",
+    "t/integration/postgres-sql-function-search.t",
+    "t/integration/postgres-sql-function-forum-reads.t",
+    "t/integration/postgres-thread-list-excerpts.t",
+    "t/integration/postgres-http-complete.t"
+  ],
+  "started_at": "2026-11-06T01:59:39.827367+00:00",
+  "exit_code": 1,
+  "elapsed_seconds": 24.740760375,
+  "finished_at": "2026-11-06T02:00:04.568453+00:00"
+}

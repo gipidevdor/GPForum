@@ -1,0 +1,2613 @@
+[
+  {
+    "scale": "100k",
+    "query": "the",
+    "policy": "forced",
+    "indexes": [
+      "idx_categories_space_position",
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "WindowAgg"
+      },
+      {
+        "Node Type": "Subquery Scan"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "BitmapOr"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Materialize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "idx_categories_space_position",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Memoize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "100k",
+    "query": "the",
+    "policy": "plan",
+    "indexes": [
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694223,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 325.186
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 325.1
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 325.098
+      },
+      {
+        "Node Type": "WindowAgg",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 324.886
+      },
+      {
+        "Node Type": "Subquery Scan",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 321.444
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 321.35
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 321.285
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 98488.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 302.476
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 98488.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694140,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 278.624
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.004
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents",
+        "Actual Rows": 98488.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 12,
+        "Shared Hit Blocks": 694138,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 265.052
+      },
+      {
+        "Node Type": "BitmapOr",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 30,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 4.484
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector",
+        "Actual Rows": 98488.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 18,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 4.469
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 9,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.013
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 3,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 98488,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 295464,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 1.0,
+        "Actual Loops": 98488,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 393952,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Materialize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 98488,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.005
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694221,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 325.168
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694141,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 325.1
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 20,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 80,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Memoize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 20,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 694244,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 326.812
+      }
+    ]
+  },
+  {
+    "scale": "100k",
+    "query": "autocomplete",
+    "policy": "forced",
+    "indexes": [
+      "idx_categories_space_position",
+      "posts_pkey",
+      "search_documents_entity_key",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_entity_key",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Materialize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "idx_categories_space_position",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Memoize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "100k",
+    "query": "autocomplete",
+    "policy": "plan",
+    "indexes": [
+      "posts_pkey",
+      "search_documents_entity_key",
+      "search_documents_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1574,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.421
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1524,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.398
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1524,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.397
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1524,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.393
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.004
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1523,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.387
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_entity_key",
+        "Relation Name": "search_documents",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 1500,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 1522,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.377
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 36,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Materialize",
+        "Actual Rows": 2.0,
+        "Actual Loops": 12,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 3.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1564,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.411
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1524,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.399
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 10,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 40,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Memoize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 10,
+        "Shared Hit Blocks": 10,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 5,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 10,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1593,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.152
+      }
+    ]
+  },
+  {
+    "scale": "100k",
+    "query": "perf thrd",
+    "policy": "forced",
+    "indexes": [
+      "categories_pkey",
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "WindowAgg"
+      },
+      {
+        "Node Type": "Subquery Scan"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "BitmapOr"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "categories_pkey",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "100k",
+    "query": "perf thrd",
+    "policy": "plan",
+    "indexes": [
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4941,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.702
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.647
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.646
+      },
+      {
+        "Node Type": "WindowAgg",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.634
+      },
+      {
+        "Node Type": "Subquery Scan",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.551
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.545
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.543
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.535
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 98488,
+        "Shared Hit Blocks": 4845,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.488
+      },
+      {
+        "Node Type": "BitmapOr",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 117,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.628
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 5,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.012
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 98500.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 93,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.584
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 19,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.031
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 36,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 3.0,
+        "Actual Loops": 12,
+        "Shared Hit Blocks": 24,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 12,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 3.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 12,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4917,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.682
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4869,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 304.645
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 48,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 24,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 4962,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 306.468
+      }
+    ]
+  },
+  {
+    "scale": "100k",
+    "query": "zymurgy",
+    "policy": "plan",
+    "indexes": [
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 229,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.184
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.152
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.151
+      },
+      {
+        "Node Type": "WindowAgg",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.145
+      },
+      {
+        "Node Type": "Subquery Scan",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.091
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.089
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.088
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.084
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 3.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.007
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 3.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Materialize",
+        "Actual Rows": 14.0,
+        "Actual Loops": 3,
+        "Shared Hit Blocks": 143,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.023
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 143,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.063
+      },
+      {
+        "Node Type": "BitmapOr",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 31,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.013
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 3,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.004
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 17,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.006
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 11,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 14,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 42,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 1.0,
+        "Actual Loops": 14,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 56,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 201,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.173
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 145,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.153
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 14,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 56,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 14,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 28,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 14.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 250,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.382
+      }
+    ]
+  },
+  {
+    "scale": "100k",
+    "query": "zymurgy",
+    "policy": "forced",
+    "indexes": [
+      "categories_pkey",
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "WindowAgg"
+      },
+      {
+        "Node Type": "Subquery Scan"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "BitmapOr"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "categories_pkey",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "zymurgy",
+    "policy": "plan",
+    "indexes": [
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1272,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.235
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.187
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.186
+      },
+      {
+        "Node Type": "WindowAgg",
+        "Actual Rows": 143.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.152
+      },
+      {
+        "Node Type": "Subquery Scan",
+        "Actual Rows": 143.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.637
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 143.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.623
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 143.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.613
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 143.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.578
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents",
+        "Actual Rows": 143.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 1188,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.487
+      },
+      {
+        "Node Type": "BitmapOr",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 44,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.025
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector",
+        "Actual Rows": 143.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 3,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.013
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 25,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.008
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 16,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 143,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 429,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 1.0,
+        "Actual Loops": 143,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 572,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Materialize",
+        "Actual Rows": 3.0,
+        "Actual Loops": 143,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 3.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.007
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 3.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1270,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.223
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1190,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.188
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 20,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 80,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Memoize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 20,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1291,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 2.634
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "zymurgy",
+    "policy": "forced",
+    "indexes": [
+      "categories_pkey",
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "WindowAgg"
+      },
+      {
+        "Node Type": "Subquery Scan"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "BitmapOr"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "categories_pkey",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Memoize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "the",
+    "policy": "plan",
+    "indexes": [
+      "idx_search_documents_created",
+      "posts_pkey",
+      "search_documents_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8613,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.367
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8531,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.295
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8531,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.293
+      },
+      {
+        "Node Type": "WindowAgg",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8531,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.079
+      },
+      {
+        "Node Type": "Subquery Scan",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8531,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 6.712
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8531,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 6.637
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8531,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 6.571
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8530,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 6.37
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "idx_search_documents_created",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1000.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 1512,
+        "Shared Hit Blocks": 8529,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 6.104
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1000,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 3000,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1000,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 4000,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Materialize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1000,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.006
+      },
+      {
+        "Node Type": "Materialize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1000,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8611,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.355
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8531,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 10.297
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 20,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 80,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Memoize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 20,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 2,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 20.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 8632,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 11.589
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "the",
+    "policy": "forced",
+    "indexes": [
+      "idx_categories_space_position",
+      "idx_search_documents_created",
+      "posts_pkey",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "WindowAgg"
+      },
+      {
+        "Node Type": "Subquery Scan"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "idx_search_documents_created",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Materialize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "idx_categories_space_position",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Materialize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Memoize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "autocomplete",
+    "policy": "forced",
+    "indexes": [
+      "categories_pkey",
+      "posts_pkey",
+      "search_documents_entity_key",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_entity_key",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "categories_pkey",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Memoize"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "autocomplete",
+    "policy": "plan",
+    "indexes": [
+      "posts_pkey",
+      "search_documents_entity_key",
+      "search_documents_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1564,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.446
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1514,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.418
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1514,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.417
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1514,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.411
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.006
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1513,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.401
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_entity_key",
+        "Relation Name": "search_documents",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 1500,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 1512,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.388
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 36,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Materialize",
+        "Actual Rows": 2.0,
+        "Actual Loops": 12,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 3.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 1,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1554,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.434
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1514,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.419
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 10,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 40,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Memoize",
+        "Actual Rows": 1.0,
+        "Actual Loops": 10,
+        "Shared Hit Blocks": 10,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 5,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 10,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 10.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1581,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 1.403
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "perf thrd",
+    "policy": "forced",
+    "indexes": [
+      "categories_pkey",
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "spaces_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "WindowAgg"
+      },
+      {
+        "Node Type": "Subquery Scan"
+      },
+      {
+        "Node Type": "Limit"
+      },
+      {
+        "Node Type": "Sort"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "spaces_pkey",
+        "Relation Name": "spaces"
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "BitmapOr"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "categories_pkey",
+        "Relation Name": "categories"
+      },
+      {
+        "Node Type": "Nested Loop"
+      },
+      {
+        "Node Type": "CTE Scan"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents"
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users"
+      },
+      {
+        "Node Type": "Function Scan"
+      }
+    ]
+  },
+  {
+    "scale": "1m",
+    "query": "perf thrd",
+    "policy": "plan",
+    "indexes": [
+      "idx_search_documents_title_trgm",
+      "idx_search_documents_vector",
+      "posts_pkey",
+      "search_documents_pkey",
+      "threads_pkey",
+      "users_pkey"
+    ],
+    "nodes": [
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48443,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.767
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.724
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.723
+      },
+      {
+        "Node Type": "WindowAgg",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.714
+      },
+      {
+        "Node Type": "Subquery Scan",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.65
+      },
+      {
+        "Node Type": "Limit",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.645
+      },
+      {
+        "Node Type": "Sort",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.639
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.632
+      },
+      {
+        "Node Type": "Bitmap Heap Scan",
+        "Relation Name": "search_documents",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 998488,
+        "Shared Hit Blocks": 48347,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.583
+      },
+      {
+        "Node Type": "BitmapOr",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 762,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 106.524
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_vector",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 5,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.008
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 998500.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 731,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 106.47
+      },
+      {
+        "Node Type": "Bitmap Index Scan",
+        "Index Name": "idx_search_documents_title_trgm",
+        "Actual Rows": 0.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 26,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.044
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 36,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "threads_pkey",
+        "Relation Name": "threads",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "posts_pkey",
+        "Relation Name": "posts",
+        "Actual Rows": 0,
+        "Actual Loops": 0,
+        "Rows Removed by Filter": 0,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.0
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 3.0,
+        "Actual Loops": 12,
+        "Shared Hit Blocks": 24,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.003
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "spaces",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 12,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Seq Scan",
+        "Relation Name": "categories",
+        "Actual Rows": 3.0,
+        "Actual Loops": 12,
+        "Rows Removed by Filter": 0,
+        "Shared Hit Blocks": 12,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Nested Loop",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48419,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.752
+      },
+      {
+        "Node Type": "CTE Scan",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48371,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3235.723
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "search_documents_pkey",
+        "Relation Name": "search_documents",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 48,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.002
+      },
+      {
+        "Node Type": "Index Scan",
+        "Index Name": "users_pkey",
+        "Relation Name": "users",
+        "Actual Rows": 1.0,
+        "Actual Loops": 12,
+        "Rows Removed by Index Recheck": 0,
+        "Shared Hit Blocks": 24,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 0.001
+      },
+      {
+        "Node Type": "Function Scan",
+        "Actual Rows": 12.0,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 48462,
+        "Shared Read Blocks": 0,
+        "Actual Total Time": 3237.326
+      }
+    ]
+  }
+]

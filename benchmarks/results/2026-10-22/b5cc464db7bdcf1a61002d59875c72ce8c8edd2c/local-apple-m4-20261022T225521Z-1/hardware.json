@@ -1,0 +1,28 @@
+{
+  "cpu_model": "Apple M4",
+  "logical_cpus": 10,
+  "performance_cpus": 4,
+  "efficiency_cpus": 6,
+  "memory_bytes": 17179869184,
+  "macos": "27.0.1",
+  "storage": "internal SSD, APFS; not separately benchmarked",
+  "code_commit": "b5cc464db7bdcf1a61002d59875c72ce8c8edd2c",
+  "source": "committed source exported with git archive; uncommitted UI edits excluded",
+  "postgres_profile": {
+    "name": "shared",
+    "memory_mb": 16384,
+    "reserve_mb": 8192,
+    "storage": "ssd"
+  },
+  "started_at": "2026-10-22T23:00:17.672318+00:00",
+  "limitations": [
+    "Desktop applications and other development sessions remain running.",
+    "Generator, application and PostgreSQL share this laptop.",
+    "No reverse proxy or external network; Unix-socket and TCP loopback suites are reported separately.",
+    "PostgreSQL RSS includes shared mappings; summing it would overcount memory.",
+    "macOS ps percentage CPU is a marked lifetime-average diagnostic, not a per-request CPU cost."
+  ],
+  "finished_at": "2026-10-22T23:27:26.105839+00:00",
+  "main_driver_finished_at": "2026-10-22T23:24:48.104561+00:00",
+  "host_sampler_scope": "Main driver; recovered outbox also has separate per-worker CPU/RSS snapshots."
+}

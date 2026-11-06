@@ -1,0 +1,41 @@
+{
+  "source": "/private/tmp/gpforum-perl-review-before-ni1e74uh",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "script/benchmark-http-complete",
+    "--output",
+    "/Users/gpicchiarelli/Documents/GPForum/artifacts/perl-review-20261106/before-a-http/http",
+    "--workers",
+    "4",
+    "--iterations",
+    "40",
+    "--warmup",
+    "5",
+    "--duration",
+    "3",
+    "--repetitions",
+    "2",
+    "--concurrency",
+    "1,32,100",
+    "--deadline",
+    "300",
+    "--scenario",
+    "member.thread"
+  ],
+  "started_at": "2026-11-06T00:47:23.924579+00:00",
+  "competing_load": [],
+  "load_before": [
+    1.42041015625,
+    2.5419921875,
+    3.55859375
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 48.256276208,
+  "finished_at": "2026-11-06T00:48:12.181100+00:00",
+  "load_after": [
+    2.60400390625,
+    2.65087890625,
+    3.53662109375
+  ]
+}

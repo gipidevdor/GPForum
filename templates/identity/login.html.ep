@@ -1,0 +1,54 @@
+% layout 'default';
+% title t('auth.login_title') . ' - ' . t('app.name');
+% my $form_described_by = $ui->{described_by} || q{};
+
+<section class="account-panel" aria-labelledby="login-heading">
+  <h1 id="<%= $ui->{heading_id} %>"><%= t('auth.login_title') %></h1>
+  % if ($errors->{login}) {
+    <%= include 'components/field_error', field_id => 'login-form-error', message => $errors->{login}, role => 'alert' %>
+  % }
+  <%= include 'components/error_summary',
+    summary_id => 'login-error-summary',
+    errors => $errors,
+    fields => $error_fields %>
+  <form method="post" action="<%= ui_path('login_submit') %>"<%== length $form_described_by ? ' aria-describedby="' . $form_described_by . '"' : q{} %>>
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $command_id || q{} %>">
+    <input type="hidden" name="return_to" value="<%= param('return_to') // q{} %>">
+    % for my $field (@{$fields}) {
+      <label for="<%= $field->{id} %>">
+        <%= t($field->{label_key}) %>
+      </label>
+      % if ($field->{type} eq 'password') {
+        <input id="<%= $field->{id} %>" name="<%= $field->{name} %>" type="password" autocomplete="<%= $field->{autocomplete} %>"<%== $field->{error_attrs} %>>
+      % } else {
+        <input id="<%= $field->{id} %>" name="<%= $field->{name} %>" type="<%= $field->{type} %>" value="<%= $field->{value} %>" autocomplete="<%= $field->{autocomplete} %>"<%== $field->{error_attrs} %>>
+      % }
+      <%= include 'components/field_error', field_id => $field->{error_id}, message => $field->{error} %>
+    % }
+    <button type="submit"><%= ui_icon('user') %><%= t('auth.login') %></button>
+  </form>
+  % if (stash('oidc_enabled')) {
+    <form method="post" action="<%= ui_path('openid_start') %>">
+      <%= csrf_field %>
+      <button type="submit" class="button--secondary"><%= t('auth.oidc_login') %></button>
+    </form>
+    <p class="ui-meta"><%= t('auth.oidc_existing_only') %></p>
+  % }
+  % if (stash('passkey_enabled')) {
+  <form method="post" action="<%= ui_path('passkey_login_begin') %>" data-passkey="login"
+    data-finish="<%= ui_path('passkey_login_finish') %>"
+    data-failed="<%= t('auth.passkey_failed') %>" data-unsupported="<%= t('auth.passkey_unsupported') %>"
+    data-cancelled="<%= t('auth.passkey_cancelled') %>" data-waiting="<%= t('auth.passkey_waiting') %>">
+    <%= csrf_field %>
+    <input type="hidden" name="return_to" value="<%= param('return_to') // q{} %>">
+    <button type="submit" disabled><%= t('auth.passkey_login') %></button>
+    <p data-passkey-status role="status" aria-live="polite"></p>
+    <noscript><p><%= t('auth.passkey_unsupported') %></p></noscript>
+  </form>
+  % }
+  <p class="ui-row-links">
+    <a href="<%= ui_path('password_reset_request') %>"><%= t('auth.forgot_password') %></a>
+    <a href="<%= ui_path('register') %>"><%= t('auth.no_account') %></a>
+  </p>
+</section>

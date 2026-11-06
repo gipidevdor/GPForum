@@ -1,0 +1,224 @@
+--- a/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm
++++ b/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm
+@@ -321,7 +321,7 @@
+         json => ['result']
+     },
+     moderation_transfer_picker => {
+-        version    => 2,
++        version    => 4,
+         parameters => [
+             actor          => 'uuid',
+             source_id      => 'uuid',
+--- a/lib/GPForum/OS/RuntimePolicy.pm
++++ b/lib/GPForum/OS/RuntimePolicy.pm
+@@ -25,9 +25,7 @@
+ # inherited from a supervisor, or one that already says whether to reuse.
+ const my $OWN_SOCKET => qr{ \A http[+]unix: | [?&] (?: fd | reuse ) = }msx;
+ 
+-# A UNIX socket that does not already say how many connections a worker
+-# takes from the queue at a time.
+-const my $UNIX_SOCKET   => qr{ \A http[+]unix: }msx;
++# A listener that already selects how many connections a worker takes at once.
+ const my $SINGLE_ACCEPT => qr{ [?&] single_accept = }msx;
+ 
+ __PACKAGE__->requires(qw(config runtime));
+@@ -56,30 +54,26 @@
+ # Hypnotoad's configuration. Each listen location asks for SO_REUSEPORT when
+ # the OS has it enabled, unless the location sets up its own socket.
+ #
+-# A UNIX socket's workers take one connection at a time from its queue
+-# (single_accept=1). A connect to a UNIX socket is queued at once, so a
+-# burst of them -- the proxy opening its upstream connections after a quiet
+-# spell -- was all in the queue when the first worker woke, and that worker,
+-# accepting until the queue was empty, kept them all: 76 of 128 connections
+-# on one of four workers, each a keep-alive connection the proxy then reuses
+-# for up to a thousand requests, so the p95 of a page at 128 clients was
+-# twice its p50 (docs/PERFORMANCE.md, "Through the socket"). Taking one at a
+-# time, the workers woken with it take the rest: 32 each. A TCP listener is
+-# left as Mojolicious has it: in the same measurement its connections came
+-# spread across the workers already.
++# Workers take one connection at a time (single_accept=1), giving the other
++# workers a chance to accept a burst before keep-alive pins its clients. This
++# already covered UNIX listeners, where one worker had taken 76/128 clients.
++# TCP can skew too: the HTTP publishing journey placed six of ten clients on
++# one of four workers, lowering throughput despite unchanged request/SQL times.
++# Respect an explicit single_accept setting, including an operator's opt-out.
+ sub hypnotoad_config ($self) {
+     my $reuseport = $self->_socket_snapshot->{reuseport}{enabled};
+     my @listen;
+     for my $location ( @{ $self->config->runtime_listen_locations } ) {
+-        my $separator = index( $location, q{?} ) >= 0 ? q{&} : q{?};
+-        if ( $location =~ $UNIX_SOCKET && $location !~ $SINGLE_ACCEPT ) {
+-            push @listen, $location . $separator . 'single_accept=1';
+-            next;
++        my $listener = $location;
++        if ( $listener !~ $SINGLE_ACCEPT ) {
++            my $separator = index( $listener, q{?} ) >= 0 ? q{&} : q{?};
++            $listener .= $separator . 'single_accept=1';
+         }
+-        push @listen,
+-          $reuseport && $location !~ $OWN_SOCKET
+-          ? $location . $separator . 'reuse=1'
+-          : $location;
++        if ( $reuseport && $listener !~ $OWN_SOCKET ) {
++            my $separator = index( $listener, q{?} ) >= 0 ? q{&} : q{?};
++            $listener .= $separator . 'reuse=1';
++        }
++        push @listen, $listener;
+     }
+ 
+     return {
+--- a/templates/forum/_posts.html.ep
++++ b/templates/forum/_posts.html.ep
+@@ -49,7 +49,9 @@
+       % }
+       <%= $static->{reply} %>
+       <div class="forum-post-body"><%== ui_trusted_html($post->{body}, 'forum.post.body') %></div>
+-      <%= include 'forum/_integrations', integrations => $post->{integrations} || [] %>
++      % if ($post->{integrations} && @{ $post->{integrations} }) {
++        <%= include 'forum/_integrations', integrations => $post->{integrations} %>
++      % }
+       <%= $static->{deleted} %>
+       % if ($post->{attachments} && @{ $post->{attachments} }) {
+         <ul class="post__attachments" aria-label="<%= t('forum.post_attachments') %>">
+--- a/templates/forum/_reactions.html.ep
++++ b/templates/forum/_reactions.html.ep
+@@ -11,11 +11,12 @@
+ % my $paths = stash('reaction_paths') || {};
+ % my $action;
+ % if (@shown) {
+-  <div class="post__reactions" role="group" aria-label="<%= t('forum.reactions') %>">
++%   my $group_label = $texts->{group_label} //= t('forum.reactions');
++  <div class="post__reactions" role="group" aria-label="<%= $group_label %>">
+     % if ($post->{can_react}) {
+       <details class="post-reaction-picker">
+         % my $total = 0; $total += $_->{count} // 0 for @shown;
+-        <summary><%= t('forum.reactions') %><% if ($total) { %> <span class="post__reaction-count"><%= $total %></span><% } %><% if (grep { $_->{reacted} } @shown) { %><%= ui_icon('check') %><% } %></summary>
++        <summary><%= $group_label %><% if ($total) { %> <span class="post__reaction-count"><%= $total %></span><% } %><% if (grep { $_->{reacted} } @shown) { %><%= ($texts->{check_icon} //= ui_icon('check')) %><% } %></summary>
+         <div class="post-reaction-picker__choices">
+     %   my $first = $shown[0];
+     %   my $route = $first->{reacted} ? 'post_unreact' : 'post_react';
+@@ -25,17 +26,17 @@
+     % }
+     % for my $reaction (@shown) {
+     %   my $name = $reaction->{reaction};
+-    %   my $text = $texts->{$name} //= { label => t($label_key{$name}) };
++%   my $text = $texts->{$name} //= { label => t($label_key{$name}), icon => ui_icon('emote-' . $name) };
+       % if ($post->{can_react}) {
+       %   my $route = $reaction->{reacted} ? 'post_unreact' : 'post_react';
+       %   my $path = $name eq $shown[0]{reaction} ? $action : $paths->{$route . q{:} . $name} // ui_path($route, post_id => $post->{post_id}, reaction => $name);
+       %   my $aria = $reaction->{reacted}
+       %     ? $text->{remove} //= t('forum.remove_reaction', { reaction => $text->{label} })
+       %     : $text->{react} //= t('forum.react_with', { reaction => $text->{label} });
+-      %   my $accessible = $aria . ($reaction->{count} ? q{, } . t('forum.reactions') . q{: } . $reaction->{count} : q{});
+-        <button type="submit" name="command_id" value="<%= $reaction->{command_id} || q{} %>" formaction="<%= $path %>" class="post__reaction" aria-pressed="<%= $reaction->{reacted} ? 'true' : 'false' %>" aria-label="<%= $accessible %>" title="<%= $aria %>"><%= ui_icon('emote-' . $name) %><% if ($reaction->{reacted}) { %><span class="post__reaction-state" aria-hidden="true"><%= ui_icon('check') %></span><% } %><%== $reaction->{count} ? q{<span class="post__reaction-count">} . $reaction->{count} . q{</span>} : q{} %></button>
++      %   my $accessible = $aria . ($reaction->{count} ? q{, } . $group_label . q{: } . $reaction->{count} : q{});
++        <button type="submit" name="command_id" value="<%= $reaction->{command_id} || q{} %>" formaction="<%= $path %>" class="post__reaction" aria-pressed="<%= $reaction->{reacted} ? 'true' : 'false' %>" aria-label="<%= $accessible %>" title="<%= $aria %>"><%= $text->{icon} %><% if ($reaction->{reacted}) { %><span class="post__reaction-state" aria-hidden="true"><%= ($texts->{check_icon} //= ui_icon('check')) %></span><% } %><%== $reaction->{count} ? q{<span class="post__reaction-count">} . $reaction->{count} . q{</span>} : q{} %></button>
+       % } else {
+-        <span class="post__reaction post__reaction--static"><%= ui_icon('emote-' . $name) %><span class="visually-hidden"><%= $text->{label} %></span><span class="post__reaction-count"><%= $reaction->{count} %></span></span>
++        <span class="post__reaction post__reaction--static"><%= $text->{icon} %><span class="visually-hidden"><%= $text->{label} %></span><span class="post__reaction-count"><%= $reaction->{count} %></span></span>
+       % }
+     % }
+     % if ($post->{can_react}) {
+--- /dev/null
++++ b/migrations/2041_moderation_transfer_picker_work.sql
+@@ -0,0 +1,99 @@
++-- SPDX-FileCopyrightText: 2026 GPForum Contributors
++-- SPDX-License-Identifier: BSD-3-Clause
++BEGIN;
++SET LOCAL lock_timeout = '3s';
++
++-- Resolve the actor once for the whole picker, rather than once per candidate
++-- thread. Keep v1/v2 unchanged for workers from the preceding release.
++CREATE FUNCTION api.moderation_transfer_picker_v3(
++    p_actor uuid, p_source_id uuid, p_query text, p_after_position bigint
++)
++RETURNS TABLE (result jsonb)
++LANGUAGE plpgsql STABLE SECURITY INVOKER
++SET search_path = pg_catalog, pg_temp
++SET plan_cache_mode = force_generic_plan
++AS $$
++DECLARE
++    source public.threads; choices jsonb; selected_posts jsonb; viewer record;
++    member boolean := false; global_read boolean := false;
++    category_ids uuid[] := '{}'; space_ids uuid[] := '{}';
++BEGIN
++    IF NOT api.core_product_staff_v1(p_actor,'thread','moderate') THEN
++        RETURN QUERY SELECT jsonb_build_object('status','forbidden'); RETURN;
++    END IF;
++    IF length(coalesce(p_query,'')) > 100 OR coalesce(p_after_position,0) < 0 THEN
++        RETURN QUERY SELECT jsonb_build_object('status','invalid'); RETURN;
++    END IF;
++    IF p_source_id IS NOT NULL THEN
++        SELECT t.* INTO source FROM public.threads t
++        WHERE t.thread_id = p_source_id AND t.deleted_at IS NULL
++          AND t.moderation_state='visible' AND t.locked_at IS NULL
++          AND t.visibility IN ('public','members')
++          AND api.core_product_read_thread_v1(p_actor,t.thread_id)
++          AND NOT EXISTS(SELECT 1 FROM public.thread_polls p WHERE p.thread_id=t.thread_id);
++        IF source.thread_id IS NULL THEN
++            RETURN QUERY SELECT jsonb_build_object('status','not_found'); RETURN;
++        END IF;
++    END IF;
++
++    -- The same membership and grants as core_product_read_thread_v1, scoped
++    -- to this statement. No permission state survives into another request.
++    SELECT * INTO viewer FROM api.forum_resolve_viewer_v5(p_actor);
++    member := FOUND AND viewer.status = 'active' AND NOT viewer.suspended;
++    IF member THEN
++        SELECT coalesce(bool_or(g->>'resource_type'='global'
++                   AND g->>'resource_id' IS NULL AND g->>'space_id' IS NULL),false),
++            coalesce(array_agg((g->>'resource_id')::uuid) FILTER (
++                WHERE g->>'resource_type'='category' AND g->>'resource_id' IS NOT NULL),'{}'),
++            coalesce(array_agg(coalesce(g->>'resource_id',g->>'space_id')::uuid) FILTER (
++                WHERE g->>'resource_type'='space'
++                  AND coalesce(g->>'resource_id',g->>'space_id') IS NOT NULL),'{}')
++        INTO global_read,category_ids,space_ids
++        FROM json_array_elements(viewer.grants) g;
++    END IF;
++    SELECT coalesce(jsonb_agg(x),'[]'::jsonb) INTO choices FROM (
++        SELECT t.thread_id,t.title,c.title AS category_title
++        FROM public.threads t JOIN public.categories c USING(category_id)
++        JOIN public.spaces s USING(space_id)
++        CROSS JOIN LATERAL (SELECT member AND (global_read
++            OR c.category_id=ANY(category_ids) OR c.space_id=ANY(space_ids)) AS granted) scope
++        WHERE t.deleted_at IS NULL AND t.moderation_state='visible'
++          AND t.locked_at IS NULL AND t.visibility IN ('public','members')
++          AND c.deleted_at IS NULL AND s.deleted_at IS NULL
++          AND (s.visibility='public' OR (member AND s.visibility='members') OR scope.granted)
++          AND (c.visibility='public' OR (member AND c.visibility='members') OR scope.granted)
++          AND (t.visibility='public' OR (member AND t.visibility='members') OR scope.granted
++            OR (member AND t.author_user_id=p_actor))
++          AND (p_source_id IS NULL OR (t.thread_id<>p_source_id
++            AND t.category_id=source.category_id AND t.visibility=source.visibility))
++          AND t.title ILIKE '%' || coalesce(p_query,'') || '%'
++          AND NOT EXISTS(SELECT 1 FROM public.thread_polls p WHERE p.thread_id=t.thread_id)
++        ORDER BY t.last_activity_at DESC,t.thread_id DESC LIMIT 50
++    ) x;
++    SELECT coalesce(jsonb_agg(x),'[]'::jsonb) INTO selected_posts FROM (
++        SELECT p.position,left(b.body_source,180) AS excerpt,u.display_name
++        FROM public.posts p JOIN public.users u ON u.id=p.author_user_id
++        LEFT JOIN public.post_bodies b ON b.body_id=p.current_body_id
++        WHERE p.thread_id=p_source_id AND p.position>greatest(coalesce(p_after_position,0),1)
++          AND p.deleted_at IS NULL AND p.visibility<>'private'
++        ORDER BY p.position LIMIT 51
++    ) x;
++    RETURN QUERY SELECT jsonb_build_object('status','ok','choices',choices,'posts',selected_posts,
++        'source',CASE WHEN p_source_id IS NULL THEN NULL ELSE
++            jsonb_build_object('thread_id',source.thread_id,'title',source.title) END);
++END;
++$$;
++REVOKE EXECUTE ON FUNCTION api.moderation_transfer_picker_v3(uuid,uuid,text,bigint) FROM PUBLIC;
++
++CREATE FUNCTION api.moderation_transfer_picker_v4(
++    p_actor uuid,p_source_id uuid,p_query text,p_after_position bigint
++)
++RETURNS TABLE (result jsonb)
++LANGUAGE sql STABLE SECURITY DEFINER
++SET search_path = pg_catalog, pg_temp
++SET plan_cache_mode = force_generic_plan
++AS $$
++SELECT * FROM api.moderation_transfer_picker_v3(p_actor,p_source_id,p_query,p_after_position);
++$$;
++REVOKE EXECUTE ON FUNCTION api.moderation_transfer_picker_v4(uuid,uuid,text,bigint) FROM PUBLIC;
++COMMIT;

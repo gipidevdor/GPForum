@@ -1,0 +1,696 @@
+
+    #   Failed test 'one failed attempt and one successful retry'
+    #   at t/207-pg-notifications.t line 393.
+    #          got: '1'
+    #     expected: '2'
+
+    #   Failed test 'retries deliver once and preserve the other successful event'
+    #   at t/207-pg-notifications.t line 397.
+    #     Structures begin differing at:
+    #          $got->[1] = Does not exist
+    #     $expected->[1] = 'retry'
+
+    #   Failed test 'both delivered events remain remembered'
+    #   at t/207-pg-notifications.t line 403.
+    #          got: '3'
+    #     expected: '2'
+    # Looks like you failed 3 tests of 4.
+
+#   Failed test 'a rejected broadcast remains retryable without evicting successes'
+#   at t/207-pg-notifications.t line 406.
+
+    #   Failed test 'one failed attempt and one successful retry'
+    #   at t/207-pg-notifications.t line 393.
+    #          got: '3'
+    #     expected: '2'
+
+    #   Failed test 'retries deliver once and preserve the other successful event'
+    #   at t/207-pg-notifications.t line 397.
+    #     Structures begin differing at:
+    #          $got->[2] = 'retry'
+    #     $expected->[2] = Does not exist
+
+    #   Failed test 'both delivered events remain remembered'
+    #   at t/207-pg-notifications.t line 403.
+    #          got: '0'
+    #     expected: '2'
+    # Looks like you failed 3 tests of 4.
+
+#   Failed test 'a exception broadcast remains retryable without evicting successes'
+#   at t/207-pg-notifications.t line 406.
+
+    #   Failed test 'the gap is still pending'
+    #   at t/207-pg-notifications.t line 432.
+
+    #   Failed test 'the next poll retries without requiring another gap'
+    #   at t/207-pg-notifications.t line 434.
+    #          got: '1'
+    #     expected: '2'
+    # Looks like you failed 2 tests of 4.
+
+#   Failed test 'an exception while resending badges preserves the pending gap'
+#   at t/207-pg-notifications.t line 442.
+# Looks like you failed 3 tests of 15.
+t/207-pg-notifications.t ......... 
+# Subtest: the listener polls first: the cache purges wait for the bus
+    ok 1 - the listener receives only its own event
+    ok 2 - and rejects nothing as malformed
+    ok 3 - the event reaches the socket
+    ok 4 - the bus still gets both invalidations, in order
+    1..4
+ok 1 - the listener polls first: the cache purges wait for the bus
+# Subtest: the bus drains first: the event waits for the listener
+    ok 1 - the bus gets only the cache purge
+    ok 2 - and applies no realtime event as an empty invalidation
+    ok 3 - the listener still receives its event
+    ok 4 - and delivers it
+    1..4
+ok 2 - the bus drains first: the event waits for the listener
+# Subtest: a new backend is listened to again and reported as a gap
+    ok 1 - the bus clears L1 once: what was NOTIFYed meanwhile is gone
+    ok 2 - both channels are listened to on the new backend
+    ok 3 - one clear, not one per drain
+    ok 4 - the listener re-sends the badge snapshots
+    ok 5 - with the current unread count
+    ok 6 - and nothing to the sockets of other channels
+    ok 7 - it is listening again
+    ok 8 - and delivery resumes
+    ok 9 - the queue counts the channels it listened to again
+    1..9
+ok 3 - a new backend is listened to again and reported as a gap
+# Subtest: a new handle is a new connection, whatever its PID
+    ok 1 - a replaced handle on the same PID is a gap
+    ok 2 - and both channels are listened to on it
+    ok 3 - a freed handle replaced on the same PID is a gap too
+    ok 4 - and the channel is listened to on the new one
+    1..4
+ok 4 - a new handle is a new connection, whatever its PID
+# Subtest: a channel not listened to reports a gap until it is
+    ok 1 - drain 1 while the LISTEN fails clears L1
+    ok 2 - drain 2 while the LISTEN fails clears L1
+    ok 3 - so does the one that issues it: what was raised meanwhile is gone
+    ok 4 - and then nothing is missed
+    ok 5 - each failed attempt is counted
+    1..5
+ok 5 - a channel not listened to reports a gap until it is
+# Subtest: badges are re-sent once the LISTEN is in effect
+    ok 1 - nothing is re-sent while nothing can be heard
+    ok 2 - the listener says so
+    ok 3 - the count goes out once the LISTEN is back
+    ok 4 - and only once
+    1..4
+ok 6 - badges are re-sent once the LISTEN is in effect
+# Subtest: a broadcast that throws loses neither the gap nor the rest
+    ok 1 - the poll does not throw
+    ok 2 - the failed broadcast is counted
+    ok 3 - the notification after it is still delivered
+    ok 4 - and the badges are re-sent for the gap
+    1..4
+ok 7 - a broadcast that throws loses neither the gap nor the rest
+# Subtest: a rejected broadcast remains retryable without evicting successes
+    not ok 1 - one failed attempt and one successful retry
+    not ok 2 - retries deliver once and preserve the other successful event
+    not ok 3 - both delivered events remain remembered
+    ok 4 - one broadcast failure
+    1..4
+not ok 8 - a rejected broadcast remains retryable without evicting successes
+# Subtest: a exception broadcast remains retryable without evicting successes
+    not ok 1 - one failed attempt and one successful retry
+    not ok 2 - retries deliver once and preserve the other successful event
+    not ok 3 - both delivered events remain remembered
+    ok 4 - one broadcast failure
+    1..4
+not ok 9 - a exception broadcast remains retryable without evicting successes
+# Subtest: an exception while resending badges preserves the pending gap
+    ok 1 - the supervisor can observe the failed resend
+    not ok 2 - the gap is still pending
+    not ok 3 - the next poll retries without requiring another gap
+    ok 4 - a successful resend clears the gap
+    1..4
+not ok 10 - an exception while resending badges preserves the pending gap
+# Subtest: a full queue drops its oldest and reports a gap
+    ok 1 - the queue overflows once
+    ok 2 - the bus clears L1 rather than apply what is left
+    1..2
+ok 11 - a full queue drops its oldest and reports a gap
+# Subtest: notifications nobody registered are dropped, not queued
+    ok 1 - the registered channel gets nothing
+    ok 2 - and the stray one is counted
+    ok 3 - a channel never registered is not read at all
+    1..3
+ok 12 - notifications nobody registered are dropped, not queued
+# Subtest: nothing is read or listened to inside a transaction
+    ok 1 - a LISTEN a rollback could undo is not issued
+    ok 2 - so nothing is listened to yet
+    ok 3 - the next take outside the transaction issues it
+    ok 4 - and reports a gap: nobody was listening until then
+    1..4
+ok 13 - nothing is read or listened to inside a transaction
+# Subtest: a channel registered with no handle reports a gap when listened to
+    ok 1 - with no handle there is nothing to apply
+    ok 2 - the drain that issues the LISTEN clears L1
+    ok 3 - and the next one misses nothing
+    1..3
+ok 14 - a channel registered with no handle reports a gap when listened to
+# Subtest: the bus still skips its own notifications
+    ok 1 - its own purge is not replayed
+    ok 2 - and is counted
+    1..2
+ok 15 - the bus still skips its own notifications
+1..15
+Dubious, test returned 3 (wstat 768, 0x300)
+Failed 3/15 subtests 
+
+    #   Failed test 'a rejected entry preserves reusable candidates'
+    #   at t/773-presentation-caches.t line 137.
+    #     Structures begin differing at:
+    #          $got->{https://example.test/100} = Does not exist
+    #     $expected->{https://example.test/100} = ARRAY(0x7894b1cc60)
+
+    #   Failed test 'a rejected entry preserves budget accounting'
+    #   at t/773-presentation-caches.t line 139.
+    #          got: '0'
+    #     expected: '94'
+    # Looks like you failed 2 tests of 212.
+
+#   Failed test 'source scanning preserves syntax, order, duplicates and bounds'
+#   at t/773-presentation-caches.t line 147.
+
+    #   Failed test 'oversized misses never evict the hot source'
+    #   at t/773-presentation-caches.t line 169.
+    #          got: '3'
+    #     expected: '1'
+    # Looks like you failed 1 test of 3.
+
+#   Failed test 'uncacheable source cannot force rescanning a hot link'
+#   at t/773-presentation-caches.t line 172.
+# Looks like you failed 2 tests of 4.
+t/773-presentation-caches.t ...... 
+# Subtest: decorative icons are reused per request and returned independently
+    ok 1 - a hit preserves the markup
+    ok 2 - a hit returns a separate byte stream
+    ok 3 - decorative markup is escaped only once
+    ok 4 - caller mutation cannot poison the cache
+    ok 5 - another request builds its own markup
+    ok 6 - a new request with a changed base or fingerprint gets fresh markup
+    ok 7 - the new sprite URL is escaped
+    ok 8 - explicit labels remain fresh and escaped
+    ok 9 - an explicit label cannot inherit decorative semantics
+    ok 10 - explicit labels remain fresh and escaped
+    ok 11 - an explicit label cannot inherit decorative semantics
+    ok 12 - labelled markup bypasses reuse
+    ok 13 - unknown icons still fail closed
+    1..13
+ok 1 - decorative icons are reused per request and returned independently
+# Subtest: source scanning preserves syntax, order, duplicates and bounds
+    ok 1 - missing source has no candidate URLs
+    ok 2 - only standalone links outside code are extracted
+    ok 3 - returned arrays cannot poison stored candidates
+    ok 4 - a source edit is visible immediately
+    ok 5 - URLs beyond the original source limit remain ignored
+    ok 6 - the original fence grammar is preserved
+    ok 7 - Unicode accounting stays inside the character budget
+    ok 8 - entry count is bounded
+    ok 9 - source and candidate characters are bounded
+    ok 10 - entry count is bounded
+    ok 11 - source and candidate characters are bounded
+    ok 12 - entry count is bounded
+    ok 13 - source and candidate characters are bounded
+    ok 14 - entry count is bounded
+    ok 15 - source and candidate characters are bounded
+    ok 16 - entry count is bounded
+    ok 17 - source and candidate characters are bounded
+    ok 18 - entry count is bounded
+    ok 19 - source and candidate characters are bounded
+    ok 20 - entry count is bounded
+    ok 21 - source and candidate characters are bounded
+    ok 22 - entry count is bounded
+    ok 23 - source and candidate characters are bounded
+    ok 24 - entry count is bounded
+    ok 25 - source and candidate characters are bounded
+    ok 26 - entry count is bounded
+    ok 27 - source and candidate characters are bounded
+    ok 28 - entry count is bounded
+    ok 29 - source and candidate characters are bounded
+    ok 30 - entry count is bounded
+    ok 31 - source and candidate characters are bounded
+    ok 32 - entry count is bounded
+    ok 33 - source and candidate characters are bounded
+    ok 34 - entry count is bounded
+    ok 35 - source and candidate characters are bounded
+    ok 36 - entry count is bounded
+    ok 37 - source and candidate characters are bounded
+    ok 38 - entry count is bounded
+    ok 39 - source and candidate characters are bounded
+    ok 40 - entry count is bounded
+    ok 41 - source and candidate characters are bounded
+    ok 42 - entry count is bounded
+    ok 43 - source and candidate characters are bounded
+    ok 44 - entry count is bounded
+    ok 45 - source and candidate characters are bounded
+    ok 46 - entry count is bounded
+    ok 47 - source and candidate characters are bounded
+    ok 48 - entry count is bounded
+    ok 49 - source and candidate characters are bounded
+    ok 50 - entry count is bounded
+    ok 51 - source and candidate characters are bounded
+    ok 52 - entry count is bounded
+    ok 53 - source and candidate characters are bounded
+    ok 54 - entry count is bounded
+    ok 55 - source and candidate characters are bounded
+    ok 56 - entry count is bounded
+    ok 57 - source and candidate characters are bounded
+    ok 58 - entry count is bounded
+    ok 59 - source and candidate characters are bounded
+    ok 60 - entry count is bounded
+    ok 61 - source and candidate characters are bounded
+    ok 62 - entry count is bounded
+    ok 63 - source and candidate characters are bounded
+    ok 64 - entry count is bounded
+    ok 65 - source and candidate characters are bounded
+    ok 66 - entry count is bounded
+    ok 67 - source and candidate characters are bounded
+    ok 68 - entry count is bounded
+    ok 69 - source and candidate characters are bounded
+    ok 70 - entry count is bounded
+    ok 71 - source and candidate characters are bounded
+    ok 72 - entry count is bounded
+    ok 73 - source and candidate characters are bounded
+    ok 74 - entry count is bounded
+    ok 75 - source and candidate characters are bounded
+    ok 76 - entry count is bounded
+    ok 77 - source and candidate characters are bounded
+    ok 78 - entry count is bounded
+    ok 79 - source and candidate characters are bounded
+    ok 80 - entry count is bounded
+    ok 81 - source and candidate characters are bounded
+    ok 82 - entry count is bounded
+    ok 83 - source and candidate characters are bounded
+    ok 84 - entry count is bounded
+    ok 85 - source and candidate characters are bounded
+    ok 86 - entry count is bounded
+    ok 87 - source and candidate characters are bounded
+    ok 88 - entry count is bounded
+    ok 89 - source and candidate characters are bounded
+    ok 90 - entry count is bounded
+    ok 91 - source and candidate characters are bounded
+    ok 92 - entry count is bounded
+    ok 93 - source and candidate characters are bounded
+    ok 94 - entry count is bounded
+    ok 95 - source and candidate characters are bounded
+    ok 96 - entry count is bounded
+    ok 97 - source and candidate characters are bounded
+    ok 98 - entry count is bounded
+    ok 99 - source and candidate characters are bounded
+    ok 100 - entry count is bounded
+    ok 101 - source and candidate characters are bounded
+    ok 102 - entry count is bounded
+    ok 103 - source and candidate characters are bounded
+    ok 104 - entry count is bounded
+    ok 105 - source and candidate characters are bounded
+    ok 106 - entry count is bounded
+    ok 107 - source and candidate characters are bounded
+    ok 108 - entry count is bounded
+    ok 109 - source and candidate characters are bounded
+    ok 110 - entry count is bounded
+    ok 111 - source and candidate characters are bounded
+    ok 112 - entry count is bounded
+    ok 113 - source and candidate characters are bounded
+    ok 114 - entry count is bounded
+    ok 115 - source and candidate characters are bounded
+    ok 116 - entry count is bounded
+    ok 117 - source and candidate characters are bounded
+    ok 118 - entry count is bounded
+    ok 119 - source and candidate characters are bounded
+    ok 120 - entry count is bounded
+    ok 121 - source and candidate characters are bounded
+    ok 122 - entry count is bounded
+    ok 123 - source and candidate characters are bounded
+    ok 124 - entry count is bounded
+    ok 125 - source and candidate characters are bounded
+    ok 126 - entry count is bounded
+    ok 127 - source and candidate characters are bounded
+    ok 128 - entry count is bounded
+    ok 129 - source and candidate characters are bounded
+    ok 130 - entry count is bounded
+    ok 131 - source and candidate characters are bounded
+    ok 132 - entry count is bounded
+    ok 133 - source and candidate characters are bounded
+    ok 134 - entry count is bounded
+    ok 135 - source and candidate characters are bounded
+    ok 136 - entry count is bounded
+    ok 137 - source and candidate characters are bounded
+    ok 138 - entry count is bounded
+    ok 139 - source and candidate characters are bounded
+    ok 140 - entry count is bounded
+    ok 141 - source and candidate characters are bounded
+    ok 142 - entry count is bounded
+    ok 143 - source and candidate characters are bounded
+    ok 144 - entry count is bounded
+    ok 145 - source and candidate characters are bounded
+    ok 146 - entry count is bounded
+    ok 147 - source and candidate characters are bounded
+    ok 148 - entry count is bounded
+    ok 149 - source and candidate characters are bounded
+    ok 150 - entry count is bounded
+    ok 151 - source and candidate characters are bounded
+    ok 152 - entry count is bounded
+    ok 153 - source and candidate characters are bounded
+    ok 154 - entry count is bounded
+    ok 155 - source and candidate characters are bounded
+    ok 156 - entry count is bounded
+    ok 157 - source and candidate characters are bounded
+    ok 158 - entry count is bounded
+    ok 159 - source and candidate characters are bounded
+    ok 160 - entry count is bounded
+    ok 161 - source and candidate characters are bounded
+    ok 162 - entry count is bounded
+    ok 163 - source and candidate characters are bounded
+    ok 164 - entry count is bounded
+    ok 165 - source and candidate characters are bounded
+    ok 166 - entry count is bounded
+    ok 167 - source and candidate characters are bounded
+    ok 168 - entry count is bounded
+    ok 169 - source and candidate characters are bounded
+    ok 170 - entry count is bounded
+    ok 171 - source and candidate characters are bounded
+    ok 172 - entry count is bounded
+    ok 173 - source and candidate characters are bounded
+    ok 174 - entry count is bounded
+    ok 175 - source and candidate characters are bounded
+    ok 176 - entry count is bounded
+    ok 177 - source and candidate characters are bounded
+    ok 178 - entry count is bounded
+    ok 179 - source and candidate characters are bounded
+    ok 180 - entry count is bounded
+    ok 181 - source and candidate characters are bounded
+    ok 182 - entry count is bounded
+    ok 183 - source and candidate characters are bounded
+    ok 184 - entry count is bounded
+    ok 185 - source and candidate characters are bounded
+    ok 186 - entry count is bounded
+    ok 187 - source and candidate characters are bounded
+    ok 188 - entry count is bounded
+    ok 189 - source and candidate characters are bounded
+    ok 190 - entry count is bounded
+    ok 191 - source and candidate characters are bounded
+    ok 192 - entry count is bounded
+    ok 193 - source and candidate characters are bounded
+    ok 194 - entry count is bounded
+    ok 195 - source and candidate characters are bounded
+    ok 196 - entry count is bounded
+    ok 197 - source and candidate characters are bounded
+    ok 198 - entry count is bounded
+    ok 199 - source and candidate characters are bounded
+    ok 200 - entry count is bounded
+    ok 201 - source and candidate characters are bounded
+    ok 202 - entry count is bounded
+    ok 203 - source and candidate characters are bounded
+    ok 204 - entry count is bounded
+    ok 205 - source and candidate characters are bounded
+    ok 206 - entry count is bounded
+    ok 207 - source and candidate characters are bounded
+    ok 208 - an oversized entry is not kept
+    not ok 209 - a rejected entry preserves reusable candidates
+    not ok 210 - a rejected entry preserves budget accounting
+    ok 211 - disabled storage still extracts normally
+    ok 212 - disabled storage holds no entries
+    1..212
+not ok 2 - source scanning preserves syntax, order, duplicates and bounds
+# Subtest: uncacheable source cannot force rescanning a hot link
+    ok 1 - hot candidates stay correct
+    ok 2 - hot candidates stay correct
+    not ok 3 - oversized misses never evict the hot source
+    1..3
+not ok 3 - uncacheable source cannot force rescanning a hot link
+# Subtest: candidate hits never bypass current policy or response validation
+    ok 1 - enabled provider renders an embed
+    ok 2 - a hit immediately follows link-only policy
+    ok 3 - fresh request registries share syntax extraction only
+    ok 4 - each provider response is validated again
+    ok 5 - a warm candidate cannot enable a disabled provider
+    ok 6 - disabled providers are not called
+    ok 7 - empty results are reused too
+    ok 8 - a later invalid provider response is rejected on a candidate hit
+    ok 9 - the invalid response also crosses validation
+    ok 10 - independent applications do not share source caches
+    1..10
+ok 4 - candidate hits never bypass current policy or response validation
+1..4
+Dubious, test returned 2 (wstat 512, 0x200)
+Failed 2/4 subtests 
+
+#   Failed test 'an empty read performs no storage query'
+#   at t/858-postgres-asset-contract.t line 41.
+#     Structures begin differing at:
+#          $got->[0] = '0'
+#     $expected->[0] = Does not exist
+
+#   Failed test 'EOF performs no storage query'
+#   at t/858-postgres-asset-contract.t line 44.
+#     Structures begin differing at:
+#          $got->[0] = '0'
+#     $expected->[0] = Does not exist
+Use of uninitialized value in subroutine entry at lib/GPForum/Service/Attachment/PostgresAsset.pm line 35.
+Use of uninitialized value $length in substr at lib/GPForum/Service/Attachment/PostgresAsset.pm line 36.
+Use of uninitialized value $length in numeric ne (!=) at lib/GPForum/Service/Attachment/PostgresAsset.pm line 37.
+
+#   Failed test 'an explicit undef uses the Mojo chunk default'
+#   at t/858-postgres-asset-contract.t line 47.
+#          got: '0'
+#     expected: '131072'
+
+#   Failed test 'an empty seek neither queries nor evicts a cached chunk'
+#   at t/858-postgres-asset-contract.t line 60.
+#     Structures begin differing at:
+#          $got->[1] = '1'
+#     $expected->[1] = Does not exist
+
+#   Failed test 'one database read per visited chunk'
+#   at t/858-postgres-asset-contract.t line 64.
+#     Structures begin differing at:
+#          $got->[2] = '0'
+#     $expected->[2] = Does not exist
+# Looks like you failed 5 tests of 12.
+t/858-postgres-asset-contract.t .. 
+ok 1 - an empty read returns no bytes
+not ok 2 - an empty read performs no storage query
+ok 3 - reading past EOF returns no bytes
+not ok 4 - EOF performs no storage query
+not ok 5 - an explicit undef uses the Mojo chunk default
+ok 6 - an omitted maximum uses the same default
+ok 7 - sequential reads share one database chunk
+ok 8 - an empty seek returns no bytes
+ok 9 - the previous database chunk remains available
+not ok 10 - an empty seek neither queries nor evicts a cached chunk
+ok 11 - a real seek reads the next chunk
+not ok 12 - one database read per visited chunk
+1..12
+Dubious, test returned 5 (wstat 1280, 0x500)
+Failed 5/12 subtests 
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '6'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'category with optional columns 0'
+#   at t/859-forum-row-projection.t line 97.
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '13'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'thread with optional columns 0'
+#   at t/859-forum-row-projection.t line 97.
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '14'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'search_result with optional columns 0'
+#   at t/859-forum-row-projection.t line 97.
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '9'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'autocomplete_suggestion with optional columns 0'
+#   at t/859-forum-row-projection.t line 97.
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '8'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'category with optional columns 1'
+#   at t/859-forum-row-projection.t line 97.
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '17'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'thread with optional columns 1'
+#   at t/859-forum-row-projection.t line 97.
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '15'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'search_result with optional columns 1'
+#   at t/859-forum-row-projection.t line 97.
+
+    #   Failed test 'loaded values are read in one snapshot'
+    #   at t/859-forum-row-projection.t line 92.
+    #          got: '0'
+    #     expected: '1'
+
+    #   Failed test 'only optional columns require individual reads'
+    #   at t/859-forum-row-projection.t line 93.
+    #     '9'
+    #         <=
+    #     '4'
+    # Looks like you failed 2 tests of 5.
+
+#   Failed test 'autocomplete_suggestion with optional columns 1'
+#   at t/859-forum-row-projection.t line 97.
+# Looks like you failed 8 tests of 8.
+t/859-forum-row-projection.t ..... 
+# Subtest: category with optional columns 0
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 1 - category with optional columns 0
+# Subtest: thread with optional columns 0
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 2 - thread with optional columns 0
+# Subtest: search_result with optional columns 0
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 3 - search_result with optional columns 0
+# Subtest: autocomplete_suggestion with optional columns 0
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 4 - autocomplete_suggestion with optional columns 0
+# Subtest: category with optional columns 1
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 5 - category with optional columns 1
+# Subtest: thread with optional columns 1
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 6 - thread with optional columns 1
+# Subtest: search_result with optional columns 1
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 7 - search_result with optional columns 1
+# Subtest: autocomplete_suggestion with optional columns 1
+    ok 1 - column-only rows preserve the public projection
+    ok 2 - function rows preserve the public projection
+    not ok 3 - loaded values are read in one snapshot
+    not ok 4 - only optional columns require individual reads
+    ok 5 - projection leaves the source row intact
+    1..5
+not ok 8 - autocomplete_suggestion with optional columns 1
+1..8
+Dubious, test returned 8 (wstat 2048, 0x800)
+Failed 8/8 subtests 
+
+Test Summary Report
+-------------------
+t/207-pg-notifications.t       (Wstat: 768 (exited 3) Tests: 15 Failed: 3)
+  Failed tests:  8-10
+  Non-zero exit status: 3
+t/773-presentation-caches.t    (Wstat: 512 (exited 2) Tests: 4 Failed: 2)
+  Failed tests:  2-3
+  Non-zero exit status: 2
+t/858-postgres-asset-contract.t (Wstat: 1280 (exited 5) Tests: 12 Failed: 5)
+  Failed tests:  2, 4-5, 10, 12
+  Non-zero exit status: 5
+t/859-forum-row-projection.t   (Wstat: 2048 (exited 8) Tests: 8 Failed: 8)
+  Failed tests:  1-8
+  Non-zero exit status: 8
+Files=4, Tests=39,  1 wallclock secs ( 0.03 usr  0.01 sys +  1.23 cusr  0.19 csys =  1.46 CPU)
+Result: FAIL

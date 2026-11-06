@@ -1,0 +1,70 @@
+{
+  "source": "/private/tmp/gpforum-throughput-final-candidate-9c9ncur_",
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "prove",
+    "-l",
+    "-It/lib",
+    "--exec",
+    "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+    "t/641-sql-function-migrations.t",
+    "t/694-render-work.t",
+    "t/715-post-reactions.t",
+    "t/771-reaction-forms.t",
+    "t/743-http-complete.t",
+    "t/integration/postgres-transfer-picker-work.t",
+    "t/integration/postgres-sql-function-catalogue.t",
+    "t/integration/postgres-sql-function-api-role.t",
+    "t/integration/postgres-gui-staff-features.t",
+    "t/integration/postgres-gui-workflows.t",
+    "t/integration/postgres-query-budget.t",
+    "t/integration/postgres-request-work-reuse.t",
+    "t/integration/postgres-sql-function-thread-page.t",
+    "t/53-os-runtime-policy.t",
+    "t/424-os-runtime-policy-report.t"
+  ],
+  "competing_load": [
+    {
+      "at_seconds": 19.119169000000003,
+      "processes": [
+        {
+          "pid": 76325,
+          "command": "grep -nHE ^sub [A-Za-z_][A-Za-z0-9_]*[[:space:]]*\\([$@%;*&\\\\[:space:]]*\\)[[:space:]]*\\{|(^|[^[:alnum:]_])sub([[:space:]][^{;#]*)?:[[:space:]]*prototype[[:space:]]*\\( lib/Perl/Critic/Policy/GPForum/ControllerPersistence.pm lib/Perl/Critic/Policy/GPForum/ServiceContext.pm lib/Perl/Critic/Policy/GPForum/ResultsetBoundary.pm lib/GPForum/Benchmark/Measure.pm lib/GPForum/Benchmark/SeedDataset.pm lib/GPF"
+        }
+      ]
+    },
+    {
+      "at_seconds": 37.299760207999995,
+      "processes": [
+        {
+          "pid": 79030,
+          "command": "grep -nHE ^sub [A-Za-z_][A-Za-z0-9_]*[[:space:]]*\\([$@%;*&\\\\[:space:]]*\\)[[:space:]]*\\{|(^|[^[:alnum:]_])sub([[:space:]][^{;#]*)?:[[:space:]]*prototype[[:space:]]*\\( lib/Perl/Critic/Policy/GPForum/ControllerPersistence.pm lib/Perl/Critic/Policy/GPForum/ServiceContext.pm lib/Perl/Critic/Policy/GPForum/ResultsetBoundary.pm lib/GPForum/Benchmark/Measure.pm lib/GPForum/Benchmark/SeedDataset.pm lib/GPF"
+        }
+      ]
+    },
+    {
+      "at_seconds": 38.365805625,
+      "processes": [
+        {
+          "pid": 79211,
+          "command": "perl -e \\012sub code_lines {\\012    my ($file) = @_;\\012    open my $handle, q{<}, $file or die qq{cannot read $file: $!};\\012    my @lines = <$handle>;\\012    close $handle or die qq{cannot close $file: $!};\\012    chomp @lines;\\012\\012    my ( $in_pod, $ended, $number, @pending ) = ( 0, 0, 0 );\\012    for my $line (@lines) {\\012        $number++;\\012        if ($ended) { $line = q{}; next; }\\012"
+        }
+      ]
+    }
+  ],
+  "started_at": "2026-11-05T23:25:54.724508+00:00",
+  "load_before": [
+    2.5361328125,
+    3.12060546875,
+    3.44580078125
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 47.18911925,
+  "load_after": [
+    10.65576171875,
+    5.0654296875,
+    4.13525390625
+  ],
+  "finished_at": "2026-11-05T23:26:41.914173+00:00"
+}

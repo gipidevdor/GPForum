@@ -1,0 +1,20 @@
+{
+   "http" : {
+      "reason" : "completed planned HTTP measurements",
+      "skipped" : [
+         {
+            "reason" : "read-only anonymous suite; safe durable auth fixture unavailable",
+            "scenario" : "authenticated"
+         },
+         {
+            "reason" : "bounded targeted plan: every endpoint at low load; high concurrency on health/thread/search/cache_hit; extra workers only thread/search/cache_hit",
+            "scenario" : "full_cartesian_matrix"
+         },
+         {
+            "reason" : "requires explicit --allow-1000 and capable runner",
+            "scenario" : "concurrency_1000"
+         }
+      ],
+      "status" : "ok"
+   }
+}

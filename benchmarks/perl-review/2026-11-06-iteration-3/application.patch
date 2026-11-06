@@ -1,0 +1,410 @@
+--- a/lib/GPForum/Infrastructure/Row.pm
++++ b/lib/GPForum/Infrastructure/Row.pm
+@@ -38,6 +38,43 @@
+     ## use critic
+ 
+     return undef;
++}
++
++# Loaded values in one snapshot where the row supports it. A plain hash is
++# borrowed for reading; a column-only row is read under the requested names.
++sub columns ( $, $row, @names ) {
++    return {}   if !defined $row;
++    return $row if ref $row eq 'HASH';
++
++    ## no critic (BuiltinFunctions::ProhibitUniversalCan) -- row classes may override can
++    return { $row->get_columns } if UNIVERSAL::can( $row, 'get_columns' );
++    return { map { $_ => $row->get_column($_) } @names }
++      if UNIVERSAL::can( $row, 'get_column' );
++    ## use critic
++
++    return {};
++}
++
++# Optional join columns may be absent from an otherwise valid row. Never
++# request an unloaded DBIx::Class column, which would throw rather than miss.
++sub loaded_column ( $class, $row, $name ) {
++    return undef         if !defined $row;
++    return $row->{$name} if ref $row eq 'HASH';
++
++    ## no critic (BuiltinFunctions::ProhibitUniversalCan) -- row classes may override can
++    if ( UNIVERSAL::can( $row, 'has_column_loaded' ) ) {
++        return undef if !$row->has_column_loaded($name);
++    }
++    elsif ( UNIVERSAL::can( $row, 'result_source' ) ) {
++        my $source = $row->result_source;
++        return undef
++          if $source
++          && $source->can('has_column')
++          && !$source->has_column($name);
++    }
++    ## use critic
++
++    return $class->column( $row, $name );
+ }
+ 
+ # A search's rows as a list: a DBIx::Class resultset's, a double's that
+@@ -103,6 +140,22 @@
+ 
+ Returns the named column, or undef.
+ 
++=head2 columns
++
++Takes a row and optional column names. Returns its loaded values as a hash
++reference: a plain hash is borrowed for reading, an object with C<get_columns>
++supplies a snapshot, and an object with only C<get_column> is read under the
++requested names. Missing or unsupported rows return an empty hash reference.
++Callers must not modify a borrowed hash.
++
++=head2 loaded_column
++
++An optional column, or undef in both scalar and list context. Uses
++C<has_column_loaded> where available to avoid requesting an unloaded join
++column. Older row adapters with only C<result_source> are checked against
++their source's columns; column-only adapters retain ordinary C<column>
++behavior. This method never fetches a relationship or runs a query.
++
+ =head2 rows_of
+ 
+ Takes a resultset, a double that answers C<all> or C<rows>, or an array
+--- a/lib/GPForum/Service/Forum/HomePageReader.pm
++++ b/lib/GPForum/Service/Forum/HomePageReader.pm
+@@ -6,8 +6,6 @@
+ use Const::Fast;
+ use Mojo::Base -base, -signatures;
+ use v5.40;
+-
+-use Scalar::Util qw(blessed);
+ 
+ use GPForum::Infrastructure::Row;
+ use GPForum::Infrastructure::Text qw(plain_excerpt);
+@@ -21,6 +19,14 @@
+ const my $EXCERPT_LENGTH         => 200;
+ const my $MAX_CATEGORY_LIMIT     => 50;
+ const my $MAX_THREAD_LIMIT       => 50;
++
++const my @CATEGORY_COLUMNS =>
++  qw(category_id description position slug title visibility);
++const my @THREAD_COLUMNS => qw(
++  author_display_name author_username author_user_id category_id created_at
++  deleted_at last_activity_at moderation_state pinned reply_count slug thread_id
++  title visibility
++);
+ 
+ # Each reader is built on the schema when it is not given, so the schema is
+ # needed only when one of them is missing.
+@@ -74,65 +80,52 @@
+ }
+ 
+ sub _category ($row) {
++    my $data = GPForum::Infrastructure::Row->columns( $row, @CATEGORY_COLUMNS );
+     return {
+-        category_id      => _column( $row, 'category_id' ),
+-        description      => _column( $row, 'description' ),
+-        last_activity_at => scalar _optional_column( $row, 'last_activity_at' ),
+-        thread_count     => scalar _optional_column( $row, 'thread_count' ),
+-        position         => _column( $row, 'position' ),
+-        slug             => _column( $row, 'slug' ),
+-        title            => _column( $row, 'title' ),
+-        visibility       => _column( $row, 'visibility' ),
++        category_id      => $data->{category_id},
++        description      => $data->{description},
++        last_activity_at => GPForum::Infrastructure::Row->loaded_column(
++            $row, 'last_activity_at'
++        ),
++        thread_count =>
++          GPForum::Infrastructure::Row->loaded_column( $row, 'thread_count' ),
++        position   => $data->{position},
++        slug       => $data->{slug},
++        title      => $data->{title},
++        visibility => $data->{visibility},
+     };
+ }
+ 
+ sub _thread ($row) {
+-    my $excerpt = _optional_column( $row, 'excerpt' );
++    my $data = GPForum::Infrastructure::Row->columns( $row, @THREAD_COLUMNS );
++    my $excerpt =
++      GPForum::Infrastructure::Row->loaded_column( $row, 'excerpt' );
+ 
+     return {
+-        author_display_name => _column( $row, 'author_display_name' ),
+-        author_username     => _column( $row, 'author_username' ),
+-        author_user_id      => _column( $row, 'author_user_id' ),
+-        category_id         => _column( $row, 'category_id' ),
+-        created_at          => _column( $row, 'created_at' ),
+-        deleted_at          => _column( $row, 'deleted_at' ),
++        author_display_name => $data->{author_display_name},
++        author_username     => $data->{author_username},
++        author_user_id      => $data->{author_user_id},
++        category_id         => $data->{category_id},
++        created_at          => $data->{created_at},
++        deleted_at          => $data->{deleted_at},
+         excerpt             => plain_excerpt( $excerpt, $EXCERPT_LENGTH ),
+-        last_activity_at    => _column( $row, 'last_activity_at' ),
+-        moderation_state    => _column( $row, 'moderation_state' ),
+-        pinned              => _column( $row, 'pinned' ),
+-        reply_count         => _column( $row, 'reply_count' ),
+-        slug                => _column( $row, 'slug' ),
+-        thread_id           => _column( $row, 'thread_id' ),
+-        title               => _column( $row, 'title' ),
+-        visibility          => _column( $row, 'visibility' ),
++        last_activity_at    => $data->{last_activity_at},
++        moderation_state    => $data->{moderation_state},
++        pinned              => $data->{pinned},
++        reply_count         => $data->{reply_count},
++        slug                => $data->{slug},
++        thread_id           => $data->{thread_id},
++        title               => $data->{title},
++        visibility          => $data->{visibility},
+     };
+ }
+ 
+-sub _column ( $row, $name ) {
+-    return GPForum::Infrastructure::Row->column( $row, $name );
+-}
+-
+-# A column the row may or may not carry: a row object answers it when it
+-# was selected (a +as column, thread_count, is not the source's but is
+-# loaded), a hash when it has the key.
+-sub _optional_column ( $row, $name ) {
+-    if ( blessed $row && $row->can('has_column_loaded') ) {
+-        return if !$row->has_column_loaded($name);
+-        return $row->get_column($name);
+-    }
+-    if ( blessed $row && $row->can('result_source') ) {
+-        my $source = $row->result_source;
+-        return
+-             if $source
+-          && $source->can('has_column')
+-          && !$source->has_column($name);
+-    }
+-    return _column( $row, $name );
+-}
+-
+ sub _bounded_limit ( $requested, $default, $max ) {
+-    return $default if !defined $requested;
+-    return $max     if $requested > $max;
++    return $default
++      if !defined $requested
++      || $requested !~ /\A [[:digit:]]+ \z/amsx
++      || $requested < 1;
++    return $max if $requested > $max;
+     return int $requested;
+ }
+ 
+@@ -183,7 +176,9 @@
+ 
+ Takes an optional hash reference with C<category_limit> (default 12, at
+ most 50), C<thread_limit> (default 20, at most 50), C<after> (the latest
+-threads' cursor string) and C<viewer>. Returns a hash reference with:
++threads' cursor string) and C<viewer>. Limits must be positive ASCII integers;
++invalid values use the home defaults before either reader is called.
++Returns a hash reference with:
+ 
+ =over 4
+ 
+--- a/lib/GPForum/Service/Search/Searcher.pm
++++ b/lib/GPForum/Service/Search/Searcher.pm
+@@ -4,7 +4,8 @@
+ package GPForum::Service::Search::Searcher;
+ 
+ use Const::Fast;
+-use Carp qw(croak);
++use Carp    qw(croak);
++use English qw(-no_match_vars);
+ use Mojo::Base 'GPForum::Base', -signatures;
+ use v5.40;
+ 
+@@ -36,6 +37,15 @@
+ const my $GMTIME_BASE_YEAR   => 1_900;
+ const my $EPOCH_YEAR         => 1_970;
+ const my $MICROSECOND_DIGITS => 6;
++
++const my @RESULT_COLUMNS => qw(
++  entity_type entity_id category_id author_user_id author_username author_display_name
++  title body visibility rank_score source_created_at indexed_at
++);
++const my @SUGGESTION_COLUMNS => qw(
++  entity_type entity_id category_id author_user_id author_username author_display_name
++  title visibility source_created_at
++);
+ 
+ # What a filter may be before it is bound. Each was bound as it came, so
+ # from=garbage reached PostgreSQL, which refused it: the page degraded and the
+@@ -205,15 +215,15 @@
+     my $limit = _bounded_limit( ( $options || {} )->{limit} );
+     if ( @{$rows} > $limit ) { splice @{$rows}, $limit; }
+ 
++    my @renderable = grep { $self->_can_render( $actor, $_ ) } @{$rows};
++    my $highlight  = @renderable ? _highlight_context($normalized) : undef;
++
+     return {
+         semantic_status => $page->{semantic_status},
+         candidate_limit => $self->candidate_limit,
+         ranking_capped  =>
+           ( ( $candidates || 0 ) >= $self->candidate_limit ? 1 : 0 ),
+-        results => [
+-            map  { _decorate_result( $_, $normalized ) }
+-            grep { $self->_can_render( $actor, $_ ) } @{$rows}
+-        ],
++        results => [ map { _decorate_result( $_, $highlight ) } @renderable ],
+     };
+ }
+ 
+@@ -775,44 +785,44 @@
+     return GPForum::Service::Search::DocumentBuilder->search_config;
+ }
+ 
+-sub _decorate_result ( $row, $query ) {
+-    my @terms   = _terms($query);
+-    my $snippet = _snippet_for( _column( $row, 'body' ), \@terms );
++sub _decorate_result ( $row, $highlight ) {
++    my $data = GPForum::Infrastructure::Row->columns( $row, @RESULT_COLUMNS );
++    my $snippet = _snippet_for( $data->{body}, $highlight->{pattern} );
+ 
+     return {
+-        entity_type          => _column( $row, 'entity_type' ),
+-        entity_id            => _column( $row, 'entity_id' ),
+-        category_id          => _column( $row, 'category_id' ),
+-        author_user_id       => _column( $row, 'author_user_id' ),
+-        author_username      => _column( $row, 'author_username' ),
+-        author_display_name  => _column( $row, 'author_display_name' ),
+-        author_profile_label =>
+-          _profile_label( _column( $row, 'author_username' ) ),
+-        title             => _column( $row, 'title' ),
+-        body              => _column( $row, 'body' ),
+-        snippet           => $snippet,
+-        snippet_html      => _snippet_html_for( $snippet, \@terms ),
+-        highlight_terms   => \@terms,
+-        visibility        => _column( $row, 'visibility' ),
+-        rank_score        => _column( $row, 'rank_score' ) || 0,
+-        source_created_at => _column( $row, 'source_created_at' ),
+-        indexed_at        => _column( $row, 'indexed_at' ),
++        entity_type          => $data->{entity_type},
++        entity_id            => $data->{entity_id},
++        category_id          => $data->{category_id},
++        author_user_id       => $data->{author_user_id},
++        author_username      => $data->{author_username},
++        author_display_name  => $data->{author_display_name},
++        author_profile_label => _profile_label( $data->{author_username} ),
++        title                => $data->{title},
++        body                 => $data->{body},
++        snippet              => $snippet,
++        snippet_html    => _snippet_html_for( $snippet, $highlight->{pattern} ),
++        highlight_terms => [ @{ $highlight->{terms} } ],
++        visibility      => $data->{visibility},
++        rank_score      => $data->{rank_score} || 0,
++        source_created_at => $data->{source_created_at},
++        indexed_at        => $data->{indexed_at},
+     };
+ }
+ 
+ sub _decorate_autocomplete_result ($row) {
++    my $data =
++      GPForum::Infrastructure::Row->columns( $row, @SUGGESTION_COLUMNS );
+     return {
+-        entity_type          => _column( $row, 'entity_type' ),
+-        entity_id            => _column( $row, 'entity_id' ),
+-        category_id          => _column( $row, 'category_id' ),
+-        author_user_id       => _column( $row, 'author_user_id' ),
+-        author_username      => _column( $row, 'author_username' ),
+-        author_display_name  => _column( $row, 'author_display_name' ),
+-        author_profile_label =>
+-          _profile_label( _column( $row, 'author_username' ) ),
+-        title             => _column( $row, 'title' ),
+-        visibility        => _column( $row, 'visibility' ),
+-        source_created_at => _column( $row, 'source_created_at' ),
++        entity_type          => $data->{entity_type},
++        entity_id            => $data->{entity_id},
++        category_id          => $data->{category_id},
++        author_user_id       => $data->{author_user_id},
++        author_username      => $data->{author_username},
++        author_display_name  => $data->{author_display_name},
++        author_profile_label => _profile_label( $data->{author_username} ),
++        title                => $data->{title},
++        visibility           => $data->{visibility},
++        source_created_at    => $data->{source_created_at},
+     };
+ }
+ 
+@@ -849,12 +859,22 @@
+       split /[^[:alnum:]_]+/msx, $query;
+ }
+ 
+-sub _snippet_for ( $body, $terms ) {
++sub _highlight_context ($query) {
++    my @terms   = _terms($query);
++    my $pattern = join q{|}, map { quotemeta } @terms;
++    return {
++        terms   => \@terms,
++        pattern => length $pattern ? qr/($pattern)/imsx : undef
++    };
++}
++
++sub _snippet_for ( $body, $pattern ) {
+     my $plain = _plain_text($body);
+     return $EMPTY_TEXT if !length $plain;
+ 
+-    my $position = _first_match_position( lc $plain, $terms );
+-    $position //= 0;
++    # The same Unicode-aware match locates and highlights the excerpt.
++    # Lowercasing plus index missed folds such as STRASSE matching Straße.
++    my $position = $pattern && $plain =~ $pattern ? $LAST_MATCH_START[0] : 0;
+ 
+     my $start   = $position > $SNIPPET_RADIUS ? $position - $SNIPPET_RADIUS : 0;
+     my $snippet = substr $plain, $start, $SNIPPET_MAX_LENGTH;
+@@ -882,43 +902,16 @@
+     return $body;
+ }
+ 
+-sub _first_match_position ( $plain, $terms ) {
+-    my $position;
+-    for my $term ( @{$terms} ) {
+-        my $candidate = index $plain, $term;
+-        next if $candidate < 0;
+-        if ( !defined $position || $candidate < $position ) {
+-            $position = $candidate;
+-        }
+-    }
+-
+-    return $position;
+-}
+-
+-sub _snippet_html_for ( $snippet, $terms ) {
+-    return xml_escape($snippet) if !@{$terms};
+-
+-    my $pattern = join q{|}, map { quotemeta } @{$terms};
+-    return xml_escape($snippet) if !length $pattern;
+-
+-    my @parts = split /($pattern)/imsx, $snippet;
+-
+-    return join $EMPTY_TEXT, map {
+-        _is_highlight( $_, $terms )
+-          ? '<mark>' . xml_escape($_) . '</mark>'
+-          : xml_escape($_)
+-    } @parts;
+-}
+-
+-sub _is_highlight ( $part, $terms ) {
+-    return if !defined $part || !length $part;
+-
+-    my $folded = lc $part;
+-    for my $term ( @{$terms} ) {
+-        return 1 if $folded eq $term;
+-    }
+-
+-    return;
++sub _snippet_html_for ( $snippet, $pattern ) {
++    return xml_escape($snippet) if !$pattern;
++
++    my @parts = split $pattern, $snippet;
++    my @html;
++    for my $index ( 0 .. $#parts ) {
++        my $escaped = xml_escape( $parts[$index] );
++        push @html, $index % 2 ? '<mark>' . $escaped . '</mark>' : $escaped;
++    }
++    return join $EMPTY_TEXT, @html;
+ }
+ 
+ # The private thread's owner a search function's row names (migration

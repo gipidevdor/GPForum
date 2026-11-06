@@ -1,0 +1,36 @@
+t/115-web-public-cache-access.t .. ok
+t/862-pagination-boundaries.t .... ok
+t/19-search.t .................... ok
+t/31-forum-http-readers.t ........ ok
+t/731-thread-position.t .......... ok
+t/754-calendar-date.t ............ ok
+t/767-public-cache-revocation.t .. ok
+t/89-tiered-cache.t .............. ok
+{"db_duration_ms":1.13699998473749,"duration_ms":53.2170000078622,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c818-7ff7-aac0-703242b20211","route":"categories","status":200,"timestamp":1793932183.62686,"user_hash":null}
+{"db_duration_ms":1.16899999557063,"duration_ms":3.34599998313934,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c851-7799-9d17-a6f7ee385b76","route":"categories","status":200,"timestamp":1793932183.63674,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":2.24400000297464,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c858-7e04-baa4-b83ecb668514","route":"locale_update","status":302,"timestamp":1793932183.64308,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.411999993957579,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c85c-7b78-a246-1be16e28f965","route":"locale_update","status":302,"timestamp":1793932183.6451,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":1.00100002600811,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c85e-785e-a067-7221d0d2ac00","route":"theme_update","status":302,"timestamp":1793932183.6475,"user_hash":null}
+{"db_duration_ms":1.13099999725819,"duration_ms":1.71499999123625,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c862-7420-a566-6b52e9f8cf7d","route":"theme_update","status":302,"timestamp":1793932183.65194,"user_hash":null}
+{"db_duration_ms":0.989999971352518,"duration_ms":4.80100000277162,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c865-7360-893c-2fcb577407c1","route":"categories","status":200,"timestamp":1793932183.65798,"user_hash":null}
+{"db_duration_ms":1.00899999961257,"duration_ms":4.02900000335649,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c86c-74dd-8e5c-2a603c9d9060","route":"categories","status":200,"timestamp":1793932183.6643,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.516000000061467,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c872-78e1-a5ef-a1d0be400913","route":"locale_update","status":403,"timestamp":1793932183.66704,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.349999987520278,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c875-7560-a5ab-21ea85aeee81","route":"locale_update","status":403,"timestamp":1793932183.66966,"user_hash":null}
+{"db_duration_ms":0.942000013310462,"duration_ms":1.38600001810119,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c877-7bdf-9b05-88a22451ac52","route":"theme_update","status":403,"timestamp":1793932183.6731,"user_hash":null}
+{"db_duration_ms":0.935999996727332,"duration_ms":1.34399998933077,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c87a-7276-ae3b-160935eb1502","route":"theme_update","status":403,"timestamp":1793932183.67547,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.32299998565577,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c87c-7876-b4e6-61a2372a14ef","route":"theme_update","status":403,"timestamp":1793932183.67682,"user_hash":null}
+{"db_duration_ms":0.912999996216968,"duration_ms":14.1700000094716,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c87f-72e9-9537-1867afdaad5d","route":"login","status":200,"timestamp":1793932183.69332,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.411999993957579,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c88e-7e2d-ac6b-fb913d9db0f3","route":"locale_update","status":403,"timestamp":1793932183.69526,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.438999995822087,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c891-7ad4-8979-3ce6ec5750de","route":"locale_update","status":302,"timestamp":1793932183.69809,"user_hash":null}
+{"db_duration_ms":0.96900001517497,"duration_ms":2.3710000095889,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c893-7ae5-af63-f548194bbdea","route":"login","status":200,"timestamp":1793932183.70202,"user_hash":null}
+{"duration_ms":1.72300002304837,"level":"warn","message":"address ban lookup failed: DBIx::Class::Storage::DBI::catch {...} (): DBI Connection failed: DBI connect('dbname=gpforum;application_name=gpforum;connect_timeout=5','gpforum',...) failed: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory\n\tIs the server running locally and accepting connections on that socket? at /private/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review4-after-sykf768f/local/lib/perl5/DBIx/Class/Storage/DBI.pm line 1639. at lib/GPForum/Infrastructure/SqlFunction.pm line 281\n","pid":27793,"request_id":"01a1aeb0-c899-7553-b594-7dddc278de7e","timestamp":1793932183.70703,"user_hash":null}
+{"db_duration_ms":0.930000009248033,"duration_ms":2.6940000243485,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c899-7553-b594-7dddc278de7e","route":"login_submit","status":302,"timestamp":1793932183.708,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":0.938000011956319,"duration_ms":2.60199999320321,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c89d-76c4-be71-658d70b9a7cc","route":"login","status":200,"timestamp":1793932183.71199,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":0,"duration_ms":0.415999995311722,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c8a3-7dc2-972e-aae3a8ea43a9","route":"locale_update","status":403,"timestamp":1793932183.71625,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":0,"duration_ms":0.372000009519979,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c8a6-78c4-b3a3-f83e61d2a26e","route":"locale_update","status":403,"timestamp":1793932183.71889,"user_hash":"6ffe73bd02f13c53bc0eeb03a6d81dfc5e1d1e2ef8c42ab6769e49434753d4c5"}
+{"db_duration_ms":1.82999999378808,"duration_ms":4.5150000078138,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c8a9-7133-89f1-085f492b989f","route":"logout","status":202,"timestamp":1793932183.72556,"user_hash":null}
+{"db_duration_ms":0,"duration_ms":0.392999994801357,"event":"http.request","level":"info","message":"","pid":27793,"request_id":"01a1aeb0-c8b0-7820-b9fa-30aa36487e1d","route":"locale_update","status":403,"timestamp":1793932183.72887,"user_hash":null}
+t/711-cached-page-csrf.t ......... ok
+All tests successful.
+Files=9, Tests=420,  3 wallclock secs ( 0.04 usr  0.02 sys +  2.28 cusr  0.38 csys =  2.72 CPU)
+Result: PASS

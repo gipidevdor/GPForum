@@ -35,21 +35,25 @@ sub register ( $class, $application ) {
     );
     my $bans = GPForum::Web::AddressBans->new;
     $application->hook(
-        around_action => async sub ( $next, $controller, $action, $last ) {
+        around_action => sub ( $next, $controller, $action, $last ) {
             if ($last) { $controller->render_later; }
-            return $next->() if !$last;
-            my $admission =
-              $bans->admits_p( $controller, $class->of( $controller->tx ) );
-            my $allowed = await(
-                  $controller->can('await_p')
-                ? $controller->await_p($admission)
-                : $admission
-            );
-            return $allowed ? $next->() : 0;
+            return $next->() if !$last || !$bans->requires_lookup($controller);
+            return $class->_admit_action_p( $bans, $next, $controller );
         }
     );
 
     return;
+}
+
+async sub _admit_action_p ( $class, $bans, $next, $controller ) {
+    my $admission =
+      $bans->admits_p( $controller, $class->of( $controller->tx ) );
+    my $allowed = await(
+          $controller->can('await_p')
+        ? $controller->await_p($admission)
+        : $admission
+    );
+    return $allowed ? $next->() : 0;
 }
 
 # The client of a transaction, set on it once so that remote_address says

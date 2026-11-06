@@ -44,15 +44,20 @@ const my %ALWAYS_OPEN => map { $_ => 1 } qw(
   admin_address_ban_lift
 );
 
+sub requires_lookup ( $self, $controller ) {
+    return 0 if exists $SAFE_METHOD{ $controller->req->method };
+    return 0 if exists $ALWAYS_OPEN{ $controller->current_route // q{} };
+    return 1;
+}
+
 # True when the request may go on; false once the refusal is rendered. A
 # read never asks; a write asks which live ban covers its client, the
 # address Web::ClientAddress found for it. When the
 # lookup fails the request goes on, logged: a database that cannot answer it
 # cannot take the write either.
 sub admits ( $self, $controller, $client ) {
-    return 1 if exists $SAFE_METHOD{ $controller->req->method };
+    return 1 if !$self->requires_lookup($controller);
     my $route = $controller->current_route // q{};
-    return 1 if exists $ALWAYS_OPEN{$route};
 
     my $ban;
     try {
@@ -73,9 +78,8 @@ sub admits ( $self, $controller, $client ) {
 }
 
 async sub admits_p ( $self, $controller, $client ) {
-    return 1 if exists $SAFE_METHOD{ $controller->req->method };
+    return 1 if !$self->requires_lookup($controller);
     my $route = $controller->current_route // q{};
-    return 1 if exists $ALWAYS_OPEN{$route};
     my $ban;
     try {
         my $service = $controller->gp_address_bans;
@@ -138,6 +142,11 @@ forms are never refused. A refusal is counted as the security event
 C<address_ban_refusal>.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 requires_lookup
+
+True for a write that is not exempt. The dispatch hook uses this pure check
+to admit reads without creating asynchronous work.
 
 =head2 admits
 

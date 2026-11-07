@@ -46,10 +46,38 @@ has generations => sub { return [ {}, {} ]; };
 sub render ( $self, $controller, $post ) {
     my $context = $controller->stash->{'gp.post_fragment_context'} //=
       _context($controller);
-    my $key   = _key( $context, $post );
+    my $key   = 'post:' . _key( $context, $post, 1 );
+    my $found = $self->_cached($key);
+    if ($found) {
+        return $self->_compose( $controller, $post, $key, $found )
+          if $post->{can_react} && !exists $found->{paths}{'post_react:heart'};
+        return $found;
+    }
+    my $static = $self->_static_fragments( $controller, $post, $context );
+    return $self->_compose( $controller, $post, $key, $static );
+}
+
+# A composed hit needs only one lookup. A miss reuses independent components;
+# changing engagement must not rebuild author, avatar or control markup.
+# Compositions share the same entry and size bounds as their components.
+sub _compose ( $self, $controller, $post, $key, $static ) {
+    my $parts = { %{$static} };
+    if ( !exists $parts->{like} ) {
+        $parts->{like} = $self->like_html( $controller, $post );
+    }
+    if ( @{ $post->{reactions} || [] } || $post->{can_react} ) {
+        my $reactions = $self->reactions( $controller, $post );
+        my @names     = grep { $_ ne 'paths' } keys %{$reactions};
+        @{$parts}{@names} = @{$reactions}{@names};
+        $parts->{paths} = { %{ $static->{paths} }, %{ $reactions->{paths} } };
+    }
+    return $self->_cache_fragments( $key, $parts );
+}
+
+sub _static_fragments ( $self, $controller, $post, $context ) {
+    my $key   = 'static:' . _key( $context, $post );
     my $found = $self->_cached($key);
     return $found if $found;
-
     my $content   = { map { $_ => $post->{$_} } @CONTENT, 'reply_to' };
     my $fragments = {};
     my $rendered  = $controller->render_to_string(
@@ -269,15 +297,26 @@ sub _context ($controller) {
 # Each value as its length, a colon and itself (a dash for none): no two
 # contents write the same key. The reply target, when there is one, goes in
 # field by field, each with its name.
-sub _key ( $context, $post ) {
+sub _key ( $context, $post, $composed = 0 ) {
     my $reply = $post->{reply_to};
-
-    return $context->{key}
-      . _encoded(
+    return $context->{key} . _encoded(
         @{$post}{@CONTENT},
         ( $reply ? 'reply' : undef ),
-        map { ( $_, $reply->{$_} ) } sort keys %{ $reply || {} }
-      );
+        scalar keys %{ $reply || {} },
+        ( map { ( $_, $reply->{$_} ) } sort keys %{ $reply || {} } ),
+        (
+            $composed
+            ? (
+                $post->{liked} ? 1 : 0,
+                $post->{like_count} || 0,
+                scalar @{ $post->{reactions} || [] },
+                map {
+                    ( $_->{reaction}, $_->{count} // 0, $_->{reacted} ? 1 : 0 )
+                } @{ $post->{reactions} || [] }
+              )
+            : ()
+        ),
+    );
 }
 
 sub _encoded (@values) {
@@ -323,10 +362,13 @@ templates escape normally.
 
 =head2 render
 
-Takes a controller and its authorized post view model. Returns static author,
-reply and control fragments plus post-specific action paths. Like and reaction
-state do not enter this key. With C<max_entries> below 2 nothing is kept; entries
-exceeding C<max_bytes> are returned without storage.
+Takes a controller and its authorized post view model. Static author, reply and
+control fragments have a key independent of like and reaction display. Their
+composition has its own key so an unchanged post needs only one cache lookup;
+a changed engagement state reuses the static markup and unaffected displays.
+Components and compositions share the same entry-count and per-entry size
+bounds. With C<max_entries> below 2 nothing is kept; oversized values are
+returned without storage. Forms and response credentials remain outside.
 
 =head2 like_html
 

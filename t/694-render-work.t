@@ -84,10 +84,8 @@ $app->hook( before_render => sub (@) { ++$count{render} } );
 
 $test->get_ok('/__work/session/user-1')->status_is($OK);
 $test->get_ok('/t/thread-1')->status_is($OK);
-my $page      = $test->tx->res->dom;
-my $posts     = $page->find('article.post')->size;
-my $likes     = $page->find('button.post__like')->size;
-my $reactions = $page->find('.post__reactions')->size;
+my $page  = $test->tx->res->dom;
+my $posts = $page->find('article.post')->size;
 ok( $posts, 'the thread page lists posts' );
 
 my $fragments = $app->build_controller->ui_presenter->post_fragments;
@@ -145,11 +143,8 @@ is( $count{time_context}, 1,
     'the times read the reader\'s standing, locale and zone once' );
 is( $fragments->stats->{misses},
     $before{misses}, 'no post presentation is rendered again' );
-is(
-    $fragments->stats->{hits} - $before{hits},
-    $posts + $likes + $reactions,
-    'one lookup per displayed static, like or reaction presentation'
-);
+is( $fragments->stats->{hits} - $before{hits},
+    $posts, 'each warmed post presentation is a single lookup' );
 is( $count{empty_integrations} // 0,
     0, 'posts without integration cards do not render an empty partial' );
 

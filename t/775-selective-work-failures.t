@@ -17,10 +17,11 @@ use GPForum::Test::CommandIdempotency;
 use GPForum::Test::PostFragmentServices;
 
 our $VERSION = '0.001';
-const my $OK              => 200;
-const my $SERVER_ERROR    => 500;
-const my $REACTION_ROUTES => 8;
-const my $REACTIONS       => 4;
+const my $OK                   => 200;
+const my $SERVER_ERROR         => 500;
+const my $REACTION_ROUTES      => 8;
+const my $PRESENTATION_ENTRIES => 4;
+const my $REACTIONS            => 4;
 
 my $test     = Test::Mojo->new('GPForum');
 my $services = GPForum::Test::PostFragmentServices->new;
@@ -134,7 +135,7 @@ sub fragment_bytes($parts) {
     );
 }
 
-subtest 'reaction paths are lazy and remain within the entry size bound' =>
+subtest 'reaction paths stay lazy and each cached component remains bounded' =>
   sub {
     my $c        = $test->app->build_controller;
     my $paths    = 0;
@@ -155,57 +156,50 @@ subtest 'reaction paths are lazy and remain within the entry size bound' =>
         reactions      => [ { reaction => 'heart', count => 1, reacted => 0 } ]
     };
     my $base = $cache->render( $c, $post );
-    is( $paths, 0, 'ineligible cold render builds no reaction paths' );
+    is( $paths, 0,
+        'ineligible cold presentation builds no unused reaction paths' );
     ok(
         !exists $base->{paths}{'post_react:heart'},
-        'base entry contains no unused reaction paths'
+        'ineligible composition has no unused reaction paths'
     );
-    is( $cache->render( $c, { %{$post}, can_react => 1 } ),
-        $base,
-        'eligibility does not rebuild or expand the static presentation' );
-    is( $paths, 0, 'static presentation never constructs reaction paths' );
-    my $reaction_base = $cache->reactions( $c, $post );
-    my $expanded      = $cache->reactions( $c, { %{$post}, can_react => 1 } );
+    my $expanded = $cache->render( $c, { %{$post}, can_react => 1 } );
     is( $paths, $REACTION_ROUTES,
         'an eligible reader lazily builds both routes for each reaction' );
     ok(
         exists $expanded->{paths}{'post_react:heart'},
-        'expanded presentation has its reaction route'
+        'eligible presentation has its route'
     );
-    ok(
-        !exists $base->{paths}{'post_react:heart'},
-        'expansion does not mutate the base object'
-    );
+    ok( !exists $base->{paths}{'post_react:heart'},
+        'expansion does not mutate the previously returned composition' );
+    is( $expanded->{header}, $base->{header},
+        'expansion reuses static presentation' );
     $paths = 0;
-    $cache->reactions( $c, { %{$post}, can_react => 1 } );
-    $cache->reactions( $c, $post );
-    is( $paths, 0,
-'later eligible and ineligible readers reuse static paths without rebuilding'
+    $cache->render( $c, { %{$post}, can_react => 1 } );
+    $cache->render( $c, $post );
+    is( $paths, 0, 'both eligibility states reuse static paths' );
+    is(
+        scalar keys %{ $cache->entries },
+        $PRESENTATION_ENTRIES,
+'static, like, reaction and composed entries each exclude permission state'
     );
-    is( scalar keys %{ $cache->entries },
-        2, 'static and reaction entries each exclude permission state' );
-    ok( !exists $expanded->{can_react},
-        'permission state is never stored in the presentation' );
-
+    ok( !exists $expanded->{can_react}, 'no capability is stored' );
     my $bounded =
-      GPForum::Web::PostFragments->new(
-        max_bytes => fragment_bytes($reaction_base) );
-    $bounded->reactions( $c, $post );
-    is( scalar keys %{ $bounded->entries },
-        1, 'the base entry fits and is cached before expansion' );
-    my $larger = $bounded->reactions( $c, { %{$post}, can_react => 1 } );
+      GPForum::Web::PostFragments->new( max_bytes => fragment_bytes($base) );
+    my $kept   = $bounded->render( $c, $post );
+    my $larger = $bounded->render( $c, { %{$post}, can_react => 1 } );
+    ok( exists $larger->{paths}{'post_react:heart'},
+        'an oversized composition remains usable for this response' );
     ok(
-        exists $larger->{paths}{'post_react:heart'},
-        'oversized expansion remains usable for this render'
+        !exists $kept->{paths}{'post_react:heart'},
+        'expansion does not enlarge the cached composition'
     );
+    is( $bounded->render( $c, $post ),
+        $kept,
+        'an over-budget composition leaves the earlier cached value intact' );
 
     for my $entry ( values %{ $bounded->entries } ) {
         cmp_ok( fragment_bytes($entry), '<=', $bounded->max_bytes,
-            'stored entry does not exceed its size budget' );
-        ok(
-            !exists $entry->{paths}{'post_react:heart'},
-            'oversized paths are not added to the cached base'
-        );
+            'each stored component and composition obeys its entry budget' );
     }
   };
 

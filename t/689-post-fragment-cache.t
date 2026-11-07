@@ -21,6 +21,7 @@ const my $OK                     => 200;
 const my $NOT_FOUND              => 404;
 const my $FORBIDDEN              => 403;
 const my $CHANGED_REACTION_COUNT => 4;
+const my $INITIAL_COMPONENTS     => 3;
 
 my $test     = Test::Mojo->new('GPForum');
 my $services = GPForum::Test::PostFragmentServices->new;
@@ -243,8 +244,8 @@ subtest 'engagement changes reuse the independent static presentation' => sub {
             my $reactions = $fragments->reactions( $c, $post );
             $post->{liked}      = 1;
             $post->{like_count} = $CHANGED_REACTION_COUNT;
-            is( $fragments->render( $c, $post ),
-                $base,
+            is( $fragments->render( $c, $post )->{header},
+                $base->{header},
                 'like state does not rebuild header, avatar or controls' );
             like(
                 q{} . $fragments->like_html( $c, $post ),
@@ -255,8 +256,9 @@ subtest 'engagement changes reuse the independent static presentation' => sub {
                 $reactions, 'like changes do not rebuild reactions' );
             $post->{reactions}[0]{count}   = $CHANGED_REACTION_COUNT;
             $post->{reactions}[0]{reacted} = 1;
-            is( $fragments->render( $c, $post ),
-                $base, 'reaction changes do not rebuild static presentation' );
+            is( $fragments->render( $c, $post )->{header},
+                $base->{header},
+                'reaction changes do not rebuild static presentation' );
             my $changed = $fragments->reactions( $c, $post );
             like(
                 q{} . $changed->{'reaction_open:heart'},
@@ -265,8 +267,9 @@ subtest 'engagement changes reuse the independent static presentation' => sub {
             );
             $fragments->like_html( $c, $post );
             $post->{author_display_name} = 'Changed author';
-            isnt( $fragments->render( $c, $post ),
-                $base, 'author changes rebuild the static presentation' );
+            isnt( $fragments->render( $c, $post )->{header},
+                $base->{header},
+                'author changes rebuild the static presentation' );
             is( $fragments->reactions( $c, $post ),
                 $changed, 'author changes do not rebuild reactions' );
             $fragments->like_html( $c, $post );
@@ -339,8 +342,9 @@ subtest 'rendering failure never poisons the cache' => sub {
             qr/id="post-post-1-heading"/msx,
             'a subsequent healthy render produces the normal presentation'
         );
-        is( $fragments->stats->{writes},
-            1, 'the healthy result can be cached after the failed attempt' );
+        is( $fragments->stats->{writes}, $INITIAL_COMPONENTS,
+'the healthy independent components and composition are cached after failure'
+        );
     }
 };
 

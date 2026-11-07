@@ -81,12 +81,12 @@
             <form method="post" action="<%= $paths->{$like_route} %>" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">
               <%= csrf_field %>
               <input type="hidden" name="command_id" value="<%= $post->{like_command_id} || q{} %>">
-              <%= $fragments->like_html($self, $post) %>
+              <%= $static->{like} %>
             </form>
           % } elsif ($like_count) {
             <span class="post__likes"><%= tc('forum.like_count', $like_count) %></span>
           % }
-          <%= $fragments->reaction_html($self, $post) %>
+          <%= $fragments->reaction_html($self, $post, $static) %>
           % if ($signed_in && !$post->{deleted_at}) {
             <%= $static->{reply_links} %>
           % }

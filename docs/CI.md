@@ -140,8 +140,8 @@ every one-line step of `ci.yml` must be in the second table.
 | `bin/gpforum os-preflight --json` | same |
 | `postgresql-client-16` | same |
 | `clamd --config-file` | same |
-| `make integration` | `make integration JOBS=4` |
-| `script/gpforum-carton exec prove -lr t` | `script/gpforum-carton exec prove -l -j 4 t`, `make integration JOBS=4` |
+| `make integration` | `make integration JOBS=2` |
+| `script/gpforum-carton exec prove -lr t` | `script/gpforum-carton exec prove -l -j 4 t`, `make integration JOBS=2` |
 | `bin/gpforum benchmark --fixture --check` | same |
 | `bin/gpforum query-plan-evidence --check` | same |
 | `script/benchmark-http --configured --check` | same |
@@ -181,8 +181,8 @@ developer's laptop.
 | `integration` | `script/query-plan-check --require-db` |
 | `integration` | `bin/gpforum os-preflight --json` |
 | `integration` | `clamd --config-file` |
-| `integration` | `make integration JOBS=4` |
-| `integration` | `script/gpforum-carton exec script/test-features --configured --jobs 4 --output "$RUNNER_TEMP/features"` |
+| `integration` | `make integration JOBS=2` |
+| `integration` | `script/gpforum-carton exec script/test-features --configured --jobs 2 --output "$RUNNER_TEMP/features"` |
 | `integration` | `bin/gpforum benchmark --fixture --check` |
 | `integration` | `bin/gpforum query-plan-evidence --check` |
 | `integration` | `script/benchmark-http --configured --check` |

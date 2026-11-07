@@ -251,12 +251,12 @@ jobs:
 
       # The directory, never a list of files: a list is where a new test goes
       # to never run. t/190-gate-honesty.t holds every workflow to this. Each
-      # test creates and drops databases of its own, so four run at once.
+      # test creates and drops databases of its own; share the job connection budget.
       - name: Run PostgreSQL integration tier
-        run: make integration JOBS=4
+        run: make integration JOBS=2
 
       - name: Verify every functional feature and HTTP operation
-        run: script/gpforum-carton exec script/test-features --configured --jobs 4 --output "$RUNNER_TEMP/features"
+        run: script/gpforum-carton exec script/test-features --configured --jobs 2 --output "$RUNNER_TEMP/features"
 
       - name: Save functional coverage evidence
         if: always()

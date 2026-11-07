@@ -11,6 +11,8 @@ use English       qw(-no_match_vars);
 use JSON::MaybeXS qw(decode_json encode_json);
 use POSIX         qw(_exit);
 use Test::More;
+use Mojo::IOLoop;
+use Mojo::Promise;
 
 use lib 'lib';
 use lib 't/lib';
@@ -164,6 +166,9 @@ const my $CACHE_KEY            => 'public:/t/cache-probe';
 const my $CACHE_TAG            => 'thread:cache-probe';
 const my $CACHE_VALUE          => '<p>cached body</p>';
 const my $CACHE_TTL            => 300;
+const my $NOTIFY_DEADLINE      => 5;
+const my $NOTIFY_POLL_SECONDS  => 0.01;
+const my $NOTIFY_HOLD_SECONDS  => 0.05;
 const my $MIGRATION_LOCK_KEY   => 4_021_970_001;
 const my $LOCK_SQL             => 'SELECT pg_advisory_lock(?)';
 const my $TRY_LOCK_SQL         => 'SELECT pg_try_advisory_lock(?)';
@@ -347,13 +352,40 @@ sub _cache_invalidation_crosses_processes {
     is( $peer->get($CACHE_KEY),   $CACHE_VALUE, 'the peer serves the entry' );
     is( $author->get($CACHE_KEY), $CACHE_VALUE, 'the author serves the entry' );
 
+    my $channel = $peer->bus->channel;
+    ok(
+        $peer->bus->notifications->listening($channel),
+        'the peer LISTEN is active before publishing'
+    );
+    ok(
+        $author->bus->notifications->listening($channel),
+        'the author LISTEN is active before publishing'
+    );
+    my $listener = $peer->bus->notifications->handle;
+    $listener->begin_work or croak 'cannot hold the listening transaction';
     $author->invalidate_tag($CACHE_TAG);
     is( $author->bus->stats->{published},
         1, 'invalidating a tag publishes one notification' );
     is( $author->get($CACHE_KEY), undef, 'the author drops its own entry' );
 
     is( $peer->get($CACHE_KEY),
+        $CACHE_VALUE,
+        'delivery waits until the listening transaction completes' );
+    my $release = Mojo::IOLoop->timer(
+        $NOTIFY_HOLD_SECONDS => sub {
+            $listener->commit
+              or croak 'cannot release the listening transaction';
+            return;
+        }
+    );
+    my $received = _await_cache_invalidation($peer);
+    Mojo::IOLoop->remove($release);
+    ok( $received,
+        'the committed notification is delivered within the deadline' );
+    is( $peer->get($CACHE_KEY),
         undef, 'the peer drops the entry it was never asked to invalidate' );
+    is( $peer->bus->stats->{applied},
+        1, 'one real notification was decoded and applied' );
     is( $peer->stats->{remote_invalidations},
         1, 'the peer records the invalidation as remote' );
     is( $peer->bus->stats->{skipped_self},
@@ -364,7 +396,35 @@ sub _cache_invalidation_crosses_processes {
     is( $author->bus->stats->{skipped_self},
         1, 'the author skips its own notification' );
 
+    if ( !$listener->{AutoCommit} ) {
+        $listener->rollback
+          or croak 'cannot clean up the listening transaction';
+    }
     return;
+}
+
+# NOTIFY delivery to a different backend is asynchronous. Drive the reactor
+# until the real bus applies it, rather than assuming the publisher's return
+# means another backend has already handled its signal.
+sub _await_cache_invalidation ($cache) {
+    my $done     = Mojo::Promise->new;
+    my $received = 0;
+    my $poll     = Mojo::IOLoop->recurring(
+        $NOTIFY_POLL_SECONDS => sub {
+            $cache->absorb_remote_invalidations;
+            if ( $cache->bus->stats->{applied} ) {
+                $received = 1;
+                $done->resolve;
+            }
+            return;
+        }
+    );
+    my $deadline = Mojo::IOLoop->timer(
+        $NOTIFY_DEADLINE => sub { $done->resolve; return; } );
+    $done->wait;
+    Mojo::IOLoop->remove($poll);
+    Mojo::IOLoop->remove($deadline);
+    return $received;
 }
 
 sub _bus_backed_cache {

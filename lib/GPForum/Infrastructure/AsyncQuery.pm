@@ -136,26 +136,28 @@ async sub _run_leased_p ( $self, $db, $work, $stats, $context, $generation ) {
         @values = await Mojo::Promise->resolve(@pending);
     }
     catch ($caught) { $error = $caught; };
-    my $clean_refusal =
-         defined $error
-      && $db->{gp_reusable_after_error}
-      && blessed($error)
-      && ( $error->isa('GPForum::X::Argument')
-        || $error->isa('GPForum::X::Conflict') )
-      && $db->dbh->{Active}
-      && ( $db->dbh->{pg_async_status} // 1 ) == 0;
+    my $clean_refusal = _clean_refusal( $db, $error );
     if ( ( defined $error && !$clean_refusal )
         || $generation != $self->generation )
     {
         @{ $self->connections } = grep { $_ != $db } @{ $self->connections };
-        $self->stats->{retired_errors}++ if defined $error;
+        if ( defined $error ) { $self->stats->{retired_errors}++; }
     }
     else {
         push @{ $self->idle }, $db;
-        $self->stats->{reused_after_refusal}++ if $clean_refusal;
+        if ($clean_refusal) { $self->stats->{reused_after_refusal}++; }
     }
     die $error if defined $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original lease failure
     return @values;
+}
+
+sub _clean_refusal ( $db, $error ) {
+    return 0
+      if !defined $error || !$db->{gp_reusable_after_error} || !blessed($error);
+    return 0
+      if !$error->isa('GPForum::X::Argument')
+      && !$error->isa('GPForum::X::Conflict');
+    return $db->dbh->{Active} && ( $db->dbh->{pg_async_status} // 1 ) == 0;
 }
 
 sub snapshot ($self) {
@@ -186,7 +188,7 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-One executor belongs to a schema. Two dedicated Mojo::Pg connections serve active operations independently of synchronous workflow transactions. Keeping those handles outside Mojo::Pg's idle queue avoids its synchronous checkout ping. Worker startup warms the connections; failed leases are discarded, and inherited leases are detached after fork. The callback consumes its results before settling.
+One executor belongs to a schema. Two dedicated Mojo::Pg connections serve active operations independently of synchronous workflow transactions. Keeping those handles outside Mojo::Pg's idle queue avoids its synchronous checkout ping. Worker startup warms the connections and inherited leases are detached after fork. Transport failures and uncertain outcomes retire a lease. A mapped business refusal may reuse it only after a standalone statement or confirmed rollback has left no command in flight. The callback consumes its results before settling.
 
 =head1 SUBROUTINES/METHODS
 

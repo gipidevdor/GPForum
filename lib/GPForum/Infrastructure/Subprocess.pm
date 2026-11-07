@@ -88,7 +88,7 @@ sub _watch ( $self, $reader, $done ) {
 
 # Optional bounded parent-to-child commands. Ordinary run/run_p users never
 # write to this channel; streaming readers use it to request one chunk at a time.
-sub send ( $self, $bytes ) {
+sub write_command ( $self, $bytes ) {
     croak 'subprocess command channel is closed' if !$self->{channel};
     $self->{channel}->write($bytes);
     return $self;

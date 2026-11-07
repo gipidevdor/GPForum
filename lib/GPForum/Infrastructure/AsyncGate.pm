@@ -25,12 +25,7 @@ has stats         => sub {
 };
 
 sub run_p ( $self, $work, $context = undef ) {
-    if ( $self->owner != $PROCESS_ID ) {
-        $self->owner($PROCESS_ID);
-        $self->active(0);
-        $self->pending( [] );
-        $self->stats( { map { $_ => 0 } keys %{ $self->stats } } );
-    }
+    $self->_owned;
     my $cancel = ref $context eq 'HASH' ? $context->{cancellation} : undef;
     if ( $cancel && $cancel->cancelled ) {
         $self->stats->{cancelled}++;
@@ -42,52 +37,74 @@ sub run_p ( $self, $work, $context = undef ) {
     {
         $self->stats->{rejected}++;
         return Mojo::Promise->reject(
-            GPForum::X::Unavailable->new(
-                message => 'asynchronous capacity exhausted'
-            )
-        );
+            _unavailable('asynchronous capacity exhausted') );
     }
-    my $promise = Mojo::Promise->new;
-    my $now     = clock_gettime(CLOCK_MONOTONIC);
-    my $job     = { work => $work, promise => $promise, enqueued => $now };
-    my $remaining =
-        $cancel && defined $cancel->deadline
-      ? $cancel->deadline - $now
-      : $self->queue_timeout;
-    if ( $remaining <= 0 ) {
+    my $now      = clock_gettime(CLOCK_MONOTONIC);
+    my $deadline = $self->_deadline( $cancel, $now );
+    if ( $deadline <= $now ) {
         $self->stats->{expired}++;
         return Mojo::Promise->reject(
             _unavailable('asynchronous queue deadline exceeded') );
     }
-    $job->{deadline} = $now +
-      ( $remaining < $self->queue_timeout ? $remaining : $self->queue_timeout );
+    my $job = {
+        work     => $work,
+        promise  => Mojo::Promise->new,
+        enqueued => $now,
+        deadline => $deadline
+    };
     push @{ $self->pending }, $job;
-    if ($cancel) {
-        $job->{cancellation} = $cancel;
-        $job->{subscription} = $cancel->subscribe(
-            sub {
-                $self->_drop( $job, 'cancelled',
-                    'asynchronous request closed before work started' );
-            }
-        );
-    }
+    $self->_subscribe( $job, $cancel );
     if ( $self->active >= $self->concurrency ) {
-        $self->stats->{queued}++;
-        my $count = @{ $self->pending };
-        $self->stats->{peak_pending} = $count
-          if $count > $self->stats->{peak_pending};
-        my $timeout =
-          $remaining < $self->queue_timeout ? $remaining : $self->queue_timeout;
-        $job->{timer} = Mojo::IOLoop->timer(
-            $timeout => sub {
-                $self->_drop( $job, 'expired',
-                    'asynchronous queue deadline exceeded' );
-                return;
-            }
-        );
+        $self->_watch_queue( $job, $now );
     }
     $self->_pump;
-    return $promise;
+    return $job->{promise};
+}
+
+sub _owned ($self) {
+    return if $self->owner == $PROCESS_ID;
+    $self->owner($PROCESS_ID);
+    $self->active(0);
+    $self->pending( [] );
+    $self->stats( { map { $_ => 0 } keys %{ $self->stats } } );
+    return;
+}
+
+sub _deadline ( $self, $cancel, $now ) {
+    my $deadline = $now + $self->queue_timeout;
+    return
+         $cancel
+      && defined $cancel->deadline
+      && $cancel->deadline < $deadline ? $cancel->deadline : $deadline;
+}
+
+sub _subscribe ( $self, $job, $cancel ) {
+    return if !$cancel;
+    $job->{cancellation} = $cancel;
+    $job->{subscription} = $cancel->subscribe(
+        sub {
+            $self->_drop( $job, 'cancelled',
+                'asynchronous request closed before work started' );
+            return;
+        }
+    );
+    return;
+}
+
+sub _watch_queue ( $self, $job, $now ) {
+    $self->stats->{queued}++;
+    my $count = @{ $self->pending };
+    if ( $count > $self->stats->{peak_pending} ) {
+        $self->stats->{peak_pending} = $count;
+    }
+    $job->{timer} = Mojo::IOLoop->timer(
+        $job->{deadline} - $now => sub {
+            $self->_drop( $job, 'expired',
+                'asynchronous queue deadline exceeded' );
+            return;
+        }
+    );
+    return;
 }
 
 sub _unavailable ($message) {
@@ -95,7 +112,9 @@ sub _unavailable ($message) {
 }
 
 sub _detach ( $, $job ) {
-    Mojo::IOLoop->remove( delete $job->{timer} ) if defined $job->{timer};
+    if ( defined $job->{timer} ) {
+        Mojo::IOLoop->remove( delete $job->{timer} );
+    }
     if ( my $cancel = delete $job->{cancellation} ) {
         $cancel->unsubscribe( delete $job->{subscription} );
     }
@@ -194,7 +213,11 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-Runs a promise-producing callback in FIFO order. Saturation and queue expiry reject with Unavailable. The gate resets its inherited queue after a fork.
+Runs a promise-producing callback in FIFO order. Saturation, queue expiry and
+request cancellation reject with Unavailable. A request deadline shortens the
+queue budget; cancellation removes waiting work without interrupting admitted
+work. The gate resets its inherited queue after a fork. C<snapshot> separates
+queue wait from execution time and reports depth, rejections and cancellations.
 
 =head1 SUBROUTINES/METHODS
 

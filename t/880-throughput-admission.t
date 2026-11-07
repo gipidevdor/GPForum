@@ -10,6 +10,7 @@ use GPForum::Infrastructure::AsyncGate;
 use GPForum::Infrastructure::Cancellation;
 use GPForum::Service::Admin::Configuration;
 use GPForum::Config;
+use GPForum::Schema;
 use GPForum::Test::RequestContextFunctions;
 use GPForum::Test::Promise qw(await_result);
 our $VERSION = '0.001';

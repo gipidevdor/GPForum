@@ -58,10 +58,13 @@ sub get_chunk_p ( $self, $offset ) {
     return $reader->read_p( $start, $length );
 }
 
-sub close ($self) { $self->reader->close if $self->reader; return; }
+sub release_stream ($self) {
+    if ( $self->reader ) { $self->reader->release_stream; }
+    return;
+}
 
 sub DESTROY ($self) {
-    $self->close if ${^GLOBAL_PHASE} ne 'DESTRUCT';
+    if ( ${^GLOBAL_PHASE} ne 'DESTRUCT' ) { $self->release_stream; }    ## no critic (Variables::ProhibitPunctuationVars) -- Perl exposes its destruction phase only through this special variable
     return $self->SUPER::DESTROY;
 }
 
@@ -83,9 +86,11 @@ Version 0.001.
 
 =head1 DESCRIPTION
 
-Reads metadata and bounded chunks through the shared subprocess executor. The
-HTTP controller requests the next chunk only after the preceding write drains.
-Device, inode, size and modification time bind every read to the original file.
+Reads metadata and bounded chunks through one persistent FileReader child per
+transfer. Its admission lane is separate from rendering and blocking services.
+The HTTP controller requests another chunk only after the preceding write
+drains, and releases the reader on completion or disconnect. Device, inode,
+size and modification time bind every read to the original file.
 
 =head1 SUBROUTINES/METHODS
 
@@ -111,11 +116,11 @@ Missing, changed or unreadable files reject their promise.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-Uses the per-worker shared executor and its admission limits.
+Uses FileReader's per-worker admission limit of two active transfers.
 
 =head1 DEPENDENCIES
 
-Mojolicious and GPForum::Infrastructure::AsyncWork.
+Mojolicious and GPForum::Infrastructure::FileReader.
 
 =head1 INCOMPATIBILITIES
 

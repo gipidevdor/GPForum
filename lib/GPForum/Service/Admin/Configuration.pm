@@ -4,6 +4,7 @@
 package GPForum::Service::Admin::Configuration;
 
 use Const::Fast;
+use Carp        qw(croak);
 use List::Util  qw(any);
 use Digest::SHA qw(hmac_sha256_hex);
 use JSON::MaybeXS;
@@ -75,45 +76,55 @@ sub load ($self) {
 }
 
 async sub request_context_p ( $self, $input, $context = undef ) {
-    my $cache = $self->state_cache;
-    my $known =
-         $cache
-      && $cache->{settings}
-      && refaddr( $cache->{schema} ) == refaddr( $self->schema )
-      ? $cache->{revision}
-      : undef;
-    my $previous = defined $known ? $cache->{settings} : undef;
-    my $row      = await $self->functions->row_p( 'admin_request_context',
-        { %{$input}, known_revision => $known }, $context );
-    die 'request context has no configuration revision' if !$row;
+    my ( $known, $previous ) = $self->_known_settings;
+    my $name =
+      defined $input->{user_id}
+      ? 'admin_request_context'
+      : 'admin_configuration_snapshot';
+    my $values =
+      defined $input->{user_id}
+      ? { %{$input}, known_revision => $known }
+      : { known_revision            => $known };
+    my $row = await $self->functions->row_p( $name, $values, $context );
+    croak 'request context has no configuration revision' if !$row;
     my $settings = $row->{settings};
     if ( !defined $settings ) {
-        die 'request context settings revision is unavailable'
+        croak 'request context settings revision is unavailable'
           if !defined $known || $known ne $row->{revision};
         $settings = dclone($previous);
     }
-    elsif (
-        $cache
-        && (   !defined $cache->{revision}
-            || refaddr( $cache->{schema} ) != refaddr( $self->schema )
-            || $cache->{revision} <= $row->{revision} )
-      )
-    {
-        %{$cache} = (
-            schema   => $self->schema,
-            revision => $row->{revision},
-            settings => dclone($settings),
-        );
-    }
+    else { $self->_remember_settings($row); }
     $self->state(
         {
             available          => 1,
             revision           => $row->{revision},
             public_cache_epoch => $row->{public_cache_epoch},
-            settings           => $settings,
+            settings           => $settings
         }
     );
     return $row;
+}
+
+sub _known_settings ($self) {
+    my $cache = $self->state_cache;
+    return ( undef, undef ) if !$cache || !$cache->{settings};
+    return ( undef, undef )
+      if refaddr( $cache->{schema} ) != refaddr( $self->schema );
+    return ( $cache->{revision}, $cache->{settings} );
+}
+
+sub _remember_settings ( $self, $row ) {
+    my $cache = $self->state_cache or return;
+    return
+         if defined $cache->{revision}
+      && refaddr( $cache->{schema} ) == refaddr( $self->schema )
+      && $cache->{revision} > $row->{revision};
+    %{$cache} = (
+        schema   => $self->schema,
+        revision => $row->{revision},
+        settings => dclone( $row->{settings} ),
+    );
+    return;
 }
 
 async sub load_p ( $self, $context = undef ) {
@@ -512,6 +523,15 @@ Saves the enabled state and display mode of one independent plugin with a revisi
 =head2 reset_general
 
 Restores one setting to the installation value after checking the resulting complete configuration.
+
+=head2 request_context_p
+
+Reads the live GUI configuration, session and viewer context in one native
+asynchronous SQL call. Takes the request identity fields and an optional
+query-statistics context. The application-owned settings cache reuses only
+the encrypted settings for the revision confirmed by that request's durable
+read. Returns the context row and updates this request's configuration state;
+database failures reject the promise.
 
 =head2 load_p
 

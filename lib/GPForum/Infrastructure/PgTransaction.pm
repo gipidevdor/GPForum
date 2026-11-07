@@ -49,26 +49,33 @@ sub run_p ( $self, $work, $readonly = 0 ) {
         }
     )->catch(
         sub ($error) {
-            my $rolled_back = 0;
-            my $rollback =
-              $nested ? "ROLLBACK TO SAVEPOINT $savepoint" : 'ROLLBACK';
-            return $self->_control_p($rollback)->then(
-                sub {
-                    $rolled_back = 1 if !$nested;
-                    return $nested ? $self->_control_p($commit) : undef;
-                }
-            )->catch( sub { return; } )->then(
-                sub {
-                    $self->level($nested);
-                    if ( !$nested ) { $self->_observe('txn_rollback'); }
-                    $self->database->{gp_reusable_after_error} = 1
-                      if $rolled_back
-                      && blessed($error)
-                      && ( $error->isa('GPForum::X::Argument')
-                        || $error->isa('GPForum::X::Conflict') );
-                    die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original error, never retry an ambiguous commit
-                }
-            );
+            return $self->_rollback_p( $error, $nested, $savepoint, $commit );
+        }
+    );
+}
+
+sub _rollback_p ( $self, $error, $nested, $savepoint, $commit ) {
+    my $rolled_back = 0;
+    my $rollback    = $nested ? "ROLLBACK TO SAVEPOINT $savepoint" : 'ROLLBACK';
+    return $self->_control_p($rollback)->then(
+        sub {
+            if ( !$nested ) { $rolled_back = 1; }
+            return $nested ? $self->_control_p($commit) : undef;
+        }
+    )->catch( sub { return; } )->then(
+        sub {
+            $self->level($nested);
+            if ( !$nested ) { $self->_observe('txn_rollback'); }
+            if (
+                   $rolled_back
+                && blessed($error)
+                && (   $error->isa('GPForum::X::Argument')
+                    || $error->isa('GPForum::X::Conflict') )
+              )
+            {
+                $self->database->{gp_reusable_after_error} = 1;
+            }
+            die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original rejection after rollback; never retry an ambiguous commit
         }
     );
 }

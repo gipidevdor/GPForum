@@ -50,7 +50,7 @@ sub cache_options ( $, $controller ) {
     return GPForum::Web::ForumAccess->new->public_cache_options(
         {
             name   => 'home',
-            path   => '/',
+            path   => q{/},
             locale => $controller->ui_locale,
             theme  => $controller->ui_theme,
             limit  => $THREAD_LIMIT,
@@ -120,6 +120,12 @@ Returns the success hash with C<home> and C<runtime>.
 =head2 failure_payload
 
 Returns the C<home_unavailable> error hash.
+
+=head2 cache_options
+
+Returns the public home-page cache options for the controller's locale and
+theme. Cursor, JSON and fragment requests return C<undef> and bypass this
+full-page cache.
 
 =head2 render_page
 

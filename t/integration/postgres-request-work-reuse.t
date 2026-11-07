@@ -17,6 +17,8 @@ use GPForum::Service::Admin::Configuration;
 
 our $VERSION = '0.001';
 const my $HTTP_OK => 200;
+const my %CONFIGURATION_READ => map { $_ => 1 }
+  qw(admin_configuration_state admin_request_context admin_configuration_snapshot);
 
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all =>
@@ -57,7 +59,7 @@ with_replaced_subs(
     'GPForum::Infrastructure::SqlFunction',
     {
         rows_p => sub {
-            if ( $_[1] eq 'admin_configuration_state' ) { ++$reads; }
+            if ( exists $CONFIGURATION_READ{ $_[1] } ) { ++$reads; }
             return $read->(@_);
         },
     },
@@ -103,7 +105,7 @@ with_replaced_subs(
                         rows_p => sub {
                             return Mojo::Promise->reject(
                                 'fixture configuration read failed')
-                              if $_[1] eq 'admin_configuration_state';
+                              if exists $CONFIGURATION_READ{ $_[1] };
                             return $read->(@_);
                         },
                     },

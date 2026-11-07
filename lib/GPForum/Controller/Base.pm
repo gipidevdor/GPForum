@@ -74,7 +74,10 @@ sub file_p ( $self, $path, $type = undef ) {
     return GPForum::Infrastructure::FileAsset->from_path_p( $path, 0,
         $self->stash('gp_db_query_stats_token') )->then(
         sub ($asset) {
-            if ( $self->stash('mojo.finished') ) { $asset->close; return; }
+            if ( $self->stash('mojo.finished') ) {
+                $asset->release_stream;
+                return;
+            }
             if (   !defined $type
                 && !defined $self->res->headers->content_type
                 && "$path" =~ /[.]([[:alnum:]]+)\z/msx )

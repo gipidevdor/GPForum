@@ -25,6 +25,9 @@ has functions => sub ($self) {
     return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
 };
 
+const my $MAX_CONCURRENCY     => 8;
+const my $DIGEST_PREFIX_BYTES => 4;
+
 const my $DEFAULT_LIMIT        => 100;
 const my $DEFAULT_MAX_ATTEMPTS => 5;
 const my $PENDING_STATUS       => 'pending';
@@ -83,12 +86,10 @@ sub dispatch_pending ( $self, $limit ) {
 # rather than a new fork per message. Events of the same aggregate stay on
 # one ordered lane; canonical application writes never enter this executor.
 sub dispatch_pending_p ( $self, $limit, $concurrency = 2 ) {
+    _validate_concurrency($concurrency);
     return Mojo::Promise->resolve->then(
         sub { return $self->dispatch_pending($limit); } )
       if !$self->functions || $concurrency <= 1;
-    GPForum::X::Argument->throw(
-        message => 'outbox concurrency must be between 1 and 8' )
-      if $concurrency > 8;
     return $self->functions->rows_p(
         'outbox_claim_ready',
         {
@@ -100,20 +101,7 @@ sub dispatch_pending_p ( $self, $limit, $concurrency = 2 ) {
         }
     )->then(
         sub ($rows) {
-            my @lanes = map { [] } 1 .. $concurrency;
-            for my $row ( @{$rows} ) {
-                my $message = $self->_claimed_message_for_row($row);
-                my $payload = GPForum::Jobs::EventPayload->normalize(
-                    $message->get_column('payload') );
-                my $key = join ':',
-                  map { $payload->{$_} // q{} } qw(aggregate_type aggregate_id);
-
-                # Envelopes without an aggregate use one conservative serial lane.
-                $key = 'legacy' if $key eq ':';
-                my $lane =
-                  unpack( 'N', substr( sha256($key), 0, 4 ) ) % $concurrency;
-                push @{ $lanes[$lane] }, $row;
-            }
+            my $lanes    = $self->_dispatch_lanes( $rows, $concurrency );
             my $executor = GPForum::Infrastructure::AsyncWork->new(
                 gate => GPForum::Infrastructure::AsyncGate->new(
                     concurrency => $concurrency
@@ -123,30 +111,55 @@ sub dispatch_pending_p ( $self, $limit, $concurrency = 2 ) {
                 $executor->service_result_p( $self, 'dispatch_claimed_rows',
                     [$_] )
               }
-              grep { @{$_} } @lanes;
-            return { map { $_ => 0 }
-                  qw(acknowledged dead_lettered dispatched failed lost selected)
-              }
-              if !@work;
-
-            # Mojo::Promise->all needs at least one promise. An empty claim
-            # is an ordinary idle worker tick, with an all-zero summary.
-            my $complete =
-              @work
-              ? Mojo::Promise->all(@work)
-              : Mojo::Promise->resolve;
-            return $complete->then(
+              grep { @{$_} } @{$lanes};
+            return _dispatch_summary() if !@work;
+            return Mojo::Promise->all(@work)->then(
                 sub (@parts) {
-                    my %summary = map { $_ => 0 }
-                      qw(acknowledged dead_lettered dispatched failed lost selected);
-                    for my $part (@parts) {
-                        $summary{$_} += $part->[0]{$_} for keys %summary;
-                    }
-                    return \%summary;
+                    return _dispatch_summary( map { $_->[0] } @parts );
                 }
             );
         }
     );
+}
+
+sub _dispatch_lanes ( $self, $rows, $concurrency ) {
+    my @lanes = map { [] } 1 .. $concurrency;
+    for my $row ( @{$rows} ) {
+        my $message = $self->_claimed_message_for_row($row);
+        my $payload = GPForum::Jobs::EventPayload->normalize(
+            $message->get_column('payload') );
+        my $key = join q{:},
+          map { $payload->{$_} // q{} } qw(aggregate_type aggregate_id);
+        if ( $key eq q{:} ) { $key = 'legacy'; }
+        my $digest = sha256($key);
+        my $prefix = substr $digest, 0, $DIGEST_PREFIX_BYTES;
+        my $bucket = unpack 'N', $prefix;
+        push @{ $lanes[ $bucket % $concurrency ] }, $row;
+    }
+    return \@lanes;
+}
+
+sub _dispatch_summary (@parts) {
+    my %summary = map { $_ => 0 }
+      qw(acknowledged dead_lettered dispatched failed lost selected);
+    for my $part (@parts) {
+        for my $counter ( keys %summary ) {
+            $summary{$counter} += $part->{$counter};
+        }
+    }
+    return \%summary;
+}
+
+sub _validate_concurrency ($concurrency) {
+    if (  !defined $concurrency
+        || ref $concurrency
+        || $concurrency !~ /\A[1-9]\d*\z/amsx
+        || $concurrency > $MAX_CONCURRENCY )
+    {
+        GPForum::X::Argument->throw(
+            message => 'outbox concurrency must be between 1 and 8' );
+    }
+    return;
 }
 
 sub dispatch_claimed_rows ( $self, $rows ) {
@@ -154,8 +167,11 @@ sub dispatch_claimed_rows ( $self, $rows ) {
       map { $_ => 0 } qw(acknowledged dead_lettered dispatched failed lost);
     $summary{selected} = scalar @{$rows};
     for my $row ( @{$rows} ) {
-        $summary{$_}++
-          for $self->_handle( $self->_claimed_message_for_row($row) );
+        for my $counter (
+            $self->_handle( $self->_claimed_message_for_row($row) ) )
+        {
+            $summary{$counter}++;
+        }
     }
     return \%summary;
 }
@@ -464,6 +480,19 @@ as a warning when a C<logger> is set.
 Returns a hash reference of counts: C<selected>, C<dispatched> (the
 transport accepted it), C<acknowledged>, C<failed> (scheduled for a retry),
 C<dead_lettered> and C<lost> (a claim another worker took).
+
+=head2 dispatch_pending_p
+
+Claims a bounded batch asynchronously and dispatches it through at most eight
+isolated worker lanes. Takes the batch limit and an optional concurrency
+(default two). Messages for the same aggregate stay on one ordered lane.
+Returns a promise for the same counter summary as C<dispatch_pending>.
+
+=head2 dispatch_claimed_rows
+
+Dispatches an already claimed row batch inside its owning worker lane. Takes
+the row array reference and returns the selected, dispatched, acknowledged,
+failed, dead-lettered and lost counters, preserving ownership checks.
 
 =head2 claim_ready_batch
 

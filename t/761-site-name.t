@@ -92,9 +92,9 @@ like( GPForum::Web::SiteIcon->svg('Écoles'),
     );
 
     $test->get_ok(q{/})->status_is($HTTP_OK);
-    $test->text_is( 'title'  => 'Officina', 'the page is titled by the name' );
-    $test->text_is( 'h1'     => 'Officina', 'and headed by it' );
-    $test->text_is( '.brand' => 'Officina', 'and so is the bar' );
+    $test->text_is( 'title' => 'Officina', 'the page is titled by the name' );
+    $test->text_is( 'h1'    => 'Officina', 'and headed by it' );
+    $test->text_is( '.brand__name' => 'Officina', 'and so is the bar' );
     $test->text_is(
         '.ui-page-description' => 'Perl e server fatti in casa.',
         'with the line under it'

@@ -59,8 +59,13 @@ const my @REPLY_RECORD => (
 );
 
 const my %FUNCTION => (
-    admin_request_context => {
+    admin_configuration_snapshot => {
         version    => 2,
+        parameters => [ known_revision => 'bigint' ],
+        json       => ['settings'],
+    },
+    admin_request_context => {
+        version    => 4,
         parameters => [
             known_revision         => 'bigint',
             session_id             => 'uuid',

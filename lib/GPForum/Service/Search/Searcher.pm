@@ -283,38 +283,41 @@ sub ranked_search_p ( $self, $actor, $query, $options, $context = undef ) {
             my $fetch =
               $hybrid ? { %{ $options || {} }, limit => $MAX_LIMIT } : $options;
             my $call = $self->ranked_call( $actor, $query, $fetch );
-            my $key =
-              $self->result_cache && defined $self->cache_epoch
-              ? 'ranked:'
-              . sha256_hex(
-                $CACHE_JSON->encode(
-                    {
-                        call   => $call,
-                        hybrid => $hybrid ? 1 : 0,
-                        epoch  => $self->cache_epoch,
-                    }
-                )
-              )
-              : undef;
-            my $cached = defined $key ? $self->result_cache->get($key) : undef;
-            my $read =
-              defined $cached
-              ? Mojo::Promise->resolve( thaw($cached) )
-              : $self->_ranked_read_p( $call, $hybrid, $context );
-            return $read->then(
+            return $self->_cached_read_p( $call, $hybrid, $context )->then(
                 sub ($page) {
-                    if (   defined $key
-                        && !defined $cached
-                        && $page->{semantic_status} ne 'degraded' )
-                    {
-                        my $bytes = nfreeze($page);
-                        $self->result_cache->put( $key, $bytes )
-                          if length($bytes) <= $MAX_CACHE_BYTES;
-                    }
                     return $self->_ranked_page( $actor, $normalized, $options,
                         $page );
                 }
             );
+        }
+    );
+}
+
+sub _cached_read_p ( $self, $call, $hybrid, $context ) {
+    my $key =
+      $self->result_cache && defined $self->cache_epoch
+      ? 'ranked:'
+      . sha256_hex(
+        $CACHE_JSON->encode(
+            {
+                call   => $call,
+                hybrid => $hybrid ? 1 : 0,
+                epoch  => $self->cache_epoch
+            }
+        )
+      )
+      : undef;
+    my $cached = defined $key ? $self->result_cache->get($key) : undef;
+    return Mojo::Promise->resolve( thaw($cached) ) if defined $cached;
+    return $self->_ranked_read_p( $call, $hybrid, $context )->then(
+        sub ($page) {
+            if ( defined $key && $page->{semantic_status} ne 'degraded' ) {
+                my $bytes = nfreeze($page);
+                if ( length($bytes) <= $MAX_CACHE_BYTES ) {
+                    $self->result_cache->put( $key, $bytes );
+                }
+            }
+            return $page;
         }
     );
 }

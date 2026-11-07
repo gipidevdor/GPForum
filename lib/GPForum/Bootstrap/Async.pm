@@ -13,6 +13,8 @@ use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Text qw(has_text);
 use File::Find                    ();
 use File::Spec;
+use Const::Fast;
+const my $DEFAULT_TOUCH_INTERVAL => 300;
 
 our $VERSION = '0.001';
 
@@ -20,15 +22,19 @@ sub register ( $class, $application ) {
     my $static = _static_paths($application);
     $application->hook(
         around_dispatch => sub ( $next, $controller ) {
-            $controller->gp_begin_request;
             my $path = $controller->req->url->path;
-            if (   $static->{ $path->to_string }
-                && $controller->req->method =~ /\A(?:GET|HEAD)\z/ )
+            if (
+                $static->{ $path->to_string }
+                && (   $controller->req->method eq 'GET'
+                    || $controller->req->method eq 'HEAD' )
+              )
             {
                 $controller->stash(
+                    'gp.stateless_request'       => 1,
                     'gp.session_checked'         => 1,
                     'gp.effective_configuration' => $controller->gp_base_config,
                 );
+                $controller->gp_begin_request;
                 return $controller->within_request($next);
             }
             if ( $path->to_string eq '/health/live' ) {
@@ -36,10 +42,15 @@ sub register ( $class, $application ) {
                 # A public liveness probe never validates a durable session.
                 # Response hooks and request observation still run normally.
                 if ( _is_live_request($controller) ) {
-                    $controller->stash( 'gp.session_checked' => 1 );
+                    $controller->stash(
+                        'gp.session_checked'   => 1,
+                        'gp.stateless_request' => 1
+                    );
                 }
+                $controller->gp_begin_request;
                 return $controller->within_request($next);
             }
+            $controller->gp_begin_request;
             $controller->render_later;
             $class->prepare_p($controller)->then(
                 sub {
@@ -92,53 +103,61 @@ async sub prepare_p ( $class, $controller ) {
       $path ne '/metrics'
       ? await $class->_prepare_context_p( $controller, $path )
       : 0;
-    if ( $path ne '/metrics' && !$prepared ) {
-        my $configuration = $controller->gp_configuration;
-        my $state         = await $controller->call_p( $configuration, 'load' );
-        $configuration->state($state);
-        $controller->stash(
-            'gp.effective_configuration' => $configuration->effective_config );
+    return if $controller->stash('mojo.finished');
+    if ( !$prepared ) {
+        await $class->_prepare_configuration_p( $controller, $path );
     }
-    elsif ( $path eq '/metrics' ) {
-        $controller->stash(
-            'gp.effective_configuration' => $controller->gp_base_config );
-    }
-
     await $controller->await_p(
         $class->_prepare_listener_p( $controller, $path ) );
     if ( !$prepared ) {
-        await $controller->await_p(
-            GPForum::Bootstrap::Identity->validate_session_p($controller) );
+        await $class->_prepare_identity_p( $controller, $path );
     }
     return if $controller->stash('mojo.finished');
-    my $user_id = $controller->session('user_id');
-    if (   !$prepared
-        && defined $user_id
-        && length $user_id
-        && $path !~ m{\A/u/[^/]+/?\z}msx )
-    {
-        my $resolver = GPForum::Service::Forum::ViewerResolver->new(
-            schema => $controller->gp_schema,
-            logger => $controller->log
-        );
-        my $viewer =
-          await $controller->call_p( $resolver, 'resolve', $user_id );
-        $controller->stash( 'gp.forum_viewer' => $viewer );
+    await $class->_prepare_announcements_p( $controller, $path );
+    return;
+}
+
+async sub _prepare_configuration_p ( $, $controller, $path ) {
+    if ( $path eq '/metrics' ) {
+        $controller->stash(
+            'gp.effective_configuration' => $controller->gp_base_config );
+        return;
     }
-    if ( ( $controller->req->headers->accept // q{} ) !~ /json/msx
-        && $path !~ m{\A/(?:health|metrics|realtime)(?:/|\z)}msx )
-    {
-        my $announcements = [];
-        try {
-            $announcements =
-              await $controller->call_p( $controller->gp_announcement_store,
-                'active_announcements', undef );
-        }
-        catch ($error) {
-            $controller->log->warn("announcements degraded: $error");
-        };
-        $controller->stash( 'gp.announcements' => $announcements );
+    my $configuration = $controller->gp_configuration;
+    my $state         = await $controller->call_p( $configuration, 'load' );
+    $configuration->state($state);
+    $controller->stash(
+        'gp.effective_configuration' => $configuration->effective_config );
+    return;
+}
+
+async sub _prepare_identity_p ( $, $controller, $path ) {
+    await $controller->await_p(
+        GPForum::Bootstrap::Identity->validate_session_p($controller) );
+    return if $controller->stash('mojo.finished');
+    my $user = $controller->session('user_id');
+    return if !has_text($user) || $path =~ m{\A/u/[^/]+/?\z}msx;
+    my $resolver = GPForum::Service::Forum::ViewerResolver->new(
+        schema => $controller->gp_schema,
+        logger => $controller->log
+    );
+    my $viewer = await $controller->call_p( $resolver, 'resolve', $user );
+    $controller->stash( 'gp.forum_viewer' => $viewer );
+    return;
+}
+
+async sub _prepare_announcements_p ( $, $controller, $path ) {
+    return
+      if ( $controller->req->headers->accept // q{} ) =~ /json/msx
+      || $path =~ m{\A/(?:health|metrics|realtime)(?:/|\z)}msx;
+    my $announcements = [];
+    try {
+        $announcements =
+          await $controller->call_p( $controller->gp_announcement_store,
+            'active_announcements', undef );
     }
+    catch ($error) { $controller->log->warn("announcements degraded: $error"); };
+    $controller->stash( 'gp.announcements' => $announcements );
     return;
 }
 
@@ -147,36 +166,11 @@ async sub _prepare_context_p ( $, $controller, $path ) {
     return 0
       if !$configuration->can('request_context_p')
       || !$configuration->functions;
-    my $identity = $controller->gp_identity_store;
-    return 0 if !$identity->can('functions') || !$identity->functions;
-    my $cookies = GPForum::Bootstrap::Identity->prepare_session($controller);
-    my $user    = $controller->session('user_id');
-    my $session =
-        $cookies->has_server_session($controller)
-      ? $controller->session('session_id')
-      : undef;
-    return 0 if defined $user && !GPForum::Infrastructure::Id->is_uuid($user);
-    return 0
-      if defined $session && !GPForum::Infrastructure::Id->is_uuid($session);
-    my $token   = $controller->session('session_token');
-    my $resolve = $path !~ m{\A/u/[^/]+/?\z}msx;
+    my $input = _context_input( $controller, $path ) or return 0;
     my $row;
     try {
-        $row = await $controller->call_p(
-            $configuration,
-            'request_context',
-            {
-                session_id => $session,
-                user_id    => $user,
-                token_hash => has_text($token)
-                ? $identity->session_tokens->hash_token($token)
-                : undef,
-                now                    => $identity->clock->now_iso8601,
-                touch_interval_seconds =>
-                  $identity->session_touch_interval_seconds // 300,
-                resolve_viewer => $resolve ? 1 : 0,
-            }
-        );
+        $row = await $controller->call_p( $configuration, 'request_context',
+            $input );
     }
     catch ($error) {
 
@@ -187,17 +181,55 @@ async sub _prepare_context_p ( $, $controller, $path ) {
     };
     GPForum::Bootstrap::Identity->accept_session_validation( $controller,
         $row->{validation} );
-    if ( $resolve && has_text( $controller->session('user_id') ) ) {
+    if ( $input->{resolve_viewer}
+        && has_text( $controller->session('user_id') ) )
+    {
         my $resolver = GPForum::Service::Forum::ViewerResolver->new(
             schema => $controller->gp_schema,
             logger => $controller->log
         );
         $controller->stash( 'gp.forum_viewer' =>
-              $resolver->viewer_from_row( $user, $row->{viewer} ) );
+              $resolver->viewer_from_row( $input->{user_id}, $row->{viewer} ) );
     }
     $controller->stash(
         'gp.effective_configuration' => $configuration->effective_config );
     return 1;
+}
+
+sub _context_input ( $controller, $path ) {
+    my $cookies = GPForum::Bootstrap::Identity->prepare_session($controller);
+    my $user    = $controller->session('user_id');
+    my $session =
+        $cookies->has_server_session($controller)
+      ? $controller->session('session_id')
+      : undef;
+    return undef
+      if defined $user && !GPForum::Infrastructure::Id->is_uuid($user);
+    return undef
+      if defined $session && !GPForum::Infrastructure::Id->is_uuid($session);
+    my $input = {
+        session_id             => $session,
+        user_id                => $user,
+        token_hash             => undef,
+        now                    => $controller->gp_clock->now_iso8601,
+        touch_interval_seconds => $DEFAULT_TOUCH_INTERVAL,
+        resolve_viewer         => $path !~ m{\A/u/[^/]+/?\z}msx ? 1 : 0
+    };
+    return has_text($user)
+      ? _member_context_input( $controller, $input )
+      : $input;
+}
+
+sub _member_context_input ( $controller, $input ) {
+    my $identity = $controller->gp_identity_store;
+    return undef if !$identity->can('functions') || !$identity->functions;
+    my $token = $controller->session('session_token');
+    $input->{token_hash} =
+      has_text($token) ? $identity->session_tokens->hash_token($token) : undef;
+    $input->{now} = $identity->clock->now_iso8601;
+    $input->{touch_interval_seconds} =
+      $identity->session_touch_interval_seconds // $DEFAULT_TOUCH_INTERVAL;
+    return $input;
 }
 
 # A release's bundled public assets are fixed at startup. Only existing
@@ -214,10 +246,10 @@ sub _static_paths ($application) {
                     my $relative =
                       File::Spec->abs2rel( $File::Find::name, $directory );
                     return
-                      if $relative =~ m{(?:\A|/)\.}
+                      if $relative =~ m{(?:\A|/)[.]}msx
                       || $relative !~
-/\.(?:js|css|svg|png|jpe?g|webp|gif|ico|woff2?|map|txt)\z/;
-                    $paths{ '/' . $relative } = 1;
+m{[.](?:js|css|svg|png|jpe?g|webp|gif|ico|woff2?|map|txt)\z}msx;
+                    $paths{"/$relative"} = 1;
                 }
             },
             "$directory"

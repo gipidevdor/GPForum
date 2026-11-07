@@ -9,7 +9,8 @@ use Const::Fast;
 use List::Util qw(max);
 use Test::More;
 
-use lib 'lib';
+use lib 'lib', 't/lib';
+use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
 use GPForum::Service::Forum::BodyRenderer;
 
@@ -22,11 +23,12 @@ our $VERSION = '0.001';
 # bodies grew a worker by more than 500 MB. What it keeps is bounded by the
 # characters it holds.
 
-const my $BODIES    => 200;
-const my $LONGEST   => 50_000;
-const my $SUFFIX    => 10;
-const my $SMALL     => 'A *short* [link](https://example.com/a).';
-const my $EXPANSION => 6;
+const my $ENTRY_LIMIT => 2048;
+const my $BODIES      => 200;
+const my $LONGEST     => 50_000;
+const my $SUFFIX      => 10;
+const my $SMALL       => 'A *short* [link](https://example.com/a).';
+const my $EXPANSION   => 6;
 
 my $renderer = GPForum::Service::Forum::BodyRenderer->new;
 my $budget   = GPForum::Service::Forum::BodyRenderer->memo_characters;
@@ -71,37 +73,52 @@ subtest
   sub {
     my $render  = GPForum::Service::Forum::BodyRenderer->can('_render');
     my $renders = 0;
-    no warnings 'redefine';
-    local *GPForum::Service::Forum::BodyRenderer::_render = sub {
-        ++$renders;
-        return $render->(@_);
-    };
-    $renderer->render_safe("LRU retention body $_") for 1 .. 2048;
-    my $hot = $renderer->render_safe('LRU retention body 2048');
-    $renderer->render_safe('one additional LRU body');
-    my $before = $renders;
-    is( $renderer->render_safe('LRU retention body 2048'),
-        $hot, 'recent body stays byte-identical' );
-    is( $renders, $before,
-        'recent body did not need rendering after capacity was reached' );
+    with_replaced_subs(
+        'GPForum::Service::Forum::BodyRenderer',
+        {
+            _render => sub { ++$renders; return $render->(@_); },
+        },
+        sub {
+            for my $body_number ( 1 .. $ENTRY_LIMIT ) {
+                $renderer->render_safe("LRU retention body $body_number");
+            }
+            my $recent = "LRU retention body $ENTRY_LIMIT";
+            my $hot    = $renderer->render_safe($recent);
+            $renderer->render_safe('one additional LRU body');
+            my $before = $renders;
+            is( $renderer->render_safe($recent),
+                $hot, 'recent body stays byte-identical' );
+            is( $renders, $before,
+                'recent body did not need rendering after capacity was reached'
+            );
+        }
+    );
   };
 
 subtest 'concurrent misses for the same source share one subprocess' => sub {
     my $start  = GPForum::Infrastructure::Subprocess->can('_start');
     my $starts = 0;
-    no warnings 'redefine';
-    local *GPForum::Infrastructure::Subprocess::_start = sub {
-        ++$starts;
-        return $start->(@_);
-    };
-    my $source = 'same concurrent source not previously rendered';
-    my @work   = map { $renderer->render_many_p( [$source] ) } 1 .. 2;
-    Mojo::Promise->all(@work)->wait;
-    is( $starts, 1, 'only one actual subprocess starts' );
-    my @result;
-    $_->then( sub ($value) { push @result, $value; return; } )->wait for @work;
-    is_deeply( $result[0], $result[1],
-        'both consumers receive the same safe HTML' );
+    with_replaced_subs(
+        'GPForum::Infrastructure::Subprocess',
+        {
+            _start => sub { ++$starts; return $start->(@_); },
+        },
+        sub {
+            my $concurrent_source =
+              'same concurrent source not previously rendered';
+            my @work =
+              map { $renderer->render_many_p( [$concurrent_source] ) } 1 .. 2;
+            Mojo::Promise->all(@work)->wait;
+            is( $starts, 1, 'only one actual subprocess starts' );
+            my @result;
+            for my $pending (@work) {
+                $pending->then( sub ($value) { push @result, $value; return; } )
+                  ->wait;
+            }
+            is_deeply( $result[0], $result[1],
+                'both consumers receive the same safe HTML' );
+        }
+    );
 };
 
 done_testing();

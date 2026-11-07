@@ -30,14 +30,14 @@ sub render ( $self, $controller, $asset, $checksum ) {
     }
     $headers->last_modified( Mojo::Date->new( $asset->mtime )->to_string );
     if ( _matches( $request->if_none_match // q{}, $etag ) ) {
-        $asset->close if $asset->can('close');
+        _release_asset($asset);
         return $controller->rendered($HTTP_NOT_MODIFIED);
     }
     my $bounds =
       _bounds( _usable_range( $request, $etag, $asset->mtime ), $size );
 
     if ( !$bounds ) {
-        $asset->close if $asset->can('close');
+        _release_asset($asset);
         $headers->content_range("bytes */$size")->content_length(0);
         return $controller->rendered($HTTP_UNSATISFIABLE);
     }
@@ -59,7 +59,7 @@ sub _stream ( $self, $controller, $asset, $length, $code ) {
     }
     $controller->res->code($code);
     if ( $controller->req->method eq 'HEAD' ) {
-        $asset->close if $asset->can('close');
+        _release_asset($asset);
         return $controller->rendered($code);
     }
     $controller->render_later;
@@ -69,7 +69,7 @@ sub _stream ( $self, $controller, $asset, $length, $code ) {
         finish => sub {
             $finished = 1;
             undef $pump;
-            $asset->close if $asset->can('close');
+            _release_asset($asset);
             return;
         }
     );
@@ -98,25 +98,30 @@ sub _stream ( $self, $controller, $asset, $length, $code ) {
         )->catch(
             sub ($error) {
                 return if $finished;
-                $controller->log->error('asynchronous media read failed');
                 $finished = 1;
                 undef $pump;
-                $asset->close if $asset->can('close');
-                if ( !$controller->stash('mojo.finished') ) {
-                    $controller->res->headers->remove('Content-Length');
-                    $controller->render(
-                        text   => 'Media unavailable',
-                        status => 503
-                    );
-                }
-                else {
-                    Mojo::IOLoop->remove( $controller->tx->connection );
-                }
+                $self->_stream_failed( $controller, $asset );
                 return;
             }
         );
     };
     $pump->();
+    return;
+}
+
+sub _release_asset ($asset) {
+    if ( $asset->can('release_stream') ) { $asset->release_stream; }
+    return;
+}
+
+sub _stream_failed ( $self, $controller, $asset ) {
+    $controller->log->error('asynchronous media read failed');
+    _release_asset($asset);
+    if ( !$controller->stash('mojo.finished') ) {
+        $controller->res->headers->remove('Content-Length');
+        $controller->render( text => 'Media unavailable', status => 503 );
+    }
+    else { Mojo::IOLoop->remove( $controller->tx->connection ); }
     return;
 }
 

@@ -140,10 +140,7 @@ async sub thread ($self) {
         viewer         => $self->gp_forum_viewer,
         viewer_user_id => $user_id,
     };
-    my $promise =
-        $reader->can('thread_page_p')
-      ? $reader->thread_page_p($request)
-      : $self->work_p( $reader, 'thread_page', $request );
+    my $promise = $self->call_p( $reader, 'thread_page', $request );
     return $self->respond_p(
         $promise,
         async sub ($page) {

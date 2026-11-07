@@ -18,6 +18,7 @@ use GPForum::X::Usage;
 our $VERSION = '0.001';
 
 const my $COMMAND               => 'gpforum-outbox-dispatch';
+const my $MAX_CONCURRENCY       => 8;
 const my $DEFAULT_LIMIT         => 100;
 const my $DEFAULT_SLEEP_SECONDS => 5;
 
@@ -46,9 +47,10 @@ const my %COUNT_OPTION => (
 # actually runs, so --help needs no configuration. The entry point, which is
 # the composition layer, supplies it: a command does not reach up to the
 # application class for it (ADR 0107).
-has app        => undef;    # optional: only work that runs needs it
-has dispatcher => undef;    # optional: the application's own otherwise
-has output     => sub { return \*STDOUT; };
+has app         => undef;    # optional: only work that runs needs it
+has concurrency => 1;        # optional: CLI selects two lanes unless overridden
+has dispatcher  => undef;    # optional: the application's own otherwise
+has output      => sub { return \*STDOUT; };
 
 # Sentences in the operator's language rather than the key=value line:
 # `gpforum outbox`, the front door's verb, says what it sent, as every verb
@@ -116,13 +118,13 @@ sub _run ( $self, $options ) {
         );
     }
 
+    $self->concurrency( $options->{concurrency} );
     my $iterations = 0;
 
     # A stop can interrupt the idle sleep too. Check before claiming, not
     # only after a batch, or that wakeup would take one more batch of work.
     while ( !$stop_requested ) {
-        my $summary =
-          $self->dispatch_once( $options->{limit}, $options->{concurrency} );
+        my $summary = $self->dispatch_once( $options->{limit} );
         $self->_report( $summary, $options );
 
         $iterations++;
@@ -146,8 +148,9 @@ sub _run ( $self, $options ) {
     return 0;
 }
 
-sub dispatch_once ( $self, $limit, $concurrency = 1 ) {
-    my $dispatcher = $self->_dispatcher;
+sub dispatch_once ( $self, $limit ) {
+    my $concurrency = $self->concurrency;
+    my $dispatcher  = $self->_dispatcher;
     return $dispatcher->dispatch_pending($limit)
       if $concurrency <= 1 || !$dispatcher->can('dispatch_pending_p');
     my ( $summary, $error );
@@ -155,7 +158,7 @@ sub dispatch_once ( $self, $limit, $concurrency = 1 ) {
         sub ($result) { $summary = $result; return; },
         sub ($caught) { $error   = $caught; return; },
     )->wait;
-    die $error if defined $error;
+    die $error if defined $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original dispatch failure for the CLI error boundary
     return $summary;
 }
 
@@ -198,9 +201,10 @@ sub _parse_arguments (@arguments) {
         }
     }
 
-    GPForum::X::Usage->throw(
-        message => _usage('--concurrency must be between 1 and 8') )
-      if $options{concurrency} > 8;
+    if ( $options{concurrency} > $MAX_CONCURRENCY ) {
+        GPForum::X::Usage->throw(
+            message => _usage('--concurrency must be between 1 and 8') );
+    }
     return \%options;
 }
 

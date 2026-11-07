@@ -17,7 +17,7 @@ sub subscribe ( $self, $callback ) {
 }
 
 sub unsubscribe ( $self, $id ) {
-    delete $self->callbacks->{$id} if defined $id;
+    if ( defined $id ) { delete $self->callbacks->{$id}; }
     return;
 }
 
@@ -26,8 +26,29 @@ sub cancel ($self) {
     $self->cancelled(1);
     my @callbacks = values %{ $self->callbacks };
     $self->callbacks( {} );
-    $_->() for @callbacks;
+    for my $callback (@callbacks) { $callback->(); }
     return;
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Infrastructure::Cancellation - Request lifetime for queued work.
+
+=head1 DESCRIPTION
+
+An HTTP request owns one token and an optional monotonic admission deadline.
+Queues subscribe while work waits and unsubscribe before starting it. Closing
+the request removes pending work promptly; admitted transactions keep ownership
+until their result or rollback is known. No write is replayed or interrupted.
+
+=head1 SUBROUTINES/METHODS
+
+C<subscribe> returns a registration id; C<unsubscribe> removes it. C<cancel>
+marks the token closed and notifies current subscribers once. A subscription
+made after cancellation is notified immediately.
+
+=cut

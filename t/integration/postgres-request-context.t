@@ -2,17 +2,25 @@
 # SPDX-License-Identifier: BSD-3-Clause
 package main;
 use v5.40;
+use Const::Fast;
 use Test::More;
 use Test::Mojo;
 use lib 'lib', 't/lib';
+use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::AsyncQuery;
 use GPForum::Service::Identity::SessionStore;
+use GPForum::Web::CookieSession;
 use GPForum::Test::PgDatabase;
 use GPForum::Test::Promise qw(await_result);
 our $VERSION = '0.001';
-plan skip_all => 'temporary PostgreSQL required'
-  if !GPForum::Test::PgDatabase->admin_dsn;
+const my $HTTP_OK           => 200;
+const my $REFUSALS          => 3;
+const my $HTTP_NOT_MODIFIED => 304;
+
+if ( !GPForum::Test::PgDatabase->admin_dsn ) {
+    plan skip_all => 'temporary PostgreSQL required';
+}
 my $database = GPForum::Test::PgDatabase->fresh( seed => 1 );
 local $ENV{GPFORUM_DATABASE_DSN}              = $database->dsn;
 local $ENV{GPFORUM_ENV}                       = 'test';
@@ -49,7 +57,7 @@ my %input = (
     token_hash             => undef,
     now                    => $store->clock->now_iso8601,
     touch_interval_seconds => 300,
-    resolve_viewer         => 1
+    resolve_viewer         => 1,
 );
 my $guest =
   await_result( $functions->row_p( 'admin_request_context', \%input ) );
@@ -74,7 +82,7 @@ my %member = (
     session_id => $session->{session}->get_column('session_id'),
     user_id    => $thread->{author_user_id},
     token_hash =>
-      $store->session_tokens->hash_token( $session->{session_token} )
+      $store->session_tokens->hash_token( $session->{session_token} ),
 );
 my $valid =
   await_result( $functions->row_p( 'admin_request_context', \%member ) );
@@ -103,7 +111,7 @@ subtest 'clean stored-function refusals retain a usable lease' => sub {
     my $executor = GPForum::Infrastructure::AsyncQuery->for_schema($schema);
     $executor->gate->concurrency(1);
     my $created = $executor->snapshot->{lease_stats}{created};
-    for ( 1 .. 3 ) {
+    for ( 1 .. $REFUSALS ) {
         my $error;
         $functions->row_p( 'forum_store_write',
             { store_type => 'invalid', command => {}, record => {} } )
@@ -113,7 +121,7 @@ subtest 'clean stored-function refusals retain a usable lease' => sub {
     }
     is( $executor->snapshot->{lease_stats}{created},
         $created, 'business refusals do not reconnect' );
-    ok( $executor->snapshot->{lease_stats}{reused_after_refusal} >= 3,
+    ok( $executor->snapshot->{lease_stats}{reused_after_refusal} >= $REFUSALS,
         'reuse is counted' );
     my $error;
     $functions->transaction_p(
@@ -135,34 +143,90 @@ subtest 'public home and static fast paths preserve their HTTP contracts' =>
   sub {
     my $test = Test::Mojo->new('GPForum');
     $test->app->log->level('fatal');
-    $test->get_ok('/')
-      ->status_is(200)
-      ->header_is( 'X-GPForum-Cache' => 'miss' );
-    my $etag = $test->tx->res->headers->etag;
-    $test->get_ok('/')->status_is(200)->header_is( 'X-GPForum-Cache' => 'hit' );
-    is(
-        $test->app->build_controller->gp_db_query_stats->last_request
-          ->{queries},
-        1,
-        'home cache hit performs only the fresh request-context call'
+    my $http_session = $store->create_session(
+        { id => $thread->{author_user_id} },
+        {
+            request_address => '127.0.0.1',
+            user_agent      => 'HTTP context integration'
+        }
     );
-    $test->get_ok( '/' => { 'If-None-Match' => $etag } )
-      ->status_is(304)
-      ->content_is(q{});
-    $test->get_ok('/htmx.min.js')->status_is(200);
-    is(
-        $test->app->build_controller->gp_db_query_stats->last_request
-          ->{queries},
-        0,
-        'bundled JavaScript requires no application SQL'
+    my $routes = $test->app->routes;
+    $routes->get('/__test/context-login')->to(
+        cb => sub ($c) {
+            $c->session(
+                GPForum::Web::CookieSession->new->login_values(
+                    {
+                        user_id    => $thread->{author_user_id},
+                        session_id =>
+                          $http_session->{session}->get_column('session_id'),
+                        session_token => $http_session->{session_token},
+                        rotation      => 1,
+                        expires_at    => $store->clock->now_epoch +
+                          $store->session_seconds,
+                    }
+                )
+            );
+            return $c->render( text => 'session installed' );
+        }
     );
-    $test->get_ok('/search?q=forum')->status_is(200);
-    $test->get_ok('/search?q=forum')->status_is(200);
-    is(
-        $test->app->build_controller->gp_db_query_stats->last_request
-          ->{queries},
-        2,
-        'search cache retains fresh context and durable rate limiting'
+    my $controller = $test->app->build_controller;
+    my $stats      = $controller->gp_db_query_stats;
+    my @calls;
+    my $query = Mojo::Pg::Database->can('query');
+    with_replaced_subs(
+        'Mojo::Pg::Database',
+        {
+            query => sub {
+                my ( $native_database, $sql ) = @_;
+                my ($name) = $sql =~ /api[.]([[:alnum:]_]+)/amsx;
+                if ( defined $name ) { push @calls, $name; }
+                return $query->(@_);
+            }
+        },
+        sub {
+            $test->get_ok(q{/})
+              ->status_is($HTTP_OK)
+              ->header_is( 'X-GPForum-Cache' => 'miss' );
+            my $response = $test->tx->res;
+            my $etag     = $response->headers->etag;
+            @calls = ();
+            $test->get_ok(q{/})
+              ->status_is($HTTP_OK)
+              ->header_is( 'X-GPForum-Cache' => 'hit' );
+            is_deeply( \@calls, ['admin_configuration_snapshot_v2'],
+'HTTP cache uses the revision-aware stored snapshot without fallback reads'
+            );
+            is( $stats->last_request->{queries},
+                1,
+                'home cache hit performs only the fresh request-context call' );
+            $test->get_ok( q{/} => { 'If-None-Match' => $etag } )
+              ->status_is($HTTP_NOT_MODIFIED)
+              ->content_is(q{});
+            $test->get_ok('/htmx.min.js')->status_is($HTTP_OK);
+            is( $stats->last_request->{queries},
+                0, 'bundled JavaScript requires no application SQL' );
+            $test->get_ok('/search?q=forum')->status_is($HTTP_OK);
+            $test->get_ok('/search?q=forum')->status_is($HTTP_OK);
+            is( $stats->last_request->{queries}, 2,
+                'search cache retains fresh context and durable rate limiting'
+            );
+            $test->get_ok('/__test/context-login')->status_is($HTTP_OK);
+            @calls = ();
+            $test->get_ok("/t/$thread->{thread_id}/$thread->{slug}")
+              ->status_is($HTTP_OK);
+            is(
+                scalar( grep { $_ eq 'admin_request_context_v4' } @calls ),
+                1,
+                'signed-in HTTP request invokes the aggregate stored context'
+            );
+            ok(
+                !(
+                    grep { /\A(?:session_validate|forum_resolve_viewer)_v/amsx }
+                    @calls
+                ),
+'signed-in context does not fall back to separate session and viewer queries'
+            );
+        }
     );
   };
 done_testing;

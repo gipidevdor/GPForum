@@ -163,10 +163,12 @@ async sub _read_rows_p ( $self, $db, $entry, $parameters, $stats, $context ) {
 
         # A refused standalone statement has already rolled itself back.
         # Transaction owners mark their lease only after a successful rollback.
-        $db->{gp_reusable_after_error} = 1
-          if !$self->async_transaction
-          && defined $state
-          && ( $state eq $INVALID_PARAMETER || $state eq $UNIQUE_VIOLATION );
+        if (   !$self->async_transaction
+            && defined $state
+            && ( $state eq $INVALID_PARAMETER || $state eq $UNIQUE_VIOLATION ) )
+        {
+            $db->{gp_reusable_after_error} = 1;
+        }
         $self->_raise( $state, $error );
     }
     return $rows;

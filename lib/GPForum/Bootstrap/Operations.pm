@@ -476,6 +476,7 @@ sub _configure_db_query_observer {
                 }
             );
             $controller->stash( gp_db_query_stats_token => $token );
+            return if $controller->stash('gp.stateless_request');
             require GPForum::Infrastructure::Cancellation;
             $token->{cancellation} = GPForum::Infrastructure::Cancellation->new(
                 deadline => clock_gettime(CLOCK_MONOTONIC) +

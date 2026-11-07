@@ -62,13 +62,23 @@ sub with_rendered ( $class, $rendered, $work ) {
 }
 
 sub render_many_p ( $self, $sources ) {
-    if ( $OWNER != $PROCESS_ID ) {
-        %PENDING = ();
-        $OWNER   = $PROCESS_ID;
-    }
+    if ( $OWNER != $PROCESS_ID ) { %PENDING = (); $OWNER = $PROCESS_ID; }
     my $plugins = $self->math_plugins;
     my $variant =
       $plugins && $plugins->math_enabled ? $plugins->cache_variant : 'plain';
+    my ( $ready, $missing, $waiting ) = _collect_sources( $sources, $variant );
+    return Mojo::Promise->resolve($ready) if !%{$waiting};
+    if ( %{$missing} ) { $self->_start_batch($missing); }
+    my @keys = keys %{$waiting};
+    return Mojo::Promise->all( map { $PENDING{$_} } @keys )->then(
+        sub (@values) {
+            @{$ready}{@keys} = map { $_->[0] } @values;
+            return $ready;
+        }
+    );
+}
+
+sub _collect_sources ( $sources, $variant ) {
     my ( %ready, %missing, %waiting );
     for my $source ( @{$sources} ) {
         next if !defined $source || !length $source;
@@ -77,36 +87,34 @@ sub render_many_p ( $self, $sources ) {
         if ( defined $html ) { $ready{$key} = $html; }
         else {
             $waiting{$key} = 1;
-            $missing{$key} = $source if !$PENDING{$key};
+            if ( !$PENDING{$key} ) { $missing{$key} = $source; }
         }
     }
-    return Mojo::Promise->resolve( \%ready ) if !%waiting;
-    if (%missing) {
-        my $batch = GPForum::Infrastructure::AsyncWork->rendering->run_p(
-            sub {
-                return {
-                    map { $_ => $self->render_safe( $missing{$_} ) }
-                      keys %missing
-                };
-            }
-        );
-        for my $key ( keys %missing ) {
-            $PENDING{$key} = $batch->then(
-                sub ($rendered) {
-                    delete $PENDING{$key};
-                    return _remember( $key, $rendered->{$key} );
-                },
-                sub ($error) { delete $PENDING{$key}; die $error; }
-            );
-        }
-    }
-    my @keys = keys %waiting;
-    return Mojo::Promise->all( map { $PENDING{$_} } @keys )->then(
-        sub (@values) {
-            @ready{@keys} = map { $_->[0] } @values;
-            return \%ready;
+    return ( \%ready, \%missing, \%waiting );
+}
+
+sub _start_batch ( $self, $missing ) {
+    my $batch = GPForum::Infrastructure::AsyncWork->rendering->run_p(
+        sub {
+            return {
+                map { $_ => $self->_render_source( $missing->{$_} ) }
+                  keys %{$missing}
+            };
         }
     );
+    for my $key ( keys %{$missing} ) {
+        $PENDING{$key} = $batch->then(
+            sub ($rendered) {
+                delete $PENDING{$key};
+                return _remember( $key, $rendered->{$key} );
+            },
+            sub ($error) {
+                delete $PENDING{$key};
+                die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the subprocess rejection for every waiting consumer
+            }
+        );
+    }
+    return;
 }
 
 sub render_safe ( $self, $source ) {
@@ -124,21 +132,25 @@ sub render_safe ( $self, $source ) {
     my $cached = _cached($key);
     return $cached if defined $cached;
 
-    # Only a miss needs mutable per-body state. A warm thread page renders
-    # every body again, but reuses its HTML without allocating a math budget.
+    return _remember( $key, $self->_render_source($source) );
+}
+
+# A child only renders its batch: touching the parent's inherited LRU would
+# dirty copy-on-write pages for a memo that the child immediately discards.
+sub _render_source ( $self, $source ) {
+    my $plugins = $self->math_plugins;
     my $math =
-      $plugins
+      $plugins && $plugins->math_enabled
       ? { plugins => $plugins, remaining => $MATH_SPAN_LIMIT }
       : undef;
-    my $html = _render( $source, $math );
-    return _remember( $key, $html );
+    return _render( $source, $math );
 }
 
 sub _remember ( $key, $html ) {
     my $size = length($key) + length $html;
     return $html if $size > $RENDERED_CHARACTERS;
 
-    _remove($key) if exists $RENDERED{$key};
+    if ( exists $RENDERED{$key} ) { _remove($key); }
     while ( keys %RENDERED >= $RENDERED_LIMIT
         || $HELD + $size > $RENDERED_CHARACTERS )
     {
@@ -162,7 +174,7 @@ sub _touch ($key) {
     my $entry = $RENDERED{$key};
     _unlink($key);
     $entry->{older} = $HEAD;
-    $RENDERED{$HEAD}{newer} = $key if defined $HEAD;
+    if ( defined $HEAD ) { $RENDERED{$HEAD}{newer} = $key; }
     $TAIL //= $key;
     $HEAD = $key;
     return;
@@ -172,10 +184,10 @@ sub _unlink ($key) {
     my $entry = $RENDERED{$key};
     my $newer = delete $entry->{newer};
     my $older = delete $entry->{older};
-    if ( defined $newer ) { $RENDERED{$newer}{older} = $older; }
-    if ( defined $older ) { $RENDERED{$older}{newer} = $newer; }
-    $HEAD = $older if defined $HEAD && $HEAD eq $key;
-    $TAIL = $newer if defined $TAIL && $TAIL eq $key;
+    if ( defined $newer )                 { $RENDERED{$newer}{older} = $older; }
+    if ( defined $older )                 { $RENDERED{$older}{newer} = $newer; }
+    if ( defined $HEAD && $HEAD eq $key ) { $HEAD                    = $older; }
+    if ( defined $TAIL && $TAIL eq $key ) { $TAIL                    = $newer; }
     return;
 }
 

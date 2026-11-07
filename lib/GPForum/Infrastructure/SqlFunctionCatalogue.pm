@@ -2404,6 +2404,23 @@ const my %FUNCTION => (
         version    => 2,
         parameters => [ source_id => 'uuid' ],
     },
+    forum_thread_page_snapshot => {
+        version    => 2,
+        parameters => [
+            thread_id        => 'uuid',
+            viewer_user_id   => 'uuid',
+            member           => 'boolean',
+            global_read      => 'boolean',
+            category_ids     => 'uuid[]',
+            space_ids        => 'uuid[]',
+            after_position   => 'bigint',
+            after_post_id    => 'uuid',
+            page_limit       => 'integer',
+            link_target_type => 'text',
+            links_per_post   => 'integer',
+        ],
+        json => [qw(thread_head posts page_reads)],
+    },
     forum_thread_page_head => {
         version    => 2,
         parameters => [ thread_id => 'uuid' ],

@@ -19,6 +19,7 @@ use GPForum::Service::Forum::ThreadDetailReader;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Operations::DbQueryStats;
 use GPForum::Test::PgDatabase;
+use GPForum::Test::Promise      qw(await_result);
 use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
 our $VERSION = '0.001';
@@ -322,6 +323,11 @@ sub _same_pages ( $thread_name, $viewer_name, $limit ) {
                 $thread_name, $viewer_name, $limit, $after{$_} )
         } keys %path;
         my $label = "$thread_name as $viewer_name, $limit a page, page $pages";
+        my $snapshot = _page( $path{function}{threads},
+            $thread_name, $viewer_name, $limit, $after{function}, 1 );
+        is_deeply( $snapshot, $page{function},
+            "$label: the single-statement snapshot matches the original page" );
+
         is_deeply( $page{function}, $page{prepared}, "$label: the same page" )
           or last;
         last if !$page{function}{next_cursor};
@@ -332,17 +338,20 @@ sub _same_pages ( $thread_name, $viewer_name, $limit ) {
     return;
 }
 
-sub _page ( $reader, $thread_name, $viewer_name, $limit, $after ) {
-    my $viewer = $viewer{$viewer_name};
-    my $page   = $reader->thread_page(
-        {
-            after          => $after,
-            limit          => $limit,
-            thread_id      => $thread{$thread_name},
-            viewer         => $viewer,
-            viewer_user_id => $viewer->user_id,
-        }
-    );
+sub _page ( $reader, $thread_name, $viewer_name, $limit, $after, $snapshot = 0 )
+{
+    my $viewer  = $viewer{$viewer_name};
+    my $request = {
+        after          => $after,
+        limit          => $limit,
+        thread_id      => $thread{$thread_name},
+        viewer         => $viewer,
+        viewer_user_id => $viewer->user_id,
+    };
+    my $page =
+      $snapshot
+      ? await_result( $reader->thread_page_p($request) )
+      : $reader->thread_page($request);
     return { ok => 0, error => $page->{error} } if !$page->{ok};
 
     return {

@@ -14,6 +14,7 @@ use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
 
 use GPForum::Service::Forum::PostReader;
+use GPForum::Service::Forum::ThreadPageSnapshot;
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Infrastructure::Id;
 
@@ -142,6 +143,13 @@ async sub thread_page_p ( $self, $request, $context = undef ) {
     $request =
       { %{$request}, query_context => $request->{query_context} // $context };
     return $self->thread_page($request) if !$self->functions;
+    if ( !defined $request->{post} || !length $request->{post} ) {
+        return await GPForum::Service::Forum::ThreadPageSnapshot->new(
+            schema        => $self->schema,
+            detail_reader => $self
+        )->read_p($request);
+    }
+
     my $viewer = $request->{viewer}
       || GPForum::Service::Forum::Viewer->anonymous;
     my $row = await $self->functions->row_p(
@@ -400,7 +408,7 @@ post reader's page (C<items>, C<has_next>, C<next_cursor>).
 
 =head2 thread_page_p
 
-Reads the visible thread head, optional page anchor and posts sequentially through promises, preserving pagination and access rules.
+Ordinary pages load the authorized head, posts and ancillary rows in one native asynchronous statement. Post anchors retain the sequential head, anchor and posts path. Pagination and access checks are unchanged.
 
 =head1 DIAGNOSTICS
 

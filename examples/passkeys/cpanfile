@@ -1,11 +1,11 @@
 requires 'perl', '5.040.0';
-requires 'Mojolicious', '9.51';
+requires 'Mojolicious', '9.53';
 requires 'Authen::WebAuthn', '== 0.005';
 requires 'Crypt::URandom', '0.55';
 requires 'Const::Fast', '0.014';
-requires 'CBOR::XS', '1.86';
+requires 'CBOR::XS', '1.87';
 requires 'Crypt::PK::ECC', '0.091';
 
 on test => sub {
-    requires 'Test::More', '1.302225';
+    requires 'Test::More', '1.302226';
 };

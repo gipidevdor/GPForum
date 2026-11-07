@@ -9,7 +9,7 @@ requirements without review.
 | Module | Scope | License posture | Risk | Decision |
 | --- | --- | --- | --- | --- |
 | perl | runtime | Perl 5 license | language runtime | allowed |
-| Mojolicious | runtime | Artistic-2.0 | mature web framework; floor 9.51 for the Mojo::DOM title and textarea escaping fix of 9.50 and the WebSocket handshake fix of 9.51 | allowed |
+| Mojolicious | runtime | Artistic-2.0 | mature web framework; floor 9.53 includes the 9.50 escaping and 9.51 WebSocket fixes, bounded parsing fixes and current routing/header/keep-alive improvements | allowed |
 | Future::AsyncAwait | runtime | Perl 5 license | native Mojo::Promise async/await syntax; 0.71 | allowed |
 | EV | runtime | Perl 5 license; bundled libev uses BSD-2-Clause or GPL-2.0-or-later | XS event loop; required epoll on Linux and kqueue on macOS/FreeBSD; pinned by Carton | allowed |
 | DBIx::Class | develop | Perl 5 license | historical fixtures and maintainer comparisons; runtime transport is Mojo::Pg | dev-only allowed |
@@ -29,7 +29,7 @@ requirements without review.
 | Email::Address::XS | runtime | Perl 5 license | Email::Sender::Simple address parsing | allowed |
 | Email::Simple | runtime | Perl 5 license | message construction in the identity mailer | allowed |
 | Email::MIME | runtime | Perl 5 license | inbound reply MIME parsing; pinned to 1.954, with message size, part count and nesting bounded by MailIn | allowed |
-| Mail::DKIM | runtime | Perl 5 license | DKIM signing and verification; pinned to 1.20240923, using the host OpenSSL through Crypt::OpenSSL::RSA and CryptX for Ed25519 | allowed |
+| Mail::DKIM | runtime | Perl 5 license | DKIM signing and verification; floor 1.20261105 includes ARC instance validation and long-header parsing fixes; uses host OpenSSL through Crypt::OpenSSL::RSA and CryptX for Ed25519 | allowed |
 | Net::DNS | runtime | MIT (distribution metadata) | DNS lookups for DKIM verification; pinned to 1.57; retain the distribution's copyright and permission notices | allowed |
 | Authen::SASL | runtime | Perl 5 license | SMTP AUTH mechanisms Net::SMTP loads on demand when GPFORUM_SMTP_USERNAME is set | allowed |
 | IO::Socket::SSL | runtime | Perl 5 license | TLS for SMTP (STARTTLS or implicit, the default under GPFORUM_SMTP_TLS) and doctor's https probes; brings Net::SSLeay (Artistic-2.0), XS built against the host's OpenSSL, whose security updates come from the OS | allowed |
@@ -37,6 +37,7 @@ requirements without review.
 | DBI | runtime | Perl 5 license | transitive database interface; security floor 1.656 for CVE-2026-108518 and CVE-2026-111879, after the CPANSA-DBI 2026 advisories fixed in 1.652+ | allowed |
 | Clone | runtime (transitive) | Perl 5 license | XS deep copy, loaded through DateTime and Specio; floor 0.51 for C stack growth past MAX_DEPTH and memory leaks | allowed |
 | Package::Stash::XS | runtime (transitive) | Perl 5 license | XS stash access, loaded through DBIx::Class and namespace::clean; floor 0.32 for the crash of perl issue 24845 | allowed |
+| SQL::Abstract | runtime (transitive) | Perl 5 license | Mojo::Pg SQL builder; floor 2.000003 for CVE-2026-121265, CVE-2026-121007, CVE-2026-121008 and CVE-2026-121009; array values bind by default rather than becoming literal SQL | allowed |
 | Perl::Critic | develop | Perl 5 license | quality gate only | dev-only allowed |
 | Perl::Tidy | develop | GPL-compatible tooling posture | formatting gate only | dev-only allowed |
 | Test::More | develop | Perl 5 license | test framework | dev-only allowed |
@@ -68,3 +69,27 @@ The WebAuthn entries were checked against the pinned upstream distributions:
 (`COPYING`, `ecb.h`, `META.json`). The latter is recorded with the GPL text
 actually shipped, rather than inferring a Perl/Artistic license from its module
 namespace or incomplete metadata.
+
+## Version and security review, 2026-11-07
+
+All 167 distributions in the application snapshot were compared with the
+[CPAN package index](https://www.cpan.org/modules/02packages.details.txt.gz)
+dated 2026-11-07 and the latest stable release metadata from MetaCPAN. Fifteen
+distributions were updated; the 28-distribution standalone passkey snapshot
+already contained the current stable releases. The passkey manifest now states
+the same Mojolicious, CBOR::XS and Test::More floors as its snapshot.
+
+Both snapshots and the installed application tree were checked with
+CPAN::Audit 20261105.001 and CPANSA::DB 20261101.010. The database matches the
+[upstream advisory repository](https://github.com/briandfoy/cpan-security-advisory/tree/7617ce4a08c5afb9d2571779a5774d3c616f58eb)
+as of November 2. Its only findings are the two configuration advisories
+documented in `etc/cpan-audit-ignore.txt`; both applications explicitly configure
+their session secrets. This is a check of published advisories, not a guarantee
+that a dependency has no vulnerabilities.
+
+The database predates the
+[SQL::Abstract security releases of November 5 and 6](https://metacpan.org/dist/SQL-Abstract/changes).
+The explicit runtime floor 2.000003 and executable injection/HTML-escaping
+regressions cover CVE-2026-121265, CVE-2026-121007, CVE-2026-121008 and
+CVE-2026-121009 without waiting for the database update. Mail::DKIM's floor
+also includes its November 5 ARC validation and long-header parsing fixes.

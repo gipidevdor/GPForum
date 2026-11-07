@@ -106,6 +106,9 @@ my @tables = _tables();
 my %previous_arguments = (
     moderation_transfer_picker => [qw(actor source_id query after_position)],
     admin_configuration_state  => [],
+    admin_request_context      => [
+        qw(known_revision session_id user_id token_hash now touch_interval_seconds resolve_viewer)
+    ],
     admin_configuration_change =>
       [qw(actor command expected section key operation value request_hash)],
     community_follow_feed => [

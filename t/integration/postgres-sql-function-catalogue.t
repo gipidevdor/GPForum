@@ -102,7 +102,16 @@ sub _check_live_invariants ( $catalogue, $functions ) {
             [ query          => 'text' ],
             [ after_position => 'bigint' ],
         ],
-        admin_configuration_state_v2  => [],
+        admin_configuration_state_v2 => [],
+        admin_request_context_v2     => [
+            [ known_revision         => 'bigint' ],
+            [ session_id             => 'uuid' ],
+            [ user_id                => 'uuid' ],
+            [ token_hash             => 'text' ],
+            [ now                    => 'timestamptz' ],
+            [ touch_interval_seconds => 'integer' ],
+            [ resolve_viewer         => 'boolean' ],
+        ],
         admin_configuration_change_v2 => [
             [ actor        => 'uuid' ],
             [ command      => 'uuid' ],

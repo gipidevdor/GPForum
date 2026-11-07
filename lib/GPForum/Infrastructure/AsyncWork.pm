@@ -7,7 +7,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 use Carp qw(croak);
 use Const::Fast;
-use Mojo::IOLoop::Subprocess;
+use GPForum::Infrastructure::Subprocess;
 use Mojo::Promise;
 use Scalar::Util qw(blessed reftype refaddr);
 use Mojo::Loader qw(load_class);
@@ -38,7 +38,7 @@ sub run_p ( $self, $work, $cancelled = undef, $preserve_rows = 0 ) {
             # Private parent/child IPC must preserve the UTF-8 flag: JSON turns
             # arbitrary file bytes into characters. Only plain data is returned,
             # and exceptions are serialized as text, never with database handles.
-            my $child = Mojo::IOLoop::Subprocess->new(
+            my $child = GPForum::Infrastructure::Subprocess->new(
                 serialize => sub ($values) {
                     if ( ref $values->[0] ) { $values->[0] = "$values->[0]"; }
                     return nfreeze($values);

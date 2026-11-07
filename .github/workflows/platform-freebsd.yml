@@ -96,6 +96,11 @@ jobs:
             echo '--- dependency lock'
             script/gpforum-carton check
 
+            # Exercise data, EOF, progress and nonblocking child reaping before
+            # the complete suite, so a transport failure stops with its TAP.
+            echo '--- native asynchronous subprocess transport'
+            script/gpforum-carton exec prove -lv t/878-socket-subprocess.t
+
             echo '--- Perl syntax'
             script/gpforum-carton exec script/perl-syntax-check
 

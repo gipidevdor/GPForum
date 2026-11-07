@@ -139,14 +139,17 @@ sub replace ( $class, $file, $text, %ownership ) {
     my $temporary = _temporary_beside($file);
     print {$temporary} $text or croak "write: $OS_ERROR";
     close $temporary         or croak "close: $OS_ERROR";
-    chmod $mode & $MODE_BITS, $temporary->filename
-      or croak "chmod: $OS_ERROR";
-    if (   $uid != $EFFECTIVE_USER_ID
-        || $gid != ( split q{ }, $EFFECTIVE_GROUP_ID )[0] )
-    {
+
+    # BSD directories and Linux setgid directories can give the temporary
+    # file a group different from the process's primary group.
+    my @created = stat $temporary->filename;
+    croak "stat temporary file: $OS_ERROR" if !@created;
+    if ( $uid != $created[$STAT_UID] || $gid != $created[$STAT_GID] ) {
         chown $uid, $gid, $temporary->filename
           or croak "chown: $OS_ERROR";
     }
+    chmod $mode & $MODE_BITS, $temporary->filename
+      or croak "chmod: $OS_ERROR";
     rename $temporary->filename, $file or croak "rename: $OS_ERROR";
     $temporary->unlink_on_destroy(0);
 

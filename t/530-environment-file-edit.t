@@ -22,6 +22,7 @@ const my $SECRET    => oct '640';
 const my $MODE_BITS => oct '7777';
 const my $OPEN      => oct '644';
 const my $SHUT      => oct '500';
+const my $STAT_GID  => 5;
 
 # gpforum secret rotate and gpforum setup change the environment file the
 # same way: a line at a time, every other line kept, and the file replaced
@@ -119,6 +120,33 @@ subtest 'the file is replaced whole, keeping its mode' => sub {
             q{a directory it may not write is the system's reason}
         );
         chmod oct '700', $shut or BAIL_OUT("chmod: $OS_ERROR");
+    }
+};
+
+subtest 'directory inheritance does not override the requested group' => sub {
+    my ( $primary, @groups ) = split q{ }, $EFFECTIVE_GROUP_ID;
+    my ($other) = grep { $_ != $primary } @groups;
+    if ( $EFFECTIVE_USER_ID == 0 ) { $other //= $primary + 1; }
+    if ( !defined $other ) {
+        plan skip_all => 'no alternative group for an inherited-group fixture';
+    }
+    my $directory = tempdir( CLEANUP => 1 );
+    chown $EFFECTIVE_USER_ID, $other, $directory
+      or BAIL_OUT("chown fixture: $OS_ERROR");
+    chmod oct '2770', $directory or BAIL_OUT("chmod fixture: $OS_ERROR");
+    my $file = "$directory/inherited.env";
+
+    for my $value (qw(production staging)) {
+        $EDIT->replace(
+            $file, "GPFORUM_ENV=$value\n",
+            mode => $SECRET,
+            uid  => $EFFECTIVE_USER_ID,
+            gid  => $primary
+        );
+        is( ( stat $file )[$STAT_GID],
+            $primary, "$value replacement has the requested service group" );
+        is( ( stat $file )[2] & $MODE_BITS,
+            $SECRET, "$value replacement retains the private file mode" );
     }
 };
 

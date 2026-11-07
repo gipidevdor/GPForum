@@ -26,6 +26,7 @@ use GPForum::Service::Community::AvatarStore;
 use GPForum::Service::Community::Avatars;
 use GPForum::Test::Antivirus;
 use GPForum::Test::ImageTool;
+use GPForum::Test::FixedClock;
 use GPForum::Test::PgDatabase;
 use GPForum::Test::PostgresHarness;
 
@@ -454,6 +455,18 @@ sub _rate_limited {
     {
         my ( $user_id, $limit ) = @{$case};
         my $test = _client($user_id);
+
+        # All attempts belong to one fixed window even when CI crosses a
+        # minute boundary. Keep the real PostgreSQL quota and HTTP path.
+        my $controller = $test->app->build_controller;
+        my $rate_store = $controller->gp_rate_limiter->primary_store;
+        my $clock      = $rate_store->clock;
+        $rate_store->clock(
+            GPForum::Test::FixedClock->new(
+                epoch   => $clock->now_epoch,
+                iso8601 => $clock->now_iso8601
+            )
+        );
         my $csrf = _csrf($test);
         for my $attempt ( 1 .. $limit ) {
             $test->post_ok(
@@ -464,6 +477,14 @@ sub _rate_limited {
         $test->post_ok(
             '/settings/avatar' => $JSON => form => { csrf_token => $csrf } )
           ->status_is( $HTTP_TOO_MANY, "the request after $limit is refused" );
+        my @bucket = $dbh->selectrow_array(
+                q{SELECT count(*), sum(observed_count), sum(blocked_count)}
+              . q{ FROM rate_limit_buckets WHERE action = 'avatar.upload'} );
+        is_deeply(
+            \@bucket,
+            [ 1, $limit + 1, 1 ],
+            'one real quota window records every attempt and its refusal'
+        );
     }
 
     return;

@@ -140,19 +140,21 @@ sub _read_master( $self, $until ) {
 }
 
 sub _await_workers( $self, $until ) {
-    my $all;
+    my ( $all, $last_error );
     while ( monotonic() < $until ) {
         _probe_workers( $self, $until );
         my $observed;
         try { $self->telemetry; $observed = 1 } catch ($error) {
-            $observed = 0
+            $last_error = redact("$error");
+            $observed   = 0
         };
         if ($observed) { $all = 1; last; }
         sleep TELEMETRY_INTERVAL;
     }
     if ( !($all) ) {
         croak
-'all configured workers did not produce serving reactor telemetry before startup deadline';
+'all configured workers did not produce serving reactor telemetry before startup deadline: '
+          . ( $last_error // 'no telemetry available' );
     }
     return undef;
 }
@@ -188,7 +190,7 @@ sub telemetry ($self) {
     }
     if ( !@rows || any { ( $_->{reactor} // q{} ) ne $self->{reactor} } @rows )
     {
-        croak "requested $self->{reactor} did not match serving worker reactor";
+        croak $self->_telemetry_error( $actual, \@rows );
     }
     my $observed_pids = join q{,}, sort { $a <=> $b } map { $_->{pid} } @rows;
     my $actual_pids = join q{,}, sort { $a <=> $b } @{ $actual->{worker_pids} };
@@ -226,6 +228,24 @@ sub telemetry ($self) {
 'serving worker did not inherit precompiled templates from startup warmup';
     }
     return \@rows;
+}
+
+sub _telemetry_error ( $self, $actual, $rows ) {
+    if ( !@{$rows} ) {
+        my @files = glob "$self->{directory}/worker-*.json";
+        my @recorded =
+          map { /worker-([[:digit:]]+)[.]json\z/msx ? $1 : q{?} } @files;
+        return
+            'no serving telemetry: master='
+          . $self->{master}
+          . '; actual worker PIDs=['
+          . join( q{,}, $actual->{worker_pids}->@* )
+          . ']; recorded PIDs=['
+          . join( q{,}, @recorded ) . q{]};
+    }
+    my $found = join q{,},
+      map { $_->{pid} . q{:} . ( $_->{reactor} // 'unknown' ) } @{$rows};
+    return "requested $self->{reactor} did not match serving reactors: $found";
 }
 
 # Keep the public lifecycle API used by both HTTP and Extreme orchestrators.

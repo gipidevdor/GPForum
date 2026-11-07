@@ -444,8 +444,13 @@ sub plan ( $mode, $levels = undef, $cpus = undef ) {
 sub process_snapshot ($master) {
     my $result = _attempt(
         sub {
-            run_bounded( [ 'ps', '-axo', 'pid=,ppid=,pcpu=,rss=' ],
-                { timeout => 2 } );
+            run_bounded(
+                [
+                    'ps', '-ax',   '-o', 'pid=', '-o', 'ppid=',
+                    '-o', 'pcpu=', '-o', 'rss='
+                ],
+                { timeout => 2 }
+            );
         }
     )->{value};
     if ( !( defined $result ) ) {

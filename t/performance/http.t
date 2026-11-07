@@ -9,6 +9,7 @@ use Test::More;
 use File::Temp  qw(tempdir);
 use Digest::SHA qw(sha256_hex);
 use List::Util  qw(any);
+use POSIX       ();
 
 # Representative fixture values are available before dependency installation.
 use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
@@ -39,7 +40,7 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
 use JSON::PP;
 use lib 'script/lib';
 use GPForum::Performance::HTTP
-  qw(parse_wrk parse_mojo plan main runtime_environment wrk_version probe_reactor native_backend_flags);
+  qw(parse_wrk parse_mojo plan main runtime_environment wrk_version probe_reactor native_backend_flags process_snapshot);
 use GPForum::Performance::Server;
 use GPForum::Performance::Support qw(read_json write_json run_bounded redact);
 
@@ -658,6 +659,32 @@ sub test_partial_cells {
 }
 subtest 'optional wrk and independent cell failure retain real Mojo evidence' =>
   \&test_partial_cells;
+subtest 'native process snapshots observe a real live child on every OS' =>
+  \&test_native_process_snapshot;
+
+sub test_native_process_snapshot {
+    pipe my $reader, my $writer or croak "fixture pipe: $ERRNO";
+    my $child = fork // croak "fixture fork: $ERRNO";
+    if ( !$child ) {
+        close $writer or POSIX::_exit(1);
+        my $read = sysread $reader, my $unused, 1;
+        close $reader or POSIX::_exit(1);
+        POSIX::_exit( defined $read ? 0 : 1 );
+    }
+    close $reader or croak "fixture reader: $ERRNO";
+    my $snapshot = process_snapshot($PROCESS_ID);
+    close $writer or croak "fixture writer: $ERRNO";
+    waitpid $child, 0;
+    ok(
+        scalar( grep { $_ == $child } $snapshot->{worker_pids}->@* ),
+        'the real child PID is present in the native process listing'
+    );
+    cmp_ok( $snapshot->{rss_bytes},
+        '>', 0,
+        'native process memory is parsed from the separate output columns' );
+    return;
+}
+
 done_testing;
 
 1;

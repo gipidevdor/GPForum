@@ -86,7 +86,7 @@
           % } elsif ($like_count) {
             <span class="post__likes"><%= tc('forum.like_count', $like_count) %></span>
           % }
-          <%= include 'forum/_reactions', post => $post, reaction_paths => $paths %>
+          <%= $fragments->reaction_html($self, $post, $static) %>
           % if ($signed_in && !$post->{deleted_at}) {
             <%= $static->{reply_links} %>
           % }

@@ -27,6 +27,7 @@ use GPForum::Service::Forum::ViewerResolver;
 use GPForum::Service::Notification::SubscriptionStore;
 use GPForum::Service::Password;
 use GPForum::Test::PgDatabase;
+use GPForum::Test::Promise      qw(await_result);
 use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
 our $VERSION = '0.001';
@@ -36,15 +37,16 @@ our $VERSION = '0.001';
 # read gets from it exactly the rows its own call returns -- for a guest and
 # for a member with something to read in every part. The page they build is
 # the same whether they come from the one statement or from eight, and
-# costs seven statements fewer for the member, four for the guest.
+# costs eight statements fewer for the member, five for the guest: the native
+# snapshot already includes the ancillary data in its head/posts operation.
 # Since migration 1046 the files under a post come in the order their own
 # call answers them, which the three files on the first post show.
 
 const my $HTTP_OK      => 200;
 const my $PASSWORD     => 'thread page reads correct horse';
 const my $PAGE_SIZE    => 25;
-const my $MEMBER_FEWER => 7;
-const my $GUEST_FEWER  => 4;
+const my $MEMBER_FEWER => 8;
+const my $GUEST_FEWER  => 5;
 const my $FILES        => 3;
 const my $JSON         => { Accept => 'application/json' };
 const my $THREAD_SQL => join q{ },
@@ -122,6 +124,69 @@ for my $viewer ( undef, $member ) {
           @calls;
         my @empty = grep { !@{ $expected{$_} } } keys %expected;
         is_deeply( \@empty, [], 'every part has rows to answer with' );
+        my $reader =
+          GPForum::Service::Forum::ThreadDetailReader->new( schema => $schema );
+        my $resolved =
+          $viewer
+          ? GPForum::Service::Forum::ViewerResolver->new( schema => $schema )
+          ->resolve($viewer)
+          : GPForum::Service::Forum::Viewer->anonymous;
+        my $snapshot = await_result(
+            $reader->thread_page_p(
+                {
+                    thread_id => $thread_id,
+                    viewer    => $resolved,
+                    limit     => $PAGE_SIZE,
+                }
+            )
+        );
+        my $native = GPForum::Infrastructure::SqlFunction->can('rows_p');
+        my $extra  = 0;
+        my $reused;
+        with_replaced_subs(
+            'GPForum::Infrastructure::SqlFunction',
+            {
+                rows_p => sub { ++$extra; return $native->(@_); },
+            },
+            sub {
+                $reused = await_result(
+                    $reads->answers_p(
+                        {
+                            page           => $snapshot,
+                            thread_id      => $thread_id,
+                            viewer_user_id => $viewer,
+                        }
+                    )
+                );
+            }
+        );
+        is_deeply( $reused, \%expected,
+            'snapshot ancillary rows match all individual reads' );
+        is( $extra, 0,
+            'the snapshot answers require no extra database operation' );
+        my $post_only;
+        with_replaced_subs(
+            'GPForum::Infrastructure::SqlFunction',
+            {
+                rows_p => sub { ++$extra; return $native->(@_); },
+            },
+            sub {
+                $post_only = await_result(
+                    $reads->answers_p(
+                        {
+                            page           => $snapshot,
+                            thread_id      => $thread_id,
+                            viewer_user_id => $viewer,
+                            omit_thread    => 1,
+                        }
+                    )
+                );
+            }
+        );
+        is( $extra, 0,
+'post-only fragments project the same snapshot without another query'
+        );
+
         is_deeply(
             $reads->answers(
                 {
@@ -142,6 +207,54 @@ for my $viewer ( undef, $member ) {
         my %post_expected =
           map { $functions->answer_key( @{$_} ) => $functions->rows( @{$_} ) }
           @post_calls;
+        is_deeply( $post_only, \%post_expected,
+            'snapshot projection contains exactly the requested post reads' );
+        my $foreign       = $viewer ? undef : $member;
+        my $foreign_input = {
+            page           => $snapshot,
+            thread_id      => $thread_id,
+            viewer_user_id => $foreign
+        };
+        my $foreign_answers;
+        with_replaced_subs(
+            'GPForum::Infrastructure::SqlFunction',
+            {
+                rows_p => sub { ++$extra; return $native->(@_); },
+            },
+            sub {
+                $foreign_answers =
+                  await_result( $reads->answers_p($foreign_input) );
+            }
+        );
+        is( $extra, 1,
+            'a different viewer cannot reuse this snapshot of personal state' );
+        is_deeply(
+            $foreign_answers,
+            $reads->answers($foreign_input),
+            'the different viewer receives their own fresh data'
+        );
+        my $short = await_result(
+            $reader->thread_page_p(
+                {
+                    thread_id => $thread_id,
+                    viewer    => $resolved,
+                    limit     => 1,
+                }
+            )
+        );
+        ok( $short->{posts}{has_next},
+            'the bounded page fetched a lookahead post' );
+        my $short_input = {
+            page           => $short,
+            thread_id      => $thread_id,
+            viewer_user_id => $viewer
+        };
+        is_deeply(
+            await_result( $reads->answers_p($short_input) ),
+            $reads->answers($short_input),
+            'the ancillary snapshot excludes the lookahead post'
+        );
+
         my ( $partial, $parameters, $parts );
         my $rows = GPForum::Infrastructure::SqlFunction->can('rows');
         with_replaced_subs(
@@ -181,7 +294,7 @@ for my $viewer ( undef, $member ) {
     };
 }
 
-subtest 'the page is the same, for seven statements fewer' => sub {
+subtest 'the page is the same, for eight statements fewer' => sub {
     my %executed;
     my $guest     = _client( \%executed, 'guest' );
     my $signed_in = _client( \%executed, 'member' );

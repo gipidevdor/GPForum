@@ -6,14 +6,20 @@ package GPForum::Web::PostFragments;
 use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
+use Mojo::ByteStream;
 use v5.40;
-use Mojo::Util qw(encode);
+use Mojo::Util qw(encode xml_escape);
 
 our $VERSION = '0.001';
 
-const my $MAX_ENTRIES => 512;
-const my $MAX_BYTES   => 64 * 1024;
-const my $HALF        => 2;
+const my $MAX_ENTRIES          => 512;
+const my $MAX_BYTES            => 64 * 1024;
+const my $HALF                 => 2;
+const my $REACTION_PICKER_OPEN => '<details class="post-reaction-picker">';
+const my $REACTION_CHOICES_OPEN =>
+  '<div class="post-reaction-picker__choices">';
+const my $REACTION_FORM_ATTRIBUTES =>
+'" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">';
 const my @CONTENT => qw(
   post_id thread_id position author_username author_display_name author_profile_label
   author_initial author_tint author_user_id author_avatar_id deleted_at liked
@@ -67,7 +73,56 @@ sub render ( $self, $controller, $post ) {
     };
     return $self->_reaction_paths( $controller, $post, $key, $fragments )
       if $post->{can_react};
+    $self->_render_reactions( $controller, $post, $fragments );
     return $self->_cache_fragments( $key, $fragments );
+}
+
+# Standalone reaction partials need no thread header or author presentation.
+sub reactions ( $self, $controller, $post ) {
+    my $context = $controller->stash->{'gp.post_fragment_context'} //=
+      _context($controller);
+    my $key   = 'reaction-only:' . _key( $context, $post );
+    my $found = $self->_cached($key);
+    return $found if $found;
+    return $self->_reaction_paths( $controller, $post, $key, { paths => {} } );
+}
+
+# Assemble cached display with fresh response-only form data. Keeping this
+# small join outside the template loop avoids a nested render per post.
+sub reaction_html ( $self, $controller, $post, $parts = undef ) {
+    my @shown =
+      grep { $post->{can_react} || $_->{count} } @{ $post->{reactions} || [] };
+    return Mojo::ByteStream->new(q{}) if !@shown;
+    $parts //= $self->reactions( $controller, $post );
+    my @html = ( $parts->{reaction_group} );
+    if ( $post->{can_react} ) {
+        push @html, $REACTION_PICKER_OPEN, $parts->{reaction_summary},
+          $REACTION_CHOICES_OPEN,
+          _reaction_form( $controller, $parts, \@shown ),
+          '</div></details>';
+    }
+    else {
+        push @html,
+          map { $parts->{ 'reaction_static:' . $_->{reaction} } } @shown;
+    }
+    return Mojo::ByteStream->new( join q{}, @html, '</div>' );
+}
+
+sub _reaction_form ( $controller, $parts, $shown ) {
+    my $first  = $shown->[0];
+    my $route  = $first->{reacted} ? 'post_unreact' : 'post_react';
+    my $action = $parts->{paths}{ $route . q{:} . $first->{reaction} };
+    return join q{}, '<form method="post" action="', xml_escape($action),
+      $REACTION_FORM_ATTRIBUTES, $controller->csrf_field, (
+        map {
+                $parts->{ 'reaction_open:' . $_->{reaction} }
+              . ' name="command_id" value="'
+              . xml_escape( $_->{command_id} // q{} ) . '">'
+              . $parts->{ 'reaction_body:' . $_->{reaction} }
+              . '</button>'
+        } @{$shown}
+      ),
+      '</form>';
 }
 
 # Add only static paths when an eligible reader first needs them. Clone the
@@ -83,7 +138,33 @@ sub _reaction_paths ( $self, $controller, $post, $key, $fragments ) {
             );
         }
     }
+    $self->_render_reactions( $controller, $post, $expanded );
     return $self->_cache_fragments( $key, $expanded );
+}
+
+# Only display state enters these fragments. Form tags, command identities,
+# CSRF masks and the decision to expose an action stay in the caller.
+sub _render_reactions ( $self, $controller, $post, $fragments ) {
+    my $reactions = $post->{reactions} || [];
+    return if !@{$reactions};
+    my $rendered = $controller->render_to_string(
+        template  => 'forum/_reaction_fragments',
+        layout    => undef,
+        reactions => [
+            map {
+                +{
+                    reaction => $_->{reaction},
+                    count    => $_->{count} // 0,
+                    reacted  => $_->{reacted} ? 1 : 0
+                }
+            } @{$reactions}
+        ],
+        fragments => $fragments,
+        paths     => $fragments->{paths},
+    );
+    croak 'Could not render reaction presentation fragments'
+      if !defined $rendered;
+    return;
 }
 
 sub _cache_fragments ( $self, $key, $fragments ) {
@@ -158,7 +239,10 @@ sub _key ( $context, $post ) {
     return join q{},
       map { defined $_ ? length . q{:} . $_ : q{-} } @{$context},
       @{$post}{@CONTENT}, ( $reply ? 'reply' : undef ),
-      map { ( $_, $reply->{$_} ) } sort keys %{ $reply || {} };
+      ( map { ( $_, $reply->{$_} ) } sort keys %{ $reply || {} } ),
+      'reactions', scalar @{ $post->{reactions} || [] },
+      map { ( $_->{reaction}, $_->{count} // 0, $_->{reacted} ? 1 : 0 ) }
+      @{ $post->{reactions} || [] };
 }
 
 1;
@@ -184,7 +268,7 @@ entries of at most 64 KiB each, in two generations: an entry not asked for
 while 256 others were stored is dropped. Nothing is sent to a shared cache.
 The key is the content: every value the static template reads, the locale
 and the application's mounted base path, each written with its length, so
-deletions, author changes, reply changes and like counts select a new entry
+deletions, author changes, reply changes, like counts and reaction display state select a new entry
 immediately. Deploying a new process clears it.
 
 The caller must first load the post through the normal authorization and
@@ -203,9 +287,23 @@ Takes a controller and its authorized post view model. Returns a hash of
 rendered static fragments and named action paths, including both routes for
 each reaction when an eligible reader first needs them. An expansion that
 exceeds C<max_bytes> is returned without changing the cached base entry.
-Reaction state, eligibility and commands remain outside the cache key and value.
+Reaction counts and pressed-state presentation are keyed by their current values. Eligibility, form tags, CSRF and command identities remain outside the cache.
 With C<max_entries> below 2 nothing is kept; entries exceeding C<max_bytes>
 are returned without storage.
+
+=head2 reactions
+
+Returns only the form-free reaction display and paths for a standalone reaction
+partial, keyed by the current counts and pressed states, locale and mount path.
+The caller checks eligibility and supplies fresh form credentials on every render.
+
+=head2 reaction_html
+
+Assembles the form-free display fragments with the current post's action
+eligibility and fresh response credentials. Command values and the form action
+are escaped. The completed markup is returned, never stored in the cache.
+An optional third argument supplies the post fragments already loaded by the
+post list, avoiding another lookup and nested template render for every post.
 
 =head2 entries
 

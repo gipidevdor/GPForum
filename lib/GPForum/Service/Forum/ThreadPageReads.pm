@@ -139,7 +139,8 @@ async sub answers_p ( $self, $input, $context = undef ) {
     my $calls     = $self->_calls( \%read )   or return {};
     my $values    = _values( \%read, $calls ) or return {};
     my $functions = $self->functions          or return {};
-    my $rows = await $functions->rows_p( 'forum_thread_page_reads', $values,
+    my $rows      = _snapshot_rows( $functions, $page, $values )
+      // await $functions->rows_p( 'forum_thread_page_reads', $values,
         $input->{query_context} );
     return _answers( $functions, $calls, $rows );
 }
@@ -264,6 +265,24 @@ sub _values ( $read, $calls ) {
         link_post_ids          => $links->{post_ids}  // [],
         link_row_limit         => $links->{row_limit} // 0,
     };
+}
+
+# Full-page data can answer post-only fragments from the same snapshot.
+# Only metadata is projected away: viewer, posts and attachment bounds must
+# match exactly. No caller can widen this request's data.
+sub _snapshot_rows ( $functions, $page, $values ) {
+    my $snapshot  = $page->{read_snapshot} or return undef;
+    my %requested = %{$values};
+    if (   !defined $requested{thread_id}
+        && !defined $requested{engagement_target_type} )
+    {
+        $requested{thread_id} = _column( $page->{thread}, 'thread_id' );
+        $requested{engagement_target_type} = $THREAD_TARGET;
+    }
+    return $snapshot->{key} eq
+      $functions->answer_key( 'forum_thread_page_reads', \%requested )
+      ? $snapshot->{rows}
+      : undef;
 }
 
 # Each part's rows under the key of the call it answers, as that call's own

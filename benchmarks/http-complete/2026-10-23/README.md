@@ -10,12 +10,12 @@ Tre ripetizioni; letture concorrenti a 1/10/50/100 sessioni, scritture a 10 clie
 Nessun errore HTTP o di dominio. Copertura osservata: **105/191 rotte**;
 le altre 86 sono elencate nel JSON e nel report. Non equivale a copertura totale.
 
-- [Diagnosi e confronto leggibile](http-complete-full-20261023/diagnosis.html)
-- [Dati grezzi del run completo](http-complete-full-20261023/http-complete.json)
-- [Tutte le operazioni e celle](http-complete-full-20261023/report.html)
-- [Confronto strutturato](http-complete-full-20261023/comparison.json)
-- [Confronto mirato con quattro worker](http-complete-workers4-retry-20261023/http-complete.json)
-- [Tentativo a quattro worker escluso](http-complete-workers4-20261023/http-complete.json)
+- [Diagnosi e confronto leggibile](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-10-23/http-complete-full-20261023/diagnosis.html)
+- [Dati grezzi del run completo](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-10-23/http-complete-full-20261023/http-complete.json)
+- [Tutte le operazioni e celle](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-10-23/http-complete-full-20261023/report.html)
+- [Confronto strutturato](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-10-23/http-complete-full-20261023/comparison.json)
+- [Confronto mirato con quattro worker](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-10-23/http-complete-workers4-retry-20261023/http-complete.json)
+- [Tentativo a quattro worker escluso](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-10-23/http-complete-workers4-20261023/http-complete.json)
 
 ## Risultati a 100 sessioni
 

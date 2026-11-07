@@ -2,7 +2,7 @@
 
 This continues the [forward admission sweep](../2026-11-05/README.md) on the
 same immutable application source, commit `2713b813f2553e16471dcaf93da154341e607e14`,
-using its [recorded benchmark patch](../2026-11-05/benchmark-options.patch). The order is reversed: 8 workers / 16
+using its [recorded benchmark patch](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/benchmark-options.patch). The order is reversed: 8 workers / 16
 connections, 4 / 32, then 4 / 2048. Each arm retains three repetitions at
 1/10/50/100 authenticated sessions, the same 240-thread / 4,800-post fixture,
 100 serial requests or six-second concurrent windows, ten workload warmup

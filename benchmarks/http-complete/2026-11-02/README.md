@@ -19,7 +19,7 @@ Mediana di tre ripetizioni per cella. req/s indica risposte HTTP al secondo; p95
 | Ricerca | 133.0 | 254.2 | 1596.8 | 903.4 |
 | Notifiche | 310.9 | 272.2 | 555.0 | 782.5 |
 
-![Confronto locale a 100 sessioni](overview.png)
+![Confronto locale a 100 sessioni](https://raw.githubusercontent.com/gipidevdor/GPForum/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/overview.png)
 
 **Variabilità e fallimenti restano visibili.** La prima esecuzione con quattro processi ha registrato una chiusura prematura della connessione nella home, c=10, ripetizione=1. Il risultato è marcato fail e preservato integralmente. Il confronto principale usa il rerun completo senza errori; il primo tentativo non viene usato per scegliere valori migliori.
 
@@ -36,7 +36,7 @@ Confronto separato mediante listener Unix, dataset medium e due processi server:
 | Categoria | 289.0 | 368.7 | +27.6% | 108.3 | 85.3 |
 | Ricerca | 150.3 | 170.0 | +13.1% | 199.7 | 185.8 |
 
-![Confronto fra revisioni](comparison.png)
+![Confronto fra revisioni](https://raw.githubusercontent.com/gipidevdor/GPForum/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/comparison.png)
 
 Le variazioni sono osservazioni comparative locali; tre ripetizioni brevi non costituiscono una stima statistica della capacità di produzione. Per categoria e ricerca, gli intervalli osservati del throughput si sovrappongono fra i checkpoint: le percentuali non vengono classificate come miglioramenti confermati.
 
@@ -84,15 +84,15 @@ La diagnostica SQL include errori intenzionali e fixture differenti. Tempi di ch
 
 ## Evidenze
 
-- **[Dettaglio dei tempi: tutte le pagine, carichi, plugin, scritture e componenti SQL](TIMINGS.md)**
+- **[Dettaglio dei tempi: tutte le pagine, carichi, plugin, scritture e componenti SQL](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/TIMINGS.md)**
 
-- [Profilo completo a due processi: JSON](full-workers2/http-complete.json) · [tabella HTML](full-workers2/report.html)
-- [Primo tentativo a quattro processi, fail preservato](hot-workers4-attempt1/http-complete.json)
-- [Rerun a quattro processi](hot-workers4-confirm/http-complete.json) · [prova isolata notifiche](notifications-workers4/http-complete.json)
-- [Matrice HTTP e intervalli CSV](http-summary.csv) · [confronto revisioni CSV](comparison-summary.csv) · [campioni del confronto JSONL](socket-comparison.jsonl)
-- [Diagnostica operazioni](operations/operations.json) · [riepilogo test](operations/test-summary.txt)
-- [Supplemento HTTP strumentato](operations-http/operations.json) · [riepilogo test](operations-http/test-summary.txt)
-- [Outbox JSON](outbox.json) · [riepilogo e copertura](summary.json) · [provenienza](provenance.json) · [SHA-256](SHA256SUMS)
+- [Profilo completo a due processi: JSON](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/full-workers2/http-complete.json) · [tabella HTML](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/full-workers2/report.html)
+- [Primo tentativo a quattro processi, fail preservato](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/hot-workers4-attempt1/http-complete.json)
+- [Rerun a quattro processi](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/hot-workers4-confirm/http-complete.json) · [prova isolata notifiche](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/notifications-workers4/http-complete.json)
+- [Matrice HTTP e intervalli CSV](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/http-summary.csv) · [confronto revisioni CSV](comparison-summary.csv) · [campioni del confronto JSONL](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/socket-comparison.jsonl)
+- [Diagnostica operazioni](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/operations/operations.json) · [riepilogo test](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/operations/test-summary.txt)
+- [Supplemento HTTP strumentato](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/operations-http/operations.json) · [riepilogo test](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/operations-http/test-summary.txt)
+- [Outbox JSON](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/outbox.json) · [riepilogo e copertura](summary.json) · [provenienza](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/http-complete/2026-11-02/provenance.json) · [SHA-256](SHA256SUMS)
 
 ## Riproduzione
 

@@ -2,12 +2,12 @@
 
 Controlled follow-up to the [complete 5 November campaign](../../http-complete/2026-11-05/report.html).
 The application source is frozen at commit `2713b813f2553e16471dcaf93da154341e607e14`;
-[the initial patch](benchmark-options-initial.patch) adds the benchmark admission
+[the initial patch](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/benchmark-options-initial.patch) adds the benchmark admission
 option and records its effective value. After the first two arms, the first
 eight-worker attempt exposed a startup race: a worker can answer before the
 manager has finished spawning workers and written its PID. That attempt failed
-before any cells were measured and is [preserved](excluded/http-w8-c32-a/http-complete.json).
-[The updated patch](benchmark-options.patch) also waits for the PID within the
+before any cells were measured and is [preserved](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/excluded/http-w8-c32-a/http-complete.json).
+[The updated patch](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/benchmark-options.patch) also waits for the PID within the
 existing startup deadline; it does not change application or measurement code.
 No historical revision was benchmarked again.
 Later application changes in the shared working tree are excluded.
@@ -33,18 +33,18 @@ Percentiles are not pooled across repetitions or arms.
 
 | Arm | Workers | Connections/worker | Sessions | req/s | p95 ms (range) | App p95 ms | DB p95 ms |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [http-w4-c2048-a](http-w4-c2048-a/report.html) | 4 | 2048 | 1 | 80.6 | 12.6 (12.6–12.6) | 10.12 | 1.13 |
-| [http-w4-c2048-a](http-w4-c2048-a/report.html) | 4 | 2048 | 10 | 297.4 | 60.6 (59.7–62.4) | 11.44 | 1.38 |
-| [http-w4-c2048-a](http-w4-c2048-a/report.html) | 4 | 2048 | 50 | 312.6 | 243.1 (231.9–256.4) | 11.47 | 1.42 |
-| [http-w4-c2048-a](http-w4-c2048-a/report.html) | 4 | 2048 | 100 | 308.4 | 790.4 (723.1–803.7) | 11.65 | 1.47 |
-| [http-w4-c32-a](http-w4-c32-a/report.html) | 4 | 32 | 1 | 80.7 | 12.5 (12.4–12.7) | 10.05 | 1.11 |
-| [http-w4-c32-a](http-w4-c32-a/report.html) | 4 | 32 | 10 | 285.9 | 63.8 (63.3–64.4) | 11.28 | 1.36 |
-| [http-w4-c32-a](http-w4-c32-a/report.html) | 4 | 32 | 50 | 293.2 | 369.6 (367.8–379.9) | 11.57 | 1.45 |
-| [http-w4-c32-a](http-w4-c32-a/report.html) | 4 | 32 | 100 | 304.8 | 449.9 (422.3–460.3) | 12.00 | 1.52 |
-| [http-w8-c16-b](http-w8-c16-b/report.html) | 8 | 16 | 1 | 78.8 | 14.2 (13.3–14.6) | 11.32 | 1.42 |
-| [http-w8-c16-b](http-w8-c16-b/report.html) | 8 | 16 | 10 | 408.1 | 39.5 (39.2–39.9) | 13.50 | 1.77 |
-| [http-w8-c16-b](http-w8-c16-b/report.html) | 8 | 16 | 50 | 484.5 | 190.6 (143.5–254.4) | 14.81 | 2.00 |
-| [http-w8-c16-b](http-w8-c16-b/report.html) | 8 | 16 | 100 | 499.4 | 286.7 (284.2–294.5) | 14.71 | 1.97 |
+| [http-w4-c2048-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c2048-a/report.html) | 4 | 2048 | 1 | 80.6 | 12.6 (12.6–12.6) | 10.12 | 1.13 |
+| [http-w4-c2048-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c2048-a/report.html) | 4 | 2048 | 10 | 297.4 | 60.6 (59.7–62.4) | 11.44 | 1.38 |
+| [http-w4-c2048-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c2048-a/report.html) | 4 | 2048 | 50 | 312.6 | 243.1 (231.9–256.4) | 11.47 | 1.42 |
+| [http-w4-c2048-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c2048-a/report.html) | 4 | 2048 | 100 | 308.4 | 790.4 (723.1–803.7) | 11.65 | 1.47 |
+| [http-w4-c32-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c32-a/report.html) | 4 | 32 | 1 | 80.7 | 12.5 (12.4–12.7) | 10.05 | 1.11 |
+| [http-w4-c32-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c32-a/report.html) | 4 | 32 | 10 | 285.9 | 63.8 (63.3–64.4) | 11.28 | 1.36 |
+| [http-w4-c32-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c32-a/report.html) | 4 | 32 | 50 | 293.2 | 369.6 (367.8–379.9) | 11.57 | 1.45 |
+| [http-w4-c32-a](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w4-c32-a/report.html) | 4 | 32 | 100 | 304.8 | 449.9 (422.3–460.3) | 12.00 | 1.52 |
+| [http-w8-c16-b](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w8-c16-b/report.html) | 8 | 16 | 1 | 78.8 | 14.2 (13.3–14.6) | 11.32 | 1.42 |
+| [http-w8-c16-b](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w8-c16-b/report.html) | 8 | 16 | 10 | 408.1 | 39.5 (39.2–39.9) | 13.50 | 1.77 |
+| [http-w8-c16-b](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w8-c16-b/report.html) | 8 | 16 | 50 | 484.5 | 190.6 (143.5–254.4) | 14.81 | 2.00 |
+| [http-w8-c16-b](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/thread-tail/2026-11-05/http-w8-c16-b/report.html) | 8 | 16 | 100 | 499.4 | 286.7 (284.2–294.5) | 14.71 | 1.97 |
 
 59,910 measured responses, zero invalid responses, all 36 planned cells
 completed. [Raw summary](summary.json), per-arm JSON and commands accompany the

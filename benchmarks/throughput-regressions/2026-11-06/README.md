@@ -98,7 +98,7 @@ Il confronto a quattro worker usa sei celle per punto; quello a otto ne usa tre.
 
 Un primo avvio a otto worker è fallito prima di raccogliere celle, leggendo il PID
 prima che il manager lo scrivesse. Il rerun usa l'attesa PID già presente nel
-checkout corrente. [startup-pid.patch](startup-pid.patch) mostra l'unica differenza
+checkout corrente. [startup-pid.patch](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/startup-pid.patch) mostra l'unica differenza
 del generatore rispetto alla matrice a quattro worker, interamente prima della
 misura. Applicazione, connessioni per cella e carico misurato sono gli stessi.
 La prova esplorativa precedente a otto worker resta nell'inventario e non alimenta
@@ -137,35 +137,35 @@ distinti da quelli a 32: un obiettivo di latenza va riferito al carico scelto.
 Lo snapshot applicativo misurato supera **15 file e 6.898 test**, inclusi confronto
 SQL differenziale, ruoli, revoche, workflow GUI, limiti di query, riuso del lavoro,
 rendering e policy dei listener; il log è in
-[runs/after-final-verify/run.log](runs/after-final-verify/run.log). Le verifiche
+[runs/after-final-verify/run.log](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/runs/after-final-verify/run.log). Le verifiche
 Perl::Critic sui file Perl modificati sono passate.
 
 Nel checkout condiviso un successivo controllo di 19 file / 7.458 test ha avuto
 tre fallimenti, tutti nel test dello snapshot SQL: erano nel frattempo arrivate
 le migrazioni indipendenti 2042/2043. Le altre 18 suite sono passate. Dopo la
 rigenerazione dal database migrato, con hash delle migrazioni verificati stabili,
-[il test dello snapshot passa tutti gli otto controlli](runs/after-root-schema-final-verify/run.log).
+[il test dello snapshot passa tutti gli otto controlli](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/runs/after-root-schema-final-verify/run.log).
 Non abbiamo ripetuto le 18 suite già passate; i log del primo tentativo sono
 conservati. Push e passkey del checkout condiviso non fanno parte degli snapshot
 usati per misurare la capacità.
 
-Il successivo [smoke test HTTP completo](runs/after-root-http-smoke-verify/run.log)
+Il successivo [smoke test HTTP completo](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/runs/after-root-http-smoke-verify/run.log)
 passa anche sul checkout condiviso, verificando l'isolamento delle connessioni,
 login/CSRF, identità persistite e tutte le operazioni del profilo smoke. È una
 verifica funzionale e non contribuisce ai dati di capacità delle tabelle.
 
 La pausa temporanea dell'altra prova è stata rimossa e il suo helper ripristinato
 al checksum originale, come registra
-[il controllo di ripristino](resource-exclusivity-cleanup.json).
+[il controllo di ripristino](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/resource-exclusivity-cleanup.json).
 
 ## Evidenze e riproduzione
 
 - [Confronto completo JSON](comparison.json) e [CSV](comparison.csv)
 - [Scalabilità JSON](scaling.json)
 - [Inventario di tutti i tentativi](run-inventory.json), inclusi fallimenti e fasi intermedie
-- [Manifesto dei sorgenti](source-manifest.json)
-- [Patch applicativa misurata](application.patch) e [patch del generatore applicata a entrambi i lati](harness.patch)
-- [Verifiche aggiunte](verification.patch), completate dopo le misure di capacità
+- [Manifesto dei sorgenti](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/source-manifest.json)
+- [Patch applicativa misurata](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/application.patch) e [patch del generatore applicata a entrambi i lati](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/harness.patch)
+- [Verifiche aggiunte](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/throughput-regressions/2026-11-06/verification.patch), completate dopo le misure di capacità
 - [Checksum](SHA256SUMS)
 
 Per ricostruire gli snapshot: partire dal commit indicato in due copie con le

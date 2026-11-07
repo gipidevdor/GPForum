@@ -1,4 +1,0 @@
-{
-  "reason": "The initial monitor matched xcodebuild -find git tool-location queries as compilation. Four observations are preserved in interrupted-before-a-http/run.json. These commands only resolve the installed Git executable. Per-cell timestamps are unavailable, so the interrupted HTTP sample is excluded rather than assuming the queries preceded the timed requests. A fresh complete ABBA campaign follows.",
-  "monitor_change": "Exclude only xcodebuild commands containing -find git; retain all other existing compile/test/benchmark detections."
-}

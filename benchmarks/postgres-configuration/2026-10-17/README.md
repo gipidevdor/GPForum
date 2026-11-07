@@ -20,7 +20,7 @@ Apple M4 (10 cores), 16 GiB RAM, internal SSD/APFS, macOS/Darwin 27, PostgreSQL 
 
 B reserves 8 GiB for the OS, application and other services: shared_buffers 2 GiB, effective_cache_size 6 GiB, work_mem 4 MiB and maintenance_work_mem 128 MiB. The dedicated 16 GiB starting profile (4/12 GiB, 8/512 MiB) is implemented and unit-tested; it was not the full profile activated for this colocated benchmark.
 
-fsync, full_page_writes, synchronous_commit and autovacuum remained on in both arms. No durability setting was changed. The [reviewed plan](optimized-plan.json), [apply journal](apply.jsonl), [strict active verification](verify-optimized.json), and [restore journal](restore.jsonl) preserve the operational steps. The CLI itself never restarted PostgreSQL; restarts of this disposable cluster were separate operator commands.
+fsync, full_page_writes, synchronous_commit and autovacuum remained on in both arms. No durability setting was changed. The [reviewed plan](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/optimized-plan.json), [apply journal](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/apply.jsonl), [strict active verification](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/verify-optimized.json), and [restore journal](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/restore.jsonl) preserve the operational steps. The CLI itself never restarted PostgreSQL; restarts of this disposable cluster were separate operator commands.
 
 The service harness reuses the existing SQL-function benchmark fixture and operations. One prepared template was cloned for A and B at each scale. Initial document counts and ID digests match:
 
@@ -78,7 +78,7 @@ Outbox uses the existing real PostgreSQL dispatcher benchmark, 1,000 fixed-ID me
 | 1 | 1419.17 → 1447.17 | 67.72 → 65.87 | 77.08 → 75.25 | 77.08 → 75.25 | 0.37 → 0.36 | 0.28 → 0.27 |
 | 2 | 2794.40 → 2918.92 | 66.43 → 59.58 | 71.74 → 70.01 | 71.74 → 70.01 | 0.38 → 0.37 | 0.24 → 0.22 |
 
-Use [baseline-outbox-resources.json](baseline-outbox-resources.json) and [optimized-outbox.json](optimized-outbox.json) for the comparable resource-instrumented pair. [baseline-outbox.json](baseline-outbox.json) is the earlier latency-only pass and is not used in the table. The instrumented baseline was repeated after restoring the original configuration; this pair is B then A. Worker resources and before/after I/O, WAL and buffer counters are retained for every repetition.
+Use [baseline-outbox-resources.json](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/baseline-outbox-resources.json) and [optimized-outbox.json](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/optimized-outbox.json) for the comparable resource-instrumented pair. [baseline-outbox.json](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/baseline-outbox.json) is the earlier latency-only pass and is not used in the table. The instrumented baseline was repeated after restoring the original configuration; this pair is B then A. Worker resources and before/after I/O, WAL and buffer counters are retained for every repetition.
 
 ## Internal search plans
 
@@ -101,7 +101,7 @@ passed another focused 24 assertions. The full Perl::Critic ratchet passed with
 15 baseline violations and zero new violations; syntax, formatting and architecture
 checks passed. CI now exercises configuration apply/restore on its disposable
 PostgreSQL 16/17/18 containers; those remote jobs were not dispatched here.
-See [validation.json](validation.json) for scope and the complete changed-file list.
+See [validation.json](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/validation.json) for scope and the complete changed-file list.
 
 - Sizing/configuration: PostgresProfile, Config, generated environment example and admin settings.
 - Runtime assessment: PostgresPerformance, Schema connection hook, RuntimeEvidence, Readiness and its operator findings/translations.
@@ -113,11 +113,11 @@ See [validation.json](validation.json) for scope and the complete changed-file l
 
 - [Hardware, commands and provenance](hardware-and-runs.json)
 - [All comparisons and resource deltas](comparison.json)
-- [Planner statistics and installed function definitions](planner-statistics.json)
-- [Original configuration restored and no pending restart](verify-restored-original.json)
-- [Validation and changed files](validation.json)
-- [Original 100k](baseline-100k.json), [profile 100k](optimized-100k.json)
-- [Original 1m](baseline-1m.json), [profile 1m](optimized-1m.json)
+- [Planner statistics and installed function definitions](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/planner-statistics.json)
+- [Original configuration restored and no pending restart](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/verify-restored-original.json)
+- [Validation and changed files](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/validation.json)
+- [Original 100k](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/baseline-100k.json), [profile 100k](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/optimized-100k.json)
+- [Original 1m](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/baseline-1m.json), [profile 1m](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/postgres-configuration/2026-10-17/optimized-1m.json)
 - [Operator workflow and reproduction commands](../../../docs/ops/postgres-performance.md)
 
 The measurement implementation was uncommitted over the recorded Git base. Instrumentation was extended during the run to preserve partial failures and share resource helpers; successful service workloads and quantile calculation stayed the same. PostgreSQL configurations and corpus identities are recorded per arm. A/B ordering, desktop activity, synthetic corpus distribution, ordinary migration-owner credentials used by the fixture, and serial operation scope limit extrapolation to production. Restricted runtime-role behavior is verified separately by integration tests.

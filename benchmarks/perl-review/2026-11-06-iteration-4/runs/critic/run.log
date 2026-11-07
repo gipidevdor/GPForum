@@ -1,9 +1,0 @@
-lib/GPForum/Web/PublicCacheAccess.pm source OK
-lib/GPForum/Service/Forum/PageWindow.pm source OK
-lib/GPForum/Service/Forum/ThreadReader.pm source OK
-lib/GPForum/Service/Forum/CategoryReader.pm source OK
-lib/GPForum/Service/Search/Searcher.pm source OK
-[Variables::ProhibitReusedNames] Reused variable name in lexical scope: $stale at t/115-web-public-cache-access.t line 183, column 5. Severity: 3. Invent unique variable names. my $stale     = GPForum::Test::PublicPageController->new(
-[Variables::ProhibitReusedNames] Reused variable name in lexical scope: $fresh at t/115-web-public-cache-access.t line 194, column 5. Severity: 3. Invent unique variable names. my $fresh =
-t/862-pagination-boundaries.t source OK
-[ValuesAndExpressions::ProhibitLongChainsOfMethodCalls] Found method-call chain of length 4 at t/integration/postgres-public-cache.t line 153, column 1. Severity: 2. Long chains of method calls indicate code that is too tightly coupled. my $weak_tag   = $client->tx->res->headers->etag;

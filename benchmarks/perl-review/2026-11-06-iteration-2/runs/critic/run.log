@@ -1,7 +1,0 @@
-[ControlStructures::ProhibitPostfixControls] Postfix control "if" used at lib/GPForum/Service/Realtime/PgListener.pm line 294, column 43. Severity: 2. See pages 93,94 of PBP. $self->_remember_delivered($event_id) if length $event_id;
-lib/GPForum/Service/Attachment/PostgresAsset.pm source OK
-lib/GPForum/Service/Integration/SourceLinks.pm source OK
-t/207-pg-notifications.t source OK
-[ControlStructures::ProhibitPostfixControls] Postfix control "if" used at t/773-presentation-caches.t line 158, column 30. Severity: 2. See pages 93,94 of PBP. ++$hot_scans if $source eq $OTHER;
-t/integration/postgres-attachment-objects.t source OK
-[Modules::RequireEndWithOne] Module does not end with "1;" at t/858-postgres-asset-contract.t line 68, column 1. Severity: 4. Must end with a recognizable true value. done_testing();

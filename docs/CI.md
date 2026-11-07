@@ -268,8 +268,11 @@ baseline rules, bounded cost, schema, local commands and publication model.
 Relevant PRs and pushes to `main` now run real Hypnotoad and PostgreSQL
 benchmarks automatically. PR jobs compare the exact base/head revisions on
 one runner with separate disposable databases and locked dependency trees;
-main runs retain compact evidence at `benchmarks/results/` on the
-`performance-data` branch, never on `main`.
+new runs retain evidence as workflow artifacts for 14 days and publish a Job
+Summary. `main` retains one successful historical CI reference under
+`benchmarks/results/`; automatic measurements have read-only repository access
+and do not recreate the retired `performance-data` branch. See the
+[retention policy](../benchmarks/README.md#retention).
 The weekly Monday 01:37 UTC/manual deep run adds
 targeted worker/reactor scaling, PostgreSQL service comparisons and profiles.
 The harnesses, schema validator, comparisons, report renderer, publisher and

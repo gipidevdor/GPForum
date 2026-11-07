@@ -194,7 +194,7 @@ archived files were not rewritten during the language migration.
 
 The subsequent ordinary [main run 38158530813](https://github.com/gipidevdor/GPForum/actions/runs/38158530813)
 also completed and published its
-[permanent report](results/2026-10-11/d7bc8a523ef7f7c35515c9f1413738910b3e6d15/38158530813-1/report.md):
+[permanent report](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/results/2026-10-11/d7bc8a523ef7f7c35515c9f1413738910b3e6d15/38158530813-1/report.md):
 210 HTTP observations (204 wrk, six Mojolicious), 121 SQL observations and six
 real PostgreSQL outbox observations, all successful. HTTP/transport errors,
 outbox losses and duplicates were zero. Measurement took 10 minutes 29 seconds;

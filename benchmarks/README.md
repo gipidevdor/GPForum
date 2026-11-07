@@ -4,11 +4,31 @@
 real Hypnotoad server against migrated PostgreSQL and the existing
 deterministic `PerformanceSeed` dataset. The historical results were merged
 from `performance-data` into `main` on 2026-10-17 before retiring that branch.
-The preserved snapshot is at [benchmarks/results](results/), with
+The retained CI reference is at [benchmarks/results](results/), with
 `latest.json` and `history.json` as its indexes. Every new run keeps its
 evidence as a workflow artifact for 14 days and publishes a Job Summary.
 Automatic measurements have read-only repository access and do not update
 branches.
+
+## Retention
+
+The 7 November 2026 cleanup keeps the latest successful indexed CI run, the
+latest complete HTTP campaign (5 November), the clean `60c7b9f` thread
+confirmation and its earlier matched native reference. Historical campaign
+reports and compact summaries remain, together with the runnable harnesses,
+schemas and the explicitly labelled thread baseline.
+
+Superseded raw runs, failed attempts, verbose test/server logs, profiles and
+copied source trees have been removed. The full pre-cleanup archive remains in
+Git commit `2ade1f06b4ea65a591161551c00f9d6abca7b71b`; historical reports describe
+that original archive, and links to removed files use that immutable revision.
+It is also recoverable offline with `git show <commit>:<path>`. Checksum manifests
+now cover retained local files; `latest.json` and `history.json` index only the
+retained CI reference, not the separate local campaigns.
+
+Write new raw output under ignored `artifacts/` or retain it as a CI artifact.
+Check in a new canonical comparison only when it replaces a retained reference;
+keep its source identity, workload, errors, resource data and limitations.
 
 The preliminary findings and reuse decisions are recorded in [AUDIT.md](AUDIT.md).
 All harnesses, report/schema/baseline tools, publication and their tests are

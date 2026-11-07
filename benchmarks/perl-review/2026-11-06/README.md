@@ -10,8 +10,8 @@ perfezione dell'intera applicazione.
 - **PreparedQuery:** un IN più lungo perdeva elementi, una condizione NULL poteva
   riusare `= NULL` e un limite mancante poteva rendere illimitata una lettura.
   Ora le forme incompatibili eseguono il resultset corrente. Il test su PostgreSQL
-  [fallisce in quattro casi sul codice precedente](runs/baseline-prepared-red-final/run.log)
-  e [passa sul candidato](runs/candidate-prepared-final/run.log).
+  [fallisce in quattro casi sul codice precedente](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/baseline-prepared-red-final/run.log)
+  e [passa sul candidato](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/candidate-prepared-final/run.log).
 - **SqlFunction:** chiavi senza collisioni per confini dei parametri, array vuoti,
   elementi vuoti e NULL, inclusi array annidati. Il binding legge i parametri
   senza copiare e svuotare l'hash del chiamante; classificazione UUID/bytea
@@ -30,21 +30,21 @@ perfezione dell'intera applicazione.
 
 ## Verifiche
 
-La [suite generale](runs/unit-final/run.log) passa **686 file / 20.655 controlli**.
+La [suite generale](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/unit-final/run.log) passa **686 file / 20.655 controlli**.
 Le integrazioni coprono **161 file**, con **14.393 controlli finali**: il primo
-[run](runs/integration/run.log) ha superato 160 file e rilevato un nome di colonna
-errato nella nuova fixture; corretto il test, [il file interessato passa 40 controlli](runs/candidate-prepared-final/run.log).
+[run](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/integration/run.log) ha superato 160 file e rilevato un nome di colonna
+errato nella nuova fixture; corretto il test, [il file interessato passa 40 controlli](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/candidate-prepared-final/run.log).
 Non abbiamo ripetuto i 160 file già passati. La fixture iniziale è conservata.
 
-[Perl::Critic sull'intero albero](runs/critic/run.log) segnala zero violazioni;
-[sintassi, perltidy e architettura](runs/static/run.log) passano. Le successive
+[Perl::Critic sull'intero albero](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/critic/run.log) segnala zero violazioni;
+[sintassi, perltidy e architettura](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/static/run.log) passano. Le successive
 rifiniture delle chiavi e dell'avvio hanno superato
-[1.960 controlli mirati](runs/refinement-unit/run.log),
-[404 controlli PostgreSQL/HTTP](runs/refinement-integration/run.log),
-[il controllo finale del protocollo](protocol-final.log) e
-[Perl::Critic sui file modificati](runs/focused-critic-pass-2/run.log).
+[1.960 controlli mirati](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/refinement-unit/run.log),
+[404 controlli PostgreSQL/HTTP](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/refinement-integration/run.log),
+[il controllo finale del protocollo](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/protocol-final.log) e
+[Perl::Critic sui file modificati](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/focused-critic-pass-2/run.log).
 I test aggiunti vengono eseguiti anche sul codice precedente, dove
-[espongono i difetti](runs/baseline-core-red/run.log).
+[espongono i difetti](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/baseline-core-red/run.log).
 
 Il primo run generale ha incontrato un problema indipendente del verificatore
 dei link: controllava una copia parziale `source-untracked` come documentazione
@@ -69,7 +69,7 @@ valori non sono richieste HTTP al secondo.
 
 La chiave sicura costa più del precedente join ambiguo. La prima implementazione
 sicura è stata alleggerita evitando una chiamata Perl per ogni elemento piatto;
-una variante JSON è stata [misurata e scartata](key-options.log) perché più lenta.
+una variante JSON è stata [misurata e scartata](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/key-options.log) perché più lenta.
 Il costo finale resta esposto nella tabella. La variazione delle scritture di
 cache ha intervalli sovrapposti e non viene classificata come regressione confermata.
 
@@ -97,7 +97,7 @@ workstation; il monitor non ha rilevato carichi concorrenti noti nei run finali.
 
 ### Avvio del generatore
 
-Un tentativo intermedio è [fallito prima di raccogliere celle](runs/after-b-http/http/http-complete.json):
+Un tentativo intermedio è [fallito prima di raccogliere celle](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/runs/after-b-http/http/http-complete.json):
 era disponibile la telemetria di tre worker su quattro. Le sonde seriali possono
 continuare a raggiungere un sottoinsieme dei worker. L'avvio ora usa una piccola
 serie di sonde concorrenti e continua a richiedere la telemetria di ogni PID,
@@ -116,9 +116,9 @@ quote, cache di pagina o impostazioni PostgreSQL fra i due lati.
 
 - [Risultati e configurazione JSON](summary.json), [CSV dei casi Perl](comparison.csv)
 - [Inventario di tutti i tentativi](run-inventory.json)
-- [Sorgenti e impronte](source-manifest.json)
-- [Patch applicativa](application.patch), [harness comune](harness.patch), [test](verification.patch)
-- [Driver Perl dei microbenchmark](benchmark.pl), [checksum](SHA256SUMS)
+- [Sorgenti e impronte](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/source-manifest.json)
+- [Patch applicativa](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/application.patch), [harness comune](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/harness.patch), [test](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/verification.patch)
+- [Driver Perl dei microbenchmark](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/perl-review/2026-11-06/benchmark.pl), [checksum](SHA256SUMS)
 
 Ricostruire due checkout del commit indicato con le dipendenze bloccate; applicare
 harness.patch a entrambi e application.patch al candidato. verification.patch

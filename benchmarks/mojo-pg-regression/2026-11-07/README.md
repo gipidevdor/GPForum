@@ -32,11 +32,11 @@ accepted passes are retained, rather than selecting the highest repetition.
 
 Primary arms:
 
-- [Native baseline, writes](attempts/verified-control-final/http-complete.json)
-  and [native baseline, thread](attempts/verified-control-read/http-complete.json).
-- [Complete fixed candidate, writes](attempts/verified-complete-c/http-complete.json)
-  and [complete candidate, thread plus writes](attempts/verified-complete-a/http-complete.json).
-- [Summary CSV](summary.csv), [summary JSON](summary.json), and
+- [Native baseline, writes](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/attempts/verified-control-final/http-complete.json)
+  and [native baseline, thread](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/attempts/verified-control-read/http-complete.json).
+- [Complete fixed candidate, writes](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/attempts/verified-complete-c/http-complete.json)
+  and [complete candidate, thread plus writes](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/attempts/verified-complete-a/http-complete.json).
+- [Summary CSV](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/summary.csv), [summary JSON](summary.json), and
   [all attempts and exclusions](attempts.json).
 
 ## Comparison with the pre-migration runtime
@@ -89,19 +89,19 @@ landed admission-queue capacity fix; its increase is not credited to this patch.
 
 ## Validation
 
-- [General suite](verification/unit-complete.log): 535 files, 20,352 tests pass.
-- [PostgreSQL suites](verification/pg-complete.log): 23 files, 6,636 tests pass.
+- [General suite](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/verification/unit-complete.log): 535 files, 20,352 tests pass.
+- [PostgreSQL suites](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/verification/pg-complete.log): 23 files, 6,636 tests pass.
   Coverage includes native HTTP transport, real SQL rollback after command-log
   close failure, replay/conflict, restricted API roles, IP bans, suspensions,
   visibility, moderation/first-post review, query budgets, async transactions,
   cancellation, live catalogue and canonical schema snapshot.
-- [Critic](verification/critic-complete.log),
-  [targeted formatting](verification/checks.json),
-  [architecture](verification/architecture-complete.log), and
-  [policy ratchet](verification/policies-complete.log) pass.
+- [Critic](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/verification/critic-complete.log),
+  [targeted formatting](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/verification/checks.json),
+  [architecture](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/verification/architecture-complete.log), and
+  [policy ratchet](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/verification/policies-complete.log) pass.
 - Native command HTTP tests assert that primitive commands and their preflight
   perform zero subprocess calls, and that atomic SQL executes in the parent.
-- [Source match](verification/source-match.json) checks that runtime, SQL and test
+- [Source match](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/verification/source-match.json) checks that runtime, SQL and test
   files match the frozen measured source. Operational documentation was completed
   after the freeze.
 
@@ -146,8 +146,8 @@ native HTTP tests verify their removal in the final candidate.
 The native control is frozen at
 `79f3d0e8810f03b67a25563e12682e260b1d3303`. Create separate checkouts of that
 commit, select the same Perl and locked dependency tree, and apply
-[source/harness.patch](source/harness.patch) to both. Apply
-[source/native-complete.patch](source/native-complete.patch) only to the fixed
+[source/harness.patch](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/source/harness.patch) to both. Apply
+[source/native-complete.patch](https://github.com/gipidevdor/GPForum/blob/2ade1f06b4ea65a591161551c00f9d6abca7b71b/benchmarks/mojo-pg-regression/2026-11-07/source/native-complete.patch) only to the fixed
 checkout. Frozen manifests in `source/` identify all overlays, including new files;
 the harness dirty/diff metadata alone does not identify every overlay. The
 archived campaign runners retain the original session-specific paths.

@@ -136,7 +136,8 @@ sub _start_service ( $directory, $socket ) {
         local @ENV{ keys %environment } = values %environment;
         open STDOUT, '>',  "$directory/service.out" or POSIX::_exit(1);
         open STDERR, '>&', \*STDOUT                 or POSIX::_exit(1);
-        exec {$EXECUTABLE_NAME} $EXECUTABLE_NAME, 'bin/gpforum', 'start',
+        exec {$EXECUTABLE_NAME} $EXECUTABLE_NAME, '-Ilib', '-It/lib',
+          '-MGPForum::Test::SocketRateClock', 'bin/gpforum', 'start',
           '--service', '--foreground'
           or POSIX::_exit(1);
     }

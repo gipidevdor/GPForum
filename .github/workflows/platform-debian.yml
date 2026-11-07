@@ -36,7 +36,7 @@ defaults:
 jobs:
   debian:
     name: Debian stable system Perl
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     container:
       image: debian:trixie

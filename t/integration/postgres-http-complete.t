@@ -138,12 +138,10 @@ if ( $ENV{GPFORUM_BENCHMARK_TRACE_DIR} ) {
             $observed{"$sample->{kind}:$sample->{operation}"} = 1;
         }
     }
-    ok(
-        $observed{'sql:community_like_command'},
-        'SQL inside the serving subprocess is observable'
-    );
+    ok( $observed{'sql:community_like_command'},
+        'SQL inside the serving HTTP workers is observable' );
     ok( $observed{'http:post_like'},
-        'HTTP inside the serving subprocess is observable' );
+        'HTTP inside the serving workers is observable' );
     is( $report->{diagnostic_trace},
         1, 'instrumented runs are explicitly labelled' );
 }

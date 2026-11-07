@@ -26,6 +26,7 @@ sub import ($class) {
     croak 'OperationProbe requires GPFORUM_BENCHMARK_TRACE_DIR'
       if !$ENV{GPFORUM_BENCHMARK_TRACE_DIR};
     my $execute = GPForum::Infrastructure::SqlFunction->can('_execute');
+    my $read    = GPForum::Infrastructure::SqlFunction->can('_read_rows_p');
     my $start =
       GPForum::Service::Operations::DbQueryStats->can('start_request');
     my $finish =
@@ -51,6 +52,22 @@ sub import ($class) {
         );
         die $error if defined $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the exception object and its stack
         return $rows;
+      };
+    ## use critic
+    ## no critic (Variables::ProtectPrivateVars) -- native SQL must be observed at actual execution, just like synchronous SQL
+    *GPForum::Infrastructure::SqlFunction::_read_rows_p =
+      sub ( $self, $db, $entry, @arguments ) {
+        my $started = clock_gettime(CLOCK_MONOTONIC);
+        return $read->( $self, $db, $entry, @arguments )->then(
+            sub ($rows) {
+                _record_native( $entry, $started, $rows, undef );
+                return $rows;
+            },
+            sub ($error) {
+                _record_native( $entry, $started, undef, $error );
+                die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the rejected exception object
+            }
+        );
       };
     ## use critic
     *GPForum::Service::Operations::DbQueryStats::start_request =
@@ -84,6 +101,20 @@ sub import ($class) {
         return $request;
       };
     return undef;
+}
+
+sub _record_native ( $entry, $started, $rows, $error ) {
+    _record(
+        {
+            kind       => 'sql',
+            operation  => $entry->{name} // 'uncatalogued',
+            outcome    => defined $error ? 'exception' : 'returned',
+            elapsed_ms => ( clock_gettime(CLOCK_MONOTONIC) - $started ) *
+              $MILLISECONDS,
+            rows => defined $rows ? scalar @{$rows} : 0,
+        }
+    );
+    return;
 }
 
 sub _record ($sample) {

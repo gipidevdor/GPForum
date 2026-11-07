@@ -14,6 +14,8 @@ use lib "$FindBin::Bin/../script/lib", "$FindBin::Bin/../lib",
 use GPForum::Performance::Operations qw(summarize inventory);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
+use GPForum::Test::Promise      qw(await_result);
+use Mojo::Promise;
 
 our $VERSION = '0.001';
 const my $SAMPLES      => 20;
@@ -89,6 +91,12 @@ subtest 'probe preserves returns and exceptions and writes forked samples' =>
                 die $bound->[0] if $bound->[0];    ## no critic (ErrorHandling::RequireCarping) -- deliberate exception identity test
                 return [ { result => 'private row contents' } ];
             },
+            _read_rows_p => sub ( $, $, $, $parameters, @ ) {
+                return Mojo::Promise->reject( $parameters->[0] )
+                  if $parameters->[0];
+                return Mojo::Promise->resolve(
+                    [ { result => 'private row contents' } ] );
+            },
         },
         sub {
             require GPForum::Performance::OperationProbe;
@@ -125,6 +133,42 @@ subtest 'probe preserves returns and exceptions and writes forked samples' =>
                 encode_json($captured),
                 qr/private row contents/msx,
                 'result contents never recorded'
+            );
+            my $read =
+              GPForum::Infrastructure::SqlFunction->can('_read_rows_p');
+            is_deeply(
+                await_result(
+                    $read->(
+                        undef, undef, { name => 'native_probe' }, [undef]
+                    )
+                ),
+                [ { result => 'private row contents' } ],
+                'native probe preserves resolved rows'
+            );
+            my $rejected;
+            try {
+                await_result(
+                    $read->(
+                        undef, undef, { name => 'native_probe' }, [$error]
+                    )
+                );
+            }
+            catch ($failure) { $rejected = $failure; };
+            is( $rejected, $error,
+                'native probe preserves rejection identity' );
+            my $native   = summarize( $directory, { sql => ['native_probe'] } );
+            my @outcomes = sort map { $_->{outcome} }
+              grep { $_->{operation} eq 'native_probe' }
+              @{ $native->{measurements} };
+            is_deeply(
+                \@outcomes,
+                [ 'exception', 'returned' ],
+                'actual native completions and failures are both observable'
+            );
+            unlike(
+                encode_json($native),
+                qr/private row contents/msx,
+                'native results never enter diagnostic samples'
             );
         }
     );

@@ -1,0 +1,132 @@
+{
+  "status": "ok",
+  "instrumented": true,
+  "workers_observed": 8,
+  "requests_captured": 6030,
+  "query_counts_per_request": {
+    "6": 6007,
+    "7": 23
+  },
+  "query_operations": {
+    "session_validate": 6016,
+    "forum_thread_page_reads": 6030,
+    "forum_thread_page_head": 6030,
+    "forum_active_announcements": 23,
+    "forum_thread_page_posts": 6030,
+    "forum_resolve_viewer": 6018,
+    "admin_configuration_state": 6004
+  },
+  "average_application_ms": 288.02537313432833,
+  "average_observed_db_ms": 42.23658325017687,
+  "average_query_admission_wait_sum_per_request_ms": 213.06227545582522,
+  "query_admission_wait_to_application_duration_ratio": 0.7397343960959227,
+  "gate_max_pending": 12,
+  "gate_active_peak": 2,
+  "promise_new_per_captured_request": 303.01873963515754,
+  "promise_defer_per_captured_request": 361.88905472636816,
+  "cpu_phase_exclusive_seconds": {
+    "request_context": 46.070827000000165,
+    "db_client": 2.018579999999873,
+    "templates": 26.537628999999917,
+    "promises": 38.7439130000018,
+    "render": 1.030090000000043,
+    "db_decode": 2.092404999999807
+  },
+  "cpu_worker_total_seconds": 152.64602399999998,
+  "cpu_method_calls": {
+    "GPForum::Controller::Base::within_request": 108375,
+    "Mojo::Pg::Database::query": 36151,
+    "Mojo::Pg::Database::_watch": 36151,
+    "Mojo::Template::process": 271990,
+    "Mojo::Promise::_defer": 2182191,
+    "Mojo::Promise::_finally": 120183,
+    "Mojo::Promise::_settle": 2200404,
+    "Mojo::Promise::new": 1827203,
+    "Mojo::Promise::then": 1304260,
+    "Mojolicious::Renderer::render": 6190,
+    "Mojo::Pg::Results::hashes": 36162
+  },
+  "wait_samples_at_100_sessions": 332,
+  "wait_state_connection_observations": {
+    "idle|Client|ClientRead": 7616,
+    "idle|Client|ClientWrite": 615,
+    "active|none|none": 61,
+    "active|Client|ClientWrite": 1,
+    "active|Client|ClientRead": 4,
+    "idle|none|none": 3
+  },
+  "peak_db_connections_excluding_observer": 25,
+  "sql_top_level_functions": [
+    {
+      "shared_blks_hit": 96645,
+      "total_exec_time": 1910.36902,
+      "calls": 6030,
+      "shared_blks_read": 0,
+      "query": "SELECT * FROM api.forum_thread_page_reads_v8($1::uuid, $2::uuid[], $3::uuid, $4::text, $5::text, $6::uuid[], $7::integer)",
+      "shared_blk_read_time": 0.0,
+      "mean_exec_time": 0.316810782752901,
+      "rows": 6030
+    },
+    {
+      "shared_blks_hit": 636978,
+      "total_exec_time": 1463.601504,
+      "calls": 6030,
+      "query": "SELECT * FROM api.forum_thread_page_posts_v4($1::uuid, $2::text, $3::uuid, $4::bigint, $5::uuid, $6::integer)",
+      "shared_blks_read": 0,
+      "shared_blk_read_time": 0.0,
+      "mean_exec_time": 0.242719984079602,
+      "rows": 120600
+    },
+    {
+      "rows": 6030,
+      "mean_exec_time": 0.153405146600331,
+      "shared_blk_read_time": 0.0,
+      "shared_blks_read": 0,
+      "query": "SELECT * FROM api.forum_resolve_viewer_v10($1::uuid)",
+      "calls": 6030,
+      "total_exec_time": 925.033033999997,
+      "shared_blks_hit": 102510
+    },
+    {
+      "calls": 6030,
+      "shared_blks_read": 0,
+      "query": "SELECT * FROM api.session_validate_v2($1::uuid, $2::uuid, $3::text, $4::timestamptz, $5::integer)",
+      "shared_blks_hit": 12060,
+      "total_exec_time": 537.260259999999,
+      "rows": 6030,
+      "shared_blk_read_time": 0.0,
+      "mean_exec_time": 0.089097887230514
+    },
+    {
+      "mean_exec_time": 0.0817248789386405,
+      "shared_blk_read_time": 0.0,
+      "rows": 6030,
+      "total_exec_time": 492.80102,
+      "shared_blks_hit": 56798,
+      "query": "SELECT * FROM api.forum_thread_page_head_v2($1::uuid)",
+      "shared_blks_read": 0,
+      "calls": 6030
+    },
+    {
+      "shared_blk_read_time": 0.0,
+      "mean_exec_time": 0.0513283737976783,
+      "rows": 6030,
+      "shared_blks_hit": 24120,
+      "total_exec_time": 309.510094000001,
+      "calls": 6030,
+      "query": "SELECT * FROM api.admin_configuration_state_v4() WHERE $1::boolean",
+      "shared_blks_read": 0
+    },
+    {
+      "total_exec_time": 4.651542,
+      "shared_blks_hit": 557,
+      "query": "SELECT * FROM api.forum_active_announcements_v2($1::integer)",
+      "shared_blks_read": 0,
+      "calls": 23,
+      "mean_exec_time": 0.202240956521739,
+      "shared_blk_read_time": 0.0,
+      "rows": 0
+    }
+  ],
+  "limitation": "Diagnostic instrumentation adds overhead; queue ratio and CPU phase costs refer to the instrumented workload and are not percentages established for uninstrumented production. Phase categories cover selected synchronous boundaries; unassigned CPU remains. CPU method wrappers preserve call context. Function EXPLAIN shows wrapper plan; nested pg_stat_statements observed separately. Missing first middleware calls on each worker explain small differences in wrapper counters. No historical EXPLAIN plan was available."
+}

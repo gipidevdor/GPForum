@@ -1,0 +1,222 @@
+diff --git a/benchmarks/hypnotoad-app.pl b/benchmarks/hypnotoad-app.pl
+index b2e309b..44f7f5c 100644
+--- a/benchmarks/hypnotoad-app.pl
++++ b/benchmarks/hypnotoad-app.pl
+@@ -85,5 +85,8 @@ $app->hook(before_dispatch => sub ($controller) {
+     close $file or die 'cannot close benchmark worker telemetry';
+ });
+ 
++require GPForum::Performance::ThreadDiagnosis;
++GPForum::Performance::ThreadDiagnosis->install($app);
++
+ no warnings 'void';
+ $app;
+diff --git a/script/lib/GPForum/Performance/HTTPComplete.pm b/script/lib/GPForum/Performance/HTTPComplete.pm
+index df6c6a8..21c1a1a 100644
+--- a/script/lib/GPForum/Performance/HTTPComplete.pm
++++ b/script/lib/GPForum/Performance/HTTPComplete.pm
+@@ -26,6 +26,7 @@ use GPForum::Schema;
+ use GPForum::Service::Password;
+ use GPForum::Service::Admin::Bootstrapper;
+ use GPForum::Performance::HTTPClient;
++use GPForum::Performance::ThreadDiagnosis ();
+ use GPForum::Performance::HTTPReport qw(write_report);
+ use GPForum::Performance::Metadata   qw(initial);
+ use GPForum::Performance::HTTP
+@@ -87,13 +88,18 @@ sub run ($self) {
+     my $error;
+     try {
+         $self->_prepare;
++        $self->schema->storage->dbh->do('CREATE EXTENSION pg_stat_statements');
++        write_json("$o->{output}/observer-dsn.json", {dsn => $ENV{GPFORUM_DATABASE_DSN}});
+         $self->_clients;
++        $self->schema->storage->dbh->do('SELECT pg_stat_statements_reset()');
+         $self->_reads;
+         $self->_journeys;
+         $self->_mixed;
+         $self->_authentication;
+         $self->report->{worker_telemetry} = $self->server->telemetry;
+         $self->_verify_writes;
++        local $ENV{GPFORUM_DIAG_DIRECTORY} = '/private/tmp/gpforum-thread-diagnosis-4eim2kp9/traces';
++        GPForum::Performance::ThreadDiagnosis->snapshot($self);
+     }
+     catch ($caught) { $error = "$caught"; };
+     if ( $self->server )  { $self->server->close; }
+@@ -120,7 +126,7 @@ sub _prepare ($self) {
+         unix_socket           => 1,
+         extra_initdb_args     => '--encoding=UTF8 --no-locale',
+         extra_postmaster_args =>
+-'-c max_connections=80 -c fsync=on -c full_page_writes=on -c synchronous_commit=on'
++'-c max_connections=80 -c fsync=on -c full_page_writes=on -c synchronous_commit=on -c shared_preload_libraries=pg_stat_statements -c track_io_timing=on -c pg_stat_statements.track=all'
+     ) // croak 'cannot create temporary PostgreSQL';
+     $self->cluster($cluster);
+     $ENV{GPFORUM_ENV}               = 'test';
+@@ -398,6 +404,7 @@ sub _cell ( $self, $name, $clients, $task, $repetition ) {
+     $self->samples( [] );
+     $self->collecting(1);
+     my @errors;
++    my $started_epoch = Time::HiRes::time();
+     my $cpu_before = linux_cpu_ticks( $self->server->{master} );
+     my $started    = monotonic();
+     _await(
+@@ -426,6 +433,8 @@ sub _cell ( $self, $name, $clients, $task, $repetition ) {
+         repetition      => $repetition,
+         status          => @errors ? 'fail' : 'ok',
+         elapsed_seconds => $elapsed,
++        started_epoch => $started_epoch,
++        finished_epoch => Time::HiRes::time(),
+         metrics         => $metrics,
+         errors          => \@errors,
+         resources       => $resources,
+diff --git a/script/lib/GPForum/Performance/Server.pm b/script/lib/GPForum/Performance/Server.pm
+index cf3ee62..1bc89e4 100644
+--- a/script/lib/GPForum/Performance/Server.pm
++++ b/script/lib/GPForum/Performance/Server.pm
+@@ -58,6 +58,7 @@ sub _environment($self) {
+     delete $env{LIBEV_FLAGS};
+     %env = (
+         %env,
++        GPFORUM_DIAG_DIRECTORY => '/private/tmp/gpforum-thread-diagnosis-4eim2kp9/traces',
+         MOJO_REACTOR                  => $self->{reactor},
+         GPFORUM_LOG_LEVEL             => 'fatal',
+         GPFORUM_WARMUP_ENABLED        => 1,
+@@ -252,7 +253,7 @@ sub _telemetry_error ( $self, $actual, $rows ) {
+ sub close ($self) {    ## no critic (NamingConventions::ProhibitAmbiguousNames, Subroutines::ProhibitBuiltinHomonyms)
+     if ( $self->{closed}++ ) { return undef; }
+     if ( $self->{pid} ) {
+-        kill 'TERM', -$self->{pid};
++        kill 'QUIT', -$self->{pid};
+         my $until = monotonic() + STOP_SECONDS;
+         while ( monotonic() < $until ) {
+             if ( waitpid( $self->{pid}, WNOHANG ) != 0 ) { last; }
+diff --git a/script/lib/GPForum/Performance/ThreadDiagnosis.pm b/script/lib/GPForum/Performance/ThreadDiagnosis.pm
+new file mode 100644
+--- /dev/null
++++ b/script/lib/GPForum/Performance/ThreadDiagnosis.pm
+@@ -0,0 +1,126 @@
++package GPForum::Performance::ThreadDiagnosis;
++use v5.40;
++use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC CLOCK_PROCESS_CPUTIME_ID sleep);
++use JSON::MaybeXS qw(encode_json decode_json);
++use Scalar::Util qw(refaddr);
++use Mojo::File qw(path);
++my ($enabled, $owner, $sample_written);
++my (%operations, %samples, %gates, @requests, %cpu, @stack);
++my $cpu_started;
++sub cpu_now { return clock_gettime(CLOCK_PROCESS_CPUTIME_ID); }
++sub now { return clock_gettime(CLOCK_MONOTONIC); }
++sub install ($class, $app) {
++    require GPForum::Infrastructure::SqlFunction;
++    require GPForum::Infrastructure::AsyncGate;
++    require GPForum::Service::Operations::DbQueryStats;
++    my $query = GPForum::Infrastructure::SqlFunction->can('_query_p');
++    my $gate = GPForum::Infrastructure::AsyncGate->can('run_p');
++    my $finish = GPForum::Service::Operations::DbQueryStats->can('finish_request');
++    no warnings 'redefine';
++    *GPForum::Infrastructure::SqlFunction::_query_p = sub ($self, $db, $entry, $parameters, @rest) {
++        if ($enabled && $owner == $$) {
++            ++$operations{$entry->{name}};
++            $samples{$entry->{name}} //= {sql => $entry->{sql}, parameters => $parameters};
++        }
++        return $query->($self, $db, $entry, $parameters, @rest);
++    };
++    *GPForum::Infrastructure::AsyncGate::run_p = sub ($self, $work) {
++        return $gate->($self, $work) unless $enabled && $owner == $$;
++        my $started=now();
++        my $key=refaddr($self);
++        my $g=$gates{$key} //= {concurrency => $self->concurrency, max_pending => 0, active_peak => 0, wait_ms => []};
++        my $pending=scalar $self->pending->@*;
++        $g->{max_pending}=$pending if $pending > $g->{max_pending};
++        $g->{active_peak}=$self->active if $self->active > $g->{active_peak};
++        return $gate->($self, sub { push $g->{wait_ms}->@*, (now()-$started)*1000; return $work->(); });
++    };
++    *GPForum::Service::Operations::DbQueryStats::finish_request = sub ($self, @arguments) {
++        my $r=$finish->($self,@arguments);
++        if ($enabled && $owner == $$ && $r) {
++            push @requests, {map {$_ => $r->{$_}} qw(route status duration_ms db_duration_ms queries transactions duplicate_queries connection_queries)};
++        }
++        return $r;
++    };
++    for my $spec (
++        ['Mojo::Promise', 'promises', [qw(new then _defer _settle _finally)]],
++        ['Mojo::Template', 'templates', [qw(process)]],
++        ['Mojolicious::Renderer', 'render', [qw(render)]],
++        ['Mojo::Pg::Database', 'db_client', [qw(query _watch)]],
++        ['Mojo::Pg::Results', 'db_decode', [qw(hashes)]],
++        ['GPForum::Controller::Base', 'request_context', [qw(within_request)]],
++    ) {
++        my ($package,$category,$methods)=@$spec;
++        _wrap_cpu($package,$_, $category) for @$methods;
++    }
++    Mojo::IOLoop->singleton->on(finish => sub { _dump(); });
++    $app->hook(before_dispatch => sub ($c) {
++        return unless $c->req->url->path->to_string =~ m{\A/t/};
++        return if $enabled && $owner == $$;
++        $enabled=1; $owner=$$; $sample_written=0;
++        %operations=();%samples=();%gates=();@requests=();%cpu=();@stack=();$cpu_started=cpu_now();
++        DB::enable_profile() if defined &DB::enable_profile;
++    });
++    $app->hook(after_dispatch => sub ($c) {
++        return unless $enabled && $owner == $$ && !$sample_written && keys %samples;
++        $sample_written=1;
++        path("$ENV{GPFORUM_DIAG_DIRECTORY}/queries-$$.json")->spurt(encode_json(\%samples));
++    });
++}
++sub _wrap_cpu ($package, $method, $category) {
++    my $original=$package->can($method) or return;
++    no strict 'refs';
++    no warnings 'redefine';
++    *{"${package}::$method"}=sub {
++        return $original->(@_) unless $enabled && $owner == $$;
++        my $want=wantarray;
++        my (@values,$value,$error);
++        my $frame={children=>0};
++        push @stack,$frame;
++        my $started=cpu_now();
++        try {
++            if (!defined $want) {$original->(@_);}
++            elsif ($want) {@values=$original->(@_);}
++            else {$value=$original->(@_);}
++        }
++        catch ($caught) {$error=$caught;};
++        my $elapsed=cpu_now()-$started;
++        pop @stack;
++        $stack[-1]{children}+=$elapsed if @stack;
++        $cpu{$category}{exclusive_seconds}+=$elapsed-$frame->{children};
++        ++$cpu{$category}{calls};
++        ++$cpu{$category}{methods}{"${package}::$method"};
++        die $error if defined $error;
++        return $want ? @values : $value;
++    };
++}
++sub snapshot ($class, $benchmark) {
++    my $output=$benchmark->options->{output};
++    my $dbh=$benchmark->schema->storage->dbh;
++    path("$output/observer-stop")->spurt('1');
++    sleep .15;
++    my $stats=$dbh->selectall_arrayref(q{SELECT query, calls, total_exec_time, mean_exec_time, rows, shared_blks_hit, shared_blks_read, shared_blk_read_time FROM pg_stat_statements WHERE dbid=(SELECT oid FROM pg_database WHERE datname=current_database()) ORDER BY total_exec_time DESC LIMIT 120}, {Slice=>{}});
++    path("$output/pg-stat-statements.json")->spurt(encode_json($stats));
++    my %sample;
++    for my $p (glob "$ENV{GPFORUM_DIAG_DIRECTORY}/queries-*.json") {
++        my $r=decode_json(path($p)->slurp); @sample{keys %$r}=values %$r;
++    }
++    my %plans;
++    for my $name (sort keys %sample) {
++        my $q=$sample{$name};
++        eval {
++            my $s=$dbh->prepare('EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) '.$q->{sql});
++            $s->execute($q->{parameters}->@*);
++            my ($plan)=$s->fetchrow_array;
++            $plans{$name}=decode_json($plan);
++            1;
++        } or $plans{$name}={error=>"$@"};
++    }
++    path("$output/explain-analyze-buffers.json")->spurt(encode_json(\%plans));
++}
++sub _dump {
++    if ($enabled && $owner == $$ && $ENV{GPFORUM_DIAG_DIRECTORY}) {
++        path("$ENV{GPFORUM_DIAG_DIRECTORY}/worker-$$.json")->spurt(encode_json({operations=>\%operations,gates=>\%gates,requests=>\@requests,cpu=>\%cpu,cpu_total_seconds=>cpu_now()-$cpu_started}));
++    }
++}
++END { _dump(); }
++1;

@@ -1,0 +1,271 @@
+{
+  "earlier_full_integration": {
+    "command": [
+      "script/test",
+      "integration"
+    ],
+    "exit": 0,
+    "files": 173,
+    "checks": 15842,
+    "note": "Complete integration run before the a336fda rebase; the affected five PostgreSQL suites were rerun on the final candidate."
+  },
+  "fault_detection": [
+    "Snapshot cursor removal fails the aggregate gate while the separate posts endpoint stays green.",
+    "Removing keyset bounds fails both separate and aggregate deep-page gates.",
+    "Last queued render consumer leaving prevents the child from starting; an overlapping surviving consumer retains its batch.",
+    "Engagement changes reuse static fragments; warmed compositions retain one lookup per post."
+  ],
+  "corrected_patch": "334e80a97cd89b1488a4453b8e43389a877e57e0",
+  "corrected_patch_checks": {
+    "unit-rebased": {
+      "executions": [
+        {
+          "command": [
+            "script/test",
+            "unit"
+          ],
+          "started": 1794052480.280148,
+          "source": "/private/tmp/gpforum-thread-review-20261107",
+          "exit": 0,
+          "seconds": 126.119,
+          "log": "/private/tmp/gpforum-review3-final-checks/unit-rebased-0.log"
+        }
+      ],
+      "files": 538,
+      "checks": 20533
+    },
+    "pg-rebased": {
+      "executions": [
+        {
+          "command": [
+            "script/gpforum-carton",
+            "exec",
+            "prove",
+            "-l",
+            "-It/lib",
+            "--exec",
+            "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+            "t/integration/postgres-thread-request-budgets.t",
+            "t/integration/postgres-sql-function-plans.t",
+            "t/integration/postgres-sql-function-thread-page.t",
+            "t/integration/postgres-thread-page-reads.t",
+            "t/integration/postgres-public-cache.t"
+          ],
+          "started": 1794052352.576908,
+          "source": "/private/tmp/gpforum-thread-review-20261107",
+          "exit": 0,
+          "seconds": 23.357,
+          "log": "/private/tmp/gpforum-review3-final-checks/pg-rebased-0.log"
+        }
+      ],
+      "files": 5,
+      "checks": 1938
+    },
+    "browser-final": {
+      "executions": [
+        {
+          "command": [
+            "script/test",
+            "browser"
+          ],
+          "started": 1794052351.42367,
+          "source": "/private/tmp/gpforum-thread-review-20261107",
+          "exit": 0,
+          "seconds": 11.419,
+          "log": "/private/tmp/gpforum-review3-final-checks/browser-final-0.log"
+        }
+      ],
+      "tests": 15
+    },
+    "contracts": {
+      "executions": [
+        {
+          "source": "/private/tmp/gpforum-thread-review-20261107",
+          "head": "334e80a97cd89b1488a4453b8e43389a877e57e0",
+          "command": [
+            "script/gpforum-carton",
+            "exec",
+            "prove",
+            "-I",
+            "script/lib",
+            "-I",
+            "t/lib",
+            "-lr",
+            "t/performance"
+          ],
+          "started": 1794053236.1268978,
+          "exit": 0,
+          "seconds": 24.277
+        }
+      ],
+      "files": 11,
+      "checks": 301
+    },
+    "style-owned-final": {
+      "executions": [
+        {
+          "source": "/private/tmp/gpforum-thread-review-20261107",
+          "head": "334e80a97cd89b1488a4453b8e43389a877e57e0",
+          "command": [
+            "script/gpforum-carton",
+            "exec",
+            "perltidy",
+            "--assert-tidy",
+            "--standard-error-output",
+            "--profile=.perltidyrc",
+            "--output-path=/private/tmp/gpforum-review3-tidy-final",
+            "lib/GPForum/Benchmark/QueryPlanEndpoints.pm",
+            "lib/GPForum/Command/QueryPlanEvidence.pm",
+            "lib/GPForum/Controller/Admin/Plugins.pm",
+            "lib/GPForum/Controller/Forum/Base.pm",
+            "lib/GPForum/Service/Forum/BodyRenderer.pm",
+            "lib/GPForum/Service/Forum/ThreadPageSnapshot.pm",
+            "lib/GPForum/Web/PostFragments.pm",
+            "t/49-performance-harness.t",
+            "t/689-post-fragment-cache.t",
+            "t/694-render-work.t",
+            "t/775-selective-work-failures.t",
+            "t/integration/postgres-sql-function-plans.t",
+            "t/881-body-renderer-consumers.t",
+            "t/integration/postgres-thread-request-budgets.t"
+          ],
+          "started": 1794053274.366834,
+          "exit": 0,
+          "seconds": 1.731
+        },
+        {
+          "source": "/private/tmp/gpforum-thread-review-20261107",
+          "head": "334e80a97cd89b1488a4453b8e43389a877e57e0",
+          "command": [
+            "script/perlcritic",
+            "lib/GPForum/Benchmark/QueryPlanEndpoints.pm",
+            "lib/GPForum/Command/QueryPlanEvidence.pm",
+            "lib/GPForum/Controller/Admin/Plugins.pm",
+            "lib/GPForum/Controller/Forum/Base.pm",
+            "lib/GPForum/Service/Forum/BodyRenderer.pm",
+            "lib/GPForum/Service/Forum/ThreadPageSnapshot.pm",
+            "lib/GPForum/Web/PostFragments.pm",
+            "t/49-performance-harness.t",
+            "t/689-post-fragment-cache.t",
+            "t/694-render-work.t",
+            "t/775-selective-work-failures.t",
+            "t/integration/postgres-sql-function-plans.t",
+            "t/881-body-renderer-consumers.t",
+            "t/integration/postgres-thread-request-budgets.t"
+          ],
+          "started": 1794053276.113868,
+          "exit": 0,
+          "seconds": 4.805
+        }
+      ]
+    }
+  },
+  "integrated_source": "60c6d8098aa337b1d881413fe867726e7109750a",
+  "integrated_source_checks": {
+    "merged-unit": {
+      "executions": [
+        {
+          "head": "60c6d8098aa337b1d881413fe867726e7109750a",
+          "command": [
+            "script/test",
+            "unit"
+          ],
+          "started": 1794053918.486945,
+          "exit": 0,
+          "seconds": 130.28
+        }
+      ],
+      "files": 539,
+      "checks": 20555
+    },
+    "merged-pg": {
+      "executions": [
+        {
+          "head": "60c6d8098aa337b1d881413fe867726e7109750a",
+          "command": [
+            "script/gpforum-carton",
+            "exec",
+            "prove",
+            "-l",
+            "-It/lib",
+            "--exec",
+            "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+            "t/integration/postgres-thread-request-budgets.t",
+            "t/integration/postgres-sql-function-plans.t",
+            "t/integration/postgres-sql-function-thread-page.t",
+            "t/integration/postgres-thread-page-reads.t",
+            "t/integration/postgres-public-cache.t"
+          ],
+          "started": 1794053918.4868789,
+          "exit": 0,
+          "seconds": 33.71
+        }
+      ],
+      "files": 5,
+      "checks": 1938
+    },
+    "merged-browser": {
+      "executions": [
+        {
+          "head": "60c6d8098aa337b1d881413fe867726e7109750a",
+          "command": [
+            "script/test",
+            "browser"
+          ],
+          "started": 1794053918.486911,
+          "exit": 0,
+          "seconds": 15.707
+        }
+      ],
+      "tests": 15
+    },
+    "merged-static": {
+      "executions": [
+        {
+          "head": "60c6d8098aa337b1d881413fe867726e7109750a",
+          "command": [
+            "script/architecture-check"
+          ],
+          "started": 1794053918.48688,
+          "exit": 0,
+          "seconds": 8.35
+        },
+        {
+          "head": "60c6d8098aa337b1d881413fe867726e7109750a",
+          "command": [
+            "script/perlcritic",
+            "lib/GPForum/Benchmark/QueryPlanEndpoints.pm",
+            "lib/GPForum/Command/QueryPlanEvidence.pm",
+            "lib/GPForum/Controller/Admin/Plugins.pm",
+            "lib/GPForum/Controller/Forum/Base.pm",
+            "lib/GPForum/Service/Forum/BodyRenderer.pm",
+            "lib/GPForum/Service/Forum/ThreadPageSnapshot.pm",
+            "lib/GPForum/Web/PostFragments.pm",
+            "t/49-performance-harness.t",
+            "t/689-post-fragment-cache.t",
+            "t/694-render-work.t",
+            "t/775-selective-work-failures.t",
+            "t/integration/postgres-sql-function-plans.t",
+            "t/881-body-renderer-consumers.t",
+            "t/integration/postgres-thread-request-budgets.t"
+          ],
+          "started": 1794053926.864169,
+          "exit": 0,
+          "seconds": 7.495
+        }
+      ]
+    },
+    "architecture-policies": {
+      "head": "60c6d8098aa337b1d881413fe867726e7109750a",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "perl",
+        "script/architecture-policies"
+      ],
+      "started": 1794054111.446321,
+      "exit": 0,
+      "seconds": 27.247
+    }
+  }
+}

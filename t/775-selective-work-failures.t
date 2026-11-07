@@ -148,15 +148,24 @@ subtest 'reaction paths are lazy and remain within the entry size bound' =>
         }
     );
     my $cache = GPForum::Web::PostFragments->new;
-    my $post =
-      { post_id => 'post-review', position => 1, author_user_id => 'author' };
+    my $post  = {
+        post_id        => 'post-review',
+        position       => 1,
+        author_user_id => 'author',
+        reactions      => [ { reaction => 'heart', count => 1, reacted => 0 } ]
+    };
     my $base = $cache->render( $c, $post );
     is( $paths, 0, 'ineligible cold render builds no reaction paths' );
     ok(
         !exists $base->{paths}{'post_react:heart'},
         'base entry contains no unused reaction paths'
     );
-    my $expanded = $cache->render( $c, { %{$post}, can_react => 1 } );
+    is( $cache->render( $c, { %{$post}, can_react => 1 } ),
+        $base,
+        'eligibility does not rebuild or expand the static presentation' );
+    is( $paths, 0, 'static presentation never constructs reaction paths' );
+    my $reaction_base = $cache->reactions( $c, $post );
+    my $expanded      = $cache->reactions( $c, { %{$post}, can_react => 1 } );
     is( $paths, $REACTION_ROUTES,
         'an eligible reader lazily builds both routes for each reaction' );
     ok(
@@ -168,22 +177,23 @@ subtest 'reaction paths are lazy and remain within the entry size bound' =>
         'expansion does not mutate the base object'
     );
     $paths = 0;
-    $cache->render( $c, { %{$post}, can_react => 1 } );
-    $cache->render( $c, $post );
+    $cache->reactions( $c, { %{$post}, can_react => 1 } );
+    $cache->reactions( $c, $post );
     is( $paths, 0,
 'later eligible and ineligible readers reuse static paths without rebuilding'
     );
     is( scalar keys %{ $cache->entries },
-        1, 'permission state is not part of the shared cache key' );
+        2, 'static and reaction entries each exclude permission state' );
     ok( !exists $expanded->{can_react},
         'permission state is never stored in the presentation' );
 
     my $bounded =
-      GPForum::Web::PostFragments->new( max_bytes => fragment_bytes($base) );
-    $bounded->render( $c, $post );
+      GPForum::Web::PostFragments->new(
+        max_bytes => fragment_bytes($reaction_base) );
+    $bounded->reactions( $c, $post );
     is( scalar keys %{ $bounded->entries },
         1, 'the base entry fits and is cached before expansion' );
-    my $larger = $bounded->render( $c, { %{$post}, can_react => 1 } );
+    my $larger = $bounded->reactions( $c, { %{$post}, can_react => 1 } );
     ok(
         exists $larger->{paths}{'post_react:heart'},
         'oversized expansion remains usable for this render'

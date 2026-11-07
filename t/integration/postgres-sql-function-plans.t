@@ -126,6 +126,37 @@ is_deeply(
     'without ANALYZE, execution, buffers and WAL remain explicitly unmeasured'
 );
 
+# Break only the aggregate's forwarding of its cursor. The old post-page
+# endpoint remains healthy, while the new snapshot gate must refuse it.
+my $snapshot       = _implementation_of('forum_thread_page_snapshot');
+my $ignored_cursor = $snapshot;
+my $forwarded      = $ignored_cursor =~ s{
+    p_viewer_user_id, \s* p_after_position, \s* p_after_post_id,
+}{p_viewer_user_id, NULL::bigint, NULL::uuid,}msx;
+ok( $forwarded, 'the aggregate forwards the real page cursor' );
+$ignored_cursor =~ s/\A CREATE [ ] FUNCTION/CREATE OR REPLACE FUNCTION/msx;
+$dbh->do($ignored_cursor);
+my %ignored_snapshot = _reports( $command,
+    qw(thread_snapshot_function_deep thread_snapshot_function_deep_signed_in thread_view_function_deep)
+);
+
+for my $endpoint (
+    qw(thread_snapshot_function_deep thread_snapshot_function_deep_signed_in))
+{
+    is( $ignored_snapshot{$endpoint}{status},
+        'fail', "$endpoint refuses a snapshot that drops its cursor" );
+    like(
+        join( q{,}, @{ $ignored_snapshot{$endpoint}{violations} } ),
+        qr/cursor_ignored/msx,
+        'the page statement, not the head, reveals the regression'
+    );
+}
+is( $ignored_snapshot{thread_view_function_deep}{status},
+    'ok',
+    'the separate post endpoint alone cannot detect the aggregate regression' );
+$snapshot =~ s/\A CREATE [ ] FUNCTION/CREATE OR REPLACE FUNCTION/msx;
+$dbh->do($snapshot);
+
 # The function's posts statement without the keyset's bound on the
 # position, the lexicographic OR alone, in this database only: the gate has
 # to fail its deep pages, which read their way to the cursor.
@@ -137,8 +168,11 @@ ok( $posts =~ $KEYSET_BOUND, 'the function bounds its keyset' );
 $posts =~ s/$KEYSET_BOUND//gmsx;
 $posts =~ s/\A CREATE [ ] FUNCTION/CREATE OR REPLACE FUNCTION/msx;
 $dbh->do($posts);
-my %unbounded = _reports( $command,
-    qw(thread_view_function_deep thread_view_function_deep_signed_in) );
+my %unbounded = _reports(
+    $command,
+    qw(thread_view_function_deep thread_view_function_deep_signed_in
+      thread_snapshot_function_deep thread_snapshot_function_deep_signed_in)
+);
 
 for my $endpoint ( sort keys %unbounded ) {
     like(

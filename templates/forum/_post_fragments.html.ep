@@ -51,11 +51,6 @@
     <button type="submit" class="button--danger"><%= ui_icon('warning') %><%= t('forum.delete_post') %></button>
 % end
 % $fragments->{remove} = $remove->();
-% my $like_count = $post->{like_count} || 0;
-% my $like = begin
-    <button type="submit" class="button--quiet post__like" aria-pressed="<%= $post->{liked} ? 'true' : 'false' %>"><%= $post->{liked} ? t('forum.liked') : t('forum.like') %><% if ($like_count) { %> <span class="post__like-count" aria-label="<%= tc('forum.like_count', $like_count) %>"><%= $like_count %></span><% } %></button>
-% end
-% $fragments->{like} = $like->();
 % my $permalink = begin
     <a class="post__permalink" href="#<%= $dom_id %>" aria-label="<%= t('forum.permalink') %> <%= $ordinal %>"><%= $ordinal %></a>
 % end

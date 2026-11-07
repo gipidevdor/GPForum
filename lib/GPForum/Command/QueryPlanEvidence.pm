@@ -55,7 +55,7 @@ const my @AUTO_EXPLAIN => (
 const my $NESTED_PLAN => qr/plan: \s* (?<plan> [{] .* [}] ) \s* \z/msx;
 const my $CALL_TEXT   => qr/\A SELECT [ ] [*] [ ] FROM [ ] api [.]/msx;
 const my %CAPTURE_REASON => map { $_ => 1 }
-  qw(permission-denied no-nested-plan-observed plan-capture-failed);
+  qw(permission-denied no-nested-plan-observed page-plan-not-observed plan-capture-failed);
 
 const my %SWITCH_OPTION => (
     '--analyze'    => { analyze   => 1 },
@@ -233,8 +233,10 @@ sub _function_report ( $self, $dbh, $endpoint, $definition, $options ) {
     };
 
     my $analysis = _judged_nested( $dbh, $definition, $explained );
-    my ( $plan, $first_plan ) =
-      ( $explained->{plan}[0] // {}, $explained->{first}[0] // {} );
+    my ( $plan, $first_plan ) = _page_plans( $definition, $explained, $first );
+    if ( !$plan ) {
+        return _unmeasured( $endpoint, $definition, 'page-plan-not-observed' );
+    }
     my $depth =
       $page
       ? depth_evidence(
@@ -271,6 +273,26 @@ sub _function_report ( $self, $dbh, $endpoint, $definition, $options ) {
             ( $depth ? ( depth => $depth ) : () ),
         },
     };
+}
+
+# An aggregate snapshot logs its head and ancillary statements as well.
+# Compare depth on the post-page statement, not whichever helper logged first.
+# A missing match is unmeasured rather than silently falling back to the head.
+sub _page_plans ( $definition, $explained, $first ) {
+    my ( $plan, $first_plan ) =
+      map { _page_plan( $definition, $explained->{$_} || [] ) } qw(plan first);
+    if ( $definition->{page_query} && ( !$plan || ( $first && !$first_plan ) ) )
+    {
+        return;
+    }
+    return ( $plan, $first_plan );
+}
+
+sub _page_plan ( $definition, $plans ) {
+    my $query = $definition->{page_query};
+    return $plans->[0] || {} if !$query;
+    my ($plan) = grep { ( $_->{'Query Text'} || q{} ) =~ $query } @{$plans};
+    return $plan;
 }
 
 # Only numeric observations leave the nested plans. Query text, parameters

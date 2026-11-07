@@ -116,7 +116,9 @@ is_deeply(
           category_threads_function_deep category_threads_function_deep_signed_in
           search_function autocomplete_function feed_function bookmarks_function
           mentions_function notifications_function notification_badge_function
-          thread_head_function thread_view_function thread_view_function_signed_in
+          thread_head_function thread_snapshot_function thread_snapshot_function_signed_in
+          thread_snapshot_function_deep thread_snapshot_function_deep_signed_in
+          thread_view_function thread_view_function_signed_in
           thread_view_function_deep thread_view_function_deep_signed_in
         )
     ],

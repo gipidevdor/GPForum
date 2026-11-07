@@ -9,6 +9,9 @@ use List::Util qw(any);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use GPForum::Infrastructure::AsyncWork;
+use GPForum::Infrastructure::Cancellation;
+use GPForum::X::Unavailable;
+use Scalar::Util qw(refaddr);
 use Mojo::Promise;
 use Mojo::Util qw(xml_escape);
 
@@ -61,21 +64,73 @@ sub with_rendered ( $class, $rendered, $work ) {
     return $work->();
 }
 
-sub render_many_p ( $self, $sources ) {
+sub render_many_p ( $self, $sources, $context = undef ) {
     if ( $OWNER != $PROCESS_ID ) { %PENDING = (); $OWNER = $PROCESS_ID; }
+    my $cancel = ref $context eq 'HASH' ? $context->{cancellation} : undef;
+    return Mojo::Promise->reject( _abandoned() )
+      if $cancel && $cancel->cancelled;
     my $plugins = $self->math_plugins;
     my $variant =
       $plugins && $plugins->math_enabled ? $plugins->cache_variant : 'plain';
     my ( $ready, $missing, $waiting ) = _collect_sources( $sources, $variant );
     return Mojo::Promise->resolve($ready) if !%{$waiting};
     if ( %{$missing} ) { $self->_start_batch($missing); }
-    my @keys = keys %{$waiting};
-    return Mojo::Promise->all( map { $PENDING{$_} } @keys )->then(
+    return _consume( $ready, [ keys %{$waiting} ], $cancel );
+}
+
+sub _consume ( $ready, $keys, $cancel ) {
+    my @promises = map { $PENDING{$_}{promise} } @{$keys};
+    my %seen;
+    my @batches = grep { !$seen{ refaddr($_) }++ }
+      map { $PENDING{$_}{batch} } @{$keys};
+    for my $batch (@batches) { $batch->{consumers}++; }
+    my $consumer = {
+        promise => Mojo::Promise->new,
+        ready   => $ready,
+        keys    => $keys,
+        batches => \@batches,
+    };
+    if ($cancel) {
+        $consumer->{cancellation} = $cancel;
+        $consumer->{subscription} = $cancel->subscribe(
+            sub { _finish_consumer( $consumer, _abandoned() ); return; } );
+    }
+    Mojo::Promise->all(@promises)->then(
         sub (@values) {
-            @{$ready}{@keys} = map { $_->[0] } @values;
-            return $ready;
-        }
+            return if $consumer->{done};
+            my $result = $consumer->{ready};
+            @{$result}{ @{ $consumer->{keys} } } = map { $_->[0] } @values;
+            _finish_consumer( $consumer, undef, $result );
+            return;
+        },
+        sub ($error) { _finish_consumer( $consumer, $error ); return; }
     );
+    return $consumer->{promise};
+}
+
+sub _finish_consumer ( $consumer, $error = undef, $result = undef ) {
+    return if $consumer->{done};
+    $consumer->{done} = 1;
+    if ( my $cancel = delete $consumer->{cancellation} ) {
+        $cancel->unsubscribe( delete $consumer->{subscription} );
+    }
+    delete @{$consumer}{qw(ready keys)};
+    for my $batch ( @{ delete $consumer->{batches} } ) {
+        next if --$batch->{consumers} || $batch->{promise}->AWAIT_IS_READY;
+        $batch->{cancellation}->cancel;
+
+        # A queued gate rejects synchronously on cancellation. Admitted work
+        # remains pending, so a later reader can still join that same child.
+        if ( $batch->{promise}->AWAIT_IS_READY ) { _forget_batch($batch); }
+    }
+    return defined $error
+      ? $consumer->{promise}->reject($error)
+      : $consumer->{promise}->resolve($result);
+}
+
+sub _abandoned {
+    return GPForum::X::Unavailable->new(
+        message => 'rendering request closed before its result was needed' );
 }
 
 sub _collect_sources ( $sources, $variant ) {
@@ -94,26 +149,49 @@ sub _collect_sources ( $sources, $variant ) {
 }
 
 sub _start_batch ( $self, $missing ) {
-    my $batch = GPForum::Infrastructure::AsyncWork->rendering->run_p(
+    my $batch = {
+        keys         => [ keys %{$missing} ],
+        consumers    => 0,
+        cancellation => GPForum::Infrastructure::Cancellation->new,
+    };
+    $batch->{promise} = GPForum::Infrastructure::AsyncWork->rendering->run_p(
         sub {
             return {
                 map { $_ => $self->_render_source( $missing->{$_} ) }
                   keys %{$missing}
             };
-        }
+        },
+        undef,
+        0,
+        { cancellation => $batch->{cancellation} }
     );
-    for my $key ( keys %{$missing} ) {
-        $PENDING{$key} = $batch->then(
-            sub ($rendered) {
-                delete $PENDING{$key};
-                return _remember( $key, $rendered->{$key} );
-            },
-            sub ($error) {
-                delete $PENDING{$key};
-                die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the subprocess rejection for every waiting consumer
-            }
-        );
+    for my $key ( @{ $batch->{keys} } ) {
+        $PENDING{$key} = {
+            batch   => $batch,
+            promise => $batch->{promise}->then(
+                sub ($rendered) {
+                    _forget_key( $key, $batch );
+                    return _remember( $key, $rendered->{$key} );
+                },
+                sub ($error) {
+                    _forget_key( $key, $batch );
+                    die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the subprocess rejection for every waiting consumer
+                }
+            ),
+        };
     }
+    return;
+}
+
+sub _forget_key ( $key, $batch ) {
+    if ( $PENDING{$key} && $PENDING{$key}{batch} == $batch ) {
+        delete $PENDING{$key};
+    }
+    return;
+}
+
+sub _forget_batch ($batch) {
+    for my $key ( @{ $batch->{keys} } ) { _forget_key( $key, $batch ); }
     return;
 }
 
@@ -601,7 +679,8 @@ line. Raw HTML, inline images, and @mentions are not interpreted.
 Returns sanitized HTML for the supplied markdown source. Undefined or empty
 source yields an empty string. The HTML is kept by source, in a memo of at
 most 2,048 bodies and L</memo_characters> characters of source and HTML
-together, cleared when either is reached.
+together, evicting the least recently used entries progressively under either
+bound.
 
 =head2 memo_characters
 
@@ -613,6 +692,12 @@ Returns how many characters of source and HTML the memo holds now.
 
 =head2 render_many_p
 
+Accepts an optional request query context with a cancellation token. Each caller
+owns one subscription to each needed batch, including callers without a token.
+The last departing consumer cancels queued admission; admitted work remains
+joinable and completes without interruption. Stale rejection cleanup cannot
+remove a replacement batch. No request token is retained after completion.
+
 Renders missing bodies in one bounded subprocess operation, then updates the parent's bounded memo. Returns the complete per-page render map, including memo hits.
 
 =head2 with_rendered
@@ -621,7 +706,9 @@ Scopes a precomputed render map to a synchronous view-model build. Even a page l
 
 =head1 DIAGNOSTICS
 
-None. Invalid or unsafe constructs are escaped and left as text.
+Invalid or unsafe constructs are escaped and left as text. Asynchronous
+admission, expiry, child failures and request cancellation reject promises.
+Cancelling one consumer does not reject another consumer of the shared work.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

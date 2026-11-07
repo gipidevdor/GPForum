@@ -19,6 +19,7 @@ use GPForum::Service::Forum::CategoryReader;
 use GPForum::Service::Forum::PostReader;
 use GPForum::Service::Forum::Readability;
 use GPForum::Service::Forum::ThreadDetailReader;
+use GPForum::Service::Forum::ThreadPageSnapshot;
 use GPForum::Service::Forum::ThreadReader;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Moderation::ReportStore;
@@ -147,6 +148,10 @@ const my @FUNCTION_ENDPOINT_NAMES => qw(
   notifications_function
   notification_badge_function
   thread_head_function
+  thread_snapshot_function
+  thread_snapshot_function_signed_in
+  thread_snapshot_function_deep
+  thread_snapshot_function_deep_signed_in
   thread_view_function
   thread_view_function_signed_in
   thread_view_function_deep
@@ -448,6 +453,37 @@ my %ENDPOINT = (
         sql_label => 'notification_unread_count',
         call      => \&_notification_badge_call,
     },
+    thread_snapshot_function => {
+        purpose   => 'authorized thread, post page and ancillary snapshot',
+        sql_label => 'forum_thread_page_snapshot',
+        call      => sub ($schema) {
+            return _thread_snapshot_call( $schema, _seeded_page() );
+        },
+    },
+    thread_snapshot_function_signed_in => {
+        purpose   => 'authorized thread-page snapshot, signed in',
+        sql_label => 'forum_thread_page_snapshot_viewer',
+        call      => sub ($schema) {
+            return _thread_snapshot_call( $schema, _seeded_page(),
+                _member_viewer() );
+        },
+    },
+    thread_snapshot_function_deep => {
+        purpose    => 'authorized thread-page snapshot, halfway down',
+        sql_label  => 'forum_thread_page_snapshot_keyset',
+        deep       => 'thread',
+        page_query => qr/FROM \s+ public[.]posts \s+ me \b/imsx,
+        call       => \&_thread_snapshot_call,
+    },
+    thread_snapshot_function_deep_signed_in => {
+        purpose   => 'authorized thread-page snapshot, halfway down, signed in',
+        sql_label => 'forum_thread_page_snapshot_viewer_keyset',
+        deep      => 'thread',
+        page_query => qr/FROM \s+ public[.]posts \s+ me \b/imsx,
+        call       => sub ( $schema, $page ) {
+            return _thread_snapshot_call( $schema, $page, _member_viewer() );
+        },
+    },
     thread_head_function => {
         purpose   => 'thread head through its function',
         sql_label => 'forum_thread_page_head',
@@ -607,6 +643,21 @@ sub _thread_posts_call ( $schema, $page, $viewer = undef ) {
             _signed_in( $page, $viewer ),
         }
       );
+}
+
+sub _thread_snapshot_call ( $schema, $page, $viewer = undef ) {
+    return GPForum::Service::Forum::ThreadPageSnapshot->new(
+        detail_reader => GPForum::Service::Forum::ThreadDetailReader->new(
+            schema => $schema
+        )
+    )->snapshot_call(
+        {
+            thread_id => $page->{thread_id},
+            after     => $page->{after},
+            limit     => $PAGE_ROWS - 1,
+            viewer    => $viewer,
+        }
+    );
 }
 
 sub _signed_in ( $page, $viewer ) {

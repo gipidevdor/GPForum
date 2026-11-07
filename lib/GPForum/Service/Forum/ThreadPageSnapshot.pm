@@ -20,21 +20,9 @@ has window    => sub { return GPForum::Service::Forum::PageWindow->new; };
 async sub read_p ( $self, $request ) {
     my $viewer = $request->{viewer}
       || GPForum::Service::Forum::Viewer->anonymous;
-    my $plan = $self->window->plan(
-        {
-            limit => $request->{limit} || undef,
-            after => GPForum::Service::Forum::PageWindow->cursor_at_position(
-                $request->{at}
-            ) // $request->{after},
-            sort => 'position',
-        }
-    );
+    my $call      = $self->snapshot_call($request);
     my $functions = $self->detail_reader->functions;
-    my $row       = await $functions->row_p(
-        'forum_thread_page_snapshot',
-        $self->_values( $request, $viewer, $plan ),
-        $request->{query_context}
-    );
+    my $row    = await $functions->row_p( @{$call}, $request->{query_context} );
     my $thread = $self->detail_reader->visible_thread_row(
         GPForum::Infrastructure::ResultRow::Thread->from(
             $row ? $row->{thread_head} : undef
@@ -47,7 +35,7 @@ async sub read_p ( $self, $request ) {
             map { GPForum::Infrastructure::ResultRow::Post->from($_) }
               @{ $row->{posts} }
         ],
-        $plan->{limit},
+        $call->[1]{page_limit},
         [ 'position', 'post_id' ]
     );
     return {
@@ -62,6 +50,24 @@ async sub read_p ( $self, $request ) {
             rows => $row->{page_reads},
         },
     };
+}
+
+# Shared by the live reader and its nested-plan regression gate.
+sub snapshot_call ( $self, $request ) {
+    my $viewer = $request->{viewer}
+      || GPForum::Service::Forum::Viewer->anonymous;
+    my $plan = $self->window->plan(
+        {
+            limit => $request->{limit} || undef,
+            after => GPForum::Service::Forum::PageWindow->cursor_at_position(
+                $request->{at}
+            ) // $request->{after},
+            sort => 'position',
+        }
+    );
+    return [
+        'forum_thread_page_snapshot', $self->_values( $request, $viewer, $plan )
+    ];
 }
 
 sub _values ( $self, $request, $viewer, $plan ) {
@@ -124,6 +130,11 @@ those rows to the exact viewer, thread, post ids and attachment query limits;
 another caller or a changed page cannot reuse them under a different call.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 snapshot_call
+
+Returns the exact stored-function name and bound values used by the reader,
+including its bounded page and attachment limits, for query-plan evidence.
 
 =head2 read_p
 

@@ -22,8 +22,7 @@ const my $REACTION_FORM_ATTRIBUTES =>
 '" hx-boost="true" hx-push-url="false" hx-sync:inherited="closest form:drop" hx-disable="findAll button[type=submit]:not(:disabled)">';
 const my @CONTENT => qw(
   post_id thread_id position author_username author_display_name author_profile_label
-  author_initial author_tint author_user_id author_avatar_id deleted_at liked
-  like_count
+  author_initial author_tint author_user_id author_avatar_id deleted_at
 );
 
 has max_entries => $MAX_ENTRIES;
@@ -42,18 +41,14 @@ has generations => sub { return [ {}, {} ]; };
 # capabilities, command ids, CSRF, the edit form's text and relative
 # timestamps are never stored. The key is the content itself, every value
 # the static template reads with its length before it: authors, reply
-# targets, deletion and counters select another entry immediately, with no
+# targets and deletion select another static entry immediately, with no
 # digest that two contents could share.
 sub render ( $self, $controller, $post ) {
     my $context = $controller->stash->{'gp.post_fragment_context'} //=
       _context($controller);
     my $key   = _key( $context, $post );
     my $found = $self->_cached($key);
-    if ($found) {
-        return $self->_reaction_paths( $controller, $post, $key, $found )
-          if $post->{can_react} && !exists $found->{paths}{'post_react:heart'};
-        return $found;
-    }
+    return $found if $found;
 
     my $content   = { map { $_ => $post->{$_} } @CONTENT, 'reply_to' };
     my $fragments = {};
@@ -62,7 +57,7 @@ sub render ( $self, $controller, $post ) {
         layout        => undef,
         post          => $content,
         fragments     => $fragments,
-        media_max_mib => $context->[2],
+        media_max_mib => $context->{media_max_mib},
     );
     croak 'Could not render post presentation fragments' if !defined $rendered;
     my $id = $post->{post_id};
@@ -71,20 +66,55 @@ sub render ( $self, $controller, $post ) {
           qw(post_edit post_delete post_restore post_like post_unlike
           post_report post_attachment_upload post_attachment_form post_verification)
     };
-    return $self->_reaction_paths( $controller, $post, $key, $fragments )
-      if $post->{can_react};
-    $self->_render_reactions( $controller, $post, $fragments );
     return $self->_cache_fragments( $key, $fragments );
+}
+
+# Like display has no post-specific path or response credential. Keep it
+# independent of author presentation and reaction counts.
+sub like_html ( $self, $controller, $post ) {
+    my $context = $controller->stash->{'gp.post_fragment_context'} //=
+      _context($controller);
+    my $count = $post->{like_count} || 0;
+    my $liked = $post->{liked} ? 1 : 0;
+    my $key   = 'like:' . $context->{key} . _encoded( $count, $liked );
+    my $found = $self->_cached($key);
+    return $found->{like} if $found;
+    my $html = $controller->render_to_string(
+        template   => 'forum/_like_fragment',
+        layout     => undef,
+        like_count => $count,
+        liked      => $liked
+    );
+    croak 'Could not render like presentation fragment' if !defined $html;
+    my $fragments = { like => Mojo::ByteStream->new($html), paths => {} };
+    $self->_cache_fragments( $key, $fragments );
+    return $fragments->{like};
 }
 
 # Standalone reaction partials need no thread header or author presentation.
 sub reactions ( $self, $controller, $post ) {
     my $context = $controller->stash->{'gp.post_fragment_context'} //=
       _context($controller);
-    my $key   = 'reaction-only:' . _key( $context, $post );
+    my $key =
+        'reactions:'
+      . $context->{key}
+      . _encoded(
+        $post->{post_id},
+        scalar @{ $post->{reactions} || [] },
+        map { ( $_->{reaction}, $_->{count} // 0, $_->{reacted} ? 1 : 0 ) }
+          @{ $post->{reactions} || [] }
+      );
     my $found = $self->_cached($key);
-    return $found if $found;
-    return $self->_reaction_paths( $controller, $post, $key, { paths => {} } );
+    if ($found) {
+        return $self->_reaction_paths( $controller, $post, $key, $found )
+          if $post->{can_react} && !exists $found->{paths}{'post_react:heart'};
+        return $found;
+    }
+    my $fragments = { paths => {} };
+    return $self->_reaction_paths( $controller, $post, $key, $fragments )
+      if $post->{can_react};
+    $self->_render_reactions( $controller, $post, $fragments );
+    return $self->_cache_fragments( $key, $fragments );
 }
 
 # Assemble cached display with fresh response-only form data. Keeping this
@@ -93,7 +123,9 @@ sub reaction_html ( $self, $controller, $post, $parts = undef ) {
     my @shown =
       grep { $post->{can_react} || $_->{count} } @{ $post->{reactions} || [] };
     return Mojo::ByteStream->new(q{}) if !@shown;
-    $parts //= $self->reactions( $controller, $post );
+    if ( !$parts || !exists $parts->{reaction_group} ) {
+        $parts = $self->reactions( $controller, $post );
+    }
     my @html = ( $parts->{reaction_group} );
     if ( $post->{can_react} ) {
         push @html, $REACTION_PICKER_OPEN, $parts->{reaction_summary},
@@ -125,8 +157,8 @@ sub _reaction_form ( $controller, $parts, $shown ) {
       '</form>';
 }
 
-# Add only static paths when an eligible reader first needs them. Clone the
-# cached entry so an over-budget expansion cannot enlarge the stored value.
+# Reaction display uses only static paths. Eligibility stays in the caller;
+# both choices are safe to reuse across readers with the same display state.
 sub _reaction_paths ( $self, $controller, $post, $key, $fragments ) {
     my $expanded = { %{$fragments}, paths => { %{ $fragments->{paths} } } };
     for my $reaction (qw(heart laugh celebrate think)) {
@@ -224,10 +256,14 @@ sub _make_room ($self) {
 sub _context ($controller) {
     my $url = $controller->req->url;
 
-    return [
-        $controller->ui_locale, $url->base->path->to_string,
-        $controller->gp_config->media_max_mib
-    ];
+    my $media_max_mib = $controller->gp_config->media_max_mib;
+    return {
+        media_max_mib => $media_max_mib,
+        key           => _encoded(
+            $controller->ui_locale, $url->base->path->to_string,
+            $media_max_mib
+        ),
+    };
 }
 
 # Each value as its length, a colon and itself (a dash for none): no two
@@ -236,13 +272,16 @@ sub _context ($controller) {
 sub _key ( $context, $post ) {
     my $reply = $post->{reply_to};
 
-    return join q{},
-      map { defined $_ ? length . q{:} . $_ : q{-} } @{$context},
-      @{$post}{@CONTENT}, ( $reply ? 'reply' : undef ),
-      ( map { ( $_, $reply->{$_} ) } sort keys %{ $reply || {} } ),
-      'reactions', scalar @{ $post->{reactions} || [] },
-      map { ( $_->{reaction}, $_->{count} // 0, $_->{reacted} ? 1 : 0 ) }
-      @{ $post->{reactions} || [] };
+    return $context->{key}
+      . _encoded(
+        @{$post}{@CONTENT},
+        ( $reply ? 'reply' : undef ),
+        map { ( $_, $reply->{$_} ) } sort keys %{ $reply || {} }
+      );
+}
+
+sub _encoded (@values) {
+    return join q{}, map { defined $_ ? length . q{:} . $_ : q{-} } @values;
 }
 
 1;
@@ -268,8 +307,9 @@ entries of at most 64 KiB each, in two generations: an entry not asked for
 while 256 others were stored is dropped. Nothing is sent to a shared cache.
 The key is the content: every value the static template reads, the locale
 and the application's mounted base path, each written with its length, so
-deletions, author changes, reply changes, like counts and reaction display state select a new entry
-immediately. Deploying a new process clears it.
+deletions, author changes and reply changes select a new static entry
+immediately. Like and reaction display have independent content keys; changing
+one does not rebuild header, avatar, controls or the other display. Deploying a new process clears it.
 
 The caller must first load the post through the normal authorization and
 visibility checks. This cache cannot find a post by id or grant access.
@@ -283,13 +323,16 @@ templates escape normally.
 
 =head2 render
 
-Takes a controller and its authorized post view model. Returns a hash of
-rendered static fragments and named action paths, including both routes for
-each reaction when an eligible reader first needs them. An expansion that
-exceeds C<max_bytes> is returned without changing the cached base entry.
-Reaction counts and pressed-state presentation are keyed by their current values. Eligibility, form tags, CSRF and command identities remain outside the cache.
-With C<max_entries> below 2 nothing is kept; entries exceeding C<max_bytes>
-are returned without storage.
+Takes a controller and its authorized post view model. Returns static author,
+reply and control fragments plus post-specific action paths. Like and reaction
+state do not enter this key. With C<max_entries> below 2 nothing is kept; entries
+exceeding C<max_bytes> are returned without storage.
+
+=head2 like_html
+
+Returns the escaped like button display, independently cached by its count,
+pressed state and rendering context. The caller decides eligibility, action
+path, form credentials and command identity on every response.
 
 =head2 reactions
 

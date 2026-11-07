@@ -786,7 +786,8 @@ async sub thread_page_payload_p ( $self, $page, $user_id, %option ) {
             [
                 map { $self->_column( $_, 'body_source' ) }
                   @{ $page->{posts}{items} || [] }
-            ]
+            ],
+            $self->stash('gp_db_query_stats_token')
         )
     );
     return GPForum::Service::Forum::BodyRenderer->with_rendered(

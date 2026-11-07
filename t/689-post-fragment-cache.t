@@ -13,6 +13,7 @@ use Test::More;
 use GPForum::Test::PostFragmentServices;
 use GPForum::Test::CommandIdempotency;
 use GPForum::Web::PostFragments;
+use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
 our $VERSION = '0.001';
 
@@ -211,6 +212,74 @@ subtest
         );
     }
   };
+
+subtest 'engagement changes reuse the independent static presentation' => sub {
+    my $fragments = GPForum::Web::PostFragments->new;
+    my $c         = $test->app->build_controller;
+    my $post      = {
+        post_id             => 'partitioned-post',
+        thread_id           => 'thread-1',
+        position            => 1,
+        author_username     => 'reader',
+        author_display_name => 'Reader',
+        author_initial      => 'R',
+        liked               => 0,
+        like_count          => 1,
+        reactions => [ { reaction => 'heart', count => 1, reacted => 0 } ],
+    };
+    my %calls;
+    my $render = Mojolicious::Controller->can('render_to_string');
+    with_replaced_subs(
+        'Mojolicious::Controller',
+        {
+            render_to_string => sub ( $self, %options ) {
+                $calls{ $options{template} // q{} }++;
+                return $render->( $self, %options );
+            },
+        },
+        sub {
+            my $base      = $fragments->render( $c, $post );
+            my $like      = $fragments->like_html( $c, $post );
+            my $reactions = $fragments->reactions( $c, $post );
+            $post->{liked}      = 1;
+            $post->{like_count} = $CHANGED_REACTION_COUNT;
+            is( $fragments->render( $c, $post ),
+                $base,
+                'like state does not rebuild header, avatar or controls' );
+            like(
+                q{} . $fragments->like_html( $c, $post ),
+                qr/aria-pressed="true"/msx,
+                'like display follows the current reader state'
+            );
+            is( $fragments->reactions( $c, $post ),
+                $reactions, 'like changes do not rebuild reactions' );
+            $post->{reactions}[0]{count}   = $CHANGED_REACTION_COUNT;
+            $post->{reactions}[0]{reacted} = 1;
+            is( $fragments->render( $c, $post ),
+                $base, 'reaction changes do not rebuild static presentation' );
+            my $changed = $fragments->reactions( $c, $post );
+            like(
+                q{} . $changed->{'reaction_open:heart'},
+                qr/aria-pressed="true"/msx,
+                'reaction presentation follows its current state'
+            );
+            $fragments->like_html( $c, $post );
+            $post->{author_display_name} = 'Changed author';
+            isnt( $fragments->render( $c, $post ),
+                $base, 'author changes rebuild the static presentation' );
+            is( $fragments->reactions( $c, $post ),
+                $changed, 'author changes do not rebuild reactions' );
+            $fragments->like_html( $c, $post );
+            is( $calls{'forum/_post_fragments'},
+                2, 'static template rendered only for author content' );
+            is( $calls{'forum/_like_fragment'},
+                2, 'like template rendered only for like state' );
+            is( $calls{'forum/_reaction_fragments'},
+                2, 'reaction template rendered only for reaction state' );
+            return;
+        }
+    );
+};
 
 subtest 'locale, mount path and entry size remain isolated' => sub {
     my $fragments = GPForum::Web::PostFragments->new;

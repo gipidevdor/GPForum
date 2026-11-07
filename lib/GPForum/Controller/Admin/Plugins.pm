@@ -65,8 +65,11 @@ async sub probe_math ($self) {
       if length($source) > $MATH_LIMIT;
     my $renderer = GPForum::Service::Forum::BodyRenderer->new(
         math_plugins => $self->ui_integration_plugins );
-    my $rendered =
-      await $self->await_p( $renderer->render_many_p( [$source] ) );
+    my $rendered = await $self->await_p(
+        $renderer->render_many_p(
+            [$source], $self->stash('gp_db_query_stats_token')
+        )
+    );
     my $html = GPForum::Service::Forum::BodyRenderer->with_rendered( $rendered,
         sub { return $renderer->render_safe($source); } );
     return (

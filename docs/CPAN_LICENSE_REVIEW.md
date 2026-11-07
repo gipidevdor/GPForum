@@ -9,7 +9,7 @@ requirements without review.
 | Module | Scope | License posture | Risk | Decision |
 | --- | --- | --- | --- | --- |
 | perl | runtime | Perl 5 license | language runtime | allowed |
-| Mojolicious | runtime | Artistic-2.0 | mature web framework; floor 9.53 includes the 9.50 escaping and 9.51 WebSocket fixes, bounded parsing fixes and current routing/header/keep-alive improvements | allowed |
+| Mojolicious | runtime | Artistic-2.0 | mature web framework; floor 9.54 includes the 9.50 escaping and 9.51 WebSocket fixes, parsing improvements, and correct rejection of incomplete HTTP responses | allowed |
 | Future::AsyncAwait | runtime | Perl 5 license | native Mojo::Promise async/await syntax; 0.71 | allowed |
 | EV | runtime | Perl 5 license; bundled libev uses BSD-2-Clause or GPL-2.0-or-later | XS event loop; required epoll on Linux and kqueue on macOS/FreeBSD; pinned by Carton | allowed |
 | DBIx::Class | develop | Perl 5 license | historical fixtures and maintainer comparisons; runtime transport is Mojo::Pg | dev-only allowed |
@@ -75,9 +75,11 @@ namespace or incomplete metadata.
 All 167 distributions in the application snapshot were compared with the
 [CPAN package index](https://www.cpan.org/modules/02packages.details.txt.gz)
 dated 2026-11-07 and the latest stable release metadata from MetaCPAN. Fifteen
-distributions were updated; the 28-distribution standalone passkey snapshot
-already contained the current stable releases. The passkey manifest now states
-the same Mojolicious, CBOR::XS and Test::More floors as its snapshot.
+distributions were updated. Both snapshots also include Mojolicious 9.54,
+published at 13:27 UTC during this review, which fixes incomplete HTTP response
+handling and transaction cleanup. The 28-distribution standalone passkey
+snapshot was refreshed for that release too; its manifest states the same
+Mojolicious, CBOR::XS and Test::More floors as its snapshot.
 
 Both snapshots and the installed application tree were checked with
 CPAN::Audit 20261105.001 and CPANSA::DB 20261101.010. The database matches the

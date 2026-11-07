@@ -1,6 +1,6 @@
 requires 'perl', '5.040.0';
 
-requires 'Mojolicious', '9.53';
+requires 'Mojolicious', '9.54';
 # Mojo::Base -async_await keeps the complete HTTP call chain on Mojo::Promise.
 requires 'Future::AsyncAwait', '0.71';
 # The supported OS profiles require libev's native epoll/kqueue backend.

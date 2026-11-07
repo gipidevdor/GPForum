@@ -1,0 +1,13 @@
+# <%= $title %>
+
+% for my $post (@$posts) {
+## <%= $post->{author} %>
+```
+<%= $post->{body} %>
+```
+
+% }
+% if ($next) {
+=> <%= $next %> Next page
+% }
+=> / Categories

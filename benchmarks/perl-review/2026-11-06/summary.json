@@ -1,0 +1,590 @@
+{
+  "base_commit": "7ccd164dabea8686824022d0928936d7b74ff1bf",
+  "method": "Before/after/after/before. Micro: median of six batches. HTTP: median of four cells per concurrency. Percentiles are medians of cell percentiles, not pooled percentiles; ranges are observed min/max, not confidence intervals.",
+  "http_cells": 24,
+  "http_requests": 17371,
+  "unexpected_errors": 0,
+  "micro": [
+    {
+      "case": "local_cache_get",
+      "before": {
+        "median": 345345.57657548855,
+        "min": 340073.129324358,
+        "max": 347729.811153982,
+        "samples": 6
+      },
+      "after": {
+        "median": 407251.55056489946,
+        "min": 401578.04107147,
+        "max": 411675.783906888,
+        "samples": 6
+      },
+      "change_percent": 17.92580481362529,
+      "ranges_overlap": false
+    },
+    {
+      "case": "local_cache_replace",
+      "before": {
+        "median": 101240.0060213405,
+        "min": 100607.063020277,
+        "max": 101637.37815886,
+        "samples": 6
+      },
+      "after": {
+        "median": 99243.97852085355,
+        "min": 97675.708833188,
+        "max": 101949.685795456,
+        "samples": 6
+      },
+      "change_percent": -1.971579792346323,
+      "ranges_overlap": true
+    },
+    {
+      "case": "sql_answer_key_25_posts",
+      "before": {
+        "median": 187805.899171049,
+        "min": 185844.589320696,
+        "max": 190163.236112941,
+        "samples": 6
+      },
+      "after": {
+        "median": 106513.2853388395,
+        "min": 105934.896648841,
+        "max": 108306.689888058,
+        "samples": 6
+      },
+      "change_percent": -43.28544214586688,
+      "ranges_overlap": false
+    },
+    {
+      "case": "sql_bind",
+      "before": {
+        "median": 217598.6569400515,
+        "min": 216281.685264556,
+        "max": 219505.717034413,
+        "samples": 6
+      },
+      "after": {
+        "median": 247457.9881109565,
+        "min": 245968.575053805,
+        "max": 251172.977805044,
+        "samples": 6
+      },
+      "change_percent": 13.722203799783216,
+      "ranges_overlap": false
+    },
+    {
+      "case": "sql_rows_stub_no_database",
+      "before": {
+        "median": 84737.39554996521,
+        "min": 84346.0482172797,
+        "max": 85505.8956288646,
+        "samples": 6
+      },
+      "after": {
+        "median": 95229.55932961844,
+        "min": 94516.5290536108,
+        "max": 95575.4309974279,
+        "samples": 6
+      },
+      "change_percent": 12.381975763541785,
+      "ranges_overlap": false
+    }
+  ],
+  "http": [
+    {
+      "scenario": "member.thread",
+      "clients": 1,
+      "before": {
+        "rps": {
+          "median": 82.01702843935524,
+          "min": 76.6677144596768,
+          "max": 83.2441926778209,
+          "samples": 4
+        },
+        "p50": {
+          "median": 11.881000013090649,
+          "min": 11.6930000076536,
+          "max": 12.0149999856949,
+          "samples": 4
+        },
+        "p95": {
+          "median": 12.48699999996465,
+          "min": 12.1979999821633,
+          "max": 13.4350000007544,
+          "samples": 4
+        },
+        "p99": {
+          "median": 13.16400001815055,
+          "min": 12.5209999969229,
+          "max": 13.7830000021495,
+          "samples": 4
+        }
+      },
+      "after": {
+        "rps": {
+          "median": 81.65004416929546,
+          "min": 76.0697788091976,
+          "max": 83.4458113327668,
+          "samples": 4
+        },
+        "p50": {
+          "median": 11.858500001835651,
+          "min": 11.6740000084974,
+          "max": 12.0789999782573,
+          "samples": 4
+        },
+        "p95": {
+          "median": 13.00999999511985,
+          "min": 12.3859999876004,
+          "max": 14.03299998492,
+          "samples": 4
+        },
+        "p99": {
+          "median": 13.3964999986347,
+          "min": 12.6589999999851,
+          "max": 14.2089999862947,
+          "samples": 4
+        }
+      },
+      "rps_change_percent": -0.44744887378008746,
+      "ranges_overlap": true
+    },
+    {
+      "scenario": "member.thread",
+      "clients": 32,
+      "before": {
+        "rps": {
+          "median": 343.758279911109,
+          "min": 310.071535177426,
+          "max": 348.78766107552,
+          "samples": 4
+        },
+        "p50": {
+          "median": 90.9395000198856,
+          "min": 89.2600000079256,
+          "max": 105.627999990247,
+          "samples": 4
+        },
+        "p95": {
+          "median": 104.50449999189,
+          "min": 99.5149999798741,
+          "max": 134.462999994867,
+          "samples": 4
+        },
+        "p99": {
+          "median": 140.61450000735948,
+          "min": 131.919000006747,
+          "max": 150.56999999797,
+          "samples": 4
+        }
+      },
+      "after": {
+        "rps": {
+          "median": 341.883924048657,
+          "min": 311.01011830371,
+          "max": 344.916929515448,
+          "samples": 4
+        },
+        "p50": {
+          "median": 91.85149999393616,
+          "min": 90.7080000033602,
+          "max": 105.623999988893,
+          "samples": 4
+        },
+        "p95": {
+          "median": 108.30149998946601,
+          "min": 98.8170000200626,
+          "max": 134.228000009898,
+          "samples": 4
+        },
+        "p99": {
+          "median": 143.05250000325,
+          "min": 130.069999984698,
+          "max": 153.944999998203,
+          "samples": 4
+        }
+      },
+      "rps_change_percent": -0.5452540264446082,
+      "ranges_overlap": true
+    },
+    {
+      "scenario": "member.thread",
+      "clients": 100,
+      "before": {
+        "rps": {
+          "median": 346.691387866063,
+          "min": 341.232062375953,
+          "max": 349.707580249646,
+          "samples": 4
+        },
+        "p50": {
+          "median": 275.234500004444,
+          "min": 270.011999993585,
+          "max": 276.434999977937,
+          "samples": 4
+        },
+        "p95": {
+          "median": 371.129999999539,
+          "min": 356.724000012036,
+          "max": 386.44099998055,
+          "samples": 4
+        },
+        "p99": {
+          "median": 1259.560499995135,
+          "min": 1183.7719999894,
+          "max": 1321.706000017,
+          "samples": 4
+        }
+      },
+      "after": {
+        "rps": {
+          "median": 344.3898709019865,
+          "min": 342.812178613006,
+          "max": 347.875318467547,
+          "samples": 4
+        },
+        "p50": {
+          "median": 275.59949998976697,
+          "min": 273.776000016369,
+          "max": 277.425000007497,
+          "samples": 4
+        },
+        "p95": {
+          "median": 384.437499989872,
+          "min": 362.412999995286,
+          "max": 393.757999991067,
+          "samples": 4
+        },
+        "p99": {
+          "median": 1312.462000001685,
+          "min": 1199.61399998283,
+          "max": 1352.34000001219,
+          "samples": 4
+        }
+      },
+      "rps_change_percent": -0.6638517842172731,
+      "ranges_overlap": true
+    }
+  ],
+  "comparable_http_configuration": {
+    "configuration": {
+      "concurrency": [
+        1,
+        32,
+        100
+      ],
+      "deadline": 300,
+      "duration": 3,
+      "iterations": 40,
+      "profile": "full",
+      "repetitions": 2,
+      "scenario": [
+        "member.thread"
+      ],
+      "warmup": 5,
+      "worker_clients": 2048,
+      "workers": 4,
+      "write_clients": 10,
+      "write_iterations": 2
+    },
+    "dataset": {
+      "categories": 8,
+      "posts": 4800,
+      "private_lists": "seeded members retain seeded inbox/feed/bookmark rows; writes use independent member identities",
+      "threads": 240,
+      "users": 103
+    },
+    "versions": {
+      "mojolicious": "9.51",
+      "perl": "v5.44.0",
+      "platform": "darwin-thread-multi-2level",
+      "postgres": "18.6 (Homebrew)"
+    },
+    "postgres_settings": [
+      {
+        "name": "fsync",
+        "setting": "on",
+        "unit": null
+      },
+      {
+        "name": "full_page_writes",
+        "setting": "on",
+        "unit": null
+      },
+      {
+        "name": "jit",
+        "setting": "on",
+        "unit": null
+      },
+      {
+        "name": "max_connections",
+        "setting": "80",
+        "unit": null
+      },
+      {
+        "name": "shared_buffers",
+        "setting": "16384",
+        "unit": "8kB"
+      },
+      {
+        "name": "synchronous_commit",
+        "setting": "on",
+        "unit": null
+      },
+      {
+        "name": "work_mem",
+        "setting": "4096",
+        "unit": "kB"
+      }
+    ],
+    "connection_policy": "Fresh connections per cell; authenticated cookies retained; keep-alive within cells; no transport retries"
+  },
+  "runs": [
+    {
+      "name": "final-before-a-micro",
+      "kind": "micro",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "3fc978b7d1c6fb103e7c038758be8355548018ac5af316d99ceadd9560bc67d8",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "1dd0a2710972084b312f2c9243ff3bd15ea163f2adcfe725bc02734f15ea4677",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "497f722a6d16560e705efe37422138b39ae3d76b04bda151c2b9ad305ec0e73e",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "62acf29b7990abc51f16e0adb03a828d47898f931feb134953220e194fe0ac6d",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "c4ed998ef03485ae7cceccdd8cf4a08305427176d4dcde796772ee4f7d466c2f",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "811140a07c804917e1d1db75f2bde066c19ca1f0a38f5042a94131bd6ef4182f",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "78adb8d63f370477bb0bcdd08e77dd58af15ce621d8fee13f31ea9d227bb0832",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "a678d2087ffafce659116de218c92b0102c8132e9f3b9fc7c2e349a2dfa54be4",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "54a5ddb2db102b250b66cead4d776a0ce6792642c4c9b5b5889ff2ae36a79f4b",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "65aa09f8476b4d04d59df26266557550f51b53f58e9540d8d4f32261f3bfb165"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    },
+    {
+      "name": "final-before-a-http",
+      "kind": "http",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "3fc978b7d1c6fb103e7c038758be8355548018ac5af316d99ceadd9560bc67d8",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "1dd0a2710972084b312f2c9243ff3bd15ea163f2adcfe725bc02734f15ea4677",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "497f722a6d16560e705efe37422138b39ae3d76b04bda151c2b9ad305ec0e73e",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "62acf29b7990abc51f16e0adb03a828d47898f931feb134953220e194fe0ac6d",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "c4ed998ef03485ae7cceccdd8cf4a08305427176d4dcde796772ee4f7d466c2f",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "811140a07c804917e1d1db75f2bde066c19ca1f0a38f5042a94131bd6ef4182f",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "78adb8d63f370477bb0bcdd08e77dd58af15ce621d8fee13f31ea9d227bb0832",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "a678d2087ffafce659116de218c92b0102c8132e9f3b9fc7c2e349a2dfa54be4",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "54a5ddb2db102b250b66cead4d776a0ce6792642c4c9b5b5889ff2ae36a79f4b",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "65aa09f8476b4d04d59df26266557550f51b53f58e9540d8d4f32261f3bfb165"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    },
+    {
+      "name": "final-after-a-micro",
+      "kind": "micro",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "99ffebb99e300d5472c458b52a3681ce2e68edfca03af00e7e64be324d3cfaac",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "f9978894029ac3a0bff338c59973a5fb300286ce41a92ff131bba32f5ade215d",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "e620ccf811b70605be0b1e3e275f800e5ce385a0eac6d946c15b420d27f6a3e1",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "93af5a9e01f77ee813590cd361fc63aa6d7d8ad909bdd6b556dfcebc849e130c",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "cc5c5d5017aa16732bde70467afa3ebbb48d590be20f53c8a790694e6d8b7f9c",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "c8b9e969f46a2c2f3661405a36a65c9ebb1e1f97766c818f58a6b5fd8b24f10a",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "dcc64881f47374c50a4762f6f568db6b50a5520d3e7f41688756f5bceadeaaff",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "230e29a8b677eea87df3dd694002507265dfb972eef90a35e2a05e3cc4b75920",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "f310e500b80c7a3ceda879b14105921f187633c232c55b96d496183fcd5d3a13",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "a7ae3823767fe154414bfde568c86e72ef34245ba33a573324ac35b79cebb89e"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    },
+    {
+      "name": "final-after-a-http",
+      "kind": "http",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "99ffebb99e300d5472c458b52a3681ce2e68edfca03af00e7e64be324d3cfaac",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "f9978894029ac3a0bff338c59973a5fb300286ce41a92ff131bba32f5ade215d",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "e620ccf811b70605be0b1e3e275f800e5ce385a0eac6d946c15b420d27f6a3e1",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "93af5a9e01f77ee813590cd361fc63aa6d7d8ad909bdd6b556dfcebc849e130c",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "cc5c5d5017aa16732bde70467afa3ebbb48d590be20f53c8a790694e6d8b7f9c",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "c8b9e969f46a2c2f3661405a36a65c9ebb1e1f97766c818f58a6b5fd8b24f10a",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "dcc64881f47374c50a4762f6f568db6b50a5520d3e7f41688756f5bceadeaaff",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "230e29a8b677eea87df3dd694002507265dfb972eef90a35e2a05e3cc4b75920",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "f310e500b80c7a3ceda879b14105921f187633c232c55b96d496183fcd5d3a13",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "a7ae3823767fe154414bfde568c86e72ef34245ba33a573324ac35b79cebb89e"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    },
+    {
+      "name": "final-after-b-micro",
+      "kind": "micro",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "99ffebb99e300d5472c458b52a3681ce2e68edfca03af00e7e64be324d3cfaac",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "f9978894029ac3a0bff338c59973a5fb300286ce41a92ff131bba32f5ade215d",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "e620ccf811b70605be0b1e3e275f800e5ce385a0eac6d946c15b420d27f6a3e1",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "93af5a9e01f77ee813590cd361fc63aa6d7d8ad909bdd6b556dfcebc849e130c",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "cc5c5d5017aa16732bde70467afa3ebbb48d590be20f53c8a790694e6d8b7f9c",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "c8b9e969f46a2c2f3661405a36a65c9ebb1e1f97766c818f58a6b5fd8b24f10a",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "dcc64881f47374c50a4762f6f568db6b50a5520d3e7f41688756f5bceadeaaff",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "230e29a8b677eea87df3dd694002507265dfb972eef90a35e2a05e3cc4b75920",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "f310e500b80c7a3ceda879b14105921f187633c232c55b96d496183fcd5d3a13",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "a7ae3823767fe154414bfde568c86e72ef34245ba33a573324ac35b79cebb89e"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    },
+    {
+      "name": "final-after-b-http",
+      "kind": "http",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "99ffebb99e300d5472c458b52a3681ce2e68edfca03af00e7e64be324d3cfaac",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "f9978894029ac3a0bff338c59973a5fb300286ce41a92ff131bba32f5ade215d",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "e620ccf811b70605be0b1e3e275f800e5ce385a0eac6d946c15b420d27f6a3e1",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "93af5a9e01f77ee813590cd361fc63aa6d7d8ad909bdd6b556dfcebc849e130c",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "cc5c5d5017aa16732bde70467afa3ebbb48d590be20f53c8a790694e6d8b7f9c",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "c8b9e969f46a2c2f3661405a36a65c9ebb1e1f97766c818f58a6b5fd8b24f10a",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "dcc64881f47374c50a4762f6f568db6b50a5520d3e7f41688756f5bceadeaaff",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "230e29a8b677eea87df3dd694002507265dfb972eef90a35e2a05e3cc4b75920",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "f310e500b80c7a3ceda879b14105921f187633c232c55b96d496183fcd5d3a13",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "a7ae3823767fe154414bfde568c86e72ef34245ba33a573324ac35b79cebb89e"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    },
+    {
+      "name": "final-before-b-micro",
+      "kind": "micro",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "3fc978b7d1c6fb103e7c038758be8355548018ac5af316d99ceadd9560bc67d8",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "1dd0a2710972084b312f2c9243ff3bd15ea163f2adcfe725bc02734f15ea4677",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "497f722a6d16560e705efe37422138b39ae3d76b04bda151c2b9ad305ec0e73e",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "62acf29b7990abc51f16e0adb03a828d47898f931feb134953220e194fe0ac6d",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "c4ed998ef03485ae7cceccdd8cf4a08305427176d4dcde796772ee4f7d466c2f",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "811140a07c804917e1d1db75f2bde066c19ca1f0a38f5042a94131bd6ef4182f",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "78adb8d63f370477bb0bcdd08e77dd58af15ce621d8fee13f31ea9d227bb0832",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "a678d2087ffafce659116de218c92b0102c8132e9f3b9fc7c2e349a2dfa54be4",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "54a5ddb2db102b250b66cead4d776a0ce6792642c4c9b5b5889ff2ae36a79f4b",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "65aa09f8476b4d04d59df26266557550f51b53f58e9540d8d4f32261f3bfb165"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    },
+    {
+      "name": "final-before-b-http",
+      "kind": "http",
+      "source_sha256": {
+        "lib/GPForum/Infrastructure/SqlFunction.pm": "3fc978b7d1c6fb103e7c038758be8355548018ac5af316d99ceadd9560bc67d8",
+        "lib/GPForum/Infrastructure/PreparedQuery.pm": "1dd0a2710972084b312f2c9243ff3bd15ea163f2adcfe725bc02734f15ea4677",
+        "lib/GPForum/Infrastructure/CountedQuery.pm": "497f722a6d16560e705efe37422138b39ae3d76b04bda151c2b9ad305ec0e73e",
+        "lib/GPForum/Service/Operations/LocalCache.pm": "62acf29b7990abc51f16e0adb03a828d47898f931feb134953220e194fe0ac6d",
+        "lib/GPForum/Service/Operations/TieredCache.pm": "c4ed998ef03485ae7cceccdd8cf4a08305427176d4dcde796772ee4f7d466c2f",
+        "lib/GPForum/Service/Operations/DbQueryStats.pm": "811140a07c804917e1d1db75f2bde066c19ca1f0a38f5042a94131bd6ef4182f",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm": "78adb8d63f370477bb0bcdd08e77dd58af15ce621d8fee13f31ea9d227bb0832",
+        "t/40-local-cache.t": "779f04b76ea506bc54e597ae8fc508de8d09302273cb0657ac61df3953b25ad6",
+        "t/89-tiered-cache.t": "c8159ae3e1acd04c91cf6eddd6d40830881653db8c2af8195ec3814fc028a400",
+        "t/703-sql-function-answers.t": "a678d2087ffafce659116de218c92b0102c8132e9f3b9fc7c2e349a2dfa54be4",
+        "t/723-forum-body-renderer-memo.t": "3ddee009ce69f46ce56fedcc9a9336e27595dbdbc063ddecfd1e4cd0a7159da6",
+        "t/502-prepared-query-guards.t": "c5757f6106ba574f8132824dafdffa087ab7975b6f2ef5323979fd50383a6d0c",
+        "t/735-db-query-timing.t": "ad22abcf6a6086e7788b63ce6bb2a95c1c3b91832f38aeceae98a78bb7eb6fb0",
+        "t/56-db-query-stats.t": "06753f0c714015ea9d80708353b3b886161c06ebeada745246f768f44fa5512c",
+        "t/integration/postgres-prepared-queries.t": "85a6ae6b11df3cfb7d95c6bf8e575c43d1265eecd3e37afc75ede1057a98de83",
+        "lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm": "54a5ddb2db102b250b66cead4d776a0ce6792642c4c9b5b5889ff2ae36a79f4b",
+        "script/lib/GPForum/Performance/Server.pm": "27097a34a50ec0f45c4e0602a9340f8acf2d9efb3983f8a7116f4410fc4936ba",
+        "t/performance/http.t": "b53530d4675a0ab273c34778e78ca9aa08c420548d486640bec52c9df39900e4",
+        "t/743-http-complete.t": "e7cab7a9d1143f85f095f640e7af66cc04034f13203ba8b4db34f78f309e4668",
+        "t/722-documentation-says-what-is-built.t": "65aa09f8476b4d04d59df26266557550f51b53f58e9540d8d4f32261f3bfb165"
+      },
+      "competing_load": [],
+      "exit_code": 0
+    }
+  ],
+  "verification": {
+    "general_suite": {
+      "files": 686,
+      "checks": 20655,
+      "status": "PASS"
+    },
+    "postgres": {
+      "covered_files": 161,
+      "final_checks": 14393,
+      "initial_failure": "Wrong column name in the new test fixture; preserved with its failing log.",
+      "resolution": "160 files passed the full run; the corrected prepared-query file passed all 40 checks."
+    },
+    "full_critic": "PASS; zero violations",
+    "full_syntax_tidy_architecture": "PASS",
+    "final_refinement_unit_checks": 1960,
+    "final_refinement_postgres_checks": 404,
+    "last_protocol_checks": 220,
+    "final_documentation_and_layering_checks": 13,
+    "final_architecture": "PASS",
+    "final_changed_file_critic": "PASS; zero violations"
+  }
+}

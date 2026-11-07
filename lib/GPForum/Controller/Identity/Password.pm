@@ -1,0 +1,250 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Controller::Identity::Password;
+
+use Const::Fast;
+use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
+use v5.40;
+
+our $VERSION = '0.001';
+
+const my $HTTP_ACCEPTED    => 202;
+const my $HTTP_BAD_REQUEST => 400;
+
+sub password_reset_request_form ($self) {
+    return $self->render(
+        template   => 'identity/password_reset_request',
+        command_id => $self->gp_id->uuid,
+        %{ $self->gp_identity_view_model->password_reset_request_form },
+    );
+}
+
+async sub request_password_reset ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.password_reset')
+        )
+    );
+    if ($guard) {
+        return $guard;
+    }
+
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'request_password_reset',
+            {
+                command_id      => $self->command_id_param,
+                identifier      => $self->param('identifier'),
+                request_address => $self->request_address,
+            }
+        ),
+        sub ($result) { return $self->_reset_requested_async($result); }
+    );
+}
+
+sub _reset_requested_async ( $self, $result ) {
+    if ( $result->{status} eq 'invalid' ) {
+        return $self->render(
+            template   => 'identity/password_reset_request',
+            command_id => $self->gp_id->uuid,
+            status     => $HTTP_BAD_REQUEST,
+            %{
+                $self->gp_identity_view_model->password_reset_request_form(
+                    errors => $result->{errors},
+                    values =>
+                      { identifier => $self->param('identifier') || q{} },
+                )
+            },
+        );
+    }
+    if ( !$result->{ok} ) {
+        return $self->identity_write_failure($result);
+    }
+
+    return $self->render(
+        template => 'identity/password_reset_requested',
+        status   => $HTTP_ACCEPTED,
+    );
+}
+
+sub password_reset_form ($self) {
+    return $self->render(
+        template   => 'identity/password_reset_form',
+        command_id => $self->gp_id->uuid,
+        %{
+            $self->gp_identity_view_model->password_reset_form(
+                values => { token => $self->param('token') || q{} },
+            )
+        },
+    );
+}
+
+async sub reset_password ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.password_reset')
+        )
+    );
+    if ($guard) {
+        return $guard;
+    }
+
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'reset_password',
+            {
+                command_id => $self->command_id_param,
+                password   => $self->param('password'),
+                token      => $self->param('token'),
+            }
+        ),
+        sub ($result) { return $self->_reset_completed_async($result); }
+    );
+}
+
+sub _reset_completed_async ( $self, $result ) {
+    if ( $result->{status} eq 'invalid' ) {
+        my $errors = $result->{errors}
+          || { reset => 'password reset request could not be accepted' };
+        return $self->render(
+            template   => 'identity/password_reset_form',
+            command_id => $self->gp_id->uuid,
+            status     => $HTTP_BAD_REQUEST,
+            %{
+                $self->gp_identity_view_model->password_reset_form(
+                    errors => $errors,
+                    values => { token => $self->param('token') || q{} },
+                )
+            },
+        );
+    }
+    if ( !$result->{ok} ) {
+        return $self->identity_write_failure($result);
+    }
+
+    return $self->render(
+        template => 'identity/password_reset_completed',
+        status   => $HTTP_ACCEPTED,
+    );
+}
+
+async sub change_password ($self) {
+    my $guard = (
+        await $self->await_p(
+            $self->identity_post_guard('identity.password_change')
+        )
+    );
+    if ($guard) {
+        return $guard;
+    }
+
+    my $user_id = $self->current_user_id;
+    if ( !$user_id ) {
+        return $self->settings_unauthorized;
+    }
+
+    # Naming the current session lets the store evict the user's other devices
+    # without signing them out of the browser they just used.
+    return $self->respond_p(
+        $self->work_p(
+            $self->gp_identity_workflow,
+            'change_password',
+            {
+                command_id       => $self->command_id_param,
+                current_password => $self->param('current_password'),
+                keep_session_id  => $self->session('session_id'),
+                new_password     => $self->param('new_password'),
+                user_id          => $user_id,
+            }
+        ),
+        sub ($result) { return $self->_password_changed_async($result); }
+    );
+}
+
+sub _password_changed_async ( $self, $result ) {
+    if ( !$result->{ok} ) {
+        return $self->settings_write_refused($result);
+    }
+
+    $self->flash( success => $self->t('settings.password_changed') );
+    return $self->redirect_to('settings');
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Controller::Identity::Password - Password reset and change.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    $routes->post('/password/reset')->to('Identity::Password#request_password_reset');
+
+=head1 DESCRIPTION
+
+Handles password reset requests, reset completion, and authenticated
+password changes.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 password_reset_request_form
+
+Renders the password reset request form.
+
+=head2 request_password_reset
+
+Accepts an identifier and starts a password reset.
+
+=head2 password_reset_form
+
+Renders the reset form for a token.
+
+=head2 reset_password
+
+Completes a password reset with a token.
+
+=head2 change_password
+
+Changes the password of the signed-in member. A refused change goes back to the
+settings page, which says why; a client asking for JSON gets the 400.
+
+=head1 DIAGNOSTICS
+
+Invalid CSRF tokens render C<403>; a refused change redirects to the
+settings page (JSON: C<400>); a store that fails answers C<503>.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+Uses identity helpers registered during application startup.
+
+=head1 DEPENDENCIES
+
+Uses L<GPForum::Controller::Identity::Base>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+Reset request success does not reveal whether the identifier exists.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

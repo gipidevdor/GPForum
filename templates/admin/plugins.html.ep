@@ -1,0 +1,93 @@
+% layout 'default', shell => 'wide';
+% title t('admin.plugins') . ' - ' . t('app.name');
+<section aria-labelledby="plugins-heading">
+  <%= include 'components/page_header', heading_id => 'plugins-heading', component_title => t('admin.plugins'), description => t('admin.plugins_intro'), actions_label => t('admin.settings'), actions => ui_actions({href => ui_path('admin_dashboard'), icon => 'settings', label => t('admin.admin')}, {href => ui_path('admin_configuration'), icon => 'settings', label => t('admin.configuration_general')}) %>
+  <p class="ui-note"><a href="<%= ui_path('admin_integrations') %>"><%= t('admin.integrations_network') %></a></p>
+  % if (!$available) {
+    <p role="alert"><%= t('admin.configuration_unavailable') %></p>
+  % }
+  % if (length $notice) {
+    % my $notice_key = 'admin.configuration_notice_' . $notice;
+    <p role="status"><%= t($notice_key) %></p>
+  % }
+  <div class="admin-plugin-grid">
+  % for my $plugin (@{$plugins}) {
+    % my $id = $plugin->{id};
+    % my $description = 'admin.plugin_description_' . $id;
+    <section class="integration-card admin-plugin-card" aria-labelledby="plugin-<%= $id %>">
+      <header><h2 id="plugin-<%= $id %>"><%= $plugin->{name} %></h2><span class="ui-badge admin-plugin-status" data-state="<%= $plugin->{enabled} ? 'active' : 'inactive' %>"><%= $plugin->{enabled} ? t('admin.plugin_active') : t('admin.plugin_inactive') %></span></header>
+      <p><%= t($description) %></p>
+      <form method="post" action="<%= ui_path('admin_plugin_change', plugin => $id) %>">
+        <%= csrf_field %>
+        <input type="hidden" name="command_id" value="<%= $plugin->{command_id} %>">
+        <input type="hidden" name="revision" value="<%= $revision %>">
+        <fieldset <%= $available ? q{} : 'disabled' %>>
+          <legend class="visually-hidden"><%= $plugin->{name} %></legend>
+          <label class="admin-plugin-switch" for="enabled-<%= $id %>">
+            <input type="checkbox" role="switch" id="enabled-<%= $id %>" name="enabled" value="1" <%= $plugin->{enabled} ? 'checked' : q{} %>>
+            <%= t('admin.plugin_enabled') %>
+          </label>
+          <div class="admin-plugin-mode">
+          % if ($plugin->{supports_embed}) {
+          <label for="mode-<%= $id %>"><%= t('admin.plugin_display_mode') %></label>
+          <select name="mode" id="mode-<%= $id %>">
+            <option value="embed" <%= $plugin->{mode} eq 'embed' ? 'selected' : q{} %>><%= t('admin.plugin_mode_embed') %></option>
+            <option value="link" <%= $plugin->{mode} eq 'link' ? 'selected' : q{} %>><%= t('admin.plugin_mode_link') %></option>
+          </select>
+          % } else {
+          <input type="hidden" name="mode" value="link">
+          <p class="ui-meta"><%= $plugin->{supports_math} ? t('admin.plugin_math_local') : t('admin.plugin_link_only') %></p>
+          % }
+          </div>
+          <button type="submit"><%= ui_icon('check') %><%= t('admin.configuration_save') %></button>
+        </fieldset>
+      </form>
+      <details class="admin-plugin-details">
+        <summary><%= t('admin.plugin_details') %></summary>
+        <dl><dt><%= t('admin.plugin_version') %></dt><dd><%= $plugin->{version} %></dd>
+          <dt><%= t('admin.plugin_api') %></dt><dd><%= $plugin->{api_version} %></dd>
+          <dt><%= t('admin.plugin_capabilities') %></dt><dd><%= join(', ', @{$plugin->{capabilities}}) %></dd>
+          <dt><%= t('admin.plugin_domains') %></dt><dd><%= join(', ', @{$plugin->{url_hosts}}) %></dd>
+        </dl>
+      </details>
+    </section>
+  % }
+  % for my $plugin (@{$setup_plugins}) {
+    <section class="integration-card admin-plugin-card" aria-labelledby="plugin-<%= $plugin->{id} %>">
+      <h2 id="plugin-<%= $plugin->{id} %>"><%= $plugin->{name} %></h2>
+      <p><%= t('admin.integrations_status_setup') %></p>
+      % my $setup_description='admin.plugin_description_' . $plugin->{id};
+      <p><%= t($setup_description) %></p>
+      <a href="<%= ui_path('admin_configuration') . '#setting-' . $plugin->{setting} %>"><%= t('admin.integrations_configure_instances') %></a>
+    </section>
+  % }
+  </div>
+  <section class="integration-card" aria-labelledby="plugin-probe-heading">
+    <h2 id="plugin-probe-heading"><%= t('admin.plugin_probe') %></h2>
+    <p><%= t('admin.plugin_probe_help') %></p>
+    <form method="post" action="<%= ui_path('admin_plugin_probe') %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $probe_command %>">
+      <label for="plugin-probe-url"><%= t('admin.plugin_probe_url') %></label>
+      <input type="url" name="url" id="plugin-probe-url" maxlength="2048" value="<%= $probe_url %>" placeholder="https://…" required>
+      <button type="submit"><%= t('admin.plugin_probe_button') %></button>
+    </form>
+    % if ($probe) {
+      <%= include 'forum/_integrations', integrations => [$probe] %>
+    % }
+  </section>
+  <section class="integration-card" aria-labelledby="math-probe-heading">
+    <h2 id="math-probe-heading"><%= t('admin.plugin_math_probe') %></h2>
+    <p><%= t('admin.plugin_math_help') %></p>
+    <form method="post" action="<%= ui_path('admin_plugin_probe_math') %>">
+      <%= csrf_field %>
+      <input type="hidden" name="command_id" value="<%= $probe_command %>">
+      <label for="plugin-math-source"><%= t('admin.plugin_math_source') %></label>
+      <textarea name="source" id="plugin-math-source" rows="4" maxlength="4096" placeholder="$$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$" required><%= $math_source %></textarea>
+      <button type="submit"><%= t('admin.plugin_probe_button') %></button>
+    </form>
+    % if (length $math_preview) {
+      <div class="forum-post-body" aria-live="polite"><%== ui_trusted_html($math_preview, 'forum.post.body') %></div>
+    % }
+  </section>
+</section>

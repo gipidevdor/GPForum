@@ -1,0 +1,2 @@
+%# Form-free like display; eligibility and credentials stay in the caller.
+    <button type="submit" class="button--quiet post__like" aria-pressed="<%= $liked ? 'true' : 'false' %>"><%= $liked ? t('forum.liked') : t('forum.like') %><% if ($like_count) { %> <span class="post__like-count" aria-label="<%= tc('forum.like_count', $like_count) %>"><%= $like_count %></span><% } %></button>

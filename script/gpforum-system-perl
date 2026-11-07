@@ -1,0 +1,182 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -eu
+
+# Historical filename retained for callers. Validate the selected runtime by
+# capability and version, independent of its package manager or prefix.
+# Carton, cpm and child processes all use the same interpreter.
+
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+
+# The operator's language, from the command line's catalogs. A copy of this
+# script without them still says what it found, in English.
+if [ -r "$root/script/lib/words.sh" ]; then
+    # shellcheck source=script/lib/words.sh
+    . "$root/script/lib/words.sh"
+else
+    words_say() {
+        words_text=$2
+        shift 2
+        for words_pair in "$@"; do
+            words_name=${words_pair%%=*}
+            words_text=$(printf '%s' "$words_text" | sed "s|{$words_name}|${words_pair#*=}|g")
+        done
+        printf '%s\n' "$words_text"
+    }
+    words_mark() { printf '%s\n' "$2"; }
+    words_fixes() { for words_fix in "$@"; do printf '    %s\n' "$words_fix"; done; }
+    words_summary() { :; }
+fi
+
+usage() {
+    cat <<'EOF'
+Usage: script/gpforum-system-perl [--print | --require | --preflight [--verbose]] [--as NAME]
+
+Find Perl 5.40 or newer for GPForum. Distribution packages, Homebrew,
+perlbrew, plenv, asdf and custom builds are supported.
+Selection: GPFORUM_PERL, the active perl on PATH, then common install paths.
+
+  --print      print its path (the default)
+  --require    print its path, or say why there is none and exit 1
+  --preflight  say whether this host has it, and what to do next
+               (make system-perl runs this)
+  --verbose    with --preflight, also print perl -V
+  --as NAME    with --require, the program named before why there is none
+               (bin/gpforum says gpforum)
+  --help       this text
+
+GPFORUM_PERL names an executable path or command; an invalid override fails.
+An incompatible local/ must be rebuilt for the selected Perl and architecture.
+EOF
+}
+
+mode=print
+verbose=0
+name=gpforum-system-perl
+while [ $# -gt 0 ]; do
+    argument=$1
+    shift
+    case "$argument" in
+        --as)
+            if [ $# -eq 0 ] || [ -z "$1" ]; then
+                echo "gpforum-system-perl: --as needs a name" >&2
+                exit 2
+            fi
+            name=$1
+            shift
+            ;;
+        --print)
+            mode=print
+            ;;
+        --require)
+            mode=require
+            ;;
+        --preflight)
+            mode=preflight
+            ;;
+        --verbose)
+            verbose=1
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "gpforum-system-perl: unknown option: $argument" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+# Choose the runtime independently of the host's OS release.
+perl_fix() {
+    words_say system.fix_perl_runtime 'select Perl 5.40 or newer with GPFORUM_PERL=/absolute/path/to/perl or your preferred toolchain on PATH'
+}
+
+# No acceptable Perl: under --preflight, a finding with its fix and the
+# count; otherwise one line on stderr for the script that asked, and the
+# fix under it.
+reject() {
+    message=$(words_say "$@")
+    if [ "$mode" = preflight ]; then
+        words_mark fail "$message"
+        words_fixes "$(perl_fix)"
+        echo
+        words_summary 1
+        exit 1
+    fi
+    echo "$name: $message" >&2
+    words_fixes "$(perl_fix)" >&2
+    exit 1
+}
+
+meets_version() {
+    "$1" -MConfig -e 'exit($] < 5.040 ? 1 : 0)' >/dev/null 2>&1
+}
+
+# Version-manager shims are executable scripts. Ask the Perl they launch for
+# its actual executable, then pin that binary rather than a mutable shim.
+canonicalize() {
+    executable=$("$1" -e 'print $^X' 2>/dev/null) || return 1
+    [ -n "$executable" ] && [ -f "$executable" ] && [ -x "$executable" ] || return 1
+    if command -v readlink >/dev/null 2>&1; then
+        resolved=$(readlink -f "$executable" 2>/dev/null || true)
+        if [ -n "$resolved" ] && [ -x "$resolved" ]; then
+            printf '%s\n' "$resolved"
+            return 0
+        fi
+    fi
+    printf '%s\n' "$executable"
+}
+
+resolve_candidate() {
+    active=$(command -v perl 2>/dev/null || true)
+    for candidate in "$active" /usr/local/bin/perl /opt/homebrew/bin/perl /usr/bin/perl; do
+        [ -n "$candidate" ] && [ -f "$candidate" ] && [ -x "$candidate" ] || continue
+        if meets_version "$candidate"; then
+            canonicalize "$candidate" && return 0
+        fi
+    done
+    # Preserve a useful version diagnostic when only an old Perl exists.
+    if [ -n "$active" ]; then
+        canonicalize "$active"
+        return
+    fi
+    return 1
+}
+
+if [ -n "${GPFORUM_PERL:-}" ]; then
+    requested=$(command -v "$GPFORUM_PERL" 2>/dev/null || true)
+    if [ -z "$requested" ] || [ ! -f "$requested" ] || [ ! -x "$requested" ]; then
+        reject system.perl_not_executable 'GPFORUM_PERL names {path}, which is not a program' "path=$GPFORUM_PERL"
+    fi
+    perl_bin=$(canonicalize "$requested") || reject system.perl_invalid 'cannot run Perl at {path}' "path=$requested"
+else
+    perl_bin=$(resolve_candidate) || reject system.perl_missing 'no runnable Perl was found on PATH or in the common installation paths'
+fi
+
+if ! meets_version "$perl_bin"; then
+    version=$("$perl_bin" -e 'printf "%vd", $^V' 2>/dev/null) || reject system.perl_invalid 'cannot run Perl at {path}' "path=$perl_bin"
+    reject system.perl_old 'Perl {version} at {path} is older than the 5.40 GPForum needs' "version=$version" "path=$perl_bin"
+fi
+
+case "$mode" in
+    print)
+        printf '%s\n' "$perl_bin"
+        ;;
+    require)
+        printf '%s\n' "$perl_bin"
+        ;;
+    preflight)
+        version=$("$perl_bin" -e 'printf "%vd", $^V')
+        words_mark ok "$(words_say system.perl_ok 'Perl {version} at {path}' "version=$version" "path=$perl_bin")"
+        if [ "$verbose" -eq 1 ]; then
+            "$perl_bin" -V
+        fi
+        echo
+        words_say system.next_deps 'Next: make install-deps-postgres, or sudo make install-deps-production on a server'
+        ;;
+esac

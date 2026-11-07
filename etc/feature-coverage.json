@@ -1,0 +1,3053 @@
+{
+  "schema_version": 1,
+  "features": [
+    {
+      "id": "navigation",
+      "title": "navigation",
+      "routes": [
+        "navigation"
+      ],
+      "http": [
+        {
+          "route": "navigation",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-navigation.t",
+          "text": "revocation takes effect on the next read"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/778-gui-functional-coverage.t",
+          "text": "GUI assets are all reachable"
+        }
+      ]
+    },
+    {
+      "id": "discussions",
+      "title": "discussions",
+      "routes": [
+        "categories",
+        "category",
+        "home",
+        "new_thread",
+        "post_delete",
+        "post_edit",
+        "post_restore",
+        "reply_create",
+        "thread",
+        "thread_canonical",
+        "thread_create",
+        "thread_delete",
+        "thread_edit",
+        "thread_move",
+        "thread_restore"
+      ],
+      "http": [
+        {
+          "route": "categories",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "category",
+          "statuses": [
+            "200",
+            "301"
+          ]
+        },
+        {
+          "route": "home",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "new_thread",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_delete",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_edit",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_restore",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "reply_create",
+          "statuses": [
+            "201",
+            "202",
+            "302"
+          ]
+        },
+        {
+          "route": "thread",
+          "statuses": [
+            "200",
+            "301"
+          ]
+        },
+        {
+          "route": "thread_canonical",
+          "statuses": [
+            "200",
+            "301"
+          ]
+        },
+        {
+          "route": "thread_create",
+          "statuses": [
+            "201",
+            "202",
+            "302"
+          ]
+        },
+        {
+          "route": "thread_delete",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_edit",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_move",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "thread_restore",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-community-protocols.t",
+          "text": "thread created through production workflow"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-community-protocols.t",
+          "text": "post edit succeeds"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI move persists the destination category"
+        }
+      ]
+    },
+    {
+      "id": "drafts",
+      "title": "drafts",
+      "routes": [
+        "composer_preview",
+        "draft_delete",
+        "draft_resume",
+        "draft_save",
+        "drafts"
+      ],
+      "http": [
+        {
+          "route": "composer_preview",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "draft_delete",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "draft_resume",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "draft_save",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "drafts",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-forum-drafts.t",
+          "text": "other owner cannot load private source"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-forum-drafts.t",
+          "text": "lost acknowledgement is idempotent"
+        }
+      ]
+    },
+    {
+      "id": "search_tags",
+      "title": "search tags",
+      "routes": [
+        "forum_search",
+        "search_autocomplete",
+        "tag",
+        "tagged_threads",
+        "tags"
+      ],
+      "http": [
+        {
+          "route": "forum_search",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "search_autocomplete",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "tag",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "tagged_threads",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "tags",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-combined-tags.t",
+          "text": "keyset pages are complete and disjoint"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-forum-thread-tags.t",
+          "text": "another thread shares the tag by its slug"
+        }
+      ]
+    },
+    {
+      "id": "reading_bookmarks",
+      "title": "reading bookmarks",
+      "routes": [
+        "bookmark_folder",
+        "bookmarks",
+        "thread_bookmark",
+        "thread_bookmark_remove",
+        "thread_mark_read"
+      ],
+      "http": [
+        {
+          "route": "bookmark_folder",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "bookmarks",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_bookmark",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "thread_bookmark_remove",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_mark_read",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI folder edit persists its name"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-community.t",
+          "text": "bookmark row is inserted"
+        }
+      ]
+    },
+    {
+      "id": "subscriptions",
+      "title": "subscriptions",
+      "routes": [
+        "category_subscription",
+        "feed",
+        "thread_subscribe",
+        "thread_subscription_mute",
+        "thread_unsubscribe"
+      ],
+      "http": [
+        {
+          "route": "category_subscription",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "feed",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_subscribe",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "thread_subscription_mute",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_unsubscribe",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-notifications.t",
+          "text": "already-active subscription save is skipped"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-notifications.t",
+          "text": "already-revoked target subscription is skipped"
+        }
+      ]
+    },
+    {
+      "id": "reactions",
+      "title": "reactions",
+      "routes": [
+        "post_like",
+        "post_react",
+        "post_unlike",
+        "post_unreact"
+      ],
+      "http": [
+        {
+          "route": "post_like",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_react",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_unlike",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_unreact",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-sql-function-post-likes.t",
+          "text": "the like is one row"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-sql-function-post-reactions.t",
+          "text": "the heart is one row"
+        }
+      ]
+    },
+    {
+      "id": "polls",
+      "title": "polls",
+      "routes": [
+        "thread_poll",
+        "thread_poll_change"
+      ],
+      "http": [
+        {
+          "route": "thread_poll",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_poll_change",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-multiple-choice-polls.t",
+          "text": "two selections accepted"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-multiple-choice-polls.t",
+          "text": "retry does not count twice"
+        }
+      ]
+    },
+    {
+      "id": "media",
+      "title": "media",
+      "routes": [
+        "attachment_download",
+        "moderation_media",
+        "moderation_media_decide",
+        "moderation_media_preview",
+        "new_media",
+        "post_attachment_delete",
+        "post_attachment_form",
+        "post_attachment_upload"
+      ],
+      "http": [
+        {
+          "route": "attachment_download",
+          "statuses": [
+            "200",
+            "206",
+            "304"
+          ]
+        },
+        {
+          "route": "moderation_media",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_media_decide",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_media_preview",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "new_media",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_attachment_delete",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "post_attachment_form",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "post_attachment_upload",
+          "statuses": [
+            "201",
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-workflows.t",
+          "text": "the file is linked to the newly created post"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-workflows.t",
+          "text": "an unpublished upload can be removed through its GUI"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-media-web.t",
+          "text": "video stored for review"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-gui-large-media.t",
+          "text": "GUI accepts a real 100 MiB multipart upload into PostgreSQL"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-gui-large-media.t",
+          "text": "PostgreSQL retains the complete 100 MiB object"
+        },
+        {
+          "id": "behavior_6",
+          "test": "t/integration/postgres-gui-large-media.t",
+          "text": "the stored object digest matches the uploaded file"
+        },
+        {
+          "id": "behavior_7",
+          "test": "t/integration/postgres-gui-large-media.t",
+          "text": "all 100 MiB are stored as database chunks"
+        },
+        {
+          "id": "behavior_8",
+          "test": "t/integration/postgres-gui-large-media.t",
+          "text": "GUI stores a prerecorded internal podcast episode"
+        }
+      ]
+    },
+    {
+      "id": "avatars",
+      "title": "avatars",
+      "routes": [
+        "avatar_image",
+        "moderation_avatar_remove",
+        "settings_avatar",
+        "settings_avatar_remove",
+        "settings_avatar_upload"
+      ],
+      "http": [
+        {
+          "route": "avatar_image",
+          "statuses": [
+            "200",
+            "304"
+          ]
+        },
+        {
+          "route": "moderation_avatar_remove",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_avatar",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "settings_avatar_remove",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_avatar_upload",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-avatars.t",
+          "text": "a member uploads a picture and it is shown"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-avatars.t",
+          "text": "staff remove a picture, audited"
+        }
+      ]
+    },
+    {
+      "id": "profiles",
+      "title": "profiles",
+      "routes": [
+        "profile",
+        "settings_profile_update"
+      ],
+      "http": [
+        {
+          "route": "profile",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "settings_profile_update",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-member-profile.t",
+          "text": "an ordinary member changes their own display name"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-member-profile.t",
+          "text": "submitted user id cannot select another account"
+        }
+      ]
+    },
+    {
+      "id": "relationships",
+      "title": "relationships",
+      "routes": [
+        "following",
+        "member_relations",
+        "profile_block",
+        "profile_follow",
+        "profile_ignore",
+        "profile_relation_remove"
+      ],
+      "http": [
+        {
+          "route": "following",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "member_relations",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "profile_block",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "profile_follow",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "profile_ignore",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "profile_relation_remove",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI follow persists an active user subscription"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI unfollow revokes the user subscription"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-member-relations.t",
+          "text": "an ignored member is blocked in place"
+        }
+      ]
+    },
+    {
+      "id": "messages",
+      "title": "messages",
+      "routes": [
+        "message_compose",
+        "message_conversation",
+        "message_new",
+        "message_reply",
+        "message_report",
+        "message_start",
+        "messages"
+      ],
+      "http": [
+        {
+          "route": "message_compose",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "message_conversation",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "message_new",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "message_reply",
+          "statuses": [
+            "200",
+            "201",
+            "302"
+          ]
+        },
+        {
+          "route": "message_report",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "message_start",
+          "statuses": [
+            "201",
+            "302"
+          ]
+        },
+        {
+          "route": "messages",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-direct-messages.t",
+          "text": "the two hold one conversation"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-direct-messages.t",
+          "text": "the first message is sent"
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "title": "notifications",
+      "routes": [
+        "mentions",
+        "notification_read",
+        "notifications",
+        "notifications_read_all",
+        "notifications_summary"
+      ],
+      "http": [
+        {
+          "route": "mentions",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "notification_read",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "notifications",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "notifications_read_all",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "notifications_summary",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI notification read persists its read time"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI read-all leaves no unread notification"
+        }
+      ]
+    },
+    {
+      "id": "registration",
+      "title": "registration",
+      "routes": [
+        "email_verify",
+        "email_verify_form",
+        "email_verify_request",
+        "email_verify_request_submit",
+        "register",
+        "register_submit"
+      ],
+      "http": [
+        {
+          "route": "email_verify",
+          "statuses": [
+            "202"
+          ]
+        },
+        {
+          "route": "email_verify_form",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "email_verify_request",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "email_verify_request_submit",
+          "statuses": [
+            "202"
+          ]
+        },
+        {
+          "route": "register",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "register_submit",
+          "statuses": [
+            "202"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-identity-stores.t",
+          "text": "registration is persisted"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI verification confirms the intended address"
+        }
+      ]
+    },
+    {
+      "id": "sessions",
+      "title": "sessions",
+      "routes": [
+        "login",
+        "login_submit",
+        "logout"
+      ],
+      "http": [
+        {
+          "route": "login",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "login_submit",
+          "statuses": [
+            "202",
+            "302"
+          ]
+        },
+        {
+          "route": "logout",
+          "statuses": [
+            "202"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-login-replay.t",
+          "text": "the same command id and identifier with the wrong password is refused"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-identity-stores.t",
+          "text": "login persists a server-side session"
+        }
+      ]
+    },
+    {
+      "id": "account_credentials",
+      "title": "account credentials",
+      "routes": [
+        "email_confirm",
+        "email_confirm_form",
+        "password_reset_complete",
+        "password_reset_form",
+        "password_reset_request",
+        "password_reset_request_submit",
+        "settings_email_update",
+        "settings_password_update"
+      ],
+      "http": [
+        {
+          "route": "email_confirm",
+          "statuses": [
+            "202"
+          ]
+        },
+        {
+          "route": "email_confirm_form",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "password_reset_complete",
+          "statuses": [
+            "202"
+          ]
+        },
+        {
+          "route": "password_reset_form",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "password_reset_request",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "password_reset_request_submit",
+          "statuses": [
+            "202"
+          ]
+        },
+        {
+          "route": "settings_email_update",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_password_update",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI password change updates the active credential"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI confirmation updates the verified email"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI recovery persists the new credential"
+        }
+      ]
+    },
+    {
+      "id": "mfa",
+      "title": "mfa",
+      "routes": [
+        "admin_second_factor",
+        "admin_second_factor_policy",
+        "admin_second_factor_reset",
+        "login_second_factor",
+        "login_second_factor_submit",
+        "settings_security",
+        "settings_security_begin",
+        "settings_security_cancel",
+        "settings_security_confirm",
+        "settings_security_disable",
+        "settings_security_renew"
+      ],
+      "http": [
+        {
+          "route": "admin_second_factor",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_second_factor_policy",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_second_factor_reset",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "login_second_factor",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "login_second_factor_submit",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_security",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "settings_security_begin",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_security_cancel",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_security_confirm",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "settings_security_disable",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "settings_security_renew",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-second-factor.t",
+          "text": "the database holds it sealed, never in base32"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-second-factor.t",
+          "text": "a wrong first code turns nothing on"
+        }
+      ]
+    },
+    {
+      "id": "oidc",
+      "title": "oidc",
+      "routes": [
+        "openid_callback",
+        "openid_start",
+        "settings_openid",
+        "settings_openid_link",
+        "settings_openid_unlink"
+      ],
+      "http": [
+        {
+          "route": "openid_callback",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "openid_start",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_openid",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "settings_openid_link",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings_openid_unlink",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "identity maps by issuer and subject"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "matching verified email never links or registers an account"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "password recovery invalidates a previously linked identity"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "GUI OpenID callback persists the explicitly linked identity"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "GUI OpenID login creates a normal local session"
+        },
+        {
+          "id": "behavior_6",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "GUI OpenID unlink removes the binding after local proof"
+        },
+        {
+          "id": "integration_7",
+          "test": "t/782-integration-readiness.t",
+          "text": "partial OpenID configuration is never advertised as ready"
+        }
+      ]
+    },
+    {
+      "id": "preferences",
+      "title": "preferences",
+      "routes": [
+        "locale_update",
+        "settings",
+        "settings_update",
+        "theme_update",
+        "unsubscribe",
+        "unsubscribe_confirm"
+      ],
+      "http": [
+        {
+          "route": "locale_update",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "settings",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "settings_update",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "theme_update",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "unsubscribe",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "unsubscribe_confirm",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-notification-preferences.t",
+          "text": "two choices stored"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-notifications.t",
+          "text": "bulk preference save persists disabled email"
+        }
+      ]
+    },
+    {
+      "id": "privacy",
+      "title": "privacy",
+      "routes": [
+        "privacy_dashboard",
+        "privacy_deletion_approve",
+        "privacy_deletion_hold",
+        "privacy_deletion_request",
+        "privacy_erasure_run",
+        "privacy_export_download",
+        "privacy_export_request",
+        "privacy_hold_release",
+        "privacy_review"
+      ],
+      "http": [
+        {
+          "route": "privacy_dashboard",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "privacy_deletion_approve",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "privacy_deletion_hold",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "privacy_deletion_request",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "privacy_erasure_run",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "privacy_export_download",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "privacy_export_request",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "privacy_hold_release",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "privacy_review",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-privacy.t",
+          "text": "the export omits the password hash"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-privacy.t",
+          "text": "the export omits storage object keys"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI erasure deletes the approved disposable account"
+        }
+      ]
+    },
+    {
+      "id": "reports",
+      "title": "reports",
+      "routes": [
+        "moderation_report_assign",
+        "moderation_report_release",
+        "moderation_report_resolve",
+        "moderation_reported_message",
+        "moderation_reports",
+        "post_report",
+        "profile_report",
+        "thread_report"
+      ],
+      "http": [
+        {
+          "route": "moderation_report_assign",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_report_release",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_report_resolve",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_reported_message",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_reports",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_report",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "profile_report",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "thread_report",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI profile report persists its selected target"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-member-features.t",
+          "text": "GUI thread report persists its selected target"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-moderation-review.t",
+          "text": "report row is inserted"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI assignment persists the moderator"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI release clears the moderator"
+        },
+        {
+          "id": "behavior_6",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI resolution closes the report"
+        }
+      ]
+    },
+    {
+      "id": "moderation_actions",
+      "title": "moderation actions",
+      "routes": [
+        "moderation_action_reverse",
+        "moderation_actions",
+        "moderation_post_hide",
+        "moderation_post_restore",
+        "moderation_suspension_revoke",
+        "moderation_suspensions",
+        "moderation_thread_hide",
+        "moderation_thread_lock",
+        "moderation_thread_pin",
+        "moderation_thread_restore",
+        "moderation_thread_unlock",
+        "moderation_thread_unpin",
+        "moderation_user_suspend"
+      ],
+      "http": [
+        {
+          "route": "moderation_action_reverse",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_actions",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_post_hide",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_post_restore",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_suspension_revoke",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_suspensions",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_thread_hide",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_thread_lock",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_thread_pin",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_thread_restore",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_thread_unlock",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_thread_unpin",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_user_suspend",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-moderation-thread-actions.t",
+          "text": "its state is hidden"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-moderation-thread-actions.t",
+          "text": "and shows it again"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI reversal records its timestamp"
+        }
+      ]
+    },
+    {
+      "id": "held_posts",
+      "title": "held posts",
+      "routes": [
+        "moderation_review",
+        "moderation_review_approve",
+        "moderation_review_reject",
+        "pending_post_withdraw",
+        "pending_posts"
+      ],
+      "http": [
+        {
+          "route": "moderation_review",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_review_approve",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_review_reject",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "pending_post_withdraw",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "pending_posts",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-first-post-review.t",
+          "text": "a held thread is published with the tags its author gave it"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-first-post-review.t",
+          "text": "a post whose author was suspended since is not published"
+        }
+      ]
+    },
+    {
+      "id": "transfers",
+      "title": "transfers",
+      "routes": [
+        "moderation_transfer",
+        "moderation_transfer_undo",
+        "moderation_transfers"
+      ],
+      "http": [
+        {
+          "route": "moderation_transfer",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "moderation_transfer_undo",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_transfers",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-community-completion.t",
+          "text": "transfers preserve content and positions and reverse safely"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI transfer moves its selected reply"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI transfer undo restores its original discussion"
+        },
+        {
+          "id": "integration_4",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "source is chosen by its displayed title"
+        },
+        {
+          "id": "integration_5",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "native multiselection moves both selected messages"
+        },
+        {
+          "id": "integration_6",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "native split and merge remain independently reversible"
+        },
+        {
+          "id": "usability_7",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "browsing selections never transfers posts"
+        },
+        {
+          "id": "usability_8",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "invalid native transfer preserves both pages of selections"
+        }
+      ]
+    },
+    {
+      "id": "staff_notes",
+      "title": "staff notes",
+      "routes": [
+        "moderation_member_note_create",
+        "moderation_member_note_delete",
+        "moderation_member_note_update"
+      ],
+      "http": [
+        {
+          "route": "moderation_member_note_create",
+          "statuses": [
+            "200",
+            "201",
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_member_note_delete",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "moderation_member_note_update",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-member-notes.t",
+          "text": "the addition is audited once"
+        }
+      ]
+    },
+    {
+      "id": "roles",
+      "title": "roles",
+      "routes": [
+        "admin_permission_create",
+        "admin_role_bind",
+        "admin_role_binding_revoke",
+        "admin_role_create",
+        "admin_role_permission_attach",
+        "admin_roles",
+        "admin_user_roles",
+        "admin_users"
+      ],
+      "http": [
+        {
+          "route": "admin_permission_create",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_role_bind",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_role_binding_revoke",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_role_create",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "admin_role_permission_attach",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_roles",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_user_roles",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_users",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI attachment persists the role permission"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI revocation removes the live grant"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI role creation persists the role"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI permission creation persists the permission"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI binding grants the selected role to the selected member"
+        }
+      ]
+    },
+    {
+      "id": "categories",
+      "title": "categories",
+      "routes": [
+        "admin_categories",
+        "admin_category_create",
+        "admin_category_update"
+      ],
+      "http": [
+        {
+          "route": "admin_categories",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_category_create",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_category_update",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI category edit persists its title"
+        }
+      ]
+    },
+    {
+      "id": "announcements",
+      "title": "announcements",
+      "routes": [
+        "admin_announcement_create",
+        "admin_announcement_retire",
+        "admin_announcements"
+      ],
+      "http": [
+        {
+          "route": "admin_announcement_create",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_announcement_retire",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_announcements",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI announcement publication persists its message"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI retirement persists its timestamp"
+        }
+      ]
+    },
+    {
+      "id": "admission",
+      "title": "admission",
+      "routes": [
+        "admin_registration",
+        "admin_registration_change"
+      ],
+      "http": [
+        {
+          "route": "admin_registration",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_registration_change",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-community-completion.t",
+          "text": "email-bound invitations and independent approval"
+        }
+      ]
+    },
+    {
+      "id": "automod",
+      "title": "automod",
+      "routes": [
+        "admin_automod",
+        "admin_automod_links",
+        "admin_automod_review",
+        "admin_automod_word_add",
+        "admin_automod_word_remove"
+      ],
+      "http": [
+        {
+          "route": "admin_automod",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_automod_links",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_automod_review",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_automod_word_add",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_automod_word_remove",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-automod.t",
+          "text": "threads, replies and edits are screened"
+        }
+      ]
+    },
+    {
+      "id": "address_bans",
+      "title": "address bans",
+      "routes": [
+        "admin_address_ban_create",
+        "admin_address_ban_lift",
+        "admin_address_ban_update",
+        "admin_address_bans"
+      ],
+      "http": [
+        {
+          "route": "admin_address_ban_create",
+          "statuses": [
+            "200",
+            "201",
+            "302"
+          ]
+        },
+        {
+          "route": "admin_address_ban_lift",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "admin_address_ban_update",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_address_bans",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-address-bans.t",
+          "text": "the same submission again places nothing"
+        }
+      ]
+    },
+    {
+      "id": "configuration",
+      "title": "configuration",
+      "routes": [
+        "admin_configuration",
+        "admin_configuration_change",
+        "admin_configuration_reset"
+      ],
+      "http": [
+        {
+          "route": "admin_configuration",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_configuration_change",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "admin_configuration_reset",
+          "statuses": [
+            "302"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "feature: a configuration default can be restored from its own control"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-admin-configuration.t",
+          "text": "ordinary members cannot change configuration"
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "title": "plugins",
+      "routes": [
+        "admin_plugin_change",
+        "admin_plugin_probe",
+        "admin_plugin_probe_math",
+        "admin_plugins"
+      ],
+      "http": [
+        {
+          "route": "admin_plugin_change",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "admin_plugin_probe",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_plugin_probe_math",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_plugins",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-admin-configuration.t",
+          "text": "administrator configures an independent module"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/762-integration-plugins.t",
+          "text": "packaged plugin catalogue"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/769-integration-expansion.t",
+          "text": "spoofs and unsupported paths fail closed"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/766-mathematics-plugin.t",
+          "text": "user LaTeX cannot become trusted HTML"
+        },
+        {
+          "id": "provider_youtube_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider youtube resolves its resource"
+        },
+        {
+          "id": "provider_youtube_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider youtube owns its resolved card"
+        },
+        {
+          "id": "provider_youtube_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider youtube can be disabled independently"
+        },
+        {
+          "id": "provider_youtube_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider youtube respects link-only mode"
+        },
+        {
+          "id": "provider_vimeo_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider vimeo resolves its resource"
+        },
+        {
+          "id": "provider_vimeo_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider vimeo owns its resolved card"
+        },
+        {
+          "id": "provider_vimeo_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider vimeo can be disabled independently"
+        },
+        {
+          "id": "provider_vimeo_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider vimeo respects link-only mode"
+        },
+        {
+          "id": "provider_gitlab_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider gitlab resolves its resource"
+        },
+        {
+          "id": "provider_gitlab_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider gitlab owns its resolved card"
+        },
+        {
+          "id": "provider_gitlab_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider gitlab can be disabled independently"
+        },
+        {
+          "id": "provider_gitlab_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider gitlab respects link-only mode"
+        },
+        {
+          "id": "provider_codeberg_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider codeberg resolves its resource"
+        },
+        {
+          "id": "provider_codeberg_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider codeberg owns its resolved card"
+        },
+        {
+          "id": "provider_codeberg_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider codeberg can be disabled independently"
+        },
+        {
+          "id": "provider_codeberg_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider codeberg respects link-only mode"
+        },
+        {
+          "id": "provider_github_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider github resolves its resource"
+        },
+        {
+          "id": "provider_github_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider github owns its resolved card"
+        },
+        {
+          "id": "provider_github_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider github can be disabled independently"
+        },
+        {
+          "id": "provider_github_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider github respects link-only mode"
+        },
+        {
+          "id": "provider_facebook_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider facebook resolves its resource"
+        },
+        {
+          "id": "provider_facebook_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider facebook owns its resolved card"
+        },
+        {
+          "id": "provider_facebook_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider facebook can be disabled independently"
+        },
+        {
+          "id": "provider_facebook_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider facebook respects link-only mode"
+        },
+        {
+          "id": "provider_instagram_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider instagram resolves its resource"
+        },
+        {
+          "id": "provider_instagram_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider instagram owns its resolved card"
+        },
+        {
+          "id": "provider_instagram_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider instagram can be disabled independently"
+        },
+        {
+          "id": "provider_instagram_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider instagram respects link-only mode"
+        },
+        {
+          "id": "provider_spotify_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider spotify resolves its resource"
+        },
+        {
+          "id": "provider_spotify_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider spotify owns its resolved card"
+        },
+        {
+          "id": "provider_spotify_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider spotify can be disabled independently"
+        },
+        {
+          "id": "provider_spotify_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider spotify respects link-only mode"
+        },
+        {
+          "id": "provider_apple_music_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider apple_music resolves its resource"
+        },
+        {
+          "id": "provider_apple_music_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider apple_music owns its resolved card"
+        },
+        {
+          "id": "provider_apple_music_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider apple_music can be disabled independently"
+        },
+        {
+          "id": "provider_apple_music_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider apple_music respects link-only mode"
+        },
+        {
+          "id": "provider_wikipedia_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider wikipedia resolves its resource"
+        },
+        {
+          "id": "provider_wikipedia_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider wikipedia owns its resolved card"
+        },
+        {
+          "id": "provider_wikipedia_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider wikipedia can be disabled independently"
+        },
+        {
+          "id": "provider_wikipedia_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider wikipedia respects link-only mode"
+        },
+        {
+          "id": "provider_mastodon_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider mastodon resolves its resource"
+        },
+        {
+          "id": "provider_mastodon_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider mastodon owns its resolved card"
+        },
+        {
+          "id": "provider_mastodon_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider mastodon can be disabled independently"
+        },
+        {
+          "id": "provider_mastodon_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider mastodon respects link-only mode"
+        },
+        {
+          "id": "provider_peertube_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider peertube resolves its resource"
+        },
+        {
+          "id": "provider_peertube_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider peertube owns its resolved card"
+        },
+        {
+          "id": "provider_peertube_2",
+          "test": "t/781-feature-providers.t",
+          "text": "provider peertube can be disabled independently"
+        },
+        {
+          "id": "provider_peertube_3",
+          "test": "t/781-feature-providers.t",
+          "text": "provider peertube respects link-only mode"
+        },
+        {
+          "id": "provider_mathematics_0",
+          "test": "t/781-feature-providers.t",
+          "text": "provider mathematics renders its expression"
+        },
+        {
+          "id": "provider_mathematics_1",
+          "test": "t/781-feature-providers.t",
+          "text": "provider mathematics can be disabled independently"
+        },
+        {
+          "id": "provider_inventory",
+          "test": "t/781-feature-providers.t",
+          "text": "every packaged provider has an executable feature case"
+        },
+        {
+          "id": "integration_56",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "live allowlists reach cards players and CSP without restarting"
+        }
+      ]
+    },
+    {
+      "id": "network_integrations",
+      "title": "network integrations",
+      "routes": [
+        "admin_integration_announce",
+        "admin_integration_announce_retry",
+        "admin_integration_feed_decide",
+        "admin_integration_feed_fetch",
+        "admin_integrations"
+      ],
+      "http": [
+        {
+          "route": "admin_integration_announce",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_integration_announce_retry",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_integration_feed_decide",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_integration_feed_fetch",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_integrations",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "confirmed Discord response is durable"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "import remains unpublished"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "GUI Discord selection persists its queued delivery"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "GUI checked retry returns the uncertain delivery to the outbox"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "GUI feed fetch queues the authorized source"
+        },
+        {
+          "id": "integration_6",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "production worker delivers the GUI-selected topic with saved configuration"
+        },
+        {
+          "id": "integration_7",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "worker imports the GUI-authorized source into moderation"
+        },
+        {
+          "id": "integration_8",
+          "test": "t/integration/postgres-feature-integration.t",
+          "text": "GUI approval publishes the imported candidate through the forum workflow"
+        },
+        {
+          "id": "integration_9",
+          "test": "t/integration/postgres-network-integrations.t",
+          "text": "configuration failure leaves the announcement queued for correction"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "operations",
+      "routes": [
+        "admin_antivirus_check",
+        "admin_audit",
+        "admin_cache_purge",
+        "admin_dashboard",
+        "admin_dead_letter_replay",
+        "admin_jobs",
+        "admin_mail_test",
+        "admin_search_rebuild",
+        "admin_settings",
+        "admin_status",
+        "health",
+        "health_live",
+        "health_ready",
+        "metrics"
+      ],
+      "http": [
+        {
+          "route": "admin_antivirus_check",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_audit",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_cache_purge",
+          "statuses": [
+            "200",
+            "302"
+          ]
+        },
+        {
+          "route": "admin_dashboard",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_dead_letter_replay",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_jobs",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_mail_test",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_search_rebuild",
+          "statuses": [
+            "302"
+          ]
+        },
+        {
+          "route": "admin_settings",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "admin_status",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "health",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "health_live",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "health_ready",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "metrics",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-gui-admin-features.t",
+          "text": "GUI search maintenance queues its durable job"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-dead-letter-replay.t",
+          "text": "as a new outbox message"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-admin-diagnostics.t",
+          "text": "and the message is sent"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI mail diagnostic delivers exactly one controlled test message"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI antivirus diagnostic persists its audited result"
+        },
+        {
+          "id": "behavior_6",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "GUI replay queues one fresh durable envelope"
+        }
+      ]
+    },
+    {
+      "id": "protocols",
+      "title": "protocols",
+      "routes": [
+        "category_mbox",
+        "post_signature",
+        "post_verification",
+        "public_feed",
+        "robots",
+        "signing_keys",
+        "site_icon",
+        "sitemap",
+        "sitemap_page",
+        "thread_mbox",
+        "websub_subscribe",
+        "web_manifest"
+      ],
+      "http": [
+        {
+          "route": "category_mbox",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_signature",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "post_verification",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "public_feed",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "robots",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "signing_keys",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "site_icon",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "sitemap",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "sitemap_page",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "thread_mbox",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "websub_subscribe",
+          "statuses": [
+            "202"
+          ]
+        },
+        {
+          "route": "web_manifest",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-web-push.t"
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-community-protocols.t",
+          "text": "archive includes every post beyond the first page"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-community-protocols.t",
+          "text": "legacy posts are honestly identified as unsigned"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "WebSub request reaches the configured hub exclusively"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-web-push.t",
+          "text": "GUI exposes a standalone installation manifest"
+        }
+      ]
+    },
+    {
+      "id": "legal",
+      "title": "legal",
+      "routes": [
+        "legal_cookies",
+        "legal_notice",
+        "legal_privacy",
+        "legal_terms",
+        "security_txt"
+      ],
+      "http": [
+        {
+          "route": "legal_cookies",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "legal_notice",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "legal_privacy",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "legal_terms",
+          "statuses": [
+            "200"
+          ]
+        },
+        {
+          "route": "security_txt",
+          "statuses": [
+            "200"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-fifth-round.t",
+          "text": "private content excluded"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "feature: public legal discovery and tag resources are reachable"
+        }
+      ]
+    },
+    {
+      "id": "realtime",
+      "title": "realtime",
+      "routes": [
+        "realtime"
+      ],
+      "http": [
+        {
+          "route": "realtime",
+          "statuses": [
+            "101"
+          ]
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-realtime-listen.t",
+          "text": "each consumer gets only its own channel"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-realtime-listen.t",
+          "text": "the listener delivers its event"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-gui-staff-features.t",
+          "text": "feature: a real socket subscribes to its own notification channel"
+        }
+      ]
+    },
+    {
+      "id": "passkeys",
+      "title": "Persistent member passkeys",
+      "routes": [
+        "settings_passkeys",
+        "passkey_register_begin",
+        "passkey_register_finish",
+        "passkey_revoke",
+        "passkey_login_begin",
+        "passkey_login_finish"
+      ],
+      "http": [
+        {
+          "route": "settings_passkeys",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-passkeys.t"
+        },
+        {
+          "route": "passkey_register_begin",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-passkeys.t"
+        },
+        {
+          "route": "passkey_register_finish",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-passkeys.t"
+        },
+        {
+          "route": "passkey_revoke",
+          "statuses": [
+            "302"
+          ],
+          "test": "t/integration/postgres-passkeys.t"
+        },
+        {
+          "route": "passkey_login_begin",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-passkeys.t"
+        },
+        {
+          "route": "passkey_login_finish",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-passkeys.t"
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "GUI passkey registration persists its verified public key"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "GUI passkey login advances the saved counter"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "GUI passkey login requires the configured second factor before opening a session"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "GUI revocation disables the saved passkey"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "password recovery revokes every passkey"
+        },
+        {
+          "id": "behavior_6",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "duplicate registration preserves credential ownership"
+        },
+        {
+          "id": "behavior_7",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "synchronized passkeys accept zero and nonmonotonic counters"
+        },
+        {
+          "id": "behavior_8",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "account export includes passkey metadata"
+        },
+        {
+          "id": "behavior_9",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "erasure removes passkey public keys and labels"
+        },
+        {
+          "id": "behavior_10",
+          "test": "t/integration/postgres-passkeys.t",
+          "text": "erasure removes opaque account handles"
+        }
+      ]
+    },
+    {
+      "id": "web_push",
+      "title": "Private device notifications",
+      "routes": [
+        "push_worker",
+        "push_configuration",
+        "push_register",
+        "push_confirm",
+        "push_revoke"
+      ],
+      "http": [
+        {
+          "route": "push_worker",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-web-push.t"
+        },
+        {
+          "route": "push_configuration",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-web-push.t"
+        },
+        {
+          "route": "push_register",
+          "statuses": [
+            "202"
+          ],
+          "test": "t/integration/postgres-web-push.t"
+        },
+        {
+          "route": "push_confirm",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-web-push.t"
+        },
+        {
+          "route": "push_revoke",
+          "statuses": [
+            "200"
+          ],
+          "test": "t/integration/postgres-web-push.t"
+        }
+      ],
+      "proofs": [
+        {
+          "id": "behavior_1",
+          "test": "t/integration/postgres-web-push.t",
+          "text": "GUI push consent activates the owned device"
+        },
+        {
+          "id": "behavior_2",
+          "test": "t/integration/postgres-web-push.t",
+          "text": "GUI push revocation removes the device"
+        },
+        {
+          "id": "behavior_3",
+          "test": "t/integration/postgres-web-push.t",
+          "text": "rollback leaves no Push job"
+        },
+        {
+          "id": "behavior_4",
+          "test": "t/integration/postgres-web-push.t",
+          "text": "no HTTP send after the read permission was lost"
+        },
+        {
+          "id": "behavior_5",
+          "test": "t/integration/postgres-web-push.t",
+          "text": "fresh authorization stops HTTP after revocation"
+        },
+        {
+          "id": "behavior_6",
+          "test": "t/857-push-supervision.t",
+          "text": "enabled Push includes its supervised worker"
+        },
+        {
+          "id": "behavior_7",
+          "test": "t/857-push-supervision.t",
+          "text": "doctor observes the configured Push sender"
+        },
+        {
+          "id": "behavior_8",
+          "test": "t/857-push-supervision.t",
+          "text": "GUI diagnostics restart the Push sender"
+        }
+      ]
+    }
+  ]
+}

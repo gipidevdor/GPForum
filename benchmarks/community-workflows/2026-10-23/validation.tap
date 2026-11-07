@@ -1,0 +1,286 @@
+t/integration/postgres-community-completion.t ..
+# Subtest: email-bound invitations and independent approval
+    ok 1 - invitation mode and approval enabled
+    ok 2 - registration without an invitation refused
+    ok 3 - invitation secret returned first time
+    ok 4 - issue replay never returns a replacement secret
+    ok 5 - invitation revoked
+    ok 6 - revoked invitation refused
+    ok 7 - expired invitation refused
+    ok 8 - staff issues an invitation
+    ok 9 - secret shown once
+    ok 10 - another email cannot consume it
+    ok 11 - failed registration did not consume it
+    ok 12 - intended recipient accepted
+    ok 13 - member stored
+    ok 14 - separate review queued
+    ok 15 - real verification token consumed
+    ok 16 - returned user reflects enforced database status
+    ok 17 - email verification cannot bypass staff approval
+    ok 18 - staff approves verified account
+    ok 19 - both conditions enable the account
+    ok 20 - used invitation cannot be reused
+    ok 21 - open registration with review
+    ok 22 - new account accepted
+    ok 23 - approval before verification is accepted
+    ok 24 - approval does not verify the email
+    ok 25 - verification after approval enables the account
+    ok 26 - staff rejects an account
+    ok 27 - verification never overrides rejection
+    ok 28 - registration can close
+    ok 29 - closed policy enforced
+    ok 30 - ordinary member cannot change policy
+    ok 31 - shared retention batch remains bounded
+    ok 32 - expired invitation purged by existing job
+    1..32
+ok 1 - email-bound invitations and independent approval
+# Subtest: poll authorization, counters, replay and closure
+    ok 1 - only author creates a poll
+    ok 2 - duplicate options refused
+    ok 3 - author publishes
+    ok 4 - member votes
+    ok 5 - exact response replayed
+    ok 6 - same command cannot change its request
+    ok 7 - another actor cannot replay the command
+    ok 8 - new command changes vote
+    ok 9 - only one ballot
+    ok 10 - old count decremented and new count incremented
+    ok 11 - public results readable anonymously
+    ok 12 - public results contain no individual vote
+    ok 13 - unrelated voter cannot close
+    ok 14 - author closes
+    ok 15 - closed poll rejects voting
+    ok 16 - private poll does not leak aggregate results
+    ok 17 - author reads own private poll
+    1..17
+ok 2 - poll authorization, counters, replay and closure
+# Subtest: category subscriptions use existing rows and permissions
+    ok 1 - category followed
+    ok 2 - same follow replayed exactly
+    ok 3 - category follow reaches existing thread fanout
+    ok 4 - thread/category follows do not duplicate delivery
+    ok 5 - explicit thread mute overrides category follow
+    ok 6 - one subscription
+    ok 7 - category muted
+    ok 8 - mute persisted
+    ok 9 - category unfollowed
+    ok 10 - follow restores same subscription
+    ok 11 - lost category access enforced in function
+    1..11
+ok 3 - category subscriptions use existing rows and permissions
+# Subtest: transfers preserve content and positions and reverse safely
+    ok 1 - member cannot transfer
+    ok 2 - opening post cannot move alone
+    ok 3 - selected replies moved
+    ok 4 - transfer replayed exactly
+    ok 5 - source count
+    ok 6 - destination count
+    ok 7 - every body byte and id unchanged
+    ok 8 - transfer reversed
+    ok 9 - original positions restored
+    ok 10 - undo restores both retained and severed reply links
+    ok 11 - selected posts split
+    ok 12 - new thread contains exactly selected posts
+    ok 13 - split reversed
+    ok 14 - complete merge
+    ok 15 - source empty
+    ok 16 - old URL resolves to readable destination
+    ok 17 - complete merge reversed
+    ok 18 - all source posts restored
+    ok 19 - reply count reconciled
+    ok 20 - split/merge/undo never changes body storage
+    ok 21 - different audiences refused
+    ok 22 - poll thread cannot be transferred
+    ok 23 - existing event machinery receives invalidation/reindex events
+    1..23
+ok 4 - transfers preserve content and positions and reverse safely
+# Subtest: races use independent PostgreSQL connections
+    ok 1 - exactly one concurrent creation succeeds
+    ok 2 - concurrent vote change commits
+    ok 3 - concurrent vote change commits
+    ok 4 - one ballot survives racing updates
+    ok 5 - counter sum remains one
+    ok 6 - counter agrees with actual ballot
+    ok 7 - erasure/vote race finishes without database failure
+    ok 8 - erasure/vote race finishes without database failure
+    ok 9 - no ballot can reappear after erasure
+    ok 10 - concurrent repeated transfer commits or replays
+    ok 11 - concurrent repeated transfer commits or replays
+    ok 12 - one trace for repeated command
+    ok 13 - post moved once
+    1..13
+ok 5 - races use independent PostgreSQL connections
+# Subtest: poll reads stay independent of voter count
+    ok 1 - large ballot fixture poll
+    ok 2 - own ballot uses an indexed point lookup
+    ok 3 - read returns only option rows
+    ok 4 - read returns only option rows
+    ok 5 - read returns only option rows
+    ok 6 - read returns only option rows
+    ok 7 - read returns only option rows
+    ok 8 - read returns only option rows
+    ok 9 - read returns only option rows
+    ok 10 - read returns only option rows
+    ok 11 - read returns only option rows
+    ok 12 - read returns only option rows
+    ok 13 - read returns only option rows
+    ok 14 - read returns only option rows
+    ok 15 - read returns only option rows
+    ok 16 - read returns only option rows
+    ok 17 - read returns only option rows
+    ok 18 - read returns only option rows
+    ok 19 - read returns only option rows
+    ok 20 - read returns only option rows
+    ok 21 - read returns only option rows
+    ok 22 - read returns only option rows
+    ok 23 - read returns only option rows
+    ok 24 - read returns only option rows
+    ok 25 - read returns only option rows
+    ok 26 - read returns only option rows
+    ok 27 - read returns only option rows
+    ok 28 - read returns only option rows
+    ok 29 - read returns only option rows
+    ok 30 - read returns only option rows
+    ok 31 - read returns only option rows
+    ok 32 - read returns only option rows
+    ok 33 - read returns only option rows
+    ok 34 - read returns only option rows
+    ok 35 - read returns only option rows
+    ok 36 - read returns only option rows
+    ok 37 - read returns only option rows
+    ok 38 - read returns only option rows
+    ok 39 - read returns only option rows
+    ok 40 - read returns only option rows
+    ok 41 - read returns only option rows
+    ok 42 - read returns only option rows
+    ok 43 - read returns only option rows
+    ok 44 - read returns only option rows
+    ok 45 - read returns only option rows
+    ok 46 - read returns only option rows
+    ok 47 - read returns only option rows
+    ok 48 - read returns only option rows
+    ok 49 - read returns only option rows
+    ok 50 - read returns only option rows
+    ok 51 - read returns only option rows
+    ok 52 - read returns only option rows
+    ok 53 - read returns only option rows
+    ok 54 - read returns only option rows
+    ok 55 - read returns only option rows
+    ok 56 - read returns only option rows
+    ok 57 - read returns only option rows
+    ok 58 - read returns only option rows
+    ok 59 - read returns only option rows
+    ok 60 - read returns only option rows
+    ok 61 - read returns only option rows
+    ok 62 - read returns only option rows
+    ok 63 - read returns only option rows
+    ok 64 - read returns only option rows
+    ok 65 - read returns only option rows
+    ok 66 - read returns only option rows
+    ok 67 - read returns only option rows
+    ok 68 - read returns only option rows
+    ok 69 - read returns only option rows
+    ok 70 - read returns only option rows
+    ok 71 - read returns only option rows
+    ok 72 - read returns only option rows
+    ok 73 - read returns only option rows
+    ok 74 - read returns only option rows
+    ok 75 - read returns only option rows
+    ok 76 - read returns only option rows
+    ok 77 - read returns only option rows
+    ok 78 - read returns only option rows
+    ok 79 - read returns only option rows
+    ok 80 - read returns only option rows
+    ok 81 - read returns only option rows
+    ok 82 - read returns only option rows
+    ok 83 - read returns only option rows
+    ok 84 - read returns only option rows
+    ok 85 - read returns only option rows
+    ok 86 - read returns only option rows
+    ok 87 - read returns only option rows
+    ok 88 - read returns only option rows
+    ok 89 - read returns only option rows
+    ok 90 - read returns only option rows
+    ok 91 - read returns only option rows
+    ok 92 - read returns only option rows
+    ok 93 - read returns only option rows
+    ok 94 - read returns only option rows
+    ok 95 - read returns only option rows
+    ok 96 - read returns only option rows
+    ok 97 - read returns only option rows
+    ok 98 - read returns only option rows
+    ok 99 - read returns only option rows
+    ok 100 - read returns only option rows
+    ok 101 - read returns only option rows
+    ok 102 - read returns only option rows
+    1..102
+ok 6 - poll reads stay independent of voter count
+# Subtest: export and erasure cover votes and admission
+    ok 1 - own ballot exported
+    ok 2 - erasure removes ballot
+    ok 3 - erasure reconciles totals
+    ok 4 - admission review erased
+    1..4
+ok 7 - export and erasure cover votes and admission
+# Subtest: server-rendered surfaces and CSRF
+    ok 1 - GET /__test/completion-session
+    ok 2 - 200 OK
+    ok 3 - GET /admin/registration
+    ok 4 - 200 OK
+    ok 5 - element for selector "select[name=mode]" exists
+    ok 6 - POST /admin/registration
+    ok 7 - 403 Forbidden
+    ok 8 - GET /moderation/transfers
+    ok 9 - 200 OK
+    ok 10 - element for selector "input[name=source]" exists
+    ok 11 - GET /c/018f1001-0001-7000-8000-000000000001
+    ok 12 - 200 OK
+    ok 13 - element for selector "select[name=operation]" exists
+    ok 14 - GET /__test/completion-session
+    ok 15 - 200 OK
+    ok 16 - GET /t/01a1694f-f847-76c0-bbcc-2033c89f8aa0/tools/poll
+    ok 17 - 200 OK
+    ok 18 - element for selector "h2" exists
+    ok 19 - POST /t/01a1694f-f847-76c0-bbcc-2033c89f8aa0/tools/poll
+    ok 20 - 403 Forbidden
+    ok 21 - GET /admin/registration
+    ok 22 - 200 OK
+    ok 23 - POST /admin/registration
+    ok 24 - 200 OK
+    ok 25 - exact match for JSON Pointer "/status"
+    ok 26 - GET /c/018f1001-0001-7000-8000-000000000001
+    ok 27 - 200 OK
+    ok 28 - POST /c/018f1001-0001-7000-8000-000000000001/subscription
+    ok 29 - 200 OK
+    ok 30 - exact match for JSON Pointer "/status"
+    ok 31 - GET /t/01a1694f-fa43-7e6e-a849-7a297bd06a2d/tools/poll
+    ok 32 - 200 OK
+    ok 33 - POST /t/01a1694f-fa43-7e6e-a849-7a297bd06a2d/tools/poll
+    ok 34 - 200 OK
+    ok 35 - exact match for JSON Pointer "/status"
+    ok 36 - GET /t/01a1694f-fa43-7e6e-a849-7a297bd06a2d/tools/poll
+    ok 37 - 200 OK
+    ok 38 - POST /t/01a1694f-fa43-7e6e-a849-7a297bd06a2d/tools/poll
+    ok 39 - 200 OK
+    ok 40 - exact match for JSON Pointer "/status"
+    ok 41 - GET /t/01a1694f-fa43-7e6e-a849-7a297bd06a2d/poll
+    ok 42 - 200 OK
+    ok 43 - element for selector "article.thread" exists
+    ok 44 - GET /moderation/transfers
+    ok 45 - 200 OK
+    ok 46 - POST /moderation/transfers
+    ok 47 - 409 Conflict
+    ok 48 - exact match for JSON Pointer "/status"
+    ok 49 - POST /moderation/transfers
+    ok 50 - 200 OK
+    ok 51 - exact match for JSON Pointer "/status"
+    ok 52 - GET /register
+    ok 53 - 200 OK
+    ok 54 - element for selector "input[name=invitation]" exists
+    1..54
+ok 8 - server-rendered surfaces and CSRF
+1..8
+ok
+All tests successful.
+Files=1, Tests=8,  3 wallclock secs ( 0.02 usr  0.01 sys +  1.80 cusr  0.28 csys =  2.11 CPU)
+Result: PASS

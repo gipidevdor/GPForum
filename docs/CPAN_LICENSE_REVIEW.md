@@ -1,0 +1,106 @@
+# Good Phorum CPAN License Review
+
+This review is an operational gate, not a substitute for legal advice. It
+records the CPAN dependency decisions Good Phorum currently accepts for a
+BSD-3-Clause project. Production dependencies must remain pinned by
+`cpanfile.snapshot`; development-only dependencies must not become runtime
+requirements without review.
+
+| Module | Scope | License posture | Risk | Decision |
+| --- | --- | --- | --- | --- |
+| perl | runtime | Perl 5 license | language runtime | allowed |
+| Mojolicious | runtime | Artistic-2.0 | mature web framework; floor 9.54 includes the 9.50 escaping and 9.51 WebSocket fixes, parsing improvements, and correct rejection of incomplete HTTP responses | allowed |
+| Future::AsyncAwait | runtime | Perl 5 license | native Mojo::Promise async/await syntax; 0.71 | allowed |
+| EV | runtime | Perl 5 license; bundled libev uses BSD-2-Clause or GPL-2.0-or-later | XS event loop; required epoll on Linux and kqueue on macOS/FreeBSD; pinned by Carton | allowed |
+| DBIx::Class | develop | Perl 5 license | historical fixtures and maintainer comparisons; runtime transport is Mojo::Pg | dev-only allowed |
+| Minion | runtime | Artistic-2.0 | optional async worker framework | allowed |
+| JSON::MaybeXS | runtime | Perl 5 license | JSON adapter selection | allowed |
+| Cpanel::JSON::XS | runtime | Perl 5 license | preferred JSON::MaybeXS backend; floor 4.80 for the decode, encode and incr_parse CVEs it fixes (CVE-2026-110672 to CVE-2026-110687), after CVE-2026-9334 and CVE-2026-9516 | allowed |
+| Try::Tiny | runtime (transitive) | MIT | required by DBIx::Class, DateTime and Email::Sender; Good Phorum itself uses native try/catch | allowed |
+| DateTime | runtime | Perl 5 license | date/time core dependency | allowed |
+| DateTime::TimeZone | runtime | Perl 5 license | named directly by the date formatter and the time zone preference; tz data is frozen in the pinned release, so zone rule changes need a version bump | allowed |
+| Crypt::Argon2 | runtime | Apache-2.0 | password hashing XS dependency | allowed |
+| Crypt::URandom | runtime | Perl 5 license | entropy source | allowed |
+| Authen::WebAuthn | runtime | Perl 5 license (0.005 LICENSE and META.yml) | existing WebAuthn verification boundary; pinned to 0.005; retain upstream notices | allowed |
+| CBOR::XS | runtime | GPL-3.0 text in 1.87 COPYING; bundled ecb.h is BSD-2-Clause or GPL-2.0-or-later | existing WebAuthn CBOR decoder; META reports unknown, so review uses the distribution files; redistribution of the dependency must preserve its license, notices and corresponding-source obligations | allowed |
+| Crypt::PK::Ed25519 | runtime (CryptX) | Perl 5 license | XS Ed25519 post attestations; CryptX 0.091 is pinned in the lock, with its bundled cryptographic implementation | allowed |
+| Crypt::JWT | runtime | Perl 5 license | OIDC token verification; pinned to 0.038, with accepted algorithms and issuer/audience checked by the integration boundary | allowed |
+| Email::Sender | runtime | Perl 5 license | email delivery boundary | allowed |
+| Email::Address::XS | runtime | Perl 5 license | Email::Sender::Simple address parsing | allowed |
+| Email::Simple | runtime | Perl 5 license | message construction in the identity mailer | allowed |
+| Email::MIME | runtime | Perl 5 license | inbound reply MIME parsing; pinned to 1.954, with message size, part count and nesting bounded by MailIn | allowed |
+| Mail::DKIM | runtime | Perl 5 license | DKIM signing and verification; floor 1.20261105 includes ARC instance validation and long-header parsing fixes; uses host OpenSSL through Crypt::OpenSSL::RSA and CryptX for Ed25519 | allowed |
+| Net::DNS | runtime | MIT (distribution metadata) | DNS lookups for DKIM verification; pinned to 1.57; retain the distribution's copyright and permission notices | allowed |
+| Authen::SASL | runtime | Perl 5 license | SMTP AUTH mechanisms Net::SMTP loads on demand when GPFORUM_SMTP_USERNAME is set | allowed |
+| IO::Socket::SSL | runtime | Perl 5 license | TLS for SMTP (STARTTLS or implicit, the default under GPFORUM_SMTP_TLS) and doctor's https probes; brings Net::SSLeay (Artistic-2.0), XS built against the host's OpenSSL, whose security updates come from the OS | allowed |
+| Const::Fast | runtime | Perl 5 license | immutable scalar helper | allowed |
+| DBI | runtime | Perl 5 license | transitive database interface; security floor 1.656 for CVE-2026-108518 and CVE-2026-111879, after the CPANSA-DBI 2026 advisories fixed in 1.652+ | allowed |
+| Clone | runtime (transitive) | Perl 5 license | XS deep copy, loaded through DateTime and Specio; floor 0.51 for C stack growth past MAX_DEPTH and memory leaks | allowed |
+| Package::Stash::XS | runtime (transitive) | Perl 5 license | XS stash access, loaded through DBIx::Class and namespace::clean; floor 0.32 for the crash of perl issue 24845 | allowed |
+| SQL::Abstract | runtime (transitive) | Perl 5 license | Mojo::Pg SQL builder; floor 2.000003 for CVE-2026-121265, CVE-2026-121007, CVE-2026-121008 and CVE-2026-121009; array values bind by default rather than becoming literal SQL | allowed |
+| Perl::Critic | develop | Perl 5 license | quality gate only | dev-only allowed |
+| Perl::Tidy | develop | GPL-compatible tooling posture | formatting gate only | dev-only allowed |
+| Test::More | develop | Perl 5 license | test framework | dev-only allowed |
+| Test::Exception | develop | Perl 5 license | test helper | dev-only allowed |
+| Test::Fatal | develop | Perl 5 license | test helper | dev-only allowed |
+| Devel::Cover | develop | Perl 5 license | coverage tool | dev-only allowed |
+| Devel::NYTProf | develop | Perl 5 license | profiling tool | dev-only allowed |
+| URI | develop | Perl 5 license | transitive web-test dependency; security floor 5.40 for the over-long IDNA label slowdown fixed in 5.39, after the CPANSA-URI 2026 advisory | dev-only allowed |
+| HTML::Parser | develop | Perl 5 license | transitive Devel::Cover dependency; floor 3.86 for the self-referencing entity expansion fix | dev-only allowed |
+| HTTP::Date | develop | Perl 5 license | transitive web-test dependency; security floor for CPANSA-HTTP-Date 2026 advisory | dev-only allowed |
+| List::SomeUtils::XS | develop | Artistic-2.0 | transitive Perl::Critic dependency; security floor for CPANSA-List-SomeUtils-XS 2026 advisory | dev-only allowed |
+| DBD::Pg | runtime | Perl 5 license | PostgreSQL driver for DB-backed CI and deployments | allowed |
+| Mojo::Pg | runtime | Artistic-2.0 | native runtime function transport and Minion PostgreSQL backend | allowed |
+| Test::PostgreSQL | optional-postgres | Perl 5 license | PostgreSQL integration testing helper | dev-only allowed |
+
+Dependency governance rules:
+
+* Any new `requires` entry in `cpanfile` or `cpanfile.postgres` must add a row here in the same patch.
+* Runtime dependencies require explicit license posture and operational risk.
+* Development dependencies may be stricter or heavier only if they do not become
+  production requirements.
+* `script/cpan-license-check` is the mechanical gate that ensures review
+  coverage does not drift.
+
+The WebAuthn entries were checked against the pinned upstream distributions:
+[Authen-WebAuthn-0.005](https://cpan.metacpan.org/authors/id/M/MB/MBESSON/Authen-WebAuthn-0.005.tar.gz)
+(`LICENSE`, `META.yml`) and
+[CBOR-XS-1.87](https://cpan.metacpan.org/authors/id/M/ML/MLEHMANN/CBOR-XS-1.87.tar.gz)
+(`COPYING`, `ecb.h`, `META.json`). The latter is recorded with the GPL text
+actually shipped, rather than inferring a Perl/Artistic license from its module
+namespace or incomplete metadata.
+
+## Version and security review, 2026-11-07
+
+All 167 distributions in the application snapshot were compared with the
+[CPAN package index](https://www.cpan.org/modules/02packages.details.txt.gz)
+dated 2026-11-07 and the latest stable release metadata from MetaCPAN. Fifteen
+distributions were updated. Both snapshots also include Mojolicious 9.54,
+published at 13:27 UTC during this review, which fixes incomplete HTTP response
+handling and transaction cleanup. The 28-distribution standalone passkey
+snapshot was refreshed for that release too; its manifest states the same
+Mojolicious, CBOR::XS and Test::More floors as its snapshot.
+
+Both snapshots and the installed application tree were checked with
+CPAN::Audit 20261105.001 and CPANSA::DB 20261101.010. The database matches the
+[upstream advisory repository](https://github.com/briandfoy/cpan-security-advisory/tree/7617ce4a08c5afb9d2571779a5774d3c616f58eb)
+as of November 2. Its only findings are the two configuration advisories
+documented in `etc/cpan-audit-ignore.txt`; both applications explicitly configure
+their session secrets. This is a check of published advisories, not a guarantee
+that a dependency has no vulnerabilities.
+
+The database predates the
+[SQL::Abstract security releases of November 5 and 6](https://metacpan.org/dist/SQL-Abstract/changes).
+The explicit runtime floor 2.000003 and executable injection/HTML-escaping
+regressions cover CVE-2026-121265, CVE-2026-121007, CVE-2026-121008 and
+CVE-2026-121009 without waiting for the database update. Mail::DKIM's floor
+also includes its November 5 ARC validation and long-header parsing fixes.
+
+Host installers are reviewed separately from the application lock. cpanminus
+1.7049 is current but retains CPANSA-App-cpanminus-2024-45321 for its default
+HTTP mirror. Repository commands select an HTTPS mirror exclusively. Carton
+1.0.35 also appends HTTP CPAN/BackPAN fallbacks internally: the repository
+launcher protects its installer arguments, upgrades those known fallbacks to
+HTTPS, refuses other unprotected mirrors and disables HTTP metadata discovery.
+These tool mitigations do not add application advisory exclusions or modify the
+host's Carton installation.

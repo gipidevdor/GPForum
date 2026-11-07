@@ -1,0 +1,13 @@
+{
+  "commit": "2713b813f2553e16471dcaf93da154341e607e14",
+  "benchmark_files": {
+    "script/benchmark-http-complete": "8e241841e352c7e4398c34c6ca1d91a85a66fb8fcc2cefb125f34612a380f121",
+    "script/lib/GPForum/Performance/HTTPComplete.pm": "ba5a53a5b34ec67692dfd503275da3280742663a53642018ce524ae4c54a0535",
+    "benchmarks/hypnotoad-app.pl": "f1e89adbcdc240f6f26b6cb608a790dd5dba2d4a9a72bf8ef598f9fe1f099e4b",
+    "t/integration/postgres-http-complete.t": "70bb61d2cdce32157ba97a35ee82ddb29893b984b3dca4bf31069a9addecc6d3",
+    "script/lib/GPForum/Performance/Server.pm": "c10e2a71df55a8c19329dccea610e1b360a2deae200d6d291e8e2850975c6e4a",
+    "t/performance/http.t": "2b0d3b41231bc83f3c4fe3a581243ab0ea7970206238ead7fb1d4a6555ec36f7"
+  },
+  "tracked_files_verified": 3417,
+  "source_policy": "Application source unchanged at the commit across HTTP arms. Initial two arms use benchmark-options-initial.patch; subsequent arms additionally wait for the manager PID, as benchmark-options.patch records."
+}

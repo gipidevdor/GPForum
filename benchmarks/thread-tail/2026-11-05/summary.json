@@ -1,0 +1,393 @@
+{
+  "source": {
+    "commit": "2713b813f2553e16471dcaf93da154341e607e14",
+    "benchmark_files": {
+      "script/benchmark-http-complete": "8e241841e352c7e4398c34c6ca1d91a85a66fb8fcc2cefb125f34612a380f121",
+      "script/lib/GPForum/Performance/HTTPComplete.pm": "ba5a53a5b34ec67692dfd503275da3280742663a53642018ce524ae4c54a0535",
+      "benchmarks/hypnotoad-app.pl": "f1e89adbcdc240f6f26b6cb608a790dd5dba2d4a9a72bf8ef598f9fe1f099e4b",
+      "t/integration/postgres-http-complete.t": "70bb61d2cdce32157ba97a35ee82ddb29893b984b3dca4bf31069a9addecc6d3",
+      "script/lib/GPForum/Performance/Server.pm": "c10e2a71df55a8c19329dccea610e1b360a2deae200d6d291e8e2850975c6e4a",
+      "t/performance/http.t": "2b0d3b41231bc83f3c4fe3a581243ab0ea7970206238ead7fb1d4a6555ec36f7"
+    },
+    "tracked_files_verified": 3417,
+    "source_policy": "Application source unchanged at the commit across HTTP arms. Initial two arms use benchmark-options-initial.patch; subsequent arms additionally wait for the manager PID, as benchmark-options.patch records."
+  },
+  "requests": 59910,
+  "invalid_responses": 0,
+  "cells": 36,
+  "rows": [
+    {
+      "arm": "http-w4-c2048-a",
+      "workers": 4,
+      "worker_clients": 2048,
+      "concurrency": 1,
+      "rps": {
+        "median": 80.6315709693495,
+        "min": 80.437127525386,
+        "max": 80.9506193127057
+      },
+      "latency_p95_ms": {
+        "median": 12.6129999989644,
+        "min": 12.589999998454,
+        "max": 12.6190000009956
+      },
+      "app_p95_ms": {
+        "median": 10.115,
+        "min": 10.095,
+        "max": 10.121
+      },
+      "db_p95_ms": {
+        "median": 1.132,
+        "min": 1.121,
+        "max": 1.141
+      },
+      "outside_app_p95_ms": {
+        "median": 2.53600000573508,
+        "min": 2.52199999808986,
+        "max": 2.5929999925578
+      }
+    },
+    {
+      "arm": "http-w4-c2048-a",
+      "workers": 4,
+      "worker_clients": 2048,
+      "concurrency": 10,
+      "rps": {
+        "median": 297.363672798549,
+        "min": 295.970928416149,
+        "max": 299.983984325971
+      },
+      "latency_p95_ms": {
+        "median": 60.576999996556,
+        "min": 59.6670000086306,
+        "max": 62.4320000060834
+      },
+      "app_p95_ms": {
+        "median": 11.441,
+        "min": 11.37,
+        "max": 11.485
+      },
+      "db_p95_ms": {
+        "median": 1.378,
+        "min": 1.359,
+        "max": 1.429
+      },
+      "outside_app_p95_ms": {
+        "median": 49.6709999961918,
+        "min": 49.1299999905163,
+        "max": 51.9100000042086
+      }
+    },
+    {
+      "arm": "http-w4-c2048-a",
+      "workers": 4,
+      "worker_clients": 2048,
+      "concurrency": 50,
+      "rps": {
+        "median": 312.634568441991,
+        "min": 311.887097839748,
+        "max": 321.926182439884
+      },
+      "latency_p95_ms": {
+        "median": 243.056000006618,
+        "min": 231.929999994463,
+        "max": 256.359999999404
+      },
+      "app_p95_ms": {
+        "median": 11.471,
+        "min": 11.374,
+        "max": 11.683
+      },
+      "db_p95_ms": {
+        "median": 1.422,
+        "min": 1.406,
+        "max": 1.468
+      },
+      "outside_app_p95_ms": {
+        "median": 232.320000000671,
+        "min": 221.288999994463,
+        "max": 245.987000001579
+      }
+    },
+    {
+      "arm": "http-w4-c2048-a",
+      "workers": 4,
+      "worker_clients": 2048,
+      "concurrency": 100,
+      "rps": {
+        "median": 308.422097299311,
+        "min": 299.842880472654,
+        "max": 313.570246182947
+      },
+      "latency_p95_ms": {
+        "median": 790.35899999144,
+        "min": 723.144000003231,
+        "max": 803.673000002163
+      },
+      "app_p95_ms": {
+        "median": 11.651,
+        "min": 11.592,
+        "max": 11.767
+      },
+      "db_p95_ms": {
+        "median": 1.47,
+        "min": 1.457,
+        "max": 1.514
+      },
+      "outside_app_p95_ms": {
+        "median": 779.66399999144,
+        "min": 712.75400001273,
+        "max": 793.09600000282
+      }
+    },
+    {
+      "arm": "http-w4-c32-a",
+      "workers": 4,
+      "worker_clients": 32,
+      "concurrency": 1,
+      "rps": {
+        "median": 80.7011314295281,
+        "min": 80.1765166190094,
+        "max": 81.4263950172709
+      },
+      "latency_p95_ms": {
+        "median": 12.4980000109645,
+        "min": 12.3719999974128,
+        "max": 12.7030000003288
+      },
+      "app_p95_ms": {
+        "median": 10.053,
+        "min": 9.957,
+        "max": 10.057
+      },
+      "db_p95_ms": {
+        "median": 1.111,
+        "min": 1.104,
+        "max": 1.14
+      },
+      "outside_app_p95_ms": {
+        "median": 2.53900000232924,
+        "min": 2.43599999741279,
+        "max": 2.57499999812059
+      }
+    },
+    {
+      "arm": "http-w4-c32-a",
+      "workers": 4,
+      "worker_clients": 32,
+      "concurrency": 10,
+      "rps": {
+        "median": 285.891258143141,
+        "min": 285.36547944073,
+        "max": 286.475544113554
+      },
+      "latency_p95_ms": {
+        "median": 63.8480000052368,
+        "min": 63.2769999938319,
+        "max": 64.3710000003921
+      },
+      "app_p95_ms": {
+        "median": 11.282,
+        "min": 11.177,
+        "max": 11.65
+      },
+      "db_p95_ms": {
+        "median": 1.358,
+        "min": 1.335,
+        "max": 1.446
+      },
+      "outside_app_p95_ms": {
+        "median": 53.2830000052368,
+        "min": 52.0830000007078,
+        "max": 53.86299999783
+      }
+    },
+    {
+      "arm": "http-w4-c32-a",
+      "workers": 4,
+      "worker_clients": 32,
+      "concurrency": 50,
+      "rps": {
+        "median": 293.219859631579,
+        "min": 290.488960358213,
+        "max": 300.327975672533
+      },
+      "latency_p95_ms": {
+        "median": 369.600999998511,
+        "min": 367.780000000494,
+        "max": 379.879000000074
+      },
+      "app_p95_ms": {
+        "median": 11.57,
+        "min": 11.432,
+        "max": 12.612
+      },
+      "db_p95_ms": {
+        "median": 1.448,
+        "min": 1.407,
+        "max": 1.593
+      },
+      "outside_app_p95_ms": {
+        "median": 359.018999995251,
+        "min": 357.250000006033,
+        "max": 369.696999998866
+      }
+    },
+    {
+      "arm": "http-w4-c32-a",
+      "workers": 4,
+      "worker_clients": 32,
+      "concurrency": 100,
+      "rps": {
+        "median": 304.808495125611,
+        "min": 295.153851773822,
+        "max": 305.671264964111
+      },
+      "latency_p95_ms": {
+        "median": 449.863000001642,
+        "min": 422.283000007155,
+        "max": 460.326999993413
+      },
+      "app_p95_ms": {
+        "median": 12.001,
+        "min": 11.378,
+        "max": 12.744
+      },
+      "db_p95_ms": {
+        "median": 1.517,
+        "min": 1.406,
+        "max": 1.692
+      },
+      "outside_app_p95_ms": {
+        "median": 438.819000003058,
+        "min": 411.685000007155,
+        "max": 449.138999994457
+      }
+    },
+    {
+      "arm": "http-w8-c16-b",
+      "workers": 8,
+      "worker_clients": 16,
+      "concurrency": 1,
+      "rps": {
+        "median": 78.7587619119912,
+        "min": 78.6090598508686,
+        "max": 80.6845275317813
+      },
+      "latency_p95_ms": {
+        "median": 14.21899998968,
+        "min": 13.2989999983693,
+        "max": 14.6319999912521
+      },
+      "app_p95_ms": {
+        "median": 11.325,
+        "min": 10.523,
+        "max": 11.61
+      },
+      "db_p95_ms": {
+        "median": 1.423,
+        "min": 1.207,
+        "max": 1.443
+      },
+      "outside_app_p95_ms": {
+        "median": 2.95400000470132,
+        "min": 2.76299999267049,
+        "max": 3.07199999091122
+      }
+    },
+    {
+      "arm": "http-w8-c16-b",
+      "workers": 8,
+      "worker_clients": 16,
+      "concurrency": 10,
+      "rps": {
+        "median": 408.094808480702,
+        "min": 408.041547126538,
+        "max": 410.222297963487
+      },
+      "latency_p95_ms": {
+        "median": 39.5100000023376,
+        "min": 39.1990000061924,
+        "max": 39.9079999915557
+      },
+      "app_p95_ms": {
+        "median": 13.501,
+        "min": 13.48,
+        "max": 13.604
+      },
+      "db_p95_ms": {
+        "median": 1.77,
+        "min": 1.758,
+        "max": 1.784
+      },
+      "outside_app_p95_ms": {
+        "median": 27.7330000065714,
+        "min": 27.6329999956619,
+        "max": 27.9630000101365
+      }
+    },
+    {
+      "arm": "http-w8-c16-b",
+      "workers": 8,
+      "worker_clients": 16,
+      "concurrency": 50,
+      "rps": {
+        "median": 484.531979354327,
+        "min": 474.486679135435,
+        "max": 500.206483416151
+      },
+      "latency_p95_ms": {
+        "median": 190.624000009848,
+        "min": 143.479999998817,
+        "max": 254.41100000171
+      },
+      "app_p95_ms": {
+        "median": 14.81,
+        "min": 14.448,
+        "max": 15.124
+      },
+      "db_p95_ms": {
+        "median": 2.003,
+        "min": 1.913,
+        "max": 2.014
+      },
+      "outside_app_p95_ms": {
+        "median": 178.271000002887,
+        "min": 130.346000007099,
+        "max": 241.693000005092
+      }
+    },
+    {
+      "arm": "http-w8-c16-b",
+      "workers": 8,
+      "worker_clients": 16,
+      "concurrency": 100,
+      "rps": {
+        "median": 499.445543063995,
+        "min": 487.880140616203,
+        "max": 500.410149854071
+      },
+      "latency_p95_ms": {
+        "median": 286.676999996416,
+        "min": 284.198000008473,
+        "max": 294.487999999546
+      },
+      "app_p95_ms": {
+        "median": 14.705,
+        "min": 14.644,
+        "max": 14.889
+      },
+      "db_p95_ms": {
+        "median": 1.971,
+        "min": 1.933,
+        "max": 1.994
+      },
+      "outside_app_p95_ms": {
+        "median": 274.393999993446,
+        "min": 270.992000003349,
+        "max": 282.028000001883
+      }
+    }
+  ],
+  "aggregation": "Median and observed min/max across three repetitions of each cell; percentiles are not pooled."
+}

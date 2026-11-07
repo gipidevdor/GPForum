@@ -1,0 +1,14 @@
+% my $heading_id = stash('heading_id') || 'empty-state-heading';
+% my $component_title = stash('component_title') || t('ui.empty_state');
+% my $description = stash('description') || q{};
+% my $empty_icon = stash('empty_icon');
+
+<section class="ui-empty-state" aria-labelledby="<%= $heading_id %>">
+  % if ($empty_icon) {
+    <span class="ui-empty-state__symbol" aria-hidden="true"><%= ui_icon($empty_icon) %></span>
+  % }
+  <h2 id="<%= $heading_id %>"><%= $component_title %></h2>
+  % if (length $description) {
+    <p><%= $description %></p>
+  % }
+</section>

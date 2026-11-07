@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-02",
+  "hardware": {
+    "arch": "arm64",
+    "cpu_count": 10,
+    "cpu_model": "Apple M4",
+    "image": "Darwin",
+    "image_version": null,
+    "kernel": "27.2.0",
+    "label": "local",
+    "memory_bytes": 17179869184,
+    "name": "local",
+    "os": "Darwin"
+  },
+  "versions": {
+    "mojolicious": "9.51",
+    "perl": "v5.44.0",
+    "platform": "darwin-thread-multi-2level",
+    "postgres": "18.6 (Homebrew)"
+  },
+  "sources": {
+    "application_base": "c7999c31cfd8aa77e57ba052554d890a786221ae",
+    "capacity_harness": "0f360b336218a4052fd9cf9f992c4d06c0aaac01",
+    "observability_harness": "230c23d7b9c477b773db183d49abf9fc36fb9228",
+    "comparison_baseline": "3f060b31813151aa109098264f04f45974f5ccc1"
+  },
+  "phases": [
+    {
+      "name": "full-workers2",
+      "status": "ok",
+      "source_commit": "0f360b336218a4052fd9cf9f992c4d06c0aaac01",
+      "planned_cells": 282,
+      "observed_cells": 282,
+      "requests": 65830,
+      "invalid_responses": 0,
+      "duration_seconds": 491.785519000026
+    },
+    {
+      "name": "hot-workers4-attempt1",
+      "status": "fail",
+      "source_commit": "0f360b336218a4052fd9cf9f992c4d06c0aaac01",
+      "planned_cells": 48,
+      "observed_cells": 48,
+      "requests": 76564,
+      "invalid_responses": 1,
+      "duration_seconds": 213.828449999972
+    },
+    {
+      "name": "hot-workers4-confirm",
+      "status": "ok",
+      "source_commit": "0f360b336218a4052fd9cf9f992c4d06c0aaac01",
+      "planned_cells": 48,
+      "observed_cells": 48,
+      "requests": 52519,
+      "invalid_responses": 0,
+      "duration_seconds": 221.493776999996
+    },
+    {
+      "name": "notifications-workers4",
+      "status": "ok",
+      "source_commit": "230c23d7b9c477b773db183d49abf9fc36fb9228",
+      "planned_cells": 12,
+      "observed_cells": 12,
+      "requests": 26365,
+      "invalid_responses": 0,
+      "duration_seconds": 62.4567590000224
+    }
+  ],
+  "coverage_union": {
+    "http": {
+      "total": 218,
+      "observed": 178,
+      "missing": [
+        "admin_announcement_create",
+        "admin_announcement_retire",
+        "admin_antivirus_check",
+        "admin_configuration_reset",
+        "admin_dead_letter_replay",
+        "admin_integration_announce_retry",
+        "admin_integration_feed_fetch",
+        "admin_mail_test",
+        "admin_permission_create",
+        "admin_role_bind",
+        "admin_role_binding_revoke",
+        "admin_role_permission_attach",
+        "admin_search_rebuild",
+        "bookmark_folder",
+        "email_confirm",
+        "email_confirm_form",
+        "email_verify_request",
+        "email_verify_request_submit",
+        "following",
+        "legal_notice",
+        "moderation_transfer_undo",
+        "notification_read",
+        "password_reset_complete",
+        "password_reset_form",
+        "post_attachment_delete",
+        "privacy_deletion_request",
+        "privacy_hold_release",
+        "profile_follow",
+        "profile_report",
+        "realtime",
+        "security_txt",
+        "settings_email_update",
+        "settings_openid_link",
+        "settings_openid_unlink",
+        "settings_password_update",
+        "site_icon",
+        "tag",
+        "thread_move",
+        "thread_report",
+        "websub_subscribe"
+      ]
+    },
+    "sql": {
+      "total": 351,
+      "observed": 335,
+      "missing": [
+        "community_follow_change",
+        "community_followed_users",
+        "community_like_post",
+        "community_react_post",
+        "community_unlike_post",
+        "community_unreact_post",
+        "ops_partition_horizon",
+        "ops_partition_registry",
+        "ops_replication_position",
+        "ops_replication_recovery",
+        "ops_replication_slots",
+        "ops_replication_standbys",
+        "ops_worker_aggregate",
+        "search_remove_document",
+        "search_tagged_thread_ranked",
+        "session_lookup"
+      ]
+    }
+  },
+  "operations": {
+    "base_status": "ok",
+    "supplement_status": "ok",
+    "base_duration_seconds": 342.640940000012,
+    "supplement_duration_seconds": 17.8154499999946
+  },
+  "aggregation": "Each CSV row is the median of per-cell measurements, with min/max over repetitions. Percentiles are not pooled. Different workloads and diagnostic timings are not capacity-comparable.",
+  "excluded_from_primary_comparison": "The first four-worker run failed on one premature connection close at member.home, c=10, repetition=1. It is retained in full; the clean rerun is the selected comparison. The isolated notification diagnostic is separate."
+}

@@ -1,0 +1,2 @@
+%# A standalone partial uses the same per-response assembly as the post list.
+<%= ui_presenter->post_fragments->reaction_html($c, stash('post')) %>

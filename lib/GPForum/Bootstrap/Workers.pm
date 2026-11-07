@@ -1,0 +1,288 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Bootstrap::Workers;
+
+use v5.40;
+
+use English       qw(-no_match_vars);
+use Sys::Hostname qw(hostname);
+
+use GPForum::Service::Community::FeedProjector;
+use GPForum::Service::Community::ReputationLedger;
+use GPForum::Service::Identity::MailToken;
+use GPForum::Service::Outbox::Dispatcher;
+use GPForum::Service::Outbox::DomainEventTransport;
+use GPForum::Service::Search::Indexer;
+use GPForum::Service::Search::RebuildRun;
+use GPForum::Worker::EventIdempotencyStore;
+use GPForum::Worker::Handler::AttachmentScanning;
+use GPForum::Worker::Handler::CacheInvalidation;
+use GPForum::Worker::Handler::FeedProjection;
+use GPForum::Worker::Handler::IdentityMail;
+use GPForum::Worker::Handler::MediaProcessing;
+use GPForum::Worker::Handler::NotificationDigest;
+use GPForum::Worker::Handler::NotificationDispatch;
+use GPForum::Worker::Handler::NotificationMail;
+use GPForum::Worker::Handler::ReputationUpdate;
+use GPForum::Worker::Handler::SearchIndexing;
+use GPForum::Worker::Handler::SuspensionEnd;
+use GPForum::Worker::Handler::ThreadActivity;
+use GPForum::Worker::Handler::WebSub;
+use GPForum::Worker::Handler::IntegrationNetwork;
+use GPForum::Service::Integration::Announcements;
+use GPForum::Service::Integration::Syndication;
+use GPForum::Service::Forum::ViewerResolver;
+use GPForum::Service::Notification::DigestQueue;
+use GPForum::Infrastructure::Id;
+use GPForum::Worker::IdempotentJobRunner;
+use GPForum::Worker::MinionGuard;
+use GPForum::Worker::MinionRegistrar;
+use GPForum::X::Config;
+
+our $VERSION = '0.001';
+
+sub register ( $, %input ) {
+    my $application = $input{application};
+    my $config      = $input{config};
+
+    _register_worker_helpers($application);
+    _configure_minion( $application, $config );
+
+    return;
+}
+
+sub _register_worker_helpers {
+    my ($application) = @_;
+
+    $application->helper(
+        gp_outbox_transport => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Outbox::DomainEventTransport->new(
+                handlers          => _event_handlers($controller),
+                job_runner        => _job_runner($controller),
+                realtime_notifier => $controller->gp_realtime_pg_notifier,
+            );
+        }
+    );
+
+    $application->helper(
+        gp_outbox_dispatcher => sub {
+            my ($controller) = @_;
+
+            return GPForum::Service::Outbox::Dispatcher->new(
+                logger    => $controller->app->log,
+                schema    => $controller->gp_schema,
+                transport => $controller->gp_outbox_transport,
+                worker_id => _worker_id(),
+            );
+        }
+    );
+
+    $application->helper(
+        gp_worker_registrar => sub {
+            return GPForum::Worker::MinionRegistrar->new(
+                dispatcher_factory => sub {
+                    my ($job) = @_;
+
+                    return $job->app->build_controller->gp_outbox_dispatcher;
+                },
+            );
+        }
+    );
+
+    return;
+}
+
+sub _job_runner ($controller) {
+    return GPForum::Worker::IdempotentJobRunner->new(
+        store => GPForum::Worker::EventIdempotencyStore->new(
+            schema => $controller->gp_schema,
+        ),
+    );
+}
+
+sub _event_handlers ($controller) {
+    return [
+        GPForum::Worker::Handler::IntegrationNetwork->new(
+            announcements => GPForum::Service::Integration::Announcements->new(
+                schema           => $controller->gp_schema,
+                policy_available =>
+                  $controller->gp_configuration->state->{available} ? 1 : 0,
+                config => $controller->gp_config
+            ),
+            feeds => GPForum::Service::Integration::Syndication->new(
+                schema           => $controller->gp_schema,
+                policy_available =>
+                  $controller->gp_configuration->state->{available} ? 1 : 0,
+                config => $controller->gp_config
+            ),
+        ),
+        GPForum::Worker::Handler::WebSub->new(
+            publisher => $controller->gp_websub
+        ),
+        _search_handler($controller),
+        GPForum::Worker::Handler::NotificationDispatch->new(
+            dispatcher => $controller->gp_notification_dispatcher,
+        ),
+        GPForum::Worker::Handler::CacheInvalidation->new(
+            cache => $controller->gp_local_cache,
+        ),
+        GPForum::Worker::Handler::ThreadActivity->new(
+            schema => $controller->gp_schema,
+        ),
+        GPForum::Worker::Handler::SuspensionEnd->new(
+            store => $controller->gp_suspension_store,
+        ),
+        GPForum::Worker::Handler::AttachmentScanning->new(
+            antivirus => $controller->gp_antivirus,
+            storage   => $controller->gp_attachment_storage,
+            store     => $controller->gp_attachment_store,
+        ),
+        GPForum::Worker::Handler::MediaProcessing->new(
+            processor => $controller->gp_media_processor,
+        ),
+        GPForum::Worker::Handler::FeedProjection->new(
+            projector => GPForum::Service::Community::FeedProjector->new(
+                schema => $controller->gp_schema,
+            ),
+            schema             => $controller->gp_schema,
+            subscription_store => $controller->gp_subscription_store,
+        ),
+        GPForum::Worker::Handler::IdentityMail->new(
+            mail_token => GPForum::Service::Identity::MailToken->new(
+                secrets => $controller->app->secrets
+            ),
+            mailer => $controller->gp_identity_mailer,
+        ),
+        GPForum::Worker::Handler::NotificationMail->new(
+            reply_tokens  => $controller->gp_mail_reply_tokens,
+            reply_address => $controller->gp_config->mail_reply_address,
+            reply_content => sub ($mail) {
+                return undef
+                  if !GPForum::Infrastructure::Id->is_uuid( $mail->{post_id} );
+                my $viewer = GPForum::Service::Forum::ViewerResolver->new(
+                    schema => $controller->gp_schema )
+                  ->resolve( $mail->{recipient_user_id} );
+                my $post =
+                  $controller->gp_archive->post( $mail->{post_id}, $viewer );
+                return $post ? $post->get_column('body_source') : undef;
+            },
+            mailer           => $controller->gp_identity_mailer,
+            preference_store => $controller->gp_notification_preference_store,
+            renderer         => $controller->gp_notification_renderer,
+            tokens           => $controller->gp_unsubscribe_tokens,
+        ),
+        GPForum::Worker::Handler::NotificationDigest->new(
+            content_reader => sub ($digest) {
+                return GPForum::Service::Notification::DigestQueue->new(
+                    schema => $controller->gp_schema, )->readable_content(
+                    {
+                        user_id      => $digest->{recipient_user_id},
+                        period_start => $digest->{period_start},
+                        period_end   => $digest->{period_end},
+                    }
+                    );
+            },
+            mailer           => $controller->gp_identity_mailer,
+            preference_store => $controller->gp_notification_preference_store,
+            renderer         => $controller->gp_notification_renderer,
+            tokens           => $controller->gp_unsubscribe_tokens,
+        ),
+        GPForum::Worker::Handler::ReputationUpdate->new(
+            ledger => GPForum::Service::Community::ReputationLedger->new(
+                schema => $controller->gp_schema,
+            ),
+            schema => $controller->gp_schema,
+        ),
+    ];
+}
+
+sub _search_handler ($controller) {
+    my $indexer = GPForum::Service::Search::Indexer->new(
+        semantic => $controller->gp_semantic_search,
+        schema   => $controller->gp_schema
+    );
+
+    return GPForum::Worker::Handler::SearchIndexing->new(
+        indexer     => $indexer,
+        rebuild_run => GPForum::Service::Search::RebuildRun->new(
+            indexer => $indexer,
+            schema  => $controller->gp_schema,
+        ),
+    );
+}
+
+sub _configure_minion ( $application, $config ) {
+    if ( !GPForum::Worker::MinionGuard->requested($config) ) {
+        return;
+    }
+
+    _require_minion_backend($config);
+    GPForum::Worker::MinionGuard->wrap(
+        sub {
+            _load_minion_plugin( $application, $config );
+            return;
+        }
+    );
+    GPForum::Worker::MinionGuard->wrap(
+        sub {
+            GPForum::Worker::MinionGuard->assert_reachable(
+                $application->minion );
+            return;
+        }
+    );
+    _register_minion_tasks($application);
+
+    return;
+}
+
+sub _load_minion_plugin ( $application, $config ) {
+    $application->plugin( Minion => { Pg => $config->minion_pg_url } );
+
+    return 1;
+}
+
+# Through the gp_worker_registrar helper, the one registrar: a second copy
+# here, with its own dispatcher closure, left the helper's tests passing on
+# the copy production does not use.
+sub _register_minion_tasks {
+    my ($application) = @_;
+
+    my $tasks = $application->build_controller->gp_worker_registrar->register(
+        $application->minion );
+    $application->config( gpforum_minion_tasks => $tasks );
+
+    return;
+}
+
+sub _require_minion_backend ($config) {
+    if ( !length $config->minion_pg_url ) {
+        GPForum::X::Config->throw( message =>
+              'GPFORUM_MINION_PG_URL is required when GPFORUM_MINION_ENABLED=1'
+        );
+    }
+
+    try {
+        require Mojolicious::Plugin::Minion;
+        require Minion::Backend::Pg;
+        require Mojo::Pg;
+    }
+    catch ($error) {
+        GPForum::X::Config->throw(
+            message => 'Minion PostgreSQL backend requires Mojo::Pg;'
+              . ' install optional PostgreSQL dependencies: '
+              . $error,
+            cause => $error,
+        );
+    };
+
+    return;
+}
+
+sub _worker_id {
+    return join q{:}, 'gpforum', hostname(), $PROCESS_ID;
+}
+
+1;

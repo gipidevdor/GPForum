@@ -1,0 +1,310 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+
+use Const::Fast;
+use Mojo::File qw(path);
+use Test::More;
+
+our $VERSION = '0.001';
+
+const my $BOOTSTRAP   => 'script/bootstrap-deps';
+const my $CARTON      => 'script/gpforum-carton';
+const my $SYSTEM_PERL => 'script/gpforum-system-perl';
+const my $MAKEFILE    => 'Makefile';
+const my $CPANFILE    => 'cpanfile';
+
+_assert_declared_sets();
+_assert_bootstrap_security();
+_assert_perl_runtime();
+_assert_operator_surface();
+_assert_dependency_phases();
+
+done_testing();
+
+sub _assert_declared_sets {
+    my $cpanfile  = path($CPANFILE)->slurp;
+    my $postgres  = path('cpanfile.postgres')->slurp;
+    my $snapshot  = path('cpanfile.snapshot')->slurp;
+    my $bootstrap = path($BOOTSTRAP)->slurp;
+
+    like(
+        $cpanfile,
+        qr/feature [ ]+ 'postgres'/msx,
+        'cpanfile declares the postgres Carton feature'
+    );
+    like(
+        $cpanfile,
+        qr/do [ ]+ '[.]\/cpanfile[.]postgres'/msx,
+        'postgres feature loads the split cpanfile.postgres'
+    );
+    like(
+        $postgres,
+        qr/requires [ ]+ 'DBD::Pg'/msx,
+        'cpanfile.postgres declares DBD::Pg'
+    );
+    like(
+        $postgres,
+        qr/requires [ ]+ 'Mojo::Pg'/msx,
+        'cpanfile.postgres declares Mojo::Pg'
+    );
+    like(
+        $snapshot,
+        qr/carton [ ] snapshot [ ] format/msx,
+        'cpanfile.snapshot is the Carton lockfile'
+    );
+    like(
+        $snapshot,
+        qr/^ [ ][ ] DBD-Pg-/msx,
+        'snapshot pins DBD::Pg for the postgres feature'
+    );
+    like(
+        $snapshot,
+        qr/^ [ ][ ] Mojo-Pg-/msx,
+        'snapshot pins Mojo::Pg for the postgres feature'
+    );
+    like(
+        $snapshot,
+        qr/^ [ ][ ] Test-PostgreSQL-/msx,
+        'snapshot pins Test::PostgreSQL for the postgres feature'
+    );
+    like(
+        $bootstrap,
+        qr/--without [ ] postgres/msx,
+        'bootstrap excludes the postgres feature unless requested'
+    );
+
+    return;
+}
+
+sub _assert_bootstrap_security {
+    my $bootstrap = path($BOOTSTRAP)->slurp;
+    my $locator   = path($CARTON)->slurp;
+
+    like(
+        $bootstrap,
+        qr/--resolver [ ] snapshot [ ] --no-default-resolvers/msx,
+        'bootstrap resolves only from the committed snapshot'
+    );
+    like(
+        $bootstrap,
+        qr/https:\/\/cpan[.]metacpan[.]org\//msx,
+        'bootstrap defaults to the official MetaCPAN HTTPS mirror'
+    );
+    like( $bootstrap, qr/PERL_CARTON_MIRROR/msx,
+        'bootstrap honors Carton HTTPS mirror configuration' );
+    unlike(
+        $bootstrap,
+        qr/(?:^|\n)[ \t]*cpanm\b/msx,
+        'bootstrap does not sideload distributions with cpanm'
+    );
+    unlike( $bootstrap, qr/--notest/msx,
+        'bootstrap does not add --notest around application dists' );
+    unlike(
+        $bootstrap,
+        qr/rm [ ]+-rf [ ]+local/msx,
+        'bootstrap does not destroy local/'
+    );
+    like( $bootstrap, qr/--rebuild-local/msx,
+        'bootstrap documents --rebuild-local for incomplete local/' );
+    like(
+        $bootstrap,
+        qr/mv [ ]+local [ ]+"/msx,
+        'rebuild-local renames local/ aside instead of deleting'
+    );
+    unlike(
+        $locator,
+        qr/curl |wget /msx,
+        'carton locator does not download over ad-hoc HTTP clients'
+    );
+    like(
+        $locator,
+        qr/cpanm [ ]+-M [ ]+https:\/\/cpan[.]metacpan[.]org\//msx,
+        'missing Carton is installed from MetaCPAN HTTPS'
+    );
+
+    return;
+}
+
+sub _assert_perl_runtime {
+    my $helper    = path($SYSTEM_PERL)->slurp;
+    my $bootstrap = path($BOOTSTRAP)->slurp;
+    my $locator   = path($CARTON)->slurp;
+    my $preflight = path('script/system-preflight')->slurp;
+    my $makefile  = path($MAKEFILE)->slurp;
+    my $readme    = path('README.md')->slurp;
+    my $ci        = path('.github/workflows/ci.yml')->slurp;
+
+    like( $helper, qr/perlbrew.*plenv.*asdf/msx,
+        'selector supports managed runtimes' );
+    unlike(
+        $helper,
+        qr/is_denied_path|is_system_prefix/msx,
+        'installation origin does not determine compatibility'
+    );
+    like(
+        $helper,
+        qr/command[ ]-v[ ]perl/msx,
+        'selector consults the active PATH'
+    );
+    like( $helper, qr/GPFORUM_PERL/msx,
+        'an explicit runtime remains selectable' );
+    like( $helper, qr/5[.]040/msx, 'system-perl helper requires Perl 5.40+' );
+    like(
+        $bootstrap,
+        qr/gpforum-system-perl [ ] --require/msx,
+        'bootstrap validates the selected Perl before installing'
+    );
+    unlike(
+        $bootstrap,
+        qr/(?:curl|wget).*perlbrew|plenv [ ]install|perlbrew [ ]install/msx,
+        'bootstrap does not install a non-system Perl'
+    );
+    like(
+        $locator,
+        qr/gpforum-system-perl"? [ ] --require/msx,
+        'carton locator binds to the selected Perl'
+    );
+    like(
+        $preflight,
+        qr/gpforum-system-perl [ ] --preflight/msx,
+        'system-preflight prints perl -V evidence'
+    );
+    like( $makefile, qr/^system-perl:/msx, 'Makefile has system-perl target' );
+    like( $readme, qr/GPFORUM_PERL/msx,
+        'README documents explicit runtime selection' );
+    unlike(
+        $readme,
+        qr/live [ ] next [ ] to [ ] `perl` [ ] [(]perlbrew[)]/msx,
+        'README keeps tool installation instructions independent of a manager'
+    );
+    like(
+        $ci,
+        qr/script\/gpforum-system-perl [ ] --preflight/msx,
+        'CI runs system Perl preflight'
+    );
+    like( $ci, qr/\/usr\/bin\/perl/msx,
+        'CI installs Carton with /usr/bin/perl' );
+    ok( -x $SYSTEM_PERL, 'gpforum-system-perl is executable' );
+
+    return;
+}
+
+sub _assert_operator_surface {
+    my $makefile   = path($MAKEFILE)->slurp;
+    my $readme     = path('README.md')->slurp;
+    my $deployment = path('docs/DEPLOYMENT.md')->slurp;
+    my $ci         = path('.github/workflows/ci.yml')->slurp;
+
+    like( $makefile, qr/^install-deps:/msx, 'Makefile has install-deps' );
+    like(
+        $makefile,
+        qr/^install-deps-postgres:/msx,
+        'Makefile has install-deps-postgres'
+    );
+    like(
+        $makefile,
+        qr/script\/bootstrap-deps [ ]+ --postgres/msx,
+        'install-deps-postgres invokes bootstrap --postgres'
+    );
+    like(
+        $readme,
+        qr/cpm [ ] installs [ ] from [ ] cpanfile[.]snapshot/msx,
+        'README documents locked parallel installation'
+    );
+    like(
+        $deployment,
+        qr/--resolver [ ] snapshot [ ] --no-default-resolvers/msx,
+        'DEPLOYMENT documents exclusive snapshot resolution'
+    );
+    like(
+        $deployment,
+        qr/system [ ] Perl|\/usr\/bin\/perl/msx,
+        'DEPLOYMENT documents system Perl'
+    );
+    like( $deployment, qr/gpforum-homebrew-env/msx,
+        'DEPLOYMENT documents the Homebrew PostgreSQL PATH helper' );
+    unlike(
+        $deployment,
+qr/live [ ] next [ ] to [ ] `perl` [ ] [(]perlbrew[)]|plenv [ ]install/msx,
+        'DEPLOYMENT does not require a particular manager'
+    );
+    like(
+        $ci,
+        qr/script\/bootstrap-deps [ ] --postgres/msx,
+        'CI still installs through bootstrap-deps --postgres'
+    );
+    ok( -x $BOOTSTRAP,           'bootstrap-deps is executable' );
+    ok( -x $CARTON,              'gpforum-carton is executable' );
+    ok( -x 'script/gpforum-cpm', 'gpforum-cpm is executable' );
+
+    my $carton = path($CARTON)->slurp;
+    like(
+        $carton,
+        qr{"[\$][{]1:-[}]" [ ]= [ ]"exec" .* local/lib/perl5}msx,
+        'gpforum-carton can exec from local/ when Carton binary is missing'
+    );
+    like( $carton, qr/local\/[.]perl-shim/msx,
+        'gpforum-carton pins PATH via a perl shim for Carton-less exec' );
+    unlike(
+        $carton,
+        qr/^ [ ]* if [ ] [^\n]*install[^\n]*local\/lib\/perl5/msx,
+        'gpforum-carton does not soft-fail carton install without Carton'
+    );
+
+    return;
+}
+
+# Production keeps runtime and test, while develop remains a maintainer phase.
+sub _assert_dependency_phases {
+    my $cpanfile  = path($CPANFILE)->slurp;
+    my $bootstrap = path($BOOTSTRAP)->slurp;
+    my $makefile  = path($MAKEFILE)->slurp;
+
+    my ($develop) =
+      $cpanfile =~ /^on [ ] develop [ ] => [ ] sub [ ] [{] (.*?) ^[}];/msx;
+    my ($test) =
+      $cpanfile =~ /^on [ ] test [ ] => [ ] sub [ ] [{] (.*?) ^[}];/msx;
+    ok( defined $test, 'cpanfile declares a test phase' );
+    for my $module (qw(Test::More Test::Exception Test::Fatal)) {
+        like(
+            $test // q{},
+            qr/requires [ ]+ '\Q$module\E'/msx,
+            "$module is a test requirement"
+        );
+        unlike(
+            $develop // q{},
+            qr/requires [ ]+ '\Q$module\E'/msx,
+            "$module is not filed under develop"
+        );
+    }
+    for my $module (qw(Perl::Critic Perl::Tidy Devel::Cover Devel::NYTProf)) {
+        like(
+            $develop // q{},
+            qr/requires [ ]+ '\Q$module\E'/msx,
+            "$module stays a develop tool"
+        );
+    }
+
+    like( $bootstrap, qr/--production[)]/msx,
+        'bootstrap-deps accepts --production' );
+    like(
+        $bootstrap,
+        qr/phases=configure,build,test,runtime \n/msx,
+        'which selects runtime and test without the develop phase'
+    );
+    my $recipe =
+      qr{\t script/bootstrap-deps [ ] --postgres [ ] --production}msx;
+    like(
+        $makefile,
+        qr/^install-deps-production: .* \n $recipe/msx,
+        'make install-deps-production is the production install'
+    );
+
+    return;
+}
+
+1;

@@ -1,0 +1,29 @@
+<!doctype html>
+% extends undef;
+% layout undef;
+<html lang="<%= stash('system_locale') %>" data-theme="<%= stash('system_theme') %>">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title><%= stash('system_heading') %> - <%= stash('system_name') %></title>
+    <link rel="icon" href="<%= url_for('/favicon.ico') %>" type="image/x-icon">
+    <link rel="icon" href="<%= url_for('/icon.svg') %>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<%= url_for('/apple-touch-icon.png') %>" sizes="180x180">
+    <link rel="stylesheet" href="<%= url_for('/gpforum-ssr.css') %>">
+  </head>
+  <body class="app-shell">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="<%= url_for('/') %>"><%= stash('system_name') %></a>
+      </div>
+    </header>
+    <main id="content" class="page-shell">
+      <section class="ui-empty-state" aria-labelledby="system-error-heading">
+        <h1 id="system-error-heading"><%= stash('system_heading') %></h1>
+        <p><%= stash('system_message') %></p>
+        <p><a class="button" href="<%= url_for('/') %>"><%= stash('system_home_label') %></a></p>
+      </section>
+    </main>
+  </body>
+</html>

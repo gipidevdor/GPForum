@@ -1,0 +1,1051 @@
+{
+   "cells" : [
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 1.54853599998751,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 100
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 100,
+               "max_ms" : 79.5199999993201,
+               "mean_ms" : 15.3612799962866,
+               "p50_ms" : 14.3130000215024,
+               "p95_ms" : 16.92299998831,
+               "p99_ms" : 19.4870000123046
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 100,
+               "max_ms" : 4.95599999932014,
+               "mean_ms" : 2.59004999628661,
+               "p50_ms" : 2.46499997765943,
+               "p95_ms" : 3.1459999987483,
+               "p99_ms" : 3.56499999033101
+            },
+            "requests" : 100,
+            "requests_per_second" : 64.5771231671765,
+            "response_bytes" : 18240000,
+            "server_app" : {
+               "count" : 100,
+               "max_ms" : 74.564,
+               "mean_ms" : 12.77123,
+               "p50_ms" : 11.846,
+               "p95_ms" : 13.823,
+               "p99_ms" : 16.072
+            },
+            "server_db" : {
+               "count" : 100,
+               "max_ms" : 13.72,
+               "mean_ms" : 2.01088,
+               "p50_ms" : 1.838,
+               "p95_ms" : 2.17,
+               "p99_ms" : 3.262
+            },
+            "status_codes" : {
+               "200" : 100
+            },
+            "worker_requests" : {
+               "51174" : 100
+            }
+         },
+         "repetition" : 1,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 85,
+            "rss_bytes" : 791265280
+         },
+         "scenario" : "member.thread",
+         "status" : "ok"
+      },
+      {
+         "clients" : 100,
+         "elapsed_seconds" : 6.20845100001316,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 2642
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 2642,
+               "max_ms" : 368.877000000793,
+               "mean_ms" : 229.831155564049,
+               "p50_ms" : 239.306000003126,
+               "p95_ms" : 293.118999979924,
+               "p99_ms" : 307.06300001475
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 2642,
+               "max_ms" : 77.5630000034645,
+               "mean_ms" : 17.898213853224,
+               "p50_ms" : 16.6850000120494,
+               "p95_ms" : 31.2640000082031,
+               "p99_ms" : 48.968999993505
+            },
+            "requests" : 2642,
+            "requests_per_second" : 425.548981540549,
+            "response_bytes" : 475198164,
+            "server_app" : {
+               "count" : 2642,
+               "max_ms" : 362.152,
+               "mean_ms" : 211.932941710825,
+               "p50_ms" : 217.573,
+               "p95_ms" : 276.275,
+               "p99_ms" : 287.123
+            },
+            "server_db" : {
+               "count" : 2642,
+               "max_ms" : 100.709,
+               "mean_ms" : 36.0015442846329,
+               "p50_ms" : 35.462,
+               "p95_ms" : 53.562,
+               "p99_ms" : 63.651
+            },
+            "status_codes" : {
+               "200" : 2642
+            },
+            "worker_requests" : {
+               "51157" : 331,
+               "51158" : 326,
+               "51159" : 328,
+               "51162" : 334,
+               "51165" : 328,
+               "51168" : 332,
+               "51171" : 333,
+               "51174" : 330
+            }
+         },
+         "repetition" : 1,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 687.5,
+            "rss_bytes" : 901365760
+         },
+         "scenario" : "member.thread",
+         "status" : "ok"
+      },
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 1.48289600000135,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 100
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 100,
+               "max_ms" : 17.9970000172034,
+               "mean_ms" : 14.6954600000754,
+               "p50_ms" : 14.4509999954607,
+               "p95_ms" : 16.5709999855608,
+               "p99_ms" : 17.0600000128616
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 100,
+               "max_ms" : 3.87200001720339,
+               "mean_ms" : 2.5873700000754,
+               "p50_ms" : 2.51800000238791,
+               "p95_ms" : 3.07200000165403,
+               "p99_ms" : 3.17099998556077
+            },
+            "requests" : 100,
+            "requests_per_second" : 67.4356124771455,
+            "response_bytes" : 18240000,
+            "server_app" : {
+               "count" : 100,
+               "max_ms" : 14.125,
+               "mean_ms" : 12.10809,
+               "p50_ms" : 11.915,
+               "p95_ms" : 13.4,
+               "p99_ms" : 13.973
+            },
+            "server_db" : {
+               "count" : 100,
+               "max_ms" : 2.249,
+               "mean_ms" : 1.88115,
+               "p50_ms" : 1.844,
+               "p95_ms" : 2.141,
+               "p99_ms" : 2.201
+            },
+            "status_codes" : {
+               "200" : 100
+            },
+            "worker_requests" : {
+               "51174" : 100
+            }
+         },
+         "repetition" : 2,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 86.5,
+            "rss_bytes" : 901447680
+         },
+         "scenario" : "member.thread",
+         "status" : "ok"
+      },
+      {
+         "clients" : 100,
+         "elapsed_seconds" : 6.21819800001686,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 2676
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 2676,
+               "max_ms" : 333.386000012979,
+               "mean_ms" : 227.063324738557,
+               "p50_ms" : 230.344999989029,
+               "p95_ms" : 298.340999986976,
+               "p99_ms" : 316.520000022138
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 2676,
+               "max_ms" : 77.4320000127815,
+               "mean_ms" : 18.703404708662,
+               "p50_ms" : 17.6540000046193,
+               "p95_ms" : 32.0999999938253,
+               "p99_ms" : 54.6360000091903
+            },
+            "requests" : 2676,
+            "requests_per_second" : 430.349757275781,
+            "response_bytes" : 481222578,
+            "server_app" : {
+               "count" : 2676,
+               "max_ms" : 317.129,
+               "mean_ms" : 208.359920029895,
+               "p50_ms" : 211.452,
+               "p95_ms" : 279.634,
+               "p99_ms" : 296.99
+            },
+            "server_db" : {
+               "count" : 2676,
+               "max_ms" : 86.243,
+               "mean_ms" : 35.621625186846,
+               "p50_ms" : 35.192,
+               "p95_ms" : 53.458,
+               "p99_ms" : 61.627
+            },
+            "status_codes" : {
+               "200" : 2676
+            },
+            "worker_requests" : {
+               "51157" : 337,
+               "51158" : 333,
+               "51159" : 337,
+               "51162" : 330,
+               "51165" : 337,
+               "51168" : 334,
+               "51171" : 334,
+               "51174" : 334
+            }
+         },
+         "repetition" : 2,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 730.6,
+            "rss_bytes" : 916504576
+         },
+         "scenario" : "member.thread",
+         "status" : "ok"
+      },
+      {
+         "clients" : 1,
+         "elapsed_seconds" : 1.49214200000279,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 100
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 100,
+               "max_ms" : 18.0019999970682,
+               "mean_ms" : 14.7885200000019,
+               "p50_ms" : 14.4729999883566,
+               "p95_ms" : 16.9639999803621,
+               "p99_ms" : 17.7010000043083
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 100,
+               "max_ms" : 3.9699999970682,
+               "mean_ms" : 2.59364000000188,
+               "p50_ms" : 2.51699999514781,
+               "p95_ms" : 3.0980000161957,
+               "p99_ms" : 3.32099998868443
+            },
+            "requests" : 100,
+            "requests_per_second" : 67.017750321225,
+            "response_bytes" : 18240000,
+            "server_app" : {
+               "count" : 100,
+               "max_ms" : 14.665,
+               "mean_ms" : 12.19488,
+               "p50_ms" : 11.939,
+               "p95_ms" : 13.686,
+               "p99_ms" : 14.174
+            },
+            "server_db" : {
+               "count" : 100,
+               "max_ms" : 2.549,
+               "mean_ms" : 1.90538,
+               "p50_ms" : 1.847,
+               "p95_ms" : 2.207,
+               "p99_ms" : 2.425
+            },
+            "status_codes" : {
+               "200" : 100
+            },
+            "worker_requests" : {
+               "51159" : 100
+            }
+         },
+         "repetition" : 3,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 88.1,
+            "rss_bytes" : 916537344
+         },
+         "scenario" : "member.thread",
+         "status" : "ok"
+      },
+      {
+         "clients" : 100,
+         "elapsed_seconds" : 6.22117799997795,
+         "errors" : [],
+         "metrics" : {
+            "cache_outcomes" : {
+               "not_reported" : 2637
+            },
+            "invalid_responses" : 0,
+            "latency" : {
+               "count" : 2637,
+               "max_ms" : 352.398000017274,
+               "mean_ms" : 230.404833902005,
+               "p50_ms" : 231.846000009682,
+               "p95_ms" : 293.295999988914,
+               "p99_ms" : 308.894999994664
+            },
+            "low_sample_count" : 0,
+            "outside_app" : {
+               "count" : 2637,
+               "max_ms" : 87.8349999787696,
+               "mean_ms" : 18.7010087218756,
+               "p50_ms" : 17.1980000194758,
+               "p95_ms" : 33.1680000031497,
+               "p99_ms" : 64.917999999078
+            },
+            "requests" : 2637,
+            "requests_per_second" : 423.874706688885,
+            "response_bytes" : 474238833,
+            "server_app" : {
+               "count" : 2637,
+               "max_ms" : 329.382,
+               "mean_ms" : 211.703825180129,
+               "p50_ms" : 212.461,
+               "p95_ms" : 274.574,
+               "p99_ms" : 286.886
+            },
+            "server_db" : {
+               "count" : 2637,
+               "max_ms" : 83.755,
+               "mean_ms" : 36.1167838452787,
+               "p50_ms" : 35.806,
+               "p95_ms" : 53.745,
+               "p99_ms" : 61.489
+            },
+            "status_codes" : {
+               "200" : 2637
+            },
+            "worker_requests" : {
+               "51157" : 332,
+               "51158" : 333,
+               "51159" : 327,
+               "51162" : 329,
+               "51165" : 331,
+               "51168" : 328,
+               "51171" : 327,
+               "51174" : 330
+            }
+         },
+         "repetition" : 3,
+         "resource_source" : "ps lifetime average; indicative",
+         "resources" : {
+            "cpu_percent" : 592.7,
+            "rss_bytes" : 932429824
+         },
+         "scenario" : "member.thread",
+         "status" : "ok"
+      }
+   ],
+   "configuration" : {
+      "concurrency" : [
+         100
+      ],
+      "deadline" : 900,
+      "duration" : 6,
+      "iterations" : 100,
+      "profile" : "full",
+      "repetitions" : 3,
+      "scenario" : [
+         "member.thread"
+      ],
+      "warmup" : 10,
+      "worker_clients" : 16,
+      "workers" : 8,
+      "write_clients" : 10,
+      "write_iterations" : 2
+   },
+   "connection_policy" : "Fresh connections per cell; authenticated cookies retained; keep-alive within cells; no transport retries",
+   "correctness" : {
+      "created_replies" : 0,
+      "created_threads" : 0,
+      "post_delta" : 0,
+      "status" : "ok",
+      "thread_delta" : 0,
+      "unique_write_identities" : 1
+   },
+   "coverage" : {
+      "missing" : [
+         "admin_address_ban_create",
+         "admin_address_ban_lift",
+         "admin_address_ban_update",
+         "admin_address_bans",
+         "admin_announcement_create",
+         "admin_announcement_retire",
+         "admin_announcements",
+         "admin_antivirus_check",
+         "admin_audit",
+         "admin_automod",
+         "admin_automod_links",
+         "admin_automod_review",
+         "admin_automod_word_add",
+         "admin_automod_word_remove",
+         "admin_cache_purge",
+         "admin_categories",
+         "admin_category_create",
+         "admin_category_update",
+         "admin_configuration",
+         "admin_configuration_change",
+         "admin_configuration_reset",
+         "admin_dashboard",
+         "admin_dead_letter_replay",
+         "admin_integration_announce",
+         "admin_integration_announce_retry",
+         "admin_integration_feed_decide",
+         "admin_integration_feed_fetch",
+         "admin_integrations",
+         "admin_jobs",
+         "admin_mail_test",
+         "admin_permission_create",
+         "admin_plugin_change",
+         "admin_plugin_probe",
+         "admin_plugin_probe_math",
+         "admin_plugins",
+         "admin_registration",
+         "admin_registration_change",
+         "admin_role_bind",
+         "admin_role_binding_revoke",
+         "admin_role_create",
+         "admin_role_permission_attach",
+         "admin_roles",
+         "admin_search_rebuild",
+         "admin_second_factor",
+         "admin_second_factor_policy",
+         "admin_second_factor_reset",
+         "admin_settings",
+         "admin_status",
+         "admin_user_roles",
+         "admin_users",
+         "attachment_download",
+         "avatar_image",
+         "bookmark_folder",
+         "bookmarks",
+         "categories",
+         "category",
+         "category_mbox",
+         "category_subscription",
+         "composer_preview",
+         "draft_delete",
+         "draft_resume",
+         "draft_save",
+         "drafts",
+         "email_confirm",
+         "email_confirm_form",
+         "email_verify",
+         "email_verify_form",
+         "email_verify_request",
+         "email_verify_request_submit",
+         "feed",
+         "following",
+         "forum_search",
+         "health",
+         "health_live",
+         "health_ready",
+         "home",
+         "legal_cookies",
+         "legal_notice",
+         "legal_privacy",
+         "legal_terms",
+         "locale_update",
+         "login",
+         "login_second_factor",
+         "login_second_factor_submit",
+         "login_submit",
+         "logout",
+         "member_relations",
+         "mentions",
+         "message_compose",
+         "message_conversation",
+         "message_new",
+         "message_reply",
+         "message_report",
+         "message_start",
+         "messages",
+         "metrics",
+         "moderation_action_reverse",
+         "moderation_actions",
+         "moderation_avatar_remove",
+         "moderation_media",
+         "moderation_media_decide",
+         "moderation_media_preview",
+         "moderation_member_note_create",
+         "moderation_member_note_delete",
+         "moderation_member_note_update",
+         "moderation_post_hide",
+         "moderation_post_restore",
+         "moderation_report_assign",
+         "moderation_report_release",
+         "moderation_report_resolve",
+         "moderation_reported_message",
+         "moderation_reports",
+         "moderation_review",
+         "moderation_review_approve",
+         "moderation_review_reject",
+         "moderation_suspension_revoke",
+         "moderation_suspensions",
+         "moderation_thread_hide",
+         "moderation_thread_lock",
+         "moderation_thread_pin",
+         "moderation_thread_restore",
+         "moderation_thread_unlock",
+         "moderation_thread_unpin",
+         "moderation_transfer",
+         "moderation_transfer_undo",
+         "moderation_transfers",
+         "moderation_user_suspend",
+         "navigation",
+         "new_media",
+         "new_thread",
+         "notification_read",
+         "notifications",
+         "notifications_read_all",
+         "notifications_summary",
+         "openid_callback",
+         "openid_start",
+         "passkey_login_begin",
+         "passkey_login_finish",
+         "passkey_register_begin",
+         "passkey_register_finish",
+         "passkey_revoke",
+         "password_reset_complete",
+         "password_reset_form",
+         "password_reset_request",
+         "password_reset_request_submit",
+         "pending_post_withdraw",
+         "pending_posts",
+         "post_attachment_delete",
+         "post_attachment_form",
+         "post_attachment_upload",
+         "post_delete",
+         "post_edit",
+         "post_like",
+         "post_react",
+         "post_report",
+         "post_restore",
+         "post_signature",
+         "post_unlike",
+         "post_unreact",
+         "post_verification",
+         "privacy_dashboard",
+         "privacy_deletion_approve",
+         "privacy_deletion_hold",
+         "privacy_deletion_request",
+         "privacy_erasure_run",
+         "privacy_export_download",
+         "privacy_export_request",
+         "privacy_hold_release",
+         "privacy_review",
+         "profile",
+         "profile_block",
+         "profile_follow",
+         "profile_ignore",
+         "profile_relation_remove",
+         "profile_report",
+         "public_feed",
+         "push_configuration",
+         "push_confirm",
+         "push_register",
+         "push_revoke",
+         "push_worker",
+         "realtime",
+         "register",
+         "register_submit",
+         "reply_create",
+         "robots",
+         "search_autocomplete",
+         "security_txt",
+         "settings",
+         "settings_avatar",
+         "settings_avatar_remove",
+         "settings_avatar_upload",
+         "settings_email_update",
+         "settings_openid",
+         "settings_openid_link",
+         "settings_openid_unlink",
+         "settings_passkeys",
+         "settings_password_update",
+         "settings_profile_update",
+         "settings_security",
+         "settings_security_begin",
+         "settings_security_cancel",
+         "settings_security_confirm",
+         "settings_security_disable",
+         "settings_security_renew",
+         "settings_update",
+         "signing_keys",
+         "site_icon",
+         "sitemap",
+         "sitemap_page",
+         "tag",
+         "tagged_threads",
+         "tags",
+         "theme_update",
+         "thread_bookmark",
+         "thread_bookmark_remove",
+         "thread_canonical",
+         "thread_create",
+         "thread_delete",
+         "thread_edit",
+         "thread_mark_read",
+         "thread_mbox",
+         "thread_move",
+         "thread_poll",
+         "thread_poll_change",
+         "thread_report",
+         "thread_restore",
+         "thread_subscribe",
+         "thread_subscription_mute",
+         "thread_unsubscribe",
+         "unsubscribe",
+         "unsubscribe_confirm",
+         "web_manifest",
+         "websub_subscribe"
+      ],
+      "observed" : 1,
+      "total" : 235
+   },
+   "dataset" : {
+      "categories" : 8,
+      "posts" : 4800,
+      "private_lists" : "seeded members retain seeded inbox/feed/bookmark rows; writes use independent member identities",
+      "threads" : 240,
+      "users" : 103
+   },
+   "diagnostic_trace" : 0,
+   "duration_seconds" : 39.6237699999765,
+   "failures" : [],
+   "final_counts" : {
+      "events" : 0,
+      "posts" : 4800,
+      "threads" : 240
+   },
+   "generator" : "Mojo::UserAgent asynchronous HTTP clients; not interchangeable with wrk throughput",
+   "harness_sha256" : {
+      "benchmarks/hypnotoad-app.pl" : "b2f13b60406788b09c9283f49577a870301deeecb23cb073070be942e80c3d58",
+      "script/benchmark-http-complete" : "4579495aef2f6318925245b7997d91b7d365c24dd7b86be6bb81628e6c84449d",
+      "script/lib/GPForum/Performance/HTTPCatalog.pm" : "f7738b1d0f510afba6060c72446922d42d435ca5f3250f09d178fb244b613c4f",
+      "script/lib/GPForum/Performance/HTTPClient.pm" : "bdafdea087900e4039259abcfc52e05a75ca6366e30403278fe2dd685afb6975",
+      "script/lib/GPForum/Performance/HTTPComplete.pm" : "4e9b20dc522df7e0c5b28e32733a696851af928ee8659e7bf08e297cecb9a040",
+      "script/lib/GPForum/Performance/HTTPIntegrations.pm" : "1770227203e97a1d68ff0777acc1aea1ee4a6bf0d31042f502d64bc3fdfdfb64",
+      "script/lib/GPForum/Performance/HTTPReport.pm" : "01cdce4e89ec1d4edc24ecd5f019a543336642e73f955c7f28a105fb8d3e97c8"
+   },
+   "initial_counts" : {
+      "events" : 0,
+      "posts" : 4800,
+      "threads" : 240
+   },
+   "integration_fixture" : {
+      "enabled" : [
+         "youtube",
+         "vimeo",
+         "gitlab",
+         "codeberg",
+         "github",
+         "facebook",
+         "instagram",
+         "spotify",
+         "apple_music",
+         "wikipedia",
+         "mathematics",
+         "mastodon",
+         "peertube"
+      ],
+      "mastodon_hosts" : [
+         "social.example.org"
+      ],
+      "network" : "Local URL recognition and source preparation only; no third-party fetches or players",
+      "peertube_hosts" : [
+         "video.example.org"
+      ]
+   },
+   "metadata" : {
+      "artifact_url" : "",
+      "commit" : "756374d9720764e4dfc468e45df3c8fb3d469961",
+      "configuration" : {
+         "harness_sha256" : {
+            "benchmarks/hypnotoad-app.pl" : "b2f13b60406788b09c9283f49577a870301deeecb23cb073070be942e80c3d58",
+            "benchmarks/wrk-metrics.lua" : "693d2fe37fe559b46e5af47be21deca9129b130235ffae13c7ea6435f6be08bb",
+            "script/lib/GPForum/Performance/Budget.pm" : "ca126c258bfacee7a0803a6246c586c2ed1d8b27088fccc103ec7fe423eb0a3a",
+            "script/lib/GPForum/Performance/CommandError.pm" : "ff7cd09d47a8677ddf59630ec2adf25324feb9b2ff99346e0978dcca1775dd83",
+            "script/lib/GPForum/Performance/Compare.pm" : "f3367e527f64d26017be076e387e14051c9da685c9c602768e50e5ff1e2bf532",
+            "script/lib/GPForum/Performance/Evidence.pm" : "f90efae4ea9213797373a29026c1c1a0f127a086f0481910a3c1da51ca60bc0d",
+            "script/lib/GPForum/Performance/Extreme.pm" : "1dabfcb0e866d8e3233bbd58f506f26723a280f721323bf7ea0c260fa4cb892e",
+            "script/lib/GPForum/Performance/ExtremeContainer.pm" : "d359a2166211bce30c21cdae32e18bb7779b8b153e65f41c14b63068105b4bfc",
+            "script/lib/GPForum/Performance/ExtremeDatabase.pm" : "ceef589282fb99278ff300b705ad3915df71207ea552af9527c61a930b4c6cb8",
+            "script/lib/GPForum/Performance/ExtremeLoad.pm" : "c0150518626024562b68057a6c764f25854b254e7595606ff7542c498d6c0f07",
+            "script/lib/GPForum/Performance/ExtremePlan.pm" : "f5e99550fdf463701acc3c41f3fe0f0559c067d27f8e45a39de6902f73af4f71",
+            "script/lib/GPForum/Performance/ExtremeReport.pm" : "ca6bf385efb897938fdc6aaf5b5af3cfaa38243b20215fd333dd0a9c8d375906",
+            "script/lib/GPForum/Performance/ExtremeState.pm" : "a48390f768bd1edc603cfa561848d0e51c128497ffd738a67a08ef9893587e74",
+            "script/lib/GPForum/Performance/ExtremeWorkload.pm" : "b43040628f9940ce55dddf8427598bf698116e6d0ce04f63f539d6a690b2d35c",
+            "script/lib/GPForum/Performance/HTTP.pm" : "1727924136957d4a8c6c5248728f2f01744cba3b6ffee50785b9e9e113d994cd",
+            "script/lib/GPForum/Performance/HTTPCatalog.pm" : "f7738b1d0f510afba6060c72446922d42d435ca5f3250f09d178fb244b613c4f",
+            "script/lib/GPForum/Performance/HTTPClient.pm" : "bdafdea087900e4039259abcfc52e05a75ca6366e30403278fe2dd685afb6975",
+            "script/lib/GPForum/Performance/HTTPComplete.pm" : "4e9b20dc522df7e0c5b28e32733a696851af928ee8659e7bf08e297cecb9a040",
+            "script/lib/GPForum/Performance/HTTPIntegrations.pm" : "1770227203e97a1d68ff0777acc1aea1ee4a6bf0d31042f502d64bc3fdfdfb64",
+            "script/lib/GPForum/Performance/HTTPReport.pm" : "01cdce4e89ec1d4edc24ecd5f019a543336642e73f955c7f28a105fb8d3e97c8",
+            "script/lib/GPForum/Performance/Hotpaths.pm" : "7a815146e4fd23d22814516e0aa3a40c7101ecc0afd7e3cb5180db515a84eef0",
+            "script/lib/GPForum/Performance/Metadata.pm" : "176fc0e9d10d9b534bf819a97d97fd17496bc2565b87126421d4869d26cf0091",
+            "script/lib/GPForum/Performance/OperationProbe.pm" : "c092e51c956be64c5622816088fdde1b1d44e31a63e4715213d1e72f4a98d78e",
+            "script/lib/GPForum/Performance/Operations.pm" : "ff02ec5f21ee39eef0e9dc928292f90202853e698b8538c63ed16701d48493d1",
+            "script/lib/GPForum/Performance/Publish.pm" : "4d4db1a3e7fc1ef78eceb37e0844448eb24219501fd77e1485c05c9aaf60195f",
+            "script/lib/GPForum/Performance/Report.pm" : "1781d8347307af3bced4d033f98b8dd598e171e4d616aa3a0f615211ca9a7076",
+            "script/lib/GPForum/Performance/Resources.pm" : "588d24296d00816970358eac2f85c8c3a4d83b74980afd86f4d41025098692bf",
+            "script/lib/GPForum/Performance/Schema.pm" : "0f0cb2a590e62124db63ee1688977e6832faebb242e63bb5ae3464776ad8fde0",
+            "script/lib/GPForum/Performance/Server.pm" : "8898e86cedd7e0697779f5114eeea95c5eae85a4ebe5afeda99902e20a0f213a",
+            "script/lib/GPForum/Performance/Support.pm" : "7e9cd89543307a19de1183c2df164df15393c7becc2836b5ca5997f22402510c",
+            "script/lib/GPForum/Performance/WorkflowStatus.pm" : "8e9d2dfe42d6a3f2ce689cd5f1d7bd5d6b23192f832800c223dbbe21ae82b86a",
+            "script/performance-evidence" : "e887288eb6c0ff4c9b27e2013c709e98c7d8f34656bdaf08b79aaaf8757192b8",
+            "script/performance-hotpaths" : "df750bb4ed5bb66538621168f5a8d6c14b911ef082bf6c5c3d863aafed817fc5",
+            "script/performance-http" : "addf0139d7c03fd7195c89c9e98953eebf96625380ad8716cbecf81a3dd35c50",
+            "script/performance-outbox.pl" : "8655a9c61f7da2c9f7c9fb5fdb45406e8ade12bdbc357edba409d8c28149a299",
+            "t/lib/GPForum/Test/OutboxTransport.pm" : "9aab04e93e80d23d344ba5936cef5bb6733c348d52edb066e11936f867b2d37c",
+            "t/lib/GPForum/Test/PostgresHarness.pm" : "e75658a22e2864903c0bb1dec4bc5632f5a664ba3276021e86067bb1f8bb8196"
+         }
+      },
+      "dataset" : {},
+      "date" : "2026-11-07",
+      "dirty" : false,
+      "history_url" : "https://github.com/gipidevdor/GPForum/tree/performance-data/benchmarks/results",
+      "kind" : "metadata",
+      "limitations" : [
+         "Shared runners and a colocated load generator give comparative CI evidence, not production capacity."
+      ],
+      "mode" : "main",
+      "run_attempt" : "1",
+      "run_id" : "local-52b98caf90ac642e21e6074a58247ff0",
+      "run_url" : "",
+      "runner" : {
+         "arch" : "arm64",
+         "cpu_count" : 10,
+         "cpu_model" : "Apple M4",
+         "image" : "Darwin",
+         "image_version" : null,
+         "kernel" : "27.2.0",
+         "label" : "local",
+         "memory_bytes" : 17179869184,
+         "name" : "local",
+         "os" : "Darwin"
+      },
+      "schema_version" : 1,
+      "timestamp" : "2026-11-07T09:26:39.675690+00:00",
+      "versions" : {},
+      "working_tree_diff_sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "operations" : [
+      {
+         "cache_outcomes" : {
+            "not_reported" : 8255
+         },
+         "invalid_responses" : 0,
+         "latency" : {
+            "count" : 8255,
+            "max_ms" : 368.877000000793,
+            "mean_ms" : 221.307988249524,
+            "p50_ms" : 228.734000003897,
+            "p95_ms" : 294.886999996379,
+            "p99_ms" : 312.096000008751
+         },
+         "low_sample_count" : 0,
+         "name" : "member:member.thread",
+         "outside_app" : {
+            "count" : 8255,
+            "max_ms" : 87.8349999787696,
+            "mean_ms" : 17.8593649908928,
+            "p50_ms" : 16.8059999906588,
+            "p95_ms" : 31.7270000086706,
+            "p99_ms" : 55.4339999953341
+         },
+         "requests" : 8255,
+         "requests_per_second" : null,
+         "response_bytes" : 1485379575,
+         "server_app" : {
+            "count" : 8255,
+            "max_ms" : 362.152,
+            "mean_ms" : 203.44862325863,
+            "p50_ms" : 209.788,
+            "p95_ms" : 276.755,
+            "p99_ms" : 291.297
+         },
+         "server_db" : {
+            "count" : 8255,
+            "max_ms" : 100.709,
+            "mean_ms" : 34.6770743791642,
+            "p50_ms" : 35.097,
+            "p95_ms" : 53.458,
+            "p99_ms" : 62.127
+         },
+         "status_codes" : {
+            "200" : 8255
+         },
+         "worker_requests" : {
+            "51157" : 1000,
+            "51158" : 992,
+            "51159" : 1092,
+            "51162" : 993,
+            "51165" : 996,
+            "51168" : 994,
+            "51171" : 994,
+            "51174" : 1194
+         }
+      }
+   ],
+   "planned_cells" : [
+      {
+         "clients" : 1,
+         "repetition" : 1,
+         "scenario" : "member.thread"
+      },
+      {
+         "clients" : 100,
+         "repetition" : 1,
+         "scenario" : "member.thread"
+      },
+      {
+         "clients" : 1,
+         "repetition" : 2,
+         "scenario" : "member.thread"
+      },
+      {
+         "clients" : 100,
+         "repetition" : 2,
+         "scenario" : "member.thread"
+      },
+      {
+         "clients" : 1,
+         "repetition" : 3,
+         "scenario" : "member.thread"
+      },
+      {
+         "clients" : 100,
+         "repetition" : 3,
+         "scenario" : "member.thread"
+      }
+   ],
+   "policy" : "Real Hypnotoad TCP HTTP; separate real cookies per client; real login, CSRF and PostgreSQL command paths; admission quotas raised in benchmark entrypoint, PostgreSQL counters retained; background delivery disabled; outside_app includes queue/network/client overhead, not pure queue time.",
+   "postgres_settings" : [
+      {
+         "name" : "fsync",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "full_page_writes",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "jit",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "max_connections",
+         "setting" : "80",
+         "unit" : null
+      },
+      {
+         "name" : "shared_buffers",
+         "setting" : "16384",
+         "unit" : "8kB"
+      },
+      {
+         "name" : "synchronous_commit",
+         "setting" : "on",
+         "unit" : null
+      },
+      {
+         "name" : "work_mem",
+         "setting" : "4096",
+         "unit" : "kB"
+      }
+   ],
+   "schema_version" : 1,
+   "skipped" : [],
+   "status" : "ok",
+   "versions" : {
+      "mojolicious" : "9.51",
+      "perl" : "v5.44.0",
+      "platform" : "darwin-thread-multi-2level",
+      "postgres" : "18.6 (Homebrew)"
+   },
+   "worker_telemetry" : [
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51157,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      },
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51158,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      },
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51159,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      },
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51162,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      },
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51165,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      },
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51168,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      },
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51171,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      },
+      {
+         "ev_backend" : 8,
+         "loop_max_accepts" : 10000,
+         "loop_max_connections" : 16,
+         "mojolicious" : "9.51",
+         "perl" : "v5.44.0",
+         "pid" : 51174,
+         "precompiled_templates" : {
+            "forum/_posts.html.ep" : 1,
+            "forum/thread.html.ep" : 1,
+            "layouts/default.html.ep" : 1
+         },
+         "reactor" : "Mojo::Reactor::EV",
+         "worker_clients" : 16
+      }
+   ],
+   "workload_coverage" : {
+      "duplicates" : [],
+      "missing" : [],
+      "observed" : 6,
+      "planned" : 6,
+      "unexpected" : []
+   }
+}

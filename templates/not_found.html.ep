@@ -1,0 +1,4 @@
+% extends undef;
+% layout 'system';
+% title t('forum.error_not_found_title') . ' - ' . t('app.name');
+<%= include 'components/system_error', code => 404, heading => t('forum.error_not_found_title'), message => t('forum.error_not_found_message') %>

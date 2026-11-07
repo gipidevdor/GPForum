@@ -1,0 +1,13 @@
+<fieldset class="attachment-source">
+  <legend><%= t('media.source') %></legend>
+  <label for="<%= $source_id %>-kind"><%= t('media.source_kind') %></label>
+  <select id="<%= $source_id %>-kind" name="source_kind" required>
+    <option value=""><%= t('media.source_choose') %></option>
+    <option value="original"><%= t('media.source_original') %></option>
+    <option value="authorized"><%= t('media.source_authorized') %></option>
+  </select>
+  <label for="<%= $source_id %>-url"><%= t('media.source_url') %></label>
+  <input id="<%= $source_id %>-url" type="url" name="source_url" maxlength="2048" placeholder="https://" aria-describedby="<%= $source_id %>-source-hint">
+  <p id="<%= $source_id %>-source-hint" class="ui-meta"><%= t('media.source_hint') %></p>
+  <label><input type="checkbox" name="rights_confirmed" value="1" required> <%= t('media.rights') %></label>
+</fieldset>

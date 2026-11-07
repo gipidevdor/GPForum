@@ -1,0 +1,986 @@
+{
+  "generated_at": "2026-11-06T16:38:12.281498+00:00",
+  "baseline": "Committed fifth iteration (40064b8f) -> sixth iteration, isolated for both micro and HTTP.",
+  "order": {
+    "micro": [
+      "before-a",
+      "after-a",
+      "after-b",
+      "before-b"
+    ],
+    "http_primary": [
+      "before-a",
+      "after-a"
+    ],
+    "http_candidate_only": [
+      "after-b"
+    ]
+  },
+  "hardware": {
+    "cpu": "Apple M4",
+    "physical_cores": 10,
+    "logical_cores": 10,
+    "memory_bytes": 17179869184
+  },
+  "checks": {
+    "unit-final": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review6-after-cqp3bots",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-lr",
+        "-j8",
+        "t"
+      ],
+      "started_at": "2026-11-06T16:25:38.145427+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 77.49947862500001,
+      "finished_at": "2026-11-06T16:26:55.645499+00:00"
+    },
+    "integration-final": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review6-after-cqp3bots",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-l",
+        "-j4",
+        "-It/lib",
+        "--exec",
+        "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+        "t/integration/postgres-thread-page-reads.t",
+        "t/integration/postgres-sql-function-thread-page.t",
+        "t/integration/postgres-request-work-reuse.t",
+        "t/integration/postgres-http-complete.t"
+      ],
+      "started_at": "2026-11-06T16:25:38.146188+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 27.530825292,
+      "finished_at": "2026-11-06T16:26:05.677446+00:00"
+    },
+    "static-final": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review6-after-cqp3bots",
+      "commands": [
+        [
+          "script/gpforum-carton",
+          "exec",
+          "perl",
+          "-Ilib",
+          "-It/lib",
+          "-c",
+          "lib/GPForum/Service/Forum/ReadState.pm"
+        ],
+        [
+          "script/gpforum-carton",
+          "exec",
+          "perl",
+          "-Ilib",
+          "-It/lib",
+          "-c",
+          "lib/GPForum/Service/Forum/BodyRenderer.pm"
+        ],
+        [
+          "script/gpforum-carton",
+          "exec",
+          "perl",
+          "-Ilib",
+          "-It/lib",
+          "-c",
+          "t/41-thread-read-state.t"
+        ],
+        [
+          "script/gpforum-carton",
+          "exec",
+          "perl",
+          "-Ilib",
+          "-It/lib",
+          "-c",
+          "t/766-mathematics-plugin.t"
+        ],
+        [
+          "script/gpforum-carton",
+          "exec",
+          "perltidy",
+          "--assert-tidy",
+          "--standard-error-output",
+          "--output-path=/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-review3-tidy-nt7mb71g",
+          "lib/GPForum/Service/Forum/ReadState.pm",
+          "lib/GPForum/Service/Forum/BodyRenderer.pm",
+          "t/41-thread-read-state.t",
+          "t/766-mathematics-plugin.t"
+        ],
+        [
+          "make",
+          "perl-runtime",
+          "architecture"
+        ]
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 32.286022167
+    },
+    "critic-final": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review6-after-cqp3bots",
+      "command": [
+        "script/perlcritic",
+        "lib/GPForum/Service/Forum/ReadState.pm",
+        "lib/GPForum/Service/Forum/BodyRenderer.pm",
+        "t/41-thread-read-state.t",
+        "t/766-mathematics-plugin.t"
+      ],
+      "started_at": "2026-11-06T16:25:38.145638+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 3.628619,
+      "finished_at": "2026-11-06T16:25:41.774601+00:00"
+    },
+    "baseline-parity": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review6-before-t30oh9pq",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-lv",
+        "t/41-thread-read-state.t",
+        "t/766-mathematics-plugin.t"
+      ],
+      "started_at": "2026-11-06T16:24:14.667503+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.87707225,
+      "finished_at": "2026-11-06T16:24:15.544865+00:00"
+    },
+    "documentation-final": {
+      "source": "/Users/gpicchiarelli/Documents/GPForum",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-l",
+        "t/722-documentation-says-what-is-built.t"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.396278958
+    }
+  },
+  "microbenchmarks": {
+    "body_cold_math": {
+      "before": {
+        "median": 15746.660842766101,
+        "min": 15242.8180925685,
+        "max": 16156.7419389007,
+        "samples": 6
+      },
+      "after": {
+        "median": 15790.9931452734,
+        "min": 15510.8498393926,
+        "max": 16152.7403146051,
+        "samples": 6
+      },
+      "median_change_percent": 0.2815346247053041,
+      "ranges_overlap": true
+    },
+    "body_cold_plain": {
+      "before": {
+        "median": 39414.6867835166,
+        "min": 38949.9104237438,
+        "max": 40061.427517338,
+        "samples": 6
+      },
+      "after": {
+        "median": 39308.95496239265,
+        "min": 38339.148097821,
+        "max": 39636.4020807644,
+        "samples": 6
+      },
+      "median_change_percent": -0.2682548809906149,
+      "ranges_overlap": true
+    },
+    "body_hit_disabled_registry": {
+      "before": {
+        "median": 930685.648349875,
+        "min": 925300.491329128,
+        "max": 936522.504582599,
+        "samples": 6
+      },
+      "after": {
+        "median": 1037730.48666314,
+        "min": 1022136.05996067,
+        "max": 1045984.98663567,
+        "samples": 6
+      },
+      "median_change_percent": 11.50171795418331,
+      "ranges_overlap": false
+    },
+    "body_hit_math": {
+      "before": {
+        "median": 510085.2666772345,
+        "min": 506565.938831836,
+        "max": 515460.374846122,
+        "samples": 6
+      },
+      "after": {
+        "median": 739586.8907592585,
+        "min": 734079.647617847,
+        "max": 744136.206720063,
+        "samples": 6
+      },
+      "median_change_percent": 44.99279612152476,
+      "ranges_overlap": false
+    },
+    "body_hit_plain": {
+      "before": {
+        "median": 1588124.08830065,
+        "min": 1584710.71098849,
+        "max": 1592737.11881352,
+        "samples": 6
+      },
+      "after": {
+        "median": 1580973.716719925,
+        "min": 1568914.57261039,
+        "max": 1590212.7704875,
+        "samples": 6
+      },
+      "median_change_percent": -0.4502401061353023,
+      "ranges_overlap": true
+    },
+    "summary_anonymous_25": {
+      "before": {
+        "median": 48706.84077907725,
+        "min": 47971.1789162816,
+        "max": 49161.6706105125,
+        "samples": 6
+      },
+      "after": {
+        "median": 48530.204687667254,
+        "min": 48203.3409719687,
+        "max": 49099.3943575884,
+        "samples": 6
+      },
+      "median_change_percent": -0.36265150558865145,
+      "ranges_overlap": true
+    },
+    "summary_empty_member": {
+      "before": {
+        "median": 55671.90906245995,
+        "min": 55540.5390410062,
+        "max": 56542.7500897824,
+        "samples": 6
+      },
+      "after": {
+        "median": 57250.97258633425,
+        "min": 56967.7220884314,
+        "max": 57734.7205071992,
+        "samples": 6
+      },
+      "median_change_percent": 2.836373945974624,
+      "ranges_overlap": false
+    },
+    "summary_hash_25": {
+      "before": {
+        "median": 22777.06999753665,
+        "min": 22713.5929498322,
+        "max": 23027.5732164228,
+        "samples": 6
+      },
+      "after": {
+        "median": 30841.64344322405,
+        "min": 30640.1649664454,
+        "max": 31218.6350280329,
+        "samples": 6
+      },
+      "median_change_percent": 35.40654459313504,
+      "ranges_overlap": false
+    },
+    "summary_result_rows_200": {
+      "before": {
+        "median": 3110.794173347625,
+        "min": 3077.94116521679,
+        "max": 3123.60901785283,
+        "samples": 6
+      },
+      "after": {
+        "median": 5488.09054322164,
+        "min": 5467.49845566557,
+        "max": 5590.0117669936,
+        "samples": 6
+      },
+      "median_change_percent": 76.42088281642015,
+      "ranges_overlap": false
+    },
+    "summary_result_rows_25": {
+      "before": {
+        "median": 17238.30709879585,
+        "min": 17098.3525736632,
+        "max": 17293.956914801,
+        "samples": 6
+      },
+      "after": {
+        "median": 24995.13309471995,
+        "min": 24583.3128472423,
+        "max": 25428.7930212248,
+        "samples": 6
+      },
+      "median_change_percent": 44.99760882242283,
+      "ranges_overlap": false
+    }
+  },
+  "http": [
+    {
+      "scenario": "guest.thread",
+      "clients": 1,
+      "requests_per_second": {
+        "before": {
+          "median": 339.448413846942,
+          "min": 336.128804579998,
+          "max": 342.768023113886,
+          "samples": 2
+        },
+        "after": {
+          "median": 402.1218768913695,
+          "min": 330.999784835737,
+          "max": 473.243968947002,
+          "samples": 2
+        },
+        "median_change_percent": 18.463324760942058,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 1.9400000019231798,
+          "min": 1.92000000970438,
+          "max": 1.95999999414198,
+          "samples": 2
+        },
+        "after": {
+          "median": 1.941000009537675,
+          "min": 1.91900000208989,
+          "max": 1.96300001698546,
+          "samples": 2
+        },
+        "median_change_percent": 0.05154678420122849,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 2.4480000138282803,
+          "min": 2.26300000213087,
+          "max": 2.63300002552569,
+          "samples": 2
+        },
+        "after": {
+          "median": 2.30849999934435,
+          "min": 2.21400000737049,
+          "max": 2.40299999131821,
+          "samples": 2
+        },
+        "median_change_percent": -5.698529971238631,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 3.142000001389535,
+          "min": 2.85099999746308,
+          "max": 3.43300000531599,
+          "samples": 2
+        },
+        "after": {
+          "median": 2.73800001014024,
+          "min": 2.26300000213087,
+          "max": 3.21300001814961,
+          "samples": 2
+        },
+        "median_change_percent": -12.858051911859569,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 623517696.0,
+          "min": 618053632,
+          "max": 628981760,
+          "samples": 2
+        },
+        "after": {
+          "median": 619126784.0,
+          "min": 619118592,
+          "max": 619134976,
+          "samples": 2
+        },
+        "median_change_percent": -0.7042160997464242,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 136.1,
+          "min": 115.2,
+          "max": 157,
+          "samples": 2
+        },
+        "after": {
+          "median": 135.95,
+          "min": 114.5,
+          "max": 157.4,
+          "samples": 2
+        },
+        "median_change_percent": -0.11021307861867058,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.home",
+      "clients": 1,
+      "requests_per_second": {
+        "before": {
+          "median": 161.317072501457,
+          "min": 159.645586793494,
+          "max": 162.98855820942,
+          "samples": 2
+        },
+        "after": {
+          "median": 160.4595026226395,
+          "min": 159.177371344363,
+          "max": 161.741633900916,
+          "samples": 2
+        },
+        "median_change_percent": -0.5316051584123405,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 5.98250000621192,
+          "min": 5.96899999072775,
+          "max": 5.99600002169609,
+          "samples": 2
+        },
+        "after": {
+          "median": 6.031999990227635,
+          "min": 6.02899998193607,
+          "max": 6.0349999985192,
+          "samples": 2
+        },
+        "median_change_percent": 0.8274130207156949,
+        "ranges_overlap": false
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 6.49949999933597,
+          "min": 6.28699999651872,
+          "max": 6.71200000215322,
+          "samples": 2
+        },
+        "after": {
+          "median": 6.45700001041405,
+          "min": 6.29099999787286,
+          "max": 6.62300002295524,
+          "samples": 2
+        },
+        "median_change_percent": -0.6538962831950434,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 6.69449999986682,
+          "min": 6.35300000431016,
+          "max": 7.03599999542348,
+          "samples": 2
+        },
+        "after": {
+          "median": 6.93049999244977,
+          "min": 6.57999998657033,
+          "max": 7.28099999832921,
+          "samples": 2
+        },
+        "median_change_percent": 3.5252818371446004,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 633634816.0,
+          "min": 630079488,
+          "max": 637190144,
+          "samples": 2
+        },
+        "after": {
+          "median": 624762880.0,
+          "min": 620314624,
+          "max": 629211136,
+          "samples": 2
+        },
+        "median_change_percent": -1.4001654858561308,
+        "ranges_overlap": false
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 100.35,
+          "min": 79,
+          "max": 121.7,
+          "samples": 2
+        },
+        "after": {
+          "median": 98.65,
+          "min": 80,
+          "max": 117.3,
+          "samples": 2
+        },
+        "median_change_percent": -1.6940707523667053,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.home",
+      "clients": 32,
+      "requests_per_second": {
+        "before": {
+          "median": 653.470326201249,
+          "min": 652.108347800111,
+          "max": 654.832304602387,
+          "samples": 2
+        },
+        "after": {
+          "median": 649.408987443838,
+          "min": 649.060757445705,
+          "max": 649.757217441971,
+          "samples": 2
+        },
+        "median_change_percent": -0.6215031646533031,
+        "ranges_overlap": false
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 48.437999997986495,
+          "min": 48.3010000025388,
+          "max": 48.5749999934342,
+          "samples": 2
+        },
+        "after": {
+          "median": 48.37199999019505,
+          "min": 48.0289999977686,
+          "max": 48.7149999826215,
+          "samples": 2
+        },
+        "median_change_percent": -0.13625667408685427,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 60.029000000213244,
+          "min": 58.3669999905396,
+          "max": 61.6910000098869,
+          "samples": 2
+        },
+        "after": {
+          "median": 60.9274999878835,
+          "min": 60.6179999886081,
+          "max": 61.2369999871589,
+          "samples": 2
+        },
+        "median_change_percent": 1.4967765374520159,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 83.5484999988694,
+          "min": 82.1869999927003,
+          "max": 84.9100000050385,
+          "samples": 2
+        },
+        "after": {
+          "median": 82.1600000053877,
+          "min": 80.0530000124127,
+          "max": 84.2669999983627,
+          "samples": 2
+        },
+        "median_change_percent": -1.661908943308965,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 637231104.0,
+          "min": 637173760,
+          "max": 637288448,
+          "samples": 2
+        },
+        "after": {
+          "median": 629309440.0,
+          "min": 629211136,
+          "max": 629407744,
+          "samples": 2
+        },
+        "median_change_percent": -1.2431383135999563,
+        "ranges_overlap": false
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 300.85,
+          "min": 282.2,
+          "max": 319.5,
+          "samples": 2
+        },
+        "after": {
+          "median": 283.3,
+          "min": 267.3,
+          "max": 299.3,
+          "samples": 2
+        },
+        "median_change_percent": -5.833471829815529,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.thread",
+      "clients": 1,
+      "requests_per_second": {
+        "before": {
+          "median": 81.50743031162685,
+          "min": 80.9470808437383,
+          "max": 82.0677797795154,
+          "samples": 2
+        },
+        "after": {
+          "median": 80.5326143258313,
+          "min": 79.1435089475938,
+          "max": 81.9217197040688,
+          "samples": 2
+        },
+        "median_change_percent": -1.195984196862221,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 12.01449999643955,
+          "min": 11.995000008028,
+          "max": 12.0339999848511,
+          "samples": 2
+        },
+        "after": {
+          "median": 12.09300001210065,
+          "min": 11.9100000010803,
+          "max": 12.276000023121,
+          "samples": 2
+        },
+        "median_change_percent": 0.653377299799085,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 12.7420000062557,
+          "min": 12.313000013819,
+          "max": 13.1709999986924,
+          "samples": 2
+        },
+        "after": {
+          "median": 13.4659999894211,
+          "min": 13.1279999914113,
+          "max": 13.8039999874309,
+          "samples": 2
+        },
+        "median_change_percent": 5.681996411944357,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 12.75300000270365,
+          "min": 12.3289999901317,
+          "max": 13.1770000152756,
+          "samples": 2
+        },
+        "after": {
+          "median": 13.5550000122748,
+          "min": 13.2610000146087,
+          "max": 13.8490000099409,
+          "samples": 2
+        },
+        "median_change_percent": 6.288716454176457,
+        "ranges_overlap": false
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 582828032.0,
+          "min": 526188544,
+          "max": 639467520,
+          "samples": 2
+        },
+        "after": {
+          "median": 578904064.0,
+          "min": 526123008,
+          "max": 631685120,
+          "samples": 2
+        },
+        "median_change_percent": -0.6732634301295892,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 107.7,
+          "min": 96.7,
+          "max": 118.7,
+          "samples": 2
+        },
+        "after": {
+          "median": 105.2,
+          "min": 94.4,
+          "max": 116,
+          "samples": 2
+        },
+        "median_change_percent": -2.32126276694522,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.thread",
+      "clients": 32,
+      "requests_per_second": {
+        "before": {
+          "median": 342.4525923283645,
+          "min": 338.93496632357,
+          "max": 345.970218333159,
+          "samples": 2
+        },
+        "after": {
+          "median": 329.2062933565245,
+          "min": 320.999221204477,
+          "max": 337.413365508572,
+          "samples": 2
+        },
+        "median_change_percent": -3.8680679511804206,
+        "ranges_overlap": false
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 92.12549999938345,
+          "min": 91.0359999979846,
+          "max": 93.2150000007823,
+          "samples": 2
+        },
+        "after": {
+          "median": 93.96649998961945,
+          "min": 93.5900000040419,
+          "max": 94.342999975197,
+          "samples": 2
+        },
+        "median_change_percent": 1.9983609209701214,
+        "ranges_overlap": false
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 106.67949999333365,
+          "min": 99.2939999850933,
+          "max": 114.065000001574,
+          "samples": 2
+        },
+        "after": {
+          "median": 118.678500017268,
+          "min": 115.573000017321,
+          "max": 121.784000017215,
+          "samples": 2
+        },
+        "median_change_percent": 11.247709283118269,
+        "ranges_overlap": false
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 138.9649999910035,
+          "min": 114.010999997845,
+          "max": 163.918999984162,
+          "samples": 2
+        },
+        "after": {
+          "median": 186.080999992555,
+          "min": 166.281999991043,
+          "max": 205.879999994067,
+          "samples": 2
+        },
+        "median_change_percent": 33.90494009614058,
+        "ranges_overlap": false
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 526327808.0,
+          "min": 526188544,
+          "max": 526467072,
+          "samples": 2
+        },
+        "after": {
+          "median": 526360576.0,
+          "min": 526123008,
+          "max": 526598144,
+          "samples": 2
+        },
+        "median_change_percent": 0.0062257778331131775,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 357.95,
+          "min": 357.7,
+          "max": 358.2,
+          "samples": 2
+        },
+        "after": {
+          "median": 353.2,
+          "min": 344.4,
+          "max": 362,
+          "samples": 2
+        },
+        "median_change_percent": -1.3270009777901937,
+        "ranges_overlap": true
+      }
+    }
+  ],
+  "http_total": {
+    "cells": 20,
+    "requests": 24640,
+    "invalid_responses": 0
+  },
+  "http_candidate_only_replication": {
+    "cells": 10,
+    "requests": 12212,
+    "invalid_responses": 0,
+    "raw": "runs/final-after-b-http/http/http-complete.json",
+    "summary": [
+      {
+        "scenario": "guest.thread",
+        "clients": 1,
+        "requests_per_second": {
+          "median": 333.595623906558,
+          "min": 328.604171655221,
+          "max": 338.587076157895,
+          "samples": 2
+        },
+        "p95_ms": {
+          "median": 2.521999995224175,
+          "min": 2.3759999894537,
+          "max": 2.66800000099465,
+          "samples": 2
+        },
+        "p99_ms": {
+          "median": 2.835999999660995,
+          "min": 2.68700000015087,
+          "max": 2.98499999917112,
+          "samples": 2
+        }
+      },
+      {
+        "scenario": "member.home",
+        "clients": 1,
+        "requests_per_second": {
+          "median": 159.8481940753095,
+          "min": 158.607426787594,
+          "max": 161.088961363025,
+          "samples": 2
+        },
+        "p95_ms": {
+          "median": 6.53549999697134,
+          "min": 6.37499999720603,
+          "max": 6.69599999673665,
+          "samples": 2
+        },
+        "p99_ms": {
+          "median": 6.628000002820045,
+          "min": 6.47500000195578,
+          "max": 6.78100000368431,
+          "samples": 2
+        }
+      },
+      {
+        "scenario": "member.home",
+        "clients": 32,
+        "requests_per_second": {
+          "median": 638.4186486144245,
+          "min": 617.783094032927,
+          "max": 659.054203195922,
+          "samples": 2
+        },
+        "p95_ms": {
+          "median": 61.3589999993565,
+          "min": 53.6039999860805,
+          "max": 69.1140000126325,
+          "samples": 2
+        },
+        "p99_ms": {
+          "median": 69.61299999966289,
+          "min": 59.4760000240058,
+          "max": 79.74999997532,
+          "samples": 2
+        }
+      },
+      {
+        "scenario": "member.thread",
+        "clients": 1,
+        "requests_per_second": {
+          "median": 80.5090383764738,
+          "min": 80.0685386690004,
+          "max": 80.9495380839472,
+          "samples": 2
+        },
+        "p95_ms": {
+          "median": 13.71300000755585,
+          "min": 13.360000011744,
+          "max": 14.0660000033677,
+          "samples": 2
+        },
+        "p99_ms": {
+          "median": 14.11149998602925,
+          "min": 13.4609999950044,
+          "max": 14.7619999770541,
+          "samples": 2
+        }
+      },
+      {
+        "scenario": "member.thread",
+        "clients": 32,
+        "requests_per_second": {
+          "median": 342.073001160882,
+          "min": 338.732569898519,
+          "max": 345.413432423245,
+          "samples": 2
+        },
+        "p95_ms": {
+          "median": 105.7545000221581,
+          "min": 98.5150000196882,
+          "max": 112.994000024628,
+          "samples": 2
+        },
+        "p99_ms": {
+          "median": 134.1169999941485,
+          "min": 118.762999976752,
+          "max": 149.471000011545,
+          "samples": 2
+        }
+      }
+    ]
+  },
+  "matched_runtime_environment": {
+    "versions": {
+      "mojolicious": "9.51",
+      "perl": "v5.44.0",
+      "platform": "darwin-thread-multi-2level",
+      "postgres": "18.6 (Homebrew)"
+    },
+    "dataset": {
+      "categories": 8,
+      "posts": 4800,
+      "private_lists": "seeded members retain seeded inbox/feed/bookmark rows; writes use independent member identities",
+      "threads": 240,
+      "users": 35
+    },
+    "harness_sha256": {
+      "benchmarks/hypnotoad-app.pl": "f1e89adbcdc240f6f26b6cb608a790dd5dba2d4a9a72bf8ef598f9fe1f099e4b",
+      "script/benchmark-http-complete": "8e241841e352c7e4398c34c6ca1d91a85a66fb8fcc2cefb125f34612a380f121",
+      "script/lib/GPForum/Performance/HTTPCatalog.pm": "f7738b1d0f510afba6060c72446922d42d435ca5f3250f09d178fb244b613c4f",
+      "script/lib/GPForum/Performance/HTTPClient.pm": "bdafdea087900e4039259abcfc52e05a75ca6366e30403278fe2dd685afb6975",
+      "script/lib/GPForum/Performance/HTTPComplete.pm": "48a9eabc9bd360c5ceb7e2717d458f59ef79f0b4247298ac7e1112bf16a282a5",
+      "script/lib/GPForum/Performance/HTTPIntegrations.pm": "1770227203e97a1d68ff0777acc1aea1ee4a6bf0d31042f502d64bc3fdfdfb64",
+      "script/lib/GPForum/Performance/HTTPReport.pm": "01cdce4e89ec1d4edc24ecd5f019a543336642e73f955c7f28a105fb8d3e97c8"
+    }
+  },
+  "limits": [
+    "HTTP reverse baseline failed three load-isolation attempts and is excluded. Only the initial matched A-B pair is the primary HTTP comparison; it cannot establish an order-independent or global throughput gain. The clean candidate-only replication is retained outside the comparison.",
+    "Observed min/max ranges are not confidence intervals.",
+    "Read-state lookup in the microbenchmark uses an in-memory double: values are Perl CPU costs without SQL or network latency.",
+    "Bodies use the actual renderer and Mathematics registry; cold cases include identical unique-source generation overhead.",
+    "HTTP uses migrated PostgreSQL, ordinary authorization, the local cache bus, real views and the common deterministic dataset. GlifiStore and the background realtime listener are disabled by the common harness.",
+    "Guest thread is serial; member thread and home also run at concurrency 32. Guest page-cache hits do not exercise body rendering.",
+    "No write load is timed; update and marker contracts are verified in tests.",
+    "Short local HTTP runs do not establish sustained capacity, a p99 SLO or a comparison with other forums.",
+    "Known competing test/benchmark/compilation processes were monitored; this host was not an isolated laboratory."
+  ]
+}

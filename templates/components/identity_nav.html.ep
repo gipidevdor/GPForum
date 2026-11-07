@@ -1,0 +1,24 @@
+% if (session('user_id')) {
+  <nav class="identity-nav" aria-label="<%= t('nav.identity') %>">
+    <a class="site-menu-link" href="<%= ui_path('navigation') %>"<%== (current_route() // q{}) eq 'navigation' ? ' aria-current="page"' : q{} %>><%= t('nav.menu_title') %></a>
+    <details class="account-menu" data-account-menu>
+      <summary><%= t('nav.menu_account') %></summary>
+      <div class="account-menu__panel">
+        <a href="<%= ui_path('settings') %>"<%== (current_route() // q{}) eq 'settings' ? ' aria-current="page"' : q{} %>><%= ui_icon('settings') %><%= t('nav.settings') %></a>
+        <form class="identity-form" method="post" action="<%= ui_path('logout') %>" aria-label="<%= t('auth.logout_aria') %>">
+          <%= csrf_field %>
+          <input type="hidden" name="command_id" value="<%= ui_command_id %>">
+          <button type="submit"><%= t('auth.logout') %></button>
+        </form>
+      </div>
+    </details>
+  </nav>
+% } else {
+  <nav class="identity-nav" aria-label="<%= t('nav.identity') %>">
+    <a class="site-menu-link" href="<%= ui_path('navigation') %>"><%= t('nav.menu_title') %></a>
+    %# Signing in leads back to this page, unless this page is the way in.
+    % my $here = ui_return_to;
+    <a href="<%= $here eq q{/} || $here =~ m{\A/(?:login|register)}msx ? ui_path('login') : url_for('login')->query(return_to => $here) %>"><%= t('auth.login') %></a>
+    <a class="identity-nav__join" href="<%= ui_path('register') %>"><%= t('auth.register') %></a>
+  </nav>
+% }

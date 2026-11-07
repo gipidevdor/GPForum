@@ -1,0 +1,89 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+use v5.40;
+use Const::Fast;
+use FindBin;
+use lib "$FindBin::Bin/../lib", "$FindBin::Bin/../script/lib";
+BEGIN {
+    if ($ENV{GPFORUM_BENCHMARK_TRACE_DIR}) {
+        require GPForum::Performance::OperationProbe;
+        GPForum::Performance::OperationProbe->import;
+    }
+}
+use GPForum;
+use JSON::MaybeXS qw(encode_json);
+use Mojo::IOLoop;
+use Mojo::Util qw(encode md5_sum);
+use Mojolicious ();
+
+# Only this benchmark entrypoint changes cache lifetime. The normal application
+# configuration, including its positive TTL contract, remains untouched. A
+# negative TTL stores then immediately expires the SSR entry; category read
+# models retain the same warm local cache in both scenarios.
+const my $COMPLETE_HTTP_LIMIT => 100_000_000;
+my $app = GPForum->new;
+if (($ENV{GPFORUM_PERFORMANCE_FULL_HTTP} // '') eq '1') {
+    die 'complete HTTP benchmark requires its disposable database'
+        if ($ENV{GPFORUM_DATABASE_DSN} // '') !~ /dbname=gpforum_perf_http_[[:digit:]]+(?:;|\z)/msx;
+    # Raise admission quotas only in this benchmark entrypoint. PostgreSQL
+    # counters, authorization, CSRF and command idempotency still execute.
+    my $check = GPForum::Service::Operations::RateLimiter->can('check');
+    my $check_p = GPForum::Service::Operations::RateLimiter->can('check_p');
+    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- opt-in admission quota override in the disposable benchmark entrypoint
+    *GPForum::Service::Operations::RateLimiter::check = sub ($self, $input) {
+        return $check->($self, {%$input, limit => $COMPLETE_HTTP_LIMIT});
+    };
+    *GPForum::Service::Operations::RateLimiter::check_p = sub ($self, $input, $context = undef) {
+        return $check_p->($self, {%$input, limit => $COMPLETE_HTTP_LIMIT}, $context);
+    };
+    $app->hook(after_dispatch => sub ($c) {
+        $c->res->headers->header('X-GPForum-Bench-Route' => $c->current_route // 'unknown');
+        $c->res->headers->header('X-GPForum-Bench-Worker' => $$);
+    });
+}
+if (($ENV{GPFORUM_PERFORMANCE_CACHE_MODE} // '') eq 'miss') {
+    $app->helper(gp_public_http_cache => sub ($controller) {
+        return GPForum::Web::PublicHttpCache->new(
+            cache => $controller->gp_local_cache, ttl_seconds => -1,
+        );
+    });
+}
+
+# The manager's reactor does not prove what handles requests after a fork.
+# Record once from each serving worker, before its first dispatch. No extra
+# HTTP route, database write or per-request metrics header is introduced.
+my $recorded;
+$app->hook(before_dispatch => sub ($controller) {
+    return if $recorded && $recorded == $$;
+    return if $controller->stash('gpforum.warming');
+    $recorded = $$;
+    my $directory = $ENV{GPFORUM_PERFORMANCE_TELEMETRY_DIR}
+        or die 'benchmark telemetry directory is required';
+    my $reactor = ref Mojo::IOLoop->singleton->reactor;
+    my $backend;
+    if ($reactor eq 'Mojo::Reactor::EV') {
+        $backend = EV::backend();
+    }
+    # Observe inherited code before this worker renders its first request.
+    my %compiled = map {
+        my $template = $app->renderer->cache->get(md5_sum encode 'UTF-8', $_);
+        $_ => ($template && $template->compiled ? 1 : 0)
+    } qw(layouts/default.html.ep forum/thread.html.ep);
+    $compiled{'forum/_posts.html.ep'} =
+        $controller->ui_partials->is_compiled('forum/_posts');
+    open my $file, '>', "$directory/worker-$$.json"
+        or die 'cannot write benchmark worker telemetry';
+    print {$file} encode_json({pid => 0 + $$, reactor => $reactor,
+        ev_backend => $backend, perl => "$^V",
+        mojolicious => Mojolicious->VERSION,
+        worker_clients => 0 + $app->config->{hypnotoad}{clients},
+        loop_max_connections => 0 + Mojo::IOLoop->singleton->max_connections,
+        loop_max_accepts => 0 + Mojo::IOLoop->singleton->max_accepts,
+        precompiled_templates => \%compiled});
+    close $file or die 'cannot close benchmark worker telemetry';
+});
+
+no warnings 'void';
+$app;

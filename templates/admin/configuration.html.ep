@@ -1,0 +1,72 @@
+% layout 'default', shell => 'wide';
+% title t('admin.configuration_general') . ' - ' . t('app.name');
+<section aria-labelledby="configuration-heading">
+  <%= include 'components/page_header', heading_id => 'configuration-heading', component_title => t('admin.configuration_general'), description => t('admin.configuration_intro'), actions_label => t('admin.settings'), actions => ui_actions({href => ui_path('admin_dashboard'), icon => 'settings', label => t('admin.admin')}, {href => ui_path('admin_plugins'), icon => 'settings', label => t('admin.plugins')}, {href => ui_path('admin_settings'), icon => 'settings', label => t('admin.configuration_diagnostics')}) %>
+  % if (!$configuration->{available}) {
+  <p role="alert"><%= t('admin.configuration_unavailable') %></p>
+  % }
+  % if (length $notice) {
+    % my $notice_key = 'admin.configuration_notice_' . $notice;
+    <p role="alert"><%= t($notice_key) %></p>
+  % }
+  <div class="admin-settings-search" hidden data-settings-search data-no-results="<%= t('admin.configuration_no_results') %>">
+    <label for="configuration-search"><%= t('admin.configuration_search') %></label>
+    <input id="configuration-search" type="search" data-settings-filter autocomplete="off">
+    <p class="ui-meta" data-settings-filter-status aria-live="polite"></p>
+  </div>
+  <form method="post" action="<%= ui_path('admin_configuration_change') %>" data-admin-configuration data-has-errors="<%= length($notice) ? 1 : 0 %>">
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $command %>">
+    <input type="hidden" name="revision" value="<%= $configuration->{revision} %>">
+    <fieldset <%= $configuration->{available} || $configuration->{can_retry} ? q{} : 'disabled' %>>
+      <legend class="visually-hidden"><%= t('admin.configuration_general') %></legend>
+      % for my $group (@{$configuration->{groups}}) {
+        % my $group_key = 'admin.settings_section_' . $group->{name};
+        <details class="admin-configuration-group" <%= $group->{name} eq 'application' ? 'open' : q{} %> data-settings-group>
+          <summary><%= t($group_key) %></summary>
+          <div class="admin-configuration-fields">
+          % for my $field (@{$group->{fields}}) {
+            % my $name = $field->{name};
+            % my $label = 'admin.configuration_label_' . $name;
+            <div class="admin-configuration-field" data-settings-field>
+              <label for="setting-<%= $name %>"><%= t($label) %></label>
+              % if ($field->{choices}) {
+                <select name="<%= $field->{env} %>" id="setting-<%= $name %>" aria-describedby="hint-<%= $name %>">
+                % for my $choice (@{$field->{choices}}) {
+                  <option value="<%= $choice->{value} %>" <%= $field->{value} eq $choice->{value} ? 'selected' : q{} %>><%= $choice->{label} %></option>
+                % }
+                </select>
+              % } elsif ($field->{secret}) {
+                <input type="password" name="<%= $field->{env} %>" id="setting-<%= $name %>" maxlength="<%= $field->{secret_max_length} %>" autocomplete="new-password" aria-describedby="hint-<%= $name %>" placeholder="<%= t('admin.configuration_secret_keep') %>">
+              % } else {
+                <input type="<%= $field->{input_type} %>" name="<%= $field->{env} %>" id="setting-<%= $name %>" value="<%= $field->{value} %>" maxlength="2000" aria-describedby="hint-<%= $name %>" aria-invalid="<%= $field->{invalid} ? 'true' : 'false' %>">
+              % }
+              <p class="ui-meta" id="hint-<%= $name %>"><%= $field->{live} ? t('admin.configuration_live') : t('admin.configuration_restart') %>
+                % if ($field->{secret} && $field->{configured}) {
+                  <%= t('admin.configuration_secret_set') %>
+                % }
+              </p>
+              % if ($field->{invalid}) {
+                <p class="form-error"><%= t('admin.configuration_invalid_field') %></p>
+              % }
+              % if ($field->{overridden}) {
+              <button class="button--quiet" type="submit" form="reset-<%= $name %>"><%= ui_icon('arrow-left') %><%= t('admin.configuration_reset') %></button>
+              % }
+            </div>
+          % }
+          </div>
+        </details>
+      % }
+      <div class="admin-configuration-save"><button type="submit"><%= ui_icon('check') %><%= t('admin.configuration_save_all') %></button><span class="ui-meta"><%= t('admin.configuration_atomic') %></span></div>
+    </fieldset>
+  </form>
+  % for my $group (@{$configuration->{groups}}) {
+    % for my $field (@{$group->{fields}}) {
+      % if ($field->{overridden}) {
+      <form id="reset-<%= $field->{name} %>" method="post" action="<%= ui_path('admin_configuration_reset', setting => $field->{env}) %>">
+        <%= csrf_field %><input type="hidden" name="revision" value="<%= $configuration->{revision} %>"><input type="hidden" name="command_id" value="<%= $field->{reset_command} %>">
+      </form>
+      % }
+    % }
+  % }
+</section>

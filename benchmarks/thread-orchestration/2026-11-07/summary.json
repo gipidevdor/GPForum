@@ -1,0 +1,378 @@
+{
+  "baseline_commit": "05f238bc53318c8c819014d65f6b8e4bbf1a7b47",
+  "integrated_application_commit": "756374d9720764e4dfc468e45df3c8fb3d469961",
+  "machine": "Apple M4,10 cores,16GiB",
+  "rows": [
+    {
+      "arm": "baseline",
+      "sessions": 1,
+      "requests_per_second": 57.7580963856358,
+      "p95_ms": 18.9250000112224,
+      "requests": 300,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        56.3351717383743,
+        58.0231512366868,
+        57.7580963856358
+      ],
+      "p95_ms_repetitions": [
+        18.6680000042543,
+        19.3489999801386,
+        18.9250000112224
+      ]
+    },
+    {
+      "arm": "baseline",
+      "sessions": 10,
+      "requests_per_second": 309.374851261781,
+      "p95_ms": 43.6189999745693,
+      "requests": 5492,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        278.101162978885,
+        320.367614815599,
+        309.374851261781
+      ],
+      "p95_ms_repetitions": [
+        55.3770000115037,
+        43.6189999745693,
+        42.9710000171326
+      ]
+    },
+    {
+      "arm": "baseline",
+      "sessions": 50,
+      "requests_per_second": 372.03874949322,
+      "p95_ms": 192.402000015136,
+      "requests": 6859,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        375.972745812091,
+        371.357249586816,
+        372.03874949322
+      ],
+      "p95_ms_repetitions": [
+        209.348999982467,
+        192.402000015136,
+        174.028000008548
+      ]
+    },
+    {
+      "arm": "baseline",
+      "sessions": 100,
+      "requests_per_second": 369.954437528797,
+      "p95_ms": 352.84700000193,
+      "requests": 6943,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        374.713040029553,
+        369.954437528797,
+        368.725723889502
+      ],
+      "p95_ms_repetitions": [
+        352.922999998555,
+        352.84700000193,
+        347.655999998096
+      ]
+    },
+    {
+      "arm": "transport-only",
+      "sessions": 1,
+      "requests_per_second": 66.2572410881498,
+      "p95_ms": 16.8410000042059,
+      "requests": 300,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        59.8487382983914,
+        66.4216151878659,
+        66.2572410881498
+      ],
+      "p95_ms_repetitions": [
+        18.0730000138283,
+        16.8410000042059,
+        16.7600000277162
+      ]
+    },
+    {
+      "arm": "transport-only",
+      "sessions": 10,
+      "requests_per_second": 344.910197040984,
+      "p95_ms": 38.5370000149123,
+      "requests": 6249,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        346.746415043399,
+        344.910197040984,
+        339.746754947109
+      ],
+      "p95_ms_repetitions": [
+        37.6949999772478,
+        38.5370000149123,
+        38.8610000081826
+      ]
+    },
+    {
+      "arm": "transport-only",
+      "sessions": 50,
+      "requests_per_second": 417.863246678933,
+      "p95_ms": 178.433000022778,
+      "requests": 7695,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        421.014062001574,
+        417.863246678933,
+        414.565682200464
+      ],
+      "p95_ms_repetitions": [
+        207.385000016075,
+        178.433000022778,
+        175.277999980608
+      ]
+    },
+    {
+      "arm": "transport-only",
+      "sessions": 100,
+      "requests_per_second": 408.681008161494,
+      "p95_ms": 333.925999992061,
+      "requests": 7663,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        413.347139340404,
+        408.681008161494,
+        408.220860985585
+      ],
+      "p95_ms_repetitions": [
+        310.292999987723,
+        334.6849999798,
+        333.925999992061
+      ]
+    },
+    {
+      "arm": "read-candidate",
+      "sessions": 1,
+      "requests_per_second": 66.9835434824373,
+      "p95_ms": 16.8049999920186,
+      "requests": 300,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        62.7957680681249,
+        66.9835434824373,
+        67.0086789641708
+      ],
+      "p95_ms_repetitions": [
+        16.9699999969453,
+        16.8049999920186,
+        16.196000011405
+      ]
+    },
+    {
+      "arm": "read-candidate",
+      "sessions": 10,
+      "requests_per_second": 358.714087548033,
+      "p95_ms": 38.6679999937769,
+      "requests": 6397,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        337.704612665844,
+        359.266146935167,
+        358.714087548033
+      ],
+      "p95_ms_repetitions": [
+        52.0560000149999,
+        38.5459999961313,
+        38.6679999937769
+      ]
+    },
+    {
+      "arm": "read-candidate",
+      "sessions": 50,
+      "requests_per_second": 417.57932377817,
+      "p95_ms": 174.614000017755,
+      "requests": 7636,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        405.300428943338,
+        421.525374801336,
+        417.57932377817
+      ],
+      "p95_ms_repetitions": [
+        197.0469999942,
+        152.564999996684,
+        174.614000017755
+      ]
+    },
+    {
+      "arm": "read-candidate",
+      "sessions": 100,
+      "requests_per_second": 420.261253037401,
+      "p95_ms": 311.627999995835,
+      "requests": 7834,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        420.774456530403,
+        417.797398447187,
+        420.261253037401
+      ],
+      "p95_ms_repetitions": [
+        311.627999995835,
+        287.368999997852,
+        314.730000012787
+      ]
+    },
+    {
+      "arm": "integrated-thread",
+      "scenario": "member.thread",
+      "sessions": 1,
+      "requests_per_second": 65.2719785430919,
+      "p95_ms": 17.2029999957886,
+      "requests": 300,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        64.372433149413,
+        65.2719785430919,
+        67.6588155375218
+      ],
+      "p95_ms_repetitions": [
+        17.2029999957886,
+        18.1509999965783,
+        16.540000011446
+      ]
+    },
+    {
+      "arm": "integrated-thread",
+      "scenario": "member.thread",
+      "sessions": 100,
+      "requests_per_second": 413.38842812465,
+      "p95_ms": 306.998000014573,
+      "requests": 7723,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        413.38842812465,
+        422.813298211558,
+        407.825292533273
+      ],
+      "p95_ms_repetitions": [
+        294.391999981599,
+        306.998000014573,
+        331.077999988338
+      ]
+    },
+    {
+      "arm": "integrated-write",
+      "scenario": "authentication",
+      "sessions": 10,
+      "requests_per_second": 51.5101487884488,
+      "p95_ms": 418.009999993956,
+      "requests": 120,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        55.3279425474779,
+        51.5101487884488,
+        50.3115543009695
+      ],
+      "p95_ms_repetitions": [
+        409.665000013774,
+        438.138000026811,
+        418.009999993956
+      ]
+    },
+    {
+      "arm": "integrated-write",
+      "scenario": "mixed",
+      "sessions": 10,
+      "requests_per_second": 347.055028238511,
+      "p95_ms": 47.5710000027902,
+      "requests": 6530,
+      "invalid_responses": 0,
+      "errors": 0,
+      "rps_repetitions": [
+        340.295369959683,
+        362.475160026413,
+        347.055028238511
+      ],
+      "p95_ms_repetitions": [
+        47.420000017155,
+        47.6640000124462,
+        47.5710000027902
+      ]
+    }
+  ],
+  "local_validation": {
+    "unit": {
+      "files": 536,
+      "checks": 20403,
+      "status": "PASS"
+    },
+    "functional": {
+      "files": 175,
+      "checks": 15336,
+      "features": "41/41",
+      "status": "PASS",
+      "postgres": "18.6",
+      "real_clamav": true
+    },
+    "integrated_diagnostic_followup": {
+      "files": 176,
+      "checks": 15437,
+      "features": "41/41",
+      "status": "PASS",
+      "probe_unit_checks": 12,
+      "critic_status": "PASS"
+    }
+  },
+  "diagnosis": "diagnostics/summary.json",
+  "integrated_confirmation": "Accepted clean100-session confirmation; full1/10/50/100 integrated attempt excluded because other-session browser tests overlapped.",
+  "note": "Medians of per-repetition statistics, not pooled percentiles; closed-loop colocated shared-laptop measurements.",
+  "comparison": {
+    "baseline_rps": 369.954437528797,
+    "baseline_p95_ms": 352.84700000193,
+    "integrated_rps": 413.38842812465,
+    "integrated_p95_ms": 306.998000014573,
+    "rps_change_percent": 11.740362106745138,
+    "p95_change_percent": -12.994017233278509,
+    "target_420_320_met_in_integrated_confirmation": false,
+    "target_450_300_met": false
+  },
+  "limits": [
+    "Final integrated confirmation selects100sessions (plus mandatory1-clientcells); baseline and isolated arms sweep1/10/50/100. Fixture, workers, admission,warmup,iterations,duration,reps andgenerator match. This workload-order difference prevents a claim of perfectly identical campaigns.",
+    "Medians of per-cell p95 statistics are not pooled percentiles.",
+    "The isolated read subset reaches420.3/311.6; actual integrated clean confirmation is413.4/307.0. Report both; do not substitute the faster subset.",
+    "Instrumented timing and CPU percentages include observer overhead. Query queue estimate is not a productionCPU breakdown.",
+    "AuthHTTP includes all login/redirect/logout HTTP requests, not passwordhashes/s. No matched old8w local write/auth baseline was measured.",
+    "No clean new integrated search capacity is claimed; search in the broad integrated attempt overlapped other-session tests."
+  ],
+  "pre_fix_CI_756": {
+    "CI": {
+      "run": 42350444682,
+      "status": "failed",
+      "cause": "SQL community_like_command completion not observed by synchronous-only probe; native-completion diagnostic fix verified locally"
+    },
+    "performance": {
+      "run": 42350444679,
+      "status": "failed",
+      "health5000_rep3_transport_errors": 2,
+      "health_failure_kind": "runner_below_bar",
+      "note": "Failure retained; no health tuning or threshold relaxation in this change"
+    },
+    "security": {
+      "run": 42350444699,
+      "status": "failed",
+      "cause": "verified SHA256 file digest misread as generic API key; narrow exception and negative control verified"
+    }
+  }
+}

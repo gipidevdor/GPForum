@@ -1,0 +1,182 @@
+{
+  "guest_thread_cold": {
+    "http_status": "200",
+    "cache": "miss",
+    "sql": [
+      "SELECT pg_catalog.set_config('statement_timeout', '15000', false), pg_catalog.set_config('idle_in_tr",
+      "admin_configuration_snapshot_v2",
+      "SELECT pg_catalog.set_config('statement_timeout', '15000', false), pg_catalog.set_config('idle_in_tr",
+      "LISTEN \"gpforum_cache_invalidation\"",
+      "LISTEN \"gpforum_domain_events\"",
+      "forum_active_announcements_v2",
+      "forum_thread_page_head_v2",
+      "forum_thread_page_posts_v4",
+      "forum_thread_page_reads_v8"
+    ],
+    "subprocesses": 1,
+    "allocations": 29
+  },
+  "guest_thread_warm": {
+    "http_status": "200",
+    "cache": "hit",
+    "sql": [
+      "admin_configuration_snapshot_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 3
+  },
+  "guest_thread_warm_repeat": {
+    "http_status": "200",
+    "cache": "hit",
+    "sql": [
+      "admin_configuration_snapshot_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 3
+  },
+  "guest_home_cold": {
+    "http_status": "200",
+    "cache": "miss",
+    "sql": [
+      "admin_configuration_snapshot_v2",
+      "forum_list_categories_v4",
+      "SELECT pg_catalog.set_config('statement_timeout', '15000', false), pg_catalog.set_config('idle_in_tr",
+      "forum_list_public_threads_v6",
+      "forum_thread_tags_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 6
+  },
+  "guest_home_warm": {
+    "http_status": "200",
+    "cache": "hit",
+    "sql": [
+      "admin_configuration_snapshot_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 3
+  },
+  "guest_category_cold": {
+    "http_status": "200",
+    "cache": "miss",
+    "sql": [
+      "admin_configuration_snapshot_v2",
+      "forum_find_category_v2",
+      "forum_list_category_threads_v4",
+      "forum_thread_tags_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 6
+  },
+  "guest_category_warm": {
+    "http_status": "200",
+    "cache": "hit",
+    "sql": [
+      "admin_configuration_snapshot_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 3
+  },
+  "guest_search_cold": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_configuration_snapshot_v2",
+      "ops_rate_limit_check_v2",
+      "BEGIN READ ONLY",
+      "search_set_timeout_v2",
+      "search_ranked_v16",
+      "COMMIT"
+    ],
+    "subprocesses": 0,
+    "allocations": 7
+  },
+  "guest_search_warm": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_configuration_snapshot_v2",
+      "ops_rate_limit_check_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 3
+  },
+  "guest_static": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [],
+    "subprocesses": 0,
+    "allocations": 0
+  },
+  "login_setup": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_configuration_snapshot_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 2
+  },
+  "signed_thread_cold": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_request_context_v4",
+      "forum_thread_page_head_v2",
+      "forum_thread_page_posts_v4",
+      "forum_thread_page_reads_v8"
+    ],
+    "subprocesses": 0,
+    "allocations": 20
+  },
+  "signed_thread_warm": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_request_context_v4",
+      "forum_thread_page_head_v2",
+      "forum_thread_page_posts_v4",
+      "forum_thread_page_reads_v8"
+    ],
+    "subprocesses": 0,
+    "allocations": 20
+  },
+  "signed_thread_fragment": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_request_context_v4",
+      "forum_thread_page_head_v2",
+      "forum_thread_page_posts_v4",
+      "forum_thread_page_reads_v8"
+    ],
+    "subprocesses": 0,
+    "allocations": 19
+  },
+  "signed_home": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_request_context_v4",
+      "forum_list_categories_v4",
+      "forum_list_public_threads_v6",
+      "forum_thread_tags_v2"
+    ],
+    "subprocesses": 0,
+    "allocations": 8
+  },
+  "signed_search": {
+    "http_status": "200",
+    "cache": "",
+    "sql": [
+      "admin_request_context_v4",
+      "ops_rate_limit_check_v2",
+      "BEGIN READ ONLY",
+      "search_set_timeout_v2",
+      "search_ranked_v16",
+      "COMMIT"
+    ],
+    "subprocesses": 0,
+    "allocations": 8
+  }
+}

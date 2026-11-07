@@ -1,0 +1,846 @@
+{
+  "generated_at": "2026-11-06T01:47:13.444084+00:00",
+  "baseline": "Verified candidate from the first Perl review; excludes independent Web Push/passkey changes",
+  "order": [
+    "before-a",
+    "after-a",
+    "after-b",
+    "before-b"
+  ],
+  "hardware": {
+    "cpu": "Apple M4",
+    "physical_cores": 10,
+    "logical_cores": 10,
+    "memory_bytes": 17179869184
+  },
+  "checks": {
+    "focused-final": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review2-after-rcxgxrwx",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-l",
+        "t/207-pg-notifications.t",
+        "t/773-presentation-caches.t",
+        "t/858-postgres-asset-contract.t",
+        "t/859-forum-row-projection.t",
+        "t/120-forum-view-models.t",
+        "t/74-view-model-presenters.t",
+        "t/20-realtime.t",
+        "t/81-realtime-operational.t",
+        "t/82-realtime-supervisor.t",
+        "t/85-realtime-outbox-multiprocess.t",
+        "t/345-realtime-hub-failures.t",
+        "t/729-realtime-registry-indexes.t",
+        "t/730-realtime-output-budget.t",
+        "t/768-realtime-socket-budget.t",
+        "t/719-realtime-session-end.t"
+      ],
+      "started_at": "2026-11-06T01:36:23.084028+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 3.7823960420000002,
+      "finished_at": "2026-11-06T01:36:26.866678+00:00"
+    },
+    "critic-final": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review2-after-rcxgxrwx",
+      "command": [
+        "script/perlcritic",
+        "lib/GPForum/Service/Realtime/PgListener.pm",
+        "lib/GPForum/Service/Attachment/PostgresAsset.pm",
+        "lib/GPForum/Service/Integration/SourceLinks.pm",
+        "t/207-pg-notifications.t",
+        "t/773-presentation-caches.t",
+        "t/integration/postgres-attachment-objects.t",
+        "t/858-postgres-asset-contract.t",
+        "lib/GPForum/ViewModel/Forum/Rows.pm",
+        "t/859-forum-row-projection.t"
+      ],
+      "started_at": "2026-11-06T01:36:23.084039+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.9330743750000001,
+      "finished_at": "2026-11-06T01:36:25.017387+00:00"
+    },
+    "unit": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review2-after-rcxgxrwx",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-lr",
+        "-j8",
+        "t"
+      ],
+      "started_at": "2026-11-06T01:36:43.586265+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 74.49612250000001,
+      "finished_at": "2026-11-06T01:37:58.082943+00:00"
+    },
+    "integration": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review2-after-rcxgxrwx",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-l",
+        "-j4",
+        "-It/lib",
+        "--exec",
+        "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+        "t/integration/postgres-attachment-objects.t",
+        "t/integration/postgres-realtime-listen.t",
+        "t/integration/postgres-thread-page-reads.t",
+        "t/integration/postgres-request-work-reuse.t"
+      ],
+      "started_at": "2026-11-06T01:36:43.586278+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 6.7234145409999995,
+      "finished_at": "2026-11-06T01:36:50.309992+00:00"
+    },
+    "integration-pages": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review2-after-rcxgxrwx",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-l",
+        "-j4",
+        "-It/lib",
+        "--exec",
+        "perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres",
+        "t/integration/postgres-http-complete.t",
+        "t/integration/postgres-search-results.t",
+        "t/integration/postgres-search-hidden-content.t",
+        "t/integration/postgres-hybrid-search.t"
+      ],
+      "started_at": "2026-11-06T01:38:21.148061+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 17.089645042,
+      "finished_at": "2026-11-06T01:38:38.237997+00:00"
+    },
+    "static": {
+      "source": "/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/gpforum-perl-review2-after-rcxgxrwx",
+      "command": [
+        "make",
+        "perl-runtime",
+        "syntax",
+        "tidy",
+        "architecture"
+      ],
+      "started_at": "2026-11-06T01:36:43.586259+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 392.32061174999996,
+      "finished_at": "2026-11-06T01:43:15.908689+00:00"
+    }
+  },
+  "microbenchmarks": {
+    "projection_autocomplete_suggestion_function_row": {
+      "before": {
+        "median": 159798.2827943225,
+        "min": 157744.132703603,
+        "max": 160992.48648117,
+        "samples": 6
+      },
+      "after": {
+        "median": 278506.1524356235,
+        "min": 277919.82568015,
+        "max": 279151.045835544,
+        "samples": 6
+      },
+      "median_change_percent": 74.2860733954762,
+      "ranges_overlap": false
+    },
+    "projection_autocomplete_suggestion_hash": {
+      "before": {
+        "median": 259543.216454158,
+        "min": 254427.677649566,
+        "max": 260762.992511042,
+        "samples": 6
+      },
+      "after": {
+        "median": 460786.5098340815,
+        "min": 452722.218710238,
+        "max": 465289.410016214,
+        "samples": 6
+      },
+      "median_change_percent": 77.53748918167862,
+      "ranges_overlap": false
+    },
+    "projection_category_function_row": {
+      "before": {
+        "median": 145578.60036473302,
+        "min": 144069.798937009,
+        "max": 146331.89830797,
+        "samples": 6
+      },
+      "after": {
+        "median": 177913.2608985435,
+        "min": 172040.938858095,
+        "max": 181545.863028957,
+        "samples": 6
+      },
+      "median_change_percent": 22.211135738906073,
+      "ranges_overlap": false
+    },
+    "projection_category_hash": {
+      "before": {
+        "median": 279929.945765125,
+        "min": 276022.733223536,
+        "max": 283491.710699614,
+        "samples": 6
+      },
+      "after": {
+        "median": 383969.9549447,
+        "min": 377374.155170104,
+        "max": 390295.687999739,
+        "samples": 6
+      },
+      "median_change_percent": 37.16644494579002,
+      "ranges_overlap": false
+    },
+    "projection_search_result_function_row": {
+      "before": {
+        "median": 90290.56974818971,
+        "min": 89817.2398808947,
+        "max": 90491.4318199564,
+        "samples": 6
+      },
+      "after": {
+        "median": 145243.15891438047,
+        "min": 144648.092882132,
+        "max": 145391.736226313,
+        "samples": 6
+      },
+      "median_change_percent": 60.861936434167355,
+      "ranges_overlap": false
+    },
+    "projection_search_result_hash": {
+      "before": {
+        "median": 153722.0405929195,
+        "min": 152639.130570303,
+        "max": 154624.031672127,
+        "samples": 6
+      },
+      "after": {
+        "median": 261997.40048642998,
+        "min": 259767.248548157,
+        "max": 265231.586963198,
+        "samples": 6
+      },
+      "median_change_percent": 70.43580704229714,
+      "ranges_overlap": false
+    },
+    "projection_thread_function_row": {
+      "before": {
+        "median": 65812.63806363345,
+        "min": 65416.6418639053,
+        "max": 66105.1256595959,
+        "samples": 6
+      },
+      "after": {
+        "median": 85662.2926645876,
+        "min": 85130.7992155491,
+        "max": 86210.7611731013,
+        "samples": 6
+      },
+      "median_change_percent": 30.16085539947777,
+      "ranges_overlap": false
+    },
+    "projection_thread_hash": {
+      "before": {
+        "median": 120225.7042731275,
+        "min": 118813.810444709,
+        "max": 121518.938117104,
+        "samples": 6
+      },
+      "after": {
+        "median": 177303.43485449848,
+        "min": 176049.209275035,
+        "max": 178039.535453429,
+        "samples": 6
+      },
+      "median_change_percent": 47.475480327985764,
+      "ranges_overlap": false
+    },
+    "realtime_duplicate_stub_no_io": {
+      "before": {
+        "median": 952787.2058688914,
+        "min": 939655.33444885,
+        "max": 967267.662426593,
+        "samples": 6
+      },
+      "after": {
+        "median": 1167562.5888330499,
+        "min": 1150642.05830171,
+        "max": 1177287.76453551,
+        "samples": 6
+      },
+      "median_change_percent": 22.541799642271076,
+      "ranges_overlap": false
+    },
+    "realtime_success_stub_no_io": {
+      "before": {
+        "median": 211073.8692893035,
+        "min": 209600.543283279,
+        "max": 212125.968884915,
+        "samples": 6
+      },
+      "after": {
+        "median": 213324.85309558,
+        "min": 211555.14183691,
+        "max": 214480.891899658,
+        "samples": 6
+      },
+      "median_change_percent": 1.0664436170406688,
+      "ranges_overlap": true
+    },
+    "source_hit_default": {
+      "before": {
+        "median": 953689.4804010466,
+        "min": 945474.486362727,
+        "max": 958864.704029344,
+        "samples": 6
+      },
+      "after": {
+        "median": 958484.1852873525,
+        "min": 952880.080049791,
+        "max": 969631.152410515,
+        "samples": 6
+      },
+      "median_change_percent": 0.5027532530074375,
+      "ranges_overlap": true
+    },
+    "source_mixed_small_budget": {
+      "before": {
+        "median": 67017.06763839794,
+        "min": 66465.7922755888,
+        "max": 67961.4069849141,
+        "samples": 6
+      },
+      "after": {
+        "median": 324391.11622853845,
+        "min": 322924.403409868,
+        "max": 326989.732554609,
+        "samples": 6
+      },
+      "median_change_percent": 384.04253969876186,
+      "ranges_overlap": false
+    }
+  },
+  "http": [
+    {
+      "scenario": "member.category",
+      "clients": 1,
+      "requests_per_second": {
+        "before": {
+          "median": 143.26748350922747,
+          "min": 138.78287419928,
+          "max": 148.604970828475,
+          "samples": 4
+        },
+        "after": {
+          "median": 142.479372337408,
+          "min": 135.881104035045,
+          "max": 149.617167072878,
+          "samples": 4
+        },
+        "median_change_percent": -0.5500977280505692,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 6.62300000840332,
+          "min": 6.56999999773689,
+          "max": 6.65399999707006,
+          "samples": 4
+        },
+        "after": {
+          "median": 6.6384999954607355,
+          "min": 6.54599998961203,
+          "max": 6.70800000079907,
+          "samples": 4
+        },
+        "median_change_percent": 0.23403271988144958,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 7.01600000320468,
+          "min": 6.75800000317395,
+          "max": 7.41099999868311,
+          "samples": 4
+        },
+        "after": {
+          "median": 7.37749999098014,
+          "min": 6.64900001720525,
+          "max": 7.87600001785904,
+          "samples": 4
+        },
+        "median_change_percent": 5.152508375289888,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 7.40550000045914,
+          "min": 6.89599997713231,
+          "max": 7.97800000873394,
+          "samples": 4
+        },
+        "after": {
+          "median": 7.6544999901671,
+          "min": 6.68200000654906,
+          "max": 8.01900000078604,
+          "samples": 4
+        },
+        "median_change_percent": 3.362365670009071,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 603037696.0,
+          "min": 600473600,
+          "max": 605569024,
+          "samples": 4
+        },
+        "after": {
+          "median": 602734592.0,
+          "min": 600768512,
+          "max": 604717056,
+          "samples": 4
+        },
+        "median_change_percent": -0.05026286117940648,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 112.05,
+          "min": 92.4,
+          "max": 157.8,
+          "samples": 4
+        },
+        "after": {
+          "median": 116.6,
+          "min": 92,
+          "max": 157.2,
+          "samples": 4
+        },
+        "median_change_percent": 4.060687193217305,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.home",
+      "clients": 1,
+      "requests_per_second": {
+        "before": {
+          "median": 162.0503719755815,
+          "min": 159.606729035166,
+          "max": 164.854639424355,
+          "samples": 4
+        },
+        "after": {
+          "median": 161.288505792309,
+          "min": 159.062169437045,
+          "max": 163.471480356942,
+          "samples": 4
+        },
+        "median_change_percent": -0.4701415825119515,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 5.9624999848892895,
+          "min": 5.82900000154041,
+          "max": 6.0280000034254,
+          "samples": 4
+        },
+        "after": {
+          "median": 6.0249999951338395,
+          "min": 5.99000000511296,
+          "max": 6.08799999463372,
+          "samples": 4
+        },
+        "median_change_percent": 1.0482182038229482,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 6.40199999907054,
+          "min": 6.10699999378994,
+          "max": 6.99099997291341,
+          "samples": 4
+        },
+        "after": {
+          "median": 6.3330000120913645,
+          "min": 6.17900001816452,
+          "max": 6.48399998317473,
+          "samples": 4
+        },
+        "median_change_percent": -1.0777879879599106,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 6.496999994851651,
+          "min": 6.11399998888373,
+          "max": 7.07099999999627,
+          "samples": 4
+        },
+        "after": {
+          "median": 6.46699999924749,
+          "min": 6.21000002138317,
+          "max": 6.82499998947605,
+          "samples": 4
+        },
+        "median_change_percent": -0.46175151035759976,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 591904768.0,
+          "min": 585629696,
+          "max": 597688320,
+          "samples": 4
+        },
+        "after": {
+          "median": 591413248.0,
+          "min": 585859072,
+          "max": 597049344,
+          "samples": 4
+        },
+        "median_change_percent": -0.08304038530738689,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 135.7,
+          "min": 113.4,
+          "max": 159.6,
+          "samples": 4
+        },
+        "after": {
+          "median": 135.35,
+          "min": 96.1,
+          "max": 166.3,
+          "samples": 4
+        },
+        "median_change_percent": -0.2579218865143673,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.home",
+      "clients": 32,
+      "requests_per_second": {
+        "before": {
+          "median": 669.827149776741,
+          "min": 661.146513937255,
+          "max": 674.772864010849,
+          "samples": 4
+        },
+        "after": {
+          "median": 659.9959675794739,
+          "min": 659.086949231398,
+          "max": 669.779597161011,
+          "samples": 4
+        },
+        "median_change_percent": -1.4677192766139546,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 46.52299999725075,
+          "min": 46.1139999970328,
+          "max": 47.3910000000615,
+          "samples": 4
+        },
+        "after": {
+          "median": 47.80700002447705,
+          "min": 46.357999992324,
+          "max": 49.4170000019949,
+          "samples": 4
+        },
+        "median_change_percent": 2.7599252569743493,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 54.86950000340585,
+          "min": 51.2539999908768,
+          "max": 59.1739999945275,
+          "samples": 4
+        },
+        "after": {
+          "median": 56.8990000174381,
+          "min": 52.5229999911971,
+          "max": 61.111000017263,
+          "samples": 4
+        },
+        "median_change_percent": 3.6987762124792045,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 68.03999999829105,
+          "min": 59.1359999962151,
+          "max": 79.1899999894667,
+          "samples": 4
+        },
+        "after": {
+          "median": 71.92699999723115,
+          "min": 61.4770000101998,
+          "max": 81.4200000022538,
+          "samples": 4
+        },
+        "median_change_percent": 5.712815989179498,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 597139456.0,
+          "min": 596475904,
+          "max": 597901312,
+          "samples": 4
+        },
+        "after": {
+          "median": 597049344.0,
+          "min": 596885504,
+          "max": 597295104,
+          "samples": 4
+        },
+        "median_change_percent": -0.015090612267298908,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 314.15,
+          "min": 302.3,
+          "max": 362.7,
+          "samples": 4
+        },
+        "after": {
+          "median": 343.79999999999995,
+          "min": 298.5,
+          "max": 362.7,
+          "samples": 4
+        },
+        "median_change_percent": 9.438166480980414,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.search",
+      "clients": 1,
+      "requests_per_second": {
+        "before": {
+          "median": 90.96549955677365,
+          "min": 90.7618092465933,
+          "max": 91.1749487686191,
+          "samples": 4
+        },
+        "after": {
+          "median": 91.71949298312416,
+          "min": 89.6185833107186,
+          "max": 92.1007490055825,
+          "samples": 4
+        },
+        "median_change_percent": 0.8288784539460803,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 10.7529999950202,
+          "min": 10.6140000279993,
+          "max": 10.9189999930095,
+          "samples": 4
+        },
+        "after": {
+          "median": 10.62699999602045,
+          "min": 10.5350000085309,
+          "max": 10.9240000019781,
+          "samples": 4
+        },
+        "median_change_percent": -1.1717660100260652,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 11.530499992659351,
+          "min": 11.1660000111442,
+          "max": 11.739999987185,
+          "samples": 4
+        },
+        "after": {
+          "median": 11.40750000195115,
+          "min": 11.1729999771342,
+          "max": 11.6290000150912,
+          "samples": 4
+        },
+        "median_change_percent": -1.0667359679676247,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 11.711000013747249,
+          "min": 11.1739999847487,
+          "max": 12.4829999986105,
+          "samples": 4
+        },
+        "after": {
+          "median": 11.598499986575948,
+          "min": 11.2880000087898,
+          "max": 11.7519999912474,
+          "samples": 4
+        },
+        "median_change_percent": -0.9606355310327053,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 609918976.0,
+          "min": 606060544,
+          "max": 613859328,
+          "samples": 4
+        },
+        "after": {
+          "median": 609370112.0,
+          "min": 606060544,
+          "max": 612548608,
+          "samples": 4
+        },
+        "median_change_percent": -0.08998965790498747,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 72.1,
+          "min": 57.2,
+          "max": 88.4,
+          "samples": 4
+        },
+        "after": {
+          "median": 70.85,
+          "min": 56.1,
+          "max": 90.7,
+          "samples": 4
+        },
+        "median_change_percent": -1.7337031900138689,
+        "ranges_overlap": true
+      }
+    },
+    {
+      "scenario": "member.search",
+      "clients": 32,
+      "requests_per_second": {
+        "before": {
+          "median": 340.8146868716895,
+          "min": 337.493576023892,
+          "max": 342.113370149992,
+          "samples": 4
+        },
+        "after": {
+          "median": 340.2424015718775,
+          "min": 339.588959687451,
+          "max": 342.11404258838,
+          "samples": 4
+        },
+        "median_change_percent": -0.16791685389645483,
+        "ranges_overlap": true
+      },
+      "latency_p50_ms": {
+        "before": {
+          "median": 92.55799998936709,
+          "min": 92.0029999979306,
+          "max": 93.4540000162087,
+          "samples": 4
+        },
+        "after": {
+          "median": 92.56899998581505,
+          "min": 92.1669999952428,
+          "max": 92.8710000007413,
+          "samples": 4
+        },
+        "median_change_percent": 0.011884436190534586,
+        "ranges_overlap": true
+      },
+      "latency_p95_ms": {
+        "before": {
+          "median": 98.4189999871887,
+          "min": 98.067999992054,
+          "max": 99.6119999908842,
+          "samples": 4
+        },
+        "after": {
+          "median": 98.17249998741315,
+          "min": 97.4830000195652,
+          "max": 99.7380000189878,
+          "samples": 4
+        },
+        "median_change_percent": -0.2504597687515986,
+        "ranges_overlap": true
+      },
+      "latency_p99_ms": {
+        "before": {
+          "median": 123.4545000043,
+          "min": 119.463000010001,
+          "max": 126.481000013882,
+          "samples": 4
+        },
+        "after": {
+          "median": 124.50200002058449,
+          "min": 117.041999998037,
+          "max": 126.290999993216,
+          "samples": 4
+        },
+        "median_change_percent": 0.8484907526643548,
+        "ranges_overlap": true
+      },
+      "rss_bytes": {
+        "before": {
+          "median": 613244928.0,
+          "min": 612581376,
+          "max": 613875712,
+          "samples": 4
+        },
+        "after": {
+          "median": 612499456.0,
+          "min": 612384768,
+          "max": 612614144,
+          "samples": 4
+        },
+        "median_change_percent": -0.12156186964826787,
+        "ranges_overlap": true
+      },
+      "cpu_percent": {
+        "before": {
+          "median": 236.75,
+          "min": 228.2,
+          "max": 241.8,
+          "samples": 4
+        },
+        "after": {
+          "median": 235.14999999999998,
+          "min": 228.5,
+          "max": 237.9,
+          "samples": 4
+        },
+        "median_change_percent": -0.6758183738120427,
+        "ranges_overlap": true
+      }
+    }
+  ],
+  "http_total": {
+    "cells": 40,
+    "requests": 25538,
+    "invalid_responses": 0
+  },
+  "limits": [
+    "Observed min/max ranges, not confidence intervals.",
+    "Perl microbenchmarks are not HTTP requests per second.",
+    "Mixed source benchmark uses a configured 1024-character budget.",
+    "Realtime benchmark uses a successful no-IO hub stub.",
+    "HTTP category is serial; only home/search also run at concurrency 32.",
+    "Short local HTTP runs do not establish a sustained capacity or p99 SLO.",
+    "Known test/benchmark/compilation processes were monitored; the host was not an isolated laboratory."
+  ]
+}

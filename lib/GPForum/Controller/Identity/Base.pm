@@ -1,0 +1,488 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Controller::Identity::Base;
+
+use Const::Fast;
+use Mojo::Base 'GPForum::Controller::Base', -async_await;
+use v5.40;
+use Time::HiRes qw(time);
+
+use GPForum::Infrastructure::Text qw(has_text);
+use GPForum::Web::Access;
+use GPForum::Web::ClientAddress;
+use GPForum::Web::ErrorPayload;
+use GPForum::Web::IdentityAccess;
+use GPForum::Web::SecurityEvent;
+use Scalar::Util qw(blessed);
+
+our $VERSION = '0.001';
+
+const my $HTTP_FORBIDDEN    => 403;
+const my $HTTP_TOO_MANY     => 429;
+const my $HTTP_UNAUTHORIZED => 401;
+
+sub identity_access {
+    return GPForum::Web::IdentityAccess->new;
+}
+
+async sub identity_post_guard ( $self, $action ) {
+    if ( GPForum::Web::Access->new->csrf_invalid($self) ) {
+        return $self->_csrf_failure;
+    }
+    if ( !( await $self->await_p( $self->_identity_allowed($action) ) ) ) {
+        return $self->_rate_limited;
+    }
+
+    return;
+}
+
+sub request_address ($self) {
+    return GPForum::Web::ClientAddress->of( $self->tx );
+}
+
+sub requested_locale ($self) {
+    return $self->i18n_service->supported_locale( $self->param('locale') )
+      || $self->ui_locale;
+}
+
+sub requested_theme ($self) {
+    my $theme = $self->param('theme');
+    if ( $self->ui_theme_registry->supported($theme) ) {
+        return $theme;
+    }
+
+    return $self->ui_theme_registry->default_theme;
+}
+
+# The zone field of the settings form: a known IANA name, or empty for the
+# forum's default. Anything else is treated as empty rather than stored.
+sub requested_timezone ($self) {
+    my $zone = $self->param('timezone') // q{};
+
+    return $self->i18n_service->formats->valid_time_zone($zone) ? $zone : q{};
+}
+
+async sub persist_timezone_preference ( $self, $zone ) {
+    my $user_id = $self->current_user_id;
+    return if !has_text($user_id);
+
+    if ( length $zone ) {
+        $self->session( preferred_timezone => $zone );
+    }
+    else {
+        delete $self->session->{preferred_timezone};
+    }
+    $self->stash( ui_timezone => undef );
+
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'update_preferred_timezone',
+            {
+                command_id         => $self->_preference_command_id,
+                preferred_timezone => $zone,
+                user_id            => $user_id,
+            }
+        )
+    );
+    if ( !$result->{ok} ) {
+        $self->app->log->warn('time zone preference update degraded');
+    }
+
+    return $result;
+}
+
+async sub persist_locale_preference ( $self, $locale ) {
+    my $user_id = $self->current_user_id;
+    if ( !has_text($user_id) ) {
+        return;
+    }
+
+    $self->session( preferred_locale => $locale );
+    return (
+        await $self->await_p(
+            $self->_store_preferred_locale( $user_id, $locale ) ) );
+}
+
+async sub persist_theme_preference ( $self, $theme ) {
+    my $user_id = $self->current_user_id;
+    if ( !has_text($user_id) ) {
+        return;
+    }
+
+    $self->session( preferred_theme => $theme );
+    return (
+        await $self->await_p(
+            $self->_store_preferred_theme( $user_id, $theme ) ) );
+}
+
+sub login_preferred_locale ( $self, $authenticated ) {
+    my $from_user =
+      $self->_authenticated_user_text( $authenticated, 'preferred_locale' );
+    if ($from_user) {
+        return $from_user;
+    }
+
+    my $from_cookie = $self->i18n_service->supported_locale(
+        $self->cookie( $self->locale_cookie_name ) );
+    if ($from_cookie) {
+        return $from_cookie;
+    }
+
+    return $self->ui_locale;
+}
+
+sub login_preferred_theme ( $self, $authenticated ) {
+    my $authenticated_theme =
+      $self->_authenticated_user_text( $authenticated, 'preferred_theme' );
+    if ( $self->ui_theme_registry->supported($authenticated_theme) ) {
+        return $authenticated_theme;
+    }
+
+    my $cookie_theme = $self->cookie( $self->theme_cookie_name );
+    if ( $self->ui_theme_registry->supported($cookie_theme) ) {
+        return $cookie_theme;
+    }
+
+    return $self->ui_theme;
+}
+
+sub _authenticated_user_text ( $self, $authenticated, $name ) {
+    if ( has_text( $authenticated->{$name} ) ) {
+        return $authenticated->{$name};
+    }
+
+    return $self->_user_preference_text( $authenticated->{user}, $name );
+}
+
+sub set_locale_cookie ( $self, $locale ) {
+    if ( !has_text($locale) ) {
+        return;
+    }
+
+    $self->cookie(
+        $self->locale_cookie_name => $locale,
+        $self->_preference_cookie_options,
+    );
+    return;
+}
+
+sub set_theme_cookie ( $self, $theme ) {
+    if ( !has_text($theme) ) {
+        return;
+    }
+
+    $self->cookie(
+        $self->theme_cookie_name => $theme,
+        $self->_preference_cookie_options,
+    );
+    return;
+}
+
+sub locale_cookie_name ($self) {
+    return $self->identity_access->locale_cookie_name;
+}
+
+sub theme_cookie_name ($self) {
+    return $self->identity_access->theme_cookie_name;
+}
+
+sub safe_return_to ( $self, $return_to ) {
+    if ( !$self->_safe_relative_path($return_to) ) {
+        return q{/};
+    }
+
+    return $return_to;
+}
+
+sub settings_unauthorized ($self) {
+    if ( $self->wants_json ) {
+        return $self->render(
+            json   => GPForum::Web::ErrorPayload->unauthorized,
+            status => $HTTP_UNAUTHORIZED,
+        );
+    }
+
+    $self->flash( error => $self->t('settings.login_required') );
+    return $self->redirect_to('login');
+}
+
+sub settings_system_failure ($self) {
+    return $self->identity_access->system_failure($self);
+}
+
+sub identity_bad_request ($self) {
+    return $self->identity_access->bad_request($self);
+}
+
+sub identity_write_failure ( $self, $result ) {
+    if ( ( $result->{status} || q{} ) eq 'failed' ) {
+        return $self->identity_unavailable;
+    }
+
+    return $self->identity_bad_request;
+}
+
+# A settings form's write the store refused: back to the settings page with
+# the refusal said, where every form comes with a fresh command id. A bare
+# 400 left the member to back out of it into the same form, whose command id
+# had the refusal recorded under it, so the corrected submission got the
+# refusal back for as long as the page stayed open. A failure, and a client
+# that wants JSON, are answered as before.
+sub settings_write_refused ( $self, $result ) {
+    return $self->identity_write_failure($result)
+      if $self->wants_json || ( $result->{status} || q{} ) eq 'failed';
+
+    $self->flash(
+        error => $self->t( $self->identity_access->refusal_key($result) ) );
+    return $self->redirect_to('settings');
+}
+
+sub identity_unavailable ($self) {
+    return $self->identity_access->service_unavailable($self);
+}
+
+async sub _identity_allowed ( $self, $action ) {
+    my $decision = (
+        await $self->call_p(
+            $self->gp_rate_limiter,
+            'check',
+            $self->identity_access->write_rate_input(
+                {
+                    action   => $action,
+                    actor_id => $self->_identity_actor,
+                }
+            )
+        )
+    );
+
+    return $decision->{ok};
+}
+
+sub _identity_actor ($self) {
+    return $self->current_user_id || $self->request_address;
+}
+
+sub _rate_limited ($self) {
+    GPForum::Web::SecurityEvent->new->record_event(
+        $self,
+        'rate_limit_hit',
+        {
+            status => $HTTP_TOO_MANY,
+        }
+    );
+
+    return $self->identity_access->rate_limited($self);
+}
+
+sub _csrf_failure ($self) {
+    GPForum::Web::SecurityEvent->new->record_event(
+        $self,
+        'csrf_failure',
+        {
+            status => $HTTP_FORBIDDEN,
+        }
+    );
+
+    return $self->identity_access->csrf_failure($self);
+}
+
+async sub _store_preferred_locale ( $self, $user_id, $locale ) {
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'update_preferred_locale',
+            {
+                command_id       => $self->_preference_command_id,
+                preferred_locale => $locale,
+                user_id          => $user_id,
+            }
+        )
+    );
+    if ( $result->{ok} ) {
+        return $result;
+    }
+
+    $self->app->log->warn('locale preference update degraded');
+    return $result;
+}
+
+async sub _store_preferred_theme ( $self, $user_id, $theme ) {
+    my $result = (
+        await $self->call_p(
+            $self->gp_identity_workflow,
+            'update_preferred_theme',
+            {
+                command_id      => $self->_preference_command_id,
+                preferred_theme => $theme,
+                user_id         => $user_id,
+            }
+        )
+    );
+    if ( $result->{ok} ) {
+        return $result;
+    }
+
+    $self->app->log->warn('theme preference update degraded');
+    return $result;
+}
+
+sub _preference_command_id ($self) {
+    if ( $self->stash('mint_preference_command') ) {
+        return $self->gp_id->uuid;
+    }
+
+    my $command_id = $self->command_id_param;
+    if ( length $command_id ) {
+        return $command_id;
+    }
+
+    return $self->gp_id->uuid;
+}
+
+sub _user_preference_text ( $self, $user, $name ) {
+    if ( ref $user eq 'HASH' && has_text( $user->{$name} ) ) {
+        return $user->{$name};
+    }
+
+    return $self->_row_column( $user, $name );
+}
+
+sub _row_column ( $self, $row, $name ) {
+    if ( !$self->_has_column_reader($row) ) {
+        return;
+    }
+
+    my $value = $row->get_column($name);
+    if ( !defined $value ) {
+        return;
+    }
+
+    return $value;
+}
+
+sub _has_column_reader ( $, $row ) {
+    if ( !$row ) {
+        return 0;
+    }
+    if ( !blessed($row) ) {
+        return 0;
+    }
+
+    return $row->can('get_column') ? 1 : 0;
+}
+
+sub _preference_cookie_options ($self) {
+    return $self->identity_access->preference_cookie_options(time);
+}
+
+sub _safe_relative_path ( $self, $return_to ) {
+    return defined GPForum::Web::Access->new->safe_return_to($return_to)
+      ? 1
+      : 0;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Controller::Identity::Base - Shared identity HTTP helpers.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    use Mojo::Base 'GPForum::Controller::Identity::Base';
+use v5.40;
+
+=head1 DESCRIPTION
+
+Owns CSRF, telemetry, session user, and error helpers used by identity
+session, password, email, settings, and profile controllers. Identity text,
+JSON error contracts, identity_http rate hashes, and preference-cookie names
+live in L<GPForum::Web::IdentityAccess>. Cookie writes stay here.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 identity_post_guard
+
+Rejects invalid CSRF tokens and rate-limited identity writes.
+
+=head2 safe_return_to
+
+Returns a submitted C<return_to> only when it is a same-origin relative
+path, and C</> otherwise. A value is rejected unless it starts with a single
+C</>, and any value containing a backslash or a control character is
+rejected outright: browsers normalise C</\evil.test> into the
+protocol-relative C<//evil.test>, and control characters carry the NUL, tab,
+and CRLF variants of the same open-redirect and header-splitting tricks.
+
+=head2 identity_write_failure
+
+Maps a failed identity store write to HTTP 503 and other non-ok results to
+HTTP 400.
+
+=head2 settings_write_refused
+
+Takes a workflow result that is not ok. For an HTML request whose result is
+a refusal (not C<failed>), flashes the refusal's message
+(L<GPForum::Web::IdentityAccess/refusal_key>) and redirects to the settings
+page, whose forms come with fresh command ids; otherwise answers as
+L</identity_write_failure> does.
+
+=head2 persist_locale_preference
+
+Stores an authenticated locale through C<Identity::Workflow> and the cookie
+session.
+
+=head2 persist_theme_preference
+
+Stores an authenticated theme through C<Identity::Workflow> and the cookie
+session.
+
+=head2 login_preferred_locale
+
+Resolves locale for cookie-session rotation from the authenticated user,
+cookie, or current UI locale.
+
+=head2 login_preferred_theme
+
+Resolves theme for cookie-session rotation from the authenticated user,
+cookie, or current UI theme.
+
+=head1 DIAGNOSTICS
+
+HTTP errors are rendered as JSON or text depending on the request.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+Uses identity helpers registered during application startup.
+
+=head1 DEPENDENCIES
+
+Uses L<GPForum::Controller::Base>, L<GPForum::Web::Access>,
+L<GPForum::Web::SecurityEvent>, and L<Scalar::Util>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+Helpers are HTTP-oriented and must not talk to DBIx::Class resultsets.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

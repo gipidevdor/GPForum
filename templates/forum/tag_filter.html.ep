@@ -1,0 +1,35 @@
+% layout 'default';
+% title t('forum.tag_filter_title') . ' - ' . t('app.name');
+<section aria-labelledby="tag-filter-heading">
+  <%= include 'components/page_header', heading_id => 'tag-filter-heading', component_title => t('forum.tag_filter_title') %>
+  <form method="get" action="<%= ui_path('tagged_threads') %>">
+    <label for="filter-tags"><%= t('forum.tag_filter_slugs') %></label>
+    <input id="filter-tags" name="tags" value="<%= $filters->{tags} %>" maxlength="155" required>
+    <label for="filter-match"><%= t('forum.tag_filter_match') %></label>
+    <select id="filter-match" name="tag_match">
+      <option value="all"<%= $filters->{tag_match} eq 'all' ? ' selected' : q{} %>><%= t('forum.tag_filter_all') %></option>
+      <option value="any"<%= $filters->{tag_match} eq 'any' ? ' selected' : q{} %>><%= t('forum.tag_filter_any') %></option>
+    </select>
+    % if ($filters->{category}) {
+      <input type="hidden" name="category" value="<%= $filters->{category} %>">
+    % }
+    <button type="submit"><%= ui_icon('search') %><%= t('search.submit') %></button>
+    <a href="<%= url_for('forum_search')->query(tags => $filters->{tags}, tag_match => $filters->{tag_match}, ($filters->{category} ? (category_id => $filters->{category}) : ())) %>"><%= t('forum.tag_filter_search') %></a>
+  </form>
+  % if (@{$threads}) {
+    <ol class="ui-card-list">
+      % for my $thread (@{$threads}) {
+        <li class="ui-card-list__item ui-row">
+          <h2 class="ui-row__title"><a href="<%= ui_path('thread', thread_id => $thread->{thread_id}) %>"><%= $thread->{title} %></a></h2>
+          <%= include 'forum/_tag_list', tags => $thread->{tags} %>
+          <p class="ui-meta"><%= include 'components/timestamp', at => $thread->{last_activity_at} %></p>
+        </li>
+      % }
+    </ol>
+  % } else {
+    <p><%= t('forum.no_tagged_threads') %></p>
+  % }
+  % if ($next_cursor) {
+    <%= include 'components/pagination', label => t('search.pagination'), items => ui_next_page(href => url_for('tagged_threads')->query(%{$filters}, after => $next_cursor), label => t('search.more_results')) %>
+  % }
+</section>

@@ -1,0 +1,11 @@
+%# What the operators have to say to every reader (ADR 0131): the
+%# announcements not yet retired, newest first, between the site header and
+%# the page. Nothing when there are none.
+% my $announcements = ui_announcements;
+% if (@{$announcements}) {
+  <section class="site-announcements page-shell" aria-label="<%= t('layout.announcements') %>">
+    % for my $announcement (@{$announcements}) {
+      <p class="site-announcement site-announcement--<%= $announcement->{tone} %>" role="<%= $announcement->{tone} eq 'warning' ? 'alert' : 'status' %>"><%= $announcement->{message} %></p>
+    % }
+  </section>
+% }

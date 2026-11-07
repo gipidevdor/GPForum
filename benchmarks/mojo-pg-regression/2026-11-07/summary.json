@@ -1,0 +1,123 @@
+[
+  {
+    "run": "verified-control-read",
+    "scenario": "member.thread",
+    "clients": 100,
+    "repetitions": 2,
+    "rps": 128.94836738050452,
+    "rps_min": 128.350345102455,
+    "rps_max": 129.546389658554,
+    "p95_ms": 796.5919999987816,
+    "requests": 1202
+  },
+  {
+    "run": "verified-complete-a",
+    "scenario": "member.thread",
+    "clients": 100,
+    "repetitions": 2,
+    "rps": 151.47849884249501,
+    "rps_min": 150.824141476732,
+    "rps_max": 152.132856208258,
+    "p95_ms": 704.017500000191,
+    "requests": 1372
+  },
+  {
+    "run": "verified-control-final",
+    "scenario": "journey.publishing_community",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 31.439667170532253,
+    "rps_min": 31.3335283323109,
+    "rps_max": 31.5458060087536,
+    "p95_ms": 485.482999996748,
+    "requests": 800
+  },
+  {
+    "run": "verified-complete-c",
+    "scenario": "journey.publishing_community",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 170.666853245832,
+    "rps_min": 170.360290720303,
+    "rps_max": 170.973415771361,
+    "p95_ms": 156.121000007261,
+    "requests": 800
+  },
+  {
+    "run": "verified-complete-a",
+    "scenario": "journey.publishing_community",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 156.51917796336852,
+    "rps_min": 155.926634959119,
+    "rps_max": 157.111720967618,
+    "p95_ms": 189.0629999979865,
+    "requests": 800
+  },
+  {
+    "run": "verified-control-final",
+    "scenario": "mixed",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 94.37544193837755,
+    "rps_min": 93.5311318374613,
+    "rps_max": 95.2197520392938,
+    "p95_ms": 278.56600000814103,
+    "requests": 880
+  },
+  {
+    "run": "verified-complete-c",
+    "scenario": "mixed",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 170.2576764465605,
+    "rps_min": 169.624341809424,
+    "rps_max": 170.891011083697,
+    "p95_ms": 83.6540000018431,
+    "requests": 1410
+  },
+  {
+    "run": "verified-complete-a",
+    "scenario": "mixed",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 165.3444226421125,
+    "rps_min": 164.444984473511,
+    "rps_max": 166.243860810714,
+    "p95_ms": 91.5969999914523,
+    "requests": 1440
+  },
+  {
+    "run": "pre-migration-clean",
+    "scenario": "member.thread",
+    "clients": 100,
+    "repetitions": 2,
+    "rps": 174.46176616897299,
+    "rps_min": 169.113898096023,
+    "rps_max": 179.809634241923,
+    "p95_ms": 2390.4934999882253,
+    "requests": 1528
+  },
+  {
+    "run": "pre-migration-writes",
+    "scenario": "journey.publishing_community",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 229.812002606416,
+    "rps_min": 221.898373873574,
+    "rps_max": 237.725631339258,
+    "p95_ms": 82.5839999888558,
+    "requests": 800
+  },
+  {
+    "run": "pre-migration-writes",
+    "scenario": "mixed",
+    "clients": 10,
+    "repetitions": 2,
+    "rps": 199.13843610632398,
+    "rps_min": 199.025233882888,
+    "rps_max": 199.25163832976,
+    "p95_ms": 81.7630000092322,
+    "requests": 1740
+  }
+]

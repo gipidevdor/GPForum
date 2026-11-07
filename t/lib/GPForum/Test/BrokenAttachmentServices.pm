@@ -1,0 +1,93 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Test::BrokenAttachmentServices;
+
+use Carp qw(croak);
+use Mojo::Base 'GPForum::Test::AttachmentWebServices';
+use v5.40;
+
+our $VERSION = '0.001';
+
+sub upload_and_link {
+    croak 'pipeline down';
+}
+
+# What the workflow tells a pipeline once its command settles: nothing to
+# discard here.
+sub discard_written { return; }
+sub forget_written  { return; }
+
+sub download {
+    croak 'delivery down';
+}
+
+sub delete_linked {
+    croak 'store down';
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Test::BrokenAttachmentServices - Attachment fakes that throw.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $broken = GPForum::Test::BrokenAttachmentServices->new;
+
+=head1 DESCRIPTION
+
+Test double that inherits the attachment web fakes and throws on upload,
+download, and delete so workflow tests can assert C<failed> mapping.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 upload_and_link
+
+Throws instead of storing an attachment.
+
+=head2 download
+
+Throws instead of delivering bytes.
+
+=head2 delete_linked
+
+Throws instead of deleting an attachment.
+
+=head1 DIAGNOSTICS
+
+Always throws.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+Uses L<GPForum::Test::AttachmentWebServices>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+Intended only for workflow unit tests.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

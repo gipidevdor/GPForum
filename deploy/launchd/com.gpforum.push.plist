@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Optional encrypted Web Push worker; generated when Push is enabled. -->
+  <key>Label</key>
+  <string>com.gpforum.push</string>
+  <key>WorkingDirectory</key>
+  <string>/opt/gpforum</string>
+  <!-- The service's own account, as on Linux and FreeBSD: launchd runs a
+       daemon as root unless it is told otherwise. DEPLOYMENT.md (macOS With
+       launchd) makes the account and the directories it writes. -->
+  <key>UserName</key>
+  <string>gpforum</string>
+  <key>GroupName</key>
+  <string>gpforum</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>GPFORUM_LOG_PATH</key>
+    <string>/usr/local/var/log/gpforum/push.log</string>
+  </dict>
+  <!-- Through bin/gpforum, which reads the settings from Homebrew's
+       etc/gpforum/gpforum.env, as the web service does: launchd has no
+       environment file, and the dictionary above sets only the log. -->
+  <!-- Decimal 23 is umask 0027: new state is private to the service group. -->
+  <key>Umask</key>
+  <integer>23</integer>
+  <key>ProgramArguments</key>
+  <array>
+    <!-- The mode is the environment file's GPFORUM_ENV, read before the
+         job starts, as systemd's EnvironmentFile= wins over a unit's
+         Environment=: production when the file names none. Set here
+         instead, it outweighed the file, and the service ran in
+         production while the file and gpforum doctor said staging. -->
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>GPFORUM_ENV=production; export GPFORUM_ENV; set -a; [ ! -e "$0" ] || . "$0"; set +a; exec "${@}"</string>
+    <string>/usr/local/etc/gpforum/gpforum.env</string>
+    <string>/opt/gpforum/bin/gpforum</string>
+    <string>push</string>
+    <string>--loop</string>
+  </array>
+  <!-- Allow a TERM handler to finish its current batch before forced exit. -->
+  <key>ExitTimeOut</key>
+  <integer>150</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/usr/local/var/log/gpforum/push.out</string>
+  <key>StandardErrorPath</key>
+  <string>/usr/local/var/log/gpforum/push.err</string>
+</dict>
+</plist>

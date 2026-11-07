@@ -1,0 +1,46 @@
+[Unit]
+Description=GPForum prefork application
+After=network-online.target postgresql.service clamav-daemon.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=gpforum
+Group=gpforum
+UMask=0027
+WorkingDirectory=/opt/gpforum
+# The mode, then the operator's settings. Every other setting keeps the
+# default GPForum::Config gives it: a value restated here would stay behind
+# when that default changes. Put an override in the env file.
+Environment=GPFORUM_ENV=production
+EnvironmentFile=/etc/gpforum/gpforum.env
+# Keep the manager in systemd's foreground; it reports readiness only after
+# a worker answers HTTP and feeds the watchdog from its own management loop.
+NotifyAccess=main
+WatchdogSec=30
+# Watchdog abort/core handling has its own deadline, separate from normal stop.
+TimeoutAbortSec=15
+TimeoutStartSec=120
+TimeoutStopSec=150
+Environment=GPFORUM_LOG_PATH=/var/log/gpforum/gpforum.log
+RuntimeDirectory=gpforum
+LogsDirectory=gpforum
+LogsDirectoryMode=0750
+RuntimeDirectoryMode=0750
+ExecStartPre=/opt/gpforum/bin/gpforum os-preflight --strict --json
+ExecStart=/opt/gpforum/bin/gpforum start --service --foreground
+# Restart is the supported code/config update: hot deployment replaces the
+# manager and would move MAINPID. Graceful stop drains active requests.
+KillSignal=SIGTERM
+KillMode=mixed
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/gpforum
+
+[Install]
+WantedBy=multi-user.target

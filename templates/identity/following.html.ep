@@ -1,0 +1,29 @@
+% layout 'default';
+% title t('follow.title') . ' - ' . t('app.name');
+<section aria-labelledby="following-heading">
+  <%= include 'components/page_header', heading_id => 'following-heading', component_title => t('follow.title'), description => t('follow.description') %>
+  <h2><%= t('follow.members') %></h2>
+  <ul>
+    % for my $member (@{$followed_users}) {
+      <li>
+        <a href="<%= ui_path('profile', username => $member->{username}) %>"><%= $member->{display_name} %></a>
+        <form method="post" action="<%= ui_path('profile_follow', username => $member->{username}) %>">
+          <%= csrf_field %><input type="hidden" name="command_id" value="<%= $command_id %>">
+          <button name="operation" value="remove"><%= t('follow.remove') %></button>
+        </form>
+      </li>
+    % }
+  </ul>
+  <h2><%= t('follow.activity') %></h2>
+  <ol class="ui-card-list">
+    % for my $item (@{$feed->{items}}) {
+      <li class="ui-card-list__item ui-row">
+        <h3 class="ui-row__title"><a href="<%= $item->{item_type} eq 'post' ? url_for('thread', thread_id => $item->{thread_id})->query(post => $item->{item_id})->fragment('post-' . $item->{item_id}) : url_for('thread', thread_id => $item->{thread_id}) %>"><%= $item->{title} %></a></h3>
+        <p class="ui-meta"><a href="<%= ui_path('profile', username => $item->{username}) %>"><%= $item->{display_name} %></a> <%= include 'components/timestamp', at => $item->{created_at} %></p>
+      </li>
+    % }
+  </ol>
+  % if ($feed->{next_cursor}) {
+    <%= include 'components/pagination', label => t('search.pagination'), items => ui_next_page(href => url_for('following')->query(after => $feed->{next_cursor}), label => t('search.more_results')) %>
+  % }
+</section>

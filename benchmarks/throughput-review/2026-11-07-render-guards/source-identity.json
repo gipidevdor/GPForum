@@ -1,0 +1,46 @@
+{
+  "revisions": {
+    "baseline": "a336fdadb122c9d1519de90c5d160df0c4f8d1e9",
+    "initial_candidate": "1971623cbb5b4e553bbb53b033327c871fd4d53e",
+    "corrected_patch": "334e80a97cd89b1488a4453b8e43389a877e57e0",
+    "integrated_source": "60c6d8098aa337b1d881413fe867726e7109750a"
+  },
+  "candidate_clean": true,
+  "changed_files": {
+    "lib/GPForum/Benchmark/QueryPlanEndpoints.pm": "fb787a4e9951803e05c16a233d4664d378f5838cadf8927b94342333413603af",
+    "lib/GPForum/Command/QueryPlanEvidence.pm": "18cb9d389c5107d9777b881a237ed3bd90544c339a993befb149291e3105d910",
+    "lib/GPForum/Controller/Admin/Plugins.pm": "ca3053f0d957f899da295227724b7352dee824337e4ef14088e17484c75cb1fd",
+    "lib/GPForum/Controller/Forum/Base.pm": "da36f269c0d9999e4bc163e784eae238b0bc47b02ca3d4b2814d9e87987a93d8",
+    "lib/GPForum/Service/Forum/BodyRenderer.pm": "0c1bcf1b3228d8a4c6c2f40ee313d0f629d5e93979da4f9f27bafdaa5944862b",
+    "lib/GPForum/Service/Forum/ThreadPageSnapshot.pm": "ae8088c549b3f0bf5a6fb5cefd5908d81faca4bc5a61cd155e8e58b7039aafef",
+    "lib/GPForum/Web/PostFragments.pm": "d7acdc0db2039497ea2df0e0e07413559e9f0c625a5c01d9422baca2151de834",
+    "t/49-performance-harness.t": "219a73a12588ecb744c0dd1cd005a9ac0267b35504544ce39fa833ebbdec5a92",
+    "t/689-post-fragment-cache.t": "b52c5a9a801cafd1338d234ced268d0f8b16949ad2ffae8c28cc1775d5a603d2",
+    "t/694-render-work.t": "674935afd85690cedf7eac12516aa99c764280989440e09a83778e8dc4b5a6d1",
+    "t/775-selective-work-failures.t": "b0e8e6e115f94fefba8338e208859eb3dee4ea18f0356c8dd971d1a16d1438f9",
+    "t/881-body-renderer-consumers.t": "5ae83a5316ca570188fb75d9479278a40eb4d0b65f30a07e14e027764bec72f9",
+    "t/integration/postgres-sql-function-plans.t": "0245210bbef4e56d9ae7a345b99761d1142c3696083538f19e24eb4dc4aef548",
+    "t/integration/postgres-thread-request-budgets.t": "1be1f19bba0b8c292b6c48ef1eb4e66440eb6ee973a54be49bbbc67fa1f2287b",
+    "templates/forum/_like_fragment.html.ep": "1377086ffc49c94d8efd94e45ff4fc67f979c5414120dac4b523c48e84862d99",
+    "templates/forum/_post_fragments.html.ep": "eec8fb657011131d7751e587db58f96aa38b69e194286502a26b416ee6377456"
+  },
+  "cpanfile.snapshot_sha256": "d9109baa4a017967daf13dc248c8237b80e93aa4c6b85fde635ba733b0e7ff26",
+  "integrated_changed_files": {
+    "lib/GPForum/Benchmark/QueryPlanEndpoints.pm": "fb787a4e9951803e05c16a233d4664d378f5838cadf8927b94342333413603af",
+    "lib/GPForum/Command/QueryPlanEvidence.pm": "18cb9d389c5107d9777b881a237ed3bd90544c339a993befb149291e3105d910",
+    "lib/GPForum/Controller/Admin/Plugins.pm": "ca3053f0d957f899da295227724b7352dee824337e4ef14088e17484c75cb1fd",
+    "lib/GPForum/Controller/Forum/Base.pm": "c25084e41d079c6b08d5e0642303bae429ce70dc8dbb92571788096693e2a070",
+    "lib/GPForum/Service/Forum/BodyRenderer.pm": "0c1bcf1b3228d8a4c6c2f40ee313d0f629d5e93979da4f9f27bafdaa5944862b",
+    "lib/GPForum/Service/Forum/ThreadPageSnapshot.pm": "ae8088c549b3f0bf5a6fb5cefd5908d81faca4bc5a61cd155e8e58b7039aafef",
+    "lib/GPForum/Web/PostFragments.pm": "d7acdc0db2039497ea2df0e0e07413559e9f0c625a5c01d9422baca2151de834",
+    "t/49-performance-harness.t": "219a73a12588ecb744c0dd1cd005a9ac0267b35504544ce39fa833ebbdec5a92",
+    "t/689-post-fragment-cache.t": "b52c5a9a801cafd1338d234ced268d0f8b16949ad2ffae8c28cc1775d5a603d2",
+    "t/694-render-work.t": "674935afd85690cedf7eac12516aa99c764280989440e09a83778e8dc4b5a6d1",
+    "t/775-selective-work-failures.t": "b0e8e6e115f94fefba8338e208859eb3dee4ea18f0356c8dd971d1a16d1438f9",
+    "t/881-body-renderer-consumers.t": "5ae83a5316ca570188fb75d9479278a40eb4d0b65f30a07e14e027764bec72f9",
+    "t/integration/postgres-sql-function-plans.t": "0245210bbef4e56d9ae7a345b99761d1142c3696083538f19e24eb4dc4aef548",
+    "t/integration/postgres-thread-request-budgets.t": "1be1f19bba0b8c292b6c48ef1eb4e66440eb6ee973a54be49bbbc67fa1f2287b",
+    "templates/forum/_like_fragment.html.ep": "1377086ffc49c94d8efd94e45ff4fc67f979c5414120dac4b523c48e84862d99",
+    "templates/forum/_post_fragments.html.ep": "eec8fb657011131d7751e587db58f96aa38b69e194286502a26b416ee6377456"
+  }
+}

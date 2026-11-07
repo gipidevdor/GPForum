@@ -1,0 +1,84 @@
+<!doctype html>
+% stash forum_layout => 1;
+%# Each value the page states more than once is read once.
+% my $locale_metadata = ui_locale_metadata;
+% my $page_locale = ui_locale;
+% my $page_direction = $locale_metadata->{direction};
+% my $page_theme = ui_theme;
+% my $page_color_scheme = ui_theme_color_scheme;
+<html lang="<%= $page_locale %>" dir="<%= $page_direction %>" data-locale="<%= $page_locale %>" data-direction="<%= $page_direction %>" data-script="<%= $locale_metadata->{script} %>" data-theme="<%= $page_theme %>" data-color-scheme="<%= $page_color_scheme %>" data-math-enabled="<%= ui_integration_plugins->math_enabled ? 1 : 0 %>">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="<%= $page_color_scheme %>">
+    % for my $tint (@{ ui_theme_registry->theme_colors($page_theme) }) {
+      <meta name="theme-color"<%== $tint->{media} ? ' media="' . $tint->{media} . '"' : q{} %> content="<%= $tint->{color} %>">
+    % }
+    <title><%= title %></title>
+    <link rel="manifest" href="<%= url_for('web_manifest') %>">
+    <link rel="icon" href="<%= ui_asset_url('favicon.ico') %>" type="image/x-icon" sizes="16x16 32x32 48x48">
+    <link rel="icon" href="<%= url_for('site_icon') %>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<%= ui_asset_url('apple-touch-icon.png') %>" sizes="180x180">
+    <meta name="apple-mobile-web-app-title" content="<%= t('app.name') %>">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="<%= ui_asset_url('inter-latin-wght-normal.woff2') %>">
+    % if (($locale_metadata->{script} // q{}) eq 'Latn' && (stash('shell') // q{}) ne 'wide') {
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="<%= ui_asset_url('source-serif-4-latin-normal.woff2') %>">
+    % }
+    <link rel="stylesheet" href="<%= ui_asset_url('gpforum-ssr.css') %>">
+    <meta name="htmx-config" content='{"includeIndicatorCSS":false}'>
+    <script src="<%= ui_asset_url('htmx.min.js') %>" defer></script>
+    <script src="<%= ui_asset_url('page-enhancements.js') %>" defer
+      data-form-navigation="<%= ui_asset_url('form-navigation.js') %>"
+      data-composer="<%= ui_asset_url('composer.js') %>"
+      data-integrations="<%= ui_asset_url('integrations.js') %>"
+      data-admin-settings="<%= ui_asset_url('admin-settings.js') %>"
+      data-similar="<%= ui_asset_url('similar.js') %>"
+      data-thread-navigation="<%= ui_asset_url('thread-navigation.js') %>"
+      data-thread-actions="<%= ui_asset_url('thread-actions.js') %>"
+      data-discussion-workspace="<%= ui_asset_url('discussion-workspace.js') %>"
+      data-editor-suggestions="<%= ui_asset_url('editor-suggestions.js') %>"
+      data-push="<%= ui_asset_url('push.js') %>"
+      data-passkeys="<%= ui_asset_url('passkeys.js') %>"
+      data-notifications="<%= ui_asset_url('notifications.js') %>"
+      % if (ui_integration_plugins->math_enabled) {
+      data-katex="<%= ui_asset_url('katex.min.js') %>"
+      data-mathematics="<%= ui_asset_url('mathematics.js') %>"
+      % }
+    ></script>
+    % my $page_metadata = stash('page_metadata') || {};
+    % if ($page_metadata->{structured_data}) {
+      <script type="application/ld+json"><%== $page_metadata->{structured_data} %></script>
+    % }
+    % if ($page_metadata->{description}) {
+      <meta name="description" content="<%= $page_metadata->{description} %>">
+    % }
+    % if ($page_metadata->{robots}) {
+      <meta name="robots" content="<%= $page_metadata->{robots} %>">
+    % }
+    % if ($page_metadata->{canonical}) {
+      <link rel="canonical" href="<%= $page_metadata->{canonical} %>">
+    % }
+    % if ($page_metadata->{open_graph}) {
+      % my $open_graph = $page_metadata->{open_graph};
+      <meta property="og:title" content="<%= $open_graph->{title} %>">
+      <meta property="og:type" content="<%= $open_graph->{type} %>">
+      <meta property="og:url" content="<%= $open_graph->{url} %>">
+      % if ($open_graph->{description}) {
+        <meta property="og:description" content="<%= $open_graph->{description} %>">
+      % }
+    % }
+  </head>
+  <body class="app-shell<%= stash('forum_layout') ? ' app-shell--forum' : q{} %> <%= $locale_metadata->{typography_class} %><%= (stash('shell') // q{}) eq 'wide' ? ' app-shell--wide' : q{} %>">
+    <a class="skip-link" href="#content"><%= t('nav.skip_to_content') %></a>
+    <template id="ui-icon-previous"><%= ui_icon('arrow-left') %></template>
+    <template id="ui-icon-next"><%= ui_icon('arrow-right') %></template>
+    <%= include 'components/site_header' %>
+    <%= include 'components/site_announcements' %>
+    <%= include 'components/breadcrumbs' %>
+    <div id="flash"><%= include 'components/flash_messages' %></div>
+    <main id="content" class="page-shell" tabindex="-1">
+      <%= content %>
+    </main>
+    <%= include 'components/site_footer' %>
+  </body>
+</html>

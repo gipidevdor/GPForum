@@ -1,0 +1,45 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -eu
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+cd "$root"
+gpforum_carton="$root/script/gpforum-carton"
+suite=${1:-unit}
+[ "$#" -eq 0 ] || shift
+case "$suite" in
+    unit)
+        exec "$gpforum_carton" exec prove -l -j "${JOBS:-4}" t "$@"
+        ;;
+    integration)
+        exec "$gpforum_carton" exec prove -l -j "${JOBS:-4}" -It/lib \
+            --exec 'perl -Ilib -It/lib -MGPForum::Test::TemporaryPostgres' \
+            -r t/integration "$@"
+        ;;
+    clients)
+        exec node --test "$@" t/js/*.test.cjs
+        ;;
+    browser)
+        exec node --test "$@" t/browser/*.test.cjs
+        ;;
+    all)
+        if [ "$#" -ne 0 ]; then
+            echo 'Usage: script/test all (options belong to an individual suite)' >&2
+            exit 2
+        fi
+        for tier in unit clients integration browser; do
+            "$root/script/test" "$tier"
+        done
+        exec "$gpforum_carton" exec prove -I script/lib -I t/lib -lr t/performance
+        ;;
+    --help|-h)
+        echo 'Usage: script/test [unit|integration|clients|browser|all] [runner options]'
+        echo '       script/test t/path.t [other paths or prove options]'
+        echo 'Browser tests require Playwright on NODE_PATH and Chromium; see t/browser/README.md.'
+        ;;
+    *)
+        # Explicit files run only those files, never the entire suite as well.
+        exec "$gpforum_carton" exec prove -l "$suite" "$@"
+        ;;
+esac

@@ -1,0 +1,12 @@
+% for my $card (@{$integrations}) {
+  <aside class="integration-card" data-integration-provider="<%= $card->{provider} %>" aria-label="<%= $card->{name} %>">
+    % my $kind_key = 'forum.integration_kind_' . $card->{kind};
+    <p class="integration-card__kind"><%= $card->{name} %> · <%= t($kind_key) %></p>
+    <a href="<%= $card->{url} %>" rel="nofollow noopener noreferrer"><%= $card->{label} %></a>
+    % if ($card->{embed}) {
+      <p class="integration-card__notice"><%= t('forum.integration_external_notice', { provider => $card->{name} }) %></p>
+      <button type="button" data-integration-embed="<%= $card->{embed}{url} %>" data-embed-origin="<%= $card->{embed}{origin} %>" data-embed-kind="<%= $card->{embed}{kind} %>" data-embed-title="<%= t('forum.integration_player_title', { provider => $card->{name} }) %>" hidden><%= t('forum.integration_load_player', { provider => $card->{name} }) %></button>
+      <noscript><p><%= t('forum.integration_open_link') %></p></noscript>
+    % }
+  </aside>
+% }

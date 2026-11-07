@@ -1,0 +1,106 @@
+name: Set up GPForum with the selected Perl
+description: >-
+  Install build dependencies, validate the selected Perl, restore the locked local/
+  tree from the dependency cache, and install the locked CPAN distributions in parallel with cpm.
+  Mirrors the setup steps that .github/workflows/ci.yml keeps inline as the
+  contract-pinned canonical gate.
+
+inputs:
+  perl-executable:
+    description: Existing Perl executable or command; empty uses GPFORUM_PERL or PATH.
+    required: false
+    default: ''
+  postgres:
+    description: >-
+      Install the cpanfile postgres feature (DBD::Pg, Mojo::Pg,
+      Test::PostgreSQL). Requires pg_config / libpq.
+    required: false
+    default: 'true'
+  postgres-client-version:
+    description: >-
+      PostgreSQL client major version to install from apt.postgresql.org.
+      Empty keeps the client shipped by the runner image. Set this when the
+      job talks to a server newer than the runner client, because pg_dump
+      refuses a server newer than itself.
+    required: false
+    default: ''
+  cache:
+    description: Restore and save local/ through actions/cache.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y perl build-essential cpanminus libpq-dev postgresql-client
+        # Disposable HTTP benchmark clusters use the runner's PostgreSQL 18
+        # binaries and execute the same vector migration as the service DB.
+        if [ "$POSTGRES_FEATURE" = 'true' ]; then
+          sudo apt-get install -y postgresql-18-pgvector
+        fi
+        if [ -n "$REQUESTED_PERL" ]; then
+          export GPFORUM_PERL="$REQUESTED_PERL"
+        fi
+        perl_bin="$(script/gpforum-system-perl --require)"
+        printf 'GPFORUM_PERL=%s\n' "$perl_bin" >> "$GITHUB_ENV"
+        # Host tools must run under the same interpreter as the XS builds.
+        sudo "$perl_bin" /usr/bin/cpanm -M https://cpan.metacpan.org/ --notest App::cpm Carton
+      env:
+        REQUESTED_PERL: ${{ inputs.perl-executable }}
+        POSTGRES_FEATURE: ${{ inputs.postgres }}
+
+    - name: Install versioned PostgreSQL client
+      if: inputs.postgres-client-version != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo install -d /usr/share/postgresql-common/pgdg
+        sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+          https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' \
+          "$(lsb_release -cs)" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+        sudo apt-get update
+        sudo apt-get install -y "postgresql-client-${POSTGRES_CLIENT_VERSION}"
+        echo "/usr/lib/postgresql/${POSTGRES_CLIENT_VERSION}/bin" >> "$GITHUB_PATH"
+      env:
+        POSTGRES_CLIENT_VERSION: ${{ inputs.postgres-client-version }}
+
+    - name: Verify selected Perl
+      shell: bash
+      run: |
+        set -euo pipefail
+        script/gpforum-system-perl --preflight
+        script/gpforum-system-perl --require
+
+    - name: Resolve Perl version for the dependency cache
+      id: system-perl
+      shell: bash
+      run: |
+        set -euo pipefail
+        # shellcheck disable=SC2016 # Config belongs to Perl.
+        printf 'version=%s\n' "$("$GPFORUM_PERL" -MConfig -e 'print $Config{version}')" >> "$GITHUB_OUTPUT"
+        printf 'abi=%s\n' "$("$GPFORUM_PERL" -Ilib -MGPForum::Infrastructure::PerlRuntime -e 'print GPForum::Infrastructure::PerlRuntime->cache_key')" >> "$GITHUB_OUTPUT"
+
+    - name: Restore locked CPAN tree
+      if: inputs.cache == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: local
+        key: gpforum-carton-v2-${{ runner.os }}-${{ runner.arch }}-perl${{ steps.system-perl.outputs.version }}-abi${{ steps.system-perl.outputs.abi }}-pg${{ inputs.postgres }}-${{ hashFiles('cpanfile', 'cpanfile.postgres', 'cpanfile.snapshot') }}
+
+    - name: Install locked CPAN distributions
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${POSTGRES_FEATURE}" = 'true' ]; then
+          script/bootstrap-deps --postgres
+        else
+          script/bootstrap-deps
+        fi
+      env:
+        POSTGRES_FEATURE: ${{ inputs.postgres }}

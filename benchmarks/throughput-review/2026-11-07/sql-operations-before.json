@@ -1,0 +1,682 @@
+{
+  "note": "Instrumented operation counts, not a throughput or latency benchmark. Real migrated seeded disposable PostgreSQL; no service doubles.",
+  "responses": [
+    {
+      "bytes": 28141,
+      "cache": "miss",
+      "location": "",
+      "path": "/t/018f1004-000a-7000-8000-00000000000a/performance-thread-10",
+      "phase": "guest_thread_cold",
+      "status": "200",
+      "sql_calls": 9,
+      "sql": {
+        "SELECT pg_catalog.set_config('statement_timeout', '15000', false), pg_catalog.set_config('idle_in_tr": 2,
+        "admin_configuration_state_v4": 1,
+        "LISTEN \"gpforum_cache_invalidation\"": 1,
+        "LISTEN \"gpforum_domain_events\"": 1,
+        "forum_active_announcements_v2": 1,
+        "forum_thread_page_head_v2": 1,
+        "forum_thread_page_posts_v4": 1,
+        "forum_thread_page_reads_v8": 1
+      },
+      "subprocesses": 1,
+      "base_allocations": 48,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          10
+        ],
+        [
+          "GPForum::Service::Forum::Readability",
+          5
+        ],
+        [
+          "GPForum::Service::Notification::SubscriptionStore",
+          3
+        ],
+        [
+          "GPForum::Service::Attachment::Store",
+          2
+        ],
+        [
+          "GPForum::Service::Community::BookmarkStore",
+          2
+        ],
+        [
+          "GPForum::Service::Community::LikeStore",
+          2
+        ],
+        [
+          "GPForum::Service::Community::ReactionStore",
+          2
+        ],
+        [
+          "GPForum::Service::Forum::ReadState",
+          2
+        ]
+      ]
+    },
+    {
+      "bytes": 28141,
+      "cache": "hit",
+      "location": "",
+      "path": "/t/018f1004-000a-7000-8000-00000000000a/performance-thread-10",
+      "phase": "guest_thread_warm",
+      "status": "200",
+      "sql_calls": 1,
+      "sql": {
+        "admin_configuration_state_v4": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 3,
+      "allocation_top": [
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 28141,
+      "cache": "hit",
+      "location": "",
+      "path": "/t/018f1004-000a-7000-8000-00000000000a/performance-thread-10",
+      "phase": "guest_thread_warm_repeat",
+      "status": "200",
+      "sql_calls": 1,
+      "sql": {
+        "admin_configuration_state_v4": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 3,
+      "allocation_top": [
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 22021,
+      "cache": "",
+      "location": "",
+      "path": "/",
+      "phase": "guest_home_cold",
+      "status": "200",
+      "sql_calls": 5,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "forum_list_categories_v4": 1,
+        "SELECT pg_catalog.set_config('statement_timeout', '15000', false), pg_catalog.set_config('idle_in_tr": 1,
+        "forum_list_public_threads_v6": 1,
+        "forum_thread_tags_v2": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 9,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          4
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::CategoryReader",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ThreadReader",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ThreadTags",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 22021,
+      "cache": "",
+      "location": "",
+      "path": "/",
+      "phase": "guest_home_warm",
+      "status": "200",
+      "sql_calls": 3,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "forum_list_public_threads_v6": 1,
+        "forum_thread_tags_v2": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 9,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          4
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::CategoryReader",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ThreadReader",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ThreadTags",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 10419,
+      "cache": "miss",
+      "location": "",
+      "path": "/c/018f1001-0001-7000-8000-000000000001",
+      "phase": "guest_category_cold",
+      "status": "200",
+      "sql_calls": 4,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "forum_find_category_v2": 1,
+        "forum_list_category_threads_v4": 1,
+        "forum_thread_tags_v2": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 9,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          4
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::CategoryReader",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ThreadReader",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ThreadTags",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 10419,
+      "cache": "hit",
+      "location": "",
+      "path": "/c/018f1001-0001-7000-8000-000000000001",
+      "phase": "guest_category_warm",
+      "status": "200",
+      "sql_calls": 1,
+      "sql": {
+        "admin_configuration_state_v4": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 3,
+      "allocation_top": [
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 9109,
+      "cache": "",
+      "location": "",
+      "path": "/search?q=forum",
+      "phase": "guest_search_cold",
+      "status": "200",
+      "sql_calls": 6,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "ops_rate_limit_check_v2": 1,
+        "BEGIN READ ONLY": 1,
+        "search_set_timeout_v2": 1,
+        "search_ranked_v16": 1,
+        "COMMIT": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 9,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          4
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ],
+        [
+          "GPForum::Service::Operations::RateLimiter::PostgreSQLStore",
+          1
+        ],
+        [
+          "GPForum::Service::Search::Searcher",
+          1
+        ],
+        [
+          "GPForum::Infrastructure::PgTransaction",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 9109,
+      "cache": "",
+      "location": "",
+      "path": "/search?q=forum",
+      "phase": "guest_search_warm",
+      "status": "200",
+      "sql_calls": 6,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "ops_rate_limit_check_v2": 1,
+        "BEGIN READ ONLY": 1,
+        "search_set_timeout_v2": 1,
+        "search_ranked_v16": 1,
+        "COMMIT": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 7,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          3
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ],
+        [
+          "GPForum::Service::Search::Searcher",
+          1
+        ],
+        [
+          "GPForum::Infrastructure::PgTransaction",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 37448,
+      "cache": "",
+      "location": "",
+      "path": "/htmx.min.js",
+      "phase": "guest_static",
+      "status": "200",
+      "sql_calls": 1,
+      "sql": {
+        "admin_configuration_state_v4": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 3,
+      "allocation_top": [
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 17,
+      "cache": "",
+      "location": "",
+      "path": "/__audit/login",
+      "phase": "login_setup",
+      "status": "200",
+      "sql_calls": 1,
+      "sql": {
+        "admin_configuration_state_v4": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 3,
+      "allocation_top": [
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 92125,
+      "cache": "",
+      "location": "",
+      "path": "/t/018f1004-000a-7000-8000-00000000000a/performance-thread-10",
+      "phase": "signed_thread_cold",
+      "status": "200",
+      "sql_calls": 6,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "session_validate_v2": 1,
+        "forum_resolve_viewer_v10": 1,
+        "forum_thread_page_head_v2": 1,
+        "forum_thread_page_posts_v4": 1,
+        "forum_thread_page_reads_v8": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 44,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          14
+        ],
+        [
+          "GPForum::Service::Forum::Readability",
+          4
+        ],
+        [
+          "GPForum::Service::Attachment::Store",
+          2
+        ],
+        [
+          "GPForum::Service::Community::BookmarkStore",
+          2
+        ],
+        [
+          "GPForum::Service::Community::LikeStore",
+          2
+        ],
+        [
+          "GPForum::Service::Community::ReactionStore",
+          2
+        ],
+        [
+          "GPForum::Service::Forum::ReadState",
+          2
+        ],
+        [
+          "GPForum::Service::Forum::ReplyLinks",
+          2
+        ]
+      ]
+    },
+    {
+      "bytes": 92125,
+      "cache": "",
+      "location": "",
+      "path": "/t/018f1004-000a-7000-8000-00000000000a/performance-thread-10",
+      "phase": "signed_thread_warm",
+      "status": "200",
+      "sql_calls": 6,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "session_validate_v2": 1,
+        "forum_resolve_viewer_v10": 1,
+        "forum_thread_page_head_v2": 1,
+        "forum_thread_page_posts_v4": 1,
+        "forum_thread_page_reads_v8": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 44,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          14
+        ],
+        [
+          "GPForum::Service::Forum::Readability",
+          4
+        ],
+        [
+          "GPForum::Service::Attachment::Store",
+          2
+        ],
+        [
+          "GPForum::Service::Community::BookmarkStore",
+          2
+        ],
+        [
+          "GPForum::Service::Community::LikeStore",
+          2
+        ],
+        [
+          "GPForum::Service::Community::ReactionStore",
+          2
+        ],
+        [
+          "GPForum::Service::Forum::ReadState",
+          2
+        ],
+        [
+          "GPForum::Service::Forum::ReplyLinks",
+          2
+        ]
+      ]
+    },
+    {
+      "bytes": 66358,
+      "cache": "",
+      "location": "",
+      "path": "/t/018f1004-000a-7000-8000-00000000000a/performance-thread-10",
+      "phase": "signed_thread_fragment",
+      "status": "200",
+      "sql_calls": 6,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "session_validate_v2": 1,
+        "forum_resolve_viewer_v10": 1,
+        "forum_thread_page_head_v2": 1,
+        "forum_thread_page_posts_v4": 1,
+        "forum_thread_page_reads_v8": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 35,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          10
+        ],
+        [
+          "GPForum::Service::Forum::Readability",
+          3
+        ],
+        [
+          "GPForum::Service::Attachment::Store",
+          2
+        ],
+        [
+          "GPForum::Service::Community::LikeStore",
+          2
+        ],
+        [
+          "GPForum::Service::Community::ReactionStore",
+          2
+        ],
+        [
+          "GPForum::Service::Forum::ReplyLinks",
+          2
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Identity::CredentialStore",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 23663,
+      "cache": "",
+      "location": "",
+      "path": "/",
+      "phase": "signed_home",
+      "status": "200",
+      "sql_calls": 6,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "session_validate_v2": 1,
+        "forum_resolve_viewer_v10": 1,
+        "forum_list_categories_v4": 1,
+        "forum_list_public_threads_v6": 1,
+        "forum_thread_tags_v2": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 15,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          6
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Identity::CredentialStore",
+          1
+        ],
+        [
+          "GPForum::Service::Identity::SecondFactor",
+          1
+        ],
+        [
+          "GPForum::Service::Identity::SessionStore",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ViewerResolver",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::CategoryReader",
+          1
+        ]
+      ]
+    },
+    {
+      "bytes": 10839,
+      "cache": "",
+      "location": "",
+      "path": "/search?q=forum",
+      "phase": "signed_search",
+      "status": "200",
+      "sql_calls": 8,
+      "sql": {
+        "admin_configuration_state_v4": 1,
+        "session_validate_v2": 1,
+        "forum_resolve_viewer_v10": 1,
+        "ops_rate_limit_check_v2": 1,
+        "BEGIN READ ONLY": 1,
+        "search_set_timeout_v2": 1,
+        "search_ranked_v16": 1,
+        "COMMIT": 1
+      },
+      "subprocesses": 0,
+      "base_allocations": 13,
+      "allocation_top": [
+        [
+          "GPForum::Infrastructure::SqlFunction",
+          5
+        ],
+        [
+          "GPForum::Service::Admin::Configuration",
+          1
+        ],
+        [
+          "GPForum::Service::Identity::CredentialStore",
+          1
+        ],
+        [
+          "GPForum::Service::Identity::SecondFactor",
+          1
+        ],
+        [
+          "GPForum::Service::Identity::SessionStore",
+          1
+        ],
+        [
+          "GPForum::Service::Forum::ViewerResolver",
+          1
+        ],
+        [
+          "GPForum::Service::Admin::AnnouncementStore",
+          1
+        ],
+        [
+          "GPForum::Service::Search::Searcher",
+          1
+        ]
+      ]
+    }
+  ]
+}

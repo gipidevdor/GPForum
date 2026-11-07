@@ -1,0 +1,14 @@
+% layout 'default';
+% title t('forum.signature_details') . ' - ' . t('app.name');
+<section aria-labelledby="verification-heading">
+  <%= include 'components/page_header', heading_id => 'verification-heading', component_title => t('forum.signature_details'), description => t('forum.signature_help') %>
+  % if ($envelope) {
+    <pre><code><%= $envelope_json %></code></pre>
+  % } else {
+    <p role="status"><%= t('forum.signature_unavailable') %></p>
+  % }
+  <p class="ui-row-links">
+    <a href="<%= ui_path('post_signature', post_id => $post_id) %>" download><%= t('forum.signature_download') %></a>
+    <a href="<%= ui_path('signing_keys') %>" download><%= t('forum.signing_keys_download') %></a>
+  </p>
+</section>

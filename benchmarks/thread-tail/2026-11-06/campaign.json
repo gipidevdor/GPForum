@@ -1,0 +1,1438 @@
+{
+  "status": "complete",
+  "application_commit": "2713b813f2553e16471dcaf93da154341e607e14",
+  "source": "/private/tmp/gpforum-thread-frozen-ojba0kas",
+  "arms": [
+    {
+      "label": "w8-c16",
+      "workers": 8,
+      "worker_clients": 16,
+      "attempt": 1,
+      "started_utc": "2026-11-05T23:38:05.790167+00:00",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/benchmark-http-complete",
+        "--output",
+        "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w8-c16-attempt1",
+        "--workers",
+        "8",
+        "--worker-clients",
+        "16",
+        "--scenario",
+        "member.thread",
+        "--concurrency",
+        "1,10,50,100",
+        "--iterations",
+        "100",
+        "--warmup",
+        "10",
+        "--duration",
+        "6",
+        "--repetitions",
+        "3",
+        "--deadline",
+        "900"
+      ],
+      "pid": 88238,
+      "exit": 0,
+      "elapsed_seconds": 75.386957,
+      "finished_utc": "2026-11-05T23:39:21.178322+00:00",
+      "competing_processes": [],
+      "report_status": "ok",
+      "measured_cells": 12,
+      "accepted": true
+    },
+    {
+      "label": "w4-c32",
+      "workers": 4,
+      "worker_clients": 32,
+      "attempt": 1,
+      "started_utc": "2026-11-05T23:39:32.569597+00:00",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/benchmark-http-complete",
+        "--output",
+        "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c32-attempt1",
+        "--workers",
+        "4",
+        "--worker-clients",
+        "32",
+        "--scenario",
+        "member.thread",
+        "--concurrency",
+        "1,10,50,100",
+        "--iterations",
+        "100",
+        "--warmup",
+        "10",
+        "--duration",
+        "6",
+        "--repetitions",
+        "3",
+        "--deadline",
+        "900"
+      ],
+      "pid": 89157,
+      "exit": 0,
+      "elapsed_seconds": 74.825333542,
+      "finished_utc": "2026-11-05T23:40:47.395833+00:00",
+      "competing_processes": [
+        {
+          "elapsed": 1.1196478749999983,
+          "processes": [
+            {
+              "pid": 89181,
+              "cpu_percent": 1.7
+            }
+          ]
+        },
+        {
+          "elapsed": 2.1858602500000046,
+          "processes": [
+            {
+              "pid": 89181,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 3.2515692919999992,
+          "processes": [
+            {
+              "pid": 89181,
+              "cpu_percent": 0.2
+            }
+          ]
+        }
+      ],
+      "report_status": "ok",
+      "measured_cells": 12,
+      "accepted": false
+    },
+    {
+      "label": "w4-c32",
+      "workers": 4,
+      "worker_clients": 32,
+      "attempt": 2,
+      "started_utc": "2026-11-05T23:43:14.094478+00:00",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/benchmark-http-complete",
+        "--output",
+        "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c32-attempt2",
+        "--workers",
+        "4",
+        "--worker-clients",
+        "32",
+        "--scenario",
+        "member.thread",
+        "--concurrency",
+        "1,10,50,100",
+        "--iterations",
+        "100",
+        "--warmup",
+        "10",
+        "--duration",
+        "6",
+        "--repetitions",
+        "3",
+        "--deadline",
+        "900"
+      ],
+      "pid": 91636,
+      "exit": 0,
+      "elapsed_seconds": 79.012712416,
+      "finished_utc": "2026-11-05T23:44:33.108381+00:00",
+      "competing_processes": [],
+      "report_status": "ok",
+      "measured_cells": 12,
+      "accepted": true
+    },
+    {
+      "label": "w4-c2048",
+      "workers": 4,
+      "worker_clients": 2048,
+      "attempt": 1,
+      "started_utc": "2026-11-05T23:44:44.235022+00:00",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/benchmark-http-complete",
+        "--output",
+        "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt1",
+        "--workers",
+        "4",
+        "--worker-clients",
+        "2048",
+        "--scenario",
+        "member.thread",
+        "--concurrency",
+        "1,10,50,100",
+        "--iterations",
+        "100",
+        "--warmup",
+        "10",
+        "--duration",
+        "6",
+        "--repetitions",
+        "3",
+        "--deadline",
+        "900"
+      ],
+      "pid": 91975,
+      "exit": 0,
+      "elapsed_seconds": 75.81576150000001,
+      "finished_utc": "2026-11-05T23:46:00.051997+00:00",
+      "competing_processes": [
+        {
+          "elapsed": 35.30393004200005,
+          "processes": [
+            {
+              "pid": 92161,
+              "cpu_percent": 11.5
+            }
+          ]
+        },
+        {
+          "elapsed": 36.37364025000005,
+          "processes": [
+            {
+              "pid": 92161,
+              "cpu_percent": 0.5
+            }
+          ]
+        },
+        {
+          "elapsed": 37.44543237500005,
+          "processes": [
+            {
+              "pid": 92161,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 38.515749958000015,
+          "processes": [
+            {
+              "pid": 92161,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 47.06046716700001,
+          "processes": [
+            {
+              "pid": 92241,
+              "cpu_percent": 10.0
+            }
+          ]
+        },
+        {
+          "elapsed": 48.12999450000001,
+          "processes": [
+            {
+              "pid": 92241,
+              "cpu_percent": 1.8
+            }
+          ]
+        },
+        {
+          "elapsed": 49.19848279200005,
+          "processes": [
+            {
+              "pid": 92241,
+              "cpu_percent": 0.4
+            }
+          ]
+        },
+        {
+          "elapsed": 50.266901250000046,
+          "processes": [
+            {
+              "pid": 92241,
+              "cpu_percent": 1.6
+            }
+          ]
+        },
+        {
+          "elapsed": 51.33803191700002,
+          "processes": [
+            {
+              "pid": 92241,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 52.40566000000001,
+          "processes": [
+            {
+              "pid": 92241,
+              "cpu_percent": 0.8
+            }
+          ]
+        },
+        {
+          "elapsed": 60.942733583000006,
+          "processes": [
+            {
+              "pid": 92331,
+              "cpu_percent": 1.5
+            }
+          ]
+        },
+        {
+          "elapsed": 62.00341483300002,
+          "processes": [
+            {
+              "pid": 92331,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 63.074246292000055,
+          "processes": [
+            {
+              "pid": 92331,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 64.14571058300004,
+          "processes": [
+            {
+              "pid": 92331,
+              "cpu_percent": 0.6
+            }
+          ]
+        },
+        {
+          "elapsed": 65.21061854200002,
+          "processes": [
+            {
+              "pid": 92331,
+              "cpu_percent": 0.4
+            }
+          ]
+        }
+      ],
+      "report_status": "ok",
+      "measured_cells": 12,
+      "accepted": false
+    },
+    {
+      "label": "w4-c2048",
+      "workers": 4,
+      "worker_clients": 2048,
+      "attempt": 2,
+      "started_utc": "2026-11-05T23:46:11.381386+00:00",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/benchmark-http-complete",
+        "--output",
+        "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt2",
+        "--workers",
+        "4",
+        "--worker-clients",
+        "2048",
+        "--scenario",
+        "member.thread",
+        "--concurrency",
+        "1,10,50,100",
+        "--iterations",
+        "100",
+        "--warmup",
+        "10",
+        "--duration",
+        "6",
+        "--repetitions",
+        "3",
+        "--deadline",
+        "900"
+      ],
+      "pid": 92533,
+      "exit": 0,
+      "elapsed_seconds": 76.99331654100001,
+      "finished_utc": "2026-11-05T23:47:28.375962+00:00",
+      "competing_processes": [
+        {
+          "elapsed": 6.445037791000004,
+          "processes": [
+            {
+              "pid": 92613,
+              "cpu_percent": 2.4
+            }
+          ]
+        },
+        {
+          "elapsed": 7.51211166600001,
+          "processes": [
+            {
+              "pid": 92613,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 8.582447790999993,
+          "processes": [
+            {
+              "pid": 92613,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 9.651268749999986,
+          "processes": [
+            {
+              "pid": 92613,
+              "cpu_percent": 0.4
+            }
+          ]
+        },
+        {
+          "elapsed": 10.720897291000028,
+          "processes": [
+            {
+              "pid": 92613,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 31.045390750000024,
+          "processes": [
+            {
+              "pid": 93756,
+              "cpu_percent": 6.7
+            }
+          ]
+        },
+        {
+          "elapsed": 32.12030995800001,
+          "processes": [
+            {
+              "pid": 93756,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 33.195919290999996,
+          "processes": [
+            {
+              "pid": 93756,
+              "cpu_percent": 8.0
+            }
+          ]
+        },
+        {
+          "elapsed": 34.26408341600006,
+          "processes": [
+            {
+              "pid": 93756,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 35.33824229100003,
+          "processes": [
+            {
+              "pid": 93756,
+              "cpu_percent": 0.3
+            }
+          ]
+        },
+        {
+          "elapsed": 36.405632458000014,
+          "processes": [
+            {
+              "pid": 93756,
+              "cpu_percent": 0.8
+            }
+          ]
+        },
+        {
+          "elapsed": 37.48092504099998,
+          "processes": [
+            {
+              "pid": 93756,
+              "cpu_percent": 0.4
+            }
+          ]
+        }
+      ],
+      "report_status": "ok",
+      "measured_cells": 12,
+      "accepted": false
+    },
+    {
+      "label": "w4-c2048",
+      "workers": 4,
+      "worker_clients": 2048,
+      "attempt": 3,
+      "started_utc": "2026-11-05T23:47:39.732459+00:00",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/benchmark-http-complete",
+        "--output",
+        "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt3",
+        "--workers",
+        "4",
+        "--worker-clients",
+        "2048",
+        "--scenario",
+        "member.thread",
+        "--concurrency",
+        "1,10,50,100",
+        "--iterations",
+        "100",
+        "--warmup",
+        "10",
+        "--duration",
+        "6",
+        "--repetitions",
+        "3",
+        "--deadline",
+        "900"
+      ],
+      "pid": 95339,
+      "exit": 0,
+      "elapsed_seconds": 79.09075704200006,
+      "finished_utc": "2026-11-05T23:48:58.824603+00:00",
+      "competing_processes": [
+        {
+          "elapsed": 0.058738584000025185,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 15.7
+            }
+          ]
+        },
+        {
+          "elapsed": 1.1249367090000533,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.4
+            }
+          ]
+        },
+        {
+          "elapsed": 2.1902876249999963,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 3.2550645840000243,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.4
+            }
+          ]
+        },
+        {
+          "elapsed": 4.319310709000092,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 95465,
+              "cpu_percent": 15.9
+            }
+          ]
+        },
+        {
+          "elapsed": 5.384976792000089,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.6
+            },
+            {
+              "pid": 95465,
+              "cpu_percent": 0.3
+            }
+          ]
+        },
+        {
+          "elapsed": 6.451605167000025,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.3
+            },
+            {
+              "pid": 95465,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 7.5103978340000594,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 95465,
+              "cpu_percent": 0.2
+            }
+          ]
+        },
+        {
+          "elapsed": 8.580786500000045,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 95465,
+              "cpu_percent": 0.5
+            }
+          ]
+        },
+        {
+          "elapsed": 9.652554209000073,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.1
+            },
+            {
+              "pid": 95465,
+              "cpu_percent": 0.3
+            }
+          ]
+        },
+        {
+          "elapsed": 10.720198417000006,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 11.787918292000086,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 12.851327542000035,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 13.919888084000036,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 14.98581999999999,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 16.058016042000077,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 17.129595375000008,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 2.7
+            }
+          ]
+        },
+        {
+          "elapsed": 18.19027312500009,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 19.26315554200005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 20.340603750000014,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 21.412897584000007,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 22.481500459000017,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 23.554089667000085,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 24.62328883400005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.6
+            }
+          ]
+        },
+        {
+          "elapsed": 25.691649625000082,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 26.759298459000092,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 27.83056620900004,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 28.89358658399999,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.2
+            }
+          ]
+        },
+        {
+          "elapsed": 29.95369670900004,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 31.03974750000009,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 8.5
+            }
+          ]
+        },
+        {
+          "elapsed": 32.15234866700007,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.3
+            }
+          ]
+        },
+        {
+          "elapsed": 33.23472408400005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.8
+            }
+          ]
+        },
+        {
+          "elapsed": 34.345966084,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 1.1
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 35.463408375000085,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.5
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 36.53999654200004,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.1
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 37.62481679200005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 4.9
+            }
+          ]
+        },
+        {
+          "elapsed": 38.727945875000046,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 1.5
+            }
+          ]
+        },
+        {
+          "elapsed": 39.818146667000065,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 1.3
+            }
+          ]
+        },
+        {
+          "elapsed": 40.928253709000046,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 42.05648429200005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 43.168130292,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 44.26198050000005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 2.0
+            }
+          ]
+        },
+        {
+          "elapsed": 45.37419116700005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 46.481194375000086,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.8
+            }
+          ]
+        },
+        {
+          "elapsed": 47.56149412500008,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 4.2
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 48.639944291999996,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 3.6
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 49.73871558400003,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 1.2
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 50.82799004200001,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 51.924440667,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.3
+            }
+          ]
+        },
+        {
+          "elapsed": 52.99920220900003,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.2
+            }
+          ]
+        },
+        {
+          "elapsed": 54.09647312499999,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.2
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 55.16816670900005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 56.26955345900001,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.3
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 5.4
+            }
+          ]
+        },
+        {
+          "elapsed": 57.34982850000006,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 2.5
+            }
+          ]
+        },
+        {
+          "elapsed": 58.430758584000046,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.7
+            }
+          ]
+        },
+        {
+          "elapsed": 59.5260797090001,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 60.60769012500009,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.1
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 61.6885064170001,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.3
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.1
+            }
+          ]
+        },
+        {
+          "elapsed": 62.76914733400008,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 63.853705167000044,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 3.1
+            }
+          ]
+        },
+        {
+          "elapsed": 64.9551885840001,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 1.5
+            }
+          ]
+        },
+        {
+          "elapsed": 66.05628758400007,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.7
+            }
+          ]
+        },
+        {
+          "elapsed": 67.13909183400006,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.9
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 68.23348083400003,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.6
+            }
+          ]
+        },
+        {
+          "elapsed": 69.31748745900006,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 70.40872591700008,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.6
+            }
+          ]
+        },
+        {
+          "elapsed": 71.49269570900003,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 72.59997670900009,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.4
+            }
+          ]
+        },
+        {
+          "elapsed": 73.71280004200003,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.4
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 74.80269775,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.1
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            }
+          ]
+        },
+        {
+          "elapsed": 75.9019716250001,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 1.6
+            },
+            {
+              "pid": 98960,
+              "cpu_percent": 9.3
+            }
+          ]
+        },
+        {
+          "elapsed": 76.99971000000005,
+          "processes": [
+            {
+              "pid": 95318,
+              "cpu_percent": 0.7
+            },
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 98960,
+              "cpu_percent": 1.6
+            }
+          ]
+        },
+        {
+          "elapsed": 78.08055491700009,
+          "processes": [
+            {
+              "pid": 96069,
+              "cpu_percent": 0.0
+            },
+            {
+              "pid": 98960,
+              "cpu_percent": 0.0
+            }
+          ]
+        }
+      ],
+      "report_status": "ok",
+      "measured_cells": 12,
+      "accepted": false
+    },
+    {
+      "label": "w4-c2048",
+      "workers": 4,
+      "worker_clients": 2048,
+      "attempt": 4,
+      "started_utc": "2026-11-05T23:52:50.040861+00:00",
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/benchmark-http-complete",
+        "--output",
+        "/Users/gpicchiarelli/Documents/GPForum/artifacts/thread-tail-confirmation-20261106/w4-c2048-attempt4",
+        "--workers",
+        "4",
+        "--worker-clients",
+        "2048",
+        "--scenario",
+        "member.thread",
+        "--concurrency",
+        "1,10,50,100",
+        "--iterations",
+        "100",
+        "--warmup",
+        "10",
+        "--duration",
+        "6",
+        "--repetitions",
+        "3",
+        "--deadline",
+        "900"
+      ],
+      "pid": 5851,
+      "exit": 0,
+      "elapsed_seconds": 73.694291375,
+      "finished_utc": "2026-11-05T23:54:03.737790+00:00",
+      "competing_processes": [],
+      "report_status": "ok",
+      "measured_cells": 12,
+      "accepted": true
+    }
+  ],
+  "created_utc": "2026-11-05T23:37:54.299177+00:00",
+  "reservation_completion": {
+    "reason": "user prioritized paired regression analysis",
+    "evidence": [
+      "artifacts/throughput-regressions-20261105/before-final-a4/http/http-complete.json",
+      "artifacts/throughput-regressions-20261105/after-final-a4/http/http-complete.json",
+      "artifacts/throughput-regressions-20261105/after-final-b4/http/http-complete.json",
+      "artifacts/throughput-regressions-20261105/before-final-b4/http/http-complete.json"
+    ],
+    "policy": "All four prior benchmark arms completed; wait for live test/benchmark processes and retain overlap monitoring."
+  },
+  "finished_utc": "2026-11-05T23:54:04.034279+00:00"
+}

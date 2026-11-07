@@ -106,11 +106,11 @@ if [ "${1:-}" = "exec" ] && [ -d "$root/local/lib/perl5" ]; then
 fi
 
 if [ -x "$perl_dir/carton" ]; then
-    exec "$perl_bin" "$perl_dir/carton" "$@"
+    exec "$perl_bin" -I"$root/script/lib" -MGPForum::Tool::CartonHTTPS "$perl_dir/carton" "$@"
 fi
 
 if "$perl_bin" -S carton version >/dev/null 2>&1; then
-    exec "$perl_bin" -S carton "$@"
+    exec "$perl_bin" -I"$root/script/lib" -MGPForum::Tool::CartonHTTPS -S carton "$@"
 fi
 
 echo "gpforum-carton: Carton was not found for selected Perl $perl_bin." >&2

@@ -93,3 +93,12 @@ The explicit runtime floor 2.000003 and executable injection/HTML-escaping
 regressions cover CVE-2026-121265, CVE-2026-121007, CVE-2026-121008 and
 CVE-2026-121009 without waiting for the database update. Mail::DKIM's floor
 also includes its November 5 ARC validation and long-header parsing fixes.
+
+Host installers are reviewed separately from the application lock. cpanminus
+1.7049 is current but retains CPANSA-App-cpanminus-2024-45321 for its default
+HTTP mirror. Repository commands select an HTTPS mirror exclusively. Carton
+1.0.35 also appends HTTP CPAN/BackPAN fallbacks internally: the repository
+launcher protects its installer arguments, upgrades those known fallbacks to
+HTTPS, refuses other unprotected mirrors and disables HTTP metadata discovery.
+These tool mitigations do not add application advisory exclusions or modify the
+host's Carton installation.

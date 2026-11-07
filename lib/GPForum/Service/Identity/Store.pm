@@ -207,6 +207,10 @@ sub account_id_for ( $self, $identifier ) {
     return $self->auth_store->account_id_for($identifier);
 }
 
+sub account_id_for_p ( $self, $identifier, $context = undef ) {
+    return $self->auth_store->account_id_for_p( $identifier, $context );
+}
+
 sub complete_second_factor ( $self, $input ) {
     return $self->auth_store->complete_second_factor($input);
 }
@@ -355,6 +359,12 @@ Delegates credential verification and session creation to the auth store.
 
 Takes a login identifier and returns the id of the account it names, or
 C<undef>, through the auth store (L<GPForum::Service::Identity::AuthStore/account_id_for>).
+
+=head2 account_id_for_p
+
+L</account_id_for> as a promise, with an optional query context last, read
+on the worker's pooled asynchronous connections
+(L<GPForum::Service::Identity::AuthStore/account_id_for_p>).
 
 =head2 complete_second_factor
 

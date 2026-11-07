@@ -4,7 +4,7 @@
 package GPForum::Service::Moderation::AutomodStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -45,10 +45,27 @@ sub rules_for ( $self, $user_id ) {
     return $row ? $row->{document} : undef;
 }
 
+# The rules and the word list on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own each.
+async sub rules_for_p ( $self, $user_id, $context = undef ) {
+    return undef if !$self->functions;
+    my $row = await $self->functions->row_p( 'moderation_automod_rules',
+        { user_id => _uuid_or_undef($user_id) }, $context );
+
+    return $row ? $row->{document} : undef;
+}
+
 sub words ($self) {
     return [] if !$self->functions;
 
     return $self->functions->rows( 'moderation_watched_word_list', {} );
+}
+
+async sub words_p ( $self, $context = undef ) {
+    return [] if !$self->functions;
+
+    return await $self->functions->rows_p( 'moderation_watched_word_list', {},
+        $context );
 }
 
 # Adds a watched word. Answers ok with the word, or a refusal: invalid
@@ -280,9 +297,19 @@ or records the decisions and their audit in one transaction.
 The watched words, the link rule and the author's trust level, or undef
 with no function layer.
 
+=head2 rules_for_p
+
+L</rules_for> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections.
+
 =head2 words
 
 The list as the admin console shows it.
+
+=head2 words_p
+
+L</words> as a promise, with an optional query context, read on the
+worker's pooled asynchronous connections.
 
 =head2 add_word
 

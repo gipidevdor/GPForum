@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::Settings;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 
 use GPForum::Config::Report;
@@ -312,6 +312,12 @@ sub view ($self) {
     };
 }
 
+# The page reads only the configuration: answered in the worker rather than
+# in a forked child.
+async sub view_p ( $self, $context = undef ) {
+    return $self->view;
+}
+
 # Every variable the page lists, in its order.
 sub env_names ($class) {
     return [ map { $_->[0] } map { @{ $_->{settings} } } @SECTIONS ];
@@ -457,6 +463,11 @@ and C<value> or, for a secret, C<configured> and C<list>), and where to
 change them: C<change> holds the environment file (C<file>, and
 C<freebsd_file>) and the command that restarts both services that read it,
 the web service and the outbox worker (C<restart>, and C<freebsd_restart>).
+
+=head2 view_p
+
+L</view> as a promise, with an optional query context; it reads no
+database.
 
 =head2 env_names
 

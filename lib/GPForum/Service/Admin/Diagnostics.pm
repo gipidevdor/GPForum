@@ -5,7 +5,7 @@ package GPForum::Service::Admin::Diagnostics;
 
 use Const::Fast;
 use Scalar::Util qw(blessed);
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -78,15 +78,36 @@ has settings => sub ($self) {
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub overview ( $self, $user_id ) {
+    return $self->_overview(
+        $self->_latest($ANTIVIRUS_ACTION),
+        $self->_latest($MAIL_ACTION),
+        $self->accounts->email_of($user_id)
+    );
+}
+
+# The settings page's three reads on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own. In-memory
+# collaborators without promise reads answer the blocking overview.
+async sub overview_p ( $self, $user_id, $context = undef ) {
+    return $self->overview($user_id)
+      if !$self->audit_review->can('page_p')
+      || !$self->accounts->can('email_of_p');
+    my $antivirus = await $self->_latest_p( $ANTIVIRUS_ACTION, $context );
+    my $mail      = await $self->_latest_p( $MAIL_ACTION,      $context );
+    my $recipient = await $self->accounts->email_of_p( $user_id, $context );
+    return $self->_overview( $antivirus, $mail, $recipient );
+}
+
+sub _overview ( $self, $antivirus, $mail, $recipient ) {
     return {
         antivirus => {
             engine     => $self->config->antivirus,
             in_request => $self->_scans_in_request,
-            latest     => $self->_latest($ANTIVIRUS_ACTION),
+            latest     => $antivirus,
         },
         mail => {
-            latest    => $self->_latest($MAIL_ACTION),
-            recipient => $self->accounts->email_of($user_id),
+            latest    => $mail,
+            recipient => $recipient,
             transport => $self->config->mail_transport,
         },
     };
@@ -245,8 +266,20 @@ sub _scans_in_request ($self) {
 # The newest audited result of an action, which is what the page shows: it
 # survives the redirect and is the same for every administrator.
 sub _latest ( $self, $action ) {
-    my $page =
-      $self->audit_review->page( { action => $action }, { limit => 1 } );
+    return _latest_of(
+        $self->audit_review->page( { action => $action }, { limit => 1 } ) );
+}
+
+async sub _latest_p ( $self, $action, $context ) {
+    return _latest_of(
+        await $self->audit_review->page_p(
+            { action => $action },
+            { limit  => 1 }, $context
+        )
+    );
+}
+
+sub _latest_of ($page) {
     my ($row) = @{ $page->{rows} || [] };
     my $none;
     return $none if !$row;
@@ -354,6 +387,13 @@ a transport error or report is shown with every configured secret redacted
 The administrator's own address, the mail transport, the scanning engine,
 whether it can be checked within a request, and the last audited result of
 each check.
+
+=head2 overview_p
+
+L</overview> as a promise, with an optional query context last: the two
+audit reads and the address read on the worker's pooled asynchronous
+connections. Collaborators without those promise reads (the in-memory
+doubles) answer the blocking overview.
 
 =head2 send_test_mail
 

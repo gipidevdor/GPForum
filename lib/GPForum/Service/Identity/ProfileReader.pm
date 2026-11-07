@@ -4,7 +4,7 @@
 package GPForum::Service::Identity::ProfileReader;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -46,44 +46,117 @@ sub counts_tag ( $, $user_id ) {
 
 sub public_profile ( $self, $username, $options ) {
     my $user = $self->_find_public_user($username);
-    return { ok => 0, error => 'not_found' } if !$user;
+    return _not_found() if !$user;
 
     # The two lists page apart, each with its own cursor: the threads by
     # their last activity (after), the replies by when they were written
     # (replies_after). One cursor for both paged the replies by a thread's
     # activity, repeating or skipping them.
-    my $safe_options = $options || {};
-    my $counts       = $self->_contribution_counts($user);
-    my $threads      = $self->_recent_public_threads( $user,
-        { limit => $safe_options->{limit}, after => $safe_options->{after} } );
-    my $replies = $self->_recent_public_replies(
+    my ( $thread_page, $reply_page ) = $self->_page_plans($options);
+
+    return _found(
         $user,
         {
-            limit => $safe_options->{limit},
-            after => $safe_options->{replies_after},
+            counts    => $self->_contribution_counts($user),
+            threads   => $self->_recent_public_threads( $user, $thread_page ),
+            replies   => $self->_recent_public_replies( $user, $reply_page ),
+            avatar_id => $self->_avatar_id($user),
+            trust     => $self->_trust_hash($user),
         }
     );
+}
 
+# The profile page as the web worker reads it, on its pooled asynchronous
+# connections: through call_p's fallback each profile forked a child that
+# opened a PostgreSQL connection of its own, one child at a time per
+# worker. The same reads and the same shaping as public_profile.
+async sub public_profile_p ( $self, $username, $options, $context = undef ) {
+    return $self->public_profile( $username, $options )
+      if !$self->functions || !$self->functions->can('row_p');
+
+    my $functions = $self->functions;
+    my $user      = _public_user(
+        await $functions->row_p(
+            'identity_user_by_identifier', _identifier_values($username),
+            $context
+        )
+    );
+    return _not_found() if !$user;
+
+    my ( $thread_page, $reply_page ) = $self->_page_plans($options);
+    my $user_only = { user_id => column_of( $user, 'id' ) };
+    my $counts    = await $self->_contribution_counts_p( $user, $context );
+    my $threads   = await $functions->rows_p( 'identity_profile_threads',
+        _page_parameters( $user, $thread_page ), $context );
+    my $replies = await $functions->rows_p( 'identity_profile_replies',
+        _page_parameters( $user, $reply_page ), $context );
+    my $avatar =
+      await $functions->row_p( 'community_avatar_status', $user_only,
+        $context );
+    my $trust =
+      await $functions->row_p( 'identity_profile_trust', $user_only, $context );
+
+    return _found(
+        $user,
+        {
+            counts  => $counts,
+            threads =>
+              $self->_thread_list( _result_rows($threads), $thread_page ),
+            replies =>
+              $self->_reply_list( _result_rows($replies), $reply_page ),
+            avatar_id => _attachment_id($avatar),
+            trust     => _trust_from( $user, $trust ),
+        }
+    );
+}
+
+sub _not_found {
+    return { ok => 0, error => 'not_found' };
+}
+
+sub _found ( $user, $parts ) {
     return {
         ok      => 1,
         profile => {
-            user    => _user_hash( $user, $self->_avatar_id($user) ),
-            trust   => $self->_trust_hash($user),
-            counts  => $counts,
-            threads => $threads,
-            replies => $replies,
+            user    => _user_hash( $user, $parts->{avatar_id} ),
+            trust   => $parts->{trust},
+            counts  => $parts->{counts},
+            threads => $parts->{threads},
+            replies => $parts->{replies},
         },
     };
 }
 
-sub _find_public_user ( $self, $username ) {
-    my $user =
-      $self->functions
-      ? $self->functions->row( 'identity_user_by_identifier',
-        { identifier => _normalize_username($username), by_email => 0 } )
-      : $self->schema->resultset('User')
-      ->find( { username => _normalize_username($username) } );
+# The threads' and the replies' page plans, each with its own cursor.
+sub _page_plans ( $self, $options ) {
+    my $safe_options = $options || {};
+    return map {
+        $self->page_window->plan(
+            {
+                limit => $safe_options->{limit},
+                after => $safe_options->{$_},
+                sort  => 'timestamp',
+            }
+        )
+    } qw(after replies_after);
+}
 
+sub _find_public_user ( $self, $username ) {
+    return _public_user(
+        $self->functions
+        ? $self->functions->row( 'identity_user_by_identifier',
+            _identifier_values($username) )
+        : $self->schema->resultset('User')
+          ->find( { username => _normalize_username($username) } )
+    );
+}
+
+sub _identifier_values ($username) {
+    return { identifier => _normalize_username($username), by_email => 0 };
+}
+
+# Deleted and suspended members have no public profile.
+sub _public_user ($user) {
     return undef if !$user;
     return undef if defined column_of( $user, 'deleted_at' );
     return undef if ( column_of( $user, 'status' ) || q{} ) eq 'suspended';
@@ -96,20 +169,29 @@ sub _find_public_user ( $self, $username ) {
 sub _avatar_id ( $self, $user ) {
     return undef if !$self->functions;
 
-    my $status = $self->functions->row( 'community_avatar_status',
-        { user_id => column_of( $user, 'id' ) } );
+    return _attachment_id(
+        $self->functions->row(
+            'community_avatar_status', { user_id => column_of( $user, 'id' ) }
+        )
+    );
+}
 
+sub _attachment_id ($status) {
     return $status ? $status->{attachment_id} : undef;
 }
 
 sub _trust_hash ( $self, $user ) {
-    my $snapshot =
-      $self->functions
-      ? $self->functions->row( 'identity_profile_trust',
-        { user_id => column_of( $user, 'id' ) } )
-      : $self->schema->resultset('TrustScoreSnapshot')
-      ->find( column_of( $user, 'id' ) );
+    return _trust_from(
+        $user,
+        $self->functions
+        ? $self->functions->row( 'identity_profile_trust',
+            { user_id => column_of( $user, 'id' ) } )
+        : $self->schema->resultset('TrustScoreSnapshot')
+          ->find( column_of( $user, 'id' ) )
+    );
+}
 
+sub _trust_from ( $user, $snapshot ) {
     return {
         score       => column_of( $snapshot, 'score' ) || 0,
         trust_level => column_of( $snapshot, 'trust_level' )
@@ -125,25 +207,46 @@ sub _trust_hash ( $self, $user ) {
     };
 }
 
-sub _recent_public_threads ( $self, $user, $options ) {
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    my @rows =
-      $self->functions
-      ? @{
-        $self->functions->rows( 'identity_profile_threads',
-            _page_parameters( $user, $page ) )
-      }
-      : rows_in(
-        $self->public_threads_resultset( column_of( $user, 'id' ), $page ) );
-    if ( $self->functions ) {
-        @rows = map { GPForum::Infrastructure::ResultRow->from($_) } @rows;
-    }
-    my $window = $self->page_window->page( \@rows, $page->{limit},
+sub _recent_public_threads ( $self, $user, $page ) {
+    return $self->_thread_list(
+        $self->functions
+        ? _result_rows(
+            $self->functions->rows(
+                'identity_profile_threads', _page_parameters( $user, $page )
+            )
+          )
+        : [
+            rows_in(
+                $self->public_threads_resultset(
+                    column_of( $user, 'id' ), $page
+                )
+            )
+        ],
+        $page
+    );
+}
+
+sub _result_rows ($rows) {
+    return [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
+}
+
+sub _thread_list ( $self, $rows, $page ) {
+    my $window =
+      $self->page_window->page( $rows, $page->{limit},
         \@THREAD_CURSOR_COLUMNS );
 
     return {
         items       => [ map { _thread_hash($_) } @{ $window->{items} } ],
+        next_cursor => $window->{next_cursor},
+    };
+}
+
+sub _reply_list ( $self, $rows, $page ) {
+    my $window =
+      $self->page_window->page( $rows, $page->{limit}, \@REPLY_CURSOR_COLUMNS );
+
+    return {
+        items       => [ map { _reply_hash($_) } @{ $window->{items} } ],
         next_cursor => $window->{next_cursor},
     };
 }
@@ -170,21 +273,15 @@ sub public_threads_resultset ( $self, $user_id, $page ) {
     );
 }
 
-sub _recent_public_replies ( $self, $user, $options ) {
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    if ( $self->functions ) {
-        my $rows = $self->functions->rows( 'identity_profile_replies',
-            _page_parameters( $user, $page ) );
-        $rows =
-          [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
-        my $window = $self->page_window->page( $rows, $page->{limit},
-            \@REPLY_CURSOR_COLUMNS );
-        return {
-            items       => [ map { _reply_hash($_) } @{ $window->{items} } ],
-            next_cursor => $window->{next_cursor}
-        };
-    }
+sub _recent_public_replies ( $self, $user, $page ) {
+    return $self->_reply_list(
+        _result_rows(
+            $self->functions->rows(
+                'identity_profile_replies', _page_parameters( $user, $page )
+            )
+        ),
+        $page
+    ) if $self->functions;
     my $query  = _reply_query( column_of( $user, 'id' ), $page->{after} );
     my $search = $self->schema->resultset('Post')->search_rs(
         $query,
@@ -207,14 +304,7 @@ sub _recent_public_replies ( $self, $user, $options ) {
         }
     );
 
-    my @rows   = rows_in($search);
-    my $window = $self->page_window->page( \@rows, $page->{limit},
-        \@REPLY_CURSOR_COLUMNS );
-
-    return {
-        items       => [ map { _reply_hash($_) } @{ $window->{items} } ],
-        next_cursor => $window->{next_cursor},
-    };
+    return $self->_reply_list( [ rows_in($search) ], $page );
 }
 
 # The member's public threads and replies. Counting them walks every one
@@ -222,7 +312,39 @@ sub _recent_public_replies ( $self, $user, $options ) {
 # and again, so the counts are cached, for at most cache_ttl_seconds.
 sub _contribution_counts ( $self, $user ) {
     my $user_id = column_of( $user, 'id' );
-    return $self->_count_contributions($user_id)
+    my ( $key, $entry ) = $self->_counts_entry($user_id);
+    return $self->_count_contributions($user_id) if !defined $key;
+
+    return $self->cache->get_or_set( $key,
+        sub { return $self->_count_contributions($user_id); }, $entry );
+}
+
+# The same counts and the same cache entry, read on a pooled asynchronous
+# connection. The ticket is taken before the read, as get_or_set takes it,
+# so an invalidation during the read keeps the stale counts out.
+async sub _contribution_counts_p ( $self, $user, $context ) {
+    my $values = { user_id => column_of( $user, 'id' ) };
+    my ( $key, $entry ) = $self->_counts_entry( $values->{user_id} );
+    my $cache = $self->cache;
+    if ( defined $key ) {
+        my $cached = $cache->get($key);
+        return $cached if defined $cached;
+        if ( $cache->can('ticket') ) {
+            $entry->{ticket} = $cache->ticket( $entry->{tags}, { mint => 1 } );
+        }
+    }
+    my $counts =
+      await $self->functions->row_p( 'identity_profile_counts', $values,
+        $context );
+    if ( defined $key ) { $cache->put( $key, $counts, $entry ); }
+
+    return $counts;
+}
+
+# The cache key and entry options of a member's counts, or nothing when
+# the counts are not cached.
+sub _counts_entry ( $self, $user_id ) {
+    return
       if !$self->cache
       || ( $self->cache_epoch_required && !defined $self->cache_epoch );
 
@@ -231,9 +353,8 @@ sub _contribution_counts ( $self, $user ) {
         $key .= q{:privacy:} . $self->cache_epoch;
     }
 
-    return $self->cache->get_or_set(
+    return (
         $key,
-        sub { return $self->_count_contributions($user_id); },
         {
             tags        => [ $PUBLIC_HTML_TAG, $self->counts_tag($user_id) ],
             ttl_seconds => $self->cache_ttl_seconds,
@@ -463,6 +584,14 @@ C<trust_level>, C<calculated_at>, C<version> and C<badge>; C<counts> has
 C<public_threads>, C<public_replies> and C<total_public>; C<threads> and
 C<replies> are C<< { items, next_cursor } >> of plain hashes. The same limit
 and cursor apply to both lists.
+
+=head2 public_profile_p
+
+L</public_profile> as a promise, with the request's optional query
+context last: the member, counts, lists, picture and trust are read on the
+worker's pooled asynchronous connections, the counts through the same
+cache entry. Without the function layer, or with one that has no promise
+reads, it answers what L</public_profile> answers.
 
 =head2 counts_tag
 

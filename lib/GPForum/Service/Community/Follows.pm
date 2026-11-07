@@ -21,8 +21,26 @@ sub change ( $self, $input ) {
 
 sub following ( $self, $actor, $target ) {
     return undef if !$self->functions;
-    my $row = $self->functions->row( 'community_follow_state',
-        { actor => $actor, target => $target } );
+    return _following(
+        $self->functions->row(
+            'community_follow_state', { actor => $actor, target => $target }
+        )
+    );
+}
+
+# The profile page's follow state, on the worker's pooled asynchronous
+# connections instead of a forked child.
+async sub following_p ( $self, $actor, $target, $context = undef ) {
+    return undef if !$self->functions;
+    return _following(
+        await $self->functions->row_p(
+            'community_follow_state', { actor => $actor, target => $target },
+            $context
+        )
+    );
+}
+
+sub _following ($row) {
     return $row ? ( $row->{following} ? 1 : 0 ) : undef;
 }
 
@@ -127,6 +145,11 @@ Follows or removes a followed user through an authorized, idempotent command.
 =head2 following
 
 Reads the actor's own follow state for one target; never a public follower graph.
+
+=head2 following_p
+
+L</following> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections.
 
 =head2 followed_users
 

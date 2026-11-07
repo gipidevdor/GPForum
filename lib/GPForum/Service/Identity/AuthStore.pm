@@ -3,7 +3,7 @@
 
 package GPForum::Service::Identity::AuthStore;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -57,28 +57,54 @@ sub authenticate_login ( $self, $input ) {
 # the Argon2 run it then spends, kept apart so the limit is decided before
 # any password work and without handing a row from the controller down.
 sub account_id_for ( $self, $identifier ) {
-    my $user = $self->_user_by_identifier(
-        $self->support->normalize_identifier($identifier) );
+    return $self->_account_id(
+        $self->_user_by_identifier(
+            $self->support->normalize_identifier($identifier)
+        )
+    );
+}
 
+# The login's rate-limit key read on the worker's pooled asynchronous
+# connections. Without SQL functions it answers the blocking read.
+async sub account_id_for_p ( $self, $identifier, $context = undef ) {
+    my $normalized = $self->support->normalize_identifier($identifier);
+    return $self->account_id_for($identifier)
+      if !$self->functions || !length $normalized;
+
+    return $self->_account_id(
+        GPForum::Infrastructure::ResultRow::IdentityUser->from(
+            await $self->functions->row_p(
+                _identifier_values($normalized), $context
+            ),
+            $self->functions
+        )
+    );
+}
+
+sub _account_id ( $self, $user ) {
     return $user ? $self->support->column( $user, q{id} ) : undef;
 }
 
 sub _user_by_identifier ( $self, $identifier ) {
     return undef if !length $identifier;
 
-    my $column = $identifier =~ /[@]/msx ? 'email_normalized' : 'username';
     return GPForum::Infrastructure::ResultRow::IdentityUser->from(
-        $self->functions->row(
-            'identity_user_by_identifier',
-            {
-                identifier => $identifier,
-                by_email   => $column eq 'email_normalized' ? 1 : 0
-            }
-        ),
-        $self->functions
-    ) if $self->functions;
+        $self->functions->row( _identifier_values($identifier) ),
+        $self->functions )
+      if $self->functions;
 
+    my $column = $identifier =~ /[@]/msx ? 'email_normalized' : 'username';
     return $self->schema->resultset('User')->find( { $column => $identifier } );
+}
+
+sub _identifier_values ($identifier) {
+    return (
+        'identity_user_by_identifier',
+        {
+            identifier => $identifier,
+            by_email   => $identifier =~ /[@]/msx ? 1 : 0,
+        }
+    );
 }
 
 # The session a verified password opens for a member without two-step
@@ -271,6 +297,12 @@ stable API. Failed logins remain non-enumerative.
 Takes a login identifier, an address or a username. Returns the id of the
 account it names, or C<undef> for none: the login's per-account rate limit
 is keyed by it, so both spellings of one member share one budget.
+
+=head2 account_id_for_p
+
+L</account_id_for> as a promise, with an optional query context last, read
+on the worker's pooled asynchronous connections. Without SQL functions it
+answers the blocking read.
 
 =head2 authenticate_login
 

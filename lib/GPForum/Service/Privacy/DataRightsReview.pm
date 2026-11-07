@@ -4,7 +4,7 @@
 package GPForum::Service::Privacy::DataRightsReview;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row qw(rows_in);
@@ -20,7 +20,17 @@ const my $DEFAULT_LIMIT => 50;
 __PACKAGE__->requires(qw(schema));
 
 sub pending_deletion_requests ( $self, $options ) {
-    return $self->_search(
+    return $self->_search( _pending_deletions($options) );
+}
+
+# The review page's queues on the worker's pooled asynchronous connections,
+# not a forked child with a connection of its own each.
+async sub pending_deletion_requests_p ( $self, $options, $context = undef ) {
+    return await $self->_search_p( _pending_deletions($options), $context );
+}
+
+sub _pending_deletions ($options) {
+    return (
         'DeletionRequest',
         { status => 'pending' },
         {
@@ -42,7 +52,19 @@ sub deletion_request ( $self, $request_id ) {
 }
 
 sub deletion_requests_for_user ( $self, $user_id, $options ) {
-    return $self->_search(
+    return $self->_search( _deletions_of( $user_id, $options ) );
+}
+
+# The privacy page's reads on the worker's pooled asynchronous connections.
+async sub deletion_requests_for_user_p ( $self, $user_id, $options,
+    $context = undef )
+{
+    return await $self->_search_p( _deletions_of( $user_id, $options ),
+        $context );
+}
+
+sub _deletions_of ( $user_id, $options ) {
+    return (
         'DeletionRequest',
         {
             requester_user_id => $user_id,
@@ -57,7 +79,18 @@ sub deletion_requests_for_user ( $self, $user_id, $options ) {
 }
 
 sub export_requests_for_user ( $self, $user_id, $options ) {
-    return $self->_search(
+    return $self->_search( _exports_of( $user_id, $options ) );
+}
+
+async sub export_requests_for_user_p ( $self, $user_id, $options,
+    $context = undef )
+{
+    return await $self->_search_p( _exports_of( $user_id, $options ),
+        $context );
+}
+
+sub _exports_of ( $user_id, $options ) {
+    return (
         'ExportRequest',
         {
             requester_user_id => $user_id,
@@ -86,7 +119,15 @@ sub completed_export_for_user ( $self, $user_id, $export_request_id ) {
 }
 
 sub pending_export_requests ( $self, $options ) {
-    return $self->_search(
+    return $self->_search( _pending_exports($options) );
+}
+
+async sub pending_export_requests_p ( $self, $options, $context = undef ) {
+    return await $self->_search_p( _pending_exports($options), $context );
+}
+
+sub _pending_exports ($options) {
+    return (
         'ExportRequest',
         { status => 'pending' },
         {
@@ -97,7 +138,17 @@ sub pending_export_requests ( $self, $options ) {
 }
 
 sub active_holds_for_user ( $self, $user_id, $options ) {
-    return $self->_search(
+    return $self->_search( _holds_of( $user_id, $options ) );
+}
+
+async sub active_holds_for_user_p ( $self, $user_id, $options,
+    $context = undef )
+{
+    return await $self->_search_p( _holds_of( $user_id, $options ), $context );
+}
+
+sub _holds_of ( $user_id, $options ) {
+    return (
         'RetentionHold',
         {
             resource_type => 'user',
@@ -112,7 +163,15 @@ sub active_holds_for_user ( $self, $user_id, $options ) {
 }
 
 sub active_holds ( $self, $options ) {
-    return $self->_search(
+    return $self->_search( _holds($options) );
+}
+
+async sub active_holds_p ( $self, $options, $context = undef ) {
+    return await $self->_search_p( _holds($options), $context );
+}
+
+sub _holds ($options) {
+    return (
         'RetentionHold',
         { ends_at => undef },
         {
@@ -123,7 +182,18 @@ sub active_holds ( $self, $options ) {
 }
 
 sub erasure_jobs_by_status ( $self, $status, $options ) {
-    return $self->_search(
+    return $self->_search( _erasure_jobs( $status, $options ) );
+}
+
+async sub erasure_jobs_by_status_p ( $self, $status, $options,
+    $context = undef )
+{
+    return await $self->_search_p( _erasure_jobs( $status, $options ),
+        $context );
+}
+
+sub _erasure_jobs ( $status, $options ) {
+    return (
         'ErasureJob',
         { status => $status },
         {
@@ -135,29 +205,50 @@ sub erasure_jobs_by_status ( $self, $status, $options ) {
 
 sub _search ( $self, $resultset, $query, $attrs ) {
     if ( $self->functions ) {
-        my $order = $attrs->{order_by} || [];
-        my $oldest =
-             ref $order eq 'ARRAY'
-          && ref $order->[0] eq 'HASH'
-          && exists $order->[0]{'-asc'};
-        my $rows = $self->functions->rows(
-            'privacy_review',
-            {
-                source    => $resultset,
-                query     => $query,
-                row_limit => $attrs->{rows},
-                oldest    => $oldest
-            }
+        return _documents(
+            $self->functions->rows(
+                _review_values( $resultset, $query, $attrs )
+            )
         );
-        return [
-            map { GPForum::Infrastructure::ResultRow->from( $_->{document} ) }
-              @{$rows} ];
     }
 
     my $search =
       $self->schema->resultset($resultset)->search_rs( $query, $attrs );
 
     return [ rows_in($search) ];
+}
+
+async sub _search_p ( $self, $resultset, $query, $attrs, $context ) {
+    return $self->_search( $resultset, $query, $attrs ) if !$self->functions;
+
+    return _documents(
+        await $self->functions->rows_p(
+            _review_values( $resultset, $query, $attrs ), $context
+        )
+    );
+}
+
+sub _review_values ( $resultset, $query, $attrs ) {
+    my $order = $attrs->{order_by} || [];
+    my $oldest =
+         ref $order eq 'ARRAY'
+      && ref $order->[0] eq 'HASH'
+      && exists $order->[0]{'-asc'};
+
+    return (
+        'privacy_review',
+        {
+            source    => $resultset,
+            query     => $query,
+            row_limit => $attrs->{rows},
+            oldest    => $oldest
+        }
+    );
+}
+
+sub _documents ($rows) {
+    return [ map { GPForum::Infrastructure::ResultRow->from( $_->{document} ) }
+          @{$rows} ];
 }
 
 1;
@@ -201,6 +292,12 @@ is read, and returns an array reference of rows.
 
 Takes the options. Returns the pending deletion requests, oldest first.
 
+=head2 pending_deletion_requests_p
+
+L</pending_deletion_requests> as a promise, with an optional query context
+after the options, read on the worker's pooled asynchronous connections.
+Without SQL functions it answers the blocking read.
+
 =head2 deletion_request
 
 Takes a deletion request id. Returns its row, or undef.
@@ -210,10 +307,22 @@ Takes a deletion request id. Returns its row, or undef.
 Takes a user id and the options. Returns the deletion requests the user
 made for their own account, newest first.
 
+=head2 deletion_requests_for_user_p
+
+L</deletion_requests_for_user> as a promise, with an optional query context after the
+options, read on the worker's pooled asynchronous connections. Without SQL
+functions it answers the blocking read.
+
 =head2 export_requests_for_user
 
 Takes a user id and the options. Returns the export requests the user made
 about themselves, newest first.
+
+=head2 export_requests_for_user_p
+
+L</export_requests_for_user> as a promise, with an optional query context after the
+options, read on the worker's pooled asynchronous connections. Without SQL
+functions it answers the blocking read.
 
 =head2 completed_export_for_user
 
@@ -225,20 +334,44 @@ otherwise.
 
 Takes the options. Returns the pending export requests, oldest first.
 
+=head2 pending_export_requests_p
+
+L</pending_export_requests> as a promise, with an optional query context
+after the options, read on the worker's pooled asynchronous connections.
+Without SQL functions it answers the blocking read.
+
 =head2 active_holds_for_user
 
 Takes a user id and the options. Returns the retention holds on the user's
 account that have no C<ends_at>, newest first.
+
+=head2 active_holds_for_user_p
+
+L</active_holds_for_user> as a promise, with an optional query context after the
+options, read on the worker's pooled asynchronous connections. Without SQL
+functions it answers the blocking read.
 
 =head2 active_holds
 
 Takes the options. Returns every retention hold with no C<ends_at>, newest
 first.
 
+=head2 active_holds_p
+
+L</active_holds> as a promise, with an optional query context after the
+options, read on the worker's pooled asynchronous connections. Without SQL
+functions it answers the blocking read.
+
 =head2 erasure_jobs_by_status
 
 Takes a status and the options. Returns the erasure jobs in that status,
 earliest C<scheduled_at> first.
+
+=head2 erasure_jobs_by_status_p
+
+L</erasure_jobs_by_status> as a promise, with an optional query context
+after the status and the options, read on the worker's pooled asynchronous
+connections. Without SQL functions it answers the blocking read.
 
 =head1 DIAGNOSTICS
 

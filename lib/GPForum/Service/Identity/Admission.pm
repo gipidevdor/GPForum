@@ -3,7 +3,7 @@
 
 package GPForum::Service::Identity::Admission;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use Mojo::JSON qw(true false);
 use GPForum::Infrastructure::SqlFunction;
@@ -17,8 +17,24 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 has tokens    => sub { return GPForum::Service::SessionToken->new; };
 
 sub overview ( $self, $actor ) {
-    my $row =
-      $self->functions->row( 'admin_registration_state', { actor => $actor } );
+    return _overview(
+        $self->functions->row(
+            'admin_registration_state', { actor => $actor }
+        )
+    );
+}
+
+# The registration page's read on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own.
+async sub overview_p ( $self, $actor, $context = undef ) {
+    return _overview(
+        await $self->functions->row_p(
+            'admin_registration_state', { actor => $actor }, $context
+        )
+    );
+}
+
+sub _overview ($row) {
     return $row ? $row->{result} : { status => 'forbidden' };
 }
 
@@ -104,6 +120,11 @@ returns the invitation id without a secret: revoke and issue another if lost.
 =head2 overview
 
 Reads policy, up to 100 waiting accounts and 100 recent invitations for staff.
+
+=head2 overview_p
+
+L</overview> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections.
 
 =head2 change
 

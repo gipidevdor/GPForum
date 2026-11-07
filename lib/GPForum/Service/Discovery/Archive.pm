@@ -11,6 +11,7 @@ use File::Temp;
 use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Discovery::Mbox;
+use Mojo::Promise;
 
 our $VERSION = '0.001';
 
@@ -75,6 +76,14 @@ sub _verified ( $self, $post, $envelope ) {
 sub key_set ($self) {
     my %keys = %{ $self->signer->trusted_keys };
     return { keys => [ map { $keys{$_} } sort keys %keys ] };
+}
+
+# The key set answered in the worker. It reads no database: the signer
+# reads its key files once and keeps them, so the fork call_p's fallback
+# made per request opened a PostgreSQL connection for nothing, and read the
+# files again in a child that kept nothing.
+sub key_set_p ( $self, $context = undef ) {
+    return Mojo::Promise->resolve->then( sub { return $self->key_set; } );
 }
 
 sub spool_p ( $self, $kind, $id, $viewer, $context = undef ) {
@@ -217,6 +226,12 @@ the post, and throws as L</signature> does.
 =head2 key_set
 
 Returns the public JWK set trusted by the server filesystem.
+
+=head2 key_set_p
+
+L</key_set> as a promise, answered in the calling process: it reads no
+database, and the signer keeps the keys it read. An optional query context
+last is accepted and unused.
 
 =head2 spool
 

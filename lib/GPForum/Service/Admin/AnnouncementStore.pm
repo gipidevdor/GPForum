@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::AnnouncementStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use Mojo::Promise;
 
@@ -108,6 +108,13 @@ sub retire_announcement ( $self, $input ) {
 sub list_announcements ( $self, $options = undef ) {
     return $self->_functions->rows( 'admin_list_announcements',
         { row_limit => $options->{limit} || $DEFAULT_LIMIT } );
+}
+
+# The announcements page's list on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own.
+async sub list_announcements_p ( $self, $options = undef, $context = undef ) {
+    return await $self->_functions->rows_p( 'admin_list_announcements',
+        { row_limit => $options->{limit} || $DEFAULT_LIMIT }, $context );
 }
 
 sub active_announcements_p ( $self, $options = undef, $context = undef ) {
@@ -242,6 +249,11 @@ returns nothing.
 =head2 list_announcements
 
 Every announcement, newest first, up to C<limit> (50 by default).
+
+=head2 list_announcements_p
+
+L</list_announcements> as a promise, with an optional query context last,
+read on the worker's pooled asynchronous connections.
 
 =head2 active_announcements
 

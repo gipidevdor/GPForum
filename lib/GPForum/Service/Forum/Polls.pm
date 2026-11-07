@@ -3,7 +3,7 @@
 
 package GPForum::Service::Forum::Polls;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::Id;
@@ -14,8 +14,29 @@ __PACKAGE__->requires('schema');
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub overview ( $self, $actor, $thread_id ) {
-    my $row = $self->functions->row( 'forum_poll_read',
-        { actor => $actor, thread_id => $thread_id } );
+    return _overview(
+        $self->functions->row(
+            'forum_poll_read', _overview_values( $actor, $thread_id )
+        )
+    );
+}
+
+# The poll page as the web worker reads it, on its pooled asynchronous
+# connections rather than in a forked child with a connection of its own.
+async sub overview_p ( $self, $actor, $thread_id, $context = undef ) {
+    return _overview(
+        await $self->functions->row_p(
+            'forum_poll_read', _overview_values( $actor, $thread_id ),
+            $context
+        )
+    );
+}
+
+sub _overview_values ( $actor, $thread_id ) {
+    return { actor => $actor, thread_id => $thread_id };
+}
+
+sub _overview ($row) {
     return $row ? $row->{result} : { status => 'not_found' };
 }
 
@@ -53,6 +74,11 @@ closure; results expose totals and only the viewer's own selections.
 =head2 overview
 
 Returns a permission-filtered poll, or a not-found result.
+
+=head2 overview_p
+
+L</overview> as a promise, with the request's optional query context last,
+read on the worker's pooled asynchronous connections.
 
 =head2 change
 

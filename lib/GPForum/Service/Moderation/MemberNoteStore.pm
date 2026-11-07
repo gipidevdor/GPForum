@@ -4,7 +4,7 @@
 package GPForum::Service::Moderation::MemberNoteStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -134,14 +134,33 @@ sub for_reports ( $self, $report_ids, $per_member = $PER_REPORT ) {
     my @ids = grep { _is_uuid($_) } @{ $report_ids // [] };
     return {} if !@ids;
 
+    return _by_report(
+        $self->_functions->rows(
+            'moderation_member_notes_for_reports',
+            { report_ids => \@ids, per_member => $per_member }
+        )
+    );
+}
+
+# The report queue's notes on the worker's pooled asynchronous connections,
+# not a forked child with a connection of its own. It reads the default
+# number of notes per member, so the query context can follow the ids.
+async sub for_reports_p ( $self, $report_ids, $context = undef ) {
+    my @ids = grep { _is_uuid($_) } @{ $report_ids // [] };
+    return {} if !@ids;
+
+    return _by_report(
+        await $self->_functions->rows_p(
+            'moderation_member_notes_for_reports',
+            { report_ids => \@ids, per_member => $PER_REPORT },
+            $context
+        )
+    );
+}
+
+sub _by_report ($rows) {
     my %by_report;
-    for my $row (
-        @{
-            $self->_functions->rows( 'moderation_member_notes_for_reports',
-                { report_ids => \@ids, per_member => $per_member } )
-        }
-      )
-    {
+    for my $row ( @{$rows} ) {
         my $entry = $by_report{ $row->{report_id} } //= {
             subject_user_id  => $row->{subject_user_id},
             subject_username => $row->{subject_username},
@@ -243,6 +262,12 @@ The notes about a member, newest first, with their authors and editors.
 =head2 for_reports
 
 The member each report is about, with their newest notes.
+
+=head2 for_reports_p
+
+L</for_reports> with the default three notes per member, as a promise, with
+an optional query context after the report ids, read on the worker's pooled
+asynchronous connections.
 
 =head2 maximum_body
 

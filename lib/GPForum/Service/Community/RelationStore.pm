@@ -4,7 +4,7 @@
 package GPForum::Service::Community::RelationStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
@@ -96,6 +96,15 @@ sub list_for_user ( $self, $owner_user_id ) {
         { owner_user_id => $owner_user_id } );
 }
 
+# The settings page's list on the worker's pooled asynchronous connections.
+async sub list_for_user_p ( $self, $owner_user_id, $context = undef ) {
+    return $self->list_for_user($owner_user_id)
+      if !$self->functions || !defined $owner_user_id;
+
+    return await $self->functions->rows_p( 'community_relation_list',
+        { owner_user_id => $owner_user_id }, $context );
+}
+
 # The kind of relation the owner holds against the other member, or undef.
 sub relation_between ( $self, $owner_user_id, $other_user_id ) {
     return undef
@@ -106,6 +115,26 @@ sub relation_between ( $self, $owner_user_id, $other_user_id ) {
 
     my $row = $self->functions->row( 'community_relation_between',
         { owner_user_id => $owner_user_id, other_user_id => $other_user_id } );
+
+    return $row ? $row->{kind} : undef;
+}
+
+# The profile page's relation on the worker's pooled asynchronous
+# connections. The cases relation_between answers without reading are
+# answered by it.
+async sub relation_between_p ( $self, $owner_user_id, $other_user_id,
+    $context = undef )
+{
+    return $self->relation_between( $owner_user_id, $other_user_id )
+      if !$self->functions
+      || !defined $owner_user_id
+      || !defined $other_user_id
+      || $owner_user_id eq $other_user_id;
+
+    my $row =
+      await $self->functions->row_p( 'community_relation_between',
+        { owner_user_id => $owner_user_id, other_user_id => $other_user_id },
+        $context );
 
     return $row ? $row->{kind} : undef;
 }
@@ -190,9 +219,20 @@ Takes a member off the list by username; answers how many rows went.
 The owner's list, newest change first, with each member's username and
 display name.
 
+=head2 list_for_user_p
+
+L</list_for_user> as a promise, with an optional query context last, read
+on the worker's pooled asynchronous connections. Without SQL functions it
+answers the blocking read.
+
 =head2 relation_between
 
 The kind the owner holds against another member, or undef.
+
+=head2 relation_between_p
+
+L</relation_between> as a promise, with an optional query context last,
+read on the worker's pooled asynchronous connections.
 
 =head2 blocks
 

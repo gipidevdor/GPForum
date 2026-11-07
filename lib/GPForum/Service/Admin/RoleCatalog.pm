@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::RoleCatalog;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -261,12 +261,11 @@ sub list_roles ( $self, $options ) {
     $options ||= {};
 
     if ( $self->functions ) {
-        return [
-            map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows( 'admin_list_roles',
-                    { row_limit => $options->{limit} } )
-            }
-        ];
+        return _result_rows(
+            $self->functions->rows(
+                'admin_list_roles', { row_limit => $options->{limit} }
+            )
+        );
     }
 
     my $search = $self->schema->resultset('Role')->search_rs(
@@ -284,12 +283,11 @@ sub list_permissions ( $self, $options ) {
     $options ||= {};
 
     if ( $self->functions ) {
-        return [
-            map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows( 'admin_list_permissions',
-                    { row_limit => $options->{limit} } )
-            }
-        ];
+        return _result_rows(
+            $self->functions->rows(
+                'admin_list_permissions', { row_limit => $options->{limit} }
+            )
+        );
     }
 
     my $search = $self->schema->resultset('Permission')->search_rs(
@@ -305,6 +303,33 @@ sub list_permissions ( $self, $options ) {
     );
 
     return [ rows_in($search) ];
+}
+
+# The dashboard's and the roles page's reads on the worker's pooled
+# asynchronous connections, not a forked child with a connection of its own.
+async sub list_roles_p ( $self, $options, $context = undef ) {
+    return $self->list_roles($options) if !$self->functions;
+    return _result_rows(
+        await $self->functions->rows_p(
+            'admin_list_roles', { row_limit => ( $options || {} )->{limit} },
+            $context
+        )
+    );
+}
+
+async sub list_permissions_p ( $self, $options, $context = undef ) {
+    return $self->list_permissions($options) if !$self->functions;
+    return _result_rows(
+        await $self->functions->rows_p(
+            'admin_list_permissions',
+            { row_limit => ( $options || {} )->{limit} },
+            $context
+        )
+    );
+}
+
+sub _result_rows ($rows) {
+    return [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
 }
 
 sub _finish_leftover_role ( $self, $existing, $input ) {
@@ -623,11 +648,23 @@ Takes a hash reference (or undef) with an optional C<limit>; without one
 every role is returned. Returns an array reference of C<Role> rows ordered
 by name.
 
+=head2 list_roles_p
+
+L</list_roles> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections. Without SQL functions it
+answers the blocking read.
+
 =head2 list_permissions
 
 Takes a hash reference (or undef) with an optional C<limit>; without one
 every permission is returned. Returns an array reference of C<Permission>
 rows ordered by resource type, action and name.
+
+=head2 list_permissions_p
+
+L</list_permissions> as a promise, with an optional query context last,
+read on the worker's pooled asynchronous connections. Without SQL functions
+it answers the blocking read.
 
 =head1 DIAGNOSTICS
 

@@ -315,17 +315,29 @@ sub mark_read ( $self, $conversation_id, $user_id ) {
 # Whom the member would write to by that name, with the conversation the
 # two already hold: undef for nobody to write to.
 sub recipient ( $self, $user_id, $username ) {
-    return undef
-      if !$self->functions
-      || !defined $user_id
-      || !defined $username
-      || !length $username
-      || length $username > $MAXIMUM_USERNAME;
+    return undef if !$self->_names_recipient( $user_id, $username );
 
     return $self->functions->row(
         'community_message_conversation_with',
         { user_id => $user_id, username => $username }
     );
+}
+
+# The compose page's lookup on the worker's pooled asynchronous connections.
+async sub recipient_p ( $self, $user_id, $username, $context = undef ) {
+    return undef if !$self->_names_recipient( $user_id, $username );
+
+    return await $self->functions->row_p( 'community_message_conversation_with',
+        { user_id => $user_id, username => $username }, $context );
+}
+
+sub _names_recipient ( $self, $user_id, $username ) {
+    return
+         $self->functions
+      && defined $user_id
+      && defined $username
+      && length $username
+      && length $username <= $MAXIMUM_USERNAME ? 1 : 0;
 }
 
 # The message the member may report -- another member's, in a conversation
@@ -505,6 +517,11 @@ C<notifications_read>.
 
 Whom the member would write to by that name, with the conversation the two
 already hold, or undef.
+
+=head2 recipient_p
+
+L</recipient> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections.
 
 =head2 reportable
 

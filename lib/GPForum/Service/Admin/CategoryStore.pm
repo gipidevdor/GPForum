@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::CategoryStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -50,12 +50,11 @@ sub update_category ( $self, $input ) {
 sub list_categories ( $self, $options ) {
     $options ||= {};
     if ( $self->functions ) {
-        return [
-            map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows( 'admin_list_categories',
-                    { row_limit => $options->{limit} } )
-            }
-        ];
+        return _category_rows(
+            $self->functions->rows(
+                'admin_list_categories', { row_limit => $options->{limit} }
+            )
+        );
     }
     my $search = $self->schema->resultset('Category')->search_rs(
         { deleted_at => undef },
@@ -76,6 +75,22 @@ sub list_categories ( $self, $options ) {
     }
 
     return [];
+}
+
+# The categories page's list on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own.
+async sub list_categories_p ( $self, $options, $context = undef ) {
+    return $self->list_categories($options) if !$self->functions;
+    return _category_rows(
+        await $self->functions->rows_p(
+            'admin_list_categories',
+            { row_limit => ( $options || {} )->{limit} }, $context
+        )
+    );
+}
+
+sub _category_rows ($rows) {
+    return [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
 }
 
 # A live category already holding the slug in the space is this create,
@@ -564,6 +579,12 @@ C<updated_at>, or emit another event, audit, or outbox row.
 =head2 list_categories
 
 Returns visible categories ordered by position and title.
+
+=head2 list_categories_p
+
+L</list_categories> as a promise, with an optional query context last, read
+on the worker's pooled asynchronous connections. Without SQL functions it
+answers the blocking read.
 
 =head1 DIAGNOSTICS
 

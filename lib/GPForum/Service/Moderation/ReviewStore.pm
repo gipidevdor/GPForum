@@ -4,7 +4,7 @@
 package GPForum::Service::Moderation::ReviewStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -104,21 +104,40 @@ sub queue ( $self, $limit = $QUEUE_LIMIT ) {
         { row_limit => $limit } );
 }
 
+# The review queue's read on the worker's pooled asynchronous connections,
+# not a forked child with a connection of its own.
+async sub queue_p ( $self, $limit = $QUEUE_LIMIT, $context = undef ) {
+    return await $self->_functions->rows_p( 'moderation_review_queue',
+        { row_limit => $limit }, $context );
+}
+
 # The author's own held posts: pending, and those decided lately.
 sub mine ( $self, $user_id, $viewer, $limit = $QUEUE_LIMIT ) {
     return [] if !GPForum::Infrastructure::Id->is_uuid_spelling($user_id);
 
-    return $self->_functions->rows(
-        'moderation_review_mine',
-        {
-            user_id      => $user_id,
-            row_limit    => $limit,
-            member       => $viewer->member      ? 1 : 0,
-            global_read  => $viewer->global_read ? 1 : 0,
-            category_ids => $viewer->category_ids,
-            space_ids    => $viewer->space_ids,
-        }
-    );
+    return $self->_functions->rows( 'moderation_review_mine',
+        _mine_values( $user_id, $viewer, $limit ) );
+}
+
+# The /pending page's read, at the default limit, on the worker's pooled
+# asynchronous connections. The page passes no limit, so the query context
+# follows the viewer.
+async sub mine_p ( $self, $user_id, $viewer, $context = undef ) {
+    return [] if !GPForum::Infrastructure::Id->is_uuid_spelling($user_id);
+
+    return await $self->_functions->rows_p( 'moderation_review_mine',
+        _mine_values( $user_id, $viewer, $QUEUE_LIMIT ), $context );
+}
+
+sub _mine_values ( $user_id, $viewer, $limit ) {
+    return {
+        user_id      => $user_id,
+        row_limit    => $limit,
+        member       => $viewer->member      ? 1 : 0,
+        global_read  => $viewer->global_read ? 1 : 0,
+        category_ids => $viewer->category_ids,
+        space_ids    => $viewer->space_ids,
+    };
 }
 
 # One held post, locked for the rest of the transaction; undef when there
@@ -269,11 +288,22 @@ again answers the entry it made.
 
 The pending posts, oldest first, with how many are pending in all.
 
+=head2 queue_p
+
+L</queue> as a promise, with an optional query context after the limit,
+read on the worker's pooled asynchronous connections.
+
 =head2 mine
 
 The author's own held posts: pending, and decided in the last 30 days, the
 place each went to read with the viewer's scopes (a place they cannot read
 names no title or id).
+
+=head2 mine_p
+
+L</mine> at its default limit as a promise: the author's id, the viewer and
+an optional query context, read on the worker's pooled asynchronous
+connections.
 
 =head2 take
 

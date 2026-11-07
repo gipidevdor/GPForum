@@ -4,7 +4,7 @@
 package GPForum::Service::Community::AvatarStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -144,6 +144,17 @@ sub status ( $self, $user_id ) {
         { user_id => $user_id } ) // {};
 }
 
+# The settings page's read on the worker's pooled asynchronous connections.
+async sub status_p ( $self, $user_id, $context = undef ) {
+    return {} if !_is_uuid($user_id);
+
+    return (
+        await $self->_functions->row_p(
+            'community_avatar_status', { user_id => $user_id }, $context
+        )
+    ) // {};
+}
+
 # The stored square of the picture a member shows, at a side: its
 # attachment, object key, media type and size, or undef.
 sub image_p ( $self, $user_id, $side, $context = undef ) {
@@ -278,6 +289,11 @@ Takes a member id. Returns C<attachment_id> and C<shown_at> for the picture
 shown, C<pending_attachment_id>, C<pending_state> (C<checking>,
 C<unreadable> or C<refused>) and C<pending_at> for the one waiting, or an
 empty hash.
+
+=head2 status_p
+
+L</status> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections.
 
 =head2 image
 

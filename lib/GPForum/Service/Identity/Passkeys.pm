@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 GPForum Contributors
 # SPDX-License-Identifier: BSD-3-Clause
 package GPForum::Service::Identity::Passkeys;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use Const::Fast;
 use Crypt::URandom qw(urandom);
@@ -91,12 +91,24 @@ sub verifier ($self) {
 
 sub listed ( $self, $actor ) {
     return [] if !$self->enabled;
+    return [ map { $_->{result} }
+          @{ $self->functions->rows( $self->_listed_values($actor) ) } ];
+}
+
+# The settings page's list on the worker's pooled asynchronous connections.
+async sub listed_p ( $self, $actor, $context = undef ) {
+    return $self->listed($actor) if !$self->enabled || !$self->functions;
     return [
-        map { $_->{result} } @{
-            $self->functions->rows( 'identity_passkey_list',
-                { user_id => $actor, rp_id => $self->rp_id } )
-        }
+        map { $_->{result} }
+          @{ await $self->functions->rows_p( $self->_listed_values($actor),
+                $context )
+          }
     ];
+}
+
+sub _listed_values ( $self, $actor ) {
+    return ( 'identity_passkey_list',
+        { user_id => $actor, rp_id => $self->rp_id } );
 }
 
 sub begin ( $self, $input ) {
@@ -337,6 +349,12 @@ Builds the bounded WebAuthn verifier for that origin and RP.
 =head2 listed
 
 Lists at most ten active keys belonging to the member for this RP.
+
+=head2 listed_p
+
+L</listed> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections. Without passkeys or SQL functions
+it answers the blocking list.
 
 =head2 begin
 

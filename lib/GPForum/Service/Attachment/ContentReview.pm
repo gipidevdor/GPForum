@@ -3,7 +3,7 @@
 
 package GPForum::Service::Attachment::ContentReview;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -67,23 +67,46 @@ sub submit ( $self, $id, $input ) {
 }
 
 sub queue ( $self, $after_at = undef, $after_id = undef ) {
-    return [
-        map { $_->{result} } @{
-            $self->functions->rows(
-                'attachment_review_queue',
-                {
-                    after_at  => $after_at,
-                    after_id  => $after_id,
-                    row_limit => $FETCH_LIMIT,
-                }
-            )
-        }
+    return [ map { $_->{result} }
+          @{ $self->functions->rows( _queue_values( $after_at, $after_id ) ) }
     ];
+}
+
+# The media review page's read on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own.
+async sub queue_p ( $self, $after_at = undef, $after_id = undef,
+    $context = undef )
+{
+    return [
+        map { $_->{result} }
+          @{ await $self->functions->rows_p(
+                _queue_values( $after_at, $after_id ), $context )
+          }
+    ];
+}
+
+sub _queue_values ( $after_at, $after_id ) {
+    return (
+        'attachment_review_queue',
+        {
+            after_at  => $after_at,
+            after_id  => $after_id,
+            row_limit => $FETCH_LIMIT,
+        }
+    );
 }
 
 sub find ( $self, $id ) {
     my $row = $self->functions->row( 'attachment_review_find',
         { attachment_id => $id } );
+    return $row ? $row->{result} : undef;
+}
+
+# The same upload read on the worker's pooled asynchronous connections.
+async sub find_p ( $self, $id, $context = undef ) {
+    return $self->find($id) if !$self->functions;
+    my $row = await $self->functions->row_p( 'attachment_review_find',
+        { attachment_id => $id }, $context );
     return $row ? $row->{result} : undef;
 }
 
@@ -187,10 +210,19 @@ policy automatically; third-party content enters the staff review queue.
 
 Returns at most 51 pending entries, ordered with a timestamp and UUID keyset cursor.
 
+=head2 queue_p
+
+L</queue> as a promise, with an optional query context after the two cursor
+values, read on the worker's pooled asynchronous connections.
 
 =head2 find
 
 Returns one live upload and its review details for an authorized staff preview.
+
+=head2 find_p
+
+L</find> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections.
 
 
 =head2 decide

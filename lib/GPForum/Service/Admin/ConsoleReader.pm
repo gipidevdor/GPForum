@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::ConsoleReader;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -72,15 +72,7 @@ sub list_users ( $self, $options ) {
     $options ||= {};
 
     if ( $self->functions ) {
-        return $self->functions->rows(
-            'admin_console_users',
-            {
-                status => has_text( $options->{status} )
-                ? $options->{status}
-                : undef,
-                row_limit => _limit($options)
-            }
-        );
+        return $self->functions->rows( _users_values($options) );
     }
     my $query = { deleted_at => undef };
     if ( has_text( $options->{status} ) ) {
@@ -97,6 +89,26 @@ sub list_users ( $self, $options ) {
     );
 
     return [ map { _row_hash( $_, @USER_COLUMNS ) } rows_in($search) ];
+}
+
+# The console pages' reads on the worker's pooled asynchronous connections,
+# not a forked child with a connection of its own each.
+async sub list_users_p ( $self, $options, $context = undef ) {
+    return $self->list_users($options) if !$self->functions;
+    return await $self->functions->rows_p( _users_values( $options || {} ),
+        $context );
+}
+
+sub _users_values ($options) {
+    return (
+        'admin_console_users',
+        {
+            status => has_text( $options->{status} )
+            ? $options->{status}
+            : undef,
+            row_limit => _limit($options)
+        }
+    );
 }
 
 # The only address a console action may mail on an administrator's behalf:
@@ -116,6 +128,13 @@ sub email_of ( $self, $user_id ) {
     );
 
     return column_of( $search->single, 'email_normalized' );
+}
+
+async sub email_of_p ( $self, $user_id, $context = undef ) {
+    return $self->email_of($user_id) if !$self->functions;
+    my $row = await $self->functions->row_p( 'admin_console_email',
+        { user_id => $user_id }, $context );
+    return $row ? $row->{email_normalized} : undef;
 }
 
 sub list_reports ( $self, $options ) {
@@ -158,6 +177,25 @@ sub async_jobs ( $self, $options ) {
     };
 }
 
+async sub async_jobs_p ( $self, $options, $context = undef ) {
+    return $self->async_jobs($options) if !$self->functions;
+    $options ||= {};
+    my $dead_letters =
+      await $self->functions->rows_p( _dead_letters_values($options),
+        $context );
+    my $outbox =
+      await $self->functions->rows_p( _outbox_values($options), $context );
+    my $dead_letter_total = await $self->_count_p( 'DeadLetter',    $context );
+    my $outbox_total      = await $self->_count_p( 'OutboxMessage', $context );
+
+    return {
+        dead_letters         => $dead_letters,
+        outbox_messages      => $outbox,
+        dead_letter_total    => $dead_letter_total,
+        outbox_message_total => $outbox_total,
+    };
+}
+
 sub count_dead_letters ($self) {
     return $self->_count('DeadLetter');
 }
@@ -170,9 +208,8 @@ sub _count ( $self, $source ) {
     my $count;
     try {
         $count =
-          $self->functions
-          ? $self->functions->row( 'admin_console_counts',
-            { dead_letters => $source eq 'DeadLetter' ? 1 : 0 } )->{total}
+            $self->functions
+          ? $self->functions->row( _count_values($source) )->{total}
           : $self->schema->resultset($source)->count;
     }
     catch ($error) {
@@ -182,19 +219,30 @@ sub _count ( $self, $source ) {
     return $count // 0;
 }
 
+async sub _count_p ( $self, $source, $context ) {
+    my $count;
+    try {
+        $count =
+          ( await $self->functions->row_p( _count_values($source), $context ) )
+          ->{total};
+    }
+    catch ($error) {
+        return 0;
+    };
+
+    return $count // 0;
+}
+
+sub _count_values ($source) {
+    return ( 'admin_console_counts',
+        { dead_letters => $source eq 'DeadLetter' ? 1 : 0 } );
+}
+
 sub list_outbox ( $self, $options ) {
     $options ||= {};
 
     if ( $self->functions ) {
-        return $self->functions->rows(
-            'admin_console_outbox',
-            {
-                status => has_text( $options->{status} )
-                ? $options->{status}
-                : undef,
-                row_limit => _limit($options)
-            }
-        );
+        return $self->functions->rows( _outbox_values($options) );
     }
     my $query = {};
     if ( has_text( $options->{status} ) ) {
@@ -217,8 +265,7 @@ sub list_dead_letters ( $self, $options ) {
     $options ||= {};
 
     if ( $self->functions ) {
-        return $self->functions->rows( 'admin_console_dead_letters',
-            { row_limit => _limit($options) } );
+        return $self->functions->rows( _dead_letters_values($options) );
     }
     my $search = $self->schema->resultset('DeadLetter')->search_rs(
         {},
@@ -234,6 +281,22 @@ sub list_dead_letters ( $self, $options ) {
 
     return [ map { _row_hash( $_, @DEAD_LETTER_COLUMNS, 'replay_status' ) }
           rows_in($search) ];
+}
+
+sub _outbox_values ($options) {
+    return (
+        'admin_console_outbox',
+        {
+            status => has_text( $options->{status} )
+            ? $options->{status}
+            : undef,
+            row_limit => _limit($options)
+        }
+    );
+}
+
+sub _dead_letters_values ($options) {
+    return ( 'admin_console_dead_letters', { row_limit => _limit($options) } );
 }
 
 # Whether each dead letter was replayed, and how its replay is doing, in the
@@ -356,12 +419,24 @@ then by username, each a hash reference of C<id>, C<username>,
 C<display_name>, C<email_normalized>, C<status>, C<trust_level>,
 C<email_verified_at>, C<created_at>, C<updated_at> and C<deleted_at>.
 
+=head2 list_users_p
+
+L</list_users> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections. Without SQL functions it
+answers the blocking read.
+
 =head2 email_of
 
 Takes a user id. Returns that member's normalized address, or undef when
 there is no such member or the account is deleted. It is the only address
 a console action may mail on an administrator's behalf: their own, for
 L<GPForum::Service::Admin::Diagnostics>' test message.
+
+=head2 email_of_p
+
+L</email_of> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections. Without SQL functions it answers
+the blocking read.
 
 =head2 list_reports
 
@@ -378,6 +453,13 @@ Takes a hash reference (or undef) of the options C<list_outbox> and
 C<list_dead_letters> take. Returns a hash reference with C<dead_letters>
 and C<outbox_messages> (the two lists) and C<dead_letter_total> and
 C<outbox_message_total> (the full counts).
+
+=head2 async_jobs_p
+
+L</async_jobs> as a promise, with an optional query context last: its four
+reads on the worker's pooled asynchronous connections, a count that fails
+reading 0 as in the blocking read. Without SQL functions it answers the
+blocking read.
 
 =head2 count_dead_letters
 

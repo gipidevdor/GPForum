@@ -6,7 +6,7 @@ package GPForum::Service::Admin::AuditReview;
 use Const::Fast;
 use MIME::Base64 qw(decode_base64url encode_base64url);
 use Scalar::Util qw(blessed);
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row qw(rows_in);
@@ -44,12 +44,8 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub recent ( $self, $options ) {
     if ( $self->functions ) {
-        return [
-            map { GPForum::Infrastructure::ResultRow::Audit->from($_) } @{
-                $self->functions->rows( 'admin_audit_recent',
-                    { row_limit => $options->{limit} || $DEFAULT_LIMIT } )
-            }
-        ];
+        return _audit_rows(
+            $self->functions->rows( _recent_values($options) ) );
     }
     return [
         _rows(
@@ -63,6 +59,50 @@ sub recent ( $self, $options ) {
             )
         )
     ];
+}
+
+# The dashboard's and the audit viewer's reads on the worker's pooled
+# asynchronous connections, not a forked child with a connection of its own.
+async sub recent_p ( $self, $options, $context = undef ) {
+    return $self->recent($options) if !$self->functions;
+    return _audit_rows(
+        await $self->functions->rows_p( _recent_values($options), $context ) );
+}
+
+async sub page_p ( $self, $filters, $page, $context = undef ) {
+    return $self->page( $filters, $page ) if !$self->functions;
+    my $limit = $page->{limit} || $DEFAULT_LIMIT;
+    return _paged(
+        $limit,
+        @{
+            _audit_rows(
+                await $self->functions->rows_p(
+                    _page_values( $filters, $page, $limit ), $context
+                )
+            )
+        }
+    );
+}
+
+sub _recent_values ($options) {
+    return ( 'admin_audit_recent',
+        { row_limit => $options->{limit} || $DEFAULT_LIMIT } );
+}
+
+sub _page_values ( $filters, $page, $limit ) {
+    return (
+        'admin_audit_page',
+        {
+            filters   => $filters,
+            after     => scalar _decode_cursor( $page->{after} ),
+            row_limit => $limit + 1
+        }
+    );
+}
+
+sub _audit_rows ($rows) {
+    return [ map { GPForum::Infrastructure::ResultRow::Audit->from($_) }
+          @{$rows} ];
 }
 
 # The audit viewer's filters, as ADR 0079 requires them: actor, action,
@@ -99,20 +139,21 @@ sub _acceptable ( $name, $value ) {
 # One page, newest first, and the cursor of the next page if there is one.
 sub page ( $self, $filters, $page ) {
     my $limit = $page->{limit} || $DEFAULT_LIMIT;
-    my @rows =
-      $self->functions
-      ? map { GPForum::Infrastructure::ResultRow::Audit->from($_) } @{
-        $self->functions->rows(
-            'admin_audit_page',
-            {
-                filters   => $filters,
-                after     => scalar _decode_cursor( $page->{after} ),
-                row_limit => $limit + 1
-            }
-        )
-      }
-      : _rows( $self->page_resultset( $filters, $page ) );
+    return _paged(
+        $limit,
+        $self->functions
+        ? @{
+            _audit_rows(
+                $self->functions->rows(
+                    _page_values( $filters, $page, $limit )
+                )
+            )
+          }
+        : _rows( $self->page_resultset( $filters, $page ) )
+    );
+}
 
+sub _paged ( $limit, @rows ) {
     my $next;
     if ( @rows > $limit ) {
         splice @rows, $limit;
@@ -240,6 +281,12 @@ keyset cursor. Audit rows are never written here.
 
 The newest rows, for the dashboard.
 
+=head2 recent_p
+
+L</recent> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections. Without SQL functions it answers
+the blocking read.
+
 =head2 filters
 
 Splits request parameters into filters to apply and values rejected because
@@ -248,6 +295,12 @@ they do not have the column's shape (a uuid, a C<YYYY-MM-DD> date, a word).
 =head2 page
 
 One page of rows and the C<next_cursor>, or undef on the last page.
+
+=head2 page_p
+
+L</page> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections. Without SQL functions it answers
+the blocking read.
 
 =head2 page_resultset
 

@@ -6,7 +6,7 @@ package GPForum::Service::Identity::SecondFactor;
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use Time::Piece ();
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -80,6 +80,19 @@ sub status ( $self, $user_id ) {
       : undef;
 
     return _status($row);
+}
+
+# The same state read on the worker's pooled asynchronous connections: the
+# security settings page and the staff check after a sign-in.
+async sub status_p ( $self, $user_id, $context = undef ) {
+    return $self->status($user_id) if !$self->functions || !_uuid($user_id);
+
+    return _status(
+        await $self->functions->row_p(
+            'identity_second_factor_status', { user_id => $user_id },
+            $context
+        )
+    );
 }
 
 # What an authenticator app is given while enrollment is pending: the
@@ -341,11 +354,25 @@ sub reset_member ( $self, $user_id, $actor_user_id ) {
 
 # Whether staff must use two-step sign-in, and who set it when.
 sub policy ($self) {
-    my $row =
-        $self->functions
-      ? $self->functions->row( 'admin_second_factor_policy', {} )
-      : undef;
+    return _policy(
+          $self->functions
+        ? $self->functions->row( 'admin_second_factor_policy', {} )
+        : undef
+    );
+}
 
+# The security page's reads on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own each.
+async sub policy_p ( $self, $context = undef ) {
+    return _policy(
+        $self->functions
+        ? await $self->functions->row_p( 'admin_second_factor_policy', {},
+            $context )
+        : undef
+    );
+}
+
+sub _policy ($row) {
     return {
         staff_required      => $row && $row->{staff_required} ? 1 : 0,
         updated_at          => $row ? $row->{updated_at}          : undef,
@@ -359,6 +386,13 @@ sub staff ($self) {
 
     return $self->functions->rows( 'admin_second_factor_staff',
         { row_limit => $STAFF_ROWS } );
+}
+
+async sub staff_p ( $self, $context = undef ) {
+    return [] if !$self->functions;
+
+    return await $self->functions->rows_p( 'admin_second_factor_staff',
+        { row_limit => $STAFF_ROWS }, $context );
 }
 
 # Requires two-step sign-in of staff, or stops: ok, unchanged, or
@@ -552,6 +586,12 @@ True when a key is configured and the function layer is there.
 The member's C<state> (C<off>, C<pending>, C<active>), C<confirmed_at>,
 C<recovery_left>, C<staff>, C<staff_required>, and the sealed secret.
 
+=head2 status_p
+
+L</status> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections. Without SQL functions, or for an
+id that is no member's, it answers the blocking read.
+
 =head2 enrollment
 
 While enrollment is pending, the secret in grouped base32 and the
@@ -611,9 +651,19 @@ C<not_found> or C<invalid>.
 
 C<staff_required>, C<updated_at>, C<updated_by_username>.
 
+=head2 policy_p
+
+L</policy> as a promise, with an optional query context, read on the
+worker's pooled asynchronous connections.
+
 =head2 staff
 
 The staff members with C<enabled>, those without first.
+
+=head2 staff_p
+
+L</staff> as a promise, with an optional query context, read on the
+worker's pooled asynchronous connections.
 
 =head2 set_policy
 

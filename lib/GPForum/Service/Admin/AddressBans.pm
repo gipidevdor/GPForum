@@ -76,6 +76,12 @@ sub address ( $self, $value ) {
     return _written( $parsed->{family}, $parsed->{bits} );
 }
 
+# The address parses in Perl and reads nothing: answered in the worker
+# rather than in a forked child.
+async sub address_p ( $self, $value, $context = undef ) {
+    return $self->address($value);
+}
+
 # A range as staff write it -- an address, or an address and a prefix
 # length -- made the network PostgreSQL stores: the host bits cleared, an
 # IPv4-mapped range made IPv4. Answers { range, family, prefix }, or
@@ -238,6 +244,14 @@ sub list ( $self, $limit = $LIST_LIMIT ) {
         { now => $self->clock->now_iso8601, row_limit => $limit } );
 }
 
+# The bans page's list on the worker's pooled asynchronous connections. It
+# reads the default number of bans, so the query context comes first.
+async sub list_p ( $self, $context = undef ) {
+    return await $self->_functions->rows_p( 'admin_address_bans',
+        { now => $self->clock->now_iso8601, row_limit => $LIST_LIMIT },
+        $context );
+}
+
 # The live ban covering an address -- the strongest scope, then the longest
 # -- as { ban_id, address_range, scope, expires_at }; undef when none does,
 # when the value is no address, and on the in-memory doubles.
@@ -364,6 +378,11 @@ one transaction. The lookup every write request makes is L</covering>.
 
 An address as the lookup reads it, or undef.
 
+=head2 address_p
+
+L</address> as a promise, with an optional query context last; it reads no
+database.
+
 =head2 range
 
 A written range made the stored network, or why it cannot be.
@@ -391,6 +410,11 @@ Lifts a live ban.
 =head2 list
 
 The bans, live first.
+
+=head2 list_p
+
+L</list> with the default limit of 200, as a promise, with an optional
+query context, read on the worker's pooled asynchronous connections.
 
 =head2 covering
 

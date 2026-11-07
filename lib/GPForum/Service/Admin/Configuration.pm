@@ -294,6 +294,15 @@ sub general_page ($self) {
     };
 }
 
+# The page from the state the request already loaded, or from a state read
+# on the worker's pooled asynchronous connections: no forked child.
+async sub general_page_p ( $self, $context = undef ) {
+    if ( !exists $self->{state} ) {
+        $self->state( await $self->load_p($context) );
+    }
+    return $self->general_page;
+}
+
 sub save_general ( $self, $input ) {
     my @invalid;
     my $prepared = $self->_general_values( $input, \@invalid );
@@ -509,6 +518,11 @@ Returns the explicit editable forum settings catalogue, with types, secrecy and 
 =head2 general_page
 
 Returns grouped, redacted presentation data; secret input values are always blank.
+
+=head2 general_page_p
+
+L</general_page> as a promise, with an optional query context. A state not
+yet loaded is read with L</load_p> first.
 
 =head2 save_general
 

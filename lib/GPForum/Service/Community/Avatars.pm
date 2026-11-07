@@ -4,7 +4,7 @@
 package GPForum::Service::Community::Avatars;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row qw(column_of);
@@ -287,15 +287,40 @@ sub picture ( $self, $user_id, $avatar_id, $side ) {
 # any, and the state of the one waiting.
 sub status ( $self, $user_id ) {
     my $status = $self->store->status($user_id);
-    if ( $self->review && $status->{pending_attachment_id} ) {
-        my $held = $self->review->find( $status->{pending_attachment_id} );
-        if (   $held
-            && $held->{status} eq 'pending'
-            && $held->{scan_status} ne 'infected'
-            && $held->{scan_status} ne 'failed' )
-        {
-            $status->{pending_state} = 'checking';
-        }
+    my $held =
+        $self->_reviewed($status)
+      ? $self->review->find( $status->{pending_attachment_id} )
+      : undef;
+
+    return $self->_status( $status, $held );
+}
+
+# The same answer read on the worker's pooled asynchronous connections. A
+# store without them (a test double) answers the blocking read.
+async sub status_p ( $self, $user_id, $context = undef ) {
+    return $self->status($user_id) if !$self->store->can('status_p');
+    my $status = await $self->store->status_p( $user_id, $context );
+    my $held =
+      $self->_reviewed($status)
+      ? await $self->review->find_p( $status->{pending_attachment_id},
+        $context )
+      : undef;
+
+    return $self->_status( $status, $held );
+}
+
+# Whether content review is asked about the picture waiting.
+sub _reviewed ( $self, $status ) {
+    return $self->review && $status->{pending_attachment_id} ? 1 : 0;
+}
+
+sub _status ( $self, $status, $held ) {
+    if (   $held
+        && $held->{status} eq 'pending'
+        && $held->{scan_status} ne 'infected'
+        && $held->{scan_status} ne 'failed' )
+    {
+        $status->{pending_state} = 'checking';
     }
 
     return {
@@ -497,6 +522,13 @@ C<< { content, media_type, attachment_id, current } >>, or undef.
 
 Takes a member id. Returns C<available>, C<shown_id>, C<shown_at>,
 C<pending_state> and C<pending_at>.
+
+=head2 status_p
+
+L</status> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections: the picture's row and, for one
+waiting, its content review. A store without asynchronous reads answers
+the blocking read.
 
 =head2 erase_files
 

@@ -4,7 +4,7 @@
 package GPForum::Service::Moderation::ReportStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row qw(column_of rows_in);
@@ -261,19 +261,31 @@ sub resolve_report ( $self, $report_id, $resolution, $actor_user_id = undef ) {
 
 sub list_queue ( $self, $options ) {
     if ( $self->functions ) {
-        return [
-            map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows(
-                    'moderation_report_queue',
-                    {
-                        status    => $options->{status} || $STATUS_OPEN,
-                        row_limit => $options->{limit}  || $DEFAULT_QUEUE_LIMIT
-                    }
-                )
-            }
-        ];
+        return _queue_rows( $self->functions->rows( _queue_values($options) ) );
     }
     return [ rows_in( $self->queue_resultset($options) ) ];
+}
+
+# The report queue's read on the worker's pooled asynchronous connections,
+# not a forked child with a connection of its own.
+async sub list_queue_p ( $self, $options, $context = undef ) {
+    return $self->list_queue($options) if !$self->functions;
+    return _queue_rows(
+        await $self->functions->rows_p( _queue_values($options), $context ) );
+}
+
+sub _queue_values ($options) {
+    return (
+        'moderation_report_queue',
+        {
+            status    => $options->{status} || $STATUS_OPEN,
+            row_limit => $options->{limit}  || $DEFAULT_QUEUE_LIMIT
+        }
+    );
+}
+
+sub _queue_rows ($rows) {
+    return [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
 }
 
 # The resultset the moderation queue executes.
@@ -472,6 +484,12 @@ an empty list (undef in scalar context) when there is no such report.
 
 Takes a hash reference of the options C<queue_resultset> takes. Returns an
 array reference of the report rows.
+
+=head2 list_queue_p
+
+L</list_queue> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections. Without SQL functions it
+answers the blocking read.
 
 =head2 queue_resultset
 

@@ -3,7 +3,7 @@
 
 package GPForum::Service::Moderation::ThreadTransfers;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::SqlFunction;
@@ -18,12 +18,40 @@ __PACKAGE__->requires('schema');
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub history ( $self, $actor ) {
-    my $row = $self->functions->row( 'moderation_thread_transfers',
-        { actor => $actor } );
+    return _history(
+        $self->functions->row(
+            'moderation_thread_transfers', { actor => $actor }
+        )
+    );
+}
+
+# The transfers page's reads on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own each.
+async sub history_p ( $self, $actor, $context = undef ) {
+    return _history(
+        await $self->functions->row_p(
+            'moderation_thread_transfers', { actor => $actor }, $context
+        )
+    );
+}
+
+sub _history ($row) {
     return $row ? $row->{result} : { status => 'forbidden' };
 }
 
 sub picker ( $self, $input ) {
+    my ( $refusal, @call ) = _picker_values($input);
+    return $refusal // _picker_page( $self->functions->row(@call) );
+}
+
+async sub picker_p ( $self, $input, $context = undef ) {
+    my ( $refusal, @call ) = _picker_values($input);
+    return $refusal
+      // _picker_page( await $self->functions->row_p( @call, $context ) );
+}
+
+# A refusal, or undef and the picker function's name and values.
+sub _picker_values ($input) {
     my $source = _thread_id( $input->{source} );
     return { status => 'not_found' }
       if length( $input->{source} // q{} ) && !$source;
@@ -31,7 +59,8 @@ sub picker ( $self, $input ) {
     return { status => 'invalid' }
       if $after !~ /\A[[:digit:]]{1,12}\z/msx
       || length( $input->{query} // q{} ) > $QUERY_LENGTH;
-    my $row = $self->functions->row(
+    return (
+        undef,
         'moderation_transfer_picker',
         {
             actor          => $input->{actor},
@@ -40,6 +69,9 @@ sub picker ( $self, $input ) {
             after_position => $after
         }
     );
+}
+
+sub _picker_page ($row) {
     my $page = $row ? $row->{result} : { status => 'forbidden' };
     if ( @{ $page->{posts} // [] } > $PICKER_PAGE ) {
         pop @{ $page->{posts} };
@@ -125,10 +157,20 @@ threads/posts and polls are refused. One command moves at most 1000 posts.
 
 The hundred most recent transfers for authorized staff.
 
+=head2 history_p
+
+L</history> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections.
+
 =head2 picker
 
 Returns bounded, permission-checked title choices and a keyset page of selectable
 replies. Destinations match the chosen source audience and category.
+
+=head2 picker_p
+
+L</picker> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections.
 
 =head2 change
 

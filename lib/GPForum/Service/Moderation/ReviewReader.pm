@@ -4,7 +4,7 @@
 package GPForum::Service::Moderation::ReviewReader;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
@@ -33,23 +33,8 @@ sub list_actions ( $self, $options ) {
     my $page =
       $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     if ( $self->functions ) {
-        my $after = $page->{after} || {};
-        my $rows  = [
-            map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows(
-                    'moderation_action_list',
-                    {
-                        target_type => $options->{target_type} || undef,
-                        target_id   => $options->{target_id}   || undef,
-                        after_at    => $after->{sort_value},
-                        after_id    => $after->{id},
-                        row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
-                    }
-                )
-            }
-        ];
-        return $self->page_window->page( $rows, $page->{limit},
-            \@ACTION_CURSOR_COLUMNS );
+        return $self->_action_page( $page,
+            $self->functions->rows( _action_values( $options, $page ) ) );
     }
     my $query = _action_query(
         {
@@ -89,24 +74,12 @@ sub list_suspensions ( $self, $options ) {
     my $page =
       $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
     if ( $self->functions ) {
-        my $after = $page->{after} || {};
-        my $rows  = [
-            map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows(
-                    'moderation_suspension_list',
-                    {
-                        user_id     => $options->{user_id} || undef,
-                        active_only => _active_only($options),
-                        now         => $self->clock->now_iso8601,
-                        after_at    => $after->{sort_value},
-                        after_id    => $after->{id},
-                        row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
-                    }
-                )
-            }
-        ];
-        return $self->page_window->page( $rows, $page->{limit},
-            \@SUSPENSION_CURSOR_COLUMNS );
+        return $self->_suspension_page(
+            $page,
+            $self->functions->rows(
+                $self->_suspension_values( $options, $page )
+            )
+        );
     }
     my $query = _suspension_query(
         {
@@ -135,6 +108,75 @@ sub list_suspensions ( $self, $options ) {
     my @rows = rows_in($search);
 
     return $self->page_window->page( \@rows,
+        $page->{limit}, \@SUSPENSION_CURSOR_COLUMNS );
+}
+
+# The moderation pages' reads on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own each.
+async sub list_actions_p ( $self, $options, $context = undef ) {
+    return $self->list_actions($options) if !$self->functions;
+    $options ||= {};
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
+    return $self->_action_page(
+        $page,
+        await $self->functions->rows_p(
+            _action_values( $options, $page ), $context
+        )
+    );
+}
+
+async sub list_suspensions_p ( $self, $options, $context = undef ) {
+    return $self->list_suspensions($options) if !$self->functions;
+    $options ||= {};
+    my $page =
+      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
+    return $self->_suspension_page(
+        $page,
+        await $self->functions->rows_p(
+            $self->_suspension_values( $options, $page ), $context
+        )
+    );
+}
+
+sub _action_values ( $options, $page ) {
+    my $after = $page->{after} || {};
+    return (
+        'moderation_action_list',
+        {
+            target_type => $options->{target_type} || undef,
+            target_id   => $options->{target_id}   || undef,
+            after_at    => $after->{sort_value},
+            after_id    => $after->{id},
+            row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
+        }
+    );
+}
+
+sub _action_page ( $self, $page, $rows ) {
+    return $self->page_window->page(
+        [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ],
+        $page->{limit}, \@ACTION_CURSOR_COLUMNS );
+}
+
+sub _suspension_values ( $self, $options, $page ) {
+    my $after = $page->{after} || {};
+    return (
+        'moderation_suspension_list',
+        {
+            user_id     => $options->{user_id} || undef,
+            active_only => _active_only($options),
+            now         => $self->clock->now_iso8601,
+            after_at    => $after->{sort_value},
+            after_id    => $after->{id},
+            row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
+        }
+    );
+}
+
+sub _suspension_page ( $self, $page, $rows ) {
+    return $self->page_window->page(
+        [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ],
         $page->{limit}, \@SUSPENSION_CURSOR_COLUMNS );
 }
 
@@ -257,6 +299,18 @@ C<status> and C<active>. Lists active suspensions only, unless C<status> is
 C<all> and C<active> is absent or 0, or C<active> is 0 and C<status> is
 absent. Returns the page hash as C<list_actions> does, the items being
 C<suspensions> rows.
+
+=head2 list_actions_p
+
+L</list_actions> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections. Without SQL functions it
+answers the blocking read.
+
+=head2 list_suspensions_p
+
+L</list_suspensions> as a promise, with an optional query context last,
+read on the worker's pooled asynchronous connections. Without SQL functions
+it answers the blocking read.
 
 =head1 DIAGNOSTICS
 

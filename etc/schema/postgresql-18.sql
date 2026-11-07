@@ -3463,6 +3463,44 @@ CREATE FUNCTION api.attachment_review_submit_v2(p_attachment_id uuid, p_source_k
 
 
 --
+-- Name: attachment_review_submit_v3(uuid, text, text); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.attachment_review_submit_v3(p_attachment_id uuid, p_source_kind text, p_source_url text) RETURNS TABLE(submitted boolean)
+    LANGUAGE plpgsql
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+BEGIN
+    INSERT INTO public.attachment_content_reviews
+        (attachment_id, source_kind, source_url, status, reason)
+    VALUES (p_attachment_id, p_source_kind, p_source_url,
+        CASE WHEN p_source_kind = 'original' THEN 'approved' ELSE 'pending' END,
+        CASE WHEN p_source_kind = 'original'
+            THEN 'Original content attested by its uploader; no staff review required'
+            ELSE '' END);
+    IF p_source_kind <> 'original' THEN
+        UPDATE public.attachments SET state = 'quarantined', quarantined_at = now()
+            WHERE attachment_id = p_attachment_id AND state = 'available';
+    END IF;
+    RETURN QUERY SELECT true;
+END;
+$$;
+
+
+--
+-- Name: attachment_review_submit_v4(uuid, text, text); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.attachment_review_submit_v4(p_attachment_id uuid, p_source_kind text, p_source_url text) RETURNS TABLE(submitted boolean)
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$ SELECT * FROM api.attachment_review_submit_v3(
+    p_attachment_id, p_source_kind, p_source_url) $$;
+
+
+--
 -- Name: attachment_scan_failure_v3(uuid, text); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -29462,6 +29500,20 @@ REVOKE ALL ON FUNCTION api.attachment_review_submit_v1(p_attachment_id uuid, p_s
 --
 
 REVOKE ALL ON FUNCTION api.attachment_review_submit_v2(p_attachment_id uuid, p_source_kind text, p_source_url text) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION attachment_review_submit_v3(p_attachment_id uuid, p_source_kind text, p_source_url text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.attachment_review_submit_v3(p_attachment_id uuid, p_source_kind text, p_source_url text) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION attachment_review_submit_v4(p_attachment_id uuid, p_source_kind text, p_source_url text); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.attachment_review_submit_v4(p_attachment_id uuid, p_source_kind text, p_source_url text) FROM PUBLIC;
 
 
 --

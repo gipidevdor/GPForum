@@ -104,6 +104,7 @@ my @tables = _tables();
 # Keep exactly these shipped forwarding boundaries for rolling deployments.
 # Their arguments stay fixed even as the current catalogue moves forward.
 my %previous_arguments = (
+    attachment_review_submit   => [qw(attachment_id source_kind source_url)],
     moderation_transfer_picker => [qw(actor source_id query after_position)],
     admin_configuration_state  => [],
     admin_request_context      => [

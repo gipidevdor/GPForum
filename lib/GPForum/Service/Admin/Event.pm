@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 
 our $VERSION = '0.001';
 
@@ -24,16 +24,16 @@ sub binding_audit ( $, $input ) {
         actor_id   => $input->{actor_user_id},
         created_at => $input->{created_at},
         metadata   => {
-            resource_id   => _column( $binding, 'resource_id' ),
-            resource_type => _column( $binding, 'resource_type' ),
-            role_id       => _column( $binding, 'role_id' ),
-            space_id      => _column( $binding, 'space_id' ),
-            user_id       => _column( $binding, 'user_id' ),
+            resource_id   => column_of( $binding, 'resource_id' ),
+            resource_type => column_of( $binding, 'resource_type' ),
+            role_id       => column_of( $binding, 'role_id' ),
+            space_id      => column_of( $binding, 'space_id' ),
+            user_id       => column_of( $binding, 'user_id' ),
         },
         previous_hash  => undef,
         record_hash    => q{},
         schema_version => $SCHEMA_VERSION,
-        target_id      => _column( $binding, 'binding_id' ),
+        target_id      => column_of( $binding, 'binding_id' ),
         target_type    => $TARGET_BINDING,
     };
 }
@@ -60,13 +60,13 @@ sub category_audit ( $self, $input ) {
             actor_user_id => $input->{actor_user_id},
             created_at    => $input->{created_at},
             metadata      => {
-                position   => _column( $category, 'position' ),
-                slug       => _column( $category, 'slug' ),
-                space_id   => _column( $category, 'space_id' ),
-                title      => _column( $category, 'title' ),
-                visibility => _column( $category, 'visibility' ),
+                position   => column_of( $category, 'position' ),
+                slug       => column_of( $category, 'slug' ),
+                space_id   => column_of( $category, 'space_id' ),
+                title      => column_of( $category, 'title' ),
+                visibility => column_of( $category, 'visibility' ),
             },
-            target_id   => _column( $category, 'category_id' ),
+            target_id   => column_of( $category, 'category_id' ),
             target_type => $TARGET_CATEGORY,
         }
     );
@@ -77,24 +77,25 @@ sub category_audit ( $self, $input ) {
 
 sub category_event ( $, $input ) {
     my $category    = $input->{category};
-    my $category_id = _column( $category, 'category_id' );
+    my $category_id = column_of( $category, 'category_id' );
 
     return {
         actor_id          => $input->{actor_user_id},
         aggregate_id      => $category_id,
         aggregate_type    => $TARGET_CATEGORY,
-        aggregate_version => _column( $category, 'version' ) || $SCHEMA_VERSION,
-        causation_id      => undef,
-        correlation_id    => $input->{correlation_id},
-        event_type        => $input->{action},
-        idempotency_key   => join( q{:}, $input->{action}, $category_id ),
-        payload           => {
+        aggregate_version => column_of( $category, 'version' )
+          || $SCHEMA_VERSION,
+        causation_id    => undef,
+        correlation_id  => $input->{correlation_id},
+        event_type      => $input->{action},
+        idempotency_key => join( q{:}, $input->{action}, $category_id ),
+        payload         => {
             category_id => $category_id,
-            position    => _column( $category, 'position' ),
-            slug        => _column( $category, 'slug' ),
-            space_id    => _column( $category, 'space_id' ),
-            title       => _column( $category, 'title' ),
-            visibility  => _column( $category, 'visibility' ),
+            position    => column_of( $category, 'position' ),
+            slug        => column_of( $category, 'slug' ),
+            space_id    => column_of( $category, 'space_id' ),
+            title       => column_of( $category, 'title' ),
+            visibility  => column_of( $category, 'visibility' ),
         },
         schema_version => $SCHEMA_VERSION,
     };
@@ -108,10 +109,10 @@ sub announcement_audit ( $self, $input ) {
             actor_user_id => $input->{actor_user_id},
             created_at    => $input->{created_at},
             metadata      => {
-                message => _column( $announcement, 'message' ),
-                tone    => _column( $announcement, 'tone' ),
+                message => column_of( $announcement, 'message' ),
+                tone    => column_of( $announcement, 'tone' ),
             },
-            target_id   => _column( $announcement, 'announcement_id' ),
+            target_id   => column_of( $announcement, 'announcement_id' ),
             target_type => $TARGET_ANNOUNCEMENT,
         }
     );
@@ -121,7 +122,7 @@ sub announcement_audit ( $self, $input ) {
 
 sub announcement_event ( $, $input ) {
     my $announcement    = $input->{announcement};
-    my $announcement_id = _column( $announcement, 'announcement_id' );
+    my $announcement_id = column_of( $announcement, 'announcement_id' );
 
     return {
         actor_id          => $input->{actor_user_id},
@@ -134,14 +135,10 @@ sub announcement_event ( $, $input ) {
         idempotency_key   => join( q{:}, $input->{action}, $announcement_id ),
         payload           => {
             announcement_id => $announcement_id,
-            tone            => _column( $announcement, 'tone' ),
+            tone            => column_of( $announcement, 'tone' ),
         },
         schema_version => $SCHEMA_VERSION,
     };
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

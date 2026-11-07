@@ -5,8 +5,10 @@ package GPForum::Infrastructure::Row;
 
 use Mojo::Base -base, -signatures;
 use v5.40;
+use Exporter qw(import);
 
-our $VERSION = '0.001';
+our $VERSION   = '0.001';
+our @EXPORT_OK = qw(column_of rows_in);
 
 # One reader for "a row that may be a hashref or a DBIx::Class row".
 #
@@ -27,6 +29,10 @@ our $VERSION = '0.001';
 # This returns undef, in scalar and list context alike, so a missing row
 # produces a missing value rather than a corrupted hash.
 sub column ( $, $row, $name ) {
+    return column_of( $row, $name );
+}
+
+sub column_of ( $row, $name ) {
     return undef         if !defined $row;
     return $row->{$name} if ref $row eq 'HASH';
 
@@ -81,6 +87,10 @@ sub loaded_column ( $class, $row, $name ) {
 # answers rows, an array reference's own, nothing for anything else. There
 # were twenty-two copies of this, four of them different.
 sub rows_of ( $, $search ) {
+    return rows_in($search);
+}
+
+sub rows_in ($search) {
     return ()         if !$search;
     return @{$search} if ref $search eq 'ARRAY';
     ## no critic (BuiltinFunctions::ProhibitUniversalCan) -- collection adapters may override can, and unsupported references have no methods
@@ -141,6 +151,12 @@ the empty list, so the result is safe inside a hash literal.
 =head2 column
 
 Returns the named column, or undef.
+
+=head2 column_of, rows_in
+
+Optional function exports for callers that need no reader object.
+C<column_of($row, $name)> and C<rows_in($search)> retain the C<column>
+and C<rows_of> contracts, including undef in column list context.
 
 =head2 columns
 

@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Forum::SourceThread;
 
@@ -57,7 +57,7 @@ sub list_page_for_user ( $self, $user_id, $options ) {
         }
     );
 
-    my @rows = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows = rows_in($search);
 
     return $self->page_window->page( \@rows, $page->{limit}, \@CURSOR_COLUMNS );
 }

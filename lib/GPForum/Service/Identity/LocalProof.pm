@@ -3,7 +3,7 @@
 package GPForum::Service::Identity::LocalProof;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 our $VERSION = '0.001';
 __PACKAGE__->requires(qw(credentials password second_factor));
 
@@ -11,11 +11,11 @@ sub verify_local ( $self, $actor, $password, $code = q{} ) {
     my $credential = $self->credentials->active_password_credential($actor);
     my $hash =
       $credential
-      ? GPForum::Infrastructure::Row->column( $credential, 'secret_hash' )
+      ? column_of( $credential, 'secret_hash' )
       : $self->password->decoy_hash;
     my $verified = $self->password->verify_password( $password // q{}, $hash );
     return undef if !$verified || !$credential;
-    my $id        = GPForum::Infrastructure::Row->column( $credential, 'id' );
+    my $id        = column_of( $credential, 'id' );
     my $challenge = $self->second_factor->open_challenge( $actor, $id );
     if ( $challenge->{status} ne 'none' ) {
         return undef if $challenge->{status} ne 'open';

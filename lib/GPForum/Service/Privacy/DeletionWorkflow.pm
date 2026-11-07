@@ -21,10 +21,7 @@ use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
 
-has functions => sub {
-    my ($self) = @_;
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 our $VERSION = '0.001';
 

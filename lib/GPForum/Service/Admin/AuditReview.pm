@@ -9,7 +9,7 @@ use Scalar::Util qw(blessed);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow::Audit;
 
@@ -201,8 +201,7 @@ sub _column ( $row, $name ) {
 # The rows as the function path answers them: audit rows whose metadata is
 # the decoded hash, where a DBIx::Class row's get_column is the jsonb's text.
 sub _rows ($search) {
-    return
-      map { _audit_row($_) } GPForum::Infrastructure::Row->rows_of($search);
+    return map { _audit_row($_) } rows_in($search);
 }
 
 sub _audit_row ($row) {

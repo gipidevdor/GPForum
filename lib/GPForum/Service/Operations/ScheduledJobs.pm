@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Clock;
 use GPForum::Service::Forum::DraftStore;
 use GPForum::Service::Moderation::SuspensionStore;
@@ -281,8 +281,7 @@ sub _registry_rows ($self) {
     my @registry;
     for my $row (@rows) {
         push @registry,
-          { map { $_ => GPForum::Infrastructure::Row->column( $row, $_ ) }
-              @REGISTRY_COLUMNS };
+          { map { $_ => column_of( $row, $_ ) } @REGISTRY_COLUMNS };
     }
 
     return \@registry;

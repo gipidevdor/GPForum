@@ -9,7 +9,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::Util qw(encode);
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row  qw(column_of);
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::X::Argument;
 
@@ -97,7 +97,7 @@ sub response ( $self, $type, $result ) {
         for my $row ( keys %{$stored} ) {
             for my $field ( @{ $stored->{$row} } ) {
                 $response->{$field} =
-                  _column( $result->{stored}{$row}, $field );
+                  column_of( $result->{stored}{$row}, $field );
             }
         }
     }
@@ -151,10 +151,6 @@ sub _command ($type) {
 
 sub _invalid ($answer) {
     return ( $answer->{status} || q{} ) eq 'invalid' ? 1 : 0;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

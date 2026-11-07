@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::Text qw(has_text);
 use Mojo::Promise;
@@ -128,7 +128,7 @@ async sub answers_p ( $self, $input, $context = undef ) {
     my %read = (
         omit_thread => $input->{omit_thread},
         posts       => [ _post_ids($page) ],
-        thread      => _column( $page->{thread}, 'thread_id' ),
+        thread      => column_of( $page->{thread}, 'thread_id' ),
         thread_id   => $input->{thread_id},
         viewer      => has_text( $input->{viewer_user_id} )
         ? $input->{viewer_user_id}
@@ -148,7 +148,7 @@ sub individual_answers_p ( $self, $input, $context = undef ) {
     my %read = (
         omit_thread => $input->{omit_thread},
         posts       => [ _post_ids($page) ],
-        thread      => _column( $page->{thread}, 'thread_id' ),
+        thread      => column_of( $page->{thread}, 'thread_id' ),
         thread_id   => $input->{thread_id},
         viewer      => has_text( $input->{viewer_user_id} )
         ? $input->{viewer_user_id}
@@ -179,7 +179,7 @@ sub answers ( $self, $input ) {
     my %read = (
         omit_thread => $input->{omit_thread},
         posts       => [ _post_ids($page) ],
-        thread      => _column( $page->{thread}, 'thread_id' ),
+        thread      => column_of( $page->{thread}, 'thread_id' ),
         thread_id   => $input->{thread_id},
         viewer      => has_text( $input->{viewer_user_id} )
         ? $input->{viewer_user_id}
@@ -274,7 +274,7 @@ sub _snapshot_rows ( $functions, $page, $values ) {
     if (   !defined $requested{thread_id}
         && !defined $requested{engagement_target_type} )
     {
-        $requested{thread_id} = _column( $page->{thread}, 'thread_id' );
+        $requested{thread_id} = column_of( $page->{thread}, 'thread_id' );
         $requested{engagement_target_type} = $THREAD_TARGET;
     }
     return $snapshot->{key} eq
@@ -311,11 +311,7 @@ sub _answers ( $functions, $calls, $rows ) {
 
 sub _post_ids ($page) {
     return grep { has_text($_) }
-      map { _column( $_, 'post_id' ) } @{ $page->{posts}{items} || [] };
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
+      map { column_of( $_, 'post_id' ) } @{ $page->{posts}{items} || [] };
 }
 
 1;

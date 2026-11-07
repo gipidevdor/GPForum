@@ -29,7 +29,7 @@ use GPForum::Service::Community::BookmarkStore;
 use GPForum::Service::Community::BookmarkFolders;
 use GPForum::Service::Community::LikeStore;
 use GPForum::Service::Community::ReactionStore;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Forum::ReplyLinks;
 use GPForum::Service::Forum::ThreadTags;
 use GPForum::Service::Community::FeedReader;
@@ -555,8 +555,7 @@ sub _register_community_helpers {
     $application->helper(
         gp_tags_for_threads_p => sub ( $controller, $threads ) {
             my @ids =
-              map { GPForum::Infrastructure::Row->column( $_, 'thread_id' ) }
-              @{ $threads || [] };
+              map { column_of( $_, 'thread_id' ) } @{ $threads || [] };
             return $controller->call_p( $controller->gp_thread_tags,
                 'tags_for_threads', \@ids )->catch(
                 sub ($error) {
@@ -574,8 +573,7 @@ sub _register_community_helpers {
             my ( $controller, $threads ) = @_;
 
             my @ids =
-              map { GPForum::Infrastructure::Row->column( $_, 'thread_id' ) }
-              @{ $threads || [] };
+              map { column_of( $_, 'thread_id' ) } @{ $threads || [] };
             my $tags = {};
             try {
                 $tags = $controller->gp_thread_tags->tags_for_threads( \@ids );

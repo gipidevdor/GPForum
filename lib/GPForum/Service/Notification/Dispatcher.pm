@@ -11,7 +11,7 @@ use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Keyset;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow::NotificationInbox;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Admin::Settings;
 use GPForum::Service::Clock;
@@ -333,10 +333,10 @@ sub _create_notification ( $self, $input ) {
         notification    => _notification_row(
             $input,
             $idempotency_key,
-            _column( $existing, 'notification_id' ),
-            _column( $existing, 'created_at' ),
+            column_of( $existing, 'notification_id' ),
+            column_of( $existing, 'created_at' ),
         ),
-        inbox => { map { $_ => _column( $existing, $_ ) } @INBOX_COLUMNS },
+        inbox => { map { $_ => column_of( $existing, $_ ) } @INBOX_COLUMNS },
     };
 }
 
@@ -359,13 +359,13 @@ sub _create_notification ( $self, $input ) {
 # delivery stored first is the one this inbox row joins. The unread count
 # lands in _committed_with_badge once the write committed.
 sub _insert_delivery ( $self, $input, $idempotency_key, $notification_id ) {
-    my ($stored) = GPForum::Infrastructure::Row->rows_of(
+    my ($stored) = rows_in(
         $self->schema->resultset('Notification')->search_rs(
             { notification_id => $notification_id },
             { columns         => ['created_at'], rows => 1 },
         )
     );
-    my $stored_at  = $stored ? _column( $stored, 'created_at' ) : undef;
+    my $stored_at  = $stored ? column_of( $stored, 'created_at' ) : undef;
     my $created_at = $stored_at // $self->clock->now_iso8601;
     my $notification =
       _notification_row( $input, $idempotency_key, $notification_id,
@@ -551,7 +551,7 @@ sub list_for_user ( $self, $user_id, $limit ) {
             { limit => $limit || $DEFAULT_LIMIT } );
     }
     return [
-        GPForum::Infrastructure::Row->rows_of(
+        rows_in(
             $self->inbox_resultset(
                 $user_id, { limit => $limit || $DEFAULT_LIMIT }
             )
@@ -583,8 +583,7 @@ sub list_page_for_user ( $self, $user_id, $options ) {
         }
     );
 
-    return $self->page_window->page(
-        [ GPForum::Infrastructure::Row->rows_of($search) ],
+    return $self->page_window->page( [ rows_in($search) ],
         $page->{limit}, \@CURSOR_COLUMNS );
 }
 
@@ -616,7 +615,7 @@ sub mark_read ( $self, $notification_id, $recipient_user_id ) {
             );
             return { ok => 0, error => 'not_found' } if !$inbox;
 
-            my $existing_read_at = _column( $inbox, 'read_at' );
+            my $existing_read_at = column_of( $inbox, 'read_at' );
             my $read_at = $existing_read_at || $self->clock->now_iso8601;
             my $read    = _read_payload( $inbox, $read_at );
             if ( !$existing_read_at ) {
@@ -659,7 +658,7 @@ sub mark_all_read ( $self, $recipient_user_id ) {
                 { join => 'notification' }
               );
             my $marked_count = 0;
-            for my $inbox ( GPForum::Infrastructure::Row->rows_of($search) ) {
+            for my $inbox ( rows_in($search) ) {
                 $self->_persist_read( $inbox,
                     _read_payload( $inbox, $read_at ) );
                 $marked_count += 1;
@@ -689,7 +688,7 @@ sub _persist_read ( $self, $inbox, $read ) {
         },
     );
     if ($stored) {
-        $read->{read_at} = _column( $stored, 'read_at' );
+        $read->{read_at} = column_of( $stored, 'read_at' );
     }
     $inbox->update( { read_at => $read->{read_at} } );
 
@@ -698,8 +697,8 @@ sub _persist_read ( $self, $inbox, $read ) {
 
 sub _read_payload ( $inbox, $read_at ) {
     return {
-        notification_id   => _column( $inbox, 'notification_id' ),
-        recipient_user_id => _column( $inbox, 'recipient_user_id' ),
+        notification_id   => column_of( $inbox, 'notification_id' ),
+        recipient_user_id => column_of( $inbox, 'recipient_user_id' ),
         read_at           => $read_at,
     };
 }
@@ -714,7 +713,7 @@ sub unread_count_for_user ( $self, $user_id, $viewer = undef ) {
 
     return $search->count if $search->can('count');
 
-    return scalar GPForum::Infrastructure::Row->rows_of($search);
+    return scalar rows_in($search);
 }
 
 # The unread notifications the badge counts: those the inbox would show.
@@ -982,10 +981,6 @@ sub _idempotency_key ($input) {
 # is one notification.
 sub _notification_id_for ($idempotency_key) {
     return GPForum::Infrastructure::Id->named_uuid($idempotency_key);
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 1;

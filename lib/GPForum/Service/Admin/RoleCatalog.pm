@@ -11,7 +11,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 use Scalar::Util qw(blessed);
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Admin::Event;
@@ -277,7 +277,7 @@ sub list_roles ( $self, $options ) {
         }
     );
 
-    return [ GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ rows_in($search) ];
 }
 
 sub list_permissions ( $self, $options ) {
@@ -304,7 +304,7 @@ sub list_permissions ( $self, $options ) {
         }
     );
 
-    return [ GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ rows_in($search) ];
 }
 
 sub _finish_leftover_role ( $self, $existing, $input ) {
@@ -312,12 +312,12 @@ sub _finish_leftover_role ( $self, $existing, $input ) {
         {
             action        => 'role.created',
             actor_user_id => $input->{actor_user_id},
-            created_at    => _column( $existing, 'created_at' ),
+            created_at    => column_of( $existing, 'created_at' ),
             metadata      => {
-                description => _column( $existing, 'description' ),
-                name        => _column( $existing, 'name' ),
+                description => column_of( $existing, 'description' ),
+                name        => column_of( $existing, 'name' ),
             },
-            target_id   => _column( $existing, 'role_id' ),
+            target_id   => column_of( $existing, 'role_id' ),
             target_type => 'role',
         }
     );
@@ -330,13 +330,13 @@ sub _finish_leftover_permission ( $self, $existing, $input ) {
         {
             action        => 'permission.created',
             actor_user_id => $input->{actor_user_id},
-            created_at    => _column( $existing, 'created_at' ),
+            created_at    => column_of( $existing, 'created_at' ),
             metadata      => {
-                action        => _column( $existing, 'action' ),
-                name          => _column( $existing, 'name' ),
-                resource_type => _column( $existing, 'resource_type' ),
+                action        => column_of( $existing, 'action' ),
+                name          => column_of( $existing, 'name' ),
+                resource_type => column_of( $existing, 'resource_type' ),
             },
-            target_id   => _column( $existing, 'permission_id' ),
+            target_id   => column_of( $existing, 'permission_id' ),
             target_type => 'permission',
         }
     );
@@ -349,12 +349,12 @@ sub _finish_leftover_attachment ( $self, $existing, $input ) {
         {
             action        => $ATTACHED_ACTION,
             actor_user_id => $input->{actor_user_id},
-            created_at    => _column( $existing, 'created_at' ),
+            created_at    => column_of( $existing, 'created_at' ),
             metadata      => {
-                permission_id => _column( $existing, 'permission_id' ),
-                role_id       => _column( $existing, 'role_id' ),
+                permission_id => column_of( $existing, 'permission_id' ),
+                role_id       => column_of( $existing, 'role_id' ),
             },
-            target_id   => _column( $existing, 'role_id' ),
+            target_id   => column_of( $existing, 'role_id' ),
             target_type => 'role',
         }
     );
@@ -425,7 +425,7 @@ sub _attachment_audit_exists ( $self, $job ) {
     );
 
     my $wanted = $job->{metadata};
-    for my $audit ( GPForum::Infrastructure::Row->rows_of($search) ) {
+    for my $audit ( rows_in($search) ) {
         my $metadata = _audit_metadata($audit);
         if (   _same_id( $metadata->{role_id}, $wanted->{role_id} )
             && _same_id( $metadata->{permission_id}, $wanted->{permission_id} )
@@ -466,7 +466,7 @@ sub _audit_metadata ($audit) {
       blessed($audit)
       && $audit->can('get_inflated_column')
       ? $audit->get_inflated_column('metadata')
-      : _column( $audit, 'metadata' );
+      : column_of( $audit, 'metadata' );
 
     return ref $metadata eq 'HASH' ? $metadata : {};
 }
@@ -491,7 +491,7 @@ sub _single_row ( $self, $resultset_name, $query ) {
 
     return $search->single if $search->can('single');
 
-    my @rows = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows = rows_in($search);
 
     return $rows[0];
 }
@@ -509,11 +509,7 @@ sub _record_admin_audit ( $self, $input ) {
 sub _row_hash ( $row, @columns ) {
     return {} if !$row;
 
-    return { map { $_ => _column( $row, $_ ) } @columns };
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
+    return { map { $_ => column_of( $row, $_ ) } @columns };
 }
 
 sub _role_columns {

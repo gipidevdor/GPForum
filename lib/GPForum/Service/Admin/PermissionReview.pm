@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
@@ -44,7 +44,7 @@ sub roles_for_user ( $self, $user_id, $options ) {
         }
     );
 
-    return [ GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ rows_in($search) ];
 }
 
 1;

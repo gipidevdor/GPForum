@@ -10,7 +10,7 @@ use v5.40;
 use Mojo::JSON qw(false true);
 
 use GPForum::Infrastructure::EventRecorder;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::X::Conflict;
@@ -113,18 +113,18 @@ sub set_preference ( $self, $input ) {
         }
     }
 
-    my $enabled = _column( $existing, 'enabled' ) ? 1 : 0;
-    my $digest  = _column( $existing, 'digest_frequency' ) || q{};
+    my $enabled = column_of( $existing, 'enabled' ) ? 1 : 0;
+    my $digest  = column_of( $existing, 'digest_frequency' ) || q{};
     if (   $enabled eq $normalized->{enabled}
         && $digest eq $normalized->{digest_frequency} )
     {
         return {
-            channel          => _column( $existing, 'channel' ),
-            digest_frequency => _column( $existing, 'digest_frequency' ),
+            channel          => column_of( $existing, 'channel' ),
+            digest_frequency => column_of( $existing, 'digest_frequency' ),
             enabled          => $enabled,
             skipped          => 1,
-            updated_at       => _column( $existing, 'updated_at' ),
-            user_id          => _column( $existing, 'user_id' ),
+            updated_at       => column_of( $existing, 'updated_at' ),
+            user_id          => column_of( $existing, 'user_id' ),
         };
     }
 
@@ -178,21 +178,21 @@ sub preferences_for_user ( $self, $user_id ) {
     }
     else {
         $rows = [
-            GPForum::Infrastructure::Row->rows_of(
+            rows_in(
                 $self->schema->resultset('NotificationPreference')
                   ->search_rs( { user_id => $user_id } )
             )
         ];
     }
     for my $row ( @{$rows} ) {
-        my $channel = _column( $row, 'channel' );
+        my $channel = column_of( $row, 'channel' );
         next if !_is_channel($channel);
         $stored{$channel} = {
             channel          => $channel,
             digest_frequency =>
-              _safe_digest_frequency( _column( $row, 'digest_frequency' ) ),
-            enabled => _column( $row, 'enabled' ) ? 1 : 0,
-            user_id => _column( $row, 'user_id' ),
+              _safe_digest_frequency( column_of( $row, 'digest_frequency' ) ),
+            enabled => column_of( $row, 'enabled' ) ? 1 : 0,
+            user_id => column_of( $row, 'user_id' ),
         };
     }
 
@@ -530,10 +530,6 @@ sub _safe_digest_frequency ($frequency) {
     }
 
     return 'daily';
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 1;

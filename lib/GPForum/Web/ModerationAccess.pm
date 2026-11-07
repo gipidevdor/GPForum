@@ -212,14 +212,8 @@ sub suspension_revoked_status {
 }
 
 sub write_flash_key ( $, $status ) {
-    if ( !defined $status ) {
-        return undef;
-    }
-    if ( exists $WRITE_FLASH{$status} ) {
-        return $WRITE_FLASH{$status};
-    }
-
-    return undef;
+    return undef if !defined $status || !exists $WRITE_FLASH{$status};
+    return $WRITE_FLASH{$status};
 }
 
 sub authorization_target ( $, $resource_type, $action = undef ) {
@@ -242,16 +236,10 @@ sub is_failed ( $self, $result ) {
 
 sub failure_status ( $self, $result ) {
     my $status = GPForum::Web::Access->status_of($result);
-    if ( $status eq $STATUS_NOT_FOUND ) {
-        return $status;
-    }
-    if ( $status eq $STATUS_INVALID ) {
-        return $status;
-    }
-    if ( $status eq $STATUS_CONFLICT ) {
-        return $status;
-    }
-
+    return $status
+      if $status eq $STATUS_NOT_FOUND
+      || $status eq $STATUS_INVALID
+      || $status eq $STATUS_CONFLICT;
     return undef;
 }
 

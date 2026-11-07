@@ -7,14 +7,11 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
-has functions => sub {
-    my ($self) = @_;
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 our $VERSION = '0.001';
 
@@ -160,7 +157,7 @@ sub _search ( $self, $resultset, $query, $attrs ) {
     my $search =
       $self->schema->resultset($resultset)->search_rs( $query, $attrs );
 
-    return [ GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ rows_in($search) ];
 }
 
 1;

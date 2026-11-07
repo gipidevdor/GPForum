@@ -12,7 +12,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Admin::AuditReview;
 use GPForum::Service::Admin::ConsoleReader;
 use GPForum::Service::Admin::Settings;
@@ -252,8 +252,8 @@ sub _latest ( $self, $action ) {
     return $none if !$row;
 
     return {
-        actor_id => GPForum::Infrastructure::Row->column( $row, 'actor_id' ),
-        at       => GPForum::Infrastructure::Row->column( $row, 'created_at' ),
+        actor_id => column_of( $row, 'actor_id' ),
+        at       => column_of( $row, 'created_at' ),
         result   => _metadata($row),
     };
 }

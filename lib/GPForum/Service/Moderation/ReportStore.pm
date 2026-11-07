@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
@@ -138,7 +138,7 @@ sub _insert_report ( $self, $input ) {
 # already recorded is a duplicate, and the repeat is audited as one.
 sub _finish_leftover_report ( $self, $existing, $input ) {
     my $event_key = join q{:}, 'report.created',
-      _column( $existing, 'report_id' );
+      column_of( $existing, 'report_id' );
     if ( !$self->recorder->event_recorded($event_key) ) {
         $self->_record_event_and_audit($existing);
         return $existing;
@@ -171,8 +171,8 @@ sub assign_report ( $self, $report_id, $moderator_user_id ) {
             return if !$report;
 
             return _report_transition_hash($report)
-              if ( _column( $report, 'assigned_moderator_user_id' ) || q{} ) eq
-              $moderator_user_id;
+              if ( column_of( $report, 'assigned_moderator_user_id' ) || q{} )
+              eq $moderator_user_id;
 
             my $changes = { assigned_moderator_user_id => $moderator_user_id };
             $self->_update_report( $report, $changes );
@@ -202,7 +202,7 @@ sub release_report ( $self, $report_id, $actor_user_id ) {
             return if !$report;
 
             return _report_transition_hash($report)
-              if !defined _column( $report, 'assigned_moderator_user_id' );
+              if !defined column_of( $report, 'assigned_moderator_user_id' );
 
             my $changes = { assigned_moderator_user_id => undef };
             $self->_update_report( $report, $changes );
@@ -232,7 +232,7 @@ sub resolve_report ( $self, $report_id, $resolution, $actor_user_id = undef ) {
             return if !$report;
 
             return _report_transition_hash($report)
-              if ( _column( $report, 'status' ) || q{} ) eq $STATUS_RESOLVED;
+              if ( column_of( $report, 'status' ) || q{} ) eq $STATUS_RESOLVED;
 
             my $resolved_at = $self->clock->now_iso8601;
             my $changes     = {
@@ -273,11 +273,7 @@ sub list_queue ( $self, $options ) {
             }
         ];
     }
-    return [
-        GPForum::Infrastructure::Row->rows_of(
-            $self->queue_resultset($options)
-        )
-    ];
+    return [ rows_in( $self->queue_resultset($options) ) ];
 }
 
 # The resultset the moderation queue executes.
@@ -315,7 +311,7 @@ sub _report_row ( $self, $input ) {
 sub _update_report ( $self, $row, $changes ) {
     return $row->update($changes) if !$self->functions;
     $self->functions->row( 'moderation_report_update',
-        { report_id => _column( $row, 'report_id' ), changes => $changes } );
+        { report_id => column_of( $row, 'report_id' ), changes => $changes } );
     %{$row} = ( %{$row}, %{$changes} );
     return $row;
 }
@@ -323,11 +319,11 @@ sub _update_report ( $self, $row, $changes ) {
 sub _report_transition_hash ($report) {
     return {
         assigned_moderator_user_id =>
-          _column( $report, 'assigned_moderator_user_id' ),
-        report_id   => _column( $report, 'report_id' ),
-        resolution  => _column( $report, 'resolution' ),
-        resolved_at => _column( $report, 'resolved_at' ),
-        status      => _column( $report, 'status' ),
+          column_of( $report, 'assigned_moderator_user_id' ),
+        report_id   => column_of( $report, 'report_id' ),
+        resolution  => column_of( $report, 'resolution' ),
+        resolved_at => column_of( $report, 'resolved_at' ),
+        status      => column_of( $report, 'status' ),
     };
 }
 
@@ -381,10 +377,6 @@ sub _lock_report ( $self, $report_id ) {
     $dbh->selectrow_array( $REPORT_LOCK_SQL, undef, $report_id );
 
     return;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

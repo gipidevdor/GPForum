@@ -9,16 +9,13 @@ use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Conflict;
 use GPForum::Service::Clock;
 
-has functions => sub {
-    my ($self) = @_;
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 our $VERSION = '0.001';
 
@@ -257,11 +254,11 @@ sub _complete_request ( $self, $export_request_id, $parts ) {
     if ( !$request ) {
         return undef;
     }
-    if ( ( _column( $request, 'status' ) || q{} ) eq $STATUS_COMPLETED ) {
+    if ( ( column_of( $request, 'status' ) || q{} ) eq $STATUS_COMPLETED ) {
         return _request_hash($request);
     }
 
-    my $subject_user_id = _column( $request, 'subject_user_id' );
+    my $subject_user_id = column_of( $request, 'subject_user_id' );
     my $bundle =
         $parts
       ? $self->build_user_bundle( $subject_user_id, $parts )
@@ -291,11 +288,11 @@ sub _complete_request ( $self, $export_request_id, $parts ) {
     }
     else { $request->update($changes); }
 
-    my $request_id = _column( $request, 'export_request_id' );
+    my $request_id = column_of( $request, 'export_request_id' );
     $self->_record_event_and_audit(
         {
             action   => 'privacy.export_completed',
-            actor_id => _column( $request, 'requester_user_id' ),
+            actor_id => column_of( $request, 'requester_user_id' ),
             request  => $request,
             payload  => {
                 %{ _request_payload($request) }, manifest => $summary,
@@ -445,10 +442,8 @@ sub _search_hashes ( $self, $name, $query, $fields ) {
     }
 
     my @hashes;
-    for my $row (
-        GPForum::Infrastructure::Row->rows_of( $resultset->search_rs($query) ) )
-    {
-        push @hashes, { map { $_ => _column( $row, $_ ) } @{$fields} };
+    for my $row ( rows_in( $resultset->search_rs($query) ) ) {
+        push @hashes, { map { $_ => column_of( $row, $_ ) } @{$fields} };
     }
 
     return \@hashes;
@@ -467,16 +462,16 @@ sub _safe_profile ( $self, $subject_user_id ) {
     }
 
     return {
-        created_at         => _column( $user, 'created_at' ),
-        display_name       => _column( $user, 'display_name' ),
-        email              => _column( $user, 'email_normalized' ),
-        email_verified_at  => _column( $user, 'email_verified_at' ),
-        preferred_locale   => _column( $user, 'preferred_locale' ),
-        preferred_theme    => _column( $user, 'preferred_theme' ),
-        preferred_timezone => _column( $user, 'preferred_timezone' ),
-        status             => _column( $user, 'status' ),
-        user_id            => _column( $user, 'id' ),
-        username           => _column( $user, 'username' ),
+        created_at         => column_of( $user, 'created_at' ),
+        display_name       => column_of( $user, 'display_name' ),
+        email              => column_of( $user, 'email_normalized' ),
+        email_verified_at  => column_of( $user, 'email_verified_at' ),
+        preferred_locale   => column_of( $user, 'preferred_locale' ),
+        preferred_theme    => column_of( $user, 'preferred_theme' ),
+        preferred_timezone => column_of( $user, 'preferred_timezone' ),
+        status             => column_of( $user, 'status' ),
+        user_id            => column_of( $user, 'id' ),
+        username           => column_of( $user, 'username' ),
     };
 }
 
@@ -486,7 +481,7 @@ sub _record_event_and_audit ( $self, $input ) {
     $self->recorder->record_event(
         event_type        => $input->{action},
         aggregate_type    => $USER_AGGREGATE,
-        aggregate_id      => _column( $request, 'subject_user_id' ),
+        aggregate_id      => column_of( $request, 'subject_user_id' ),
         aggregate_version => $SCHEMA_VERSION,
         actor_id          => $input->{actor_id},
         correlation_id    => $correlation_id,
@@ -502,12 +497,12 @@ sub _record_event_and_audit ( $self, $input ) {
         schema_version => $SCHEMA_VERSION,
         actor_id       => $input->{actor_id},
         target_type    => $USER_AGGREGATE,
-        target_id      => _column( $request, 'subject_user_id' ),
+        target_id      => column_of( $request, 'subject_user_id' ),
         correlation_id => $correlation_id,
         previous_hash  => undef,
         record_hash    => q{},
         metadata       => {
-            export_request_id => _column( $request, 'export_request_id' ),
+            export_request_id => column_of( $request, 'export_request_id' ),
             %{ $input->{metadata} || {} },
         },
         created_at => $input->{created_at},
@@ -518,24 +513,24 @@ sub _record_event_and_audit ( $self, $input ) {
 
 sub _request_payload ($request) {
     return {
-        export_request_id => _column( $request, 'export_request_id' ),
-        export_type       => _column( $request, 'export_type' ),
-        format            => _column( $request, 'format' ),
-        status            => _column( $request, 'status' ),
-        subject_user_id   => _column( $request, 'subject_user_id' ),
+        export_request_id => column_of( $request, 'export_request_id' ),
+        export_type       => column_of( $request, 'export_type' ),
+        format            => column_of( $request, 'format' ),
+        status            => column_of( $request, 'status' ),
+        subject_user_id   => column_of( $request, 'subject_user_id' ),
     };
 }
 
 sub _request_hash ($request) {
     return {
-        export_request_id => _column( $request, 'export_request_id' ),
-        requester_user_id => _column( $request, 'requester_user_id' ),
-        subject_user_id   => _column( $request, 'subject_user_id' ),
-        export_type       => _column( $request, 'export_type' ),
-        format            => _column( $request, 'format' ),
-        status            => _column( $request, 'status' ),
-        created_at        => _column( $request, 'created_at' ),
-        finished_at       => _column( $request, 'finished_at' ),
+        export_request_id => column_of( $request, 'export_request_id' ),
+        requester_user_id => column_of( $request, 'requester_user_id' ),
+        subject_user_id   => column_of( $request, 'subject_user_id' ),
+        export_type       => column_of( $request, 'export_type' ),
+        format            => column_of( $request, 'format' ),
+        status            => column_of( $request, 'status' ),
+        created_at        => column_of( $request, 'created_at' ),
+        finished_at       => column_of( $request, 'finished_at' ),
         manifest          => _manifest($request) || {},
     };
 }
@@ -547,11 +542,7 @@ sub _manifest ($request) {
         return $request->get_inflated_column('manifest');
     }
 
-    return _column( $request, 'manifest' );
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
+    return column_of( $request, 'manifest' );
 }
 
 1;

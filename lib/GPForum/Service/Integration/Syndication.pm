@@ -9,7 +9,7 @@ use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use Mojo::Util  qw(encode);
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
 use GPForum::Service::Integration::HttpClient;
@@ -160,8 +160,7 @@ sub decide ( $self, $input, $publish ) {
                     }
                 );
                 return $result if !$result->{ok};
-                $thread = GPForum::Infrastructure::Row->column(
-                    $result->{stored}{thread}, 'thread_id' );
+                $thread = column_of( $result->{stored}{thread}, 'thread_id' );
                 return { status => 'failed' } if !$thread;
             }
             my $answer = $self->functions->row(

@@ -6,7 +6,7 @@ package GPForum::Service::Attachment::ImagePreview;
 use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 
 our $VERSION = '0.001';
 const my $BOUND   => 1_280;
@@ -18,8 +18,7 @@ has tool => undef;    # optional: previews require an installed image tool
 sub variant_type { return $VARIANT; }
 
 sub supported ( $self, $attachment ) {
-    my $type =
-      GPForum::Infrastructure::Row->column( $attachment, 'media_type' ) // q{};
+    my $type = column_of( $attachment, 'media_type' ) // q{};
     return
          $self->tool
       && $self->tool->can('previews')
@@ -29,10 +28,8 @@ sub supported ( $self, $attachment ) {
 sub existing ( $self, $attachment ) {
     return $self->store->find_variant(
         {
-            attachment_id => GPForum::Infrastructure::Row->column(
-                $attachment, 'attachment_id'
-            ),
-            variant_type => $VARIANT,
+            attachment_id => column_of( $attachment, 'attachment_id' ),
+            variant_type  => $VARIANT,
         }
     );
 }
@@ -51,21 +48,17 @@ sub process ( $self, $attachment, $image ) {
     {
         return;
     }
-    my $key = join q{-},
-      GPForum::Infrastructure::Row->column( $attachment, 'object_key' ),
-      $VARIANT;
+    my $key = join q{-}, column_of( $attachment, 'object_key' ), $VARIANT;
     if ( !$self->storage->exists_object($key) ) {
         $self->storage->write_object( $key, $content );
     }
     return $self->store->add_variant(
         {
-            attachment_id => GPForum::Infrastructure::Row->column(
-                $attachment, 'attachment_id'
-            ),
-            variant_type => $VARIANT,
-            object_key   => $key,
-            byte_size    => length($content),
-            media_type   => 'image/png',
+            attachment_id => column_of( $attachment, 'attachment_id' ),
+            variant_type  => $VARIANT,
+            object_key    => $key,
+            byte_size     => length($content),
+            media_type    => 'image/png',
         }
     );
 }

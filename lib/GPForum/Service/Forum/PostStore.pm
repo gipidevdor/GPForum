@@ -13,7 +13,7 @@ use GPForum::Domain::Thread;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::PreparedQuery;
 use GPForum::Infrastructure::ResultRow::Post;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::Text qw(has_text);
@@ -454,7 +454,7 @@ sub _point_at ( $self, $post, $command ) {
 }
 
 sub _body_unchanged ( $self, $post, $command ) {
-    my $body_id = _column( $post, 'current_body_id' );
+    my $body_id = column_of( $post, 'current_body_id' );
     return 0 if !has_text($body_id);
 
     return GPForum::Infrastructure::Row->belongs( $self->_find_body($body_id),
@@ -484,7 +484,7 @@ sub _set_deleted ( $self, $command, $event_type ) {
         }
     );
     my $thread_id =
-      _column( $post, 'thread_id' ) || $command->{post}{thread_id};
+      column_of( $post, 'thread_id' ) || $command->{post}{thread_id};
 
     if ( has_text($thread_id) && _is_reply($post) ) {
         $self->_count_replies( $thread_id, $deletion->{delta} );
@@ -507,7 +507,7 @@ sub _locked_post ( $self, $post, $writer ) {
     my $thread = {};
     if ($dbh) {
         my $thread_id = $post->{thread_id}
-          // _column( $self->_find_post( $post->{post_id} ), 'thread_id' );
+          // column_of( $self->_find_post( $post->{post_id} ), 'thread_id' );
         $thread = GPForum::Domain::Thread->shown_to_writer(
             $dbh->selectrow_hashref( $POST_THREAD_LOCK_SQL, undef, $thread_id ),
             $writer
@@ -563,7 +563,7 @@ sub _count_replies ( $self, $thread_id, $delta ) {
 # The opening post is not a reply: deleting or restoring it leaves the
 # count. A row without a position (the in-memory doubles) counts.
 sub _is_reply ($post) {
-    return ( _column( $post, 'position' ) // 0 ) == $FIRST_POSITION ? 0 : 1;
+    return ( column_of( $post, 'position' ) // 0 ) == $FIRST_POSITION ? 0 : 1;
 }
 
 sub _with_position ( $self, $command ) {
@@ -578,7 +578,7 @@ sub _with_position ( $self, $command ) {
         }
     )->single;
     my $position =
-      $latest ? _column( $latest, 'position' ) + 1 : $FIRST_POSITION;
+      $latest ? column_of( $latest, 'position' ) + 1 : $FIRST_POSITION;
 
     return { %{$command},
         post => { %{ $command->{post} }, position => $position } };
@@ -591,7 +591,7 @@ sub _with_revision_number ( $self, $command ) {
     my $revisions = $self->schema->resultset('PostRevision')
       ->search_rs( { post_id => $command->{revision}{post_id} } );
     my $latest = max 0,
-      map { _column( $_, 'revision_number' ) || 0 } $revisions->all;
+      map { column_of( $_, 'revision_number' ) || 0 } $revisions->all;
 
     return { %{$command},
         revision =>
@@ -654,15 +654,11 @@ sub _skipped ($post) {
 }
 
 sub _next_version ($post) {
-    return ( _column( $post, 'version' ) || 1 ) + 1;
+    return ( column_of( $post, 'version' ) || 1 ) + 1;
 }
 
 sub _valid_number ($number) {
     return defined $number && $number > 0 ? 1 : 0;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

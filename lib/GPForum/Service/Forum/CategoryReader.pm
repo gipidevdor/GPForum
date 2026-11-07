@@ -11,7 +11,7 @@ use Mojo::Promise;
 
 use GPForum::Infrastructure::PreparedQuery;
 use GPForum::Infrastructure::ResultRow;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
@@ -248,11 +248,7 @@ sub _list_categories ( $self, $limit, $viewer = undef ) {
             }
         ];
     }
-    return [
-        GPForum::Infrastructure::Row->rows_of(
-            $self->categories_resultset( $limit, $viewer )
-        )
-    ];
+    return [ rows_in( $self->categories_resultset( $limit, $viewer ) ) ];
 }
 
 # The PostgreSQL call, shared with the nested plan evidence.

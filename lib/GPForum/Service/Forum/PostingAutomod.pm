@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Moderation::Automod;
 
 our $VERSION = '0.001';
@@ -169,10 +169,8 @@ sub _refuse ( $self, $type, $input, $verdict ) {
 sub _record ( $self, $type, $screen, $written ) {
     my $verdict = $screen->{verdict};
     my ( $kind, $column ) = @{ $TARGET{$type} };
-    my $target_id =
-      GPForum::Infrastructure::Row->column( $written->{stored}{$kind},
-        $column );
-    my $input = $screen->{input};
+    my $target_id = column_of( $written->{stored}{$kind}, $column );
+    my $input     = $screen->{input};
     my @audits;
     if ( @{ $verdict->{replaced} } ) {
         push @audits,

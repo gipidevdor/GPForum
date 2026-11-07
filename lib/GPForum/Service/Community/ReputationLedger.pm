@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row  qw(column_of);
 use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
@@ -178,7 +178,7 @@ sub _persist_snapshot ( $self, $input, $created_at ) {
 }
 
 sub _apply_snapshot_delta ( $self, $existing, $job ) {
-    my $score = ( _column( $existing, 'score' ) || 0 ) + $job->{input}{delta};
+    my $score = ( column_of( $existing, 'score' ) || 0 ) + $job->{input}{delta};
     my $row   = {
         calculated_at => $job->{created_at},
         score         => $score,
@@ -237,11 +237,11 @@ sub _current_snapshot ( $self, $user_id ) {
     }
 
     return {
-        calculated_at => _column( $row, 'calculated_at' ),
-        score         => _column( $row, 'score' ),
-        trust_level   => _column( $row, 'trust_level' ),
-        user_id       => _column( $row, 'user_id' ) || $user_id,
-        version       => _column( $row, 'version' ) || $DEFAULT_VERSION,
+        calculated_at => column_of( $row, 'calculated_at' ),
+        score         => column_of( $row, 'score' ),
+        trust_level   => column_of( $row, 'trust_level' ),
+        user_id       => column_of( $row, 'user_id' ) || $user_id,
+        version       => column_of( $row, 'version' ) || $DEFAULT_VERSION,
     };
 }
 
@@ -258,14 +258,14 @@ sub _existing_event ( $self, $input ) {
     return if !$row;
 
     return {
-        actor_id            => _column( $row, 'actor_id' ),
-        created_at          => _column( $row, 'created_at' ),
-        delta               => _column( $row, 'delta' ),
-        reason              => _column( $row, 'reason' ),
-        reputation_event_id => _column( $row, 'reputation_event_id' ),
-        source_id           => _column( $row, 'source_id' ),
-        source_type         => _column( $row, 'source_type' ),
-        user_id             => _column( $row, 'user_id' ),
+        actor_id            => column_of( $row, 'actor_id' ),
+        created_at          => column_of( $row, 'created_at' ),
+        delta               => column_of( $row, 'delta' ),
+        reason              => column_of( $row, 'reason' ),
+        reputation_event_id => column_of( $row, 'reputation_event_id' ),
+        source_id           => column_of( $row, 'source_id' ),
+        source_type         => column_of( $row, 'source_type' ),
+        user_id             => column_of( $row, 'user_id' ),
     };
 }
 
@@ -275,7 +275,7 @@ sub _sync_user_trust ( $self, $snapshot ) {
         return;
     }
 
-    my $held     = _column( $user, 'trust_level' );
+    my $held     = column_of( $user, 'trust_level' );
     my $incoming = $snapshot->{trust_level};
     if ( defined $held && defined $incoming && $held == $incoming ) {
         return;
@@ -295,10 +295,6 @@ sub _has_source ($input) {
     }
 
     return 1;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 sub trust_level_for_score ($score) {

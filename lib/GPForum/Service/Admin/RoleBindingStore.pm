@@ -10,7 +10,7 @@ use v5.40;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Admin::Event;
@@ -215,20 +215,16 @@ sub _binding_hash ($binding) {
     return undef if !$binding;
 
     return {
-        binding_id         => _column( $binding, 'binding_id' ),
-        created_at         => _column( $binding, 'created_at' ),
-        created_by_user_id => _column( $binding, 'created_by_user_id' ),
-        resource_id        => _column( $binding, 'resource_id' ),
-        resource_type      => _column( $binding, 'resource_type' ),
-        revoked_at         => _column( $binding, 'revoked_at' ),
-        role_id            => _column( $binding, 'role_id' ),
-        space_id           => _column( $binding, 'space_id' ),
-        user_id            => _column( $binding, 'user_id' ),
+        binding_id         => column_of( $binding, 'binding_id' ),
+        created_at         => column_of( $binding, 'created_at' ),
+        created_by_user_id => column_of( $binding, 'created_by_user_id' ),
+        resource_id        => column_of( $binding, 'resource_id' ),
+        resource_type      => column_of( $binding, 'resource_type' ),
+        revoked_at         => column_of( $binding, 'revoked_at' ),
+        role_id            => column_of( $binding, 'role_id' ),
+        space_id           => column_of( $binding, 'space_id' ),
+        user_id            => column_of( $binding, 'user_id' ),
     };
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 # An earlier attempt may have committed the binding without its audit entry.
@@ -240,7 +236,7 @@ sub _finish_leftover_binding ( $self, $existing, $input ) {
             {
                 query => {
                     action    => 'role_binding.created',
-                    target_id => _column( $existing, 'binding_id' )
+                    target_id => column_of( $existing, 'binding_id' )
                 }
             }
         );
@@ -249,7 +245,7 @@ sub _finish_leftover_binding ( $self, $existing, $input ) {
         my $search = $self->schema->resultset('AuditLog')->search_rs(
             {
                 action    => 'role_binding.created',
-                target_id => _column( $existing, 'binding_id' ),
+                target_id => column_of( $existing, 'binding_id' ),
             },
             { rows => $ROW_LIMIT_ONE },
         );
@@ -261,7 +257,7 @@ sub _finish_leftover_binding ( $self, $existing, $input ) {
                 action        => 'role_binding.created',
                 actor_user_id => $input->{actor_user_id},
                 binding       => $existing,
-                created_at    => _column( $existing, 'created_at' )
+                created_at    => column_of( $existing, 'created_at' )
                   || $self->clock->now_iso8601,
             }
         );

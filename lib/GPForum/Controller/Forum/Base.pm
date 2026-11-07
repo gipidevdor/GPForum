@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 use Mojo::Promise;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row  qw(column_of);
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Service::Forum::BodyLength;
 use GPForum::Service::Forum::BodyRenderer;
@@ -789,16 +789,13 @@ sub _reply_into_composer ( $self, $posts ) {
     my $draft  = $self->stash('composer_draft') or return;
     my $wanted = $self->param('reply_to');
     return if !defined $wanted || !length $wanted;
-    my ($post) = grep {
-        ( GPForum::Infrastructure::Row->column( $_, 'post_id' ) // q{} ) eq
-          $wanted
-    } @{$posts};
+    my ($post) =
+      grep { ( column_of( $_, 'post_id' ) // q{} ) eq $wanted } @{$posts};
     return if !$post;
     $draft->{reply_to} = {
-        author_username =>
-          GPForum::Infrastructure::Row->column( $post, 'author_username' ),
-        position => GPForum::Infrastructure::Row->column( $post, 'position' ),
-        post_id  => $wanted,
+        author_username => column_of( $post, 'author_username' ),
+        position        => column_of( $post, 'position' ),
+        post_id         => $wanted,
     };
     return;
 }
@@ -831,15 +828,12 @@ sub _quote_into_composer ( $self, $posts ) {
     my $draft  = $self->stash('composer_draft') or return;
     my $wanted = $self->param('quote');
     return if !defined $wanted || !length $wanted;
-    my ($post) = grep {
-        ( GPForum::Infrastructure::Row->column( $_, 'post_id' ) // q{} ) eq
-          $wanted
-    } @{$posts};
+    my ($post) =
+      grep { ( column_of( $_, 'post_id' ) // q{} ) eq $wanted } @{$posts};
     return if !$post;
-    my $source = GPForum::Infrastructure::Row->column( $post, 'body_source' );
-    my $author =
-      GPForum::Infrastructure::Row->column( $post, 'author_username' );
-    my $wrote = $self->t(
+    my $source = column_of( $post, 'body_source' );
+    my $author = column_of( $post, 'author_username' );
+    my $wrote  = $self->t(
         'forum.quoted_from',
         {
             author => defined $author
@@ -1080,7 +1074,7 @@ sub search_filters ($self) {
 }
 
 sub _column ( $, $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
+    return column_of( $row, $name );
 }
 
 sub _new_command_id ($self) {

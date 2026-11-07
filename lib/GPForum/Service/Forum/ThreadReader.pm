@@ -11,7 +11,7 @@ use Mojo::Promise;
 
 use GPForum::Infrastructure::Keyset;
 use GPForum::Infrastructure::ResultRow::Thread;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
@@ -57,13 +57,8 @@ sub list_category_threads ( $self, $request ) {
     }
 
     return _pinned_page(
-        [
-            GPForum::Infrastructure::Row->rows_of(
-                $self->category_threads_resultset( $request, $plan )
-            )
-        ],
-        $plan->{limit}
-    );
+        [ rows_in( $self->category_threads_resultset( $request, $plan ) ) ],
+        $plan->{limit} );
 }
 
 sub list_category_threads_p ( $self, $request, $context = undef ) {
@@ -186,13 +181,8 @@ sub list_public_threads ( $self, $request ) {
     }
 
     return $self->page_window->page(
-        [
-            GPForum::Infrastructure::Row->rows_of(
-                $self->latest_threads_resultset( $request, $plan )
-            )
-        ],
-        $plan->{limit},
-        [ 'last_activity_at', 'thread_id' ],
+        [ rows_in( $self->latest_threads_resultset( $request, $plan ) ) ],
+        $plan->{limit}, [ 'last_activity_at', 'thread_id' ],
     );
 }
 

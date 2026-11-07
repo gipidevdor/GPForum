@@ -7,6 +7,7 @@ use v5.40;
 
 use File::Temp qw(tempdir);
 use English    qw(-no_match_vars);
+use Errno      qw(EINTR);
 use Carp       qw(croak);
 use Mojolicious;
 use Mojo::File qw(path);
@@ -15,6 +16,7 @@ use Fcntl qw(:flock);
 use IO::Select;
 use POSIX ();
 use Const::Fast;
+use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
 
 use lib 'lib';
 use lib 't/lib';
@@ -118,7 +120,8 @@ for my $plist ( sort glob 'deploy/launchd/*.plist' ) {
 done_testing();
 
 sub _forked_writers ( $application, $file ) {
-    const my $BLOCK_SECONDS => 0.1;
+    const my $BLOCK_SECONDS  => 0.1;
+    const my $CHILD_DEADLINE => 10;
     my $handle = $application->log->handle;
     flock $handle, LOCK_EX or croak 'cannot lock parent log';
     pipe my $reader, my $writer or croak 'cannot open child signal pipe';
@@ -126,7 +129,7 @@ sub _forked_writers ( $application, $file ) {
     if ( !$child ) { _child_writer( $application, $reader, $writer ); }
     close $writer or croak 'cannot close parent pipe writer';
     my $select = IO::Select->new($reader);
-    my $ready  = $select->can_read(2);
+    my $ready  = _wait_readable( $select, $CHILD_DEADLINE );
     ok( $ready, 'the child reaches its append' );
 
     if ($ready) {
@@ -134,11 +137,12 @@ sub _forked_writers ( $application, $file ) {
           or croak 'cannot read child readiness';
         is( $message, "ready\n", 'readiness precedes the log write' );
     }
-    ok( !$select->can_read($BLOCK_SECONDS),
+    ok(
+        !_wait_readable( $select, $BLOCK_SECONDS ),
         'the child blocks on its own descriptor while the parent holds the lock'
     );
     flock $handle, LOCK_UN or croak 'cannot unlock parent log';
-    my $finished = $select->can_read(2);
+    my $finished = _wait_readable( $select, $CHILD_DEADLINE );
     ok( $finished, 'the child completes once the parent unlocks' );
     if ( !$finished ) { kill 'KILL', $child; }
     waitpid $child, 0;
@@ -149,6 +153,20 @@ sub _forked_writers ( $application, $file ) {
         qr/independent[ ]child[ ]line/msx,
         'the child line is retained'
     );
+    return;
+}
+
+# SIGCHLD can interrupt select just as the child closes its pipe. Keep the
+# original deadline across interruptions instead of treating EINTR as timeout.
+sub _wait_readable ( $select, $seconds ) {
+    my $deadline = clock_gettime(CLOCK_MONOTONIC) + $seconds;
+    while (1) {
+        my $remaining = $deadline - clock_gettime(CLOCK_MONOTONIC);
+        return if $remaining <= 0;
+        local $ERRNO = 0;
+        return 1 if $select->can_read($remaining);
+        return   if $ERRNO != EINTR;
+    }
     return;
 }
 

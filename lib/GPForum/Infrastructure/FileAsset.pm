@@ -4,14 +4,12 @@
 package GPForum::Infrastructure::FileAsset;
 use Mojo::Base 'Mojo::Asset::File', -signatures;
 use v5.40;
-use Carp qw(croak);
-use Const::Fast;
+use Carp       qw(croak);
 use List::Util qw(min);
+use Mojo::Promise;
 use GPForum::Infrastructure::FileReader;
 
 our $VERSION = '0.001';
-const my $STAT_SIZE  => 7;
-const my $STAT_MTIME => 9;
 has descriptor    => sub { return {}; };
 has chunk_bytes   => 262_144;
 has reader        => undef;    # optional: opened lazily for trusted descriptors

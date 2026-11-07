@@ -355,6 +355,9 @@ for its complete native connection budget after the pause.
 The high-connection benchmark waits for warm-up sockets and pending accepts
 to drain before starting each measured run. Its JSON records whether that
 drain was observed; Linux provides both worker socket and listen-queue data.
+A targeted evidence collection declares its required suites at initialization
+(for example, `--suite http` for the connection gate). Missing planned cells
+and failures still fail the gate; unplanned collectors remain marked skipped.
 
 ## Deployment Evidence
 

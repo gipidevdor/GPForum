@@ -246,6 +246,18 @@ sub _collect ( $output, $metadata, $suites ) {
     return ( \@measurements, \@limitations );
 }
 
+sub _required_suites ($metadata) {
+    my $required = $metadata->{configuration}{required_suites}
+      // [qw(http database outbox)];
+    my %known = map { $_ => 1 } qw(http database outbox);
+    die "Expected a nonempty list of HTTP/database/outbox suites\n"
+      if ref $required ne 'ARRAY'
+      || !@{$required}
+      || any { !defined $_ || !$known{$_} } @{$required};
+    my %unique = map { $_ => 1 } @{$required};
+    return [ sort keys %unique ];
+}
+
 sub _views ( $output, $metadata, $measurements ) {
     for my $kind (qw(reactor workers)) {
         my @rows =
@@ -279,6 +291,7 @@ sub _views ( $output, $metadata, $measurements ) {
 sub finalize ( $output, $options = {} ) {
     my $metadata = read_json( _path( $output, 'metadata' ) );
     _merge_environment( $metadata, $output );
+    my $required = _required_suites($metadata);
     write_json( _path( $output, 'metadata' ), $metadata );
     my $suites = _statuses($output);
     my ( $measurements, $limits ) = _collect( $output, $metadata, $suites );
@@ -299,8 +312,7 @@ sub finalize ( $output, $options = {} ) {
          ( any { $failed_status{ $_->{status} // q{} } } values %{$suites} )
       || ( any { $_->{status} ne 'ok' } @{$measurements} );
     my $incomplete =
-      any { $incomplete_status{ $suites->{$_}{status} // q{} } }
-      qw(http database outbox);
+      any { $incomplete_status{ $suites->{$_}{status} // q{} } } @{$required};
     my $status = $failed ? 'failed' : $incomplete
       && @{$measurements} ? 'partial' : @{$measurements} ? 'ok' : 'skipped';
     my %summary = map { $_ => $metadata->{$_} }
@@ -381,19 +393,32 @@ sub _initialize ($options) {
     die "Evidence run already initialized; use a distinct directory\n"
       if -e _path( $options->{output}, 'metadata' );
     my $metadata = initial( $options->{mode}, $options->{commit} );
+    if ( $options->{suite} ) {
+        $metadata->{configuration}{required_suites} = $options->{suite};
+        $metadata->{configuration}{required_suites} =
+          _required_suites($metadata);
+        $metadata->{comparison_signature} = compatible_signature($metadata);
+    }
     schema_validate( $metadata, _schema() );
     write_json( _path( $options->{output}, 'metadata' ), $metadata );
     return 1;
 }
 
+sub _parse_options ( $action, $arguments ) {
+    my %options;
+    GetOptionsFromArray( $arguments, \%options,
+        qw(output=s mode=s commit=s baseline=s baseline-root=s schema=s root=s suite=s@)
+    ) or die "Invalid evidence arguments\n";
+    die "Unexpected evidence arguments\n" if @{$arguments};
+    die "--suite declares an init plan only\n"
+      if $options{suite} && $action ne 'init';
+    return \%options;
+}
+
 sub main (@arguments) {
     my $action = shift @arguments
       // die "Action required: init/finalize/validate/index\n";
-    my %options;
-    GetOptionsFromArray( \@arguments, \%options,
-        qw(output=s mode=s commit=s baseline=s baseline-root=s schema=s root=s)
-    ) or die "Invalid evidence arguments\n";
-    die "Unexpected evidence arguments\n" if @arguments;
+    my %options = _parse_options( $action, \@arguments )->%*;
     if ( $action eq 'index' ) {
         die "--root required\n" if !$options{root};
         GPForum::Performance::Evidence::index( $options{root} );

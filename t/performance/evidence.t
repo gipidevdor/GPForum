@@ -164,6 +164,80 @@ sub test_success {
 }
 subtest 'success, provenance and safe report' => \&test_success;
 
+subtest 'an explicit HTTP-only plan requires all of its actual measurements' =>
+  sub {
+    my $output = fixture('http_only');
+    unlink "$output/database.json"
+      or die "Cannot remove unplanned database fixture\n";
+    unlink "$output/outbox.json"
+      or die "Cannot remove unplanned outbox fixture\n";
+    is( finalize($output)->{status},
+        'partial',
+        'a default full collection still requires the missing suites' );
+    my $metadata = read_json("$output/metadata.json");
+    $metadata->{configuration}{required_suites} = ['http'];
+    write_json( "$output/metadata.json", $metadata );
+    my $summary = finalize($output);
+    is( $summary->{status}, 'ok',
+        'the explicitly planned HTTP collection is complete' );
+    is( $summary->{suites}{database}{status},
+        'skipped', 'unplanned database work is never claimed as executed' );
+    is( $summary->{suites}{outbox}{status},
+        'skipped', 'unplanned outbox work is never claimed as executed' );
+    ok( validate($output),
+        'targeted evidence still validates the full public schema' );
+    write_json( "$output/suite-status.json",
+        { http => { status => 'partial' } } );
+    is( finalize($output)->{status},
+        'partial', 'incomplete planned HTTP remains blocking' );
+    write_json( "$output/suite-status.json",
+        { http => { status => 'failed' } } );
+    is( finalize($output)->{status}, 'failed', 'failed HTTP remains failed' );
+    write_json(
+        "$output/suite-status.json",
+        {
+            http   => { status => 'ok' },
+            outbox => { status => 'failed' },
+        }
+    );
+    is( finalize($output)->{status}, 'failed',
+        'an additional suite that actually fails cannot be hidden by the plan'
+    );
+    $metadata->{configuration}{required_suites} = [];
+    write_json( "$output/metadata.json", $metadata );
+    failed( sub { finalize($output) },
+        qr/nonempty/msx, 'an empty plan cannot bypass collection' );
+    failed(
+        sub {
+            GPForum::Performance::Evidence::main(
+                'init', '--output', "$root/bad_plan", '--mode',
+                'pr',   '--suite',  'unknown'
+            );
+        },
+        qr/nonempty/msx,
+        'unknown suite names cannot remove a required check'
+    );
+    failed(
+        sub {
+            GPForum::Performance::Evidence::main( 'finalize', '--output',
+                $output, '--suite', 'http' );
+        },
+        qr/init[ ]plan[ ]only/msx,
+        'the required plan cannot be changed during finalization'
+    );
+    my $cli = "$root/http_plan_cli";
+    is(
+        GPForum::Performance::Evidence::main(
+            'init', '--output', $cli, '--mode', 'pr', '--suite', 'http'
+        ),
+        0,
+        'the pre-dependency CLI declares the targeted plan'
+    );
+    is_deeply(
+        read_json("$cli/metadata.json")->{configuration}{required_suites},
+        ['http'], 'the plan is persisted before measurement starts' );
+  };
+
 sub test_failures {
     my $failure = finalize( fixture( 'failure', { status => 'failed' } ) );
     is( $failure->{status}, 'failed', 'failure saved' );

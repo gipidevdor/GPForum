@@ -185,6 +185,12 @@ ok(
     'the transport capacity test is repeated and identifies its endpoint'
 );
 ok(
+    index(
+        $ordinary, '"$PERF_OUTPUT/connections-5000" --mode pr --suite http'
+    ) >= 0,
+    'the connection gate declares its required HTTP suite before measurement'
+);
+ok(
     index( $ordinary, q{PERF_CONNECTIONS: ${{ steps.connections.outcome }}} )
       >= 0,
     'connection test failure reaches the existing CI gate'

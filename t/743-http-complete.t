@@ -234,6 +234,34 @@ like( $html, qr/&lt;script&gt;/msx, 'report escapes failure text' );
 unlike( $html, qr/<script>/msx,
     'failure text cannot inject executable report markup' );
 
+subtest 'mixed setup renews clients left idle by preceding journeys' => sub {
+    my $member     = GPForum::Performance::HTTPClient->new( actor => 'member' );
+    my $idle_agent = $member->ua;
+    my $authenticated_cookies = $idle_agent->cookie_jar;
+    my $prepared              = 0;
+    no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings) -- inspect the TCP pool at the real mixed preparation boundary
+    local *GPForum::Performance::HTTPClient::steps_p = sub ( $actor, $steps ) {
+        ++$prepared;
+        isnt( $actor->ua, $idle_agent,
+            'publishing starts without reusing an expired idle socket' );
+        is( $actor->ua->cookie_jar,
+            $authenticated_cookies,
+            'the authenticated session survives setup' );
+        return Mojo::Promise->resolve;
+    };
+    my $benchmark = GPForum::Performance::HTTPComplete->new(
+        options => {
+            scenario      => [],
+            expires       => monotonic() + 1,
+            write_clients => 1,
+            repetitions   => 0,
+        },
+        pools => { member => [$member] },
+    );
+    $benchmark->can('_mixed')->($benchmark);
+    is( $prepared, 1, 'publishing preparation still executes once' );
+};
+
 subtest 'startup probes reach workers concurrently before measurement' => sub {
     my @probe_requests;
     my $first_completion_count;

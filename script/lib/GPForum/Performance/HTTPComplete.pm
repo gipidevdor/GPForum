@@ -510,6 +510,10 @@ sub _mixed ($self) {
     my $o = $self->options;
     return undef if monotonic() >= $o->{expires};
     my @clients = @{ $self->pools->{member} }[ 0 .. $o->{write_clients} - 1 ];
+
+    # Preparation runs outside _cell, after other actors may have left these
+    # sockets idle beyond the server timeout. Retain identity, start fresh TCP.
+    for my $client (@clients) { $client->reset_connections; }
     _await(
         Mojo::Promise->map(
             sub ($client) { return $client->steps_p( publishing() ); },

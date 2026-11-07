@@ -9,6 +9,7 @@ use Const::Fast;
 use IO::Socket::INET;
 use Mojo::IOLoop;
 use Mojo::Server::Daemon;
+use Mojo::Server::Prefork;
 use Mojo::Util qw(steady_time);
 use Mojolicious;
 use Test::More;
@@ -53,15 +54,18 @@ sub advance_until ($condition) {
     return $condition->();
 }
 
-sub fixture ($limit) {
-    my $server = Mojo::Server::Daemon->new(
+sub fixture ( $limit, $batch = $BATCH, $prefork = 0 ) {
+    my $class  = $prefork ? 'Mojo::Server::Prefork' : 'Mojo::Server::Daemon';
+    my $server = $class->new(
         app         => Mojolicious->new,
         listen      => ['http://127.0.0.1:0?single_accept=0'],
         max_clients => $limit,
         backlog     => $CLIENTS,
         silent      => 1,
-    )->start;
-    $CLASS->install( $server, $BATCH, [0] );
+    );
+    if ($prefork) { $server->cleanup(0)->workers(2); }
+    $server->start;
+    $CLASS->install( $server, $batch, [0] );
     my $accepted = 0;
     Mojo::IOLoop->acceptor( $server->acceptors->[0] )
       ->on( accept => sub { $accepted++; return; } );
@@ -116,6 +120,69 @@ subtest 'yielding preserves capacity and reopens after a client closes' => sub {
     is( ${$accepted}, $LIMIT + 1,
         'exactly the available capacity is admitted' );
 
+    for my $client ( $clients->@* ) {
+        close $client or croak 'cannot close fixture client';
+    }
+    undef $server;
+    Mojo::IOLoop->reset;
+};
+
+subtest
+  'large prefork bursts share admission without reducing native capacity' =>
+  sub {
+    my ( $server, $clients, $accepted ) = fixture( $CLIENTS, $MAX_BATCH, 1 );
+    ok( advance_until( sub { return ${$accepted} > 0; } ), 'the burst starts' );
+    is(
+        ${$accepted},
+        $CLIENTS / 2,
+        'one worker yields after its share of the new connection cohort'
+    );
+    ok(
+        advance_until( sub { return ${$accepted} == $CLIENTS; } ),
+        'the same worker can still admit its full native capacity'
+    );
+    ok(
+        advance_until(
+            sub {
+                return
+                  defined Mojo::IOLoop->acceptor( $server->acceptors->[0] );
+            }
+        ),
+        'the delayed listener is registered again'
+    );
+    ok(
+        !Mojo::IOLoop->acceptor( $server->acceptors->[0] )->is_accepting,
+        'the delayed resume preserves the native hard cap'
+    );
+    for my $client ( $clients->@* ) {
+        close $client or croak 'cannot close fixture client';
+    }
+    undef $server;
+    Mojo::IOLoop->reset;
+  };
+
+subtest 'graceful shutdown wins over a fairness timer' => sub {
+    my ( $server, $clients, $accepted ) = fixture( $CLIENTS, $MAX_BATCH, 1 );
+    advance_until( sub { return ${$accepted} > 0; } );
+    Mojo::IOLoop->stop_gracefully;
+    ok(
+        advance_until(
+            sub {
+                return
+                  defined Mojo::IOLoop->acceptor( $server->acceptors->[0] );
+            }
+        ),
+        'the fairness timer completes'
+    );
+    is(
+        ${$accepted},
+        $CLIENTS / 2,
+        'a draining worker never accepts the next cohort'
+    );
+    ok(
+        !Mojo::IOLoop->acceptor( $server->acceptors->[0] )->is_accepting,
+        'the fairness timer does not reopen a draining listener'
+    );
     for my $client ( $clients->@* ) {
         close $client or croak 'cannot close fixture client';
     }

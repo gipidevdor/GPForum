@@ -338,11 +338,19 @@ At up to 250 configured clients per worker, listeners accept one connection per
 event-loop turn. Larger budgets admit bounded groups through the native
 Mojolicious listener API: up to 64 per turn for budgets through 4,096 clients,
 and up to 512 above that. Cold bursts can then enter while existing keep-alive
-connections remain busy. This keeps bursts moving
+connections remain busy. At these large budgets, a worker briefly yields
+acceptance after its share of a new cohort, giving quieter workers a turn.
+The same worker remains eligible for its complete native connection budget.
+This keeps bursts moving
 without letting one worker drain the entire listen queue. Native connection
 limits and graceful shutdown still govern every resume. Explicit
 `single_accept` listener settings take precedence; TLS listeners retain native
 single-accept handshake behavior.
+
+For budgets above 4,096, a prefork worker briefly pauses acceptance after its
+share of a new connection cohort. Other workers can accept their share while
+existing connections keep receiving responses. Each worker remains eligible
+for its complete native connection budget after the pause.
 
 The high-connection benchmark waits for warm-up sockets and pending accepts
 to drain before starting each measured run. Its JSON records whether that

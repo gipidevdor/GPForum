@@ -8,7 +8,7 @@ use v5.40;
 use Const::Fast;
 use English      qw(-no_match_vars);
 use List::Util   qw(min);
-use Scalar::Util qw(weaken);
+use Scalar::Util qw(refaddr weaken);
 
 our $VERSION = '0.001';
 const my $SINGLE_ACCEPT_CLIENTS => 250;
@@ -16,6 +16,7 @@ const my $CLIENTS_PER_ACCEPT    => 64;
 const my $MAX_ACCEPT_BATCH      => 64;
 const my $BURST_CLIENTS         => 4096;
 const my $BURST_ACCEPT_BATCH    => 512;
+const my $FAIR_ACCEPT_PAUSE     => 0.05;
 
 sub batch_size ( $, $clients ) {
     return 1 if $clients <= $SINGLE_ACCEPT_CLIENTS;
@@ -70,33 +71,104 @@ sub _attach ( $, $server, $index, $batch ) {
     my $id   = $server->acceptors->[$index];
     return if !defined $id;
     my $acceptor = $loop->acceptor($id) or return;
-    weaken($server);
-    weaken($loop);
-    my ( $accepted, $scheduled, $paused ) = ( 0, 0, 0 );
+    my $state    = {
+        loop      => $loop,
+        server    => $server,
+        id        => $id,
+        index     => $index,
+        batch     => $batch,
+        allowance => $batch,
+        accepted  => 0,
+        scheduled => 0,
+        paused    => 0,
+        handles   => {},
+        share     => _cohort_size( $server, $batch ),
+    };
+    weaken( $state->{server} );
+    weaken( $state->{loop} );
     $acceptor->on(
-        accept => sub ( $listener, @ ) {
-            if ( !$scheduled++ ) {
-                $loop->next_tick(
-                    sub {
-                        ( $accepted, $scheduled ) = ( 0, 0 );
-                        return if !$paused || !$server;
-                        $paused = 0;
-
-                        # Register through IOLoop so its connection limit and
-                        # graceful-stop state decide whether to resume.
-                        $id = $loop->acceptor($listener);
-                        $server->acceptors->[$index] = $id;
-                        return;
-                    }
-                );
-            }
-            return if ++$accepted < $batch;
-            $paused = 1;
-            $listener->stop;
-            $loop->remove($id);
+        accept => sub ( $listener, $handle ) {
+            _accepted( $state, $listener, $handle );
             return;
         }
     );
+    return;
+}
+
+sub _cohort_size ( $server, $batch ) {
+    return 0
+      if $batch != $BURST_ACCEPT_BATCH
+      || !$server->isa('Mojo::Server::Prefork');
+    my $clients = $server->ioloop->max_connections;
+    return int( ( $clients + $server->workers - 1 ) / $server->workers );
+}
+
+sub _accepted ( $state, $listener, $handle ) {
+    _record_socket( $state, $handle );
+    my $loop = $state->{loop};
+    if ( !$state->{scheduled}++ ) {
+        $loop->next_tick( sub { _next_turn( $state, $listener ); return; } );
+    }
+    return if ++$state->{accepted} < $state->{allowance};
+    $state->{paused} = 1;
+    $listener->stop;
+    $loop->remove( $state->{id} );
+    return if !$state->{share} || $state->{active} < $state->{checkpoint};
+
+    # Reset this turn normally; only admission waits for quieter workers.
+    $state->{paused} = 0;
+    $loop->timer(
+        $FAIR_ACCEPT_PAUSE => sub {
+            _resume( $state, $listener );
+            return;
+        }
+    );
+    return;
+}
+
+sub _record_socket ( $state, $handle ) {
+    return if !$state->{share};
+    if ( !$state->{accepted} ) {
+        $state->{active} = _live_handles( $state->{handles} );
+        my $share = $state->{share};
+        $state->{checkpoint} =
+          $share * ( int( $state->{active} / $share ) + 1 );
+        $state->{allowance} =
+          min( $state->{batch}, $state->{checkpoint} - $state->{active} );
+    }
+    my $key = refaddr($handle);
+    $state->{handles}{$key} = $handle;
+    weaken( $state->{handles}{$key} );
+    $state->{active}++;
+    return;
+}
+
+# Raw clients that close before sending HTTP never create a transaction.
+# Weak socket references include their closure without retaining streams.
+sub _live_handles ($handles) {
+    for my $key ( keys $handles->%* ) {
+        my $handle = $handles->{$key};
+        if ( !defined $handle || !defined fileno $handle ) {
+            delete $handles->{$key};
+        }
+    }
+    return scalar keys $handles->%*;
+}
+
+sub _next_turn ( $state, $listener ) {
+    $state->@{qw(accepted scheduled)} = ( 0, 0 );
+    return if !$state->{paused};
+    $state->{paused} = 0;
+    _resume( $state, $listener );
+    return;
+}
+
+sub _resume ( $state, $listener ) {
+    return if !$state->{server};
+
+    # IOLoop's native connection limit and graceful-stop state govern resume.
+    $state->{id} = $state->{loop}->acceptor($listener);
+    $state->{server}->acceptors->[ $state->{index} ] = $state->{id};
     return;
 }
 

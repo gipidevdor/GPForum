@@ -149,6 +149,14 @@ sub within_request ( $self, $work ) {
       : $scoped->();
 }
 
+# The family keeps its own failure mapping and successful response method.
+async sub stored_write_response_p ( $self, $result, $ok_status, $response ) {
+    my $failure = $self->write_failure($result);
+    return $failure if $failure;
+    return await $self->await_p(
+        $self->$response( $ok_status, $result->{stored} ) );
+}
+
 # A write's command id: the Forum-style command_id field, or the older
 # idempotency_key; empty when neither is given.
 sub command_id_param ($self) {
@@ -277,6 +285,12 @@ copy of these helpers. A base whose rule differs, such as the forum's
 C<render_payload>, overrides it.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 stored_write_response_p
+
+Maps a stored workflow result through the controller family's C<write_failure>,
+then awaits its selected successful response. The caller supplies the response
+method; authorization and failure policy stay with the controller family.
 
 =head2 command_id_param
 

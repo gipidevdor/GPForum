@@ -132,8 +132,10 @@ q{INSERT INTO users(id, username, display_name, email_normalized, password_hash,
         $pair->[1] . '\@example.org'
     );
 }
-my $review =
-  GPForum::Service::Attachment::ContentReview->new( schema => $schema );
+my $review = GPForum::Service::Attachment::ContentReview->new(
+    schema       => $schema,
+    source_hosts => ['media.example.org']
+);
 my $store    = GPForum::Service::Attachment::Store->new( schema => $schema );
 my $pipeline = GPForum::Service::Attachment::UploadPipeline->new(
     storage => $storage,
@@ -145,7 +147,8 @@ my $uploaded = $pipeline->upload_and_link(
         actor_user_id     => $owner,
         original_filename => 'episode.mp3',
         content           => $ID3_HEADER . 'episode',
-        source_kind       => 'original',
+        source_kind       => 'authorized',
+        source_url        => 'https://media.example.org/file',
         rights_confirmed  => 1,
     }
 );
@@ -196,7 +199,8 @@ my $duplicate = $pipeline->upload_and_link(
         actor_user_id     => $owner,
         original_filename => 'duplicate.mp3',
         content           => $ID3_HEADER . 'episode',
-        source_kind       => 'original',
+        source_kind       => 'authorized',
+        source_url        => 'https://media.example.org/file',
         rights_confirmed  => 1
     }
 );
@@ -299,7 +303,8 @@ is(
         {
             user_id          => $owner,
             content          => $image_tool->png( $PHOTO_SIDE, $PHOTO_SIDE ),
-            source_kind      => 'original',
+            source_kind      => 'authorized',
+            source_url       => 'https://media.example.org/file',
             rights_confirmed => 1
         }
     )->{status},

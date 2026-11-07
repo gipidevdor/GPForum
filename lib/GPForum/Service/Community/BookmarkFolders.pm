@@ -20,9 +20,7 @@ const my $MAX_LENGTH => 40;
 
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # The reader the counts are cut to (a GPForum::Service::Forum::Readability).
 has readability => undef;    # optional: without one every live bookmark counts

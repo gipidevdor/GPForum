@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::X::Argument;
 
 our $VERSION = '0.001';
@@ -163,7 +163,7 @@ sub _field ( $aggregate, $name, $input ) {
         return $command->{$aggregate}{$name};
     }
 
-    return GPForum::Infrastructure::Row->column( $input->{$aggregate}, $name )
+    return column_of( $input->{$aggregate}, $name )
       || $command->{$aggregate}{$name};
 }
 

@@ -24,9 +24,7 @@ __PACKAGE__->requires(qw(schema builder));
 has cache => undef;    # optional: without it each request builds its document
 has cache_epoch => undef;    # optional: missing required epoch bypasses cache
 has cache_epoch_required => 0;
-has functions            => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions            => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub sitemap_index ($self) {
     return $self->_cached( 'sitemap:index', sub { return $self->_index; } );

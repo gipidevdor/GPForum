@@ -13,9 +13,7 @@ use GPForum::Jobs::EventPayload;
 
 our $VERSION = '0.001';
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $THREAD_CREATED  => 'thread.created';
 const my $POST_CREATED    => 'post.created';

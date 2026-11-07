@@ -35,13 +35,8 @@ has rebuild_run => sub ($self) {
         schema     => $self->schema,
     );
 };
-has recorder => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
-has schema => undef;    # optional: only the default collaborators read it
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
+has schema   => undef;    # optional: only the default collaborators read it
 
 # 6.5: the maintenance the shell could do and the console could not. What an
 # operator reads first: is search behind, and how did the last rebuild go.

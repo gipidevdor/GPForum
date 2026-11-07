@@ -26,9 +26,7 @@ const my $MIB                 => 1_048_576;
 const my $VIDEO_MIB           => 100;
 const my $MP4_HEADER          => 24;
 const my $HTTP_OK             => 200;
-const my $HTTP_MISSING        => 404;
 const my $HTTP_PARTIAL        => 206;
-const my $HTTP_FOUND          => 302;
 
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all => 'requires PostgreSQL';
@@ -103,8 +101,8 @@ is(
 );
 ok( $stored->{complete},
     'the object becomes complete after its chunks are stored' );
-$t->get_ok( '/attachments/' . $stored->{attachment_id} . '/download' )
-  ->status_is($HTTP_MISSING);
+$t->head_ok( '/attachments/' . $stored->{attachment_id} . '/download' )
+  ->status_is($HTTP_OK);
 
 # A prerecorded WAV container, sufficient to exercise the upload policy and
 # native player. Codec playback itself belongs to browser/device testing.
@@ -138,25 +136,11 @@ q{SELECT attachment_id FROM attachments WHERE owner_user_id=? AND original_filen
     undef, $owner
 );
 ok( $episode, 'GUI stores a prerecorded internal podcast episode' );
-$gui->actor($staff)->visit('/moderation/media')->submit(
-    'form[action="/moderation/media/' . $episode . '/decision"]',
-    { reason => 'Controlled original episode reviewed' },
-    $HTTP_FOUND,
-    'button[value="approved"]'
-);
 $gui->visit( '/t/' . $thread );
 $t->element_exists('audio[controls] source[type="audio/wav"]');
 $t->get_ok( '/attachments/' . $episode . '/download' )
   ->status_is($HTTP_OK)
   ->content_is( $audio->slurp );
-$gui->visit('/moderation/media')->submit(
-    'form[action="/moderation/media/'
-      . $stored->{attachment_id}
-      . '/decision"]',
-    { reason => 'Controlled large fixture reviewed' },
-    $HTTP_FOUND,
-    'button[value="approved"]'
-);
 $t->get_ok( '/attachments/'
       . $stored->{attachment_id}
       . '/download' => { Range => 'bytes=0-23' } )

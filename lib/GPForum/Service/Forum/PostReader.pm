@@ -45,9 +45,7 @@ has prepared => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 # each shape's statement transplanted into a branch of the function. A
 # schema that has no function layer -- an in-memory double -- keeps the
 # prepared statements.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # The statement is built once per shape and run with the request's values
 # (Infrastructure::PreparedQuery). The shape is what changes its text: the

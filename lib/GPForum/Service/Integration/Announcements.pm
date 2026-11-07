@@ -30,10 +30,8 @@ const my $TITLE_LIMIT           => 256;
 has policy_available => 0;
 __PACKAGE__->requires(qw(schema config));
 has client    => sub { return GPForum::Service::Integration::HttpClient->new; };
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has recorder => sub ($self) {
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has recorder  => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };

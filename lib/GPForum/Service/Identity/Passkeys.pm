@@ -10,7 +10,7 @@ use MIME::Base64   qw(encode_base64url);
 use Mojo::URL;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::ResultRow;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Identity::PasskeyVerifier;
 use GPForum::Service::Identity::LocalProof;
 use GPForum::Service::Identity::CredentialStore;
@@ -35,10 +35,8 @@ has sessions => sub ($self) {
     return GPForum::Service::Identity::SessionStore->new(
         schema => $self->schema );
 };
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has recorder => sub ($self) {
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has recorder  => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };
@@ -269,9 +267,7 @@ sub _login ( $self, $input ) {
                 user_id       => $member->{id},
                 user          => $user,
                 session_token => $session->{session_token},
-                session_id    => GPForum::Infrastructure::Row->column(
-                    $session->{session}, 'session_id'
-                ),
+                session_id    => column_of( $session->{session}, 'session_id' ),
                 map { $_ => $member->{$_} }
                   qw(preferred_locale preferred_theme preferred_timezone)
             };

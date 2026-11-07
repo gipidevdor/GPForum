@@ -31,16 +31,9 @@ const my $LATEST_SQL => join q{ },
 
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 __PACKAGE__->requires(qw(indexer schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
-has recorder => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 
 # A search rebuild the console asks for runs through the outbox, one batch
 # per message: whatever runs the dispatcher runs it, a failed step is

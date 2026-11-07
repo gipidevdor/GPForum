@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
@@ -38,18 +38,9 @@ has readability => undef;    # optional: every source counts as readable
 # ADR 0130: a member who blocks the author is not mentioned at all -- no
 # mention row, no notification. Service::Community::RelationStore.
 has relations => undef;    # optional: nobody blocks anyone
-has recorder  => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder  => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub record_for_source ( $self, $input ) {
     my $mentions = $self->extractor->extract( $input->{body_source} );
@@ -121,7 +112,7 @@ sub _insert_mentions ( $self, $input, $mentions, $resolved ) {
             push @skipped, _skip( $mention, 'unknown_user' );
             next;
         }
-        my $user_id = _column( $user, 'id' );
+        my $user_id = column_of( $user, 'id' );
         if ( $user_id eq $input->{actor_id} ) {
             push @skipped, _skip( $mention, 'self_mention' );
             next;
@@ -297,8 +288,8 @@ sub _resolve_users ( $self, $mentions ) {
     );
 
     my %resolved;
-    for my $user ( GPForum::Infrastructure::Row->rows_of($search) ) {
-        my $username = lc _column( $user, 'username' );
+    for my $user ( rows_in($search) ) {
+        my $username = lc column_of( $user, 'username' );
         $resolved{$username} = $user;
     }
 
@@ -319,10 +310,6 @@ sub _skip ( $mention, $reason ) {
         username => $mention->{username},
         reason   => $reason,
     };
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 sub _uuid_or_undef ($value) {

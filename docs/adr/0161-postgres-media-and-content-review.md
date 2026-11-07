@@ -43,13 +43,18 @@ a transaction open for a slow client.
 
 Every new upload requires a rights attestation and either original authorship
 or an HTTPS source whose exact hostname is authorized by the operator. Source
-URLs are never fetched. This declaration is evidence for review, not proof of
-authorship. A separate global moderator must verify provenance and content
-before publication, giving a reason. Malware scanning remains a separate gate.
-A trigger prevents later clean scans from publishing pending or rejected
-files. Staff previews require global moderation, a clean scan and a private
-route with no-store caching. Rejected hashes prevent exact reuploads; changed
-content still requires a new review. Decisions are audited transactionally. Advisory lock class `2026110101`
+URLs are never fetched. The declaration records the uploader's attestation,
+rather than proving ownership. Original content, including personal avatars, is accepted without
+a separate staff decision and publishes once automatic checks succeed.
+Authorized third-party content still requires another global moderator's
+provenance and content decision, with a reason. The author cannot approve
+that third-party upload. Automatic original acceptance records no staff
+reviewer. Malware scanning remains a separate gate.
+A trigger prevents later clean scans from publishing pending third-party or
+rejected files. Staff previews require global moderation, a clean scan and a
+private route with no-store caching. Rejected hashes prevent exact reuploads;
+changed third-party content requires a new staff review. Staff decisions are
+audited transactionally. Advisory lock class `2026110101`
 serializes content decisions sharing one SHA-256, so withdrawing duplicate
 files takes locks in one consistent order.
 
@@ -101,3 +106,12 @@ indexed reads, rollback and review scenarios: 42 assertions passed in 6.22 s
 end to end, with 163.2 MiB maximum resident memory for the test process. Timing
 includes the temporary PostgreSQL cluster and fixtures; it describes this
 local verification run, rather than production throughput.
+
+## Original-upload policy correction (2026-11-07)
+
+Migration 2049 applies original acceptance to existing pending originals,
+without reversing staff rejections, checksum withdrawals or deletion. Only
+clean uploads are released. A queued publication event resumes derived media
+processing for uploads whose original scan event was already handled, so an
+existing avatar becomes visible without another upload. Pending and failed
+scans remain unpublished. Third-party uploads retain their separate review.

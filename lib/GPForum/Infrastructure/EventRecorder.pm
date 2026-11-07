@@ -20,9 +20,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $DEFAULT_SCHEMA_VERSION => 1;
 const my $EVENT_ID_LOCK_CLASS    => 2_026_100_310;
@@ -60,6 +58,14 @@ has audit_record => sub {
         json       => $self->json,
     );
 };
+
+# Shared lazy attribute factory; each owner keeps its own recorder and ids.
+sub for_service ($service) {
+    return __PACKAGE__->new(
+        id_service => $service->id_service,
+        schema     => $service->schema,
+    );
+}
 
 sub record_event ( $self, %input ) {
     if ( $self->functions ) {
@@ -601,6 +607,12 @@ already stored, at any time, is a collision: the record is written under a
 newly minted id, as it is after a conflict on the key.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 for_service
+
+Lazy attribute factory: C<has recorder =E<gt> \&GPForum::Infrastructure::EventRecorder::for_service>.
+Builds a fresh recorder using the owning service's schema and id service.
+An explicitly injected recorder is retained; no recorder is shared implicitly.
 
 =head2 event_call
 

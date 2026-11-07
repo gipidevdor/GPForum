@@ -9,7 +9,7 @@ use v5.40;
 
 use GPForum::Domain::Post;
 use GPForum::Domain::Thread;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::ResultRow::Post;
 use GPForum::Infrastructure::ResultRow::Thread;
 use GPForum::Infrastructure::SqlFunction;
@@ -541,7 +541,7 @@ sub _delete_thread_once ( $self, $input ) {
         {
             idempotency_key => _command_id($input),
             thread          => {
-                category_id => _column( $thread, 'category_id' ),
+                category_id => column_of( $thread, 'category_id' ),
                 deleted_by  => trimmed( $input->{author_user_id} ),
                 thread_id   => $input->{thread_id},
             },
@@ -559,8 +559,8 @@ sub _restore_thread_once ( $self, $input ) {
         {
             idempotency_key => _command_id($input),
             thread          => {
-                author_user_id => _column( $thread, 'author_user_id' ),
-                category_id    => _column( $thread, 'category_id' ),
+                author_user_id => column_of( $thread, 'author_user_id' ),
+                category_id    => column_of( $thread, 'category_id' ),
                 restored_by    => trimmed( $input->{author_user_id} ),
                 thread_id      => $input->{thread_id},
             },
@@ -582,7 +582,7 @@ sub _edit_post_once ( $self, $input ) {
                 editor_user_id  => $input->{author_user_id},
                 idempotency_key => _command_id($input),
                 post_id         => $input->{post_id},
-                thread_id       => _column( $post, 'thread_id' ),
+                thread_id       => column_of( $post, 'thread_id' ),
             }
         )
     );
@@ -599,7 +599,7 @@ sub _delete_post_once ( $self, $input ) {
             post            => {
                 deleted_by => trimmed( $input->{author_user_id} ),
                 post_id    => $input->{post_id},
-                thread_id  => _column( $post, 'thread_id' ),
+                thread_id  => column_of( $post, 'thread_id' ),
             },
         }
     );
@@ -614,10 +614,10 @@ sub _restore_post_once ( $self, $input ) {
         {
             idempotency_key => _command_id($input),
             post            => {
-                author_user_id => _column( $post, 'author_user_id' ),
+                author_user_id => column_of( $post, 'author_user_id' ),
                 post_id        => $input->{post_id},
                 restored_by    => trimmed( $input->{author_user_id} ),
-                thread_id      => _column( $post, 'thread_id' ),
+                thread_id      => column_of( $post, 'thread_id' ),
             },
         }
     );
@@ -665,7 +665,7 @@ sub _post_checked ( $self, $input, $rule ) {
         $thread =
           $post
           ? $self->thread_detail_reader->find_thread(
-            _column( $post, 'thread_id' ),
+            column_of( $post, 'thread_id' ),
             _viewer($input) )
           : undef;
     }
@@ -930,11 +930,11 @@ sub _record_post_mentions ( $self, $stored, $command ) {
     try {
         $self->mention_store->record_for_source(
             {
-                actor_id => _column( $stored->{post}, 'author_user_id' )
+                actor_id => column_of( $stored->{post}, 'author_user_id' )
                   || $command->{post}{author_user_id},
                 body_source  => $command->{body}{body_source},
                 max_mentions => $MAX_MENTIONS,
-                source_id    => _column( $stored->{post}, 'post_id' ),
+                source_id    => column_of( $stored->{post}, 'post_id' ),
                 source_type  => 'post',
                 thread_id    => $command->{post}{thread_id},
             }
@@ -954,7 +954,7 @@ sub _effective_visibility ( $row, @columns ) {
     return undef if !$row;
 
     return GPForum::Service::Forum::Visibility->effective(
-        map { _column( $row, $_ ) } @columns );
+        map { column_of( $row, $_ ) } @columns );
 }
 
 sub _command_id ($input) {
@@ -991,10 +991,6 @@ sub _nullable ($value) {
     my $trimmed = trimmed($value);
 
     return length $trimmed ? $trimmed : undef;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 sub _log ( $self, $level, $message ) {

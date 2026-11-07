@@ -3,9 +3,9 @@
 
 package GPForum::Service::Attachment::Delivery;
 
-use Carp        qw(croak);
-use Digest::SHA qw(sha256_hex);
-use GPForum::Infrastructure::Row;
+use Carp                         qw(croak);
+use Digest::SHA                  qw(sha256_hex);
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Attachment::ImagePreview;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
@@ -48,7 +48,7 @@ sub _preview ( $self, $decision ) {
     );
     if ( !$variant ) { return $decision; }
     my $column = sub ($name) {
-        return GPForum::Infrastructure::Row->column( $variant, $name );
+        return column_of( $variant, $name );
     };
     if ( ( $column->('media_type') // q{} ) ne 'image/png' ) {
         return $decision;

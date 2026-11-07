@@ -142,9 +142,7 @@ has retry_pause_ms   => sub { return $DEFAULT_RETRY_PAUSE; };
 has schema               => undef;   # optional: only asked when no dbh is given
 has statement_timeout_ms => undef;   # optional: the session's own when unset
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 has function_catalogue =>
   sub { return GPForum::Infrastructure::SqlFunctionCatalogue->new; };
 

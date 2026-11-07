@@ -16,9 +16,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $OUTBOX_TABLE   => 'outbox_messages';
 const my $KEY_PREFIX     => 'dead-letter-replay:';
@@ -32,12 +30,7 @@ has builder => sub ($self) {
 };
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
-has recorder   => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder   => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
 
 # The idempotency key of the message a replay enqueues, derived from the dead

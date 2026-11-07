@@ -14,9 +14,7 @@ our $VERSION = '0.001';
 
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Links a reply to the post it answers. The function holds the link only
 # when both posts are in the same thread and the one answered is there to

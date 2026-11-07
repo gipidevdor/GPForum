@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::ResultRow::IdentityUser;
 use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::SqlFunction;
@@ -39,19 +39,10 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has recorder => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has events => sub { return GPForum::Service::Moderation::Event->new; };
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has events    => sub { return GPForum::Service::Moderation::Event->new; };
 
 sub create_suspension ( $self, $input ) {
     return $self->schema->txn_do(
@@ -67,7 +58,8 @@ sub create_suspension ( $self, $input ) {
 sub _create_or_reuse ( $self, $input ) {
     $self->_lock_member( $input->{user_id} );
     my $user = $self->_user( $input->{user_id} );
-    if ( !$user || ( _column( $user, 'status' ) // q{} ) eq $STATUS_DELETED ) {
+    if ( !$user || ( column_of( $user, 'status' ) // q{} ) eq $STATUS_DELETED )
+    {
         return undef;
     }
 
@@ -101,7 +93,7 @@ sub _create_or_reuse ( $self, $input ) {
 
 sub _insert_suspension ( $self, $input, $user ) {
     my $timestamp       = $self->clock->now_iso8601;
-    my $previous_status = _column( $user, 'status' );
+    my $previous_status = column_of( $user, 'status' );
     my $suspension      = {
         suspension_id => $self->id_service->uuid,
         user_id       => $input->{user_id},
@@ -182,14 +174,14 @@ sub _revoke_in_txn ( $self, $input ) {
     if ( !$suspension ) {
         return undef;
     }
-    my $user_id = _column( $suspension, 'user_id' );
+    my $user_id = column_of( $suspension, 'user_id' );
     $self->_lock_member($user_id);
     $suspension = $self->_suspension( $input->{suspension_id} );
-    my $revoked_at = _column( $suspension, 'revoked_at' );
+    my $revoked_at = column_of( $suspension, 'revoked_at' );
     if ( defined $revoked_at ) {
         $self->_restore_user_if_needed( $user_id, $revoked_at );
         return {
-            suspension_id => _column( $suspension, 'suspension_id' ),
+            suspension_id => column_of( $suspension, 'suspension_id' ),
             revoked_at    => $revoked_at,
         };
     }
@@ -263,12 +255,13 @@ sub end_suspension ( $self, $user_id, $suspension_id ) {
 sub _end_in_txn ( $self, $user_id, $suspension_id ) {
     $self->_lock_member($user_id);
     my $user = $self->_user($user_id);
-    if ( !$user || ( _column( $user, 'status' ) || q{} ) ne $STATUS_SUSPEND ) {
+    if ( !$user || ( column_of( $user, 'status' ) || q{} ) ne $STATUS_SUSPEND )
+    {
         return { ended => 0, reason => 'not_suspended' };
     }
     my $active = $self->active_for_user($user_id);
     if ($active) {
-        my $holding = _column( $active, 'suspension_id' );
+        my $holding = column_of( $active, 'suspension_id' );
         if ( $holding eq $suspension_id ) {
             GPForum::X::Unavailable->throw(
                 message => "suspension $suspension_id has not ended yet" );
@@ -344,14 +337,14 @@ sub _suspension ( $self, $suspension_id ) {
 
 sub _suspension_hash ($suspension) {
     return {
-        suspension_id => _column( $suspension, 'suspension_id' ),
-        user_id       => _column( $suspension, 'user_id' ),
-        actor_user_id => _column( $suspension, 'actor_user_id' ),
-        reason        => _column( $suspension, 'reason' ),
-        valid_from    => _column( $suspension, 'valid_from' ),
-        valid_to      => _column( $suspension, 'valid_to' ),
-        revoked_at    => _column( $suspension, 'revoked_at' ),
-        metadata      => _column( $suspension, 'metadata' ),
+        suspension_id => column_of( $suspension, 'suspension_id' ),
+        user_id       => column_of( $suspension, 'user_id' ),
+        actor_user_id => column_of( $suspension, 'actor_user_id' ),
+        reason        => column_of( $suspension, 'reason' ),
+        valid_from    => column_of( $suspension, 'valid_from' ),
+        valid_to      => column_of( $suspension, 'valid_to' ),
+        revoked_at    => column_of( $suspension, 'revoked_at' ),
+        metadata      => column_of( $suspension, 'metadata' ),
     };
 }
 
@@ -382,7 +375,7 @@ sub active_for_user ( $self, $user_id ) {
         }
     );
 
-    for my $row ( GPForum::Infrastructure::Row->rows_of($search) ) {
+    for my $row ( rows_in($search) ) {
         return $row if $self->_suspension_is_active($row);
     }
 
@@ -412,7 +405,7 @@ sub can_participate ( $self, $user_id ) {
     my $user = $self->_user($user_id);
     return { ok => 0, reason => 'user_not_found' } if !$user;
 
-    my $status = _column( $user, 'status' ) || $STATUS_ACTIVE;
+    my $status = column_of( $user, 'status' ) || $STATUS_ACTIVE;
     return { ok => 0, reason => $STATUS_DENIALS{$status} }
       if exists $STATUS_DENIALS{$status};
 
@@ -421,7 +414,7 @@ sub can_participate ( $self, $user_id ) {
         return {
             ok            => 0,
             reason        => 'suspended',
-            suspension_id => _column( $active, 'suspension_id' ),
+            suspension_id => column_of( $active, 'suspension_id' ),
         };
     }
 
@@ -440,7 +433,8 @@ sub _restore_user_if_needed ( $self, $user_id, $timestamp ) {
         return;
     }
     my $user = $self->_user($user_id);
-    if ( !$user || ( _column( $user, 'status' ) || q{} ) ne $STATUS_SUSPEND ) {
+    if ( !$user || ( column_of( $user, 'status' ) || q{} ) ne $STATUS_SUSPEND )
+    {
         return;
     }
     return if $self->active_for_user($user_id);
@@ -462,11 +456,11 @@ sub _restore_user_if_needed ( $self, $user_id, $timestamp ) {
 # so a suspension ending later today read as expired, the member could post
 # and suspending them again inserted a second suspension.
 sub _suspension_is_active ( $self, $row ) {
-    if ( !$row || defined _column( $row, 'revoked_at' ) ) {
+    if ( !$row || defined column_of( $row, 'revoked_at' ) ) {
         return 0;
     }
 
-    my $valid_to = _column( $row, 'valid_to' );
+    my $valid_to = column_of( $row, 'valid_to' );
     if ( !defined $valid_to || !length $valid_to ) {
         return 1;
     }
@@ -502,10 +496,6 @@ sub _record_event_and_audit ( $self, $input ) {
         %{ $self->events->suspension_audit($recorded) } );
 
     return;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

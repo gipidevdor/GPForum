@@ -9,7 +9,7 @@ use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row  qw(column_of rows_in);
 use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::Service::Outbox::DeadLetterReplay;
 use GPForum::Service::Operations::QueryBudget;
@@ -47,9 +47,7 @@ has query_budget     => sub {
 has readiness => undef;           # optional: the health block shows unknown
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub dashboard_summary ( $self, $options ) {
     $options ||= {};
@@ -98,8 +96,7 @@ sub list_users ( $self, $options ) {
         }
     );
 
-    return [ map { _row_hash( $_, @USER_COLUMNS ) }
-          GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ map { _row_hash( $_, @USER_COLUMNS ) } rows_in($search) ];
 }
 
 # The only address a console action may mail on an administrator's behalf:
@@ -118,7 +115,7 @@ sub email_of ( $self, $user_id ) {
         { columns => ['email_normalized'] }
     );
 
-    return _column( $search->single, 'email_normalized' );
+    return column_of( $search->single, 'email_normalized' );
 }
 
 sub list_reports ( $self, $options ) {
@@ -142,8 +139,7 @@ sub list_reports ( $self, $options ) {
         }
     );
 
-    return [ map { _row_hash( $_, @REPORT_COLUMNS ) }
-          GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ map { _row_hash( $_, @REPORT_COLUMNS ) } rows_in($search) ];
 }
 
 sub async_jobs ( $self, $options ) {
@@ -214,8 +210,7 @@ sub list_outbox ( $self, $options ) {
         }
     );
 
-    return [ map { _row_hash( $_, @OUTBOX_COLUMNS ) }
-          GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ map { _row_hash( $_, @OUTBOX_COLUMNS ) } rows_in($search) ];
 }
 
 sub list_dead_letters ( $self, $options ) {
@@ -238,7 +233,7 @@ sub list_dead_letters ( $self, $options ) {
     );
 
     return [ map { _row_hash( $_, @DEAD_LETTER_COLUMNS, 'replay_status' ) }
-          GPForum::Infrastructure::Row->rows_of($search) ];
+          rows_in($search) ];
 }
 
 # Whether each dead letter was replayed, and how its replay is doing, in the
@@ -295,11 +290,7 @@ sub _limit ($options) {
 }
 
 sub _row_hash ( $row, @columns ) {
-    return { map { $_ => _column( $row, $_ ) } @columns };
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
+    return { map { $_ => column_of( $row, $_ ) } @columns };
 }
 
 1;

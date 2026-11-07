@@ -8,7 +8,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Domain::Thread;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 
 our $VERSION = '0.001';
 
@@ -25,22 +25,24 @@ const my %STATUS => (
 # a thread that is not locked.
 sub edit_refusal ( $class, $post, $thread, $author ) {
     return 'post not found'
-      if !$post || defined _column( $post, 'deleted_at' );
+      if !$post || defined column_of( $post, 'deleted_at' );
 
     return _change_refusal( $post, $thread, $author );
 }
 
 sub restore_refusal ( $class, $post, $thread, $author ) {
     return 'post not found'
-      if !$post || !defined _column( $post, 'deleted_at' );
+      if !$post || !defined column_of( $post, 'deleted_at' );
 
     return _change_refusal( $post, $thread, $author );
 }
 
 sub hidden ( $class, $post ) {
-    return 1 if defined _column( $post, 'hidden_at' );
+    return 1 if defined column_of( $post, 'hidden_at' );
 
-    return ( _column( $post, 'moderation_state' ) // q{} ) eq 'hidden' ? 1 : 0;
+    return ( column_of( $post, 'moderation_state' ) // q{} ) eq 'hidden'
+      ? 1
+      : 0;
 }
 
 sub status_of ( $class, $error ) {
@@ -59,10 +61,6 @@ sub _change_refusal ( $post, $thread, $author ) {
     return 'thread is locked' if GPForum::Domain::Thread->locked($thread);
 
     return undef;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

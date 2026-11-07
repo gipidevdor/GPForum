@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 
 our $VERSION = '0.001';
 
@@ -21,23 +21,23 @@ const my $USER_AGGREGATE   => 'user';
 
 sub action_payload ( $, $action ) {
     return {
-        metadata             => _column( $action, 'metadata' ),
-        moderation_action_id => _column( $action, 'moderation_action_id' ),
-        reason               => _column( $action, 'reason' ),
-        target_id            => _column( $action, 'target_id' ),
-        target_type          => _column( $action, 'target_type' ),
+        metadata             => column_of( $action, 'metadata' ),
+        moderation_action_id => column_of( $action, 'moderation_action_id' ),
+        reason               => column_of( $action, 'reason' ),
+        target_id            => column_of( $action, 'target_id' ),
+        target_type          => column_of( $action, 'target_type' ),
     };
 }
 
 sub action_envelope ( $self, $input ) {
     my $action      = $input->{action};
-    my $action_type = _column( $action, 'action_type' );
-    my $target_type = _column( $action, 'target_type' );
-    my $target_id   = _column( $action, 'target_id' );
-    my $action_id   = _column( $action, 'moderation_action_id' );
+    my $action_type = column_of( $action, 'action_type' );
+    my $target_type = column_of( $action, 'target_type' );
+    my $target_id   = column_of( $action, 'target_id' );
+    my $action_id   = column_of( $action, 'moderation_action_id' );
 
     return {
-        actor_id          => _column( $action, 'actor_user_id' ),
+        actor_id          => column_of( $action, 'actor_user_id' ),
         aggregate_id      => $target_id,
         aggregate_type    => $target_type,
         aggregate_version => $SCHEMA_VERSION,
@@ -47,7 +47,7 @@ sub action_envelope ( $self, $input ) {
         idempotency_key   =>
           join( q{:}, $action_type, $target_type, $target_id, $action_id ),
         payload   => $self->action_payload($action),
-        timestamp => _column( $action, 'created_at' ),
+        timestamp => column_of( $action, 'created_at' ),
     };
 }
 
@@ -55,17 +55,18 @@ sub action_audit ( $, $input ) {
     my $action = $input->{action};
 
     return {
-        action         => _column( $action, 'action_type' ),
-        actor_id       => _column( $action, 'actor_user_id' ),
+        action         => column_of( $action, 'action_type' ),
+        actor_id       => column_of( $action, 'actor_user_id' ),
         correlation_id => $input->{correlation_id},
-        created_at     => _column( $action, 'created_at' ),
+        created_at     => column_of( $action, 'created_at' ),
         metadata       => {
-            moderation_action_id => _column( $action, 'moderation_action_id' ),
-            reason               => _column( $action, 'reason' ),
+            moderation_action_id =>
+              column_of( $action, 'moderation_action_id' ),
+            reason => column_of( $action, 'reason' ),
         },
         schema_version => $SCHEMA_VERSION,
-        target_id      => _column( $action, 'target_id' ),
-        target_type    => _column( $action, 'target_type' ),
+        target_id      => column_of( $action, 'target_id' ),
+        target_type    => column_of( $action, 'target_type' ),
     };
 }
 
@@ -74,12 +75,12 @@ sub reversal_payload ( $, $input ) {
 
     return {
         moderation_action_id => $input->{action_id},
-        original_action_type => _column( $action, 'action_type' ),
+        original_action_type => column_of( $action, 'action_type' ),
         reason               => $input->{reason},
         reversed_at          => $input->{reversed_at},
         reversed_by_user_id  => $input->{reversed_by_user_id},
-        target_id            => _column( $action, 'target_id' ),
-        target_type          => _column( $action, 'target_type' ),
+        target_id            => column_of( $action, 'target_id' ),
+        target_type          => column_of( $action, 'target_type' ),
     };
 }
 
@@ -107,31 +108,32 @@ sub reversal_audit ( $, $input ) {
         correlation_id => $input->{correlation_id},
         created_at     => $input->{reversed_at},
         metadata       => {
-            moderation_action_id => _column( $action, 'moderation_action_id' ),
-            original_action_type => _column( $action, 'action_type' ),
+            moderation_action_id =>
+              column_of( $action, 'moderation_action_id' ),
+            original_action_type => column_of( $action, 'action_type' ),
             reason               => $input->{reason},
         },
         schema_version => $SCHEMA_VERSION,
-        target_id      => _column( $action, 'target_id' ),
-        target_type    => _column( $action, 'target_type' ),
+        target_id      => column_of( $action, 'target_id' ),
+        target_type    => column_of( $action, 'target_type' ),
     };
 }
 
 sub report_created_payload ( $, $report ) {
     return {
-        reason      => _column( $report, 'reason' ),
-        report_id   => _column( $report, 'report_id' ),
-        target_id   => _column( $report, 'target_id' ),
-        target_type => _column( $report, 'target_type' ),
+        reason      => column_of( $report, 'reason' ),
+        report_id   => column_of( $report, 'report_id' ),
+        target_id   => column_of( $report, 'target_id' ),
+        target_type => column_of( $report, 'target_type' ),
     };
 }
 
 sub report_created_envelope ( $self, $input ) {
     my $report    = $input->{report};
-    my $report_id = _column( $report, 'report_id' );
+    my $report_id = column_of( $report, 'report_id' );
 
     return {
-        actor_id          => _column( $report, 'reporter_user_id' ),
+        actor_id          => column_of( $report, 'reporter_user_id' ),
         aggregate_id      => $report_id,
         aggregate_type    => $REPORT_AGGREGATE,
         aggregate_version => $SCHEMA_VERSION,
@@ -140,7 +142,7 @@ sub report_created_envelope ( $self, $input ) {
         event_type        => $REPORT_CREATED,
         idempotency_key   => join( q{:}, $REPORT_CREATED, $report_id ),
         payload           => $self->report_created_payload($report),
-        timestamp         => _column( $report, 'created_at' ),
+        timestamp         => column_of( $report, 'created_at' ),
     };
 }
 
@@ -149,16 +151,16 @@ sub report_created_audit ( $, $input ) {
 
     return {
         action         => $REPORT_CREATED,
-        actor_id       => _column( $report, 'reporter_user_id' ),
+        actor_id       => column_of( $report, 'reporter_user_id' ),
         correlation_id => $input->{correlation_id},
-        created_at     => _column( $report, 'created_at' ),
+        created_at     => column_of( $report, 'created_at' ),
         metadata       => {
-            reason    => _column( $report, 'reason' ),
-            report_id => _column( $report, 'report_id' ),
+            reason    => column_of( $report, 'reason' ),
+            report_id => column_of( $report, 'report_id' ),
         },
         schema_version => $SCHEMA_VERSION,
-        target_id      => _column( $report, 'target_id' ),
-        target_type    => _column( $report, 'target_type' ),
+        target_id      => column_of( $report, 'target_id' ),
+        target_type    => column_of( $report, 'target_type' ),
     };
 }
 
@@ -168,7 +170,7 @@ sub report_duplicate_audit ( $, $input ) {
         actor_id   => $input->{reporter_user_id},
         created_at => $input->{created_at},
         metadata   => {
-            existing_report_id => _column( $input->{duplicate}, 'report_id' ),
+            existing_report_id => column_of( $input->{duplicate}, 'report_id' ),
             reason             => $input->{reason},
         },
         schema_version => $SCHEMA_VERSION,
@@ -179,7 +181,7 @@ sub report_duplicate_audit ( $, $input ) {
 
 sub report_transition_envelope ( $, $input ) {
     my $report    = $input->{report};
-    my $report_id = _column( $report, 'report_id' );
+    my $report_id = column_of( $report, 'report_id' );
 
     return {
         actor_id          => $input->{actor_id},
@@ -194,8 +196,8 @@ sub report_transition_envelope ( $, $input ) {
           join( q{:}, $input->{event_type}, $report_id, $input->{event_id} ),
         payload => {
             report_id   => $report_id,
-            target_id   => _column( $report, 'target_id' ),
-            target_type => _column( $report, 'target_type' ),
+            target_id   => column_of( $report, 'target_id' ),
+            target_type => column_of( $report, 'target_type' ),
             %{ $input->{payload} },
         },
         timestamp => $input->{created_at},
@@ -211,12 +213,12 @@ sub report_transition_audit ( $, $input ) {
         correlation_id => $input->{correlation_id},
         created_at     => $input->{created_at},
         metadata       => {
-            report_id => _column( $report, 'report_id' ),
+            report_id => column_of( $report, 'report_id' ),
             %{ $input->{metadata} },
         },
         schema_version => $SCHEMA_VERSION,
-        target_id      => _column( $report, 'target_id' ),
-        target_type    => _column( $report, 'target_type' ),
+        target_id      => column_of( $report, 'target_id' ),
+        target_type    => column_of( $report, 'target_type' ),
     };
 }
 
@@ -247,10 +249,6 @@ sub suspension_audit ( $, $input ) {
         target_id      => $input->{user_id},
         target_type    => $USER_AGGREGATE,
     };
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

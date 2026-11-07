@@ -57,6 +57,14 @@ ok( index( $ci, $NEVER_ON_MAIN ) >= 0,
 ok( index( $ci, $OWN_GROUP_ON_MAIN ) >= 0,
     'each commit on main has its own group, so no pending run is dropped' );
 
+my $debian = path('.github/workflows/platform-debian.yml')->slurp;
+ok( index( $debian, $NEVER_ON_MAIN ) >= 0,
+    'a new main push does not cancel the Debian verification already running' );
+my $debian_group =
+  $OWN_GROUP_ON_MAIN =~ s/group:[ ]ci-/group: platform-debian-/rmsx;
+ok( index( $debian, $debian_group ) >= 0,
+    'pending Debian checks retain their own group for every main commit' );
+
 my @runs = $ci =~ /^[ ]+run: [ ] ([^|>\n][^\n]*)$/gmsx;
 my @integration =
   grep { /\bmake \s+ integration\b/msx || /\bscript\/test-features\b/msx }

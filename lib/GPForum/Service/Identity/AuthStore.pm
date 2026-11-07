@@ -27,9 +27,7 @@ has second_factor => sub ($self) {
 
 # An identifier with an @ is an address, any other a username. An unknown or
 # deleted account costs the work a wrong password costs and gets its answer.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub authenticate_login ( $self, $input ) {
     my $user = $self->_user_by_identifier(

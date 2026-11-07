@@ -20,10 +20,8 @@ const my $STAT_MTIME        => 9;
 __PACKAGE__->requires(
     qw(schema category_reader thread_reader thread_detail_reader post_reader signer base_url)
 );
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has mbox => sub ($self) {
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has mbox      => sub ($self) {
     return GPForum::Service::Discovery::Mbox->new(
         base_url => $self->base_url );
 };

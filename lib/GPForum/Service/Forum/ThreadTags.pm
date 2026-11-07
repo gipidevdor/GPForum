@@ -32,9 +32,7 @@ const my $SLUG_WORD => qr/[\p{PosixLower}\p{PosixDigit}]+/msx;
 
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # The tags a text names, as the author typed them, comma-separated: each
 # trimmed, its spaces folded, the first five kept, a name repeated (by its

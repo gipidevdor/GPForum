@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row  qw(rows_in);
 use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Clock;
@@ -25,9 +25,7 @@ const my @SUSPENSION_CURSOR_COLUMNS => qw(valid_from suspension_id);
 has clock       => sub { return GPForum::Service::Clock->new; };
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub list_actions ( $self, $options ) {
     $options ||= {};
@@ -79,7 +77,7 @@ sub list_actions ( $self, $options ) {
         }
     );
 
-    my @rows = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows = rows_in($search);
 
     return $self->page_window->page( \@rows,
         $page->{limit}, \@ACTION_CURSOR_COLUMNS );
@@ -134,7 +132,7 @@ sub list_suspensions ( $self, $options ) {
         }
     );
 
-    my @rows = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows = rows_in($search);
 
     return $self->page_window->page( \@rows,
         $page->{limit}, \@SUSPENSION_CURSOR_COLUMNS );

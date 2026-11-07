@@ -13,10 +13,8 @@ use GPForum::Service::SessionToken;
 our $VERSION = '0.001';
 
 __PACKAGE__->requires('schema');
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has tokens => sub { return GPForum::Service::SessionToken->new; };
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has tokens    => sub { return GPForum::Service::SessionToken->new; };
 
 sub overview ( $self, $actor ) {
     my $row =

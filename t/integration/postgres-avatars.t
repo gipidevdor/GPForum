@@ -390,7 +390,8 @@ sub _scans {
     is( _media_processor()->process($waiting)->{skipped},
         'not_available', 'nothing is cropped before the scan' );
     $test->get_ok('/settings/avatar')
-      ->content_like( qr/awaiting[ ]checks/msx, 'the member is told' );
+      ->content_like( qr/awaiting[ ]automatic[ ]checks/msx,
+        'the member is told' );
 
     _scanned( $waiting, { scan_status => 'clean' } );
     is( _media_processor()->process($waiting)->{status},

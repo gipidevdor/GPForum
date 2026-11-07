@@ -12,7 +12,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Admin::AuditReview;
 use GPForum::Service::Admin::ConsoleReader;
 use GPForum::Service::Admin::Settings;
@@ -66,12 +66,7 @@ has mailer     => sub ($self) {
         smtp_timeout => $SMTP_TIMEOUT_SECONDS,
     );
 };
-has recorder => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 has schema   => undef;        # optional: only the default collaborators read it
 has settings => sub ($self) {
     return GPForum::Service::Admin::Settings->new( config => $self->config );
@@ -80,9 +75,7 @@ has settings => sub ($self) {
 # What the settings page shows beside its two buttons: where a test message
 # would go, how mail and scanning are configured, and the last audited
 # result of each.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub overview ( $self, $user_id ) {
     return {
@@ -259,8 +252,8 @@ sub _latest ( $self, $action ) {
     return $none if !$row;
 
     return {
-        actor_id => GPForum::Infrastructure::Row->column( $row, 'actor_id' ),
-        at       => GPForum::Infrastructure::Row->column( $row, 'created_at' ),
+        actor_id => column_of( $row, 'actor_id' ),
+        at       => column_of( $row, 'created_at' ),
         result   => _metadata($row),
     };
 }

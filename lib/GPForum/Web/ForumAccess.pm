@@ -355,14 +355,8 @@ sub reported_status {
 }
 
 sub write_flash_key ( $, $status ) {
-    if ( !defined $status ) {
-        return undef;
-    }
-    if ( exists $WRITE_FLASH{$status} ) {
-        return $WRITE_FLASH{$status};
-    }
-
-    return undef;
+    return undef if !defined $status || !exists $WRITE_FLASH{$status};
+    return $WRITE_FLASH{$status};
 }
 
 sub search_page_limit ( $self, $requested ) {

@@ -96,6 +96,11 @@ sub _check_live_invariants ( $catalogue, $functions ) {
 
     # Exact previous-release signatures remain supported during rolling deploys.
     my %previous = (
+        attachment_review_submit_v2 => [
+            [ attachment_id => 'uuid' ],
+            [ source_kind   => 'text' ],
+            [ source_url    => 'text' ],
+        ],
         moderation_transfer_picker_v2 => [
             [ actor          => 'uuid' ],
             [ source_id      => 'uuid' ],

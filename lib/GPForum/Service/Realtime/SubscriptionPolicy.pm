@@ -11,9 +11,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $ACTION_SUBSCRIBE => 'realtime.subscribe';
 const my $STATUS_ACTIVE    => 'active';

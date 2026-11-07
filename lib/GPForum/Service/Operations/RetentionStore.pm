@@ -14,9 +14,7 @@ use GPForum::Service::Operations::BatchPurge;
 use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $DAY_SECONDS                => 86_400;
 const my $OUTBOX_RETENTION_DAYS      => 7;

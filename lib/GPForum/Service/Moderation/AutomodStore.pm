@@ -28,19 +28,12 @@ has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 has automod    => sub { return GPForum::Service::Moderation::Automod->new; };
 has events     => sub { return GPForum::Service::Moderation::Event->new; };
-has recorder   => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder   => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
 
 # A schema without the function layer -- the in-memory doubles -- has no
 # rules: a write is not screened, and staff changes are unavailable.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # The rules a write by the author is screened by, or undef with no function
 # layer.

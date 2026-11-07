@@ -11,7 +11,7 @@ use Mojo::URL;
 use Mojo::File qw(path);
 use Mojo::Template;
 use GPForum::Infrastructure::Id;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Forum::Viewer;
 
 our $VERSION = '0.001';
@@ -64,8 +64,8 @@ sub _page ( $self, $url ) {
             items => [
                 map {
                     {
-                        url   => '/c/' . _column( $_, 'category_id' ),
-                        title => _line( _column( $_, 'title' ) )
+                        url   => '/c/' . column_of( $_, 'category_id' ),
+                        title => _line( column_of( $_, 'title' ) )
                     }
                 } @{$rows}
             ]
@@ -86,12 +86,12 @@ sub _page ( $self, $url ) {
         );
         $template = 'index';
         $values   = {
-            title => _line( _column( $category, 'title' ) ),
+            title => _line( column_of( $category, 'title' ) ),
             items => [
                 map {
                     {
-                        url   => '/t/' . _column( $_, 'thread_id' ),
-                        title => _line( _column( $_, 'title' ) )
+                        url   => '/t/' . column_of( $_, 'thread_id' ),
+                        title => _line( column_of( $_, 'title' ) )
                     }
                 } @{ $page->{items} }
             ],
@@ -112,7 +112,7 @@ sub _page ( $self, $url ) {
         return "51 Not found\r\n" if !$page->{ok};
         $template = 'thread';
         $values   = {
-            title => _line( _column( $page->{thread}, 'title' ) ),
+            title => _line( column_of( $page->{thread}, 'title' ) ),
             posts => [ map { _post($_) } @{ $page->{posts}{items} } ],
             next  => _next( $url, $page->{posts} )
         };
@@ -127,12 +127,12 @@ sub _page ( $self, $url ) {
 }
 
 sub _post ($row) {
-    my $body = _column( $row, 'body_source' ) // q{};
+    my $body = column_of( $row, 'body_source' ) // q{};
     $body =~ s/^```/ ```/gmsx;
     return {
         author => _line(
-                 _column( $row, 'author_display_name' )
-              || _column( $row, 'author_username' )
+                 column_of( $row, 'author_display_name' )
+              || column_of( $row, 'author_username' )
         ),
         body => $body
     };
@@ -145,10 +145,6 @@ sub _next ( $url, $page ) {
 
 # A reader answers rows or, from its cache, plain column hashes; both read
 # alike here.
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
-}
-
 sub _line ($value) { return ( $value // q{} ) =~ s/[\r\n\x00-\x1f]+/ /grmsx; }
 
 1;

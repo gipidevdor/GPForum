@@ -13,7 +13,7 @@ use MIME::Base64   qw(encode_base64url);
 use Mojo::JSON     qw(encode_json);
 use Mojo::Promise;
 use GPForum::Infrastructure::AsyncWork;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::EventRecorder;
@@ -49,10 +49,8 @@ has sessions => sub ($self) {
     return GPForum::Service::Identity::SessionStore->new(
         schema => $self->schema );
 };
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has recorder => sub ($self) {
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has recorder  => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };
@@ -349,9 +347,7 @@ sub _accept_identity ( $self, $input, $state, $claims ) {
         user_id       => $member->{id},
         user          => $user,
         session_token => $session->{session_token},
-        session_id    => GPForum::Infrastructure::Row->column(
-            $session->{session}, 'session_id'
-        ),
+        session_id    => column_of( $session->{session}, 'session_id' ),
         map { $_ => $member->{$_} }
           qw(preferred_locale preferred_theme preferred_timezone)
     };

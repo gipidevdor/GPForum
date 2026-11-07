@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
@@ -27,9 +27,7 @@ has clock      => sub { return GPForum::Service::Clock->new; };
 has prepared   => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # The member's subscription to the target, revoked or not, is restored rather
 # than doubled -- whether it was there before or a concurrent save won the
@@ -145,14 +143,14 @@ sub status_for_user_target ( $self, $user_id, $target_type, $target_id ) {
 
     return { subscribed => 0, muted => 0 } if !$subscription;
 
-    my $revoked_at = _column( $subscription, 'revoked_at' );
+    my $revoked_at = column_of( $subscription, 'revoked_at' );
     return { subscribed => 0, muted => 0 } if defined $revoked_at;
 
     return {
-        subscribed      => 1,
-        muted           => defined _column( $subscription, 'muted_at' ) ? 1 : 0,
-        subscription_id => _column( $subscription, 'subscription_id' ),
-        preference      => _column( $subscription, 'preference' ),
+        subscribed => 1,
+        muted      => defined column_of( $subscription, 'muted_at' ) ? 1 : 0,
+        subscription_id => column_of( $subscription, 'subscription_id' ),
+        preference      => column_of( $subscription, 'preference' ),
     };
 }
 
@@ -201,7 +199,7 @@ sub subscribers_for ( $self, $target_type, $target_id, $options = undef ) {
 
     return map { $_->get_column('user_id') }
       grep { _preference_allows( $_->get_column('preference'), $options ) }
-      GPForum::Infrastructure::Row->rows_of($search);
+      rows_in($search);
 }
 
 sub _stamp_user_target ( $self, $input, $column ) {
@@ -228,12 +226,12 @@ sub _stamp_by_id ( $self, $subscription_id, $column ) {
 }
 
 sub _stamp_column ( $self, $subscription, $column ) {
-    my $existing = _column( $subscription, $column );
+    my $existing = column_of( $subscription, $column );
     if ( defined $existing ) {
         return {
             ok              => 1,
             skipped         => 1,
-            subscription_id => _column( $subscription, 'subscription_id' ),
+            subscription_id => column_of( $subscription, 'subscription_id' ),
             $column         => $existing,
         };
     }
@@ -243,7 +241,7 @@ sub _stamp_column ( $self, $subscription, $column ) {
 
     return {
         ok              => 1,
-        subscription_id => _column( $subscription, 'subscription_id' ),
+        subscription_id => column_of( $subscription, 'subscription_id' ),
         $column         => $stamped,
     };
 }
@@ -262,10 +260,10 @@ sub _restore_subscription ( $self, $subscription, $input ) {
     }
 
     my $result = {
-        created_at      => _column( $subscription, 'created_at' ),
+        created_at      => column_of( $subscription, 'created_at' ),
         muted_at        => undef,
         preference      => $preference,
-        subscription_id => _column( $subscription, 'subscription_id' ),
+        subscription_id => column_of( $subscription, 'subscription_id' ),
         target_id       => $input->{target_id},
         target_type     => $input->{target_type},
         user_id         => $input->{user_id},
@@ -279,13 +277,13 @@ sub _restore_subscription ( $self, $subscription, $input ) {
 }
 
 sub _subscription_already_active ( $subscription, $preference ) {
-    if ( defined _column( $subscription, 'muted_at' ) ) {
+    if ( defined column_of( $subscription, 'muted_at' ) ) {
         return 0;
     }
-    if ( defined _column( $subscription, 'revoked_at' ) ) {
+    if ( defined column_of( $subscription, 'revoked_at' ) ) {
         return 0;
     }
-    if ( ( _column( $subscription, 'preference' ) || q{} ) ne $preference ) {
+    if ( ( column_of( $subscription, 'preference' ) || q{} ) ne $preference ) {
         return 0;
     }
 
@@ -349,10 +347,6 @@ sub _stamp_by_function ( $self, $id, $input, $column ) {
             stamped_at  => $self->clock->now_iso8601,
         }
     )->{result};
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 1;

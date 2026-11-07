@@ -33,9 +33,7 @@ has schema => undef;    # optional: handed to the stores it builds lazily
 # The call layer (Infrastructure::SqlFunction) on PostgreSQL, undef on a
 # double, handed to every store built here so the stores and the workflow
 # take the same path; a differential test passes undef to keep the Perl one.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions  => \&GPForum::Infrastructure::SqlFunction::for_service;
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub {
     require GPForum::Infrastructure::Id;

@@ -93,8 +93,15 @@ my $mp4 =
   . pack( 'N', 0 )
   . 'isommp42'
   . 'video payload';
-_upload( $mp4, $owner_csrf,
-    { source_kind => 'original', rights_confirmed => 1 } );
+_upload(
+    $mp4,
+    $owner_csrf,
+    {
+        source_kind      => 'authorized',
+        source_url       => 'https://media.example.org/file',
+        rights_confirmed => 1
+    }
+);
 $t->status_is($HTTP_CREATED);
 my $response   = $t->tx->res;
 my $attachment = $response->json->{attachment}{attachment_id};
@@ -183,33 +190,32 @@ $t->post_ok(
         },
     }
 )->status_is($HTTP_OK);
-$t->json_is( '/status' => 'checking' );
+$t->json_is( '/status' => 'shown' );
 my ( $profile_id, $profile_key ) = $dbh->selectrow_array(
     (
         join q{ },
         q{SELECT a.attachment_id, a.object_key FROM member_avatars m},
-q{JOIN attachments a ON a.attachment_id = m.pending_attachment_id WHERE m.user_id = ?}
+q{JOIN attachments a ON a.attachment_id = m.attachment_id WHERE m.user_id = ?}
     ),
     undef, $owner
 );
 ok( $t->app->gp_attachment_storage->object_info($profile_key),
     'HTTP profile original stored in PostgreSQL' );
 my $profile_service = $t->app->gp_avatars;
-is( $profile_service->status($owner)->{pending_state},
-    'checking',
-    'pending moderation is shown as waiting, not as a scan refusal' );
+ok(
+    !defined $profile_service->status($owner)->{pending_state},
+    'an original profile picture is published without waiting for staff'
+);
 my $review = $t->app->gp_attachment_content_review;
-is(
-    $review->decide(
-        {
-            attachment_id => $profile_id,
-            actor_user_id => $staff,
-            decision      => 'approved',
-            reason        => 'Photo and provenance checked'
-        }
-    )->{status},
-    'ok',
-    'profile approved'
+is( $review->find($profile_id)->{status},
+    'approved', 'the original attestation satisfies content policy' );
+ok(
+    !defined $dbh->selectrow_array(
+'SELECT reviewed_by FROM attachment_content_reviews WHERE attachment_id=?',
+        undef,
+        $profile_id
+    ),
+    'automatic publication fabricates no staff reviewer'
 );
 my $processor = $t->app->gp_media_processor;
 is( $processor->process($profile_id)->{avatar},
@@ -252,7 +258,8 @@ sub _image_preview {
         "/p/$post/attachments" => $json => form => {
             command_id       => $ids->uuid,
             csrf_token       => $owner_csrf,
-            source_kind      => 'original',
+            source_kind      => 'authorized',
+            source_url       => 'https://media.example.org/image',
             rights_confirmed => 1,
             attachment       => {
                 content      => $photo,

@@ -26,8 +26,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: platform-debian-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep every main commit verifiable when independent changes land together.
+  # A SHA-specific group also keeps GitHub from replacing a pending main run.
+  group: platform-debian-${{ github.event_name }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 defaults:
   run:

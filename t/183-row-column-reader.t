@@ -12,7 +12,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::ResultRow;
 use GPForum::Test::RowDouble;
 use GPForum::Test::SearchResult;
@@ -27,6 +27,21 @@ const my $LIST_LENGTH => 6;
 const my $KEPT_KEYS   => 3;
 
 my $reader = 'GPForum::Infrastructure::Row';
+
+subtest 'function imports preserve values and list context' => sub {
+    is_deeply(
+        {
+            zero    => column_of( { score => 0 }, 'score' ),
+            missing => column_of( undef,          'score' ),
+            after   => 'kept',
+        },
+        { zero => 0, missing => undef, after => 'kept' },
+        'a missing column occupies one value and retains following pairs'
+    );
+    my $rows = [ { id => 'first' }, { id => 'second' } ];
+    is_deeply( [ rows_in($rows) ], $rows, 'collections remain lists of rows' );
+    is_deeply( [ rows_in(undef) ], [],    'missing collections remain empty' );
+};
 
 subtest
   'row collections keep unsupported inputs and capability overrides safe' =>

@@ -150,43 +150,19 @@ async sub _scoped_user_id ( $self, $decision, $scope ) {
     return $user_id;
 }
 
-async sub report_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->action_response( $ok_status, $result->{stored} )
-        )
-    );
+sub report_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'action_response' );
 }
 
-async sub moderation_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_action_response( $ok_status, $result->{stored} )
-        )
-    );
+sub moderation_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'moderation_action_response' );
 }
 
-async sub suspension_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->suspension_response( $ok_status, $result->{stored} )
-        )
-    );
+sub suspension_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'suspension_response' );
 }
 
 # The response a failed write answers with, or undef when it did not fail.
@@ -218,55 +194,29 @@ sub write_failure ( $self, $result ) {
     return undef;
 }
 
-async sub moderation_action_response ( $self, $status, $action ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json => $self->gp_moderation_view_model->moderation_action_response(
-                $status, $action
-            ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success( $status, 'moderation_reports' )
-        )
-    );
+sub moderation_action_response ( $self, $status, $stored ) {
+    return $self->_queue_response( 'moderation_action_response', $status,
+        $stored );
 }
 
-async sub suspension_response ( $self, $status, $suspension ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json => $self->gp_moderation_view_model->suspension_response(
-                $status, $suspension,
-            ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success( $status, 'moderation_reports' )
-        )
-    );
+sub suspension_response ( $self, $status, $stored ) {
+    return $self->_queue_response( 'suspension_response', $status, $stored );
 }
 
-async sub action_response ( $self, $status, $report ) {
+sub action_response ( $self, $status, $stored ) {
+    return $self->_queue_response( 'report_action_response', $status, $stored );
+}
+
+async sub _queue_response ( $self, $response, $status, $stored ) {
     if ( $self->wants_json ) {
         return $self->render(
-            json => $self->gp_moderation_view_model->report_action_response(
-                $status, $report
-            ),
+            json =>
+              $self->gp_moderation_view_model->$response( $status, $stored ),
             status => $HTTP_OK,
         );
     }
-
-    return (
-        await $self->await_p(
-            $self->_html_success( $status, 'moderation_reports' )
-        )
-    );
+    return await $self->await_p(
+        $self->_html_success( $status, 'moderation_reports' ) );
 }
 
 sub status_param ($self) {

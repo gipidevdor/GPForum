@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::ImageBytes;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Attachment::ImagePreview;
 
 our $VERSION = '0.001';
@@ -72,7 +72,7 @@ sub _process ( $self, $attachment_id ) {
     if ( !$tool || !$tool->available ) {
         return { ok => 1, skipped => 'no_image_tool' };
     }
-    if ( !$tool->reads( _text( _column( $attachment, 'media_type' ) ) ) ) {
+    if ( !$tool->reads( _text( column_of( $attachment, 'media_type' ) ) ) ) {
         return { ok => 1, skipped => 'unreadable_image' };
     }
 
@@ -99,7 +99,7 @@ sub _skipped_attachment ($attachment) {
 }
 
 sub _not_available ($attachment) {
-    if ( _text( _column( $attachment, 'state' ) ) ne 'available' ) {
+    if ( _text( column_of( $attachment, 'state' ) ) ne 'available' ) {
         return 1;
     }
 
@@ -107,7 +107,7 @@ sub _not_available ($attachment) {
 }
 
 sub _not_image ($attachment) {
-    if ( _text( _column( $attachment, 'media_type' ) ) !~ /\A image\//msx ) {
+    if ( _text( column_of( $attachment, 'media_type' ) ) !~ /\A image\//msx ) {
         return 1;
     }
 
@@ -150,9 +150,9 @@ sub _skipped_variant ( $self, $existing ) {
 # second key -- a copy of every picture, which nothing read -- and no
 # picture was decoded. A picture the tool cannot read makes none.
 sub _write_thumbnail ( $self, $attachment, $existing = undef ) {
-    my $object_key = _column( $attachment, 'object_key' );
+    my $object_key = column_of( $attachment, 'object_key' );
     my $content    = $self->storage->read_object($object_key);
-    my $media_type = _column( $attachment, 'media_type' );
+    my $media_type = column_of( $attachment, 'media_type' );
 
     # The tool is told the picture's size, which sips crops by: without it
     # it ran with none and failed every picture. And it is not handed a
@@ -178,7 +178,7 @@ sub _write_thumbnail ( $self, $attachment, $existing = undef ) {
         ok      => 1,
         variant => $self->store->add_variant(
             {
-                attachment_id => _column( $attachment, 'attachment_id' ),
+                attachment_id => column_of( $attachment, 'attachment_id' ),
                 byte_size     => length $thumbnail,
                 media_type    => $THUMBNAIL_TYPE,
                 object_key    => $variant_key,
@@ -196,10 +196,6 @@ sub _store_thumbnail_object ( $self, $variant_key, $content ) {
     $self->storage->write_object( $variant_key, $content );
 
     return;
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 1;

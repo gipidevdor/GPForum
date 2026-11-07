@@ -9,7 +9,7 @@ use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
 use GPForum::Infrastructure::Keyset;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::Service::Forum::PageWindow;
@@ -33,9 +33,7 @@ has prepared    => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has id_service  => sub { return GPForum::Infrastructure::Id->new; };
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # ADR 0102: only rows whose post or thread the reader can still read, judged
 # in the query before LIMIT. A bookmark kept pointing at a thread after its
@@ -156,9 +154,9 @@ sub status_for_user_target ( $self, $user_id, $target_type, $target_id ) {
     return { bookmarked => 0 } if !$bookmark;
 
     return {
-        bookmarked  => defined _column( $bookmark, 'deleted_at' ) ? 0 : 1,
-        bookmark_id => _column( $bookmark, 'bookmark_id' ),
-        note        => _column( $bookmark, 'note' ),
+        bookmarked  => defined column_of( $bookmark, 'deleted_at' ) ? 0 : 1,
+        bookmark_id => column_of( $bookmark, 'bookmark_id' ),
+        note        => column_of( $bookmark, 'note' ),
     };
 }
 
@@ -180,8 +178,8 @@ sub remove_for_user_target ( $self, $input ) {
 }
 
 sub _soft_delete_bookmark ( $self, $bookmark ) {
-    my $bookmark_id = _column( $bookmark, 'bookmark_id' );
-    my $existing    = _column( $bookmark, 'deleted_at' );
+    my $bookmark_id = column_of( $bookmark, 'bookmark_id' );
+    my $existing    = column_of( $bookmark, 'deleted_at' );
     if ( defined $existing ) {
         return {
             bookmark_id => $bookmark_id,
@@ -207,7 +205,7 @@ sub list_for_user ( $self, $user_id, $options ) {
     ) if $self->functions;
     my $search = $self->bookmarks_resultset( $user_id, $options || {} );
 
-    return [ GPForum::Infrastructure::Row->rows_of($search) ];
+    return [ rows_in($search) ];
 }
 
 sub list_page_for_user ( $self, $user_id, $options ) {
@@ -238,7 +236,7 @@ sub list_page_for_user ( $self, $user_id, $options ) {
         }
     );
 
-    my @rows = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows = rows_in($search);
 
     return $self->page_window->page( \@rows, $page->{limit}, \@CURSOR_COLUMNS );
 }
@@ -256,8 +254,8 @@ sub _restore_bookmark ( $self, $bookmark, $input ) {
     }
 
     my $result = {
-        bookmark_id => _column( $bookmark, 'bookmark_id' ),
-        created_at  => _column( $bookmark, 'created_at' ),
+        bookmark_id => column_of( $bookmark, 'bookmark_id' ),
+        created_at  => column_of( $bookmark, 'created_at' ),
         deleted_at  => undef,
         note        => $note,
         target_id   => $input->{target_id},
@@ -272,10 +270,10 @@ sub _restore_bookmark ( $self, $bookmark, $input ) {
 }
 
 sub _bookmark_already_active ( $bookmark, $note ) {
-    if ( defined _column( $bookmark, 'deleted_at' ) ) {
+    if ( defined column_of( $bookmark, 'deleted_at' ) ) {
         return 0;
     }
-    if ( ( _column( $bookmark, 'note' ) || q{} ) ne $note ) {
+    if ( ( column_of( $bookmark, 'note' ) || q{} ) ne $note ) {
         return 0;
     }
 
@@ -385,10 +383,6 @@ sub _stamp_by_target ( $self, $input, $column ) {
             stamped_at  => $self->clock->now_iso8601,
         }
     )->{result};
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 1;

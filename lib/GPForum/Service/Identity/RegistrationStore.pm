@@ -24,9 +24,7 @@ __PACKAGE__->requires(qw(audit credential_store id_service schema));
 # refuses it. A minted user id already stored is this registration's,
 # committed by an earlier attempt, or another account's, and then a new id is
 # minted.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub create_registration ( $self, $registration ) {
     my $errors = $self->_duplicate_errors( $registration->{user} );

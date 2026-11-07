@@ -11,7 +11,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
 use GPForum::Infrastructure::Keyset;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Service::Forum::PageWindow;
 
 our $VERSION = '0.001';
@@ -33,9 +33,7 @@ const my $PUBLIC_HTML_TAG => 'forum:public-html';
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions   => \&GPForum::Infrastructure::SqlFunction::for_service;
 has cache       => undef;  # optional: without it the counts are read every time
 has cache_epoch => undef;  # optional: missing required epoch bypasses cache
 has cache_epoch_required => 0;
@@ -87,8 +85,8 @@ sub _find_public_user ( $self, $username ) {
       ->find( { username => _normalize_username($username) } );
 
     return undef if !$user;
-    return undef if defined _column( $user, 'deleted_at' );
-    return undef if ( _column( $user, 'status' ) || q{} ) eq 'suspended';
+    return undef if defined column_of( $user, 'deleted_at' );
+    return undef if ( column_of( $user, 'status' ) || q{} ) eq 'suspended';
 
     return $user;
 }
@@ -99,7 +97,7 @@ sub _avatar_id ( $self, $user ) {
     return undef if !$self->functions;
 
     my $status = $self->functions->row( 'community_avatar_status',
-        { user_id => _column( $user, 'id' ) } );
+        { user_id => column_of( $user, 'id' ) } );
 
     return $status ? $status->{attachment_id} : undef;
 }
@@ -108,20 +106,20 @@ sub _trust_hash ( $self, $user ) {
     my $snapshot =
       $self->functions
       ? $self->functions->row( 'identity_profile_trust',
-        { user_id => _column( $user, 'id' ) } )
+        { user_id => column_of( $user, 'id' ) } )
       : $self->schema->resultset('TrustScoreSnapshot')
-      ->find( _column( $user, 'id' ) );
+      ->find( column_of( $user, 'id' ) );
 
     return {
-        score       => _column( $snapshot, 'score' ) || 0,
-        trust_level => _column( $snapshot, 'trust_level' )
-          || _column( $user, 'trust_level' )
+        score       => column_of( $snapshot, 'score' ) || 0,
+        trust_level => column_of( $snapshot, 'trust_level' )
+          || column_of( $user, 'trust_level' )
           || 0,
-        calculated_at => _column( $snapshot, 'calculated_at' ),
-        version       => _column( $snapshot, 'version' ) || 1,
+        calculated_at => column_of( $snapshot, 'calculated_at' ),
+        version       => column_of( $snapshot, 'version' ) || 1,
         badge         => _trust_badge(
-                 _column( $snapshot, 'trust_level' )
-              || _column( $user, 'trust_level' )
+                 column_of( $snapshot, 'trust_level' )
+              || column_of( $user, 'trust_level' )
               || 0
         ),
     };
@@ -136,8 +134,8 @@ sub _recent_public_threads ( $self, $user, $options ) {
         $self->functions->rows( 'identity_profile_threads',
             _page_parameters( $user, $page ) )
       }
-      : GPForum::Infrastructure::Row->rows_of(
-        $self->public_threads_resultset( _column( $user, 'id' ), $page ) );
+      : rows_in(
+        $self->public_threads_resultset( column_of( $user, 'id' ), $page ) );
     if ( $self->functions ) {
         @rows = map { GPForum::Infrastructure::ResultRow->from($_) } @rows;
     }
@@ -187,7 +185,7 @@ sub _recent_public_replies ( $self, $user, $options ) {
             next_cursor => $window->{next_cursor}
         };
     }
-    my $query  = _reply_query( _column( $user, 'id' ), $page->{after} );
+    my $query  = _reply_query( column_of( $user, 'id' ), $page->{after} );
     my $search = $self->schema->resultset('Post')->search_rs(
         $query,
         {
@@ -209,7 +207,7 @@ sub _recent_public_replies ( $self, $user, $options ) {
         }
     );
 
-    my @rows   = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows   = rows_in($search);
     my $window = $self->page_window->page( \@rows, $page->{limit},
         \@REPLY_CURSOR_COLUMNS );
 
@@ -223,7 +221,7 @@ sub _recent_public_replies ( $self, $user, $options ) {
 # with its thread, category and space, on a page anyone may ask for again
 # and again, so the counts are cached, for at most cache_ttl_seconds.
 sub _contribution_counts ( $self, $user ) {
-    my $user_id = _column( $user, 'id' );
+    my $user_id = column_of( $user, 'id' );
     return $self->_count_contributions($user_id)
       if !$self->cache
       || ( $self->cache_epoch_required && !defined $self->cache_epoch );
@@ -272,7 +270,7 @@ sub _count_contributions ( $self, $user_id ) {
 sub _page_parameters ( $user, $page ) {
     my $after = $page->{after} || {};
     return {
-        user_id   => _column( $user, 'id' ),
+        user_id   => column_of( $user, 'id' ),
         after_at  => $after->{sort_value},
         after_id  => $after->{id},
         row_limit => $page->{fetch_rows} || $DEFAULT_THREAD_LIMIT
@@ -340,44 +338,44 @@ sub _reply_query ( $user_id, $after = undef ) {
 sub _user_hash ( $user, $avatar_id = undef ) {
     return {
         avatar_id     => $avatar_id,
-        user_id       => _column( $user, 'id' ),
-        username      => _column( $user, 'username' ),
-        display_name  => _column( $user, 'display_name' ),
-        bio           => _column( $user, 'bio' ) // q{},
-        status        => _column( $user, 'status' ),
-        trust_level   => _column( $user, 'trust_level' ) || 0,
-        created_at    => _column( $user, 'created_at' ),
-        updated_at    => _column( $user, 'updated_at' ),
-        profile_label => q{@} . ( _column( $user, 'username' ) || q{} ),
+        user_id       => column_of( $user, 'id' ),
+        username      => column_of( $user, 'username' ),
+        display_name  => column_of( $user, 'display_name' ),
+        bio           => column_of( $user, 'bio' ) // q{},
+        status        => column_of( $user, 'status' ),
+        trust_level   => column_of( $user, 'trust_level' ) || 0,
+        created_at    => column_of( $user, 'created_at' ),
+        updated_at    => column_of( $user, 'updated_at' ),
+        profile_label => q{@} . ( column_of( $user, 'username' ) || q{} ),
     };
 }
 
 sub _thread_hash ($thread) {
     return {
-        thread_id        => _column( $thread, 'thread_id' ),
-        category_id      => _column( $thread, 'category_id' ),
-        author_user_id   => _column( $thread, 'author_user_id' ),
-        title            => _column( $thread, 'title' ),
-        slug             => _column( $thread, 'slug' ),
-        visibility       => _column( $thread, 'visibility' ),
-        moderation_state => _column( $thread, 'moderation_state' ),
-        last_activity_at => _column( $thread, 'last_activity_at' ),
-        created_at       => _column( $thread, 'created_at' ),
+        thread_id        => column_of( $thread, 'thread_id' ),
+        category_id      => column_of( $thread, 'category_id' ),
+        author_user_id   => column_of( $thread, 'author_user_id' ),
+        title            => column_of( $thread, 'title' ),
+        slug             => column_of( $thread, 'slug' ),
+        visibility       => column_of( $thread, 'visibility' ),
+        moderation_state => column_of( $thread, 'moderation_state' ),
+        last_activity_at => column_of( $thread, 'last_activity_at' ),
+        created_at       => column_of( $thread, 'created_at' ),
     };
 }
 
 sub _reply_hash ($post) {
     return {
-        post_id          => _column( $post, 'post_id' ),
-        thread_id        => _column( $post, 'thread_id' ),
-        author_user_id   => _column( $post, 'author_user_id' ),
-        position         => _column( $post, 'position' ),
-        visibility       => _column( $post, 'visibility' ),
-        moderation_state => _column( $post, 'moderation_state' ),
-        thread_title     => _column( $post, 'thread_title' ),
-        thread_slug      => _column( $post, 'thread_slug' ),
-        body             => _column( $post, 'body' ),
-        created_at       => _column( $post, 'created_at' ),
+        post_id          => column_of( $post, 'post_id' ),
+        thread_id        => column_of( $post, 'thread_id' ),
+        author_user_id   => column_of( $post, 'author_user_id' ),
+        position         => column_of( $post, 'position' ),
+        visibility       => column_of( $post, 'visibility' ),
+        moderation_state => column_of( $post, 'moderation_state' ),
+        thread_title     => column_of( $post, 'thread_title' ),
+        thread_slug      => column_of( $post, 'thread_slug' ),
+        body             => column_of( $post, 'body' ),
+        created_at       => column_of( $post, 'created_at' ),
     };
 }
 
@@ -397,14 +395,10 @@ sub _normalize_username ($username) {
     return $normalized;
 }
 
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
-}
-
 sub _count_search ($search) {
     return $search->count if $search && $search->can('count');
 
-    my @rows = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows = rows_in($search);
     return scalar @rows;
 }
 

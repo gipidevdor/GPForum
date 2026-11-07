@@ -10,7 +10,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::CountedQuery;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Argument;
 use GPForum::X::Conflict;
@@ -108,9 +108,7 @@ has id_service => sub { return GPForum::Infrastructure::Id->new; };
 has rebuild_batch_size => $REBUILD_BATCH;
 has semantic           => undef;          # optional: local embedding projection
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # How far search can be behind the forum: the outbox says, which every search
 # update passes through.
@@ -393,7 +391,7 @@ sub _live_ids ( $self, $type, $after ) {
         'thread.moderation_state' => { -in => $LIVE_STATES{thread} },
     );
 
-    return map { _column( $_, $key ) } GPForum::Infrastructure::Row->rows_of(
+    return map { column_of( $_, $key ) } rows_in(
         $self->schema->resultset( ucfirst $type )->search_rs(
             {
                 'me.deleted_at'       => undef,
@@ -500,9 +498,9 @@ sub _remove_post_batch ( $self, $thread_id, $post_ids ) {
 # committed before them.
 sub _thread_is_live ( $self, $thread_id ) {
     my $thread = $self->schema->resultset('Thread')->find($thread_id);
-    return 0 if !$thread || defined _column( $thread, 'deleted_at' );
+    return 0 if !$thread || defined column_of( $thread, 'deleted_at' );
 
-    my $state = _column( $thread, 'moderation_state' ) // q{};
+    my $state = column_of( $thread, 'moderation_state' ) // q{};
     return ( any { $_ eq $state } @{ $LIVE_STATES{thread} } ) ? 1 : 0;
 }
 
@@ -526,10 +524,10 @@ sub _thread_post_batch ( $self, $thread_id, $after ) {
     return [
         map {
             {
-                position => _column( $_, 'position' ),
-                post_id  => _column( $_, 'post_id' ),
+                position => column_of( $_, 'position' ),
+                post_id  => column_of( $_, 'post_id' ),
             }
-        } GPForum::Infrastructure::Row->rows_of(
+        } rows_in(
             $posts->search_rs(
                 {
                     'me.thread_id' => $thread_id,
@@ -611,7 +609,7 @@ sub _existing_document ( $self, $document ) {
             entity_type => $document->{entity_type},
         }
     );
-    my @rows = GPForum::Infrastructure::Row->rows_of($search);
+    my @rows = rows_in($search);
 
     return $rows[0];
 }
@@ -621,7 +619,7 @@ sub _unchanged_document ( $existing, $document ) {
     return 0 if !$existing;
 
     for my $name (@DOCUMENT_COPY) {
-        my $held = _column( $existing, $name ) // q{};
+        my $held = column_of( $existing, $name ) // q{};
         return 0 if $held ne ( $document->{$name} // q{} );
     }
 
@@ -630,11 +628,11 @@ sub _unchanged_document ( $existing, $document ) {
 
 sub _skipped_document ($existing) {
     return {
-        entity_id      => _column( $existing, 'entity_id' ),
-        entity_type    => _column( $existing, 'entity_type' ),
-        indexed_at     => _column( $existing, 'indexed_at' ),
+        entity_id      => column_of( $existing, 'entity_id' ),
+        entity_type    => column_of( $existing, 'entity_type' ),
+        indexed_at     => column_of( $existing, 'indexed_at' ),
         skipped        => 1,
-        source_version => _column( $existing, 'source_version' ),
+        source_version => column_of( $existing, 'source_version' ),
     };
 }
 
@@ -645,10 +643,6 @@ sub _document_row ( $self, $document ) {
         indexed_at    => $self->clock->now_iso8601,
         search_vector => _search_vector_for($document),
     };
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 sub _remove_document ( $self, $entity_type, $entity_id ) {

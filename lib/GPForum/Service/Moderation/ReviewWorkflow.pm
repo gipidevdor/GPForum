@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row  qw(column_of);
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::X::Conflict;
 
@@ -134,13 +134,10 @@ sub _publish ( $self, $held ) {
 }
 
 sub _approved ( $self, $input, $held, $published ) {
-    my $stored = $published->{stored} // {};
-    my $post_id =
-      GPForum::Infrastructure::Row->column( $stored->{post}, 'post_id' );
-    my $thread_id =
-      GPForum::Infrastructure::Row->column( $stored->{thread}, 'thread_id' )
-      // GPForum::Infrastructure::Row->column( $stored->{post}, 'thread_id' )
-      // $held->{thread_id};
+    my $stored    = $published->{stored} // {};
+    my $post_id   = column_of( $stored->{post},   'post_id' );
+    my $thread_id = column_of( $stored->{thread}, 'thread_id' )
+      // column_of( $stored->{post}, 'thread_id' ) // $held->{thread_id};
     my $decided = $self->store->decide(
         {
             review_id     => $held->{review_id},

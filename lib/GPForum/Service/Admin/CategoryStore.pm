@@ -12,7 +12,7 @@ use GPForum::Infrastructure::ResultRow;
 
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::Id;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row  qw(column_of);
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Admin::Event;
@@ -33,20 +33,11 @@ const my $SLUG_TAKEN               => 'slug is taken';
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
-has recorder   => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder   => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
 has events => sub { return GPForum::Service::Admin::Event->new; };
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub create_category ( $self, $input ) {
     return $self->schema->txn_do( sub { return $self->_create_once($input); } );
@@ -195,17 +186,17 @@ sub _update_once ( $self, $input ) {
 
     my $position = trimmed( $input->{position} );
     $position =
-      length $position ? _position($position) : _column( $row, q{position} );
+      length $position ? _position($position) : column_of( $row, q{position} );
     my $updates = {
         description =>
-          _kept_text( $input->{description}, _column( $row, 'description' ) ),
+          _kept_text( $input->{description}, column_of( $row, 'description' ) ),
         position   => $position,
-        slug       => _kept_text( $input->{slug},  _column( $row, 'slug' ) ),
-        title      => _kept_text( $input->{title}, _column( $row, 'title' ) ),
+        slug       => _kept_text( $input->{slug},  column_of( $row, 'slug' ) ),
+        title      => _kept_text( $input->{title}, column_of( $row, 'title' ) ),
         updated_at => $self->clock->now_iso8601,
-        version    => _column( $row, 'version' ) + 1,
+        version    => column_of( $row, 'version' ) + 1,
         visibility =>
-          _kept_text( $input->{visibility}, _column( $row, 'visibility' ) ),
+          _kept_text( $input->{visibility}, column_of( $row, 'visibility' ) ),
     };
     if ( _unchanged_category( $row, $updates ) ) {
         return { %{ _row_hash( $row, _category_columns() ) }, skipped => 1, };
@@ -256,13 +247,15 @@ sub _update_once ( $self, $input ) {
 # Text compares with undef as empty, the position with undef as 0.
 sub _unchanged_category ( $row, $updates ) {
     for my $name (qw(description slug title visibility)) {
-        if ( ( _column( $row, $name ) // q{} ) ne ( $updates->{$name} // q{} ) )
+        if ( ( column_of( $row, $name ) // q{} ) ne ( $updates->{$name} // q{} )
+          )
         {
             return 0;
         }
     }
 
-    return ( _column( $row, 'position' ) // 0 ) == ( $updates->{position} // 0 )
+    return ( column_of( $row, 'position' ) // 0 ) ==
+      ( $updates->{position} // 0 )
       ? 1
       : 0;
 }
@@ -409,7 +402,7 @@ sub _visible_category ( $self, $category_id ) {
     if ( !$row ) {
         return undef;
     }
-    if ( defined _column( $row, 'deleted_at' ) ) {
+    if ( defined column_of( $row, 'deleted_at' ) ) {
         return undef;
     }
 
@@ -504,13 +497,9 @@ sub _row_hash ( $row, @columns ) {
         return undef;
     }
 
-    my %hash = map { $_ => _column( $row, $_ ) } @columns;
+    my %hash = map { $_ => column_of( $row, $_ ) } @columns;
 
     return \%hash;
-}
-
-sub _column ( $row, $column ) {
-    return GPForum::Infrastructure::Row->column( $row, $column );
 }
 
 sub _category_columns {

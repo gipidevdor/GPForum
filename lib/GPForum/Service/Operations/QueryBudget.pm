@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::X::Check;
 use GPForum::X::Conflict;
@@ -16,9 +16,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $DEFAULT_TRANSACTION_BUDGET => 1;
 const my $BUDGET_SEARCH_ROWS         => 1_000;
@@ -384,9 +382,7 @@ sub _stored_budget_rows ( $self, $schema ) {
         },
     );
 
-    return
-      map { _column( $_, 'endpoint_name' ) => $_ }
-      GPForum::Infrastructure::Row->rows_of($search);
+    return map { _column( $_, 'endpoint_name' ) => $_ } rows_in($search);
 }
 
 sub _missing_endpoints ( $catalog, $stored ) {

@@ -47,9 +47,7 @@ const my $VIEWER_SQL => join q{ },
   'FROM users u WHERE u.id = ?';
 
 __PACKAGE__->requires('schema');
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 has logger => undef;    # optional: without it nothing is logged
 

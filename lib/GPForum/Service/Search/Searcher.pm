@@ -14,7 +14,7 @@ use JSON::MaybeXS;
 use Storable qw(nfreeze thaw);
 use GPForum::Infrastructure::AsyncWork;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Service::Forum::SourceThread;
 use GPForum::Service::Forum::ThreadTags;
 use GPForum::Service::Search::DocumentBuilder;
@@ -180,9 +180,7 @@ const my $SET_STATEMENT_TIMEOUT =>
 has candidate_limit   => $DEFAULT_CANDIDATES;
 has permission_engine => undef;  # optional: without one only public posts match
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Milliseconds. Zero or undef keeps the connection's own statement_timeout:
 # zero there would switch the timeout off for search, not relax it.
@@ -223,7 +221,7 @@ sub ranked_search ( $self, $actor, $query, $options ) {
 sub _ranked_page ( $self, $actor, $normalized, $options, $page ) {
     my $rows       = $page->{rows};
     my $candidates = $page->{candidates}
-      // ( @{$rows} ? _column( $rows->[0], 'candidate_count' ) : 0 );
+      // ( @{$rows} ? column_of( $rows->[0], 'candidate_count' ) : 0 );
     my $limit = _bounded_limit( ( $options || {} )->{limit} );
     if ( @{$rows} > $limit ) { splice @{$rows}, $limit; }
 
@@ -267,7 +265,7 @@ sub _hybrid_page ( $self, $read, $parameters ) {
         rows            => $rows,
         semantic_status => $status,
         candidates      => @{$lexical}
-        ? _column( $lexical->[0], 'candidate_count' )
+        ? column_of( $lexical->[0], 'candidate_count' )
         : 0,
     };
 }
@@ -370,7 +368,7 @@ sub _ranked_result ( $rows, $lexical, $status ) {
         rows            => $rows,
         semantic_status => $status,
         candidates      => @{$lexical}
-        ? _column( $lexical->[0], 'candidate_count' )
+        ? column_of( $lexical->[0], 'candidate_count' )
         : 0
     };
 }
@@ -438,7 +436,7 @@ sub _fused_rows ( $lexical, $semantic ) {
         my $rank = 0;
         for my $row ( @{$list} ) {
             my $key = join q{:},
-              map { _column( $row, $_ ) } qw(entity_type entity_id);
+              map { column_of( $row, $_ ) } qw(entity_type entity_id);
             $rows{$key}  //= $row;
             $order{$key} //= $sequence++;
             $scores{$key} += 1 / ( $RRF_OFFSET + ++$rank );
@@ -589,12 +587,12 @@ sub _candidates ( $self, $actor, $query, $options ) {
 # which renders the page degraded instead of holding the worker.
 sub _timed_rows ( $self, $build ) {
     my $timeout = $self->statement_timeout_ms;
-    return [ GPForum::Infrastructure::Row->rows_of( $build->() ) ] if !$timeout;
+    return [ rows_in( $build->() ) ] if !$timeout;
 
     return $self->schema->txn_do(
         sub {
             $self->_set_statement_timeout($timeout);
-            return [ GPForum::Infrastructure::Row->rows_of( $build->() ) ];
+            return [ rows_in( $build->() ) ];
         }
     );
 }
@@ -757,15 +755,15 @@ sub _can_render ( $self, $actor, $row ) {
         $actor,
         'search.view',
         {
-            entity_type          => _column( $row, 'entity_type' ),
-            entity_id            => _column( $row, 'entity_id' ),
-            visibility           => _column( $row, 'visibility' ),
-            author_user_id       => _column( $row, 'author_user_id' ),
+            entity_type          => column_of( $row, 'entity_type' ),
+            entity_id            => column_of( $row, 'entity_id' ),
+            visibility           => column_of( $row, 'visibility' ),
+            author_user_id       => column_of( $row, 'author_user_id' ),
             thread_owner_user_id => _thread_owner($row),
-            category_id          => _column( $row, 'category_id' ),
-            category_visibility  => _column( $row, 'category_visibility' ),
-            space_id             => _column( $row, 'space_id' ),
-            space_visibility     => _column( $row, 'space_visibility' ),
+            category_id          => column_of( $row, 'category_id' ),
+            category_visibility  => column_of( $row, 'category_visibility' ),
+            space_id             => column_of( $row, 'space_id' ),
+            space_visibility     => column_of( $row, 'space_visibility' ),
         },
         {}
     );
@@ -1084,10 +1082,6 @@ sub _thread_owner ($row) {
       || !$row->has_column_loaded('thread_owner_user_id');
 
     return $row->get_column('thread_owner_user_id');
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 sub _profile_label ($username) {

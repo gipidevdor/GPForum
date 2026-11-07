@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::ImageBytes;
 use GPForum::Service::Attachment::Validator;
 
@@ -156,7 +156,7 @@ sub _process ( $self, $attachment_id, $content ) {
     my $attachment = $self->attachments->find_attachment($attachment_id);
     return undef if !$attachment;
 
-    my $user_id = _column( $attachment, 'owner_user_id' );
+    my $user_id = column_of( $attachment, 'owner_user_id' );
     my $status  = $self->store->status($user_id);
     return { ok => 1, status => 'shown', skipped => 1 }
       if _same( $status->{attachment_id}, $attachment_id );
@@ -165,12 +165,12 @@ sub _process ( $self, $attachment_id, $content ) {
     return { ok => 1, status => 'unreadable', skipped => 1 }
       if ( $status->{pending_state} // q{} ) eq 'unreadable';
     return { ok => 1, status => 'checking', skipped => 1 }
-      if ( _column( $attachment, 'state' ) // q{} ) ne 'available'
+      if ( column_of( $attachment, 'state' ) // q{} ) ne 'available'
       || !$self->image_tool;
 
-    my $object_key = _column( $attachment, 'object_key' );
+    my $object_key = column_of( $attachment, 'object_key' );
     $content //= $self->storage->read_object($object_key);
-    my $media_type = _column( $attachment, 'media_type' );
+    my $media_type = column_of( $attachment, 'media_type' );
     my $size       = $self->bytes->dimensions( $content, $media_type );
     my $squares =
       $size && !$self->bytes->too_big($size)
@@ -384,10 +384,6 @@ sub _filename ( $input, $media_type ) {
 
 sub _same ( $left, $right ) {
     return defined $left && defined $right && lc $left eq lc $right ? 1 : 0;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 sub _log ( $self, $message ) {

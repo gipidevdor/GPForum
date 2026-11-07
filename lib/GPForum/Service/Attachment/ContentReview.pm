@@ -17,10 +17,8 @@ const my $HTTPS_PORT        => 443;
 const my $FETCH_LIMIT       => 51;
 __PACKAGE__->requires('schema');
 has source_hosts => sub { return []; };
-has functions    => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has recorder => sub ($self) {
+has functions    => \&GPForum::Infrastructure::SqlFunction::for_service;
+has recorder     => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };
@@ -161,10 +159,11 @@ Version 0.001.
 =head1 DESCRIPTION
 
 Accepts original content attested by its author, or an HTTPS source whose
-exact hostname an operator authorized. Never fetches that URL. Every upload
-requires a separate staff decision, a clean malware result and a reason;
-authors cannot approve themselves. Rejected SHA-256 checksums block exact
-reuploads. This is human content review, not an automatic legality classifier.
+exact hostname an operator authorized. Never fetches that URL. An attested
+original needs no separate staff decision. Third-party content requires a
+separate staff decision and reason; authors cannot approve those uploads
+themselves. Both paths retain malware scanning and rejected SHA-256 checksums.
+This policy is not an automatic legality classifier.
 
 =head1 SUBROUTINES/METHODS
 
@@ -180,7 +179,8 @@ Rejects an exact SHA-256 match of content staff previously rejected.
 
 =head2 submit
 
-Creates the pending content review before scanning can publish an upload.
+Records the source attestation before scanning. Originals satisfy content
+policy automatically; third-party content enters the staff review queue.
 
 
 =head2 queue

@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::EventRecorder;
 use GPForum::Infrastructure::UniqueConflict;
@@ -37,19 +37,10 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has recorder => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has events => sub { return GPForum::Service::Moderation::Event->new; };
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has events    => sub { return GPForum::Service::Moderation::Event->new; };
 
 sub hide_post ( $self, $input ) {
     my $timestamp = $self->clock->now_iso8601;
@@ -236,7 +227,7 @@ sub reverse_action ( $self, $action_id, $reversed_by_user_id, $reason ) {
             return if !$action;
 
             return _reversal($action)
-              if defined _column( $action, 'reversed_at' );
+              if defined column_of( $action, 'reversed_at' );
 
             my $changes = {
                 reversed_at         => $timestamp,
@@ -317,7 +308,7 @@ sub _apply_action ( $self, $input ) {
                 }
             }
 
-            my $previous_state = _column( $target, 'moderation_state' );
+            my $previous_state = column_of( $target, 'moderation_state' );
             if ( !$idempotent ) {
                 my $updates = $input->{updates};
                 $self->_update_target( $target, $input,
@@ -412,7 +403,7 @@ sub _update_action ( $self, $row, $changes ) {
     my $updated = $self->functions->row(
         'moderation_action_update',
         {
-            action_id => _column( $row, 'moderation_action_id' ),
+            action_id => column_of( $row, 'moderation_action_id' ),
             changes   => $changes
         }
     );
@@ -424,12 +415,12 @@ sub _update_action ( $self, $row, $changes ) {
 # What a reversal answers: the action's id, and when and by whom it was
 # reversed.
 sub _reversal ($action) {
-    return { map { $_ => _column( $action, $_ ) }
+    return { map { $_ => column_of( $action, $_ ) }
           qw(moderation_action_id reversed_at reversed_by_user_id) };
 }
 
 sub _state ($target) {
-    return _column( $target, 'moderation_state' ) || q{};
+    return column_of( $target, 'moderation_state' ) || q{};
 }
 
 sub _is_hidden ($target) {
@@ -441,11 +432,11 @@ sub _is_hidden ($target) {
 # without it does not count as locked: else locking that thread would be a
 # repeat and replies would stay open.
 sub _is_locked ($thread) {
-    return defined _column( $thread, 'locked_at' ) ? 1 : 0;
+    return defined column_of( $thread, 'locked_at' ) ? 1 : 0;
 }
 
 sub _is_pinned ($thread) {
-    return _column( $thread, 'pinned' ) ? 1 : 0;
+    return column_of( $thread, 'pinned' ) ? 1 : 0;
 }
 
 sub _unless_hidden ( $thread, $state ) {
@@ -529,7 +520,7 @@ sub _record_action ( $self, $input ) {
 # An earlier attempt may have committed the action without its event.
 sub _finish_leftover_action ( $self, $existing, $input ) {
     my $event_key = join q{:},
-      map { _column( $existing, $_ ) }
+      map { column_of( $existing, $_ ) }
       qw(action_type target_type target_id moderation_action_id);
     if ( !$self->recorder->event_recorded($event_key) ) {
         $self->_record_event_and_audit(
@@ -556,15 +547,15 @@ sub _action_hash ($row) {
     }
 
     return {
-        action_type          => _column( $row, 'action_type' ),
-        actor_user_id        => _column( $row, 'actor_user_id' ),
-        command_id           => _column( $row, 'command_id' ),
-        created_at           => _column( $row, 'created_at' ),
-        metadata             => _column( $row, 'metadata' ),
-        moderation_action_id => _column( $row, 'moderation_action_id' ),
-        reason               => _column( $row, 'reason' ),
-        target_id            => _column( $row, 'target_id' ),
-        target_type          => _column( $row, 'target_type' ),
+        action_type          => column_of( $row, 'action_type' ),
+        actor_user_id        => column_of( $row, 'actor_user_id' ),
+        command_id           => column_of( $row, 'command_id' ),
+        created_at           => column_of( $row, 'created_at' ),
+        metadata             => column_of( $row, 'metadata' ),
+        moderation_action_id => column_of( $row, 'moderation_action_id' ),
+        reason               => column_of( $row, 'reason' ),
+        target_id            => column_of( $row, 'target_id' ),
+        target_type          => column_of( $row, 'target_type' ),
     };
 }
 
@@ -579,10 +570,6 @@ sub _record_event_and_audit ( $self, $input ) {
         %{ $self->events->action_audit($recorded) } );
 
     return;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 1;

@@ -18,9 +18,7 @@ const my %GLOBAL_BINDING => (
 );
 
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 async sub allowed_p ( $self, $actor, $permission, $context = undef ) {
     return $self->allowed( $actor, $permission ) if !$self->functions;

@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Service::Forum::ContentStore', -signatures;
 use v5.40;
 
 use GPForum::Domain::Thread;
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::ResultRow::Post;
 use GPForum::Infrastructure::ResultRow::Thread;
 use GPForum::Infrastructure::SqlFunction;
@@ -81,9 +81,7 @@ sub part ( $, $kind ) {
     return $PART{$kind};
 }
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub {
@@ -428,7 +426,7 @@ sub _changes ( $self, $event_type, $existing, $command ) {
           if GPForum::Infrastructure::Row->belongs( $existing,
             category_id => $wanted->{category_id} );
 
-        $wanted->{previous_category_id} = _column( $existing, 'category_id' );
+        $wanted->{previous_category_id} = column_of( $existing, 'category_id' );
         return { category_id => $wanted->{category_id} };
     }
 
@@ -456,13 +454,9 @@ sub _skipped_thread ($thread) {
 }
 
 sub _next_version ($thread) {
-    my $version = _column( $thread, 'version' ) || 1;
+    my $version = column_of( $thread, 'version' ) || 1;
 
     return $version + 1;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
 }
 
 # The event and the audit row of one write, under one correlation id.

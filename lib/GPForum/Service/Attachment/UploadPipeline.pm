@@ -8,7 +8,7 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 use Const::Fast;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Attachment::IntentBuilder;
 use GPForum::Service::Attachment::Validator;
 use GPForum::Service::Attachment::Source;
@@ -77,8 +77,7 @@ sub _upload_and_link ( $self, $input ) {
     my $scanned  = $self->_scan_at_upload( $intent->{attachment_id}, $source );
     if ( $self->review ) {
         my $kept = $self->store->find_attachment( $intent->{attachment_id} );
-        $scanned->{state} =
-          GPForum::Infrastructure::Row->column( $kept, 'state' );
+        $scanned->{state} = column_of( $kept, 'state' );
     }
     my $link = $self->_link_target( $input, $intent->{attachment_id} );
 
@@ -145,7 +144,7 @@ sub _write_source ( $self, $key, $source, $checksum ) {
 # the new id, where they landed on the attachment holding the old one.
 sub _kept ( $self, $intent, $created, $source ) {
     my $row = $created->{attachment} or return $intent;
-    my $key = GPForum::Infrastructure::Row->column( $row, 'object_key' );
+    my $key = column_of( $row, 'object_key' );
     return $intent if !defined $key || $key eq $intent->{object_key};
 
     $self->_write_source( $key, $source, $intent->{checksum} );
@@ -153,9 +152,8 @@ sub _kept ( $self, $intent, $created, $source ) {
 
     return {
         %{$intent},
-        attachment_id =>
-          GPForum::Infrastructure::Row->column( $row, 'attachment_id' ),
-        object_key => $key,
+        attachment_id => column_of( $row, 'attachment_id' ),
+        object_key    => $key,
     };
 }
 

@@ -30,9 +30,7 @@ const my $UPSERT_SQL => join q{ },
   q{EXCLUDED.visibility_version, EXCLUDED.permission_version)};
 
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub project_item ( $self, $input ) {
     return $self->schema->txn_do(

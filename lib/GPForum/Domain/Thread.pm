@@ -7,7 +7,7 @@ use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Row;
+use GPForum::Infrastructure::Row qw(column_of);
 
 our $VERSION = '0.001';
 
@@ -30,8 +30,9 @@ const my %STATUS => (
 sub shown_to_writer ( $class, $thread, $writer ) {
     return undef if !$thread;
     return undef
-      if !exists $SHOWN_STATE{ _column( $thread, 'moderation_state' ) // q{} };
-    return $thread if !defined _column( $thread, 'deleted_at' );
+      if !
+      exists $SHOWN_STATE{ column_of( $thread, 'moderation_state' ) // q{} };
+    return $thread if !defined column_of( $thread, 'deleted_at' );
     return $thread
       if length( $writer // q{} ) && $class->by( $thread, $writer );
 
@@ -71,14 +72,14 @@ sub reply_refusal_codes ($class) {
 # locked.
 sub edit_refusal ( $class, $thread, $author ) {
     return 'thread not found'
-      if !$thread || defined _column( $thread, 'deleted_at' );
+      if !$thread || defined column_of( $thread, 'deleted_at' );
 
     return _change_refusal( $class, $thread, $author );
 }
 
 sub restore_refusal ( $class, $thread, $author ) {
     return 'thread not found'
-      if !$thread || !defined _column( $thread, 'deleted_at' );
+      if !$thread || !defined column_of( $thread, 'deleted_at' );
 
     return _change_refusal( $class, $thread, $author );
 }
@@ -86,7 +87,7 @@ sub restore_refusal ( $class, $thread, $author ) {
 # Whether the row's author_user_id is this user. An absent author and an
 # empty user are the same nobody.
 sub by ( $class, $row, $user_id ) {
-    return ( _column( $row, 'author_user_id' ) // q{} ) eq ( $user_id // q{} )
+    return ( column_of( $row, 'author_user_id' ) // q{} ) eq ( $user_id // q{} )
       ? 1
       : 0;
 }
@@ -104,18 +105,14 @@ sub status_of ( $class, $error ) {
 sub _change_refusal ( $class, $thread, $author ) {
     return 'not the thread author' if !$class->by( $thread, $author );
     return 'thread is hidden'
-      if ( _column( $thread, 'moderation_state' ) // q{} ) eq 'hidden';
+      if ( column_of( $thread, 'moderation_state' ) // q{} ) eq 'hidden';
     return 'thread is locked' if _locked($thread);
 
     return undef;
 }
 
 sub _locked ($thread) {
-    return defined _column( $thread, 'locked_at' ) ? 1 : 0;
-}
-
-sub _column ( $row, $name ) {
-    return GPForum::Infrastructure::Row->column( $row, $name );
+    return defined column_of( $thread, 'locked_at' ) ? 1 : 0;
 }
 
 1;

@@ -304,7 +304,7 @@ const my %FUNCTION => (
         parameters => [ after_key => 'text', row_limit => 'integer' ]
     },
     attachment_review_submit => {
-        version    => 2,
+        version    => 4,
         parameters => [
             attachment_id => 'uuid',
             source_kind   => 'text',

@@ -6,8 +6,8 @@ package GPForum::Web::PostFragments;
 use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
-use Mojo::ByteStream;
 use v5.40;
+use Mojo::ByteStream;
 use Mojo::Util qw(encode xml_escape);
 
 our $VERSION = '0.001';

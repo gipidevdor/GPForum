@@ -3,10 +3,9 @@
 
 package GPForum::Test::SocketRateClock;
 
-use v5.40;
-
 use Const::Fast;
 use Mojo::Base 'GPForum::Service::Clock', -signatures;
+use v5.40;
 use GPForum::Service::Operations::RateLimiter::PostgreSQLStore;
 
 our $VERSION = '0.001';

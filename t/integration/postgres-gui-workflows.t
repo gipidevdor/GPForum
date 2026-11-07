@@ -138,13 +138,16 @@ q{SELECT attachment_id FROM attachment_links WHERE target_type='post' AND target
 ok( $attachment, 'the file is linked to the newly created post' );
 $t->get_ok($upload_path)->status_is($HTTP_OK);
 $t->content_like(qr/episode[.]mp4/msx);
-$t->element_exists_not( 'a[href="/attachments/' . $attachment . '/download"]' );
+$t->element_exists( 'a[href="/attachments/' . $attachment . '/download"]' );
 my $remove =
   _fields( 'form[action="/p/'
       . $post_id
       . '/attachments/'
       . $attachment
       . '/delete"]' );
+$t->get_ok( '/attachments/' . $attachment . '/download' )
+  ->status_is($HTTP_OK)
+  ->content_is($mp4);
 _signin($other);
 $t->get_ok($upload_path)->status_is($HTTP_FORBIDDEN);
 _signin($owner);

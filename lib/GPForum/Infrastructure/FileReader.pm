@@ -253,6 +253,16 @@ __END__
 
 GPForum::Infrastructure::FileReader - Backpressured file reads in one child.
 
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $reader = GPForum::Infrastructure::FileReader->start($path);
+    $reader->ready->then(sub { return $reader->read_p(0, 1024) });
+    $reader->release_stream;
+
 =head1 DESCRIPTION
 
 Two readers per web process may hold a streaming lease. One isolated child
@@ -271,5 +281,36 @@ responsibility for nonblocking child reaping, including after a client leaves.
 C<start> admits a reader and C<ready> resolves its metadata. C<read_p> queues
 a bounded range. C<release_stream> stops queued admission or asks an active
 reader to exit; it never waits for the child on the HTTP reactor.
+
+=head1 DIAGNOSTICS
+
+Admission, filesystem and child failures reject promises. Invalid ranges are
+refused, and a changed file terminates the stream instead of mixing versions.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The reader gate admits two streams per process. Chunks are limited to 256 KiB
+and each reader queues at most sixteen ranges. No environment variables are read.
+
+=head1 DEPENDENCIES
+
+Mojolicious, Storable, and the GPForum cancellation, gate and subprocess modules.
+
+=head1 INCOMPATIBILITIES
+
+Readers are process owned. Forked children cannot release a parent's stream.
+
+=head1 BUGS AND LIMITATIONS
+
+Change detection compares device, inode, size and modification time; it does
+not hash file contents. Files must remain immutable while being served.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. BSD-3-Clause.
 
 =cut

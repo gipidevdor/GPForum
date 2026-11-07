@@ -90,7 +90,7 @@ sub unlisten ( $self, $channel ) {
         $self->ensure_p->then(
             sub {
                 return if !$self->{async_db};
-                return $self->{async_gate}->run_p(
+                return $self->_native_command_p(
                     sub {
                         return $self->{async_db}->query_p( 'UNLISTEN '
                               . $self->{async_db}
@@ -221,6 +221,7 @@ sub ensure_p ($self) {
             $old->dbh->{InactiveDestroy} = 1;
         }
         delete $self->{async_pending};
+        delete $self->{async_busy};
         if ( my $socket = delete $self->{async_watch} ) {
             Mojo::IOLoop->singleton->reactor->remove($socket);
             close $socket or croak 'cannot close notification descriptor';
@@ -231,7 +232,7 @@ sub ensure_p ($self) {
         $self->_read_unavailable;
     }
     return $self->{async_pending} if $self->{async_pending};
-    my $operation = $self->{async_gate}->run_p(
+    my $operation = $self->_native_command_p(
         sub {
             my $connected =
               $self->{async_db}
@@ -239,8 +240,7 @@ sub ensure_p ($self) {
               : $self->schema->storage->database_p;
             return $connected->then(
                 sub ($db) {
-                    $self->{async_db} = $db;
-                    $self->schema->storage->notifications($self);
+                    $self->_adopt_native_database($db);
                     my $identity = $self->_identify( $db->dbh );
                     my $chain    = Mojo::Promise->resolve;
                     for my $channel ( sort keys %{ $self->channels } ) {
@@ -265,19 +265,72 @@ sub ensure_p ($self) {
                             }
                         );
                     }
-                    return $chain->then(
-                        sub { $self->_watch_native; return 1; } );
+                    return $chain->then( sub { return 1; } );
                 }
             );
         }
-    )->catch( sub ($error) { $self->_drop_native; return 0; } );
+    )->catch( sub ($error) { return 0; } );
     $self->{async_pending} = $operation;
     return $operation->finally(
         sub { delete $self->{async_pending}; return; } );
 }
 
+sub _adopt_native_database ( $self, $db ) {
+    if ( !$self->{async_db} || $self->{async_db} != $db ) {
+        my $broker = $self;
+        weaken($broker);
+        $db->on(
+            notification => sub ( $, @notification ) {
+                if ($broker) {
+                    $broker->_route( \@notification );
+                }
+                return;
+            }
+        );
+    }
+    $self->{async_db} = $db;
+    $self->schema->storage->notifications($self);
+    return;
+}
+
+# Only Mojo::Pg reads this connection while a command is in flight. An idle
+# pg_notifies watcher on a duplicate descriptor can consume the same readiness
+# and leave LISTEN's promise pending. Query notification events retain delivery.
+sub _native_command_p ( $self, $work ) {
+    return $self->{async_gate}->run_p(
+        sub {
+            return Mojo::Promise->resolve->then(
+                sub {
+                    $self->{async_busy} = 1;
+                    $self->_unwatch_native;
+                    return $work->();
+                }
+            )->then(
+                sub (@values) {
+                    delete $self->{async_busy};
+                    if ( $self->{async_db} ) { $self->_watch_native; }
+                    return @values;
+                }
+            )->catch(
+                sub ($error) {
+                    $self->_drop_native;
+                    die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the native promise rejection
+                }
+            );
+        }
+    );
+}
+
+sub _unwatch_native ($self) {
+    if ( my $socket = delete $self->{async_watch} ) {
+        Mojo::IOLoop->singleton->reactor->remove($socket);
+        close $socket or croak 'cannot close notification descriptor';
+    }
+    return;
+}
+
 sub _watch_native ($self) {
-    return if $self->{async_watch};
+    return if $self->{async_watch} || !$self->{async_db} || $self->{async_busy};
     my $fd = $self->{async_db}->dbh->{pg_socket};
     open my $socket, '+<&', $fd    ## no critic (InputOutput::RequireBriefOpen) -- the reactor owns this long-lived LISTEN descriptor
       or croak "Cannot watch PostgreSQL notifications: $OS_ERROR";
@@ -287,7 +340,7 @@ sub _watch_native ($self) {
     my $reactor = Mojo::IOLoop->singleton->reactor;
     $reactor->io(
         $socket => sub {
-            return if !$broker;
+            return if !$broker || $broker->{async_busy};
             if ( !$broker->_pump( $broker->{async_db}->dbh ) ) {
                 $broker->_drop_native;
             }
@@ -302,10 +355,8 @@ sub retire_connections ($self) {
 }
 
 sub _drop_native ($self) {
-    if ( my $socket = delete $self->{async_watch} ) {
-        Mojo::IOLoop->singleton->reactor->remove($socket);
-        close $socket or croak 'cannot close notification descriptor';
-    }
+    $self->_unwatch_native;
+    delete $self->{async_busy};
     if ( my $db = delete $self->{async_db} ) {
         try { $db->dbh->disconnect; } catch ($error) {
         };
@@ -323,7 +374,10 @@ sub _take_native ( $self, $channel ) {
     my $entry = $self->channels->{$channel};
     return { available => 0, gap => 0, notifications => [] } if !$entry;
     my $ready = $self->{async_db} && $self->listening($channel);
-    if ( $ready && !$self->_pump( $self->{async_db}->dbh ) ) {
+    if (   $ready
+        && !$self->{async_busy}
+        && !$self->_pump( $self->{async_db}->dbh ) )
+    {
         $self->_drop_native;
         $ready = 0;
     }

@@ -1,0 +1,163 @@
+{
+  "browser": [
+    {
+      "command": [
+        "script/test",
+        "browser"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/browser-0.log",
+      "seconds": 14.377,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794042459.818326
+    }
+  ],
+  "counts": {
+    "browser_tests": 15,
+    "features_covered": 41,
+    "features_total": 41,
+    "functional_checks": 15487,
+    "functional_files": 179,
+    "javascript_tests": 101,
+    "performance_contract_checks": 301,
+    "performance_contract_files": 11,
+    "unit_checks": 20426,
+    "unit_files": 537
+  },
+  "functional_and_postgres": [
+    {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/test-features",
+        "--jobs",
+        "2",
+        "--output",
+        "/private/tmp/gpforum-throughput-final-checks/features"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/features-0.log",
+      "seconds": 410.323,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794042460.979164
+    }
+  ],
+  "notes": [
+    "The initial complete passes found expectations still naming the previous SQL API. Explicit rolling-release signatures and the guest snapshot expectations were corrected; the complete final unit and instrumented functional/PostgreSQL runs pass.",
+    "PostgreSQL 18.6 includes fresh install, upgrade from 2046 to 2047, schema snapshot, least privilege, fanout equivalence, real parallel outbox, request cancellation and query plans.",
+    "OS-dependent tests retain their normal prerequisite/platform skips; local verification does not certify other operating systems or PostgreSQL major versions."
+  ],
+  "static_and_clients": [
+    {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/perl-syntax-check"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-0.log",
+      "seconds": 502.647,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794042229.705258
+    },
+    {
+      "command": [
+        "script/perltidy-check"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-1.log",
+      "seconds": 90.467,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794042732.353091
+    },
+    {
+      "command": [
+        "script/perlcritic"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-2.log",
+      "seconds": 261.492,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794042822.820312
+    },
+    {
+      "command": [
+        "script/architecture-check"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-3.log",
+      "seconds": 4.324,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794043084.31234
+    },
+    {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "perl",
+        "script/architecture-policies"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-4.log",
+      "seconds": 19.246,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794043088.636849
+    },
+    {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "perl",
+        "script/adr-index",
+        "--check"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-5.log",
+      "seconds": 0.111,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794043107.883517
+    },
+    {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "prove",
+        "-I",
+        "script/lib",
+        "-I",
+        "t/lib",
+        "-lr",
+        "t/performance"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-6.log",
+      "seconds": 22.733,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794043107.995135
+    },
+    {
+      "command": [
+        "script/test",
+        "clients"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/lint-7.log",
+      "seconds": 1.111,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794043130.728653
+    }
+  ],
+  "unit": [
+    {
+      "command": [
+        "script/test",
+        "unit"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/gpforum-throughput-final-checks/unit-final-0.log",
+      "seconds": 111.464,
+      "source": "/private/tmp/gpforum-throughput-validated-20261107",
+      "started": 1794042940.4234722
+    }
+  ]
+}

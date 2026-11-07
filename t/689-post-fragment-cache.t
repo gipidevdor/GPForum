@@ -16,9 +16,10 @@ use GPForum::Web::PostFragments;
 
 our $VERSION = '0.001';
 
-const my $OK        => 200;
-const my $NOT_FOUND => 404;
-const my $FORBIDDEN => 403;
+const my $OK                     => 200;
+const my $NOT_FOUND              => 404;
+const my $FORBIDDEN              => 403;
+const my $CHANGED_REACTION_COUNT => 4;
 
 my $test     = Test::Mojo->new('GPForum');
 my $services = GPForum::Test::PostFragmentServices->new;
@@ -141,6 +142,75 @@ for my $parts ( values %{ $cache->entries } ) {
     unlike( $html, qr/\Q$csrf\E|\Q$command\E/msx,
         'cached presentation contains no session or command credential' );
 }
+
+subtest
+  'reaction display reuse keeps response credentials and eligibility fresh' =>
+  sub {
+    my $post = {
+        post_id   => 'post-1',
+        can_react => 1,
+        reactions => [
+            {
+                reaction   => 'heart',
+                count      => 3,
+                reacted    => 0,
+                command_id => 'reaction-command-first'
+            }
+        ],
+    };
+    $routes->get('/__fragment/reactions')->to(
+        cb => sub ($c) {
+            $c->stash( post => $post );
+            return $c->render(
+                template => 'forum/_reactions',
+                layout   => undef
+            );
+        }
+    );
+    $test->get_ok('/__fragment/reactions')->status_is($OK);
+    my $reaction_dom = $test->tx->res->dom;
+    my $old_mask = $reaction_dom->at('input[name="csrf_token"]')->attr('value');
+    my $reaction_hits = $cache->stats->{hits};
+    $post->{reactions}[0]{command_id} = 'reaction-command-next';
+    $test->get_ok('/__fragment/reactions')->status_is($OK);
+    ok( $cache->stats->{hits} > $reaction_hits,
+        'a new command id reuses the same display fragments' );
+    $test->element_exists(
+        'button[name="command_id"][value="reaction-command-next"]');
+    $test->content_unlike(qr/reaction-command-first/msx);
+    my $next_reaction_dom = $test->tx->res->dom;
+    isnt(
+        $next_reaction_dom->at('input[name="csrf_token"]')->attr('value'),
+        $old_mask,
+        'a warmed reaction display receives a new response CSRF mask'
+    );
+    $post->{reactions}[0]{reacted} = 1;
+    $post->{reactions}[0]{count}   = $CHANGED_REACTION_COUNT;
+    $test->get_ok('/__fragment/reactions')->status_is($OK);
+    $test->element_exists('button[aria-pressed="true"]');
+    $test->text_is( 'button .post__reaction-count' => '4' );
+    $reaction_hits = $cache->stats->{hits};
+    $post->{can_react} = 0;
+    $test->get_ok('/__fragment/reactions')->status_is($OK);
+    ok( $cache->stats->{hits} > $reaction_hits,
+        'eligibility is decided outside the shared display' );
+    $test->element_exists_not('form');
+    $test->element_exists_not('button');
+    $test->text_is( '.post__reaction--static .post__reaction-count' => '4' );
+
+    for my $parts ( values %{ $cache->entries } ) {
+        my $html = join q{},
+          map { "$parts->{$_}" } grep { $_ ne 'paths' } keys %{$parts};
+        unlike( $html, qr/<form\b|name="(?:csrf_token|command_id)"/msx,
+            'reaction fragments contain neither forms nor response credentials'
+        );
+        unlike(
+            $html,
+            qr/reaction-command-(?:first|next)/msx,
+            'no response command identity is retained'
+        );
+    }
+  };
 
 subtest 'locale, mount path and entry size remain isolated' => sub {
     my $fragments = GPForum::Web::PostFragments->new;

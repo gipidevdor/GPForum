@@ -59,6 +59,19 @@ const my @REPLY_RECORD => (
 );
 
 const my %FUNCTION => (
+    admin_request_context => {
+        version    => 2,
+        parameters => [
+            known_revision         => 'bigint',
+            session_id             => 'uuid',
+            user_id                => 'uuid',
+            token_hash             => 'text',
+            now                    => 'timestamptz',
+            touch_interval_seconds => 'integer',
+            resolve_viewer         => 'boolean',
+        ],
+        json => [qw(settings validation viewer)],
+    },
     identity_passkey_begin =>
       { version => 2, parameters => [ input => 'jsonb' ], json => ['result'] },
     identity_passkey_consume =>
@@ -1567,6 +1580,20 @@ const my %FUNCTION => (
             notification_type => 'text',
             actor_id          => 'uuid',
             excluded_user_id  => 'uuid',
+        ],
+        json => ['grants'],
+    },
+    notification_fanout_page => {
+        version    => 2,
+        parameters => [
+            target_type       => 'text',
+            target_id         => 'uuid',
+            notification_type => 'text',
+            actor_id          => 'uuid',
+            excluded_user_id  => 'uuid',
+            after_user_id     => 'uuid',
+            through_user_id   => 'uuid',
+            row_limit         => 'integer',
         ],
         json => ['grants'],
     },

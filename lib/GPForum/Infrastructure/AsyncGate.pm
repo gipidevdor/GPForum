@@ -9,6 +9,7 @@ use English qw(-no_match_vars);
 use Mojo::Promise;
 use Mojo::IOLoop;
 use GPForum::X::Unavailable;
+use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
 
 our $VERSION = '0.001';
 has concurrency   => 2;
@@ -17,16 +18,29 @@ has queue_timeout => 15;
 has active        => 0;
 has pending       => sub { return []; };
 has owner         => sub { return $PROCESS_ID; };
+has stats         => sub {
+    return { map { $_ => 0 }
+          qw(started completed rejected expired cancelled queued wait_seconds run_seconds peak_pending)
+    };
+};
 
-sub run_p ( $self, $work ) {
+sub run_p ( $self, $work, $context = undef ) {
     if ( $self->owner != $PROCESS_ID ) {
         $self->owner($PROCESS_ID);
         $self->active(0);
         $self->pending( [] );
+        $self->stats( { map { $_ => 0 } keys %{ $self->stats } } );
+    }
+    my $cancel = ref $context eq 'HASH' ? $context->{cancellation} : undef;
+    if ( $cancel && $cancel->cancelled ) {
+        $self->stats->{cancelled}++;
+        return Mojo::Promise->reject(
+            _unavailable('asynchronous request closed before work started') );
     }
     if ( $self->active >= $self->concurrency
         && @{ $self->pending } >= $self->max_pending )
     {
+        $self->stats->{rejected}++;
         return Mojo::Promise->reject(
             GPForum::X::Unavailable->new(
                 message => 'asynchronous capacity exhausted'
@@ -34,17 +48,40 @@ sub run_p ( $self, $work ) {
         );
     }
     my $promise = Mojo::Promise->new;
-    my $job     = { work => $work, promise => $promise };
+    my $now     = clock_gettime(CLOCK_MONOTONIC);
+    my $job     = { work => $work, promise => $promise, enqueued => $now };
+    my $remaining =
+        $cancel && defined $cancel->deadline
+      ? $cancel->deadline - $now
+      : $self->queue_timeout;
+    if ( $remaining <= 0 ) {
+        $self->stats->{expired}++;
+        return Mojo::Promise->reject(
+            _unavailable('asynchronous queue deadline exceeded') );
+    }
+    $job->{deadline} = $now +
+      ( $remaining < $self->queue_timeout ? $remaining : $self->queue_timeout );
     push @{ $self->pending }, $job;
+    if ($cancel) {
+        $job->{cancellation} = $cancel;
+        $job->{subscription} = $cancel->subscribe(
+            sub {
+                $self->_drop( $job, 'cancelled',
+                    'asynchronous request closed before work started' );
+            }
+        );
+    }
     if ( $self->active >= $self->concurrency ) {
+        $self->stats->{queued}++;
+        my $count = @{ $self->pending };
+        $self->stats->{peak_pending} = $count
+          if $count > $self->stats->{peak_pending};
+        my $timeout =
+          $remaining < $self->queue_timeout ? $remaining : $self->queue_timeout;
         $job->{timer} = Mojo::IOLoop->timer(
-            $self->queue_timeout => sub {
-                @{ $self->pending } = grep { $_ != $job } @{ $self->pending };
-                $promise->reject(
-                    GPForum::X::Unavailable->new(
-                        message => 'asynchronous queue deadline exceeded'
-                    )
-                );
+            $timeout => sub {
+                $self->_drop( $job, 'expired',
+                    'asynchronous queue deadline exceeded' );
                 return;
             }
         );
@@ -53,10 +90,52 @@ sub run_p ( $self, $work ) {
     return $promise;
 }
 
+sub _unavailable ($message) {
+    return GPForum::X::Unavailable->new( message => $message );
+}
+
+sub _detach ( $, $job ) {
+    Mojo::IOLoop->remove( delete $job->{timer} ) if defined $job->{timer};
+    if ( my $cancel = delete $job->{cancellation} ) {
+        $cancel->unsubscribe( delete $job->{subscription} );
+    }
+    return;
+}
+
+sub _drop ( $self, $job, $counter, $message ) {
+    return if $job->{started} || $job->{dropped};
+    $job->{dropped} = 1;
+    $self->_detach($job);
+    @{ $self->pending } = grep { $_ != $job } @{ $self->pending };
+    $self->stats->{$counter}++;
+    delete $job->{work};
+    $job->{promise}->reject( _unavailable($message) );
+    return;
+}
+
+sub snapshot ($self) {
+    return {
+        %{ $self->stats },
+        active        => $self->active,
+        pending       => scalar @{ $self->pending },
+        concurrency   => $self->concurrency,
+        max_pending   => $self->max_pending,
+        queue_timeout => $self->queue_timeout
+    };
+}
+
 sub _pump ($self) {
     while ( $self->active < $self->concurrency && @{ $self->pending } ) {
         my $job = shift @{ $self->pending };
-        if ( defined $job->{timer} ) { Mojo::IOLoop->remove( $job->{timer} ); }
+        if ( clock_gettime(CLOCK_MONOTONIC) >= $job->{deadline} ) {
+            $self->_drop( $job, 'expired',
+                'asynchronous queue deadline exceeded' );
+            next;
+        }
+        $self->_detach($job);
+        $job->{started} = clock_gettime(CLOCK_MONOTONIC);
+        $self->stats->{wait_seconds} += $job->{started} - $job->{enqueued};
+        $self->stats->{started}++;
         $self->active( $self->active + 1 );
         $self->_start($job);
     }
@@ -87,6 +166,10 @@ sub _complete ( $self, $job, $status, @values ) {
     # Consumers may immediately submit another query. Release capacity before
     # their continuation runs, without a deferred finally chain retaining it.
     $self->active( $self->active - 1 );
+    $self->stats->{completed}++;
+    $self->stats->{run_seconds} +=
+      clock_gettime(CLOCK_MONOTONIC) - $job->{started};
+    delete $job->{work};
     $self->_pump;
     $job->{promise}->$status(@values);
     return;

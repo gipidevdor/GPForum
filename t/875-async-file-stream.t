@@ -34,7 +34,17 @@ $app->routes->get('/file')
     cb => sub ($c) { return $c->file_p( $path, 'application/octet-stream' ); }
   );
 my $test = Test::Mojo->new($app);
-$test->get_ok('/file')->status_is($HTTP_OK)->content_is($bytes);
+{
+    my $start  = GPForum::Infrastructure::Subprocess->can('_start');
+    my $starts = 0;
+    no warnings 'redefine';
+    local *GPForum::Infrastructure::Subprocess::_start = sub {
+        ++$starts;
+        return $start->(@_);
+    };
+    $test->get_ok('/file')->status_is($HTTP_OK)->content_is($bytes);
+    is( $starts, 1, 'metadata and multiple binary chunks use one subprocess' );
+}
 my $headers = $test->tx->res->headers;
 my $etag    = $headers->etag;
 $test->get_ok( '/file' => { Range => 'bytes=3-19' } )

@@ -16,6 +16,7 @@ our $VERSION = '0.001';
 # keyed by the class that declared them. A subclass inherits its parents'
 # through the method resolution order, not by copying them here.
 my %REQUIRED;
+my %REQUIRED_CACHE;
 
 sub requires ( $class, @names ) {
     if ( ref $class ) {
@@ -30,6 +31,7 @@ sub requires ( $class, @names ) {
         $class->attr($name);
         push @{ $REQUIRED{$class} }, $name;
     }
+    %REQUIRED_CACHE = ();
 
     return $class;
 }
@@ -37,11 +39,15 @@ sub requires ( $class, @names ) {
 # Every attribute a new object of this class must be given: its ancestors'
 # first, each name once.
 sub required_attributes ($invocant) {
-    my $class = ref $invocant || $invocant;
+    my $class  = ref $invocant || $invocant;
+    my $isa    = mro::get_linear_isa($class);
+    my $cached = $REQUIRED_CACHE{$class};
+    return @{ $cached->{names} } if $cached && $cached->{isa} == $isa;
     my %seen;
     my @names = grep { !$seen{$_}++ }
       map { @{ $REQUIRED{$_} // [] } }
-      reverse @{ mro::get_linear_isa($class) };
+      reverse @{$isa};
+    $REQUIRED_CACHE{$class} = { isa => $isa, names => \@names };
 
     return @names;
 }

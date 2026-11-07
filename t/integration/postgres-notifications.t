@@ -1275,7 +1275,7 @@ sub _fanout_screening {
     is_deeply(
         [ map { _function_called($_) } @{$statements} ],
         [
-            qw(notification_fanout_candidates forum_post_placement
+            qw(notification_fanout_page forum_post_placement
               notification_fanout_deliver ops_publish_notifications)
         ],
 'the fan-out is four statements: the candidates, where the post sits, the deliveries, the badges'
@@ -1344,7 +1344,7 @@ sub _fanout_screening {
     is_deeply(
         [ map { _function_called($_) } @{$retried} ],
         [
-            qw(notification_fanout_candidates forum_post_placement
+            qw(notification_fanout_page forum_post_placement
               notification_fanout_deliver)
         ],
         'a fan-out that creates nothing sends no badge: three statements'

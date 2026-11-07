@@ -76,7 +76,12 @@ sub collect ($self) {
             grep { defined }
             map  { $_->observe_lag } @{ $self->projection_trackers }
         ],
-        db_query_stats     => _section( $self->db_query_stats ),
+        db_query_stats => _section( $self->db_query_stats ),
+        async_queries  => $self->schema
+          && $self->schema->isa('GPForum::Schema')
+          && $self->schema->{gp_async_query}
+        ? $self->schema->{gp_async_query}->snapshot
+        : {},
         query_budgets      => $self->query_budget->snapshot,
         query_budget_drift => $self->_query_budget_drift,
         database           => $self->_database,

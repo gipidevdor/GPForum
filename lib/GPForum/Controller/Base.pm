@@ -71,9 +71,10 @@ sub call_p ( $self, $service, $method, @arguments ) {
 
 sub file_p ( $self, $path, $type = undef ) {
     $self->render_later;
-    return GPForum::Infrastructure::FileAsset->from_path_p($path)->then(
+    return GPForum::Infrastructure::FileAsset->from_path_p( $path, 0,
+        $self->stash('gp_db_query_stats_token') )->then(
         sub ($asset) {
-            return if $self->stash('mojo.finished');
+            if ( $self->stash('mojo.finished') ) { $asset->close; return; }
             if (   !defined $type
                 && !defined $self->res->headers->content_type
                 && "$path" =~ /[.]([[:alnum:]]+)\z/msx )
@@ -84,7 +85,7 @@ sub file_p ( $self, $path, $type = undef ) {
             return GPForum::Web::MediaResponse->new->render( $self, $asset,
                 $asset->size . q{-} . $asset->mtime );
         }
-    );
+        );
 }
 
 sub respond_p ( $self, $promise, $respond, $failure = undef ) {

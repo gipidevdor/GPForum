@@ -8,7 +8,8 @@ use GPForum::Infrastructure::AsyncQuery;
 use v5.40;
 
 use Const::Fast;
-use English qw(-no_match_vars);
+use English     qw(-no_match_vars);
+use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
 
 use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Infrastructure::Antivirus;
@@ -475,6 +476,13 @@ sub _configure_db_query_observer {
                 }
             );
             $controller->stash( gp_db_query_stats_token => $token );
+            require GPForum::Infrastructure::Cancellation;
+            $token->{cancellation} = GPForum::Infrastructure::Cancellation->new(
+                deadline => clock_gettime(CLOCK_MONOTONIC) +
+                  $config->runtime_inactivity );
+            my $cancellation = $token->{cancellation};
+            $controller->tx->on(
+                finish => sub { $cancellation->cancel; return; } );
             return;
         }
     );

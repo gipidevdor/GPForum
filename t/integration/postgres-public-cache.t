@@ -160,7 +160,7 @@ is( $sent, 1,
     'only authoritative configuration and revocation epoch are read' );
 like(
     $prepared[0],
-    qr/admin_configuration_state_v[[:digit:]]+/msx,
+    qr/admin_request_context_v[[:digit:]]+/msx,
     'the cache hit performs no forum-content query'
 );
 
@@ -262,7 +262,7 @@ is( $sent, 1,
     'the cached redirect only reads configuration and revocation epoch' );
 like(
     $prepared[0],
-    qr/admin_configuration_state_v[[:digit:]]+/msx,
+    qr/admin_request_context_v[[:digit:]]+/msx,
     'redirects do not query thread content'
 );
 is( _cached_entries(), $entries, 'and no entry is minted for it' );

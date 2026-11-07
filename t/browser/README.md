@@ -1,5 +1,16 @@
 # Browser fragment checks
 
+The suite also includes `passkeys.test.cjs`: an ordinary password login reaches
+Menu → account → Passkeys, registers a discoverable credential through Chromium's
+WebAuthn API, signs out, signs in using that credential, publishes a thread as that account,
+revokes it through the
+GUI and verifies that the retained authenticator credential can no longer sign
+in. It uses real PostgreSQL and the application's real services and JavaScript.
+Chrome's virtual CTAP2 authenticator substitutes for physical hardware; browser
+credentials and HTTP responses are not mocked. TOTP, recovery and erasure retain
+their separate PostgreSQL integration coverage. This does not certify every
+physical authenticator or browser platform.
+
 These tests run the real GPForum application and vendored htmx in Chromium with
 the application's CSP. Forum services use the doubles from the Perl fragment
 tests; PostgreSQL is not required. Request interception also exercises slow,

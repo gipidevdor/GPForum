@@ -2832,6 +2832,7 @@ button.post__reaction[aria-pressed="true"]:hover {
   position: sticky;
   inset-block-start: 0;
   z-index: 25;
+  border-block-start: 2px solid var(--color-icon-accent);
   border-block-end: 1px solid var(--color-hairline);
   background: var(--color-bar);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -2842,11 +2843,13 @@ button.post__reaction[aria-pressed="true"]:hover {
   grid-template-columns: auto minmax(10rem, 18rem) minmax(0, 1fr) auto;
   grid-template-areas: "brand search nav identity";
   column-gap: var(--space-5);
-  min-block-size: 3.25rem;
+  min-block-size: 4rem;
 }
 
 .brand {
-  font-size: var(--font-size-md);
+  gap: var(--space-3);
+  font-family: var(--typography-font-display);
+  font-size: var(--font-size-lg);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-heading);
 }
@@ -2864,6 +2867,16 @@ button.post__reaction[aria-pressed="true"]:hover {
 .brand {
   min-inline-size: 0;
   overflow-wrap: anywhere;
+}
+
+.brand__mark {
+  flex: 0 0 1.875rem;
+  inline-size: 1.875rem;
+  block-size: 1.875rem;
+}
+
+.brand__node {
+  fill: var(--color-icon-accent);
 }
 
 .site-nav,
@@ -2917,11 +2930,11 @@ button.post__reaction[aria-pressed="true"]:hover {
   background: var(--color-fill);
 }
 
-/* Joining is the one action the bar offers a visitor: a small filled pill. */
+/* Joining is the visitor's primary action; it shares the form controls' shape. */
 .identity-nav .identity-nav__join {
-  min-block-size: 2rem;
+  min-block-size: 2.25rem;
   margin-inline-start: var(--space-1);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--color-action);
   color: var(--color-text-on-action);
   padding-inline: var(--space-4);
@@ -3014,11 +3027,12 @@ main.page-shell > * + * {
   margin-block-start: var(--space-6);
 }
 
-/* A display voice for the page, an unhurried introduction, then the
-   practical UI. Optical sizing comes from the variable face itself. */
+/* Editorial mastheads establish a clear reading order on every public page.
+   Optical sizing comes from the variable face itself. */
 .ui-page-header {
-  align-items: center;
-  padding-block: var(--space-2) 0;
+  align-items: end;
+  border-block-end: 1px solid var(--color-hairline);
+  padding-block: var(--space-2) var(--space-5);
 }
 
 .ui-page-header h1 {
@@ -3032,9 +3046,9 @@ main.page-shell > * + * {
 
 .ui-page-header__copy::before {
   content: "";
-  inline-size: 2rem;
-  block-size: 2px;
-  margin-block-end: var(--space-1);
+  inline-size: 3rem;
+  block-size: 3px;
+  margin-block-end: var(--space-2);
   background: var(--color-icon-accent);
 }
 
@@ -3091,14 +3105,13 @@ main.page-shell > * + * {
   font-size: var(--font-size-sm);
 }
 
-/* Controls. A filled pill in the tint for what the page is for; a grey
-   pill in the tint's text for what else can be done; the tint's text
-   alone for what should not compete. */
+/* Controls share a restrained corner radius. Weight and colour distinguish
+   primary, secondary and quiet actions without adding another visual shape. */
 button,
 .button {
   min-block-size: var(--control-height);
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--color-action);
   color: var(--color-text-on-action);
   padding: 0 1.25rem;
@@ -3113,7 +3126,7 @@ a:is(.button--quiet, .button--secondary, .button--small, .button--danger) {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
@@ -3308,13 +3321,11 @@ html[data-theme="dark"] .segmented button[aria-pressed="true"] {
   }
 }
 
-/* Grouped lists: rows on one white rounded surface, a hairline between
-   two of them inset to the text's edge, the row lit while the pointer is
-   on it. */
+/* Grouped lists read as one sheet; inset rules separate the conversations. */
 .ui-card-list {
   overflow: clip;
-  border: 0;
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
@@ -3394,8 +3405,23 @@ html[data-theme="dark"] .segmented button[aria-pressed="true"] {
 }
 
 /* A row that opens a page says so with a chevron at its end. */
+.forum-home-latest .ui-row__title {
+  font-family: var(--typography-font-display);
+  font-size: clamp(1.25rem, 1.1rem + 0.4vw, 1.5rem);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--tracking-heading);
+}
+
+.forum-home-categories .ui-card-list {
+  border: 0;
+  border-block-start: 2px solid var(--color-icon-accent);
+  border-radius: 0;
+  background: transparent;
+}
+
 .forum-home-categories .ui-row {
-  padding: var(--space-4);
+  padding: var(--space-5) var(--space-2);
   padding-inline-end: var(--space-7);
 }
 
@@ -3421,8 +3447,8 @@ html[data-direction="rtl"] .forum-home-categories .ui-row > .ui-icon {
 /* Reading comes first in DOM and layout; categories remain a secondary sidebar. */
 .forum-home-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 17rem;
-  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: var(--space-7);
   align-items: start;
 }
 
@@ -3544,14 +3570,32 @@ nav[aria-label$="pagination" i] a:hover,
 
 /* The conversation: its title large, what can be done with it in a line of
    tinted actions, then each post on its own surface. */
-.thread {
+.thread,
+main.page-shell > .thread {
   inline-size: min(100%, 54rem);
   margin-inline: auto;
   gap: var(--space-4);
 }
 
 .thread__header {
-  gap: var(--space-3);
+  gap: var(--space-2);
+  border-block-end: 1px solid var(--color-hairline);
+  padding-block-end: var(--space-4);
+}
+
+.thread__header .ui-page-header {
+  border: 0;
+  padding: 0;
+}
+
+.thread > section {
+  margin-block-start: 0;
+}
+
+/* Keep the swap target in the DOM without an empty grid row between title
+   and conversation. Real notices retain their normal space and semantics. */
+#thread-notices:not(:has(*)) {
+  display: none;
 }
 
 .thread__header .toolbar {
@@ -3586,13 +3630,16 @@ nav[aria-label$="pagination" i] a:hover,
   display: grid;
   gap: var(--space-3);
   overflow: visible;
+  border: 0;
+  border-radius: 0;
   background: transparent;
 }
 
 #posts > li {
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
-  padding: var(--space-5);
+  padding: clamp(1rem, 3vw, 1.75rem);
 }
 
 #posts > li + li::before {
@@ -3896,26 +3943,26 @@ code {
   background: var(--color-surface-alt);
 }
 
-/* Member journeys and consoles: one white surface per task, at the width
-   the task needs. */
+/* Member journeys and consoles share the editorial page's paper and rules. */
 .account-panel,
 .editor-panel,
 .member-profile,
 .settings-group,
 .privacy-page > section {
-  border: 0;
+  border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   padding: var(--space-5);
 }
 
 main.page-shell > .account-panel {
-  inline-size: min(100%, 28rem);
+  inline-size: min(100%, 30rem);
   margin-inline: auto;
-  margin-block: var(--space-6);
+  margin-block: var(--space-4) var(--space-7);
   gap: var(--space-5);
-  padding: var(--space-6);
-  border-radius: var(--radius-lg);
+  border-block-start: 3px solid var(--color-icon-accent);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border-radius: var(--radius-md);
 }
 
 .account-panel form {
@@ -3933,8 +3980,26 @@ main.page-shell > .account-panel {
 }
 
 .account-panel h1 {
-  font-size: var(--font-size-lg);
-  text-align: center;
+  font-family: var(--typography-font-display);
+  font-size: clamp(2rem, 1.7rem + 1vw, 2.5rem);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-display);
+  text-align: start;
+}
+
+.account-panel > .ui-row-links {
+  border-block-start: 1px solid var(--color-hairline);
+  padding-block-start: var(--space-4);
+}
+
+.editor-panel > h1,
+.editor-panel .ui-page-header h1 {
+  font-family: var(--typography-font-display);
+  font-size: var(--font-size-thread-title);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-display);
 }
 
 .editor-panel {
@@ -4281,12 +4346,13 @@ main.page-shell > .account-panel {
   gap: var(--space-1) var(--space-2);
   align-items: center;
   margin: 0;
-  border-radius: var(--radius-md);
+  border-block-end: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
   background: var(--color-bar);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
-  padding: var(--space-2);
-  box-shadow: var(--shadow-soft);
+  padding: var(--space-1) var(--space-2);
+  box-shadow: none;
   font-size: var(--font-size-sm);
 }
 
@@ -4424,7 +4490,7 @@ html[data-theme="high_contrast"] :is(.site-header, #thread-page-navigation) {
   backdrop-filter: none;
 }
 
-html[data-theme="high_contrast"] :is(.ui-card-list, #posts > li,
+html[data-theme="high_contrast"] :is(.ui-card-list:not(#posts), #posts > li,
   .composer, .account-panel, .segmented button[aria-pressed="true"]) {
   outline: 1px solid var(--color-border);
   outline-offset: -1px;
@@ -4454,7 +4520,7 @@ html[data-theme="high_contrast"] :is(.ui-card-list, #posts > li,
 
 @media (forced-colors: active) {
   .site-header,
-  .ui-card-list,
+  .ui-card-list:not(#posts),
   #posts > li,
   .composer,
   .account-panel {

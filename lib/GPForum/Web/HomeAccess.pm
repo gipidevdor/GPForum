@@ -8,6 +8,8 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Web::Responder;
+use GPForum::Web::ForumAccess;
+use GPForum::Web::RequestPreference;
 
 our $VERSION = '0.001';
 
@@ -40,13 +42,31 @@ sub failure_payload {
     };
 }
 
-sub render_page ( $, $controller, $payload ) {
+sub cache_options ( $, $controller ) {
+    return undef
+      if length( $controller->param('after') // q{} )
+      || GPForum::Web::RequestPreference->wants_json($controller)
+      || GPForum::Web::RequestPreference->wants_fragment($controller);
+    return GPForum::Web::ForumAccess->new->public_cache_options(
+        {
+            name   => 'home',
+            path   => '/',
+            locale => $controller->ui_locale,
+            theme  => $controller->ui_theme,
+            limit  => $THREAD_LIMIT,
+            tags   => [ 'forum:categories', 'forum:threads' ],
+        }
+    );
+}
+
+sub render_page ( $, $controller, $payload, $cache = undef ) {
     return GPForum::Web::Responder->new->payload(
         {
-            controller => $controller,
-            payload    => $payload,
-            status     => $HTTP_OK,
-            template   => $INDEX_TEMPLATE,
+            controller    => $controller,
+            payload       => $payload,
+            status        => $HTTP_OK,
+            template      => $INDEX_TEMPLATE,
+            cache_options => $cache,
         }
     );
 }

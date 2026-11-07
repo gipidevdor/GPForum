@@ -272,7 +272,7 @@ subtest 'administrator GUI, CSRF and settings applied on subsequent pages' =>
     $test->element_exists('input#setting-site_name[value="Pannello GUI"]');
     $test->text_like( 'title' => qr/Pannello[ ]GUI/msx );
     $test->text_is(
-        '.brand' => 'Pannello GUI',
+        '.brand__name' => 'Pannello GUI',
         'site branding follows the live GUI setting'
     );
     $test->header_like( 'Cache-Control' => qr/no-store/msx );
@@ -346,7 +346,7 @@ subtest 'administrator GUI, CSRF and settings applied on subsequent pages' =>
       ->status_is($HTTP_OK);
     $test->element_exists('html[lang="it"]');
     $test->text_is(
-        '.brand' => 'Officina 🛠',
+        '.brand__name' => 'Officina 🛠',
         'live branding survives language negotiation'
     );
 

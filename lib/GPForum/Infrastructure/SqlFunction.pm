@@ -13,6 +13,7 @@ use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::AsyncQuery;
 use GPForum::Infrastructure::PgTransaction;
 use Mojo::Promise;
+use Scalar::Util qw(weaken);
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::X::Argument;
 use GPForum::X::Conflict;
@@ -78,7 +79,13 @@ sub for_schema ( $class, $schema ) {
             message => 'SQL function routing requires PostgreSQL' );
     }
 
-    return $class->new( schema => $schema );
+    return $schema->{gp_sql_functions}
+      if $schema->{gp_sql_functions}
+      && ref( $schema->{gp_sql_functions} ) eq $class;
+    my $functions = $class->new( schema => $schema );
+    $schema->{gp_sql_functions} = $functions;
+    weaken( $schema->{gp_sql_functions} );
+    return $functions;
 }
 
 # The rows a function returns, as hashes keyed by its columns, its json
@@ -152,7 +159,15 @@ async sub _read_rows_p ( $self, $db, $entry, $parameters, $stats, $context ) {
         $stats->in_context( $context, sub { $stats->query_end; return; } );
     }
     if ( defined $error ) {
-        $self->_raise( $db->dbh->state, $error );
+        my $state = $db->dbh->state;
+
+        # A refused standalone statement has already rolled itself back.
+        # Transaction owners mark their lease only after a successful rollback.
+        $db->{gp_reusable_after_error} = 1
+          if !$self->async_transaction
+          && defined $state
+          && ( $state eq $INVALID_PARAMETER || $state eq $UNIQUE_VIOLATION );
+        $self->_raise( $state, $error );
     }
     return $rows;
 }

@@ -28,7 +28,20 @@ sub shared ($class) {
     return $worker;
 }
 
-sub run_p ( $self, $work, $cancelled = undef, $preserve_rows = 0 ) {
+# CPU-bound page rendering must not wait behind a password check, a remote
+# integration, or an archive operation. Each lane admits one child per worker.
+sub rendering ($class) {
+    state $renderer = $class->new;
+    return $renderer;
+}
+
+sub run_p (
+    $self, $work,
+    $cancelled     = undef,
+    $preserve_rows = 0,
+    $context       = undef
+  )
+{
     my $log_context = GPForum::Log->request_context;
     return $self->gate->run_p(
         sub {
@@ -56,7 +69,8 @@ sub run_p ( $self, $work, $cancelled = undef, $preserve_rows = 0 ) {
                     );
                 }
             );
-        }
+        },
+        $context
     );
 }
 
@@ -196,7 +210,8 @@ sub _call_p (
                 return $stats ? $stats->in_context( $context, $run ) : $run->();
             },
             $cancelled,
-            $preserve_rows
+            $preserve_rows,
+            $context
         )->then(
             sub ($result) {
                 if ($stats) {

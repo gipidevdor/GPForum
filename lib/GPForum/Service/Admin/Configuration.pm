@@ -11,6 +11,7 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use GPForum::Config;
 use Mojo::Util qw(encode decode);
+use Storable   qw(dclone);
 use GPForum::X::Config;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::SqlFunction;
@@ -48,8 +49,9 @@ has state => sub ($self) { return $self->load; };
 
 # One replacement slot owned by the application, never a global revision
 # cache. The durable state is still read once on every request.
-has effective_cache => undef;       # optional: offline callers validate per use
-has box             => sub ($self) {
+has effective_cache => undef;    # optional: offline callers validate per use
+has state_cache => undef;    # optional: one encrypted settings revision per app
+has box         => sub ($self) {
     return GPForum::Service::Identity::SecretBox->new(
         keys => $self->base_config->signing_secrets );
 };
@@ -70,6 +72,48 @@ sub load ($self) {
         public_cache_epoch => $row->{public_cache_epoch},
         settings => $row->{settings} // { plugins => {}, general => {} }
     };
+}
+
+async sub request_context_p ( $self, $input, $context = undef ) {
+    my $cache = $self->state_cache;
+    my $known =
+         $cache
+      && $cache->{settings}
+      && refaddr( $cache->{schema} ) == refaddr( $self->schema )
+      ? $cache->{revision}
+      : undef;
+    my $previous = defined $known ? $cache->{settings} : undef;
+    my $row      = await $self->functions->row_p( 'admin_request_context',
+        { %{$input}, known_revision => $known }, $context );
+    die 'request context has no configuration revision' if !$row;
+    my $settings = $row->{settings};
+    if ( !defined $settings ) {
+        die 'request context settings revision is unavailable'
+          if !defined $known || $known ne $row->{revision};
+        $settings = dclone($previous);
+    }
+    elsif (
+        $cache
+        && (   !defined $cache->{revision}
+            || refaddr( $cache->{schema} ) != refaddr( $self->schema )
+            || $cache->{revision} <= $row->{revision} )
+      )
+    {
+        %{$cache} = (
+            schema   => $self->schema,
+            revision => $row->{revision},
+            settings => dclone($settings),
+        );
+    }
+    $self->state(
+        {
+            available          => 1,
+            revision           => $row->{revision},
+            public_cache_epoch => $row->{public_cache_epoch},
+            settings           => $settings,
+        }
+    );
+    return $row;
 }
 
 async sub load_p ( $self, $context = undef ) {

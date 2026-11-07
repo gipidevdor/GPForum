@@ -5,6 +5,15 @@ architecture declaration; doubles establish a contract; PostgreSQL establishes
 persistence; a browser establishes an interaction. None substitutes for another.
 See ADR 0084 for the full strategy.
 
+The 7 November passkey follow-up adds a persistent Chromium journey in
+`t/browser/passkeys.test.cjs`. It drives normal password sign-in, the account menu,
+WebAuthn registration, credential sign-in, ordinary thread publication under that
+account, revocation and rejection after revocation.
+Only hardware presence/verification is provided by a virtual CTAP2 authenticator;
+the browser APIs, frontend, HTTP services, signatures and PostgreSQL are real.
+Identity coverage still has browser gaps beyond this journey, including TOTP
+and recovery; their PostgreSQL tests do not substitute for a browser test.
+
 | Purpose | Command |
 | --- | --- |
 | One Perl regression | `script/test t/path.t` |

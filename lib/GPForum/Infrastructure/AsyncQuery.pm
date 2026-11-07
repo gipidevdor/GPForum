@@ -16,6 +16,9 @@ has idle        => sub { return []; };
 has connections => sub { return []; };
 has owner       => sub { return $PROCESS_ID; };
 has generation  => 0;
+has stats       => sub {
+    return { created => 0, retired_errors => 0, reused_after_refusal => 0 };
+};
 
 sub for_schema ( $class, $schema ) {
     my $executor = $schema->{gp_async_query} //=
@@ -46,6 +49,7 @@ sub _connect ($self) {
     $db->dbh->{private_mojo_no_reuse} = 1;
     $db->dbh->{pg_skip_deallocate}    = 1;
     push @{ $self->connections }, $db;
+    $self->stats->{created}++;
     return $db;
 }
 
@@ -53,6 +57,7 @@ sub _connect_p ( $self, $context ) {
     return $self->schema->storage->database_p($context)->then(
         sub ($db) {
             push @{ $self->connections }, $db;
+            $self->stats->{created}++;
             return $db;
         }
     );
@@ -114,7 +119,8 @@ sub run_p ( $self, $work, $context = undef ) {
                 );
             };
             return $stats ? $stats->in_context( $context, $start ) : $start->();
-        }
+        },
+        $context
     );
 }
 
@@ -123,18 +129,42 @@ async sub _run_leased_p ( $self, $db, $work, $stats, $context, $generation ) {
     # One completion owns lease cleanup on success, rejection and synchronous
     # failure. Reusing an idle handle needs no intermediate promise chain.
     my ( @values, $error );
+    delete $db->{gp_reusable_after_error};
     try {
         my $run     = sub { return $work->($db); };
         my @pending = $stats ? $stats->in_context( $context, $run ) : $run->();
         @values = await Mojo::Promise->resolve(@pending);
     }
     catch ($caught) { $error = $caught; };
-    if ( defined $error || $generation != $self->generation ) {
+    my $clean_refusal =
+         defined $error
+      && $db->{gp_reusable_after_error}
+      && blessed($error)
+      && ( $error->isa('GPForum::X::Argument')
+        || $error->isa('GPForum::X::Conflict') )
+      && $db->dbh->{Active}
+      && ( $db->dbh->{pg_async_status} // 1 ) == 0;
+    if ( ( defined $error && !$clean_refusal )
+        || $generation != $self->generation )
+    {
         @{ $self->connections } = grep { $_ != $db } @{ $self->connections };
+        $self->stats->{retired_errors}++ if defined $error;
     }
-    else { push @{ $self->idle }, $db; }
+    else {
+        push @{ $self->idle }, $db;
+        $self->stats->{reused_after_refusal}++ if $clean_refusal;
+    }
     die $error if defined $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original lease failure
     return @values;
+}
+
+sub snapshot ($self) {
+    return {
+        %{ $self->gate->snapshot },
+        leases      => scalar @{ $self->connections },
+        idle_leases => scalar @{ $self->idle },
+        lease_stats => { %{ $self->stats } }
+    };
 }
 
 1;

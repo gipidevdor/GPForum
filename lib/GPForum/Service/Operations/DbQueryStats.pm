@@ -88,7 +88,8 @@ sub start_request ( $self, $metadata ) {
     delete $self->{open}{ $request->{request_id} - $OPEN_LIMIT };
     $self->{current} = $request;
 
-    return { request_id => $request->{request_id} };
+    $request->{token} = { request_id => $request->{request_id} };
+    return $request->{token};
 }
 
 # Closes the request the token names, which is not always the current one:
@@ -117,6 +118,7 @@ sub finish_request ( $self, $token, $metadata ) {
     delete $request->{query_depth};
 
     delete $request->{fingerprints};
+    delete $request->{token};
     $self->_push_recent($request);
     if ( $self->{current} && $self->{current} == $request ) {
         my $newest = max keys %{ $self->{open} };
@@ -167,7 +169,7 @@ sub snapshot ($self) {
 
 sub request_context ($self) {
     return $self->{current}
-      ? { request_id => $self->{current}{request_id} }
+      ? $self->{current}{token}
       : undef;
 }
 

@@ -66,6 +66,44 @@ is( $renderer->render_safe($source),
 is( GPForum::Service::Forum::BodyRenderer->held_characters,
     $held_before, 'and reading it does not insert it again' );
 
+subtest
+  'one insertion evicts progressively instead of clearing every hot body' =>
+  sub {
+    my $render  = GPForum::Service::Forum::BodyRenderer->can('_render');
+    my $renders = 0;
+    no warnings 'redefine';
+    local *GPForum::Service::Forum::BodyRenderer::_render = sub {
+        ++$renders;
+        return $render->(@_);
+    };
+    $renderer->render_safe("LRU retention body $_") for 1 .. 2048;
+    my $hot = $renderer->render_safe('LRU retention body 2048');
+    $renderer->render_safe('one additional LRU body');
+    my $before = $renders;
+    is( $renderer->render_safe('LRU retention body 2048'),
+        $hot, 'recent body stays byte-identical' );
+    is( $renders, $before,
+        'recent body did not need rendering after capacity was reached' );
+  };
+
+subtest 'concurrent misses for the same source share one subprocess' => sub {
+    my $start  = GPForum::Infrastructure::Subprocess->can('_start');
+    my $starts = 0;
+    no warnings 'redefine';
+    local *GPForum::Infrastructure::Subprocess::_start = sub {
+        ++$starts;
+        return $start->(@_);
+    };
+    my $source = 'same concurrent source not previously rendered';
+    my @work   = map { $renderer->render_many_p( [$source] ) } 1 .. 2;
+    Mojo::Promise->all(@work)->wait;
+    is( $starts, 1, 'only one actual subprocess starts' );
+    my @result;
+    $_->then( sub ($value) { push @result, $value; return; } )->wait for @work;
+    is_deeply( $result[0], $result[1],
+        'both consumers receive the same safe HTML' );
+};
+
 done_testing();
 
 1;

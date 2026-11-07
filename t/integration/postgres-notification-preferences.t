@@ -21,6 +21,7 @@ use GPForum::Service::Notification::PreferenceStore;
 use GPForum::Service::Notification::Renderer;
 use GPForum::Service::Notification::UnsubscribeToken;
 use GPForum::Test::PgDatabase;
+use GPForum::Test::FixedClock;
 use GPForum::Worker::Handler::NotificationMail;
 
 our $VERSION = '0.001';
@@ -532,12 +533,20 @@ subtest 'the settings page and the unsubscribe link' => sub {
 
 subtest 'one-click POSTs from one mail provider are limited per member' => sub {
     my $provider = Test::Mojo->new('GPForum');
-    my $signer   = GPForum::Service::Notification::UnsubscribeToken->new(
+
+    # All requests must land in one window even when the suite crosses its
+    # wall-clock boundary. The real PostgreSQL counter remains authoritative.
+    my $limiter = $provider->app->build_controller->gp_rate_limiter;
+    $limiter->primary_store->clock(
+        GPForum::Test::FixedClock->new( epoch => time ) );
+    $provider->app->helper( gp_rate_limiter => sub { return $limiter; } );
+    my $signer = GPForum::Service::Notification::UnsubscribeToken->new(
         secrets => $provider->app->secrets );
     my $one_click = { 'List-Unsubscribe' => 'One-Click' };
     my @members =
       map { _user( "pref_provider_$_", 1 ) } 1 .. $UNSUBSCRIBE_LIMIT + 1;
     my $answered = 0;
+
     for my $member (@members) {
         my $token = $signer->issue( $member, 'mention' );
         $provider->post_ok( "/unsubscribe/$token" => form => $one_click );

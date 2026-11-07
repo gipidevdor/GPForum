@@ -21,8 +21,8 @@ The light palette:
 ## Typography
 
 **Inter** is the locally served UI face, with system fallbacks. It sets
-navigation, controls, metadata, discussion-list titles and administrator
-consoles. **Source Serif 4** sets Latin page titles and long-form prose;
+navigation, controls, metadata and administrator consoles. **Source Serif 4**
+sets the masthead, Latin page titles, recent-discussion titles and long-form prose;
 its variable weight and optical-size axes distinguish a display title from
 reading text without substituting a different family. Non-Latin script
 classes retain their UI fallback. Genuine Roman and italic faces and Latin
@@ -72,6 +72,15 @@ secondary sidebar on wide screens and a plain list after discussions on compact
 screens. Discussion lists use inset separators aligned to row padding and a
 full-row keyboard focus ring. Thread pages retain their centered 54rem maximum
 width, with prose constrained further to the reading measure.
+
+The masthead pairs the configured community name with a decorative orbit mark.
+Amber rules connect the header, page introductions, category sidebar and account
+forms. Recent discussions have serif titles; the category sidebar uses an open
+layout so that it remains secondary to the reading surface. Controls share the
+small corner-radius token, while content panels use the medium radius. Account
+forms use left-aligned display headings and a separated recovery-link area.
+Empty thread notices occupy no space; individual posts carry their own boundary,
+including in high-contrast and forced-colour modes.
 
 Browser enhancements load when their corresponding interface appears. The
 shell declares fingerprinted local asset URLs; the loader accepts only its
@@ -126,7 +135,7 @@ replace translucent bars with solid surfaces. Forced-colour mode keeps
 surface boundaries and selected controls visible. Motion timing is shared
 through `--motion-duration`, `--motion-curve` and `--ease`.
 
-An installation is never shown under the software's name or mark: the name
+An installation is shown under its own community name: the name
 and the line under it are settings (`GPFORUM_SITE_NAME`,
 `GPFORUM_SITE_DESCRIPTION`), every catalog message says `{site}` where it
 named the forum, and the browser icon uses the approved orbit with the

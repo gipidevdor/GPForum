@@ -13,6 +13,11 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::AsyncWork;
+use GPForum::Infrastructure::AsyncGate;
+use Digest::SHA qw(sha256);
+use Mojo::Promise;
+use GPForum::Jobs::EventPayload;
 
 our $VERSION = '0.001';
 
@@ -71,6 +76,87 @@ sub dispatch_pending ( $self, $limit ) {
         }
     }
 
+    return \%summary;
+}
+
+# CLI/background entry point. A batch uses a bounded number of children,
+# rather than a new fork per message. Events of the same aggregate stay on
+# one ordered lane; canonical application writes never enter this executor.
+sub dispatch_pending_p ( $self, $limit, $concurrency = 2 ) {
+    return Mojo::Promise->resolve->then(
+        sub { return $self->dispatch_pending($limit); } )
+      if !$self->functions || $concurrency <= 1;
+    GPForum::X::Argument->throw(
+        message => 'outbox concurrency must be between 1 and 8' )
+      if $concurrency > 8;
+    return $self->functions->rows_p(
+        'outbox_claim_ready',
+        {
+            now          => $self->clock->now_iso8601,
+            locked_until =>
+              $self->clock->epoch_plus_iso8601( $self->retry->lock_seconds ),
+            worker_id => $self->worker_id,
+            row_limit => $limit || $DEFAULT_LIMIT,
+        }
+    )->then(
+        sub ($rows) {
+            my @lanes = map { [] } 1 .. $concurrency;
+            for my $row ( @{$rows} ) {
+                my $message = $self->_claimed_message_for_row($row);
+                my $payload = GPForum::Jobs::EventPayload->normalize(
+                    $message->get_column('payload') );
+                my $key = join ':',
+                  map { $payload->{$_} // q{} } qw(aggregate_type aggregate_id);
+
+                # Envelopes without an aggregate use one conservative serial lane.
+                $key = 'legacy' if $key eq ':';
+                my $lane =
+                  unpack( 'N', substr( sha256($key), 0, 4 ) ) % $concurrency;
+                push @{ $lanes[$lane] }, $row;
+            }
+            my $executor = GPForum::Infrastructure::AsyncWork->new(
+                gate => GPForum::Infrastructure::AsyncGate->new(
+                    concurrency => $concurrency
+                )
+            );
+            my @work = map {
+                $executor->service_result_p( $self, 'dispatch_claimed_rows',
+                    [$_] )
+              }
+              grep { @{$_} } @lanes;
+            return { map { $_ => 0 }
+                  qw(acknowledged dead_lettered dispatched failed lost selected)
+              }
+              if !@work;
+
+            # Mojo::Promise->all needs at least one promise. An empty claim
+            # is an ordinary idle worker tick, with an all-zero summary.
+            my $complete =
+              @work
+              ? Mojo::Promise->all(@work)
+              : Mojo::Promise->resolve;
+            return $complete->then(
+                sub (@parts) {
+                    my %summary = map { $_ => 0 }
+                      qw(acknowledged dead_lettered dispatched failed lost selected);
+                    for my $part (@parts) {
+                        $summary{$_} += $part->[0]{$_} for keys %summary;
+                    }
+                    return \%summary;
+                }
+            );
+        }
+    );
+}
+
+sub dispatch_claimed_rows ( $self, $rows ) {
+    my %summary =
+      map { $_ => 0 } qw(acknowledged dead_lettered dispatched failed lost);
+    $summary{selected} = scalar @{$rows};
+    for my $row ( @{$rows} ) {
+        $summary{$_}++
+          for $self->_handle( $self->_claimed_message_for_row($row) );
+    }
     return \%summary;
 }
 

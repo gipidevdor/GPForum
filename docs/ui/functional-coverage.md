@@ -75,7 +75,7 @@ establish that a command changed the database.
 | Actual 100 MiB multipart upload, PostgreSQL size/chunks/checksum, unpublished byte access denial, approval, video range reads and prerecorded audio/player rendering | `t/integration/postgres-gui-large-media.t` |
 | Every packaged link/math provider, independent disabling and link-only behavior; controlled Mastodon/PeerTube instance lists | `t/781-feature-providers.t` |
 | Running-GUI instance policies, configure-to-worker-to-publication flows, native move/split/merge selection and reversal, cross-page selection and invalid-form recovery | `t/integration/postgres-feature-integration.t` |
-| Persistent WebAuthn registration/login, TOTP, revocation/recovery, synced counters, exports and erasure | `t/integration/postgres-passkeys.t`, `t/js/forum-passkeys.test.cjs` |
+| Persistent WebAuthn registration/login, TOTP, revocation/recovery, synced counters, exports and erasure | `t/integration/postgres-passkeys.t`, `t/js/forum-passkeys.test.cjs`; real browser registration/login/revocation in `t/browser/passkeys.test.cjs` |
 | Device notification consent, encrypted delivery, visibility rechecks, revocation and session/account lifecycle | `t/integration/postgres-web-push.t`, `t/857-push-supervision.t` |
 | Native form controls and strict coverage failure cases | `t/779-gui-form-controls.t`, `t/780-feature-coverage-gate.t` |
 

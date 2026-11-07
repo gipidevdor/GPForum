@@ -45,11 +45,14 @@ const my $RENDERED_CHARACTERS => 4_194_304;
 
 # A body renders to the same HTML every time, and a thread page renders its
 # 25 bodies on every read, so the HTML is kept by source. The memo is
-# cleared when full rather than kept in order: a bound is all it needs.
-# A render too large to store leaves the existing memo untouched.
+# evicted least-recently used first under both bounds. One new body must not
+# evict every hot thread. A render too large to store leaves the memo intact.
 my %RENDERED;
+my %PENDING;
 my %ACTIVE = ( rendered => undef );
 my $HELD   = 0;
+my ( $HEAD, $TAIL );
+my $OWNER = $PROCESS_ID;
 has math_plugins =>
   undef;    # optional: storage, exports and offline rendering keep plain source
 
@@ -59,30 +62,49 @@ sub with_rendered ( $class, $rendered, $work ) {
 }
 
 sub render_many_p ( $self, $sources ) {
+    if ( $OWNER != $PROCESS_ID ) {
+        %PENDING = ();
+        $OWNER   = $PROCESS_ID;
+    }
     my $plugins = $self->math_plugins;
     my $variant =
       $plugins && $plugins->math_enabled ? $plugins->cache_variant : 'plain';
-    my ( %ready, %missing );
+    my ( %ready, %missing, %waiting );
     for my $source ( @{$sources} ) {
         next if !defined $source || !length $source;
-        my $key = "$variant:$source";
-        if   ( exists $RENDERED{$key} ) { $ready{$key}   = $RENDERED{$key}; }
-        else                            { $missing{$key} = $source; }
-    }
-    return Mojo::Promise->resolve( \%ready ) if !%missing;
-    return GPForum::Infrastructure::AsyncWork->shared->run_p(
-        sub {
-            return {
-                map { $_ => $self->render_safe( $missing{$_} ) }
-                  keys %missing
-            };
+        my $key  = "$variant:$source";
+        my $html = _cached($key);
+        if ( defined $html ) { $ready{$key} = $html; }
+        else {
+            $waiting{$key} = 1;
+            $missing{$key} = $source if !$PENDING{$key};
         }
-    )->then(
-        sub ($rendered) {
-            for my $key ( keys %{$rendered} ) {
-                _remember( $key, $rendered->{$key} );
+    }
+    return Mojo::Promise->resolve( \%ready ) if !%waiting;
+    if (%missing) {
+        my $batch = GPForum::Infrastructure::AsyncWork->rendering->run_p(
+            sub {
+                return {
+                    map { $_ => $self->render_safe( $missing{$_} ) }
+                      keys %missing
+                };
             }
-            return { %ready, %{$rendered} };
+        );
+        for my $key ( keys %missing ) {
+            $PENDING{$key} = $batch->then(
+                sub ($rendered) {
+                    delete $PENDING{$key};
+                    return _remember( $key, $rendered->{$key} );
+                },
+                sub ($error) { delete $PENDING{$key}; die $error; }
+            );
+        }
+    }
+    my @keys = keys %waiting;
+    return Mojo::Promise->all( map { $PENDING{$_} } @keys )->then(
+        sub (@values) {
+            @ready{@keys} = map { $_->[0] } @values;
+            return \%ready;
         }
     );
 }
@@ -99,7 +121,8 @@ sub render_safe ( $self, $source ) {
       ( $plugins ? $plugins->cache_variant : q{plain} ) . q{:} . $source;
     return $ACTIVE{rendered}->{$key}
       if $ACTIVE{rendered} && exists $ACTIVE{rendered}->{$key};
-    return $RENDERED{$key} if exists $RENDERED{$key};
+    my $cached = _cached($key);
+    return $cached if defined $cached;
 
     # Only a miss needs mutable per-body state. A warm thread page renders
     # every body again, but reuses its HTML without allocating a math budget.
@@ -115,16 +138,52 @@ sub _remember ( $key, $html ) {
     my $size = length($key) + length $html;
     return $html if $size > $RENDERED_CHARACTERS;
 
-    if ( keys %RENDERED >= $RENDERED_LIMIT
+    _remove($key) if exists $RENDERED{$key};
+    while ( keys %RENDERED >= $RENDERED_LIMIT
         || $HELD + $size > $RENDERED_CHARACTERS )
     {
-        %RENDERED = ();
-        $HELD     = 0;
+        _remove($TAIL);
     }
-    $RENDERED{$key} = $html;
+    $RENDERED{$key} = { html => $html, size => $size };
     $HELD += $size;
+    _touch($key);
 
     return $html;
+}
+
+sub _cached ($key) {
+    return undef if !exists $RENDERED{$key};
+    _touch($key);
+    return $RENDERED{$key}{html};
+}
+
+sub _touch ($key) {
+    return if defined $HEAD && $HEAD eq $key;
+    my $entry = $RENDERED{$key};
+    _unlink($key);
+    $entry->{older} = $HEAD;
+    $RENDERED{$HEAD}{newer} = $key if defined $HEAD;
+    $TAIL //= $key;
+    $HEAD = $key;
+    return;
+}
+
+sub _unlink ($key) {
+    my $entry = $RENDERED{$key};
+    my $newer = delete $entry->{newer};
+    my $older = delete $entry->{older};
+    if ( defined $newer ) { $RENDERED{$newer}{older} = $older; }
+    if ( defined $older ) { $RENDERED{$older}{newer} = $newer; }
+    $HEAD = $older if defined $HEAD && $HEAD eq $key;
+    $TAIL = $newer if defined $TAIL && $TAIL eq $key;
+    return;
+}
+
+sub _remove ($key) {
+    _unlink($key);
+    $HELD -= $RENDERED{$key}{size};
+    delete $RENDERED{$key};
+    return;
 }
 
 sub memo_characters ($class) {

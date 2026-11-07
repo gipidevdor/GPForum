@@ -9,6 +9,9 @@ use English qw(-no_match_vars);
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 use Mojo::Promise;
+use Digest::SHA qw(sha256_hex);
+use JSON::MaybeXS;
+use Storable qw(nfreeze thaw);
 use GPForum::Infrastructure::AsyncWork;
 
 use GPForum::Infrastructure::Row;
@@ -30,6 +33,8 @@ const my $RRF_OFFSET         => 60;
 const my $DEFAULT_LIMIT      => 20;
 const my $MAX_LIMIT          => 50;
 const my $DEFAULT_CANDIDATES => 1_000;
+const my $MAX_CACHE_BYTES    => 65_536;
+my $CACHE_JSON = JSON::MaybeXS->new( canonical => 1, utf8 => 1 );
 const my $SNIPPET_RADIUS     => 80;
 const my $SNIPPET_MAX_LENGTH => 220;
 const my $EMPTY_TEXT         => q{};
@@ -184,6 +189,8 @@ has functions => sub ($self) {
 # zero there would switch the timeout off for search, not relax it.
 has statement_timeout_ms => undef;    # optional: the session's own when unset
 has semantic             => undef;    # optional: local embedding search
+has result_cache => undef;    # optional: process-local, bounded by bootstrap
+has cache_epoch  => undef;    # optional: caching disabled without a fresh epoch
 
 sub search ( $self, $actor, $query, $options ) {
     return $self->ranked_search( $actor, $query, $options )->{results};
@@ -276,8 +283,34 @@ sub ranked_search_p ( $self, $actor, $query, $options, $context = undef ) {
             my $fetch =
               $hybrid ? { %{ $options || {} }, limit => $MAX_LIMIT } : $options;
             my $call = $self->ranked_call( $actor, $query, $fetch );
-            return $self->_ranked_read_p( $call, $hybrid, $context )->then(
+            my $key =
+              $self->result_cache && defined $self->cache_epoch
+              ? 'ranked:'
+              . sha256_hex(
+                $CACHE_JSON->encode(
+                    {
+                        call   => $call,
+                        hybrid => $hybrid ? 1 : 0,
+                        epoch  => $self->cache_epoch,
+                    }
+                )
+              )
+              : undef;
+            my $cached = defined $key ? $self->result_cache->get($key) : undef;
+            my $read =
+              defined $cached
+              ? Mojo::Promise->resolve( thaw($cached) )
+              : $self->_ranked_read_p( $call, $hybrid, $context );
+            return $read->then(
                 sub ($page) {
+                    if (   defined $key
+                        && !defined $cached
+                        && $page->{semantic_status} ne 'degraded' )
+                    {
+                        my $bytes = nfreeze($page);
+                        $self->result_cache->put( $key, $bytes )
+                          if length($bytes) <= $MAX_CACHE_BYTES;
+                    }
                     return $self->_ranked_page( $actor, $normalized, $options,
                         $page );
                 }
@@ -287,53 +320,57 @@ sub ranked_search_p ( $self, $actor, $query, $options, $context = undef ) {
 }
 
 sub _ranked_read_p ( $self, $call, $hybrid, $context ) {
-    my $work = GPForum::Infrastructure::AsyncWork->shared;
+    my $work    = GPForum::Infrastructure::AsyncWork->shared;
+    my $lexical = $self->_timed_functions_p(
+        sub ($functions) {
+            return _read_call_p( $functions, $call, $context );
+        },
+        $context
+    );
+    return $lexical->then(
+        sub ($rows) { return _ranked_result( $rows, $rows, 'disabled' ); } )
+      if !$hybrid;
+
+    # Embedding generation overlaps lexical search without retaining a SQL
+    # lease or an open transaction while the embedding provider is awaited.
     my $keys =
-      $hybrid
-      ? $work->service_args_p( $self->semantic, 'ranked_call', [ $call->[1] ],
+      $work->service_args_p( $self->semantic, 'ranked_call', [ $call->[1] ],
         $context )
       ->then(
         sub ($semantic) { return { call => $semantic, status => 'ok' }; } )
-      ->catch( sub { return { status => 'degraded' }; } )
-      : Mojo::Promise->resolve( { status => 'disabled' } );
-    return $keys->then(
-        sub ($semantic) {
-            my $lexical;
+      ->catch( sub { return { status => 'degraded' }; } );
+    return Mojo::Promise->all( $lexical, $keys )->then(
+        sub ( $rows_result, $semantic_result ) {
+            my $rows     = $rows_result->[0];
+            my $semantic = $semantic_result->[0];
+            return _ranked_result( $rows, $rows, $semantic->{status} )
+              if !$semantic->{call};
             return $self->_timed_functions_p(
                 sub ($functions) {
-                    return _read_call_p( $functions, $call, $context )->then(
-                        sub ($rows) {
-                            $lexical = $rows;
-                            return $rows if !$semantic->{call};
-                            return _read_call_p( $functions, $semantic->{call},
-                                $context )->then(
-                                sub ($vectors) {
-                                    return _fused_rows( $rows, $vectors );
-                                }
-                                );
-                        }
-                    );
+                    return _read_call_p( $functions, $semantic->{call},
+                        $context );
                 },
                 $context
-            )->catch(
-                sub ($error) {
-                    croak $error if !defined $lexical || !$semantic->{call};
-                    $semantic->{status} = 'degraded';
-                    return $lexical;
-                }
             )->then(
-                sub ($rows) {
-                    return {
-                        rows            => $rows,
-                        semantic_status => $semantic->{status},
-                        candidates      => @{$lexical}
-                        ? _column( $lexical->[0], 'candidate_count' )
-                        : 0
-                    };
+                sub ($vectors) {
+                    return _ranked_result( _fused_rows( $rows, $vectors ),
+                        $rows, 'ok' );
                 }
-            );
+              )
+              ->catch(
+                sub { return _ranked_result( $rows, $rows, 'degraded' ); } );
         }
     );
+}
+
+sub _ranked_result ( $rows, $lexical, $status ) {
+    return {
+        rows            => $rows,
+        semantic_status => $status,
+        candidates      => @{$lexical}
+        ? _column( $lexical->[0], 'candidate_count' )
+        : 0
+    };
 }
 
 sub _read_call_p ( $functions, $call, $context ) {

@@ -39,6 +39,7 @@ const my %COUNT_OPTION => (
     '--limit'          => 'limit',
     '--sleep'          => 'sleep_seconds',
     '--max-iterations' => 'max_iterations',
+    '--concurrency'    => 'concurrency',
 );
 
 # The application, or a code reference that builds it -- built only when work
@@ -120,7 +121,8 @@ sub _run ( $self, $options ) {
     # A stop can interrupt the idle sleep too. Check before claiming, not
     # only after a batch, or that wakeup would take one more batch of work.
     while ( !$stop_requested ) {
-        my $summary = $self->dispatch_once( $options->{limit} );
+        my $summary =
+          $self->dispatch_once( $options->{limit}, $options->{concurrency} );
         $self->_report( $summary, $options );
 
         $iterations++;
@@ -144,8 +146,17 @@ sub _run ( $self, $options ) {
     return 0;
 }
 
-sub dispatch_once ( $self, $limit ) {
-    return $self->_dispatcher->dispatch_pending($limit);
+sub dispatch_once ( $self, $limit, $concurrency = 1 ) {
+    my $dispatcher = $self->_dispatcher;
+    return $dispatcher->dispatch_pending($limit)
+      if $concurrency <= 1 || !$dispatcher->can('dispatch_pending_p');
+    my ( $summary, $error );
+    $dispatcher->dispatch_pending_p( $limit, $concurrency )->then(
+        sub ($result) { $summary = $result; return; },
+        sub ($caught) { $error   = $caught; return; },
+    )->wait;
+    die $error if defined $error;
+    return $summary;
 }
 
 sub _dispatcher ($self) {
@@ -168,6 +179,7 @@ sub _parse_arguments (@arguments) {
         limit         => $DEFAULT_LIMIT,
         once          => 1,
         sleep_seconds => $DEFAULT_SLEEP_SECONDS,
+        concurrency   => 2,
     );
 
     while (@arguments) {
@@ -186,6 +198,9 @@ sub _parse_arguments (@arguments) {
         }
     }
 
+    GPForum::X::Usage->throw(
+        message => _usage('--concurrency must be between 1 and 8') )
+      if $options{concurrency} > 8;
     return \%options;
 }
 
@@ -311,7 +326,7 @@ sub usage_text ($class) {
 
 sub _usage ( $message = undef ) {
     return ( defined $message ? "$message\n" : q{} )
-      . "Usage: gpforum outbox [--once|--loop] [--limit N] [--sleep N] [--max-iterations N] [--json]\n";
+      . "Usage: gpforum outbox [--once|--loop] [--limit N] [--concurrency 1..8] [--sleep N] [--max-iterations N] [--json]\n";
 }
 
 1;

@@ -7,30 +7,28 @@ use v5.40;
 use Carp qw(croak);
 use Const::Fast;
 use List::Util qw(min);
-use GPForum::Infrastructure::AsyncWork;
+use GPForum::Infrastructure::FileReader;
 
 our $VERSION = '0.001';
 const my $STAT_SIZE  => 7;
 const my $STAT_MTIME => 9;
-has descriptor  => sub { return {}; };
-has chunk_bytes => 262_144;
+has descriptor    => sub { return {}; };
+has chunk_bytes   => 262_144;
+has reader        => undef;    # optional: opened lazily for trusted descriptors
+has query_context => undef;    # optional: HTTP admission cancellation
 
-sub from_path_p ( $class, $path, $cleanup = 0 ) {
-    return GPForum::Infrastructure::AsyncWork->shared->run_p(
-        sub {
-            my @stat = stat $path;
-            croak 'file unavailable' if !@stat || !-f $path;
-            return {
-                path   => "$path",
-                size   => $stat[$STAT_SIZE],
-                mtime  => $stat[$STAT_MTIME],
-                device => $stat[0],
-                inode  => $stat[1]
-            };
-        }
-    )->then(
+sub from_path_p ( $class, $path, $cleanup = 0, $context = undef ) {
+    my $reader =
+      GPForum::Infrastructure::FileReader->start( $path, undef, $context );
+    return $reader->ready->then(
         sub ($metadata) {
-            return $class->from_descriptor( $metadata, $cleanup );
+            return $class->new(
+                path          => $metadata->{path},
+                descriptor    => $metadata,
+                cleanup       => $cleanup,
+                reader        => $reader,
+                query_context => $context
+            );
         }
     );
 }
@@ -51,27 +49,20 @@ sub get_chunk_p ( $self, $offset ) {
     my $start    = ( $self->start_range // 0 ) + $offset;
     my $end      = $self->end_range // ( $self->size - 1 );
     my $length   = min( $self->chunk_bytes, $end - $start + 1 );
-    return GPForum::Infrastructure::AsyncWork->shared->run_p(
-        sub {
-            return q{} if $length <= 0;
-            open my $file, '<:raw', $metadata->{path}    ## no critic (InputOutput::RequireBriefOpen) -- validate and read one bounded chunk before closing this descriptor
-              or croak 'file unavailable';
-            my @stat = stat $file;
-            croak 'file changed while streaming'
-              if !-f $file
-              || $stat[0] != $metadata->{device}
-              || $stat[1] != $metadata->{inode}
-              || $stat[$STAT_SIZE] != $metadata->{size}
-              || $stat[$STAT_MTIME] != $metadata->{mtime};
-            defined( sysseek $file, $start, 0 )
-              or croak 'cannot seek streamed file';
-            my $bytes;
-            my $count = read $file, $bytes, $length;
-            croak 'cannot read streamed file' if !defined $count;
-            close $file or croak 'cannot close streamed file';
-            return $bytes;
-        }
-    );
+    return Mojo::Promise->resolve(q{}) if $length <= 0;
+    my $reader = $self->reader // $self->reader(
+        GPForum::Infrastructure::FileReader->start(
+            $metadata->{path}, $metadata, $self->query_context
+        )
+    )->reader;
+    return $reader->read_p( $start, $length );
+}
+
+sub close ($self) { $self->reader->close if $self->reader; return; }
+
+sub DESTROY ($self) {
+    $self->close if ${^GLOBAL_PHASE} ne 'DESTRUCT';
+    return $self->SUPER::DESTROY;
 }
 
 1;

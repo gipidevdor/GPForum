@@ -12,6 +12,9 @@ our $VERSION = '0.001';
 
 async sub show ($self) {
     my $access = GPForum::Web::HomeAccess->new;
+    my $cache  = $access->cache_options($self);
+    return
+      if $cache && $self->gp_public_http_cache->serve_cached( $self, $cache );
     my $home;
     try {
         $home = (
@@ -48,7 +51,7 @@ async sub show ($self) {
       ? ( await $self->call_p( $self->gp_runtime, 'as_hash' ) )
       : undef;
     return $access->render_page( $self,
-        $access->page_payload( $home, $runtime ) );
+        $access->page_payload( $home, $runtime ), $cache );
 }
 
 # The tags of each listed thread on its row (ADR 0135).

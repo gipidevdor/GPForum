@@ -191,6 +191,19 @@ sub validate_session_p ( $class, $controller ) {
     );
 }
 
+sub prepare_session ( $, $controller ) {
+    my $cookies = GPForum::Web::CookieSession->new;
+    _expire_stale_session( $controller, $cookies );
+    $controller->stash( 'gp.session_checked' => 1 );
+    return $cookies;
+}
+
+sub accept_session_validation ( $, $controller, $validation ) {
+    return if !$validation || $validation->{ok};
+    return _invalidate_session( $controller,
+        GPForum::Web::CookieSession->new, $validation );
+}
+
 sub _validate_server_session ( $controller, $cookies ) {
     if ( !$cookies->has_server_session($controller) ) {
         return undef;

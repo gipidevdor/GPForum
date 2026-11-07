@@ -66,6 +66,7 @@ sub _watch ( $self, $reader, $done ) {
     my $owner  = $PROCESS_ID;
     my $buffer = q{};
     my $stream = Mojo::IOLoop::Stream->new($reader)->timeout(0);
+    $self->{channel} = $stream;
     $stream->on(
         read => sub ( $, $bytes ) {
             $buffer .= $bytes;
@@ -76,12 +77,21 @@ sub _watch ( $self, $reader, $done ) {
     $stream->on(
         close => sub {
             return if $PROCESS_ID != $owner;
+            delete $self->{channel};
             $self->_reap( $buffer, $done );
             return;
         }
     );
     $self->emit('spawn')->ioloop->stream($stream);
     return;
+}
+
+# Optional bounded parent-to-child commands. Ordinary run/run_p users never
+# write to this channel; streaming readers use it to request one chunk at a time.
+sub send ( $self, $bytes ) {
+    croak 'subprocess command channel is closed' if !$self->{channel};
+    $self->{channel}->write($bytes);
+    return $self;
 }
 
 sub _progress ( $self, $buffer ) {

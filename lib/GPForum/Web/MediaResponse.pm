@@ -29,12 +29,15 @@ sub render ( $self, $controller, $asset, $checksum ) {
         $headers->cache_control('private, no-store');
     }
     $headers->last_modified( Mojo::Date->new( $asset->mtime )->to_string );
-    return $controller->rendered($HTTP_NOT_MODIFIED)
-      if _matches( $request->if_none_match // q{}, $etag );
+    if ( _matches( $request->if_none_match // q{}, $etag ) ) {
+        $asset->close if $asset->can('close');
+        return $controller->rendered($HTTP_NOT_MODIFIED);
+    }
     my $bounds =
       _bounds( _usable_range( $request, $etag, $asset->mtime ), $size );
 
     if ( !$bounds ) {
+        $asset->close if $asset->can('close');
         $headers->content_range("bytes */$size")->content_length(0);
         return $controller->rendered($HTTP_UNSATISFIABLE);
     }
@@ -55,11 +58,21 @@ sub _stream ( $self, $controller, $asset, $length, $code ) {
         $asset->query_context( $controller->stash('gp_db_query_stats_token') );
     }
     $controller->res->code($code);
-    return $controller->rendered($code) if $controller->req->method eq 'HEAD';
+    if ( $controller->req->method eq 'HEAD' ) {
+        $asset->close if $asset->can('close');
+        return $controller->rendered($code);
+    }
     $controller->render_later;
     my ( $offset, $finished ) = ( 0, 0 );
     my $pump;
-    $controller->on( finish => sub { $finished = 1; undef $pump; return; } );
+    $controller->on(
+        finish => sub {
+            $finished = 1;
+            undef $pump;
+            $asset->close if $asset->can('close');
+            return;
+        }
+    );
     $pump = sub {
         return if $finished;
         if ( $offset >= $length ) {
@@ -88,6 +101,7 @@ sub _stream ( $self, $controller, $asset, $length, $code ) {
                 $controller->log->error('asynchronous media read failed');
                 $finished = 1;
                 undef $pump;
+                $asset->close if $asset->can('close');
                 if ( !$controller->stash('mojo.finished') ) {
                     $controller->res->headers->remove('Content-Length');
                     $controller->render(

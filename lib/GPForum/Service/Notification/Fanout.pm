@@ -20,7 +20,8 @@ our $VERSION = '0.001';
 # commits (on a standby, every snapshot while it replays). Twenty recipients
 # open at most sixty; two hundred opened six hundred. A thousand recipients
 # are fifty statements, not the nine thousand of a delivery each.
-const my $DELIVERY_PAGE => 20;
+const my $DELIVERY_PAGE  => 20;
+const my $CANDIDATE_PAGE => 100;
 
 # The reasons a recipient is skipped, as create_notification names them.
 const my $PERMISSION_DENIED => 'permission_denied';
@@ -48,18 +49,50 @@ has viewer_resolver => sub ($self) {
 # send -- one per notification created, with the recipient's unread count --
 # and the counts that failed, each a badge not sent.
 sub run ( $self, $input ) {
-    my $candidates = $self->_candidates($input);
-    my %results    = map { $_ => [] } qw(created duplicates failed skipped);
-    my @deliveries = $self->_screened( $input, $candidates, \%results );
-    my %badges     = ( badges => [], uncounted => [] );
-    while ( my @page = splice @deliveries, 0, $DELIVERY_PAGE ) {
-        $self->_delivered( \@page, \%results, \%badges );
+    my %results   = map { $_ => [] } qw(created duplicates failed skipped);
+    my %badges    = ( badges => [], uncounted => [] );
+    my $functions = $self->dispatcher->functions;
+    my $paged     = $functions->isa('GPForum::Infrastructure::SqlFunction');
+    my ( $after, $through, $attempted );
+    $attempted = 0;
+    while (1) {
+        my $candidates =
+            $paged
+          ? $self->_candidate_page( $input, $after, $through )
+          : $self->_candidates($input);
+        last if !@{$candidates};
+        $attempted += @{$candidates};
+        my @deliveries = $self->_screened( $input, $candidates, \%results );
+        while ( my @page = splice @deliveries, 0, $DELIVERY_PAGE ) {
+            $self->_delivered( \@page, \%results, \%badges );
+        }
+        last if !$paged || @{$candidates} < $CANDIDATE_PAGE;
+        $after = $candidates->[-1]{user_id};
+        $through //= $candidates->[0]{through_user_id};
+        last if defined $through && $after eq $through;
     }
 
     return {
-        results => { ok => 1, attempted => scalar @{$candidates}, %results },
+        results => { ok => 1, attempted => $attempted, %results },
         %badges,
     };
+}
+
+sub _candidate_page ( $self, $input, $after, $through ) {
+    my $payload = $input->{payload} || {};
+    return $self->dispatcher->functions->rows(
+        'notification_fanout_page',
+        {
+            target_type       => $input->{target_type},
+            target_id         => $input->{target_id},
+            notification_type => $input->{notification_type},
+            actor_id          => $payload->{actor_id},
+            excluded_user_id  => $input->{excluded_recipient_user_id},
+            after_user_id     => $after,
+            through_user_id   => $through,
+            row_limit         => $CANDIDATE_PAGE,
+        }
+    );
 }
 
 sub _candidates ( $self, $input ) {

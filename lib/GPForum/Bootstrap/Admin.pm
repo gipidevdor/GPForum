@@ -29,6 +29,7 @@ sub register {
     my $application = $input{application};
 
     my $effective_configuration = {};
+    my $configuration_state     = {};
     $application->helper(
         gp_configuration => sub ($controller) {
             return $controller->stash->{'gp.configuration'} //=
@@ -36,6 +37,7 @@ sub register {
                 schema          => $controller->gp_schema,
                 base_config     => $controller->gp_base_config,
                 effective_cache => $effective_configuration,
+                state_cache     => $configuration_state,
               );
         }
     );

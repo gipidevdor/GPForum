@@ -57,6 +57,7 @@ use GPForum::Service::Forum::ThreadReader;
 use GPForum::Service::Forum::ThreadStore;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::ViewerResolver;
+use GPForum::Service::Operations::LocalCache;
 use GPForum::Service::Moderation::AutomodStore;
 use GPForum::Service::Moderation::ReviewStore;
 use GPForum::Service::Notification::Dispatcher;
@@ -125,6 +126,25 @@ sub register ( $, %input ) {
     _register_community_helpers($application);
     _register_notification_helpers($application);
     _register_search_helpers( $application, $config );
+
+    # These collaborators carry no operation/transaction state. Retain them
+    # only for this request, so nested builders reuse one dependency graph.
+    for my $name (
+        qw(gp_category_reader gp_thread_reader gp_home_page_reader
+        gp_post_reader gp_thread_detail_reader gp_thread_page_reads
+        gp_readability gp_attachment_store gp_bookmark_store gp_like_store
+        gp_reaction_store gp_read_state gp_reply_links gp_thread_tags
+        gp_subscription_store)
+      )
+    {
+        my $factory = $application->renderer->get_helper($name) or next;
+        $application->helper(
+            $name => sub ($controller) {
+                return $controller->stash->{'gp.services'}{$name} //=
+                  $factory->($controller);
+            }
+        );
+    }
 
     return;
 }
@@ -770,6 +790,14 @@ sub _register_notification_helpers {
 sub _register_search_helpers {
     my ( $application, $config ) = @_;
 
+    # At most 64 payloads of 64 KiB each; per-app and process local. A fresh
+    # privacy epoch and the complete viewer/query scope are part of every key.
+    my $results = GPForum::Service::Operations::LocalCache->new(
+        namespace   => 'search-results',
+        max_entries => 64,
+        ttl_seconds => 5
+    );
+
     # Search's own statement timeout and candidate cap (8.10): a word most
     # documents hold is ranked over the newest matches only, and whatever
     # still runs long is cancelled before it holds a web worker for the
@@ -789,7 +817,10 @@ sub _register_search_helpers {
             my ($controller) = @_;
 
             return GPForum::Service::Search::Searcher->new(
-                semantic          => $controller->gp_semantic_search,
+                semantic     => $controller->gp_semantic_search,
+                result_cache => $results,
+                cache_epoch  =>
+                  $controller->gp_configuration->state->{public_cache_epoch},
                 candidate_limit   => $config->search_candidate_limit,
                 permission_engine =>
                   GPForum::Service::Search::PermissionEngine->new(

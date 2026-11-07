@@ -49,7 +49,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y perl build-essential cpanminus
           # A host tool, like Carton: it audits the lock, so it stays out of it.
-          sudo /usr/bin/perl /usr/bin/cpanm --notest CPAN::Audit CPANSA::DB
+          # -M also disables cpanm's default HTTP mirror and metadata fallback.
+          sudo /usr/bin/perl /usr/bin/cpanm --notest -M https://cpan.metacpan.org/ CPAN::Audit CPANSA::DB
 
       - name: Check CPAN license review
         run: script/cpan-license-check

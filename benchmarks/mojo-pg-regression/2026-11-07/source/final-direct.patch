@@ -1,0 +1,849 @@
+diff --git a/lib/GPForum/Controller/Base.pm b/lib/GPForum/Controller/Base.pm
+--- a/lib/GPForum/Controller/Base.pm
++++ b/lib/GPForum/Controller/Base.pm
+@@ -5,7 +5,8 @@
+ 
+ use Mojo::Base 'Mojolicious::Controller', -async_await;
+ use v5.40;
+-use English qw(-no_match_vars);
++use Scalar::Util qw(blessed);
++use English      qw(-no_match_vars);
+ 
+ use Const::Fast;
+ 
+@@ -29,8 +30,23 @@
+ }
+ 
+ sub await_p ( $self, @values ) {
+-    return GPForum::Infrastructure::RequestPromise->new->controller($self)
+-      ->resolve(@values);
++    my $promise =
++      GPForum::Infrastructure::RequestPromise->new->controller($self);
++    if (   @values == 1
++        && blessed( $values[0] )
++        && $values[0]->isa('Mojo::Promise')
++        && $values[0]->AWAIT_IS_READY )
++    {
++        # A cache hit has no asynchronous boundary to restore. Keep it ready
++        # instead of manufacturing a relay and an extra event-loop turn.
++        my ( @ready, $error );
++        try { @ready = $values[0]->AWAIT_GET; }
++        catch ($caught) { $error = $caught; };
++        return defined $error
++          ? $promise->reject($error)
++          : $promise->resolve(@ready);
++    }
++    return $promise->resolve(@values);
+ }
+ 
+ sub call_p ( $self, $service, $method, @arguments ) {
+diff --git a/lib/GPForum/Infrastructure/AsyncGate.pm b/lib/GPForum/Infrastructure/AsyncGate.pm
+--- a/lib/GPForum/Infrastructure/AsyncGate.pm
++++ b/lib/GPForum/Infrastructure/AsyncGate.pm
+@@ -58,19 +58,37 @@
+         my $job = shift @{ $self->pending };
+         if ( defined $job->{timer} ) { Mojo::IOLoop->remove( $job->{timer} ); }
+         $self->active( $self->active + 1 );
+-        my $running =
+-          Mojo::Promise->resolve->then( sub { return $job->{work}->(); } );
+-        $running->then(
+-            sub (@values) { $job->{promise}->resolve(@values); return; },
+-            sub (@errors) { $job->{promise}->reject(@errors);  return; }
+-        )->finally(
+-            sub {
+-                $self->active( $self->active - 1 );
+-                $self->_pump;
+-                return;
+-            }
+-        );
++        $self->_start($job);
+     }
++    return;
++}
++
++sub _start ( $self, $job ) {
++    my ( $running, $error );
++    try { $running = Mojo::Promise->resolve( $job->{work}->() ); }
++    catch ($caught) { $error = $caught; };
++    if ( defined $error ) {
++
++        # Keep synchronous failures out of the admission pump's call stack.
++        # A queue of failing jobs must not recursively drain the whole queue.
++        Mojo::IOLoop->next_tick(
++            sub { $self->_complete( $job, 'reject', $error ); return; } );
++        return;
++    }
++    $running->then(
++        sub (@values) { $self->_complete( $job, 'resolve', @values ); return; },
++        sub (@errors) { $self->_complete( $job, 'reject',  @errors ); return; }
++    );
++    return;
++}
++
++sub _complete ( $self, $job, $status, @values ) {
++
++    # Consumers may immediately submit another query. Release capacity before
++    # their continuation runs, without a deferred finally chain retaining it.
++    $self->active( $self->active - 1 );
++    $self->_pump;
++    $job->{promise}->$status(@values);
+     return;
+ }
+ 
+diff --git a/lib/GPForum/Infrastructure/AsyncQuery.pm b/lib/GPForum/Infrastructure/AsyncQuery.pm
+--- a/lib/GPForum/Infrastructure/AsyncQuery.pm
++++ b/lib/GPForum/Infrastructure/AsyncQuery.pm
+@@ -3,7 +3,7 @@
+ 
+ package GPForum::Infrastructure::AsyncQuery;
+ 
+-use Mojo::Base -base, -signatures;
++use Mojo::Base -base, -async_await;
+ use v5.40;
+ use Mojo::Promise;
+ use English qw(-no_match_vars);
+@@ -102,42 +102,39 @@
+               : undef;
+             my $start = sub {
+                 $self->_owned;
+-                my $db;
+-                my $available =
+-                  @{ $self->idle }
+-                  ? Mojo::Promise->resolve( shift @{ $self->idle } )
+-                  : $self->_connect_p($context);
+-                my $failed     = 0;
+                 my $generation = $self->generation;
+-                return $available->then(
++                return $self->_run_leased_p( shift @{ $self->idle },
++                    $work, $stats, $context, $generation )
++                  if @{ $self->idle };
++                return $self->_connect_p($context)->then(
+                     sub ($leased) {
+-                        $db = $leased;
+-                        my $run = sub { return $work->($db); };
+-                        return $stats
+-                          ? $stats->in_context( $context, $run )
+-                          : $run->();
+-                    }
+-                )->catch(
+-                    sub ($error) {
+-                        $failed = 1;
+-                        die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the promise rejection
+-                    }
+-                )->finally(
+-                    sub {
+-                        return if !$db;
+-                        if ( $failed || $generation != $self->generation ) {
+-                            @{ $self->connections } =
+-                              grep { $_ != $db } @{ $self->connections };
+-                        }
+-                        else { push @{ $self->idle }, $db; }
+-                        undef $db;
+-                        return;
++                        return $self->_run_leased_p( $leased, $work, $stats,
++                            $context, $generation );
+                     }
+                 );
+             };
+             return $stats ? $stats->in_context( $context, $start ) : $start->();
+         }
+     );
++}
++
++async sub _run_leased_p ( $self, $db, $work, $stats, $context, $generation ) {
++
++    # One completion owns lease cleanup on success, rejection and synchronous
++    # failure. Reusing an idle handle needs no intermediate promise chain.
++    my ( @values, $error );
++    try {
++        my $run     = sub { return $work->($db); };
++        my @pending = $stats ? $stats->in_context( $context, $run ) : $run->();
++        @values = await Mojo::Promise->resolve(@pending);
++    }
++    catch ($caught) { $error = $caught; };
++    if ( defined $error || $generation != $self->generation ) {
++        @{ $self->connections } = grep { $_ != $db } @{ $self->connections };
++    }
++    else { push @{ $self->idle }, $db; }
++    die $error if defined $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original lease failure
++    return @values;
+ }
+ 
+ 1;
+diff --git a/lib/GPForum/Infrastructure/SqlFunction.pm b/lib/GPForum/Infrastructure/SqlFunction.pm
+--- a/lib/GPForum/Infrastructure/SqlFunction.pm
++++ b/lib/GPForum/Infrastructure/SqlFunction.pm
+@@ -6,7 +6,7 @@
+ use Carp qw(croak);
+ use Const::Fast;
+ use JSON::MaybeXS;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Id;
+@@ -101,73 +101,65 @@
+ # A separate checked-out Mojo::Pg connection per in-flight operation.
+ # Existing transactional workflows keep rows(); promises never borrow their
+ # handle or retry an ambiguous write after a connection failure.
+-sub rows_p ( $self, $name, $values, $context = undef ) {
++async sub rows_p ( $self, $name, $values, $context = undef ) {
+     my $storage = $self->schema->storage;
+     my $stats   = $storage->debug ? $storage->debugobj : undef;
+     $context //= $self->query_context;
+     if ($stats) { $context //= $stats->request_context; }
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            my $entry = $self->catalogue->function($name);
+-            my @bound = _bound( $entry, $values );
+-            return [] if _malformed_id( $entry, \@bound );
+-            my @parameters = map {
+-                $entry->{types}[$_] eq 'bytea'
+-                  ? { type => DBD::Pg::PG_BYTEA(), value => $bound[$_] }
+-                  : $bound[$_]
+-            } 0 .. $#bound;
+-            if ( !@parameters ) {
+-                $entry =
+-                  { %{$entry}, sql => $entry->{sql} . ' WHERE ?::boolean' };
+-                @parameters = (1);
++    my $entry = $self->catalogue->function($name);
++    my @bound = _bound( $entry, $values );
++    return [] if _malformed_id( $entry, \@bound );
++    my @parameters = map {
++        $entry->{types}[$_] eq 'bytea'
++          ? { type => DBD::Pg::PG_BYTEA(), value => $bound[$_] }
++          : $bound[$_]
++    } 0 .. $#bound;
++    if ( !@parameters ) {
++        $entry      = { %{$entry}, sql => $entry->{sql} . ' WHERE ?::boolean' };
++        @parameters = (1);
++    }
++    my $read = sub ($db) {
++        return $self->_read_rows_p( $db, $entry, \@parameters, $stats,
++            $context );
++    };
++    if ( $self->async_database ) {
++        return await $self->async_transaction->query_p(
++            sub {
++                return $stats
++                  ? $stats->in_context( $context,
++                    sub { return $read->( $self->async_database ); } )
++                  : $read->( $self->async_database );
+             }
+-            my $read = sub ($db) {
+-                if ($stats) { $stats->query_start( $entry->{sql} ); }
+-                return Mojo::Promise->resolve->then(
+-                    sub {
+-                        return $self->_query_p( $db, $entry, \@parameters );
+-                    }
+-                )->then(
+-                    sub ($result) {
+-                        my $rows = $result->hashes->to_array;
+-                        if ( %{ $entry->{json} } ) {
+-                            _decode_json( $entry, $rows );
+-                        }
+-                        return $rows;
+-                    }
+-                )->catch(
+-                    sub ($error) {
+-                        $self->_raise( $db->dbh->state, $error );
+-                    }
+-                )->finally(
+-                    sub {
+-                        if ($stats) {
+-                            $stats->in_context( $context,
+-                                sub { $stats->query_end; return; } );
+-                        }
+-                        return;
+-                    }
+-                );
+-            };
+-            if ( $self->async_database ) {
+-                return $self->async_transaction->query_p(
+-                    sub {
+-                        return $stats
+-                          ? $stats->in_context( $context,
+-                            sub { return $read->( $self->async_database ); } )
+-                          : $read->( $self->async_database );
+-                    }
+-                );
+-            }
+-            return GPForum::Infrastructure::AsyncQuery->for_schema(
+-                $self->schema )->run_p( $read, $context );
+-        }
+-    );
+-}
+-
+-sub row_p ( $self, $name, $values, $context = undef ) {
+-    return $self->rows_p( $name, $values, $context )
+-      ->then( sub ($rows) { return $rows->[0]; } );
++        );
++    }
++    return await GPForum::Infrastructure::AsyncQuery->for_schema(
++        $self->schema )->run_p( $read, $context );
++}
++
++async sub _read_rows_p ( $self, $db, $entry, $parameters, $stats, $context ) {
++
++    # Only the query needs to wait. Decode and finish its statistics in the
++    # same completion instead of adding several event-loop turns per query.
++    if ($stats) { $stats->query_start( $entry->{sql} ); }
++    my ( $rows, $error );
++    try {
++        my $result = await $self->_query_p( $db, $entry, $parameters );
++        $rows = $result->hashes->to_array;
++        if ( %{ $entry->{json} } ) { _decode_json( $entry, $rows ); }
++    }
++    catch ($caught) { $error = $caught; };
++    if ($stats) {
++        $stats->in_context( $context, sub { $stats->query_end; return; } );
++    }
++    if ( defined $error ) {
++        $self->_raise( $db->dbh->state, $error );
++    }
++    return $rows;
++}
++
++async sub row_p ( $self, $name, $values, $context = undef ) {
++    my $rows = await $self->rows_p( $name, $values, $context );
++    return $rows->[0];
+ }
+ 
+ sub transaction_p ( $self, $work, $context = undef, $readonly = 0 ) {
+diff --git a/lib/GPForum/Service/Admin/Configuration.pm b/lib/GPForum/Service/Admin/Configuration.pm
+--- a/lib/GPForum/Service/Admin/Configuration.pm
++++ b/lib/GPForum/Service/Admin/Configuration.pm
+@@ -7,9 +7,8 @@
+ use List::Util  qw(any);
+ use Digest::SHA qw(hmac_sha256_hex);
+ use JSON::MaybeXS;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+-use Mojo::Promise;
+ use GPForum::Config;
+ use Mojo::Util qw(encode decode);
+ use GPForum::X::Config;
+@@ -73,28 +72,26 @@
+     };
+ }
+ 
+-sub load_p ( $self, $context = undef ) {
+-    return Mojo::Promise->resolve->then( sub { return $self->load; } )
+-      if !$self->functions;
+-    return $self->functions->row_p( 'admin_configuration_state', {}, $context )
+-      ->then(
+-        sub ($row) {
+-            return {
+-                available          => $row ? 1 : 0,
+-                revision           => $row->{revision} // 0,
+-                public_cache_epoch => $row->{public_cache_epoch},
+-                settings => $row->{settings} // { plugins => {}, general => {} }
+-            };
+-        }
+-      )->catch(
+-        sub {
+-            return {
+-                available => 0,
+-                revision  => 0,
+-                settings  => { plugins => {}, general => {} }
+-            };
+-        }
+-      );
++async sub load_p ( $self, $context = undef ) {
++    return $self->load if !$self->functions;
++    my $row;
++    try {
++        $row = await $self->functions->row_p( 'admin_configuration_state', {},
++            $context );
++    }
++    catch ($error) {
++        return {
++            available => 0,
++            revision  => 0,
++            settings  => { plugins => {}, general => {} }
++        };
++    };
++    return {
++        available          => $row ? 1 : 0,
++        revision           => $row->{revision} // 0,
++        public_cache_epoch => $row->{public_cache_epoch},
++        settings => $row->{settings} // { plugins => {}, general => {} }
++    };
+ }
+ 
+ sub environment ($self) {
+diff --git a/lib/GPForum/Service/Forum/ViewerResolver.pm b/lib/GPForum/Service/Forum/ViewerResolver.pm
+--- a/lib/GPForum/Service/Forum/ViewerResolver.pm
++++ b/lib/GPForum/Service/Forum/ViewerResolver.pm
+@@ -5,9 +5,8 @@
+ 
+ use Const::Fast;
+ use JSON::MaybeXS qw(decode_json);
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+-use Mojo::Promise;
+ 
+ use GPForum::Infrastructure::CountedQuery;
+ use GPForum::Infrastructure::Id;
+@@ -74,24 +73,21 @@
+     return $self->viewer_from_row( $user_id, $row );
+ }
+ 
+-sub resolve_p ( $self, $user_id, $context = undef ) {
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return GPForum::Service::Forum::Viewer->from($user_id)
+-              if !GPForum::Infrastructure::Id->is_uuid($user_id);
+-            return $self->resolve($user_id) if !$self->functions;
+-            return $self->functions->row_p( 'forum_resolve_viewer',
+-                { user_id => $user_id }, $context )
+-              ->then(
+-                sub ($row) { return $self->viewer_from_row( $user_id, $row ); }
+-              );
+-        }
+-    )->catch(
+-        sub ($error) {
+-            $self->_warn("viewer resolution degraded: $error");
+-            return $self->viewer_from_row( $user_id, undef );
+-        }
+-    );
++async sub resolve_p ( $self, $user_id, $context = undef ) {
++    my ( $row, $viewer );
++    try {
++        return GPForum::Service::Forum::Viewer->from($user_id)
++          if !GPForum::Infrastructure::Id->is_uuid($user_id);
++        return $self->resolve($user_id) if !$self->functions;
++        $row = await $self->functions->row_p( 'forum_resolve_viewer',
++            { user_id => $user_id }, $context );
++        $viewer = $self->viewer_from_row( $user_id, $row );
++    }
++    catch ($error) {
++        $self->_warn("viewer resolution degraded: $error");
++        $viewer = $self->viewer_from_row( $user_id, undef );
++    };
++    return $viewer;
+ }
+ 
+ # The viewer an account's row describes -- status, suspended, listed,
+diff --git a/lib/GPForum/Service/Identity/SessionStore.pm b/lib/GPForum/Service/Identity/SessionStore.pm
+--- a/lib/GPForum/Service/Identity/SessionStore.pm
++++ b/lib/GPForum/Service/Identity/SessionStore.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Identity::SessionStore;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ use Mojo::Promise;
+ 
+@@ -146,42 +146,31 @@
+ # ADR 0148: which of these sessions are live -- not revoked, not past their
+ # expiry -- as a set, in one call. An id that is not a uuid names no
+ # session.
+-sub validate_session_p ( $self, $input, $context = undef ) {
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return { ok => 0, error => 'not_found' }
+-              if !has_text( $input->{session_id} )
+-              || !has_text( $input->{user_id} );
+-            return $self->validate_session($input) if !$self->functions;
+-            my $presented = $input->{session_token};
+-            return $self->functions->row_p(
+-                'session_validate',
+-                {
+-                    session_id => $input->{session_id},
+-                    user_id    => $input->{user_id},
+-                    token_hash => has_text($presented)
+-                    ? $self->session_tokens->hash_token($presented)
+-                    : undef,
+-                    now                    => $self->clock->now_iso8601,
+-                    touch_interval_seconds =>
+-                      $self->session_touch_interval_seconds,
+-                },
+-                $context
+-            )->then(
+-                sub ($row) {
+-                    return { ok => 0, error => 'not_found' } if !$row;
+-                    my $code = delete $row->{result_code};
+-                    return { ok => 0, error => $code }
+-                      if $code ne 'ok' && $code ne 'expired';
+-                    my $session =
+-                      GPForum::Infrastructure::ResultRow->from($row);
+-                    return { ok => 0, error => 'expired', session => $session }
+-                      if $code eq 'expired';
+-                    return { ok => 1, session => $session };
+-                }
+-            );
+-        }
+-    );
++async sub validate_session_p ( $self, $input, $context = undef ) {
++    return { ok => 0, error => 'not_found' }
++      if !has_text( $input->{session_id} ) || !has_text( $input->{user_id} );
++    return $self->validate_session($input) if !$self->functions;
++    my $presented = $input->{session_token};
++    my $row       = await $self->functions->row_p(
++        'session_validate',
++        {
++            session_id => $input->{session_id},
++            user_id    => $input->{user_id},
++            token_hash => has_text($presented)
++            ? $self->session_tokens->hash_token($presented)
++            : undef,
++            now                    => $self->clock->now_iso8601,
++            touch_interval_seconds => $self->session_touch_interval_seconds,
++        },
++        $context
++    );
++    return { ok => 0, error => 'not_found' } if !$row;
++    my $code = delete $row->{result_code};
++    return { ok => 0, error => $code } if $code ne 'ok' && $code ne 'expired';
++    my $session = GPForum::Infrastructure::ResultRow->from($row);
++    return { ok => 0, error => 'expired', session => $session }
++      if $code eq 'expired';
++    return { ok => 1, session => $session };
+ }
+ 
+ sub live_session_ids_p ( $self, $session_ids, $context = undef ) {
+diff --git a/lib/GPForum/Service/Forum/PostReader.pm b/lib/GPForum/Service/Forum/PostReader.pm
+--- a/lib/GPForum/Service/Forum/PostReader.pm
++++ b/lib/GPForum/Service/Forum/PostReader.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Forum::PostReader;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Keyset;
+@@ -67,28 +67,18 @@
+ 
+ # The page's posts from the function, as plain rows read like the
+ # resultset's.
+-sub list_thread_posts_p ( $self, $request, $context = undef ) {
++async sub list_thread_posts_p ( $self, $request, $context = undef ) {
+     $request =
+       { %{$request}, query_context => $request->{query_context} // $context };
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return $self->list_thread_posts($request) if !$self->functions;
+-            my $plan = $self->_plan($request);
+-            return $self->functions->rows_p(
+-                @{ $self->thread_posts_call( $request, $plan ) },
+-                $request->{query_context} )->then(
+-                sub ($rows) {
+-                    my $posts = [
+-                        map {
+-                            GPForum::Infrastructure::ResultRow::Post->from($_)
+-                        } @{$rows}
+-                    ];
+-                    return $self->page_window->page( $posts, $plan->{limit},
+-                        [ 'position', 'post_id' ] );
+-                }
+-                );
+-        }
+-    );
++    return $self->list_thread_posts($request) if !$self->functions;
++    my $plan = $self->_plan($request);
++    my $rows = await $self->functions->rows_p(
++        @{ $self->thread_posts_call( $request, $plan ) },
++        $request->{query_context} );
++    my $posts =
++      [ map { GPForum::Infrastructure::ResultRow::Post->from($_) } @{$rows} ];
++    return $self->page_window->page( $posts, $plan->{limit},
++        [ 'position', 'post_id' ] );
+ }
+ 
+ sub find_listed_post_p ( $self, $request, $context = undef ) {
+diff --git a/lib/GPForum/Service/Forum/ThreadPageReads.pm b/lib/GPForum/Service/Forum/ThreadPageReads.pm
+--- a/lib/GPForum/Service/Forum/ThreadPageReads.pm
++++ b/lib/GPForum/Service/Forum/ThreadPageReads.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Forum::ThreadPageReads;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Id;
+@@ -123,30 +123,25 @@
+ #
+ # Takes the page as the detail reader gave it, the thread id as the request
+ # names it (the read state is keyed by that one), and the viewer's user id.
+-sub answers_p ( $self, $input, $context = undef ) {
++async sub answers_p ( $self, $input, $context = undef ) {
+     $input =
+       { %{$input}, query_context => $input->{query_context} // $context };
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            my $page = $input->{page};
+-            my %read = (
+-                omit_thread => $input->{omit_thread},
+-                posts       => [ _post_ids($page) ],
+-                thread      => _column( $page->{thread}, 'thread_id' ),
+-                thread_id   => $input->{thread_id},
+-                viewer      => has_text( $input->{viewer_user_id} )
+-                ? $input->{viewer_user_id}
+-                : undef,
+-            );
+-            my $calls     = $self->_calls( \%read )   or return {};
+-            my $values    = _values( \%read, $calls ) or return {};
+-            my $functions = $self->functions          or return {};
+-            return $functions->rows_p( 'forum_thread_page_reads', $values,
+-                $input->{query_context} )
+-              ->then(
+-                sub ($rows) { return _answers( $functions, $calls, $rows ); } );
+-        }
++    my $page = $input->{page};
++    my %read = (
++        omit_thread => $input->{omit_thread},
++        posts       => [ _post_ids($page) ],
++        thread      => _column( $page->{thread}, 'thread_id' ),
++        thread_id   => $input->{thread_id},
++        viewer      => has_text( $input->{viewer_user_id} )
++        ? $input->{viewer_user_id}
++        : undef,
+     );
++    my $calls     = $self->_calls( \%read )   or return {};
++    my $values    = _values( \%read, $calls ) or return {};
++    my $functions = $self->functions          or return {};
++    my $rows = await $functions->rows_p( 'forum_thread_page_reads', $values,
++        $input->{query_context} );
++    return _answers( $functions, $calls, $rows );
+ }
+ 
+ sub individual_answers_p ( $self, $input, $context = undef ) {
+diff --git a/lib/GPForum/Service/Forum/ThreadDetailReader.pm b/lib/GPForum/Service/Forum/ThreadDetailReader.pm
+--- a/lib/GPForum/Service/Forum/ThreadDetailReader.pm
++++ b/lib/GPForum/Service/Forum/ThreadDetailReader.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Forum::ThreadDetailReader;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::PreparedQuery;
+@@ -16,7 +16,6 @@
+ use GPForum::Service::Forum::PostReader;
+ use GPForum::Service::Forum::PageWindow;
+ use GPForum::Infrastructure::Id;
+-use Mojo::Promise;
+ 
+ our $VERSION = '0.001';
+ 
+@@ -128,76 +127,49 @@
+     };
+ }
+ 
+-sub thread_page_p ( $self, $request, $context = undef ) {
++async sub thread_page_p ( $self, $request, $context = undef ) {
+     $request =
+       { %{$request}, query_context => $request->{query_context} // $context };
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return $self->thread_page($request) if !$self->functions;
+-            my $viewer =
+-              $request->{viewer} || GPForum::Service::Forum::Viewer->anonymous;
+-            return $self->functions->row_p(
+-                @{ $self->thread_row_call( $request->{thread_id} ) },
+-                $request->{query_context} )->then(
+-                sub ($row) {
+-                    my $thread = $self->visible_thread_row(
+-                        GPForum::Infrastructure::ResultRow::Thread->from($row),
+-                        $viewer
+-                    );
+-                    return { ok => 0, error => 'not_found' } if !$thread;
+-                    my $scope  = $self->post_scope( $viewer, $thread );
+-                    my $target = Mojo::Promise->resolve(undef);
+-                    if ( defined $request->{post} && length $request->{post} ) {
+-                        return { ok => 0, error => 'not_found' }
+-                          if !GPForum::Infrastructure::Id->is_uuid(
+-                            $request->{post} );
+-                        $target = $self->post_reader->find_listed_post_p(
+-                            {
+-                                post_id        => $request->{post},
+-                                thread_id      => $request->{thread_id},
+-                                viewer_user_id => $viewer->user_id,
+-                                viewer_scope   => $scope,
+-                                query_context  => $request->{query_context}
+-                            }
+-                        );
+-                    }
+-                    return $target->then(
+-                        sub ($post) {
+-                            return { ok => 0, error => 'not_found' }
+-                              if defined $request->{post}
+-                              && length $request->{post}
+-                              && !$post;
+-                            my $at =
+-                                $post
+-                              ? $post->get_column('position')
+-                              : $request->{at};
+-                            return $self->post_reader->list_thread_posts_p(
+-                                {
+-                                    thread_id => $request->{thread_id},
+-                                    limit     => $request->{limit}
+-                                      || $DEFAULT_POST_LIMIT,
+-                                    after => GPForum::Service::Forum::PageWindow
+-                                      ->cursor_at_position(
+-                                        $at) // $request->{after},
+-                                    viewer_user_id => $viewer->user_id,
+-                                    viewer_scope   => $scope,
+-                                    query_context  => $request->{query_context}
+-                                }
+-                            )->then(
+-                                sub ($posts) {
+-                                    return {
+-                                        ok     => 1,
+-                                        thread => $thread,
+-                                        posts  => $posts
+-                                    };
+-                                }
+-                            );
+-                        }
+-                    );
+-                }
+-                );
++    return $self->thread_page($request) if !$self->functions;
++    my $viewer = $request->{viewer}
++      || GPForum::Service::Forum::Viewer->anonymous;
++    my $row = await $self->functions->row_p(
++        @{ $self->thread_row_call( $request->{thread_id} ) },
++        $request->{query_context} );
++    my $thread = $self->visible_thread_row(
++        GPForum::Infrastructure::ResultRow::Thread->from($row), $viewer );
++    return { ok => 0, error => 'not_found' } if !$thread;
++    my $scope = $self->post_scope( $viewer, $thread );
++    my $at    = $request->{at};
++
++    if ( defined $request->{post} && length $request->{post} ) {
++        return { ok => 0, error => 'not_found' }
++          if !GPForum::Infrastructure::Id->is_uuid( $request->{post} );
++        my $post = await $self->post_reader->find_listed_post_p(
++            {
++                post_id        => $request->{post},
++                thread_id      => $request->{thread_id},
++                viewer_user_id => $viewer->user_id,
++                viewer_scope   => $scope,
++                query_context  => $request->{query_context}
++            }
++        );
++        return { ok => 0, error => 'not_found' } if !$post;
++        $at = $post->get_column('position');
++    }
++    my $posts = await $self->post_reader->list_thread_posts_p(
++        {
++            thread_id => $request->{thread_id},
++            limit     => $request->{limit} || $DEFAULT_POST_LIMIT,
++            after     =>
++              GPForum::Service::Forum::PageWindow->cursor_at_position($at)
++              // $request->{after},
++            viewer_user_id => $viewer->user_id,
++            viewer_scope   => $scope,
++            query_context  => $request->{query_context}
+         }
+     );
++    return { ok => 1, thread => $thread, posts => $posts };
+ }
+ 
+ sub thread_page ( $self, $request ) {
+diff --git a/t/870-nonblocking-runtime.t b/t/870-nonblocking-runtime.t
+--- a/t/870-nonblocking-runtime.t
++++ b/t/870-nonblocking-runtime.t
+@@ -13,12 +13,14 @@
+ use Mojolicious;
+ use Test::Mojo;
+ use Test::More;
+-use Time::HiRes qw(sleep);
++use Time::HiRes  qw(sleep);
++use Scalar::Util qw(refaddr);
+ use lib 'lib', 't/lib';
+ use GPForum::Controller::Base;
+ use GPForum::Infrastructure::AsyncGate;
+ use GPForum::Infrastructure::AsyncWork;
+ use GPForum::Log;
++use GPForum::X::Unavailable;
+ use GPForum::Service::Attachment::PostgresAsset;
+ use GPForum::Web::MediaResponse;
+ use GPForum::Test::AsyncChunkStorage;
+@@ -98,6 +100,74 @@
+         'a disconnected queued request starts no subprocess'
+     );
+   };
++
++subtest 'completed operations release capacity before consumers resume' => sub {
++    my $gate = GPForum::Infrastructure::AsyncGate->new( concurrency => 1 );
++    my $result;
++    $gate->run_p( sub { return Mojo::Promise->resolve('ready'); } )->then(
++        sub ($value) {
++            $result = $value;
++            is( $gate->active, 0, 'success has no occupied admission slot' );
++            return;
++        }
++    )->wait;
++    is( $result, 'ready', 'successful value survives admission' );
++    $gate->run_p( sub { croak 'expected early failure'; } )->catch(
++        sub ($error) {
++            like(
++                "$error",
++                qr/expected[ ]early[ ]failure/msx,
++                'original failure is preserved'
++            );
++            is( $gate->active, 0, 'failure has no occupied admission slot' );
++            return;
++        }
++    )->wait;
++    my @values;
++    $gate->run_p( sub { return ( 'first', 'second' ); } )
++      ->then( sub (@items) { @values = @items; return; } )
++      ->wait;
++    is_deeply(
++        \@values,
++        [ 'first', 'second' ],
++        'synchronous list results survive admission'
++    );
++};
++
++subtest 'already completed service results do not suspend cached reads' => sub {
++    my $controller = GPForum::Controller::Base->new;
++    my $ready =
++      $controller->await_p( Mojo::Promise->resolve( 'first', 'second' ) );
++    ok( $ready->AWAIT_IS_READY,
++        'a completed value remains immediately awaitable' );
++    is_deeply(
++        [ $ready->AWAIT_GET ],
++        [ 'first', 'second' ],
++        'list results are preserved'
++    );
++    my $empty = $controller->await_p( Mojo::Promise->resolve );
++    ok( $empty->AWAIT_IS_READY,
++        'an empty result remains immediately awaitable' );
++    is_deeply( [ $empty->AWAIT_GET ], [], 'empty lists are preserved' );
++    my $failure  = GPForum::X::Unavailable->new( message => 'ready failure' );
++    my $rejected = $controller->await_p( Mojo::Promise->reject($failure) );
++    ok( $rejected->AWAIT_IS_READY,
++        'a completed failure remains immediately awaitable' );
++    my $caught;
++    try { $rejected->AWAIT_GET; } catch ($error) {
++        $caught = $error;
++    };
++    is( refaddr($caught), refaddr($failure),
++        'typed failures keep their identity' );
++    my $pending = Mojo::Promise->new;
++    my $waiting = $controller->await_p($pending);
++    ok( !$waiting->AWAIT_IS_READY, 'pending work still suspends' );
++    my $value;
++    my $finished = $waiting->then( sub ($item) { $value = $item; return; } );
++    $pending->resolve('later');
++    $finished->wait;
++    is( $value, 'later', 'pending work still resumes normally' );
++};
+ 
+ subtest 'a slow subprocess leaves the HTTP event loop responsive' => sub {
+     my $work   = GPForum::Infrastructure::AsyncWork->new;

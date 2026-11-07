@@ -1,0 +1,228 @@
+diff --git a/lib/GPForum/Infrastructure/AsyncGate.pm b/lib/GPForum/Infrastructure/AsyncGate.pm
+--- a/lib/GPForum/Infrastructure/AsyncGate.pm
++++ b/lib/GPForum/Infrastructure/AsyncGate.pm
+@@ -12,7 +12,7 @@
+ 
+ our $VERSION = '0.001';
+ has concurrency   => 2;
+-has max_pending   => 16;
++has max_pending   => 256;
+ has queue_timeout => 15;
+ has active        => 0;
+ has pending       => sub { return []; };
+@@ -58,19 +58,33 @@
+         my $job = shift @{ $self->pending };
+         if ( defined $job->{timer} ) { Mojo::IOLoop->remove( $job->{timer} ); }
+         $self->active( $self->active + 1 );
+-        my $running =
+-          Mojo::Promise->resolve->then( sub { return $job->{work}->(); } );
+-        $running->then(
+-            sub (@values) { $job->{promise}->resolve(@values); return; },
+-            sub (@errors) { $job->{promise}->reject(@errors);  return; }
+-        )->finally(
+-            sub {
+-                $self->active( $self->active - 1 );
+-                $self->_pump;
+-                return;
+-            }
+-        );
++        Mojo::IOLoop->next_tick( sub { $self->_start($job); return; } );
+     }
++    return;
++}
++
++sub _start ( $self, $job ) {
++    my ( $running, $error );
++    try { $running = Mojo::Promise->resolve( $job->{work}->() ); }
++    catch ($caught) { $error = $caught; };
++    if ( defined $error ) {
++        $self->_complete( $job, 'reject', $error );
++        return;
++    }
++    $running->then(
++        sub (@values) { $self->_complete( $job, 'resolve', @values ); return; },
++        sub (@errors) { $self->_complete( $job, 'reject',  @errors ); return; }
++    );
++    return;
++}
++
++sub _complete ( $self, $job, $status, @values ) {
++
++    # Consumers may immediately submit another query. Release capacity before
++    # their continuation runs, without a deferred finally chain retaining it.
++    $self->active( $self->active - 1 );
++    $self->_pump;
++    $job->{promise}->$status(@values);
+     return;
+ }
+ 
+diff --git a/lib/GPForum/Infrastructure/AsyncQuery.pm b/lib/GPForum/Infrastructure/AsyncQuery.pm
+--- a/lib/GPForum/Infrastructure/AsyncQuery.pm
++++ b/lib/GPForum/Infrastructure/AsyncQuery.pm
+@@ -102,36 +102,14 @@
+               : undef;
+             my $start = sub {
+                 $self->_owned;
+-                my $db;
+-                my $available =
+-                  @{ $self->idle }
+-                  ? Mojo::Promise->resolve( shift @{ $self->idle } )
+-                  : $self->_connect_p($context);
+-                my $failed     = 0;
+                 my $generation = $self->generation;
+-                return $available->then(
++                return $self->_run_leased_p( shift @{ $self->idle },
++                    $work, $stats, $context, $generation )
++                  if @{ $self->idle };
++                return $self->_connect_p($context)->then(
+                     sub ($leased) {
+-                        $db = $leased;
+-                        my $run = sub { return $work->($db); };
+-                        return $stats
+-                          ? $stats->in_context( $context, $run )
+-                          : $run->();
+-                    }
+-                )->catch(
+-                    sub ($error) {
+-                        $failed = 1;
+-                        die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the promise rejection
+-                    }
+-                )->finally(
+-                    sub {
+-                        return if !$db;
+-                        if ( $failed || $generation != $self->generation ) {
+-                            @{ $self->connections } =
+-                              grep { $_ != $db } @{ $self->connections };
+-                        }
+-                        else { push @{ $self->idle }, $db; }
+-                        undef $db;
+-                        return;
++                        return $self->_run_leased_p( $leased, $work, $stats,
++                            $context, $generation );
+                     }
+                 );
+             };
+@@ -140,6 +118,39 @@
+     );
+ }
+ 
++sub _run_leased_p ( $self, $db, $work, $stats, $context, $generation ) {
++
++    # One completion owns lease cleanup on success, rejection and synchronous
++    # failure. Reusing an idle handle needs no intermediate promise chain.
++    my $result = Mojo::Promise->new;
++    my $finish = sub ( $failed, @values ) {
++        if ( $failed || $generation != $self->generation ) {
++            @{ $self->connections } =
++              grep { $_ != $db } @{ $self->connections };
++        }
++        else { push @{ $self->idle }, $db; }
++        my $status = $failed ? 'reject' : 'resolve';
++        $result->$status(@values);
++        return;
++    };
++    my ( $running, $error );
++    try {
++        my $run = sub { return $work->($db); };
++        $running = Mojo::Promise->resolve(
++            $stats ? $stats->in_context( $context, $run ) : $run->() );
++    }
++    catch ($caught) { $error = $caught; };
++    if ( defined $error ) {
++        $finish->( 1, $error );
++        return $result;
++    }
++    $running->then(
++        sub (@values) { $finish->( 0, @values ); return; },
++        sub (@errors) { $finish->( 1, @errors ); return; }
++    );
++    return $result;
++}
++
+ 1;
+ 
+ __END__
+diff --git a/lib/GPForum/Infrastructure/SqlFunction.pm b/lib/GPForum/Infrastructure/SqlFunction.pm
+--- a/lib/GPForum/Infrastructure/SqlFunction.pm
++++ b/lib/GPForum/Infrastructure/SqlFunction.pm
+@@ -122,32 +122,8 @@
+                 @parameters = (1);
+             }
+             my $read = sub ($db) {
+-                if ($stats) { $stats->query_start( $entry->{sql} ); }
+-                return Mojo::Promise->resolve->then(
+-                    sub {
+-                        return $self->_query_p( $db, $entry, \@parameters );
+-                    }
+-                )->then(
+-                    sub ($result) {
+-                        my $rows = $result->hashes->to_array;
+-                        if ( %{ $entry->{json} } ) {
+-                            _decode_json( $entry, $rows );
+-                        }
+-                        return $rows;
+-                    }
+-                )->catch(
+-                    sub ($error) {
+-                        $self->_raise( $db->dbh->state, $error );
+-                    }
+-                )->finally(
+-                    sub {
+-                        if ($stats) {
+-                            $stats->in_context( $context,
+-                                sub { $stats->query_end; return; } );
+-                        }
+-                        return;
+-                    }
+-                );
++                return $self->_read_rows_p( $db, $entry, \@parameters, $stats,
++                    $context );
+             };
+             if ( $self->async_database ) {
+                 return $self->async_transaction->query_p(
+@@ -161,6 +137,45 @@
+             }
+             return GPForum::Infrastructure::AsyncQuery->for_schema(
+                 $self->schema )->run_p( $read, $context );
++        }
++    );
++}
++
++sub _read_rows_p ( $self, $db, $entry, $parameters, $stats, $context ) {
++
++    # Only the query needs to wait. Decode and finish its statistics in the
++    # same completion instead of adding several event-loop turns per query.
++    if ($stats) { $stats->query_start( $entry->{sql} ); }
++    my $end = sub {
++        if ($stats) {
++            $stats->in_context( $context, sub { $stats->query_end; return; } );
++        }
++        return;
++    };
++    my ( $query, $error );
++    try { $query = $self->_query_p( $db, $entry, $parameters ); }
++    catch ($caught) { $error = $caught; };
++    if ( defined $error ) {
++        $end->();
++        $self->_raise( $db->dbh->state, $error );
++    }
++    return $query->then(
++        sub ($result) {
++            my ( $rows, $failure );
++            try {
++                $rows = $result->hashes->to_array;
++                if ( %{ $entry->{json} } ) { _decode_json( $entry, $rows ); }
++            }
++            catch ($caught) { $failure = $caught; };
++            $end->();
++            if ( defined $failure ) {
++                $self->_raise( $db->dbh->state, $failure );
++            }
++            return $rows;
++        },
++        sub ($failure) {
++            $end->();
++            $self->_raise( $db->dbh->state, $failure );
+         }
+     );
+ }

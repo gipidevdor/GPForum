@@ -60,6 +60,29 @@ transaction. Parameterless control commands avoid overlapping asynchronous
 prepare and simple-query execution; zero-input catalogue calls retain a typed
 internal bind and named-plan result-type protection.
 
+The promise adapter releases its admission slot and connection lease before
+publishing completion to consumers. An already-completed service result stays
+ready; idle leases and admitted work do not need an artificial reactor tick.
+Async/await orchestration avoids repeated resolve/then/finally relays while
+preserving typed failures, request context and the same query catalogue.
+
+Single-call community commands, read markers, live participation/IP-ban checks
+and single-post/thread visibility reads use the retained native query leases.
+These security decisions are still read afresh, without a new cache.
+Bookmark removal and subscription mute/revocation use the additive
+`community_target_command_v2` boundary (migration 2044), which combines the
+existing stores with command-log open/close in one atomic call. API-role grants
+must be refreshed before upgrading workers. Posting resolves the existing context reads
+asynchronously, prepares the original command, then executes the same atomic
+stored function on a native lease. Body composition and signing still run in
+the bounded subprocess executor. Their preparation phase cannot connect to
+PostgreSQL: unanswered synchronous reads fail the HTTP-access guard in either
+process. Only data crosses that boundary. Permission decisions, idempotency,
+command logs, audit/outbox writes and transaction boundaries remain unchanged.
+Active automod rules, mention transactions and unsupported workflows keep the
+complete isolated executor; they must not be split across processes or have
+their policy checks skipped for throughput.
+
 Connection establishment uses DBD::Pg asynchronous connect, watching the exact
 socket/readiness libpq requests, under a five-second deadline. Trusted database
 hostname resolution uses the bounded subprocess executor and pins hostaddr

@@ -4,15 +4,10 @@
 
 // User journeys use the real server and a disposable PostgreSQL database.
 const assert = require("node:assert/strict");
-const {spawn} = require("node:child_process");
-const {once} = require("node:events");
-const net = require("node:net");
-const path = require("node:path");
 const test = require("node:test");
-const {setTimeout: delay} = require("node:timers/promises");
 const {chromium} = require("playwright");
+const {startFixture} = require("./support/process.cjs");
 
-const root = path.resolve(__dirname, "../..");
 const fixture = String.raw`
 use v5.40;
 use lib 'lib', 't/lib';
@@ -45,39 +40,12 @@ $app->routes->get('/__browser/stored/:thread')->to(cb => sub ($c) {
  }, {Slice => {}}, $c->param('thread'));
  return $c->render(json => $rows);
 });
-$app->start;
+
 `;
 
 test("posting journeys against PostgreSQL", {timeout: 180000}, async (t) => {
-  const reservation = net.createServer();
-  reservation.listen(0, "127.0.0.1");
-  await once(reservation, "listening");
-  const address = `http://127.0.0.1:${reservation.address().port}`;
-  await new Promise((resolve) => reservation.close(resolve));
-  const app = spawn(path.join(root, "script/gpforum-carton"),
-    ["exec", "perl", "-e", fixture, "daemon", "-l", address], {
-      cwd: root,
-      env: {...process.env, GPFORUM_ENV: "development", MOJO_MODE: "development"},
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  let log = "";
-  for (const stream of [app.stdout, app.stderr]) {
-    stream.on("data", (chunk) => { log = (log + chunk).slice(-12000); });
-  }
-  t.after(async () => {
-    if (app.exitCode !== null) return;
-    const exited = once(app, "exit");
-    app.kill("SIGTERM");
-    await exited;
-  });
-  let ready = false;
-  for (let attempt = 0; attempt < 600; attempt++) {
-    if (app.exitCode !== null) throw new Error(`fixture exited: ${log}`);
-    try { ready = (await fetch(`${address}/health/live`)).ok; } catch {}
-    if (ready) break;
-    await delay(100);
-  }
-  assert.ok(ready, `fixture did not start: ${log}`);
+  const running = await startFixture(t, fixture);
+  const {address} = running;
   const browser = await chromium.launch({headless: true});
   t.after(() => browser.close());
 
@@ -110,7 +78,7 @@ test("posting journeys against PostgreSQL", {timeout: 180000}, async (t) => {
           const published = page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/threads");
           await form.getByRole("button", {name: "Create thread", exact: true}).click();
           const response = await published;
-          assert.equal(response.status(), 302, log);
+          assert.equal(response.status(), 302, running.log());
           await page.waitForURL(/\/t\//);
           const thread = new URL(page.url()).pathname.split("/")[2];
           assert.equal(await page.locator("#posts .forum-post-body").first().innerText(), body);
@@ -120,7 +88,7 @@ test("posting journeys against PostgreSQL", {timeout: 180000}, async (t) => {
           const replied = page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/replies"));
           await reply.getByRole("button", {name: "Post reply", exact: true}).click();
           const replyResponse = await replied;
-          assert.ok([200, 302].includes(replyResponse.status()), `${log}\nReply fields: ${JSON.stringify(Object.fromEntries([...new URLSearchParams(replyResponse.request().postData())].filter(([key]) => key !== "csrf_token")))}`);
+          assert.ok([200, 302].includes(replyResponse.status()), `${running.log()}\nReply fields: ${JSON.stringify(Object.fromEntries([...new URLSearchParams(replyResponse.request().postData())].filter(([key]) => key !== "csrf_token")))}`);
           await page.waitForFunction((text) => [...document.querySelectorAll("#posts .forum-post-body")]
             .filter((node) => node.innerText === text).length === 2, body);
           await page.reload();
@@ -136,7 +104,7 @@ test("posting journeys against PostgreSQL", {timeout: 180000}, async (t) => {
           await edit.getByRole("textbox", {name: "Post body", exact: true}).fill(editedBody);
           const edited = page.waitForResponse((r) => r.request().method() === "POST" && /\/p\/[^/]+$/.test(r.url()));
           await edit.getByRole("button", {name: "Save edit", exact: true}).click();
-          assert.ok([200, 302].includes((await edited).status()), log);
+          assert.ok([200, 302].includes((await edited).status()), running.log());
           await page.waitForFunction((text) => document.querySelector("#posts .forum-post-body")?.innerText === text, editedBody);
           await page.reload();
           assert.deepEqual(await page.locator("#posts .forum-post-body").allInnerTexts(), [editedBody, body]);
@@ -162,9 +130,9 @@ test("posting journeys against PostgreSQL", {timeout: 180000}, async (t) => {
             assert.ok((await page.locator("#flash").innerText()).trim().length > 0);
             await page.unroute("**/replies");
             const retried = page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/replies"))
-              .catch(async (error) => { throw new Error(`${error.message}\n${log}\nDraft status: ${await retryForm.locator("[data-draft-status]").innerText()}\nErrors: ${errors}`); });
+              .catch(async (error) => { throw new Error(`${error.message}\n${running.log()}\nDraft status: ${await retryForm.locator("[data-draft-status]").innerText()}\nErrors: ${errors}`); });
             await retryForm.getByRole("button", {name: "Post reply", exact: true}).click();
-            assert.equal((await retried).status(), 200, log);
+            assert.equal((await retried).status(), 200, running.log());
             await page.waitForFunction(() => document.querySelectorAll("#posts .post").length === 3);
             await page.reload();
             const afterRetry = await context.request.get(`/__browser/stored/${thread}`);
@@ -173,7 +141,7 @@ test("posting journeys against PostgreSQL", {timeout: 180000}, async (t) => {
               {title, body_source: "Una risposta è ancora qui"},
             ]);
           }
-          assert.deepEqual(errors, [], log);
+          assert.deepEqual(errors, [], running.log());
         } finally { await context.close(); }
       });
     }

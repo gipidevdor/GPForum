@@ -4,7 +4,7 @@
 package GPForum::Service::Identity::SessionStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use Mojo::Promise;
 
@@ -146,42 +146,31 @@ sub validate_session ( $self, $input ) {
 # ADR 0148: which of these sessions are live -- not revoked, not past their
 # expiry -- as a set, in one call. An id that is not a uuid names no
 # session.
-sub validate_session_p ( $self, $input, $context = undef ) {
-    return Mojo::Promise->resolve->then(
-        sub {
-            return { ok => 0, error => 'not_found' }
-              if !has_text( $input->{session_id} )
-              || !has_text( $input->{user_id} );
-            return $self->validate_session($input) if !$self->functions;
-            my $presented = $input->{session_token};
-            return $self->functions->row_p(
-                'session_validate',
-                {
-                    session_id => $input->{session_id},
-                    user_id    => $input->{user_id},
-                    token_hash => has_text($presented)
-                    ? $self->session_tokens->hash_token($presented)
-                    : undef,
-                    now                    => $self->clock->now_iso8601,
-                    touch_interval_seconds =>
-                      $self->session_touch_interval_seconds,
-                },
-                $context
-            )->then(
-                sub ($row) {
-                    return { ok => 0, error => 'not_found' } if !$row;
-                    my $code = delete $row->{result_code};
-                    return { ok => 0, error => $code }
-                      if $code ne 'ok' && $code ne 'expired';
-                    my $session =
-                      GPForum::Infrastructure::ResultRow->from($row);
-                    return { ok => 0, error => 'expired', session => $session }
-                      if $code eq 'expired';
-                    return { ok => 1, session => $session };
-                }
-            );
-        }
+async sub validate_session_p ( $self, $input, $context = undef ) {
+    return { ok => 0, error => 'not_found' }
+      if !has_text( $input->{session_id} ) || !has_text( $input->{user_id} );
+    return $self->validate_session($input) if !$self->functions;
+    my $presented = $input->{session_token};
+    my $row       = await $self->functions->row_p(
+        'session_validate',
+        {
+            session_id => $input->{session_id},
+            user_id    => $input->{user_id},
+            token_hash => has_text($presented)
+            ? $self->session_tokens->hash_token($presented)
+            : undef,
+            now                    => $self->clock->now_iso8601,
+            touch_interval_seconds => $self->session_touch_interval_seconds,
+        },
+        $context
     );
+    return { ok => 0, error => 'not_found' } if !$row;
+    my $code = delete $row->{result_code};
+    return { ok => 0, error => $code } if $code ne 'ok' && $code ne 'expired';
+    my $session = GPForum::Infrastructure::ResultRow->from($row);
+    return { ok => 0, error => 'expired', session => $session }
+      if $code eq 'expired';
+    return { ok => 1, session => $session };
 }
 
 sub live_session_ids_p ( $self, $session_ids, $context = undef ) {

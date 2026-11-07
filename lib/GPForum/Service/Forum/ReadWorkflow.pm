@@ -4,10 +4,12 @@
 package GPForum::Service::Forum::ReadWorkflow;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
+use GPForum::Infrastructure::AsyncWork;
+use GPForum::Log;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::WorkflowResult
   qw(log_error missing_command_id workflow_result);
@@ -84,6 +86,50 @@ sub _mark_by_function ( $self, $input ) {
 # The command log's row as CommandIdempotency writes it, with the ids and
 # the time drawn in its order: the command's id, its correlation id, its
 # time.
+async sub async_call_p (
+    $self, $method, $arguments,
+    $context = undef,
+    $cancelled = undef
+  )
+{
+    return await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
+        $self, $method, $arguments, $context, $cancelled )
+      if $method ne 'mark_thread_read'
+      || @{$arguments} != 1
+      || !$self->functions
+      || !_call_layer( $self->command_idempotency );
+    my $input   = $arguments->[0];
+    my $invalid = missing_command_id($input);
+    return $invalid if $invalid;
+    my $log_context = GPForum::Log->request_context;
+    my $request     = _mark_request($input);
+    my $answer      = $self->read_state->invalid_mark($request);
+    my $row;
+    try {
+        $row = await $self->functions->row_p(
+            'forum_read_marker_command',
+            {
+                log    => $self->_command_log( $input, $request ),
+                answer => $answer,
+                row => $answer ? undef : $self->read_state->mark_row($request),
+            },
+            $context
+        );
+    }
+    catch ($error) {
+        GPForum::Log->in_context(
+            $log_context,
+            sub {
+                log_error( $self->logger,
+                    "forum read marker command failed: $error" );
+                return;
+            }
+        );
+        return _failed_result();
+    };
+    return _commanded_result($row);
+}
+
 sub _command_log ( $self, $input, $request ) {
     my $log = $self->command_idempotency;
     return {
@@ -233,6 +279,12 @@ Constructor (L<GPForum::Base>). C<read_state>, the
 L<GPForum::Service::Forum::ReadState>, is required: without it C<new>
 throws L<GPForum::X::Argument>. C<command_idempotency> and C<logger> are
 optional.
+
+=head2 async_call_p
+
+Dispatch the atomic read-marker command through a native PostgreSQL promise,
+preserving idempotency and validation. Other operations retain the isolated
+workflow executor and cancellation checks.
 
 =head2 mark_thread_read
 

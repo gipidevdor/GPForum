@@ -52,6 +52,7 @@ our $VERSION = '0.001';
 const my $HTTP_OK     => 200;
 const my $CLAIM_DELAY => 60;
 const my $CLAIM_END   => 120;
+const my $HASH_LENGTH => 64;
 
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all => 'set GPFORUM_TEST_DSN to test the separate API role';
@@ -144,7 +145,32 @@ $role_schema =
   GPForum::Schema->connect( $database->dsn, $runtime, $runtime_password,
     { RaiseError => 1, PrintError => 0, AutoCommit => 1 } );
 my $functions = GPForum::Infrastructure::SqlFunction->for_schema($role_schema);
-my $semantic  = GPForum::Service::Search::Semantic->new(
+my $target_call = {
+    log => {
+        actor_id               => $user,
+        command_id             => GPForum::Infrastructure::Id->new->uuid,
+        command_correlation_id => GPForum::Infrastructure::Id->new->uuid,
+        command_at             => '2026-10-11T12:00:00Z',
+        command_type           => 'community.bookmark_remove',
+        idempotency_key        => GPForum::Infrastructure::Id->new->uuid,
+        request_hash           => 'a' x $HASH_LENGTH,
+    },
+    answer => undef,
+    row    => {
+        user_id     => $user,
+        target_type => 'thread',
+        target_id   => GPForum::Infrastructure::Id->new->uuid,
+        stamped_at  => '2026-10-11T12:00:00Z',
+    },
+};
+my $target_answer = $functions->row( 'community_target_command', $target_call );
+is( $target_answer->{outcome},
+    'recorded', 'restricted role executes atomic target command' );
+is( $target_answer->{response}{status},
+    'not_found', 'missing target preserves refusal contract' );
+is( $functions->row( 'community_target_command', $target_call )->{outcome},
+    'replayed', 'restricted role replays the target command' );
+my $semantic = GPForum::Service::Search::Semantic->new(
     schema    => $role_schema,
     embedding => GPForum::Test::Embedding->new
 );

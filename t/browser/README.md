@@ -43,3 +43,15 @@ validation focus, publication, reply, editing, rendering after reload and exact
 PostgreSQL readback. The enhanced journey also checks a real CSRF refusal:
 visible error, retained draft, unlocked controls, successful retry and no duplicate
 post. The fragment suite separately covers network failures and duplicate submits.
+
+## Construction rules
+
+Both suites share `support/process.cjs`: the child reports its own bound ephemeral
+socket, startup failures retain diagnostics, and shutdown has a bounded escalation.
+The process helper has Node-only regression tests under `t/js/`.
+
+The duplicate-submit scenario holds the response and counts request events with
+both replaced and retained forms, including failure responses which leave the
+source connected. Minimal accented and mixed Unicode bodies also remain distinct
+input partitions.
+See [test construction guidance](../../docs/TESTING.md).

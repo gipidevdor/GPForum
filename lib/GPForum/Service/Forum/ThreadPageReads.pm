@@ -4,7 +4,7 @@
 package GPForum::Service::Forum::ThreadPageReads;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
@@ -123,30 +123,25 @@ sub reading ( $self, $input, $code ) {
 #
 # Takes the page as the detail reader gave it, the thread id as the request
 # names it (the read state is keyed by that one), and the viewer's user id.
-sub answers_p ( $self, $input, $context = undef ) {
+async sub answers_p ( $self, $input, $context = undef ) {
     $input =
       { %{$input}, query_context => $input->{query_context} // $context };
-    return Mojo::Promise->resolve->then(
-        sub {
-            my $page = $input->{page};
-            my %read = (
-                omit_thread => $input->{omit_thread},
-                posts       => [ _post_ids($page) ],
-                thread      => _column( $page->{thread}, 'thread_id' ),
-                thread_id   => $input->{thread_id},
-                viewer      => has_text( $input->{viewer_user_id} )
-                ? $input->{viewer_user_id}
-                : undef,
-            );
-            my $calls     = $self->_calls( \%read )   or return {};
-            my $values    = _values( \%read, $calls ) or return {};
-            my $functions = $self->functions          or return {};
-            return $functions->rows_p( 'forum_thread_page_reads', $values,
-                $input->{query_context} )
-              ->then(
-                sub ($rows) { return _answers( $functions, $calls, $rows ); } );
-        }
+    my $page = $input->{page};
+    my %read = (
+        omit_thread => $input->{omit_thread},
+        posts       => [ _post_ids($page) ],
+        thread      => _column( $page->{thread}, 'thread_id' ),
+        thread_id   => $input->{thread_id},
+        viewer      => has_text( $input->{viewer_user_id} )
+        ? $input->{viewer_user_id}
+        : undef,
     );
+    my $calls     = $self->_calls( \%read )   or return {};
+    my $values    = _values( \%read, $calls ) or return {};
+    my $functions = $self->functions          or return {};
+    my $rows = await $functions->rows_p( 'forum_thread_page_reads', $values,
+        $input->{query_context} );
+    return _answers( $functions, $calls, $rows );
 }
 
 sub individual_answers_p ( $self, $input, $context = undef ) {

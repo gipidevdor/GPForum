@@ -5,9 +5,8 @@ package GPForum::Service::Forum::ViewerResolver;
 
 use Const::Fast;
 use JSON::MaybeXS qw(decode_json);
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
-use Mojo::Promise;
 
 use GPForum::Infrastructure::CountedQuery;
 use GPForum::Infrastructure::Id;
@@ -74,24 +73,21 @@ sub resolve ( $self, $user_id ) {
     return $self->viewer_from_row( $user_id, $row );
 }
 
-sub resolve_p ( $self, $user_id, $context = undef ) {
-    return Mojo::Promise->resolve->then(
-        sub {
-            return GPForum::Service::Forum::Viewer->from($user_id)
-              if !GPForum::Infrastructure::Id->is_uuid($user_id);
-            return $self->resolve($user_id) if !$self->functions;
-            return $self->functions->row_p( 'forum_resolve_viewer',
-                { user_id => $user_id }, $context )
-              ->then(
-                sub ($row) { return $self->viewer_from_row( $user_id, $row ); }
-              );
-        }
-    )->catch(
-        sub ($error) {
-            $self->_warn("viewer resolution degraded: $error");
-            return $self->viewer_from_row( $user_id, undef );
-        }
-    );
+async sub resolve_p ( $self, $user_id, $context = undef ) {
+    my ( $row, $viewer );
+    try {
+        return GPForum::Service::Forum::Viewer->from($user_id)
+          if !GPForum::Infrastructure::Id->is_uuid($user_id);
+        return $self->resolve($user_id) if !$self->functions;
+        $row = await $self->functions->row_p( 'forum_resolve_viewer',
+            { user_id => $user_id }, $context );
+        $viewer = $self->viewer_from_row( $user_id, $row );
+    }
+    catch ($error) {
+        $self->_warn("viewer resolution degraded: $error");
+        $viewer = $self->viewer_from_row( $user_id, undef );
+    };
+    return $viewer;
 }
 
 # The viewer an account's row describes -- status, suspended, listed,

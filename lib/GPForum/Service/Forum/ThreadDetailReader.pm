@@ -4,7 +4,7 @@
 package GPForum::Service::Forum::ThreadDetailReader;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::PreparedQuery;
@@ -16,7 +16,6 @@ use GPForum::Service::Forum::Visibility;
 use GPForum::Service::Forum::PostReader;
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Infrastructure::Id;
-use Mojo::Promise;
 
 our $VERSION = '0.001';
 
@@ -48,6 +47,17 @@ sub find_thread ( $self, $thread_id, $viewer = undef ) {
     my $row = $self->find_thread_row($thread_id);
 
     return $self->visible_thread_row( $row, $viewer );
+}
+
+async sub find_thread_p ( $self, $thread_id, $viewer = undef, $context = undef )
+{
+    return $self->find_thread( $thread_id, $viewer ) if !$self->functions;
+    return undef if !defined $thread_id || !length $thread_id;
+    my $row =
+      await $self->functions->row_p( @{ $self->thread_row_call($thread_id) },
+        $context );
+    return $self->visible_thread_row(
+        GPForum::Infrastructure::ResultRow::Thread->from($row), $viewer );
 }
 
 # Apply the reader's visibility rules to an already loaded head. A combined
@@ -128,76 +138,49 @@ sub _thread_row_attrs {
     };
 }
 
-sub thread_page_p ( $self, $request, $context = undef ) {
+async sub thread_page_p ( $self, $request, $context = undef ) {
     $request =
       { %{$request}, query_context => $request->{query_context} // $context };
-    return Mojo::Promise->resolve->then(
-        sub {
-            return $self->thread_page($request) if !$self->functions;
-            my $viewer =
-              $request->{viewer} || GPForum::Service::Forum::Viewer->anonymous;
-            return $self->functions->row_p(
-                @{ $self->thread_row_call( $request->{thread_id} ) },
-                $request->{query_context} )->then(
-                sub ($row) {
-                    my $thread = $self->visible_thread_row(
-                        GPForum::Infrastructure::ResultRow::Thread->from($row),
-                        $viewer
-                    );
-                    return { ok => 0, error => 'not_found' } if !$thread;
-                    my $scope  = $self->post_scope( $viewer, $thread );
-                    my $target = Mojo::Promise->resolve(undef);
-                    if ( defined $request->{post} && length $request->{post} ) {
-                        return { ok => 0, error => 'not_found' }
-                          if !GPForum::Infrastructure::Id->is_uuid(
-                            $request->{post} );
-                        $target = $self->post_reader->find_listed_post_p(
-                            {
-                                post_id        => $request->{post},
-                                thread_id      => $request->{thread_id},
-                                viewer_user_id => $viewer->user_id,
-                                viewer_scope   => $scope,
-                                query_context  => $request->{query_context}
-                            }
-                        );
-                    }
-                    return $target->then(
-                        sub ($post) {
-                            return { ok => 0, error => 'not_found' }
-                              if defined $request->{post}
-                              && length $request->{post}
-                              && !$post;
-                            my $at =
-                                $post
-                              ? $post->get_column('position')
-                              : $request->{at};
-                            return $self->post_reader->list_thread_posts_p(
-                                {
-                                    thread_id => $request->{thread_id},
-                                    limit     => $request->{limit}
-                                      || $DEFAULT_POST_LIMIT,
-                                    after => GPForum::Service::Forum::PageWindow
-                                      ->cursor_at_position(
-                                        $at) // $request->{after},
-                                    viewer_user_id => $viewer->user_id,
-                                    viewer_scope   => $scope,
-                                    query_context  => $request->{query_context}
-                                }
-                            )->then(
-                                sub ($posts) {
-                                    return {
-                                        ok     => 1,
-                                        thread => $thread,
-                                        posts  => $posts
-                                    };
-                                }
-                            );
-                        }
-                    );
-                }
-                );
+    return $self->thread_page($request) if !$self->functions;
+    my $viewer = $request->{viewer}
+      || GPForum::Service::Forum::Viewer->anonymous;
+    my $row = await $self->functions->row_p(
+        @{ $self->thread_row_call( $request->{thread_id} ) },
+        $request->{query_context} );
+    my $thread = $self->visible_thread_row(
+        GPForum::Infrastructure::ResultRow::Thread->from($row), $viewer );
+    return { ok => 0, error => 'not_found' } if !$thread;
+    my $scope = $self->post_scope( $viewer, $thread );
+    my $at    = $request->{at};
+
+    if ( defined $request->{post} && length $request->{post} ) {
+        return { ok => 0, error => 'not_found' }
+          if !GPForum::Infrastructure::Id->is_uuid( $request->{post} );
+        my $post = await $self->post_reader->find_listed_post_p(
+            {
+                post_id        => $request->{post},
+                thread_id      => $request->{thread_id},
+                viewer_user_id => $viewer->user_id,
+                viewer_scope   => $scope,
+                query_context  => $request->{query_context}
+            }
+        );
+        return { ok => 0, error => 'not_found' } if !$post;
+        $at = $post->get_column('position');
+    }
+    my $posts = await $self->post_reader->list_thread_posts_p(
+        {
+            thread_id => $request->{thread_id},
+            limit     => $request->{limit} || $DEFAULT_POST_LIMIT,
+            after     =>
+              GPForum::Service::Forum::PageWindow->cursor_at_position($at)
+              // $request->{after},
+            viewer_user_id => $viewer->user_id,
+            viewer_scope   => $scope,
+            query_context  => $request->{query_context}
         }
     );
+    return { ok => 1, thread => $thread, posts => $posts };
 }
 
 sub thread_page ( $self, $request ) {
@@ -372,6 +355,11 @@ Takes a thread id and an optional viewer (a
 L<GPForum::Service::Forum::Viewer>, a user id, or nothing for an anonymous
 reader). Returns the thread row from L</find_thread_row> when the viewer may
 read it, otherwise C<undef>.
+
+=head2 find_thread_p
+
+Promise form of C<find_thread>, with the same visibility checks and native
+asynchronous PostgreSQL transport.
 
 =head2 thread_row_call
 

@@ -4,7 +4,7 @@
 package GPForum::Service::Moderation::SuspensionStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row;
@@ -389,19 +389,24 @@ sub active_for_user ( $self, $user_id ) {
     return undef;
 }
 
+async sub can_participate_p ( $self, $user_id, $context = undef ) {
+    return $self->can_participate($user_id) if !$self->functions;
+    return _participation_result(
+        await $self->functions->row_p(
+            'moderation_can_participate',
+            { user_id => $user_id, now => $self->clock->now_iso8601 }, $context
+        )
+    );
+}
+
 sub can_participate ( $self, $user_id ) {
     if ( $self->functions ) {
-        my $row =
-          $self->functions->row( 'moderation_can_participate',
-            { user_id => $user_id, now => $self->clock->now_iso8601 } )
-          || { ok => 0, reason => 'user_not_found' };
-        if ( !defined $row->{reason} ) {
-            delete $row->{reason};
-        }
-        if ( !defined $row->{suspension_id} ) {
-            delete $row->{suspension_id};
-        }
-        return $row;
+        return _participation_result(
+            $self->functions->row(
+                'moderation_can_participate',
+                { user_id => $user_id, now => $self->clock->now_iso8601 }
+            )
+        );
     }
 
     my $user = $self->_user($user_id);
@@ -421,6 +426,13 @@ sub can_participate ( $self, $user_id ) {
     }
 
     return { ok => 1 };
+}
+
+sub _participation_result ($row) {
+    $row ||= { ok => 0, reason => 'user_not_found' };
+    if ( !defined $row->{reason} )        { delete $row->{reason}; }
+    if ( !defined $row->{suspension_id} ) { delete $row->{suspension_id}; }
+    return $row;
 }
 
 sub _restore_user_if_needed ( $self, $user_id, $timestamp ) {
@@ -601,6 +613,12 @@ Otherwise returns C<< { ok => 0, reason } >> with reason C<user_not_found>,
 C<user_deleted> (status C<deleted>) or C<suspended> (status C<suspended>),
 or C<suspended> together with C<suspension_id> when an active suspension
 exists while the status says otherwise.
+
+=head2 can_participate_p
+
+Promise form of C<can_participate>, with the same live suspension check and
+response shape. Persistent HTTP calls use the retained native connection;
+in-memory stores retain their synchronous behavior.
 
 =head1 DIAGNOSTICS
 

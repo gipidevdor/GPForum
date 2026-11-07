@@ -5,29 +5,38 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const test = require("node:test");
 const vm = require("node:vm");
+const {eventTarget} = require("./support/events.cjs");
 const source = fs.readFileSync(`${__dirname}/../../assets/js/composer.js`, "utf8");
 function harness(value, lang = "en") {
-  const listeners = {};
-  const field = {
-    value, dataset: {}, selectionStart: 0, selectionEnd: value.length,
-    before(bar) { this.bar = bar; }, after(count) { this.count = count; },
-    addEventListener(name, handler) { listeners[name] = handler; },
+  const makeField = (text) => Object.assign(eventTarget(), {
+    value: text, dataset: {}, selectionStart: 0, selectionEnd: text.length,
+    before(bar) { (this.bars ||= []).push(bar); this.bar = bar; }, after(count) { this.count = count; },
     setRangeText(text, start, end) { this.value = this.value.slice(0, start) + text + this.value.slice(end); },
     setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; },
     focus() { this.focused = true; },
-    dispatchEvent(event) { this.inputEvents = (this.inputEvents || 0) + 1; listeners[event.type]?.(event); },
-  };
-  const document = {
+    dispatchEvent(event) {
+      this.inputEvents = (this.inputEvents || 0) + 1;
+      return EventTarget.prototype.dispatchEvent.call(this, event);
+    },
+  });
+  let field = makeField(value);
+  const document = Object.assign(eventTarget(), {
     documentElement: { lang },
     querySelectorAll(selector) { return selector.includes("textarea") ? [field] : []; },
-    addEventListener() {},
     createElement() { return {
       children: [], setAttribute() {}, append(child) { this.children.push(child); },
       addEventListener(name, fn) { this[name] = fn; },
     }; },
-  };
-  vm.runInNewContext(source, { document, window: { addEventListener() {} }, Event: class { constructor(type) { this.type = type; } } });
-  return field;
+  });
+  vm.runInNewContext(source, { document, window: eventTarget(), Event });
+  return Object.assign(field, {
+    refresh() { document.emit("htmx:after:swap"); },
+    replace(text) {
+      field = makeField(text);
+      document.emit("htmx:after:swap");
+      return field;
+    },
+  });
 }
 test("formatting preserves selection and emits input for draft saving", () => {
   const field = harness("hello");
@@ -62,4 +71,16 @@ test("list tools mark every selected line and preserve input events", () => {
   numbers.bar.children[6].click();
   assert.equal(numbers.value, "\n1. one\n2. two\n3. three\n");
   assert.equal(numbers.inputEvents, 1);
+});
+
+test("a swapped composer formats the replacement and keeps one toolbar across refreshes", () => {
+  const original = harness("first");
+  const replacement = original.replace("second");
+  original.refresh();
+  assert.equal(replacement.bars.length, 1);
+  assert.equal(replacement.bar.children.length, original.bar.children.length);
+  replacement.bar.children[0].click();
+  assert.equal(replacement.value, "**second**");
+  assert.equal(replacement.inputEvents, 1);
+  assert.equal(original.value, "first", "formatting targets the new textarea");
 });

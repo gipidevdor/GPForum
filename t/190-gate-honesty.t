@@ -12,6 +12,7 @@ use English    qw(-no_match_vars);
 use File::Path qw(make_path);
 use File::Temp qw(tempdir);
 use IPC::Open3 qw(open3);
+use POSIX      qw(WEXITSTATUS WIFEXITED);
 use Test::More;
 
 use lib 'lib';
@@ -19,7 +20,6 @@ use lib 'lib';
 our $VERSION = '0.001';
 
 const my $EXIT_FAILURE => 1;
-const my $STATUS_SHIFT => 8;
 
 # A gate that checked nothing has not passed. Each of these used to report
 # success in exactly that situation: perlcritic when the analyser was not on
@@ -136,7 +136,7 @@ my $root = getcwd();
         my $text = _slurp(".github/workflows/$workflow.yml");
         like(
             $text,
-            qr/make \s+ integration/msx,
+qr{(?:make \s+ integration|script/test-features \s+ --configured)}msx,
             "$workflow.yml runs the whole integration tier"
         );
         unlike(
@@ -159,6 +159,12 @@ my $root = getcwd();
 # Execute the workflow's own action pinning gate: whitespace used to make
 # its matcher backtrack and reject every local composite action in CI.
 _check_action_pinning_gate($root);
+
+{
+    my ($status) = _run( $EXECUTABLE_NAME, '-e', q{kill 'TERM', $$; sleep 1;} );
+    is( $status, $EXIT_FAILURE,
+        'a command terminated by a signal cannot report success' );
+}
 
 done_testing();
 
@@ -226,7 +232,11 @@ sub _run {
     };
     waitpid $pid, 0;
 
-    return ( $CHILD_ERROR >> $STATUS_SHIFT, $text // q{} );
+    my $status =
+        WIFEXITED($CHILD_ERROR)
+      ? WEXITSTATUS($CHILD_ERROR)
+      : $EXIT_FAILURE;
+    return ( $status, $text // q{} );
 }
 
 sub _slurp {

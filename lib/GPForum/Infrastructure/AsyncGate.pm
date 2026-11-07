@@ -58,19 +58,37 @@ sub _pump ($self) {
         my $job = shift @{ $self->pending };
         if ( defined $job->{timer} ) { Mojo::IOLoop->remove( $job->{timer} ); }
         $self->active( $self->active + 1 );
-        my $running =
-          Mojo::Promise->resolve->then( sub { return $job->{work}->(); } );
-        $running->then(
-            sub (@values) { $job->{promise}->resolve(@values); return; },
-            sub (@errors) { $job->{promise}->reject(@errors);  return; }
-        )->finally(
-            sub {
-                $self->active( $self->active - 1 );
-                $self->_pump;
-                return;
-            }
-        );
+        $self->_start($job);
     }
+    return;
+}
+
+sub _start ( $self, $job ) {
+    my ( $running, $error );
+    try { $running = Mojo::Promise->resolve( $job->{work}->() ); }
+    catch ($caught) { $error = $caught; };
+    if ( defined $error ) {
+
+        # Keep synchronous failures out of the admission pump's call stack.
+        # A queue of failing jobs must not recursively drain the whole queue.
+        Mojo::IOLoop->next_tick(
+            sub { $self->_complete( $job, 'reject', $error ); return; } );
+        return;
+    }
+    $running->then(
+        sub (@values) { $self->_complete( $job, 'resolve', @values ); return; },
+        sub (@errors) { $self->_complete( $job, 'reject',  @errors ); return; }
+    );
+    return;
+}
+
+sub _complete ( $self, $job, $status, @values ) {
+
+    # Consumers may immediately submit another query. Release capacity before
+    # their continuation runs, without a deferred finally chain retaining it.
+    $self->active( $self->active - 1 );
+    $self->_pump;
+    $job->{promise}->$status(@values);
     return;
 }
 

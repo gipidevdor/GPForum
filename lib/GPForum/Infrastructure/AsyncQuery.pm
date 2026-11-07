@@ -3,7 +3,7 @@
 
 package GPForum::Infrastructure::AsyncQuery;
 
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -async_await;
 use v5.40;
 use Mojo::Promise;
 use English qw(-no_match_vars);
@@ -102,42 +102,39 @@ sub run_p ( $self, $work, $context = undef ) {
               : undef;
             my $start = sub {
                 $self->_owned;
-                my $db;
-                my $available =
-                  @{ $self->idle }
-                  ? Mojo::Promise->resolve( shift @{ $self->idle } )
-                  : $self->_connect_p($context);
-                my $failed     = 0;
                 my $generation = $self->generation;
-                return $available->then(
+                return $self->_run_leased_p( shift @{ $self->idle },
+                    $work, $stats, $context, $generation )
+                  if @{ $self->idle };
+                return $self->_connect_p($context)->then(
                     sub ($leased) {
-                        $db = $leased;
-                        my $run = sub { return $work->($db); };
-                        return $stats
-                          ? $stats->in_context( $context, $run )
-                          : $run->();
-                    }
-                )->catch(
-                    sub ($error) {
-                        $failed = 1;
-                        die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the promise rejection
-                    }
-                )->finally(
-                    sub {
-                        return if !$db;
-                        if ( $failed || $generation != $self->generation ) {
-                            @{ $self->connections } =
-                              grep { $_ != $db } @{ $self->connections };
-                        }
-                        else { push @{ $self->idle }, $db; }
-                        undef $db;
-                        return;
+                        return $self->_run_leased_p( $leased, $work, $stats,
+                            $context, $generation );
                     }
                 );
             };
             return $stats ? $stats->in_context( $context, $start ) : $start->();
         }
     );
+}
+
+async sub _run_leased_p ( $self, $db, $work, $stats, $context, $generation ) {
+
+    # One completion owns lease cleanup on success, rejection and synchronous
+    # failure. Reusing an idle handle needs no intermediate promise chain.
+    my ( @values, $error );
+    try {
+        my $run     = sub { return $work->($db); };
+        my @pending = $stats ? $stats->in_context( $context, $run ) : $run->();
+        @values = await Mojo::Promise->resolve(@pending);
+    }
+    catch ($caught) { $error = $caught; };
+    if ( defined $error || $generation != $self->generation ) {
+        @{ $self->connections } = grep { $_ != $db } @{ $self->connections };
+    }
+    else { push @{ $self->idle }, $db; }
+    die $error if defined $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original lease failure
+    return @values;
 }
 
 1;

@@ -16,6 +16,8 @@ const my $PUSH_LIMIT     => 30;
 const my @JOBS           => qw(lint unit integration browser coverage);
 const my @PER_PUSH       => qw(lint unit integration browser);
 const my $SEPARATOR_CELL => qr/\A -+ \z/msx;
+const my $FEATURE_GATE   => qr{script/test-features [^\n]* --configured}msx;
+const my $PARALLEL_JOBS  => qr{--jobs \s+ [1-9][[:digit:]]*}msx;
 const my $NEVER_ON_MAIN =>
   q{cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}};
 const my $OWN_GROUP_ON_MAIN => q{group: ci-${{ github.event_name }}-}
@@ -55,11 +57,14 @@ ok( index( $ci, $NEVER_ON_MAIN ) >= 0,
 ok( index( $ci, $OWN_GROUP_ON_MAIN ) >= 0,
     'each commit on main has its own group, so no pending run is dropped' );
 
-my @integration = $ci =~ /(make [ ] integration)/gmsx;
+my @runs = $ci =~ /^[ ]+run: [ ] ([^|>\n][^\n]*)$/gmsx;
+my @integration =
+  grep { /\bmake \s+ integration\b/msx || /\bscript\/test-features\b/msx }
+  @runs;
 is( scalar @integration, 1, 'the integration tier runs once' );
 like(
     $job{integration},
-    qr/make [ ] integration [ ] JOBS=\d+/msx,
+    qr{$FEATURE_GATE [^\n]* $PARALLEL_JOBS}msx,
     'in parallel, in the integration job'
 );
 like(
@@ -145,7 +150,7 @@ for my $row (@after) {
     }
 }
 
-for my $step ( $ci =~ /^[ ]+run: [ ] ([^|>\n][^\n]*)$/gmsx ) {
+for my $step (@runs) {
     ok(
         ( any { index( $step, $_ ) == 0 } keys %now ),
         "docs/CI.md lists the step `$step`"

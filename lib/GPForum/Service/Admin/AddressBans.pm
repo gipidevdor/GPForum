@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::AddressBans;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use Socket qw(AF_INET AF_INET6 inet_ntop inet_pton);
@@ -257,6 +257,14 @@ sub covering ( $self, $value ) {
         { address => $address, now => $self->clock->now_iso8601 } );
 }
 
+async sub covering_p ( $self, $value, $context = undef ) {
+    my $functions = $self->functions;
+    my $address   = $self->address($value);
+    return undef if !$functions || !defined $address;
+    return await $functions->row_p( 'admin_address_ban_covering',
+        { address => $address, now => $self->clock->now_iso8601 }, $context );
+}
+
 sub _audit ( $self, $kind, $actor_user_id, $ban_id, $metadata, $now ) {
     return $self->recorder->audit_call(
         action         => $ACTION{$kind},
@@ -394,6 +402,11 @@ The bans, live first.
 =head2 covering
 
 The live ban covering an address, or undef.
+
+=head2 covering_p
+
+Promise form of C<covering>, with the same address normalization and live ban
+lookup on a retained native PostgreSQL connection.
 
 =head2 scopes
 

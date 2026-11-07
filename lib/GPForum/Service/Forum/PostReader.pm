@@ -4,7 +4,7 @@
 package GPForum::Service::Forum::PostReader;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
@@ -67,28 +67,18 @@ sub list_thread_posts ( $self, $request ) {
 
 # The page's posts from the function, as plain rows read like the
 # resultset's.
-sub list_thread_posts_p ( $self, $request, $context = undef ) {
+async sub list_thread_posts_p ( $self, $request, $context = undef ) {
     $request =
       { %{$request}, query_context => $request->{query_context} // $context };
-    return Mojo::Promise->resolve->then(
-        sub {
-            return $self->list_thread_posts($request) if !$self->functions;
-            my $plan = $self->_plan($request);
-            return $self->functions->rows_p(
-                @{ $self->thread_posts_call( $request, $plan ) },
-                $request->{query_context} )->then(
-                sub ($rows) {
-                    my $posts = [
-                        map {
-                            GPForum::Infrastructure::ResultRow::Post->from($_)
-                        } @{$rows}
-                    ];
-                    return $self->page_window->page( $posts, $plan->{limit},
-                        [ 'position', 'post_id' ] );
-                }
-                );
-        }
-    );
+    return $self->list_thread_posts($request) if !$self->functions;
+    my $plan = $self->_plan($request);
+    my $rows = await $self->functions->rows_p(
+        @{ $self->thread_posts_call( $request, $plan ) },
+        $request->{query_context} );
+    my $posts =
+      [ map { GPForum::Infrastructure::ResultRow::Post->from($_) } @{$rows} ];
+    return $self->page_window->page( $posts, $plan->{limit},
+        [ 'position', 'post_id' ] );
 }
 
 sub find_listed_post_p ( $self, $request, $context = undef ) {
@@ -317,6 +307,17 @@ sub _post_visibility ($request) {
 
 # A post, if it and its thread are visible and the viewer can read them: its
 # space, category, thread and the post itself (ADR 0102).
+async sub find_visible_post_p ( $self, $post_id, $viewer = undef,
+    $context = undef )
+{
+    return $self->find_visible_post( $post_id, $viewer ) if !$self->functions;
+    return undef if !defined $post_id || !length $post_id;
+    my $row = await $self->functions->row_p( 'forum_find_visible_post',
+        { post_id => $post_id }, $context );
+    return _visible_to( GPForum::Infrastructure::ResultRow::Post->from($row),
+        $viewer );
+}
+
 sub find_visible_post ( $self, $post_id, $viewer = undef ) {
     return undef if !defined $post_id || !length $post_id;
 
@@ -416,6 +417,16 @@ sub _apply_cursor ( $query, $after ) {
     $query->{-and} = \@and;
 
     return;
+}
+
+async sub find_post_p ( $self, $post_id, $context = undef ) {
+    return $self->find_post($post_id) if !$self->functions;
+    return undef                      if !defined $post_id || !length $post_id;
+    return GPForum::Infrastructure::ResultRow::Post->from(
+        await $self->functions->row_p(
+            'forum_find_post', { post_id => $post_id }, $context
+        )
+    );
 }
 
 sub find_post ( $self, $post_id ) {
@@ -548,6 +559,15 @@ for an empty id.
 
 Takes a post id. Returns the post row whatever its state, or undef for an
 empty id or no row.
+
+=head2 find_visible_post_p
+
+Promise form of C<find_visible_post>, preserving the same visibility rules
+without an isolated database workflow.
+
+=head2 find_post_p
+
+Promise form of C<find_post> through the native PostgreSQL transport.
 
 =head2 list_thread_posts_p
 

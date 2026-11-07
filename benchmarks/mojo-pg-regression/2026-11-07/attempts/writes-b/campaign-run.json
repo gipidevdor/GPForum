@@ -1,0 +1,30 @@
+{
+  "command": [
+    "script/gpforum-carton",
+    "exec",
+    "script/benchmark-http-complete",
+    "--output",
+    "/private/tmp/gpforum-perf-investigation-g5w098dj/writes-b",
+    "--workers",
+    "2",
+    "--iterations",
+    "40",
+    "--warmup",
+    "10",
+    "--duration",
+    "4",
+    "--repetitions",
+    "2",
+    "--concurrency",
+    "1,10,32,100",
+    "--deadline",
+    "600",
+    "--scenario",
+    "journey.publishing_community",
+    "--scenario",
+    "mixed"
+  ],
+  "source": "/private/tmp/gpforum-perf-investigation-g5w098dj/native-writes",
+  "exit": 0,
+  "contaminated": false
+}

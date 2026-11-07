@@ -7,6 +7,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const {eventTarget} = require("./support/events.cjs");
 const source = fs.readFileSync(path.join(__dirname, "../../assets/js/composer.js"), "utf8");
 
 const tick = async () => {
@@ -19,7 +20,6 @@ const tick = async () => {
 const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
   const requests = [];
   const timers = new Map();
-  const listeners = new Map();
   let timerId = 0;
   const node = () => ({
     hidden: true, textContent: "", innerHTML: "", attributes: {},
@@ -52,30 +52,12 @@ const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
       },
       querySelector(selector) { return selector === "[data-draft-status]" ? status : conflict; },
     };
-    const events = new Map();
-    const form = {
+    const form = Object.assign(eventTarget(), {
       isConnected: true, fields, status, conflict, previewBody, previewStatus, region,
       publications: [],
       elements: { namedItem(name) { return fields.get(name); } },
       querySelector() { return tools; },
       closest() { return { querySelector() { return region; } }; },
-      addEventListener(name, handler) {
-        if (!events.has(name)) events.set(name, []);
-        events.get(name).push(handler);
-      },
-      emit(name, props = {}) {
-        const event = {
-          target: form, defaultPrevented: false,
-          preventDefault() { this.defaultPrevented = true; },
-          stopImmediatePropagation() { this.stopped = true; },
-          ...props,
-        };
-        for (const handler of events.get(name) || []) {
-          handler(event);
-          if (event.stopped) break;
-        }
-        return event;
-      },
       requestSubmit(submitter) {
         const event = this.emit("submit", { submitter });
         if (!event.defaultPrevented) this.publications.push({
@@ -91,19 +73,19 @@ const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
           closest() { return this; } };
       },
       click(value) { return this.emit("click", { target: this.button(value) }); },
-    };
+    });
     return form;
   };
   const form = makeForm(revision, body);
-  const document = {
+  const document = Object.assign(eventTarget(), {
     forms: [form],
     documentElement: { lang: "en" },
     querySelectorAll(selector) { return selector.includes("textarea") ? [] : this.forms; },
-    addEventListener(name, callback) { listeners.set(name, callback); },
-  };
+  });
+  const window = eventTarget();
   vm.runInNewContext(source, {
     document, URLSearchParams, AbortController,
-    window: { addEventListener(name, callback) { listeners.set(name, callback); } },
+    window,
     FormData: class {
       constructor(selected) { this.selected = selected; }
       *[Symbol.iterator]() {
@@ -128,9 +110,7 @@ const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
   return {
     form, requests,
     leaving() {
-      const event = { prevented: false, preventDefault() { this.prevented = true; } };
-      listeners.get("beforeunload")(event);
-      return event;
+      return window.emit("beforeunload", {returnValue: ""});
     },
     runTimers(delay) {
       for (const [id, timer] of [...timers]) if (timer.delay === delay) {
@@ -142,7 +122,7 @@ const harness = ({ revision = 0, body = "", conflicted = false } = {}) => {
       form.isConnected = false;
       const next = makeForm(0, "");
       document.forms = [next];
-      listeners.get("htmx:after:swap")();
+      document.emit("htmx:after:swap");
       return next;
     },
   };
@@ -281,19 +261,19 @@ test("an SSR conflict starts with autosave and publish stopped", async () => {
 
 test("navigation warns for unacknowledged text, including failed saves, and stops after acknowledgement", async () => {
   const h = harness();
-  assert.equal(h.leaving().prevented, false, "an untouched empty composer does not warn");
+  assert.equal(h.leaving().defaultPrevented, false, "an untouched empty composer does not warn");
   h.form.edit("unsaved text");
-  assert.equal(h.leaving().prevented, true);
+  assert.equal(h.leaving().defaultPrevented, true);
   h.form.click("save");
-  assert.equal(h.leaving().prevented, true, "a pending save is uncertain");
+  assert.equal(h.leaving().defaultPrevented, true, "a pending save is uncertain");
   h.requests[0].reject(new TypeError("lost response"));
   await tick();
-  assert.equal(h.leaving().prevented, true);
+  assert.equal(h.leaving().defaultPrevented, true);
   h.form.click("save");
   h.requests[1].saved(1);
   await tick();
-  assert.equal(h.leaving().prevented, false);
+  assert.equal(h.leaving().defaultPrevented, false);
   h.form.edit("newer text");
   h.form.isConnected = false;
-  assert.equal(h.leaving().prevented, false, "a removed composer cannot warn after publication");
+  assert.equal(h.leaving().defaultPrevented, false, "a removed composer cannot warn after publication");
 });

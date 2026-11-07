@@ -7,7 +7,7 @@ use v5.40;
 
 use File::Temp qw(tempdir);
 use English    qw(-no_match_vars);
-use Errno      qw(EINTR);
+use Errno      qw(EAGAIN EINTR EWOULDBLOCK);
 use Carp       qw(croak);
 use Mojolicious;
 use Mojo::File qw(path);
@@ -23,6 +23,7 @@ use lib 't/lib';
 
 use GPForum::Config;
 use GPForum::Log;
+use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 
 our $VERSION = '0.001';
 
@@ -120,7 +121,6 @@ for my $plist ( sort glob 'deploy/launchd/*.plist' ) {
 done_testing();
 
 sub _forked_writers ( $application, $file ) {
-    const my $BLOCK_SECONDS  => 0.1;
     const my $CHILD_DEADLINE => 10;
     my $handle = $application->log->handle;
     flock $handle, LOCK_EX or croak 'cannot lock parent log';
@@ -130,17 +130,14 @@ sub _forked_writers ( $application, $file ) {
     close $writer or croak 'cannot close parent pipe writer';
     my $select = IO::Select->new($reader);
     my $ready  = _wait_readable( $select, $CHILD_DEADLINE );
-    ok( $ready, 'the child reaches its append' );
+    ok( $ready, 'the child probes its append descriptor' );
 
     if ($ready) {
-        sysread( $reader, my $message, length "ready\n" ) == length "ready\n"
+        sysread( $reader, my $message, length "locked\n" ) == length "locked\n"
           or croak 'cannot read child readiness';
-        is( $message, "ready\n", 'readiness precedes the log write' );
+        is( $message, "locked\n",
+            'the child append descriptor conflicts with the parent lock' );
     }
-    ok(
-        !_wait_readable( $select, $BLOCK_SECONDS ),
-        'the child blocks on its own descriptor while the parent holds the lock'
-    );
     flock $handle, LOCK_UN or croak 'cannot unlock parent log';
     my $finished = _wait_readable( $select, $CHILD_DEADLINE );
     ok( $finished, 'the child completes once the parent unlocks' );
@@ -171,9 +168,26 @@ sub _wait_readable ( $select, $seconds ) {
 }
 
 sub _child_writer ( $application, $reader, $writer ) {
-    close $reader                                      or POSIX::_exit(1);
-    syswrite( $writer, "ready\n" ) == length "ready\n" or POSIX::_exit(1);
-    $application->log->info('independent child line');
+    close $reader or POSIX::_exit(1);
+    my $append = Mojo::Log->can('append');
+    with_replaced_subs(
+        'Mojo::Log',
+        {
+            append => sub ( $logger, @messages ) {
+
+                # Inspect the actual descriptor after GPForum's fork reopen, at
+                # the native append boundary. A nonblocking kernel lock conflict
+                # proves independence without a scheduling-dependent sleep.
+                my $blocked = !flock( $logger->handle, LOCK_EX | LOCK_NB )
+                  && ( $ERRNO == EAGAIN || $ERRNO == EWOULDBLOCK );
+                my $probe = $blocked ? "locked\n" : "shared\n";
+                syswrite( $writer, $probe ) == length $probe
+                  or POSIX::_exit(1);
+                return $append->( $logger, @messages );
+            }
+        },
+        sub { $application->log->info('independent child line'); }
+    );
     syswrite( $writer, "done\n" ) == length "done\n" or POSIX::_exit(1);
     close $writer                                    or POSIX::_exit(1);
     return POSIX::_exit(0);

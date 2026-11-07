@@ -1,0 +1,2325 @@
+diff --git a/lib/GPForum/Controller/Base.pm b/lib/GPForum/Controller/Base.pm
+--- a/lib/GPForum/Controller/Base.pm
++++ b/lib/GPForum/Controller/Base.pm
+@@ -5,7 +5,8 @@
+ 
+ use Mojo::Base 'Mojolicious::Controller', -async_await;
+ use v5.40;
+-use English qw(-no_match_vars);
++use Scalar::Util qw(blessed);
++use English      qw(-no_match_vars);
+ 
+ use Const::Fast;
+ 
+@@ -29,8 +30,23 @@
+ }
+ 
+ sub await_p ( $self, @values ) {
+-    return GPForum::Infrastructure::RequestPromise->new->controller($self)
+-      ->resolve(@values);
++    my $promise =
++      GPForum::Infrastructure::RequestPromise->new->controller($self);
++    if (   @values == 1
++        && blessed( $values[0] )
++        && $values[0]->isa('Mojo::Promise')
++        && $values[0]->AWAIT_IS_READY )
++    {
++        # A cache hit has no asynchronous boundary to restore. Keep it ready
++        # instead of manufacturing a relay and an extra event-loop turn.
++        my ( @ready, $error );
++        try { @ready = $values[0]->AWAIT_GET; }
++        catch ($caught) { $error = $caught; };
++        return defined $error
++          ? $promise->reject($error)
++          : $promise->resolve(@ready);
++    }
++    return $promise->resolve(@values);
+ }
+ 
+ sub call_p ( $self, $service, $method, @arguments ) {
+@@ -43,6 +59,9 @@
+               if $service->can($async);
+             my $abandoned = 0;
+             $self->tx->on( finish => sub { $abandoned = 1; return; } );
++            return $service->async_call_p( $method, \@arguments, $context,
++                sub { return $abandoned; } )
++              if $service->can('async_call_p');
+             return $self->async_work->service_result_p( $service, $method,
+                 \@arguments, $context, sub { return $abandoned; } );
+         }
+diff --git a/lib/GPForum/Infrastructure/AsyncGate.pm b/lib/GPForum/Infrastructure/AsyncGate.pm
+--- a/lib/GPForum/Infrastructure/AsyncGate.pm
++++ b/lib/GPForum/Infrastructure/AsyncGate.pm
+@@ -58,19 +58,37 @@
+         my $job = shift @{ $self->pending };
+         if ( defined $job->{timer} ) { Mojo::IOLoop->remove( $job->{timer} ); }
+         $self->active( $self->active + 1 );
+-        my $running =
+-          Mojo::Promise->resolve->then( sub { return $job->{work}->(); } );
+-        $running->then(
+-            sub (@values) { $job->{promise}->resolve(@values); return; },
+-            sub (@errors) { $job->{promise}->reject(@errors);  return; }
+-        )->finally(
+-            sub {
+-                $self->active( $self->active - 1 );
+-                $self->_pump;
+-                return;
+-            }
+-        );
++        $self->_start($job);
+     }
++    return;
++}
++
++sub _start ( $self, $job ) {
++    my ( $running, $error );
++    try { $running = Mojo::Promise->resolve( $job->{work}->() ); }
++    catch ($caught) { $error = $caught; };
++    if ( defined $error ) {
++
++        # Keep synchronous failures out of the admission pump's call stack.
++        # A queue of failing jobs must not recursively drain the whole queue.
++        Mojo::IOLoop->next_tick(
++            sub { $self->_complete( $job, 'reject', $error ); return; } );
++        return;
++    }
++    $running->then(
++        sub (@values) { $self->_complete( $job, 'resolve', @values ); return; },
++        sub (@errors) { $self->_complete( $job, 'reject',  @errors ); return; }
++    );
++    return;
++}
++
++sub _complete ( $self, $job, $status, @values ) {
++
++    # Consumers may immediately submit another query. Release capacity before
++    # their continuation runs, without a deferred finally chain retaining it.
++    $self->active( $self->active - 1 );
++    $self->_pump;
++    $job->{promise}->$status(@values);
+     return;
+ }
+ 
+diff --git a/lib/GPForum/Infrastructure/AsyncQuery.pm b/lib/GPForum/Infrastructure/AsyncQuery.pm
+--- a/lib/GPForum/Infrastructure/AsyncQuery.pm
++++ b/lib/GPForum/Infrastructure/AsyncQuery.pm
+@@ -3,7 +3,7 @@
+ 
+ package GPForum::Infrastructure::AsyncQuery;
+ 
+-use Mojo::Base -base, -signatures;
++use Mojo::Base -base, -async_await;
+ use v5.40;
+ use Mojo::Promise;
+ use English qw(-no_match_vars);
+@@ -102,42 +102,39 @@
+               : undef;
+             my $start = sub {
+                 $self->_owned;
+-                my $db;
+-                my $available =
+-                  @{ $self->idle }
+-                  ? Mojo::Promise->resolve( shift @{ $self->idle } )
+-                  : $self->_connect_p($context);
+-                my $failed     = 0;
+                 my $generation = $self->generation;
+-                return $available->then(
++                return $self->_run_leased_p( shift @{ $self->idle },
++                    $work, $stats, $context, $generation )
++                  if @{ $self->idle };
++                return $self->_connect_p($context)->then(
+                     sub ($leased) {
+-                        $db = $leased;
+-                        my $run = sub { return $work->($db); };
+-                        return $stats
+-                          ? $stats->in_context( $context, $run )
+-                          : $run->();
+-                    }
+-                )->catch(
+-                    sub ($error) {
+-                        $failed = 1;
+-                        die $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the promise rejection
+-                    }
+-                )->finally(
+-                    sub {
+-                        return if !$db;
+-                        if ( $failed || $generation != $self->generation ) {
+-                            @{ $self->connections } =
+-                              grep { $_ != $db } @{ $self->connections };
+-                        }
+-                        else { push @{ $self->idle }, $db; }
+-                        undef $db;
+-                        return;
++                        return $self->_run_leased_p( $leased, $work, $stats,
++                            $context, $generation );
+                     }
+                 );
+             };
+             return $stats ? $stats->in_context( $context, $start ) : $start->();
+         }
+     );
++}
++
++async sub _run_leased_p ( $self, $db, $work, $stats, $context, $generation ) {
++
++    # One completion owns lease cleanup on success, rejection and synchronous
++    # failure. Reusing an idle handle needs no intermediate promise chain.
++    my ( @values, $error );
++    try {
++        my $run     = sub { return $work->($db); };
++        my @pending = $stats ? $stats->in_context( $context, $run ) : $run->();
++        @values = await Mojo::Promise->resolve(@pending);
++    }
++    catch ($caught) { $error = $caught; };
++    if ( defined $error || $generation != $self->generation ) {
++        @{ $self->connections } = grep { $_ != $db } @{ $self->connections };
++    }
++    else { push @{ $self->idle }, $db; }
++    die $error if defined $error;    ## no critic (ErrorHandling::RequireCarping) -- preserve the original lease failure
++    return @values;
+ }
+ 
+ 1;
+diff --git a/lib/GPForum/Infrastructure/SqlFunction.pm b/lib/GPForum/Infrastructure/SqlFunction.pm
+--- a/lib/GPForum/Infrastructure/SqlFunction.pm
++++ b/lib/GPForum/Infrastructure/SqlFunction.pm
+@@ -6,7 +6,7 @@
+ use Carp qw(croak);
+ use Const::Fast;
+ use JSON::MaybeXS;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Id;
+@@ -101,73 +101,65 @@
+ # A separate checked-out Mojo::Pg connection per in-flight operation.
+ # Existing transactional workflows keep rows(); promises never borrow their
+ # handle or retry an ambiguous write after a connection failure.
+-sub rows_p ( $self, $name, $values, $context = undef ) {
++async sub rows_p ( $self, $name, $values, $context = undef ) {
+     my $storage = $self->schema->storage;
+     my $stats   = $storage->debug ? $storage->debugobj : undef;
+     $context //= $self->query_context;
+     if ($stats) { $context //= $stats->request_context; }
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            my $entry = $self->catalogue->function($name);
+-            my @bound = _bound( $entry, $values );
+-            return [] if _malformed_id( $entry, \@bound );
+-            my @parameters = map {
+-                $entry->{types}[$_] eq 'bytea'
+-                  ? { type => DBD::Pg::PG_BYTEA(), value => $bound[$_] }
+-                  : $bound[$_]
+-            } 0 .. $#bound;
+-            if ( !@parameters ) {
+-                $entry =
+-                  { %{$entry}, sql => $entry->{sql} . ' WHERE ?::boolean' };
+-                @parameters = (1);
++    my $entry = $self->catalogue->function($name);
++    my @bound = _bound( $entry, $values );
++    return [] if _malformed_id( $entry, \@bound );
++    my @parameters = map {
++        $entry->{types}[$_] eq 'bytea'
++          ? { type => DBD::Pg::PG_BYTEA(), value => $bound[$_] }
++          : $bound[$_]
++    } 0 .. $#bound;
++    if ( !@parameters ) {
++        $entry      = { %{$entry}, sql => $entry->{sql} . ' WHERE ?::boolean' };
++        @parameters = (1);
++    }
++    my $read = sub ($db) {
++        return $self->_read_rows_p( $db, $entry, \@parameters, $stats,
++            $context );
++    };
++    if ( $self->async_database ) {
++        return await $self->async_transaction->query_p(
++            sub {
++                return $stats
++                  ? $stats->in_context( $context,
++                    sub { return $read->( $self->async_database ); } )
++                  : $read->( $self->async_database );
+             }
+-            my $read = sub ($db) {
+-                if ($stats) { $stats->query_start( $entry->{sql} ); }
+-                return Mojo::Promise->resolve->then(
+-                    sub {
+-                        return $self->_query_p( $db, $entry, \@parameters );
+-                    }
+-                )->then(
+-                    sub ($result) {
+-                        my $rows = $result->hashes->to_array;
+-                        if ( %{ $entry->{json} } ) {
+-                            _decode_json( $entry, $rows );
+-                        }
+-                        return $rows;
+-                    }
+-                )->catch(
+-                    sub ($error) {
+-                        $self->_raise( $db->dbh->state, $error );
+-                    }
+-                )->finally(
+-                    sub {
+-                        if ($stats) {
+-                            $stats->in_context( $context,
+-                                sub { $stats->query_end; return; } );
+-                        }
+-                        return;
+-                    }
+-                );
+-            };
+-            if ( $self->async_database ) {
+-                return $self->async_transaction->query_p(
+-                    sub {
+-                        return $stats
+-                          ? $stats->in_context( $context,
+-                            sub { return $read->( $self->async_database ); } )
+-                          : $read->( $self->async_database );
+-                    }
+-                );
+-            }
+-            return GPForum::Infrastructure::AsyncQuery->for_schema(
+-                $self->schema )->run_p( $read, $context );
+-        }
+-    );
+-}
+-
+-sub row_p ( $self, $name, $values, $context = undef ) {
+-    return $self->rows_p( $name, $values, $context )
+-      ->then( sub ($rows) { return $rows->[0]; } );
++        );
++    }
++    return await GPForum::Infrastructure::AsyncQuery->for_schema(
++        $self->schema )->run_p( $read, $context );
++}
++
++async sub _read_rows_p ( $self, $db, $entry, $parameters, $stats, $context ) {
++
++    # Only the query needs to wait. Decode and finish its statistics in the
++    # same completion instead of adding several event-loop turns per query.
++    if ($stats) { $stats->query_start( $entry->{sql} ); }
++    my ( $rows, $error );
++    try {
++        my $result = await $self->_query_p( $db, $entry, $parameters );
++        $rows = $result->hashes->to_array;
++        if ( %{ $entry->{json} } ) { _decode_json( $entry, $rows ); }
++    }
++    catch ($caught) { $error = $caught; };
++    if ($stats) {
++        $stats->in_context( $context, sub { $stats->query_end; return; } );
++    }
++    if ( defined $error ) {
++        $self->_raise( $db->dbh->state, $error );
++    }
++    return $rows;
++}
++
++async sub row_p ( $self, $name, $values, $context = undef ) {
++    my $rows = await $self->rows_p( $name, $values, $context );
++    return $rows->[0];
+ }
+ 
+ sub transaction_p ( $self, $work, $context = undef, $readonly = 0 ) {
+diff --git a/lib/GPForum/Service/Admin/Configuration.pm b/lib/GPForum/Service/Admin/Configuration.pm
+--- a/lib/GPForum/Service/Admin/Configuration.pm
++++ b/lib/GPForum/Service/Admin/Configuration.pm
+@@ -7,9 +7,8 @@
+ use List::Util  qw(any);
+ use Digest::SHA qw(hmac_sha256_hex);
+ use JSON::MaybeXS;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+-use Mojo::Promise;
+ use GPForum::Config;
+ use Mojo::Util qw(encode decode);
+ use GPForum::X::Config;
+@@ -73,28 +72,26 @@
+     };
+ }
+ 
+-sub load_p ( $self, $context = undef ) {
+-    return Mojo::Promise->resolve->then( sub { return $self->load; } )
+-      if !$self->functions;
+-    return $self->functions->row_p( 'admin_configuration_state', {}, $context )
+-      ->then(
+-        sub ($row) {
+-            return {
+-                available          => $row ? 1 : 0,
+-                revision           => $row->{revision} // 0,
+-                public_cache_epoch => $row->{public_cache_epoch},
+-                settings => $row->{settings} // { plugins => {}, general => {} }
+-            };
+-        }
+-      )->catch(
+-        sub {
+-            return {
+-                available => 0,
+-                revision  => 0,
+-                settings  => { plugins => {}, general => {} }
+-            };
+-        }
+-      );
++async sub load_p ( $self, $context = undef ) {
++    return $self->load if !$self->functions;
++    my $row;
++    try {
++        $row = await $self->functions->row_p( 'admin_configuration_state', {},
++            $context );
++    }
++    catch ($error) {
++        return {
++            available => 0,
++            revision  => 0,
++            settings  => { plugins => {}, general => {} }
++        };
++    };
++    return {
++        available          => $row ? 1 : 0,
++        revision           => $row->{revision} // 0,
++        public_cache_epoch => $row->{public_cache_epoch},
++        settings => $row->{settings} // { plugins => {}, general => {} }
++    };
+ }
+ 
+ sub environment ($self) {
+diff --git a/lib/GPForum/Service/Forum/ViewerResolver.pm b/lib/GPForum/Service/Forum/ViewerResolver.pm
+--- a/lib/GPForum/Service/Forum/ViewerResolver.pm
++++ b/lib/GPForum/Service/Forum/ViewerResolver.pm
+@@ -5,9 +5,8 @@
+ 
+ use Const::Fast;
+ use JSON::MaybeXS qw(decode_json);
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+-use Mojo::Promise;
+ 
+ use GPForum::Infrastructure::CountedQuery;
+ use GPForum::Infrastructure::Id;
+@@ -74,24 +73,21 @@
+     return $self->viewer_from_row( $user_id, $row );
+ }
+ 
+-sub resolve_p ( $self, $user_id, $context = undef ) {
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return GPForum::Service::Forum::Viewer->from($user_id)
+-              if !GPForum::Infrastructure::Id->is_uuid($user_id);
+-            return $self->resolve($user_id) if !$self->functions;
+-            return $self->functions->row_p( 'forum_resolve_viewer',
+-                { user_id => $user_id }, $context )
+-              ->then(
+-                sub ($row) { return $self->viewer_from_row( $user_id, $row ); }
+-              );
+-        }
+-    )->catch(
+-        sub ($error) {
+-            $self->_warn("viewer resolution degraded: $error");
+-            return $self->viewer_from_row( $user_id, undef );
+-        }
+-    );
++async sub resolve_p ( $self, $user_id, $context = undef ) {
++    my ( $row, $viewer );
++    try {
++        return GPForum::Service::Forum::Viewer->from($user_id)
++          if !GPForum::Infrastructure::Id->is_uuid($user_id);
++        return $self->resolve($user_id) if !$self->functions;
++        $row = await $self->functions->row_p( 'forum_resolve_viewer',
++            { user_id => $user_id }, $context );
++        $viewer = $self->viewer_from_row( $user_id, $row );
++    }
++    catch ($error) {
++        $self->_warn("viewer resolution degraded: $error");
++        $viewer = $self->viewer_from_row( $user_id, undef );
++    };
++    return $viewer;
+ }
+ 
+ # The viewer an account's row describes -- status, suspended, listed,
+diff --git a/lib/GPForum/Service/Identity/SessionStore.pm b/lib/GPForum/Service/Identity/SessionStore.pm
+--- a/lib/GPForum/Service/Identity/SessionStore.pm
++++ b/lib/GPForum/Service/Identity/SessionStore.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Identity::SessionStore;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ use Mojo::Promise;
+ 
+@@ -146,42 +146,31 @@
+ # ADR 0148: which of these sessions are live -- not revoked, not past their
+ # expiry -- as a set, in one call. An id that is not a uuid names no
+ # session.
+-sub validate_session_p ( $self, $input, $context = undef ) {
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return { ok => 0, error => 'not_found' }
+-              if !has_text( $input->{session_id} )
+-              || !has_text( $input->{user_id} );
+-            return $self->validate_session($input) if !$self->functions;
+-            my $presented = $input->{session_token};
+-            return $self->functions->row_p(
+-                'session_validate',
+-                {
+-                    session_id => $input->{session_id},
+-                    user_id    => $input->{user_id},
+-                    token_hash => has_text($presented)
+-                    ? $self->session_tokens->hash_token($presented)
+-                    : undef,
+-                    now                    => $self->clock->now_iso8601,
+-                    touch_interval_seconds =>
+-                      $self->session_touch_interval_seconds,
+-                },
+-                $context
+-            )->then(
+-                sub ($row) {
+-                    return { ok => 0, error => 'not_found' } if !$row;
+-                    my $code = delete $row->{result_code};
+-                    return { ok => 0, error => $code }
+-                      if $code ne 'ok' && $code ne 'expired';
+-                    my $session =
+-                      GPForum::Infrastructure::ResultRow->from($row);
+-                    return { ok => 0, error => 'expired', session => $session }
+-                      if $code eq 'expired';
+-                    return { ok => 1, session => $session };
+-                }
+-            );
+-        }
+-    );
++async sub validate_session_p ( $self, $input, $context = undef ) {
++    return { ok => 0, error => 'not_found' }
++      if !has_text( $input->{session_id} ) || !has_text( $input->{user_id} );
++    return $self->validate_session($input) if !$self->functions;
++    my $presented = $input->{session_token};
++    my $row       = await $self->functions->row_p(
++        'session_validate',
++        {
++            session_id => $input->{session_id},
++            user_id    => $input->{user_id},
++            token_hash => has_text($presented)
++            ? $self->session_tokens->hash_token($presented)
++            : undef,
++            now                    => $self->clock->now_iso8601,
++            touch_interval_seconds => $self->session_touch_interval_seconds,
++        },
++        $context
++    );
++    return { ok => 0, error => 'not_found' } if !$row;
++    my $code = delete $row->{result_code};
++    return { ok => 0, error => $code } if $code ne 'ok' && $code ne 'expired';
++    my $session = GPForum::Infrastructure::ResultRow->from($row);
++    return { ok => 0, error => 'expired', session => $session }
++      if $code eq 'expired';
++    return { ok => 1, session => $session };
+ }
+ 
+ sub live_session_ids_p ( $self, $session_ids, $context = undef ) {
+diff --git a/lib/GPForum/Service/Forum/PostReader.pm b/lib/GPForum/Service/Forum/PostReader.pm
+--- a/lib/GPForum/Service/Forum/PostReader.pm
++++ b/lib/GPForum/Service/Forum/PostReader.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Forum::PostReader;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Keyset;
+@@ -67,28 +67,18 @@
+ 
+ # The page's posts from the function, as plain rows read like the
+ # resultset's.
+-sub list_thread_posts_p ( $self, $request, $context = undef ) {
++async sub list_thread_posts_p ( $self, $request, $context = undef ) {
+     $request =
+       { %{$request}, query_context => $request->{query_context} // $context };
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return $self->list_thread_posts($request) if !$self->functions;
+-            my $plan = $self->_plan($request);
+-            return $self->functions->rows_p(
+-                @{ $self->thread_posts_call( $request, $plan ) },
+-                $request->{query_context} )->then(
+-                sub ($rows) {
+-                    my $posts = [
+-                        map {
+-                            GPForum::Infrastructure::ResultRow::Post->from($_)
+-                        } @{$rows}
+-                    ];
+-                    return $self->page_window->page( $posts, $plan->{limit},
+-                        [ 'position', 'post_id' ] );
+-                }
+-                );
+-        }
+-    );
++    return $self->list_thread_posts($request) if !$self->functions;
++    my $plan = $self->_plan($request);
++    my $rows = await $self->functions->rows_p(
++        @{ $self->thread_posts_call( $request, $plan ) },
++        $request->{query_context} );
++    my $posts =
++      [ map { GPForum::Infrastructure::ResultRow::Post->from($_) } @{$rows} ];
++    return $self->page_window->page( $posts, $plan->{limit},
++        [ 'position', 'post_id' ] );
+ }
+ 
+ sub find_listed_post_p ( $self, $request, $context = undef ) {
+@@ -317,6 +307,17 @@
+ 
+ # A post, if it and its thread are visible and the viewer can read them: its
+ # space, category, thread and the post itself (ADR 0102).
++async sub find_visible_post_p ( $self, $post_id, $viewer = undef,
++    $context = undef )
++{
++    return $self->find_visible_post( $post_id, $viewer ) if !$self->functions;
++    return undef if !defined $post_id || !length $post_id;
++    my $row = await $self->functions->row_p( 'forum_find_visible_post',
++        { post_id => $post_id }, $context );
++    return _visible_to( GPForum::Infrastructure::ResultRow::Post->from($row),
++        $viewer );
++}
++
+ sub find_visible_post ( $self, $post_id, $viewer = undef ) {
+     return undef if !defined $post_id || !length $post_id;
+ 
+@@ -418,6 +419,16 @@
+     return;
+ }
+ 
++async sub find_post_p ( $self, $post_id, $context = undef ) {
++    return $self->find_post($post_id) if !$self->functions;
++    return undef                      if !defined $post_id || !length $post_id;
++    return GPForum::Infrastructure::ResultRow::Post->from(
++        await $self->functions->row_p(
++            'forum_find_post', { post_id => $post_id }, $context
++        )
++    );
++}
++
+ sub find_post ( $self, $post_id ) {
+     if ( !defined $post_id || !length $post_id ) {
+         return undef;
+@@ -549,6 +560,15 @@
+ Takes a post id. Returns the post row whatever its state, or undef for an
+ empty id or no row.
+ 
++=head2 find_visible_post_p
++
++Promise form of C<find_visible_post>, preserving the same visibility rules
++without an isolated database workflow.
++
++=head2 find_post_p
++
++Promise form of C<find_post> through the native PostgreSQL transport.
++
+ =head2 list_thread_posts_p
+ 
+ Returns the same visible, ordered post page as list_thread_posts through native asynchronous PostgreSQL calls.
+diff --git a/lib/GPForum/Service/Forum/ThreadPageReads.pm b/lib/GPForum/Service/Forum/ThreadPageReads.pm
+--- a/lib/GPForum/Service/Forum/ThreadPageReads.pm
++++ b/lib/GPForum/Service/Forum/ThreadPageReads.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Forum::ThreadPageReads;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Id;
+@@ -123,30 +123,25 @@
+ #
+ # Takes the page as the detail reader gave it, the thread id as the request
+ # names it (the read state is keyed by that one), and the viewer's user id.
+-sub answers_p ( $self, $input, $context = undef ) {
++async sub answers_p ( $self, $input, $context = undef ) {
+     $input =
+       { %{$input}, query_context => $input->{query_context} // $context };
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            my $page = $input->{page};
+-            my %read = (
+-                omit_thread => $input->{omit_thread},
+-                posts       => [ _post_ids($page) ],
+-                thread      => _column( $page->{thread}, 'thread_id' ),
+-                thread_id   => $input->{thread_id},
+-                viewer      => has_text( $input->{viewer_user_id} )
+-                ? $input->{viewer_user_id}
+-                : undef,
+-            );
+-            my $calls     = $self->_calls( \%read )   or return {};
+-            my $values    = _values( \%read, $calls ) or return {};
+-            my $functions = $self->functions          or return {};
+-            return $functions->rows_p( 'forum_thread_page_reads', $values,
+-                $input->{query_context} )
+-              ->then(
+-                sub ($rows) { return _answers( $functions, $calls, $rows ); } );
+-        }
++    my $page = $input->{page};
++    my %read = (
++        omit_thread => $input->{omit_thread},
++        posts       => [ _post_ids($page) ],
++        thread      => _column( $page->{thread}, 'thread_id' ),
++        thread_id   => $input->{thread_id},
++        viewer      => has_text( $input->{viewer_user_id} )
++        ? $input->{viewer_user_id}
++        : undef,
+     );
++    my $calls     = $self->_calls( \%read )   or return {};
++    my $values    = _values( \%read, $calls ) or return {};
++    my $functions = $self->functions          or return {};
++    my $rows = await $functions->rows_p( 'forum_thread_page_reads', $values,
++        $input->{query_context} );
++    return _answers( $functions, $calls, $rows );
+ }
+ 
+ sub individual_answers_p ( $self, $input, $context = undef ) {
+diff --git a/lib/GPForum/Service/Forum/ThreadDetailReader.pm b/lib/GPForum/Service/Forum/ThreadDetailReader.pm
+--- a/lib/GPForum/Service/Forum/ThreadDetailReader.pm
++++ b/lib/GPForum/Service/Forum/ThreadDetailReader.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Forum::ThreadDetailReader;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::PreparedQuery;
+@@ -16,7 +16,6 @@
+ use GPForum::Service::Forum::PostReader;
+ use GPForum::Service::Forum::PageWindow;
+ use GPForum::Infrastructure::Id;
+-use Mojo::Promise;
+ 
+ our $VERSION = '0.001';
+ 
+@@ -48,6 +47,17 @@
+     my $row = $self->find_thread_row($thread_id);
+ 
+     return $self->visible_thread_row( $row, $viewer );
++}
++
++async sub find_thread_p ( $self, $thread_id, $viewer = undef, $context = undef )
++{
++    return $self->find_thread( $thread_id, $viewer ) if !$self->functions;
++    return undef if !defined $thread_id || !length $thread_id;
++    my $row =
++      await $self->functions->row_p( @{ $self->thread_row_call($thread_id) },
++        $context );
++    return $self->visible_thread_row(
++        GPForum::Infrastructure::ResultRow::Thread->from($row), $viewer );
+ }
+ 
+ # Apply the reader's visibility rules to an already loaded head. A combined
+@@ -128,76 +138,49 @@
+     };
+ }
+ 
+-sub thread_page_p ( $self, $request, $context = undef ) {
++async sub thread_page_p ( $self, $request, $context = undef ) {
+     $request =
+       { %{$request}, query_context => $request->{query_context} // $context };
+-    return Mojo::Promise->resolve->then(
+-        sub {
+-            return $self->thread_page($request) if !$self->functions;
+-            my $viewer =
+-              $request->{viewer} || GPForum::Service::Forum::Viewer->anonymous;
+-            return $self->functions->row_p(
+-                @{ $self->thread_row_call( $request->{thread_id} ) },
+-                $request->{query_context} )->then(
+-                sub ($row) {
+-                    my $thread = $self->visible_thread_row(
+-                        GPForum::Infrastructure::ResultRow::Thread->from($row),
+-                        $viewer
+-                    );
+-                    return { ok => 0, error => 'not_found' } if !$thread;
+-                    my $scope  = $self->post_scope( $viewer, $thread );
+-                    my $target = Mojo::Promise->resolve(undef);
+-                    if ( defined $request->{post} && length $request->{post} ) {
+-                        return { ok => 0, error => 'not_found' }
+-                          if !GPForum::Infrastructure::Id->is_uuid(
+-                            $request->{post} );
+-                        $target = $self->post_reader->find_listed_post_p(
+-                            {
+-                                post_id        => $request->{post},
+-                                thread_id      => $request->{thread_id},
+-                                viewer_user_id => $viewer->user_id,
+-                                viewer_scope   => $scope,
+-                                query_context  => $request->{query_context}
+-                            }
+-                        );
+-                    }
+-                    return $target->then(
+-                        sub ($post) {
+-                            return { ok => 0, error => 'not_found' }
+-                              if defined $request->{post}
+-                              && length $request->{post}
+-                              && !$post;
+-                            my $at =
+-                                $post
+-                              ? $post->get_column('position')
+-                              : $request->{at};
+-                            return $self->post_reader->list_thread_posts_p(
+-                                {
+-                                    thread_id => $request->{thread_id},
+-                                    limit     => $request->{limit}
+-                                      || $DEFAULT_POST_LIMIT,
+-                                    after => GPForum::Service::Forum::PageWindow
+-                                      ->cursor_at_position(
+-                                        $at) // $request->{after},
+-                                    viewer_user_id => $viewer->user_id,
+-                                    viewer_scope   => $scope,
+-                                    query_context  => $request->{query_context}
+-                                }
+-                            )->then(
+-                                sub ($posts) {
+-                                    return {
+-                                        ok     => 1,
+-                                        thread => $thread,
+-                                        posts  => $posts
+-                                    };
+-                                }
+-                            );
+-                        }
+-                    );
+-                }
+-                );
++    return $self->thread_page($request) if !$self->functions;
++    my $viewer = $request->{viewer}
++      || GPForum::Service::Forum::Viewer->anonymous;
++    my $row = await $self->functions->row_p(
++        @{ $self->thread_row_call( $request->{thread_id} ) },
++        $request->{query_context} );
++    my $thread = $self->visible_thread_row(
++        GPForum::Infrastructure::ResultRow::Thread->from($row), $viewer );
++    return { ok => 0, error => 'not_found' } if !$thread;
++    my $scope = $self->post_scope( $viewer, $thread );
++    my $at    = $request->{at};
++
++    if ( defined $request->{post} && length $request->{post} ) {
++        return { ok => 0, error => 'not_found' }
++          if !GPForum::Infrastructure::Id->is_uuid( $request->{post} );
++        my $post = await $self->post_reader->find_listed_post_p(
++            {
++                post_id        => $request->{post},
++                thread_id      => $request->{thread_id},
++                viewer_user_id => $viewer->user_id,
++                viewer_scope   => $scope,
++                query_context  => $request->{query_context}
++            }
++        );
++        return { ok => 0, error => 'not_found' } if !$post;
++        $at = $post->get_column('position');
++    }
++    my $posts = await $self->post_reader->list_thread_posts_p(
++        {
++            thread_id => $request->{thread_id},
++            limit     => $request->{limit} || $DEFAULT_POST_LIMIT,
++            after     =>
++              GPForum::Service::Forum::PageWindow->cursor_at_position($at)
++              // $request->{after},
++            viewer_user_id => $viewer->user_id,
++            viewer_scope   => $scope,
++            query_context  => $request->{query_context}
+         }
+     );
++    return { ok => 1, thread => $thread, posts => $posts };
+ }
+ 
+ sub thread_page ( $self, $request ) {
+@@ -373,6 +356,11 @@
+ reader). Returns the thread row from L</find_thread_row> when the viewer may
+ read it, otherwise C<undef>.
+ 
++=head2 find_thread_p
++
++Promise form of C<find_thread>, with the same visibility checks and native
++asynchronous PostgreSQL transport.
++
+ =head2 thread_row_call
+ 
+ The call C<find_thread_row> makes on PostgreSQL, for the query-plan
+diff --git a/t/870-nonblocking-runtime.t b/t/870-nonblocking-runtime.t
+--- a/t/870-nonblocking-runtime.t
++++ b/t/870-nonblocking-runtime.t
+@@ -13,12 +13,14 @@
+ use Mojolicious;
+ use Test::Mojo;
+ use Test::More;
+-use Time::HiRes qw(sleep);
++use Time::HiRes  qw(sleep);
++use Scalar::Util qw(refaddr);
+ use lib 'lib', 't/lib';
+ use GPForum::Controller::Base;
+ use GPForum::Infrastructure::AsyncGate;
+ use GPForum::Infrastructure::AsyncWork;
+ use GPForum::Log;
++use GPForum::X::Unavailable;
+ use GPForum::Service::Attachment::PostgresAsset;
+ use GPForum::Web::MediaResponse;
+ use GPForum::Test::AsyncChunkStorage;
+@@ -98,6 +100,74 @@
+         'a disconnected queued request starts no subprocess'
+     );
+   };
++
++subtest 'completed operations release capacity before consumers resume' => sub {
++    my $gate = GPForum::Infrastructure::AsyncGate->new( concurrency => 1 );
++    my $result;
++    $gate->run_p( sub { return Mojo::Promise->resolve('ready'); } )->then(
++        sub ($value) {
++            $result = $value;
++            is( $gate->active, 0, 'success has no occupied admission slot' );
++            return;
++        }
++    )->wait;
++    is( $result, 'ready', 'successful value survives admission' );
++    $gate->run_p( sub { croak 'expected early failure'; } )->catch(
++        sub ($error) {
++            like(
++                "$error",
++                qr/expected[ ]early[ ]failure/msx,
++                'original failure is preserved'
++            );
++            is( $gate->active, 0, 'failure has no occupied admission slot' );
++            return;
++        }
++    )->wait;
++    my @values;
++    $gate->run_p( sub { return ( 'first', 'second' ); } )
++      ->then( sub (@items) { @values = @items; return; } )
++      ->wait;
++    is_deeply(
++        \@values,
++        [ 'first', 'second' ],
++        'synchronous list results survive admission'
++    );
++};
++
++subtest 'already completed service results do not suspend cached reads' => sub {
++    my $controller = GPForum::Controller::Base->new;
++    my $ready =
++      $controller->await_p( Mojo::Promise->resolve( 'first', 'second' ) );
++    ok( $ready->AWAIT_IS_READY,
++        'a completed value remains immediately awaitable' );
++    is_deeply(
++        [ $ready->AWAIT_GET ],
++        [ 'first', 'second' ],
++        'list results are preserved'
++    );
++    my $empty = $controller->await_p( Mojo::Promise->resolve );
++    ok( $empty->AWAIT_IS_READY,
++        'an empty result remains immediately awaitable' );
++    is_deeply( [ $empty->AWAIT_GET ], [], 'empty lists are preserved' );
++    my $failure  = GPForum::X::Unavailable->new( message => 'ready failure' );
++    my $rejected = $controller->await_p( Mojo::Promise->reject($failure) );
++    ok( $rejected->AWAIT_IS_READY,
++        'a completed failure remains immediately awaitable' );
++    my $caught;
++    try { $rejected->AWAIT_GET; } catch ($error) {
++        $caught = $error;
++    };
++    is( refaddr($caught), refaddr($failure),
++        'typed failures keep their identity' );
++    my $pending = Mojo::Promise->new;
++    my $waiting = $controller->await_p($pending);
++    ok( !$waiting->AWAIT_IS_READY, 'pending work still suspends' );
++    my $value;
++    my $finished = $waiting->then( sub ($item) { $value = $item; return; } );
++    $pending->resolve('later');
++    $finished->wait;
++    is( $value, 'later', 'pending work still resumes normally' );
++};
+ 
+ subtest 'a slow subprocess leaves the HTTP event loop responsive' => sub {
+     my $work   = GPForum::Infrastructure::AsyncWork->new;
+diff --git a/lib/GPForum/Service/Community/Workflow.pm b/lib/GPForum/Service/Community/Workflow.pm
+--- a/lib/GPForum/Service/Community/Workflow.pm
++++ b/lib/GPForum/Service/Community/Workflow.pm
+@@ -4,10 +4,12 @@
+ package GPForum::Service::Community::Workflow;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Text qw(trimmed);
++use GPForum::Infrastructure::AsyncWork;
++use GPForum::Log;
+ use GPForum::Service::Operations::CommandIdempotency;
+ use GPForum::Service::WorkflowResult
+   qw(log_error missing_command_id workflow_result);
+@@ -18,6 +20,9 @@
+ 
+ const my $REPORT_DETAILS_MAX => 2_000;
+ const my $REPORT_REASON_MAX  => 80;
++const my %NATIVE_METHOD => map { $_ => 1 }
++  qw(save_bookmark remove_bookmark like_post unlike_post react_post unreact_post
++  save_subscription mute_subscription revoke_subscription);
+ const my %PUBLIC_FIELDS => (
+     bookmark => [
+         qw(bookmark_id created_at deleted_at note ok target_id target_type user_id)
+@@ -78,11 +83,15 @@
+     return $self->_commanded_op(
+         {
+             command_type => 'community.bookmark_remove',
++            function     => 'community_target_command',
+             input        => $input,
+             kind         => 'bookmark',
+             not_found    => 'bookmark not found',
+             request      => _target_request($input),
+-            run          => sub {
++            row          => sub {
++                return _target_command_row( $input, $self->bookmark_store );
++            },
++            run => sub {
+                 return $self->bookmark_store->remove_for_user_target(
+                     _target_write($input) );
+             },
+@@ -188,11 +197,15 @@
+     return $self->_commanded_op(
+         {
+             command_type => 'community.subscription_mute',
++            function     => 'community_target_command',
+             input        => $input,
+             kind         => 'subscription',
+             not_found    => 'subscription not found',
+             request      => _target_request($input),
+-            run          => sub {
++            row          => sub {
++                return _target_command_row( $input, $self->subscription_store );
++            },
++            run => sub {
+                 return $self->subscription_store->mute_for_user_target(
+                     _target_write($input) );
+             },
+@@ -204,11 +217,15 @@
+     return $self->_commanded_op(
+         {
+             command_type => 'community.unsubscribe',
++            function     => 'community_target_command',
+             input        => $input,
+             kind         => 'subscription',
+             not_found    => 'subscription not found',
+             request      => _target_request($input),
+-            run          => sub {
++            row          => sub {
++                return _target_command_row( $input, $self->subscription_store );
++            },
++            run => sub {
+                 return $self->subscription_store->revoke_for_user_target(
+                     _target_write($input) );
+             },
+@@ -265,6 +282,7 @@
+ # reason, is not found; any other answer is reduced to the public fields of
+ # its kind. Without a command log the write just runs.
+ sub _commanded_op ( $self, $job ) {
++    return $job if $self->{native_plan};
+     my $invalid = missing_command_id( $job->{input} );
+     if ($invalid) {
+         return $invalid;
+@@ -339,6 +357,57 @@
+         log_error( $self->logger, "community command failed: $error" );
+         return _failed_result();
+     };
++    return _commanded_result($row);
++}
++
++async sub async_call_p (
++    $self, $method, $arguments,
++    $context = undef,
++    $cancelled = undef
++  )
++{
++    return await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
++        $self, $method, $arguments, $context, $cancelled )
++      if !exists $NATIVE_METHOD{$method}
++      || @{$arguments} != 1
++      || !$self->functions
++      || !_call_layer( $self->command_idempotency );
++    my $job;
++    {
++        # Capture the existing pure-data command description. This scope ends
++        # before any asynchronous I/O; concurrent requests never share a mode.
++        local $self->{native_plan} = 1;    ## no critic (Variables::ProhibitLocalVars) -- synchronous command description only
++        $job = $self->$method( @{$arguments} );
++    }
++    my $invalid = missing_command_id( $job->{input} );
++    return $invalid if $invalid;
++    my $log_context = GPForum::Log->request_context;
++    my $row;
++    try {
++        $row = await $self->functions->row_p(
++            $job->{function},
++            {
++                log    => $self->_command_log($job),
++                answer => undef,
++                row    => $job->{row}->(),
++            },
++            $context
++        );
++    }
++    catch ($error) {
++        GPForum::Log->in_context(
++            $log_context,
++            sub {
++                log_error( $self->logger, "community command failed: $error" );
++                return;
++            }
++        );
++        return _failed_result();
++    };
++    return _commanded_result($row);
++}
++
++sub _commanded_result ($row) {
+     my $outcome = $row->{outcome} // q{};
+     return $row->{response}
+       if $outcome eq 'recorded' || $outcome eq 'replayed';
+@@ -427,6 +496,15 @@
+     };
+ }
+ 
++sub _target_command_row ( $input, $store ) {
++    return {
++        user_id     => _nullable( $input->{user_id} ),
++        target_type => $input->{target_type},
++        target_id   => _nullable( $input->{target_id} ),
++        stamped_at  => $store->clock->now_iso8601,
++    };
++}
++
+ sub _report_request ($input) {
+     return {
+         details          => trimmed( $input->{details} ),
+@@ -484,6 +562,12 @@
+ 
+ =head1 SUBROUTINES/METHODS
+ 
++=head2 async_call_p
++
++Dispatch atomic bookmark, like, reaction and subscription commands through native
++PostgreSQL promises, preserving their command log and replay responses. Other
++operations retain the isolated workflow executor and cancellation checks.
++
+ =head2 save_bookmark
+ 
+ Saves or restores a thread bookmark for the member.
+diff --git a/lib/GPForum/Service/Forum/ReadWorkflow.pm b/lib/GPForum/Service/Forum/ReadWorkflow.pm
+--- a/lib/GPForum/Service/Forum/ReadWorkflow.pm
++++ b/lib/GPForum/Service/Forum/ReadWorkflow.pm
+@@ -4,10 +4,12 @@
+ package GPForum::Service::Forum::ReadWorkflow;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Text qw(trimmed);
++use GPForum::Infrastructure::AsyncWork;
++use GPForum::Log;
+ use GPForum::Service::Operations::CommandIdempotency;
+ use GPForum::Service::WorkflowResult
+   qw(log_error missing_command_id workflow_result);
+@@ -84,6 +86,50 @@
+ # The command log's row as CommandIdempotency writes it, with the ids and
+ # the time drawn in its order: the command's id, its correlation id, its
+ # time.
++async sub async_call_p (
++    $self, $method, $arguments,
++    $context = undef,
++    $cancelled = undef
++  )
++{
++    return await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
++        $self, $method, $arguments, $context, $cancelled )
++      if $method ne 'mark_thread_read'
++      || @{$arguments} != 1
++      || !$self->functions
++      || !_call_layer( $self->command_idempotency );
++    my $input   = $arguments->[0];
++    my $invalid = missing_command_id($input);
++    return $invalid if $invalid;
++    my $log_context = GPForum::Log->request_context;
++    my $request     = _mark_request($input);
++    my $answer      = $self->read_state->invalid_mark($request);
++    my $row;
++    try {
++        $row = await $self->functions->row_p(
++            'forum_read_marker_command',
++            {
++                log    => $self->_command_log( $input, $request ),
++                answer => $answer,
++                row => $answer ? undef : $self->read_state->mark_row($request),
++            },
++            $context
++        );
++    }
++    catch ($error) {
++        GPForum::Log->in_context(
++            $log_context,
++            sub {
++                log_error( $self->logger,
++                    "forum read marker command failed: $error" );
++                return;
++            }
++        );
++        return _failed_result();
++    };
++    return _commanded_result($row);
++}
++
+ sub _command_log ( $self, $input, $request ) {
+     my $log = $self->command_idempotency;
+     return {
+@@ -234,6 +280,12 @@
+ throws L<GPForum::X::Argument>. C<command_idempotency> and C<logger> are
+ optional.
+ 
++=head2 async_call_p
++
++Dispatch the atomic read-marker command through a native PostgreSQL promise,
++preserving idempotency and validation. Other operations retain the isolated
++workflow executor and cancellation checks.
++
+ =head2 mark_thread_read
+ 
+ Upserts the viewer's last-read position. Replay returns the recorded result
+diff --git a/lib/GPForum/Service/Forum/PostingWorkflow.pm b/lib/GPForum/Service/Forum/PostingWorkflow.pm
+--- a/lib/GPForum/Service/Forum/PostingWorkflow.pm
++++ b/lib/GPForum/Service/Forum/PostingWorkflow.pm
+@@ -15,6 +15,7 @@
+ use GPForum::Infrastructure::SqlFunction;
+ use GPForum::Infrastructure::Text qw(trimmed);
+ use GPForum::Service::Forum::PostingCommand;
++use GPForum::Service::Forum::PostingNative;
+ use GPForum::Service::Operations::CommandIdempotency;
+ use GPForum::Service::Forum::Viewer;
+ use GPForum::Service::Forum::Visibility;
+@@ -85,6 +86,16 @@
+         sub ($screened) { return $self->_write_thread($screened); } );
+ }
+ 
++sub async_call_p (
++    $self, $method, $arguments,
++    $context = undef,
++    $cancelled = undef
++  )
++{
++    return GPForum::Service::Forum::PostingNative->new( workflow => $self )
++      ->call_p( $method, $arguments, $context, $cancelled );
++}
++
+ sub create_reply ( $self, $input ) {
+     return $self->_screened( $REPLY, $input,
+         sub ($screened) { return $self->_write_reply($screened); } );
+@@ -310,15 +321,17 @@
+ 
+     my $result;
+     try {
++        return {
++            native_kind => 'reply',
++            type        => $REPLY,
++            call        => $call,
++            prepared    => $prepared
++          }
++          if $self->{native_plan};
+         $result = $self->_reply_called( $functions, $call, $prepared );
+     }
+     catch ($error) {
+-        if ( "$error" =~ $STORE_FUNCTION ) {
+-            $self->_log( error => "reply create failed: $error" );
+-            return _result( status => 'failed', error => 'post store failed' );
+-        }
+-        $self->_log( error => "command log failed: $error" );
+-        return _result( status => 'failed', error => 'command log failed' );
++        return $self->_function_failure( $REPLY, $error );
+     };
+ 
+     return $result;
+@@ -768,34 +781,16 @@
+         $self->_log( error => "command log failed: $error" );
+         return _result( status => 'failed', error => 'command log failed' );
+     };
++    return {
++        native_kind => 'write',
++        type        => $type,
++        call        => $call,
++        prepared    => $prepared
++      }
++      if $self->{native_plan};
+     my $execute = sub {
+-        my $row     = $self->functions->row( 'forum_write_command', $call );
+-        my $outcome = $row->{outcome} // q{};
+-        return $self->codec->replay( $type, $row->{response} )
+-          if $outcome eq 'replayed';
+-        return _result(
+-            status => 'conflict',
+-            error  =>
+-              GPForum::Service::Operations::CommandIdempotency->refusal_error(
+-                $outcome)
+-        ) if $outcome ne 'recorded';
+-        my $response = $row->{response};
+-        return _result( status => 'invalid', prepared => $prepared )
+-          if $response->{status} eq 'invalid';
+-        return _result(
+-            status => $response->{status},
+-            error  => $response->{error}
+-        ) if !$response->{ok};
+-        my $stored =
+-          $self->_function_store($type)->function_answer( $row->{stored} );
+-        my $result =
+-          _result( status => 'ok', stored => $stored, prepared => $prepared );
+-        my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
+-
+-        if ($mentions) {
+-            $self->_record_post_mentions( $stored, $call->{command} );
+-        }
+-        return $result;
++        my $row = $self->functions->row( 'forum_write_command', $call );
++        return $self->_write_result( $type, $call, $prepared, $row );
+     };
+     my $result;
+     try {
+@@ -809,15 +804,56 @@
+           : $self->_function_store($type)->schema->txn_do($execute);
+     }
+     catch ($error) {
+-        my ( $noun, undef, $label ) = @{ $STORE{$type} };
+-        if ( "$error" =~ /\bapi[.]core_forum_\w+_v1\b/msx ) {
+-            $self->_log( error => "$label failed: $error" );
+-            return _result( status => 'failed', error => "$noun store failed" );
+-        }
+-        $self->_log( error => "command log failed: $error" );
+-        return _result( status => 'failed', error => 'command log failed' );
++        return $self->_function_failure( $type, $error );
+     };
+     return $result;
++}
++
++sub _write_result ( $self, $type, $call, $prepared, $row ) {
++    my $outcome = $row->{outcome} // q{};
++    return $self->codec->replay( $type, $row->{response} )
++      if $outcome eq 'replayed';
++    return _result(
++        status => 'conflict',
++        error  =>
++          GPForum::Service::Operations::CommandIdempotency->refusal_error(
++            $outcome)
++    ) if $outcome ne 'recorded';
++    my $response = $row->{response};
++    return _result( status => 'invalid', prepared => $prepared )
++      if $response->{status} eq 'invalid';
++    return _result(
++        status => $response->{status},
++        error  => $response->{error}
++    ) if !$response->{ok};
++    my $stored =
++      $self->_function_store($type)->function_answer( $row->{stored} );
++    my $result =
++      _result( status => 'ok', stored => $stored, prepared => $prepared );
++    my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
++
++    if ($mentions) {
++        $self->_record_post_mentions( $stored, $call->{command} );
++    }
++    return $result;
++}
++
++sub _function_failure ( $self, $type, $error ) {
++    my $store_error =
++      $type eq $REPLY
++      ? "$error" =~ $STORE_FUNCTION
++      : "$error" =~ /\bapi[.]core_forum_\w+_v1\b/msx;
++    if ($store_error) {
++        my ( $noun, undef, $label ) = @{ $STORE{$type} };
++        $self->_log( error => "$label failed: $error" );
++        return _result( status => 'failed', error => "$noun store failed" );
++    }
++    return $self->_command_log_failure($error);
++}
++
++sub _command_log_failure ( $self, $error ) {
++    $self->_log( error => "command log failed: $error" );
++    return _result( status => 'failed', error => 'command log failed' );
+ }
+ 
+ sub _function_store ( $self, $type ) {
+@@ -1155,6 +1191,12 @@
+ and a block answers C<invalid> with an C<automod> member naming the field
+ and what matched.
+ 
++=head2 async_call_p
++
++Use native PostgreSQL commands with isolated data-only preparation. Moderation
++and mention workflows that require extended transactions retain their complete
++isolated executor.
++
+ =head2 create_thread
+ 
+ Takes C<category_id>, C<title>, C<body_source> and an optional
+diff --git a/lib/GPForum/Service/Forum/PostingNative.pm b/lib/GPForum/Service/Forum/PostingNative.pm
+new file mode 100644
+--- /dev/null
++++ b/lib/GPForum/Service/Forum/PostingNative.pm
+@@ -0,0 +1,272 @@
++# SPDX-FileCopyrightText: 2026 GPForum Contributors
++# SPDX-License-Identifier: BSD-3-Clause
++package GPForum::Service::Forum::PostingNative;
++
++use Mojo::Base 'GPForum::Base', -async_await;
++use v5.40;
++use Const::Fast;
++use JSON::MaybeXS;
++use GPForum::Infrastructure::AsyncWork;
++use GPForum::Infrastructure::SqlFunction;
++use GPForum::Infrastructure::PgStorage;
++use GPForum::Infrastructure::Id;
++use GPForum::Infrastructure::Text qw(trimmed);
++use GPForum::Log;
++use Scalar::Util qw(refaddr);
++use English      qw(-no_match_vars);
++
++our $VERSION = '0.001';
++const my %METHOD => (
++    create_thread  => 'thread.create',
++    create_reply   => 'reply.create',
++    edit_thread    => 'thread.edit',
++    move_thread    => 'thread.move',
++    delete_thread  => 'thread.delete',
++    restore_thread => 'thread.restore',
++    edit_post      => 'post.edit',
++    delete_post    => 'post.delete',
++    restore_post   => 'post.restore',
++);
++const my %BODY_PREPARATION => map { $_ => 1 }
++  qw(thread.create reply.create post.edit);
++__PACKAGE__->requires('workflow');
++my $JSON = JSON::MaybeXS->new( utf8 => 0 );
++
++async sub call_p ( $self, $method, $arguments, $context, $cancelled ) {
++    my $workflow = $self->workflow;
++    my $type     = exists $METHOD{$method} ? $METHOD{$method} : undef;
++    return await $self->_fallback_p( $method, $arguments, $context, $cancelled )
++      if !$type
++      || @{$arguments} != 1
++      || !$workflow->functions
++      || !$self->_same_schema;
++    my $input = $arguments->[0];
++    return await $self->_fallback_p( $method, $arguments, $context, $cancelled )
++      if !length( trimmed( $input->{command_id} ) )
++      || index( $input->{body_source} // q{}, q{@} ) >= 0;
++    my $log_context = GPForum::Log->request_context;
++    my %answers;
++    my $idle = await $self->_idle_rules_p( $type, $input, \%answers, $context );
++    return await $self->_fallback_p( $method, $arguments, $context, $cancelled )
++      if !$idle;
++    try { await $self->_context_p( $type, $input, \%answers, $context ); }
++    catch ($error) {
++        return GPForum::Log->in_context( $log_context,
++            sub { return $workflow->_command_log_failure($error); } );
++    };
++    my $plan;
++
++    if ( exists $BODY_PREPARATION{$type} ) {
++        $plan = await GPForum::Log->in_context(
++            $log_context,
++            sub {
++                return GPForum::Infrastructure::AsyncWork->shared->run_p(
++                    sub {
++                        return $self->_plan_data( $method, $input, \%answers );
++                    },
++                    $cancelled,
++                    1
++                );
++            }
++        );
++    }
++    else {
++        $plan = GPForum::Log->in_context( $log_context,
++            sub { return $self->_plan_data( $method, $input, \%answers ); } );
++    }
++    return $plan if !$plan->{native_kind};
++    return await $self->_execute_p( $plan, $context, $log_context );
++}
++
++sub _same_schema ($self) {
++    my $workflow = $self->workflow;
++    my $schema   = $workflow->functions->schema;
++    my @readers  = (
++        $workflow->category_reader,
++        $workflow->thread_detail_reader,
++        $workflow->thread_store,
++    );
++    if ( $workflow->automod ) { push @readers, $workflow->automod->store; }
++    for my $reader (@readers) {
++        return 0 if !$reader->can('functions') || !$reader->functions;
++        return 0 if refaddr( $reader->functions->schema ) != refaddr($schema);
++    }
++    return 1;
++}
++
++sub _plan_data ( $self, $method, $input, $answers ) {
++    my $workflow = $self->workflow;
++
++    # This scope never yields, in either process. Unexpected SQL fails closed.
++    local $GPForum::Infrastructure::PgStorage::HTTP_PID = $PROCESS_ID;
++    local $workflow->{native_plan} = 1;                                  ## no critic (Variables::ProhibitLocalVars) -- synchronous data-only preparation scope
++    return GPForum::Infrastructure::SqlFunction->answering( $answers,
++        sub { return $workflow->$method($input); } );
++}
++
++sub _fallback_p ( $self, $method, $arguments, $context, $cancelled ) {
++    return GPForum::Infrastructure::AsyncWork->shared->service_result_p(
++        $self->workflow, $method, $arguments, $context, $cancelled );
++}
++
++async sub _idle_rules_p ( $self, $type, $input, $answers, $context ) {
++    my $screened =
++         $type eq 'thread.create'
++      || $type eq 'reply.create'
++      || $type eq 'thread.edit'
++      || $type eq 'post.edit';
++    return 1 if !$screened || !$self->workflow->automod;
++    my $viewer = $input->{viewer};
++    return 1 if $viewer && $viewer->can('moderates') && $viewer->moderates;
++    my $user = $input->{author_user_id};
++    my $row  = await $self->_read_p(
++        'moderation_automod_rules',
++        {
++            user_id => GPForum::Infrastructure::Id->is_uuid($user)
++            ? $user
++            : undef
++        },
++        $answers, $context
++    );
++    my $rules = $row ? $row->{document} : undef;
++    return 1 if !$rules;
++    return _idle($rules);
++}
++
++sub _idle ($rules) {
++    return
++         !@{ $rules->{words} // [] }
++      && !defined $rules->{link_limit}
++      && !$rules->{review_first_posts} ? 1 : 0;
++}
++
++async sub _context_p ( $self, $type, $input, $answers, $context ) {
++    if ( $type =~ /\Apost[.]/msx ) {
++        if ( defined $input->{post_id} && length $input->{post_id} ) {
++            await $self->_read_p( 'forum_post_context',
++                { post_id => $input->{post_id} },
++                $answers, $context );
++        }
++    }
++    elsif ( $type ne 'thread.create' ) {
++        my $call = $self->workflow->thread_detail_reader->thread_row_call(
++            $input->{thread_id} );
++        await $self->_read_p( @{$call}, $answers, $context );
++    }
++    if ( $type eq 'thread.create' || $type eq 'thread.move' ) {
++        my $category = trimmed( $input->{category_id} );
++        if ( length $category ) {
++            await $self->_read_p( 'forum_find_category',
++                { category_id => $category },
++                $answers, $context );
++        }
++    }
++    return;
++}
++
++async sub _read_p ( $self, $name, $values, $answers, $context ) {
++    my $functions = $self->workflow->functions;
++    my $rows      = await $functions->rows_p( $name, $values, $context );
++    my $entry     = $functions->catalogue->function($name);
++    my @raw;
++    for my $row ( @{$rows} ) {
++        my %copy = %{$row};
++        for my $column ( keys %{ $entry->{json} } ) {
++            if ( defined $copy{$column} ) {
++                $copy{$column} = $JSON->encode( $copy{$column} );
++            }
++        }
++        push @raw, \%copy;
++    }
++    $answers->{ $functions->answer_key( $name, $values ) } = \@raw;
++    return $rows->[0];
++}
++
++async sub _execute_p ( $self, $plan, $context, $log_context ) {
++    my $workflow = $self->workflow;
++    my $function =
++      $plan->{native_kind} eq 'reply'
++      ? 'forum_create_reply'
++      : 'forum_write_command';
++    my $result;
++    try {
++        my $row = await $workflow->functions->row_p( $function, $plan->{call},
++            $context );
++        $result =
++            $plan->{native_kind} eq 'reply'
++          ? $workflow->_reply_result( $row, $plan->{prepared} )
++          : $workflow->_write_result( $plan->{type}, $plan->{call},
++            $plan->{prepared}, $row );
++    }
++    catch ($error) {
++        return GPForum::Log->in_context(
++            $log_context,
++            sub {
++                return $workflow->_function_failure( $plan->{type}, $error );
++            }
++        );
++    };
++    return $result;
++}
++
++1;
++
++__END__
++
++=head1 NAME
++
++GPForum::Service::Forum::PostingNative - Separate posting preparation from native atomic SQL commands.
++
++=head1 VERSION
++
++Version 0.001.
++
++=head1 SYNOPSIS
++
++    my $writer = GPForum::Service::Forum::PostingNative->new(workflow => $workflow);
++
++=head1 DESCRIPTION
++
++Resolves existing versioned read calls asynchronously, runs the existing pure
++validation/composition/signing preparation in an isolated process, then executes
++the original atomic stored command on a retained native connection. Preparation
++cannot open a PostgreSQL connection. Active moderation rules and mentions retain
++the original isolated transactional workflow.
++
++=head1 SUBROUTINES/METHODS
++
++=head2 call_p
++
++Execute a supported posting method as a promise without reconnecting PostgreSQL
++for each command. Unsupported workflows retain their original executor.
++
++=head1 CONFIGURATION AND ENVIRONMENT
++
++Uses the configured workflow, SQL catalogue and existing process limits.
++
++=head1 DIAGNOSTICS
++
++Failures preserve failed command responses. Ambiguous writes are never retried.
++
++=head1 DEPENDENCIES
++
++Mojolicious, Future::AsyncAwait and the existing posting and SQL services.
++
++=head1 INCOMPATIBILITIES
++
++No transaction or database handle crosses subprocess boundaries.
++
++=head1 BUGS AND LIMITATIONS
++
++Moderation decisions and mentions requiring an extended transaction retain the
++original complete workflow executor.
++
++=head1 AUTHOR
++
++GPForum Contributors.
++
++=head1 LICENSE AND COPYRIGHT
++
++Copyright (c) 2026 GPForum Contributors. BSD-3-Clause.
++
++=cut
+diff --git a/t/integration/postgres-native-command-transport.t b/t/integration/postgres-native-command-transport.t
+new file mode 100644
+--- /dev/null
++++ b/t/integration/postgres-native-command-transport.t
+@@ -0,0 +1,250 @@
++# SPDX-FileCopyrightText: 2026 GPForum Contributors
++# SPDX-License-Identifier: BSD-3-Clause
++package main;
++use v5.40;
++use Const::Fast;
++use File::Temp qw(tempdir);
++use Test::More;
++use Test::Mojo;
++use lib 'lib', 't/lib';
++use GPForum::Infrastructure::Id;
++use GPForum::Infrastructure::AsyncWork;
++use GPForum::Infrastructure::SqlFunction;
++use GPForum::Test::PgDatabase;
++use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
++
++our $VERSION = '0.001';
++const my $HTTP_OK          => 200;
++const my $HTTP_CREATED     => 201;
++const my $HTTP_CONFLICT    => 409;
++const my $HTTP_UNAVAILABLE => 503;
++if ( !GPForum::Test::PgDatabase->admin_dsn ) {
++    plan skip_all => 'requires PostgreSQL';
++}
++my $database = GPForum::Test::PgDatabase->fresh( seed => 1 );
++local $ENV{GPFORUM_DATABASE_DSN}              = $database->dsn;
++local $ENV{GPFORUM_ENV}                       = 'test';
++local $ENV{GPFORUM_MINION_ENABLED}            = 0;
++local $ENV{GPFORUM_REALTIME_LISTENER_ENABLED} = 0;
++local $ENV{GPFORUM_WARMUP_ENABLED}            = 0;
++local $ENV{GPFORUM_POST_SIGNING_KEY} = tempdir( CLEANUP => 1 ) . '/post.pem';
++my $dbh = $database->dbh;
++my ( $owner, $category ) = $dbh->selectrow_array(
++    (
++        join q{ },
++q{SELECT p.author_user_id,t.category_id FROM posts p JOIN threads t USING(thread_id)},
++        q{JOIN categories c USING(category_id) JOIN spaces s USING(space_id)},
++        q{JOIN users u ON u.id=p.author_user_id},
++q{WHERE p.visibility='public' AND p.moderation_state='visible' AND p.deleted_at IS NULL},
++q{AND t.visibility='public' AND t.moderation_state='visible' AND t.deleted_at IS NULL},
++q{AND c.visibility='public' AND s.visibility='public' AND u.status='active'},
++        q{AND NOT api.core_product_staff_v1(u.id,'thread','moderate') LIMIT 1}
++    )
++);
++ok( $owner, 'a non-moderator fixture author is available' );
++my ($foreign_post) = $dbh->selectrow_array(
++    (
++        join q{ },
++        q{SELECT p.post_id FROM posts p JOIN threads t USING(thread_id)},
++        q{JOIN categories c USING(category_id) JOIN spaces s USING(space_id)},
++q{WHERE p.author_user_id<>? AND p.visibility='public' AND p.moderation_state='visible'},
++q{AND p.deleted_at IS NULL AND t.visibility='public' AND t.moderation_state='visible'},
++q{AND t.deleted_at IS NULL AND c.visibility='public' AND s.visibility='public' LIMIT 1}
++    ),
++    undef, $owner
++);
++my $test   = Test::Mojo->new('GPForum');
++my $routes = $test->app->routes;
++$routes->get('/__native_command_session')->to(
++    cb => sub($c) {
++        $c->session( user_id => $owner );
++        return $c->render( text => 'ready' );
++    }
++);
++$test->get_ok('/__native_command_session')->status_is($HTTP_OK);
++my $original = GPForum::Infrastructure::SqlFunction->can('rows_p');
++my %called;
++with_replaced_subs(
++    'GPForum::Infrastructure::SqlFunction',
++    {
++        rows_p => sub { $called{ $_[1] }++; return $original->(@_); }
++    },
++    sub {
++        $test->get_ok('/new-thread')->status_is($HTTP_OK);
++        my $fields       = _fields('form[action="/threads"]');
++        my $thread_input = {
++            %{$fields},
++            category_id => $category,
++            title       => 'Native command transport',
++            body_source =>
++              'Composition and signing stay isolated from PostgreSQL.'
++        };
++        $test->post_ok(
++            '/threads' => { Accept => 'application/json' } => form =>
++              $thread_input )->status_is($HTTP_CREATED);
++        my $created = $test->tx->res->json;
++        my $thread  = $created->{thread_id};
++        ok( $thread, 'new thread created' );
++        is( $called{forum_write_command},
++            1, 'thread command executes through the parent native connection' );
++        $test->post_ok(
++            '/threads' => { Accept => 'application/json' } => form =>
++              $thread_input )->status_is($HTTP_CREATED);
++        my $replayed = $test->tx->res->json;
++        is( $replayed->{thread_id},
++            $thread, 'native command replay returns the original thread' );
++        $test->post_ok(
++            '/threads' => { Accept => 'application/json' } => form => {
++                %{$thread_input}, title => 'Different request with reused key'
++            }
++        )->status_is($HTTP_CONFLICT);
++        my ($created_count) =
++          $dbh->selectrow_array( 'SELECT count(*) FROM threads WHERE title=?',
++            undef, $thread_input->{title} );
++        is( $created_count, 1,
++            'replay and conflicting key create no duplicate' );
++        $test->get_ok("/t/$thread")->status_is($HTTP_OK);
++        $fields = _fields( 'form[action="/t/' . $thread . '/replies"]' );
++        $test->post_ok(
++            "/t/$thread/replies" => { Accept => 'application/json' } => form =>
++              {
++                %{$fields},
++                body_source =>
++                  'Native reply command with the existing signature.'
++              }
++        )->status_is($HTTP_CREATED);
++        is( $called{forum_create_reply},
++            1, 'reply command executes through the parent native connection' );
++        my $replied = $test->tx->res->json;
++        my $post    = $replied->{post_id};
++        my $csrf    = $fields->{csrf_token};
++
++        for my $operation (
++            [ "/p/$foreign_post/like",      'community_like_command',      {} ],
++            [ "/t/$thread/bookmark",        'community_bookmark_command',  {} ],
++            [ "/t/$thread/bookmark/remove", 'community_target_command',    {} ],
++            [ "/t/$thread/subscribe",       'community_subscribe_command', {} ],
++            [ "/t/$thread/subscribe/mute",  'community_target_command',    {} ],
++            [ "/t/$thread/subscribe/remove", 'community_target_command',   {} ],
++            [
++                "/t/$thread/read", 'forum_read_marker_command',
++                { last_read_position => 1 }
++            ],
++          )
++        {
++            my ( $path, $function, $extra ) = @{$operation};
++            my $expected = ( $called{$function} // 0 ) + 1;
++            my $form     = {
++                csrf_token => $csrf,
++                command_id => GPForum::Infrastructure::Id->new->uuid,
++                %{$extra}
++            };
++            my $forks = 0;
++            my $run   = GPForum::Infrastructure::AsyncWork->can('run_p');
++            with_replaced_subs(
++                'GPForum::Infrastructure::AsyncWork',
++                { run_p => sub { $forks++; return $run->(@_); } },
++                sub {
++                    $test->post_ok(
++                        $path => { Accept => 'application/json' } => form =>
++                          $form )->status_is($HTTP_OK);
++                }
++            );
++            is( $forks, 0, "$function and its security preflight never fork" );
++            is( $called{$function}, $expected,
++                "$function uses the parent native connection" );
++            if ( $function eq 'community_target_command' ) {
++                my $answer = $test->tx->res->json;
++                $test->post_ok(
++                    $path => { Accept => 'application/json' } => form => $form )
++                  ->status_is($HTTP_OK);
++                is_deeply( $test->tx->res->json,
++                    $answer,
++                    'atomic target command replays the recorded response' );
++            }
++        }
++        _rollback_target_command( $thread, $csrf );
++        my $written = $called{forum_write_command};
++        cmp_ok( $called{moderation_can_participate},
++            '>', 0,
++            'participation checks use live native SQL in the parent process' );
++        for my $operation (
++            [ "/t/$thread/edit", { title => 'Edited through native SQL' } ],
++            [
++                "/p/$post",
++                {
++                    body_source      => 'Edited native reply.',
++                    expected_version => 1
++                }
++            ],
++            [ "/p/$post/delete",    {} ],
++            [ "/p/$post/restore",   {} ],
++            [ "/t/$thread/delete",  {} ],
++            [ "/t/$thread/restore", {} ],
++          )
++        {
++            my ( $path, $extra ) = @{$operation};
++            $test->post_ok(
++                $path => { Accept => 'application/json' } => form => {
++                    csrf_token => $csrf,
++                    command_id => GPForum::Infrastructure::Id->new->uuid,
++                    %{$extra}
++                }
++            )->status_is($HTTP_OK);
++            $written++;
++            is( $called{forum_write_command},
++                $written, "$path executes the atomic native command" );
++        }
++    }
++);
++done_testing();
++
++sub _rollback_target_command ( $thread, $csrf ) {
++    $test->post_ok(
++        "/t/$thread/bookmark" => { Accept => 'application/json' } => form => {
++            csrf_token => $csrf,
++            command_id => GPForum::Infrastructure::Id->new->uuid
++        }
++    )->status_is($HTTP_OK);
++    $dbh->do(
++        join q{ },
++        q{CREATE FUNCTION pg_temp.fail_community_close() RETURNS trigger},
++q{LANGUAGE plpgsql AS $body$ BEGIN RAISE EXCEPTION 'command close failure'; END; $body$}
++    );
++    $dbh->do(
++        join q{ },
++        q{CREATE TRIGGER fail_community_close AFTER UPDATE ON command_log},
++        q{FOR EACH ROW WHEN (NEW.command_type='community.bookmark_remove')},
++        q{EXECUTE FUNCTION pg_temp.fail_community_close()}
++    );
++    my $key  = GPForum::Infrastructure::Id->new->uuid;
++    my $form = { csrf_token => $csrf, command_id => $key };
++    $test->post_ok(
++        "/t/$thread/bookmark/remove" => { Accept => 'application/json' } =>
++          form => $form )->status_is($HTTP_UNAVAILABLE);
++    my ($deleted) = $dbh->selectrow_array(
++q{SELECT deleted_at FROM bookmarks WHERE user_id=? AND target_type='thread' AND target_id=?},
++        undef, $owner, $thread
++    );
++    is( $deleted, undef,
++        'failure closing the command log rolls back target removal' );
++    my ($logged) = $dbh->selectrow_array(
++        q{SELECT count(*) FROM command_log WHERE idempotency_key=?},
++        undef, $key );
++    is( $logged, 0, 'failed atomic command leaves no recorded answer' );
++    $dbh->do('DROP TRIGGER fail_community_close ON command_log');
++    $dbh->do('DROP FUNCTION pg_temp.fail_community_close()');
++    $test->post_ok(
++        "/t/$thread/bookmark/remove" => { Accept => 'application/json' } =>
++          form => $form )->status_is($HTTP_OK);
++    return;
++}
++
++sub _fields($selector) {
++    my $response = $test->tx->res;
++    my $form     = $response->dom->at($selector);
++    ok( $form, "form $selector exists" );
++    return { map { $_->attr('name') => $_->attr('value') // q{} }
++          $form->find('input[type="hidden"][name]')->each };
++}
++1;
+diff --git a/lib/GPForum/Service/Moderation/SuspensionStore.pm b/lib/GPForum/Service/Moderation/SuspensionStore.pm
+--- a/lib/GPForum/Service/Moderation/SuspensionStore.pm
++++ b/lib/GPForum/Service/Moderation/SuspensionStore.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Moderation::SuspensionStore;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use GPForum::Infrastructure::Row;
+@@ -389,19 +389,24 @@
+     return undef;
+ }
+ 
++async sub can_participate_p ( $self, $user_id, $context = undef ) {
++    return $self->can_participate($user_id) if !$self->functions;
++    return _participation_result(
++        await $self->functions->row_p(
++            'moderation_can_participate',
++            { user_id => $user_id, now => $self->clock->now_iso8601 }, $context
++        )
++    );
++}
++
+ sub can_participate ( $self, $user_id ) {
+     if ( $self->functions ) {
+-        my $row =
+-          $self->functions->row( 'moderation_can_participate',
+-            { user_id => $user_id, now => $self->clock->now_iso8601 } )
+-          || { ok => 0, reason => 'user_not_found' };
+-        if ( !defined $row->{reason} ) {
+-            delete $row->{reason};
+-        }
+-        if ( !defined $row->{suspension_id} ) {
+-            delete $row->{suspension_id};
+-        }
+-        return $row;
++        return _participation_result(
++            $self->functions->row(
++                'moderation_can_participate',
++                { user_id => $user_id, now => $self->clock->now_iso8601 }
++            )
++        );
+     }
+ 
+     my $user = $self->_user($user_id);
+@@ -421,6 +426,13 @@
+     }
+ 
+     return { ok => 1 };
++}
++
++sub _participation_result ($row) {
++    $row ||= { ok => 0, reason => 'user_not_found' };
++    if ( !defined $row->{reason} )        { delete $row->{reason}; }
++    if ( !defined $row->{suspension_id} ) { delete $row->{suspension_id}; }
++    return $row;
+ }
+ 
+ sub _restore_user_if_needed ( $self, $user_id, $timestamp ) {
+@@ -602,6 +614,12 @@
+ or C<suspended> together with C<suspension_id> when an active suspension
+ exists while the status says otherwise.
+ 
++=head2 can_participate_p
++
++Promise form of C<can_participate>, with the same live suspension check and
++response shape. Persistent HTTP calls use the retained native connection;
++in-memory stores retain their synchronous behavior.
++
+ =head1 DIAGNOSTICS
+ 
+ A missing user or suspension is returned as undef, not thrown. An error
+diff --git a/lib/GPForum/Service/Admin/AddressBans.pm b/lib/GPForum/Service/Admin/AddressBans.pm
+--- a/lib/GPForum/Service/Admin/AddressBans.pm
++++ b/lib/GPForum/Service/Admin/AddressBans.pm
+@@ -4,7 +4,7 @@
+ package GPForum::Service::Admin::AddressBans;
+ 
+ use Const::Fast;
+-use Mojo::Base 'GPForum::Base', -signatures;
++use Mojo::Base 'GPForum::Base', -async_await;
+ use v5.40;
+ 
+ use Socket qw(AF_INET AF_INET6 inet_ntop inet_pton);
+@@ -257,6 +257,14 @@
+         { address => $address, now => $self->clock->now_iso8601 } );
+ }
+ 
++async sub covering_p ( $self, $value, $context = undef ) {
++    my $functions = $self->functions;
++    my $address   = $self->address($value);
++    return undef if !$functions || !defined $address;
++    return await $functions->row_p( 'admin_address_ban_covering',
++        { address => $address, now => $self->clock->now_iso8601 }, $context );
++}
++
+ sub _audit ( $self, $kind, $actor_user_id, $ban_id, $metadata, $now ) {
+     return $self->recorder->audit_call(
+         action         => $ACTION{$kind},
+@@ -395,6 +403,11 @@
+ 
+ The live ban covering an address, or undef.
+ 
++=head2 covering_p
++
++Promise form of C<covering>, with the same address normalization and live ban
++lookup on a retained native PostgreSQL connection.
++
+ =head2 scopes
+ 
+ C<registration>, C<sign_in> and C<writes>.
+diff --git a/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm b/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm
+--- a/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm
++++ b/lib/GPForum/Infrastructure/SqlFunctionCatalogue.pm
+@@ -1173,6 +1173,11 @@
+         parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+         json       => ['response']
+     },
++    community_target_command => {
++        version    => 2,
++        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
++        json       => ['response']
++    },
+     community_like_command => {
+         version    => 2,
+         parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+diff --git a/migrations/2044_native_community_targets.sql b/migrations/2044_native_community_targets.sql
+new file mode 100644
+--- /dev/null
++++ b/migrations/2044_native_community_targets.sql
+@@ -0,0 +1,90 @@
++-- SPDX-FileCopyrightText: 2026 GPForum Contributors
++-- SPDX-License-Identifier: BSD-3-Clause
++
++BEGIN;
++SET LOCAL lock_timeout = '1s';
++
++-- The same command-log transaction and existing target stores in one round trip.
++-- Columns and operations are fixed here, never supplied as SQL by the caller.
++CREATE FUNCTION api.community_target_command_v1(
++    p_log jsonb, p_answer jsonb, p_row jsonb
++)
++RETURNS TABLE (outcome text, response json)
++LANGUAGE plpgsql
++SET search_path = pg_catalog, pg_temp
++SET plan_cache_mode = force_generic_plan
++AS $$
++DECLARE
++    opened record;
++    answer jsonb := p_answer;
++    saved jsonb;
++    stored jsonb;
++    operation text := p_log ->> 'command_type';
++    fields text[];
++    noun text;
++BEGIN
++    IF operation IS NULL OR operation NOT IN
++        ('community.bookmark_remove', 'community.subscription_mute', 'community.unsubscribe')
++    THEN
++        RAISE EXCEPTION 'invalid community target command' USING ERRCODE = '22023';
++    END IF;
++    IF (p_row ->> 'user_id')::uuid IS DISTINCT FROM (p_log ->> 'actor_id')::uuid THEN
++        RAISE EXCEPTION 'community target actor mismatch' USING ERRCODE = '22023';
++    END IF;
++    SELECT * INTO opened FROM api.core_command_open_v1(p_log);
++    IF opened.outcome <> 'opened' THEN
++        RETURN QUERY SELECT opened.outcome, opened.response::json;
++        RETURN;
++    END IF;
++    IF answer IS NULL THEN
++        IF operation = 'community.bookmark_remove' THEN
++            SELECT s.result INTO saved FROM api.community_stamp_bookmark_v3(
++                (p_row ->> 'user_id')::uuid, p_row ->> 'target_type',
++                (p_row ->> 'target_id')::uuid, 'deleted_at', p_row ->> 'stamped_at'
++            ) s;
++            fields := ARRAY['bookmark_id','created_at','deleted_at','note','ok',
++                'target_id','target_type','user_id'];
++            noun := 'bookmark';
++        ELSE
++            SELECT s.result INTO saved FROM api.notification_stamp_subscription_v1(
++                NULL, true, (p_row ->> 'user_id')::uuid, p_row ->> 'target_type',
++                (p_row ->> 'target_id')::uuid,
++                CASE WHEN operation = 'community.subscription_mute'
++                    THEN 'muted_at' ELSE 'revoked_at' END,
++                p_row ->> 'stamped_at'
++            ) s;
++            fields := ARRAY['created_at','muted_at','ok','preference','revoked_at',
++                'subscription_id','target_id','target_type','user_id'];
++            noun := 'subscription';
++        END IF;
++        IF saved IS NULL OR NOT api.core_perl_true_v1(saved ->> 'ok') THEN
++            answer := jsonb_build_object('error',coalesce(nullif(saved ->> 'error',''),
++                noun || ' not found'),'errors',NULL,'ok',0,'status','not_found','stored',NULL);
++        ELSE
++            SELECT jsonb_object_agg(f.name, saved -> f.name) INTO stored
++            FROM unnest(fields) f(name);
++            answer := jsonb_build_object('error',NULL,'errors',NULL,
++                'ok',1,'status','ok','stored',stored);
++        END IF;
++    END IF;
++    PERFORM api.core_command_close_v1(opened.command_id,
++        p_log ->> 'command_at', opened.payload, answer);
++    RETURN QUERY SELECT 'recorded'::text, answer::json;
++END
++$$;
++REVOKE EXECUTE ON FUNCTION api.community_target_command_v1(jsonb,jsonb,jsonb) FROM PUBLIC;
++
++CREATE FUNCTION api.community_target_command_v2(
++    p_log jsonb, p_answer jsonb, p_row jsonb
++)
++RETURNS TABLE (outcome text, response json)
++LANGUAGE sql
++SECURITY DEFINER
++SET search_path = pg_catalog, pg_temp
++SET plan_cache_mode = force_generic_plan
++AS $$
++SELECT * FROM api.community_target_command_v1(p_log,p_answer,p_row);
++$$;
++REVOKE EXECUTE ON FUNCTION api.community_target_command_v2(jsonb,jsonb,jsonb) FROM PUBLIC;
++
++COMMIT;
+diff --git a/etc/schema/postgresql-18.sql b/etc/schema/postgresql-18.sql
+--- a/etc/schema/postgresql-18.sql
++++ b/etc/schema/postgresql-18.sql
+@@ -5873,6 +5873,88 @@
+     SET plan_cache_mode TO 'force_generic_plan'
+     AS $$
+ SELECT * FROM api.community_subscribe_command_v1(p_log, p_answer, p_row);
++$$;
++
++
++--
++-- Name: community_target_command_v1(jsonb, jsonb, jsonb); Type: FUNCTION; Schema: api; Owner: -
++--
++
++CREATE FUNCTION api.community_target_command_v1(p_log jsonb, p_answer jsonb, p_row jsonb) RETURNS TABLE(outcome text, response json)
++    LANGUAGE plpgsql
++    SET search_path TO 'pg_catalog', 'pg_temp'
++    SET plan_cache_mode TO 'force_generic_plan'
++    AS $$
++DECLARE
++    opened record;
++    answer jsonb := p_answer;
++    saved jsonb;
++    stored jsonb;
++    operation text := p_log ->> 'command_type';
++    fields text[];
++    noun text;
++BEGIN
++    IF operation IS NULL OR operation NOT IN
++        ('community.bookmark_remove', 'community.subscription_mute', 'community.unsubscribe')
++    THEN
++        RAISE EXCEPTION 'invalid community target command' USING ERRCODE = '22023';
++    END IF;
++    IF (p_row ->> 'user_id')::uuid IS DISTINCT FROM (p_log ->> 'actor_id')::uuid THEN
++        RAISE EXCEPTION 'community target actor mismatch' USING ERRCODE = '22023';
++    END IF;
++    SELECT * INTO opened FROM api.core_command_open_v1(p_log);
++    IF opened.outcome <> 'opened' THEN
++        RETURN QUERY SELECT opened.outcome, opened.response::json;
++        RETURN;
++    END IF;
++    IF answer IS NULL THEN
++        IF operation = 'community.bookmark_remove' THEN
++            SELECT s.result INTO saved FROM api.community_stamp_bookmark_v3(
++                (p_row ->> 'user_id')::uuid, p_row ->> 'target_type',
++                (p_row ->> 'target_id')::uuid, 'deleted_at', p_row ->> 'stamped_at'
++            ) s;
++            fields := ARRAY['bookmark_id','created_at','deleted_at','note','ok',
++                'target_id','target_type','user_id'];
++            noun := 'bookmark';
++        ELSE
++            SELECT s.result INTO saved FROM api.notification_stamp_subscription_v1(
++                NULL, true, (p_row ->> 'user_id')::uuid, p_row ->> 'target_type',
++                (p_row ->> 'target_id')::uuid,
++                CASE WHEN operation = 'community.subscription_mute'
++                    THEN 'muted_at' ELSE 'revoked_at' END,
++                p_row ->> 'stamped_at'
++            ) s;
++            fields := ARRAY['created_at','muted_at','ok','preference','revoked_at',
++                'subscription_id','target_id','target_type','user_id'];
++            noun := 'subscription';
++        END IF;
++        IF saved IS NULL OR NOT api.core_perl_true_v1(saved ->> 'ok') THEN
++            answer := jsonb_build_object('error',coalesce(nullif(saved ->> 'error',''),
++                noun || ' not found'),'errors',NULL,'ok',0,'status','not_found','stored',NULL);
++        ELSE
++            SELECT jsonb_object_agg(f.name, saved -> f.name) INTO stored
++            FROM unnest(fields) f(name);
++            answer := jsonb_build_object('error',NULL,'errors',NULL,
++                'ok',1,'status','ok','stored',stored);
++        END IF;
++    END IF;
++    PERFORM api.core_command_close_v1(opened.command_id,
++        p_log ->> 'command_at', opened.payload, answer);
++    RETURN QUERY SELECT 'recorded'::text, answer::json;
++END
++$$;
++
++
++--
++-- Name: community_target_command_v2(jsonb, jsonb, jsonb); Type: FUNCTION; Schema: api; Owner: -
++--
++
++CREATE FUNCTION api.community_target_command_v2(p_log jsonb, p_answer jsonb, p_row jsonb) RETURNS TABLE(outcome text, response json)
++    LANGUAGE sql SECURITY DEFINER
++    SET search_path TO 'pg_catalog', 'pg_temp'
++    SET plan_cache_mode TO 'force_generic_plan'
++    AS $$
++SELECT * FROM api.community_target_command_v1(p_log,p_answer,p_row);
+ $$;
+ 
+ 
+@@ -29790,6 +29872,20 @@
+ 
+ 
+ --
++-- Name: FUNCTION community_target_command_v1(p_log jsonb, p_answer jsonb, p_row jsonb); Type: ACL; Schema: api; Owner: -
++--
++
++REVOKE ALL ON FUNCTION api.community_target_command_v1(p_log jsonb, p_answer jsonb, p_row jsonb) FROM PUBLIC;
++
++
++--
++-- Name: FUNCTION community_target_command_v2(p_log jsonb, p_answer jsonb, p_row jsonb); Type: ACL; Schema: api; Owner: -
++--
++
++REVOKE ALL ON FUNCTION api.community_target_command_v2(p_log jsonb, p_answer jsonb, p_row jsonb) FROM PUBLIC;
++
++
++--
+ -- Name: FUNCTION community_unlike_command_v1(p_log jsonb, p_answer jsonb, p_row jsonb); Type: ACL; Schema: api; Owner: -
+ --
+ 
+diff --git a/t/integration/postgres-sql-function-api-role.t b/t/integration/postgres-sql-function-api-role.t
+--- a/t/integration/postgres-sql-function-api-role.t
++++ b/t/integration/postgres-sql-function-api-role.t
+@@ -52,6 +52,7 @@
+ const my $HTTP_OK     => 200;
+ const my $CLAIM_DELAY => 60;
+ const my $CLAIM_END   => 120;
++const my $HASH_LENGTH => 64;
+ 
+ if ( !GPForum::Test::PgDatabase->admin_dsn ) {
+     plan skip_all => 'set GPFORUM_TEST_DSN to test the separate API role';
+@@ -144,7 +145,32 @@
+   GPForum::Schema->connect( $database->dsn, $runtime, $runtime_password,
+     { RaiseError => 1, PrintError => 0, AutoCommit => 1 } );
+ my $functions = GPForum::Infrastructure::SqlFunction->for_schema($role_schema);
+-my $semantic  = GPForum::Service::Search::Semantic->new(
++my $target_call = {
++    log => {
++        actor_id               => $user,
++        command_id             => GPForum::Infrastructure::Id->new->uuid,
++        command_correlation_id => GPForum::Infrastructure::Id->new->uuid,
++        command_at             => '2026-10-11T12:00:00Z',
++        command_type           => 'community.bookmark_remove',
++        idempotency_key        => GPForum::Infrastructure::Id->new->uuid,
++        request_hash           => 'a' x $HASH_LENGTH,
++    },
++    answer => undef,
++    row    => {
++        user_id     => $user,
++        target_type => 'thread',
++        target_id   => GPForum::Infrastructure::Id->new->uuid,
++        stamped_at  => '2026-10-11T12:00:00Z',
++    },
++};
++my $target_answer = $functions->row( 'community_target_command', $target_call );
++is( $target_answer->{outcome},
++    'recorded', 'restricted role executes atomic target command' );
++is( $target_answer->{response}{status},
++    'not_found', 'missing target preserves refusal contract' );
++is( $functions->row( 'community_target_command', $target_call )->{outcome},
++    'replayed', 'restricted role replays the target command' );
++my $semantic = GPForum::Service::Search::Semantic->new(
+     schema    => $role_schema,
+     embedding => GPForum::Test::Embedding->new
+ );
+diff --git a/migrations/README.md b/migrations/README.md
+--- a/migrations/README.md
++++ b/migrations/README.md
+@@ -88,3 +88,11 @@
+ user handles, single-use challenges and existing credential revocation.
+ Refresh runtime API grants and restart the application after deployment.
+ [Account and login flows](../docs/passkeys-registration.md).
++
++## Native community commands
++
++`2044_native_community_targets.sql` combines the existing bookmark removal and
++subscription mute/revocation stores with their command log in one atomic call.
++Apply the migration and refresh runtime API grants before restarting the new
++application code. Existing target-store functions and command-log semantics are
++retained; a failed store or command-log close rolls back the complete command.
+diff --git a/docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md b/docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md
+--- a/docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md
++++ b/docs/adr/0174-mojo-pg-is-the-runtime-stored-function-transport.md
+@@ -60,6 +60,25 @@
+ prepare and simple-query execution; zero-input catalogue calls retain a typed
+ internal bind and named-plan result-type protection.
+ 
++The promise adapter releases its admission slot and connection lease before
++publishing completion to consumers. An already-completed service result stays
++ready; idle leases and admitted work do not need an artificial reactor tick.
++Async/await orchestration avoids repeated resolve/then/finally relays while
++preserving typed failures, request context and the same query catalogue.
++
++Single-call community commands, read markers, live participation/IP-ban checks
++and single-post/thread visibility reads use the retained native query leases.
++These security decisions are still read afresh, without a new cache. Posting resolves the existing context reads
++asynchronously, prepares the original command, then executes the same atomic
++stored function on a native lease. Body composition and signing still run in
++the bounded subprocess executor. Their preparation phase cannot connect to
++PostgreSQL: unanswered synchronous reads fail the HTTP-access guard in either
++process. Only data crosses that boundary. Permission decisions, idempotency,
++command logs, audit/outbox writes and transaction boundaries remain unchanged.
++Active automod rules, mention transactions and unsupported workflows keep the
++complete isolated executor; they must not be split across processes or have
++their policy checks skipped for throughput.
++
+ Connection establishment uses DBD::Pg asynchronous connect, watching the exact
+ socket/readiness libpq requests, under a five-second deadline. Trusted database
+ hostname resolution uses the bounded subprocess executor and pins hostaddr

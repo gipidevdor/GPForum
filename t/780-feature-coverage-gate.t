@@ -14,7 +14,8 @@ use Const::Fast;
 use lib 'script/lib', 't/lib';
 use GPForum::Testing::FeatureCoverage;
 our $VERSION = '0.001';
-const my $EXIT_SHIFT => 8;
+const my $EXIT_SHIFT      => 8;
+const my $EXECUTABLE_MODE => oct '755';
 my $root    = path( tempdir( CLEANUP => 1 ) );
 my $traces  = $root->child('traces')->make_path;
 my $program = $root->child('feature.t');
@@ -143,5 +144,91 @@ is( $report->()->{status},
 $feature->{routes} = [ 'example_route', 'example_route' ];
 $save->();
 is( $report->()->{status}, 'fail', 'duplicate route ownership fails closed' );
+
+subtest
+'the feature runner discovers integration once and deduplicates unit witnesses'
+  => sub {
+    my $bin   = $root->child('bin')->make_path;
+    my $prove = $bin->child('prove')->spew(<<'PROVE');
+use v5.40;
+use JSON::MaybeXS;
+say JSON::MaybeXS->new->encode({args => \@ARGV,
+ database_dsn => $ENV{GPFORUM_DATABASE_DSN}});
+exit 0;
+PROVE
+    chmod $EXECUTABLE_MODE, "$prove"
+      or croak 'cannot make runner fixture executable';
+    my $runner_manifest = $root->child('runner-manifest.json');
+    $runner_manifest->spew(
+        encode_json(
+            {
+                features => [
+                    {
+                        id     => 'runner',
+                        title  => 'Runner',
+                        routes => [],
+                        http   => [],
+                        proofs => [
+                            map {
+                                {
+                                    id   => $_->[0],
+                                    test => $_->[1],
+                                    text => 'witness'
+                                }
+                            } [ 'unit-a', 't/unit-witness.t' ],
+                            [ 'unit-b', 't/unit-witness.t' ],
+                            [
+                                'database',
+                                't/integration/postgres-new-workflow.t'
+                            ]
+                        ],
+                    },
+                ],
+            }
+        )
+    );
+    local $ENV{PATH} = "$bin:$ENV{PATH}";
+    local $ENV{GPFORUM_DATABASE_DSN} =
+      'dbi:Pg:dbname=gpforum_inherited;host=/nonexistent';
+    my $destination  = $root->child('runner-output');
+    my $runner_error = gensym;
+    my $runner       = open3(
+        my $runner_input,       my $runner_output,
+        $runner_error,          $EXECUTABLE_NAME,
+        'script/test-features', '--manifest',
+        "$runner_manifest",     '--output',
+        "$destination",         '--jobs',
+        '2'
+    );
+    close $runner_input or croak 'cannot close runner input';
+    my $result = do { local $INPUT_RECORD_SEPARATOR = undef; <$runner_output> };
+    my $details = do { local $INPUT_RECORD_SEPARATOR = undef; <$runner_error> };
+    waitpid $runner, 0;
+    is(
+        $CHILD_ERROR >> $EXIT_SHIFT,
+        1,
+        'a runner exit success without executed postconditions fails the gate'
+    ) or diag $details;
+    is( decode_json($result)->{status},
+        'fail', 'missing witnesses stay visible' );
+    my $invocation = decode_json( $destination->child('tests.log')->slurp );
+    my @args       = @{ $invocation->{args} };
+    is( scalar( grep { $_ eq 't/integration' } @args ),
+        1, 'the complete integration directory is selected once' );
+    is( scalar( grep { $_ eq 't/unit-witness.t' } @args ),
+        1, 'a shared unit witness is selected once' );
+    ok(
+        !( grep { $_ eq 't/integration/postgres-new-workflow.t' } @args ),
+        'individual integration witnesses do not repeat directory discoveries'
+    );
+    ok( ( grep { $_ eq '-r' } @args ),
+        'new nested integration files are discovered' );
+    ok(
+        ( grep { /-MGPForum::Test::FeatureBootstrap/msx } @args ),
+        'the executed files collect behavioral evidence'
+    );
+    ok( !defined $invocation->{database_dsn},
+        'the default runner removes an inherited database DSN' );
+  };
 done_testing;
 1;

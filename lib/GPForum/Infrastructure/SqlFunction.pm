@@ -6,7 +6,7 @@ package GPForum::Infrastructure::SqlFunction;
 use Carp qw(croak);
 use Const::Fast;
 use JSON::MaybeXS;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
@@ -101,73 +101,65 @@ sub rows ( $self, $name, $values ) {
 # A separate checked-out Mojo::Pg connection per in-flight operation.
 # Existing transactional workflows keep rows(); promises never borrow their
 # handle or retry an ambiguous write after a connection failure.
-sub rows_p ( $self, $name, $values, $context = undef ) {
+async sub rows_p ( $self, $name, $values, $context = undef ) {
     my $storage = $self->schema->storage;
     my $stats   = $storage->debug ? $storage->debugobj : undef;
     $context //= $self->query_context;
     if ($stats) { $context //= $stats->request_context; }
-    return Mojo::Promise->resolve->then(
-        sub {
-            my $entry = $self->catalogue->function($name);
-            my @bound = _bound( $entry, $values );
-            return [] if _malformed_id( $entry, \@bound );
-            my @parameters = map {
-                $entry->{types}[$_] eq 'bytea'
-                  ? { type => DBD::Pg::PG_BYTEA(), value => $bound[$_] }
-                  : $bound[$_]
-            } 0 .. $#bound;
-            if ( !@parameters ) {
-                $entry =
-                  { %{$entry}, sql => $entry->{sql} . ' WHERE ?::boolean' };
-                @parameters = (1);
+    my $entry = $self->catalogue->function($name);
+    my @bound = _bound( $entry, $values );
+    return [] if _malformed_id( $entry, \@bound );
+    my @parameters = map {
+        $entry->{types}[$_] eq 'bytea'
+          ? { type => DBD::Pg::PG_BYTEA(), value => $bound[$_] }
+          : $bound[$_]
+    } 0 .. $#bound;
+    if ( !@parameters ) {
+        $entry      = { %{$entry}, sql => $entry->{sql} . ' WHERE ?::boolean' };
+        @parameters = (1);
+    }
+    my $read = sub ($db) {
+        return $self->_read_rows_p( $db, $entry, \@parameters, $stats,
+            $context );
+    };
+    if ( $self->async_database ) {
+        return await $self->async_transaction->query_p(
+            sub {
+                return $stats
+                  ? $stats->in_context( $context,
+                    sub { return $read->( $self->async_database ); } )
+                  : $read->( $self->async_database );
             }
-            my $read = sub ($db) {
-                if ($stats) { $stats->query_start( $entry->{sql} ); }
-                return Mojo::Promise->resolve->then(
-                    sub {
-                        return $self->_query_p( $db, $entry, \@parameters );
-                    }
-                )->then(
-                    sub ($result) {
-                        my $rows = $result->hashes->to_array;
-                        if ( %{ $entry->{json} } ) {
-                            _decode_json( $entry, $rows );
-                        }
-                        return $rows;
-                    }
-                )->catch(
-                    sub ($error) {
-                        $self->_raise( $db->dbh->state, $error );
-                    }
-                )->finally(
-                    sub {
-                        if ($stats) {
-                            $stats->in_context( $context,
-                                sub { $stats->query_end; return; } );
-                        }
-                        return;
-                    }
-                );
-            };
-            if ( $self->async_database ) {
-                return $self->async_transaction->query_p(
-                    sub {
-                        return $stats
-                          ? $stats->in_context( $context,
-                            sub { return $read->( $self->async_database ); } )
-                          : $read->( $self->async_database );
-                    }
-                );
-            }
-            return GPForum::Infrastructure::AsyncQuery->for_schema(
-                $self->schema )->run_p( $read, $context );
-        }
-    );
+        );
+    }
+    return await GPForum::Infrastructure::AsyncQuery->for_schema(
+        $self->schema )->run_p( $read, $context );
 }
 
-sub row_p ( $self, $name, $values, $context = undef ) {
-    return $self->rows_p( $name, $values, $context )
-      ->then( sub ($rows) { return $rows->[0]; } );
+async sub _read_rows_p ( $self, $db, $entry, $parameters, $stats, $context ) {
+
+    # Only the query needs to wait. Decode and finish its statistics in the
+    # same completion instead of adding several event-loop turns per query.
+    if ($stats) { $stats->query_start( $entry->{sql} ); }
+    my ( $rows, $error );
+    try {
+        my $result = await $self->_query_p( $db, $entry, $parameters );
+        $rows = $result->hashes->to_array;
+        if ( %{ $entry->{json} } ) { _decode_json( $entry, $rows ); }
+    }
+    catch ($caught) { $error = $caught; };
+    if ($stats) {
+        $stats->in_context( $context, sub { $stats->query_end; return; } );
+    }
+    if ( defined $error ) {
+        $self->_raise( $db->dbh->state, $error );
+    }
+    return $rows;
+}
+
+async sub row_p ( $self, $name, $values, $context = undef ) {
+    my $rows = await $self->rows_p( $name, $values, $context );
+    return $rows->[0];
 }
 
 sub transaction_p ( $self, $work, $context = undef, $readonly = 0 ) {

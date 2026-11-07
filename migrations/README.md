@@ -88,3 +88,11 @@ API grants after migration. [Deployment and key handling](../docs/ops/web-push.m
 user handles, single-use challenges and existing credential revocation.
 Refresh runtime API grants and restart the application after deployment.
 [Account and login flows](../docs/passkeys-registration.md).
+
+## Native community commands
+
+`2044_native_community_targets.sql` combines the existing bookmark removal and
+subscription mute/revocation stores with their command log in one atomic call.
+Apply the migration and refresh runtime API grants before restarting the new
+application code. Existing target-store functions and command-log semantics are
+retained; a failed store or command-log close rolls back the complete command.

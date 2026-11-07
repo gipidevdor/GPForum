@@ -5,7 +5,8 @@ package GPForum::Controller::Base;
 
 use Mojo::Base 'Mojolicious::Controller', -async_await;
 use v5.40;
-use English qw(-no_match_vars);
+use Scalar::Util qw(blessed);
+use English      qw(-no_match_vars);
 
 use Const::Fast;
 
@@ -29,8 +30,23 @@ sub async_work ($self) {
 }
 
 sub await_p ( $self, @values ) {
-    return GPForum::Infrastructure::RequestPromise->new->controller($self)
-      ->resolve(@values);
+    my $promise =
+      GPForum::Infrastructure::RequestPromise->new->controller($self);
+    if (   @values == 1
+        && blessed( $values[0] )
+        && $values[0]->isa('Mojo::Promise')
+        && $values[0]->AWAIT_IS_READY )
+    {
+        # A cache hit has no asynchronous boundary to restore. Keep it ready
+        # instead of manufacturing a relay and an extra event-loop turn.
+        my ( @ready, $error );
+        try { @ready = $values[0]->AWAIT_GET; }
+        catch ($caught) { $error = $caught; };
+        return defined $error
+          ? $promise->reject($error)
+          : $promise->resolve(@ready);
+    }
+    return $promise->resolve(@values);
 }
 
 sub call_p ( $self, $service, $method, @arguments ) {
@@ -43,6 +59,9 @@ sub call_p ( $self, $service, $method, @arguments ) {
               if $service->can($async);
             my $abandoned = 0;
             $self->tx->on( finish => sub { $abandoned = 1; return; } );
+            return $service->async_call_p( $method, \@arguments, $context,
+                sub { return $abandoned; } )
+              if $service->can('async_call_p');
             return $self->async_work->service_result_p( $service, $method,
                 \@arguments, $context, sub { return $abandoned; } );
         }

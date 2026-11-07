@@ -53,6 +53,21 @@ records the frozen source, fixture and runtime for this thread-only reference.
 The 200 ms p95 target remains open. Production defaults, mixed-write/realtime
 capacity and the full PostgreSQL profiles below still require their own tests.
 
+## Native transport follow-up
+
+The [7 November regression investigation](../../benchmarks/mojo-pg-regression/2026-11-07/README.md)
+compares the native transport and its fixes at a fixed two-worker budget. It
+tracks promise overhead, connection churn in security/visibility checks and
+atomic community commands, alongside complete HTTP correctness. Its source
+manifests, rejected attempts and measured limits accompany the raw results.
+Body preparation/signing and extended moderation/mention transactions retain
+their bounded process isolation. Security decisions still read live SQL.
+
+The native target-command changes require migration
+`2044_native_community_targets.sql` and refreshed runtime API grants before the
+new application workers start. Worker counts and database durability settings
+were kept fixed during this comparison.
+
 ## Candidate configurations
 
 Merge one fragment into the existing service environment, retaining required

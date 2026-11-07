@@ -4,10 +4,12 @@
 package GPForum::Service::Community::Workflow;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
+use GPForum::Infrastructure::AsyncWork;
+use GPForum::Log;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::WorkflowResult
   qw(log_error missing_command_id workflow_result);
@@ -18,6 +20,9 @@ our $VERSION = '0.001';
 
 const my $REPORT_DETAILS_MAX => 2_000;
 const my $REPORT_REASON_MAX  => 80;
+const my %NATIVE_METHOD => map { $_ => 1 }
+  qw(save_bookmark remove_bookmark like_post unlike_post react_post unreact_post
+  save_subscription mute_subscription revoke_subscription);
 const my %PUBLIC_FIELDS => (
     bookmark => [
         qw(bookmark_id created_at deleted_at note ok target_id target_type user_id)
@@ -78,11 +83,15 @@ sub remove_bookmark ( $self, $input ) {
     return $self->_commanded_op(
         {
             command_type => 'community.bookmark_remove',
+            function     => 'community_target_command',
             input        => $input,
             kind         => 'bookmark',
             not_found    => 'bookmark not found',
             request      => _target_request($input),
-            run          => sub {
+            row          => sub {
+                return _target_command_row( $input, $self->bookmark_store );
+            },
+            run => sub {
                 return $self->bookmark_store->remove_for_user_target(
                     _target_write($input) );
             },
@@ -188,11 +197,15 @@ sub mute_subscription ( $self, $input ) {
     return $self->_commanded_op(
         {
             command_type => 'community.subscription_mute',
+            function     => 'community_target_command',
             input        => $input,
             kind         => 'subscription',
             not_found    => 'subscription not found',
             request      => _target_request($input),
-            run          => sub {
+            row          => sub {
+                return _target_command_row( $input, $self->subscription_store );
+            },
+            run => sub {
                 return $self->subscription_store->mute_for_user_target(
                     _target_write($input) );
             },
@@ -204,11 +217,15 @@ sub revoke_subscription ( $self, $input ) {
     return $self->_commanded_op(
         {
             command_type => 'community.unsubscribe',
+            function     => 'community_target_command',
             input        => $input,
             kind         => 'subscription',
             not_found    => 'subscription not found',
             request      => _target_request($input),
-            run          => sub {
+            row          => sub {
+                return _target_command_row( $input, $self->subscription_store );
+            },
+            run => sub {
                 return $self->subscription_store->revoke_for_user_target(
                     _target_write($input) );
             },
@@ -265,6 +282,7 @@ sub create_report ( $self, $input ) {
 # reason, is not found; any other answer is reduced to the public fields of
 # its kind. Without a command log the write just runs.
 sub _commanded_op ( $self, $job ) {
+    return $job if $self->{native_plan};
     my $invalid = missing_command_id( $job->{input} );
     if ($invalid) {
         return $invalid;
@@ -339,6 +357,57 @@ sub _commanded_by_function ( $self, $job ) {
         log_error( $self->logger, "community command failed: $error" );
         return _failed_result();
     };
+    return _commanded_result($row);
+}
+
+async sub async_call_p (
+    $self, $method, $arguments,
+    $context = undef,
+    $cancelled = undef
+  )
+{
+    return await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
+        $self, $method, $arguments, $context, $cancelled )
+      if !exists $NATIVE_METHOD{$method}
+      || @{$arguments} != 1
+      || !$self->functions
+      || !_call_layer( $self->command_idempotency );
+    my $job;
+    {
+        # Capture the existing pure-data command description. This scope ends
+        # before any asynchronous I/O; concurrent requests never share a mode.
+        local $self->{native_plan} = 1;    ## no critic (Variables::ProhibitLocalVars) -- synchronous command description only
+        $job = $self->$method( @{$arguments} );
+    }
+    my $invalid = missing_command_id( $job->{input} );
+    return $invalid if $invalid;
+    my $log_context = GPForum::Log->request_context;
+    my $row;
+    try {
+        $row = await $self->functions->row_p(
+            $job->{function},
+            {
+                log    => $self->_command_log($job),
+                answer => undef,
+                row    => $job->{row}->(),
+            },
+            $context
+        );
+    }
+    catch ($error) {
+        GPForum::Log->in_context(
+            $log_context,
+            sub {
+                log_error( $self->logger, "community command failed: $error" );
+                return;
+            }
+        );
+        return _failed_result();
+    };
+    return _commanded_result($row);
+}
+
+sub _commanded_result ($row) {
     my $outcome = $row->{outcome} // q{};
     return $row->{response}
       if $outcome eq 'recorded' || $outcome eq 'replayed';
@@ -427,6 +496,15 @@ sub _target_write ($input) {
     };
 }
 
+sub _target_command_row ( $input, $store ) {
+    return {
+        user_id     => _nullable( $input->{user_id} ),
+        target_type => $input->{target_type},
+        target_id   => _nullable( $input->{target_id} ),
+        stamped_at  => $store->clock->now_iso8601,
+    };
+}
+
 sub _report_request ($input) {
     return {
         details          => trimmed( $input->{details} ),
@@ -483,6 +561,12 @@ target, and preference, note, or report reason fields only. Stores keep
 unique-restore and persistence ownership.
 
 =head1 SUBROUTINES/METHODS
+
+=head2 async_call_p
+
+Dispatch atomic bookmark, like, reaction and subscription commands through native
+PostgreSQL promises, preserving their command log and replay responses. Other
+operations retain the isolated workflow executor and cancellation checks.
 
 =head2 save_bookmark
 

@@ -1173,6 +1173,11 @@ const my %FUNCTION => (
         parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
         json       => ['response']
     },
+    community_target_command => {
+        version    => 2,
+        parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],
+        json       => ['response']
+    },
     community_like_command => {
         version    => 2,
         parameters => [ log => 'jsonb', answer => 'jsonb', row => 'jsonb' ],

@@ -13,12 +13,14 @@ use Mojo::UserAgent;
 use Mojolicious;
 use Test::Mojo;
 use Test::More;
-use Time::HiRes qw(sleep);
+use Time::HiRes  qw(sleep);
+use Scalar::Util qw(refaddr);
 use lib 'lib', 't/lib';
 use GPForum::Controller::Base;
 use GPForum::Infrastructure::AsyncGate;
 use GPForum::Infrastructure::AsyncWork;
 use GPForum::Log;
+use GPForum::X::Unavailable;
 use GPForum::Service::Attachment::PostgresAsset;
 use GPForum::Web::MediaResponse;
 use GPForum::Test::AsyncChunkStorage;
@@ -98,6 +100,74 @@ subtest
         'a disconnected queued request starts no subprocess'
     );
   };
+
+subtest 'completed operations release capacity before consumers resume' => sub {
+    my $gate = GPForum::Infrastructure::AsyncGate->new( concurrency => 1 );
+    my $result;
+    $gate->run_p( sub { return Mojo::Promise->resolve('ready'); } )->then(
+        sub ($value) {
+            $result = $value;
+            is( $gate->active, 0, 'success has no occupied admission slot' );
+            return;
+        }
+    )->wait;
+    is( $result, 'ready', 'successful value survives admission' );
+    $gate->run_p( sub { croak 'expected early failure'; } )->catch(
+        sub ($error) {
+            like(
+                "$error",
+                qr/expected[ ]early[ ]failure/msx,
+                'original failure is preserved'
+            );
+            is( $gate->active, 0, 'failure has no occupied admission slot' );
+            return;
+        }
+    )->wait;
+    my @values;
+    $gate->run_p( sub { return ( 'first', 'second' ); } )
+      ->then( sub (@items) { @values = @items; return; } )
+      ->wait;
+    is_deeply(
+        \@values,
+        [ 'first', 'second' ],
+        'synchronous list results survive admission'
+    );
+};
+
+subtest 'already completed service results do not suspend cached reads' => sub {
+    my $controller = GPForum::Controller::Base->new;
+    my $ready =
+      $controller->await_p( Mojo::Promise->resolve( 'first', 'second' ) );
+    ok( $ready->AWAIT_IS_READY,
+        'a completed value remains immediately awaitable' );
+    is_deeply(
+        [ $ready->AWAIT_GET ],
+        [ 'first', 'second' ],
+        'list results are preserved'
+    );
+    my $empty = $controller->await_p( Mojo::Promise->resolve );
+    ok( $empty->AWAIT_IS_READY,
+        'an empty result remains immediately awaitable' );
+    is_deeply( [ $empty->AWAIT_GET ], [], 'empty lists are preserved' );
+    my $failure  = GPForum::X::Unavailable->new( message => 'ready failure' );
+    my $rejected = $controller->await_p( Mojo::Promise->reject($failure) );
+    ok( $rejected->AWAIT_IS_READY,
+        'a completed failure remains immediately awaitable' );
+    my $caught;
+    try { $rejected->AWAIT_GET; } catch ($error) {
+        $caught = $error;
+    };
+    is( refaddr($caught), refaddr($failure),
+        'typed failures keep their identity' );
+    my $pending = Mojo::Promise->new;
+    my $waiting = $controller->await_p($pending);
+    ok( !$waiting->AWAIT_IS_READY, 'pending work still suspends' );
+    my $value;
+    my $finished = $waiting->then( sub ($item) { $value = $item; return; } );
+    $pending->resolve('later');
+    $finished->wait;
+    is( $value, 'later', 'pending work still resumes normally' );
+};
 
 subtest 'a slow subprocess leaves the HTTP event loop responsive' => sub {
     my $work   = GPForum::Infrastructure::AsyncWork->new;

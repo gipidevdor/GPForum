@@ -6,15 +6,10 @@
 // The real app, templates, assets and controllers run against the same service
 // doubles as the Perl fragment tests. No PostgreSQL or production writes.
 const assert = require("node:assert/strict");
-const {spawn} = require("node:child_process");
-const {once} = require("node:events");
-const net = require("node:net");
-const path = require("node:path");
 const test = require("node:test");
-const {setTimeout: delay} = require("node:timers/promises");
 const {chromium} = require("playwright");
+const {startFixture} = require("./support/process.cjs");
 
-const root = path.resolve(__dirname, "../..");
 const fixture = String.raw`
 use v5.40;
 use lib 'lib', 't/lib';
@@ -42,39 +37,12 @@ $app->routes->get('/__browser/session/:user')->to(cb => sub ($c) {
     return $c->render(text => 'ready');
 });
 $app->log->level('fatal');
-$app->start;
+
 `;
 
 test("htmx 4 runs GPForum fragments under its real CSP", {timeout: 60000}, async (t) => {
-  const reservation = net.createServer();
-  reservation.listen(0, "127.0.0.1");
-  await once(reservation, "listening");
-  const address = `http://127.0.0.1:${reservation.address().port}`;
-  await new Promise((resolve) => reservation.close(resolve));
-  const app = spawn(path.join(root, "script/gpforum-carton"),
-    ["exec", "perl", "-e", fixture, "daemon", "-l", address], {
-      cwd: root,
-      env: {...process.env, GPFORUM_ENV: "development", MOJO_MODE: "development"},
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  let log = "";
-  for (const stream of [app.stdout, app.stderr]) {
-    stream.on("data", (chunk) => { log = (log + chunk).slice(-8000); });
-  }
-  t.after(async () => {
-    if (app.exitCode !== null) return;
-    const exited = once(app, "exit");
-    app.kill("SIGTERM");
-    await exited;
-  });
-  let ready = false;
-  for (let attempt = 0; attempt < 200; attempt++) {
-    if (app.exitCode !== null) throw new Error(`fixture app exited: ${log}`);
-    try { ready = (await fetch(`${address}/health/live`)).ok; } catch {}
-    if (ready) break;
-    await delay(50);
-  }
-  assert.ok(ready, `fixture app did not start: ${log}`);
+  const running = await startFixture(t, fixture);
+  const {address} = running;
   const browser = await chromium.launch({headless: true});
   t.after(() => browser.close());
 
@@ -86,9 +54,11 @@ test("htmx 4 runs GPForum fragments under its real CSP", {timeout: 60000}, async
     await page.addInitScript(() => {
       window.fragmentSwaps = 0;
       window.requestCompletions = 0;
+      window.requestStarts = 0;
       window.cspViolations = [];
       document.addEventListener("htmx:after:swap", () => window.fragmentSwaps++);
       document.addEventListener("htmx:finally:request", () => window.requestCompletions++);
+      document.addEventListener("htmx:before:request", () => window.requestStarts++);
       document.addEventListener("securitypolicyviolation", (e) => window.cspViolations.push(e.violatedDirective));
     });
     await prepare(page);
@@ -179,22 +149,40 @@ test("htmx 4 runs GPForum fragments under its real CSP", {timeout: 60000}, async
     } finally { await context.close(); }
   });
 
-  await t.test("double submission sends one request and releases controls", async () => {
-    const {page, context} = await open();
-    try {
-      let requests = 0;
-      await page.route("**/t/thread-1/subscribe", async (route) => {
-        requests++;
-        await delay(150);
-        await route.continue();
-      });
-      await page.locator(subscribe).evaluate((form) => { form.requestSubmit(); form.requestSubmit(); });
-      await page.waitForFunction(() => window.fragmentSwaps === 1);
-      await delay(200);
-      assert.equal(requests, 1);
-      assert.equal(await page.locator('#thread-toolbar button[type="submit"]:disabled').count(), 0);
-    } finally { await context.close(); }
-  });
+  for (const outcome of ["replaced form", "retained form"]) {
+    await t.test(`double submission sends one request and releases controls (${outcome})`, async () => {
+      const {page, context} = await open();
+      let release = () => {};
+      try {
+        let requests = 0;
+        let observed;
+        const pending = new Promise((resolve) => { release = resolve; });
+        const firstRequest = new Promise((resolve) => { observed = resolve; });
+        await page.route("**/t/thread-1/subscribe", async (route) => {
+          requests++;
+          observed();
+          await pending;
+          if (outcome === "retained form") {
+            // Exercise a failed response that leaves its source form connected,
+            // as well as the successful response that replaces the toolbar.
+            await route.fulfill({status: 422, contentType: "text/html",
+              headers: {"HX-Reswap": "none"},
+              body: '<div id="flash" hx-swap-oob="true"><p class="flash--error">Retry</p></div>'});
+          } else {
+            await route.continue();
+          }
+        });
+        await page.locator(subscribe).evaluate((form) => { form.requestSubmit(); form.requestSubmit(); });
+        await firstRequest;
+        assert.equal(requests, 1, "only one request is admitted while its response is held");
+        release();
+        await page.waitForFunction(() => window.fragmentSwaps >= 1 && window.requestCompletions >= 1);
+        assert.equal(requests, 1);
+        assert.equal(await page.evaluate(() => window.requestStarts), 1, "no deferred duplicate starts after completion");
+        assert.equal(await page.locator('#thread-toolbar button[type="submit"]:disabled').count(), 0);
+      } finally { release(); await context.close(); }
+    });
+  }
 
   await t.test("validation responses replace the fragment and transport failures unlock the form", async () => {
     const {page, context, errors} = await open();

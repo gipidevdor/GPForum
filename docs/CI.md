@@ -52,8 +52,10 @@ fixture does not establish production RPO/RTO or attachment consistency.
 The blocking integration job also runs the [functional feature gate](ui/functional-coverage.md)
 against its disposable service and publishes `features.json` and `tests.log`.
 This instrumented run requires all declared behavioral witnesses and HTTP
-outcomes across the complete integration directory. The normal integration run
-remains separate, so failures without instrumentation also block the job.
+outcomes across the complete integration directory, plus the unit witnesses.
+The directory runs once under instrumentation; a failed test or missing witness
+fails the same job. `make integration JOBS=2` remains available for local
+diagnosis without instrumentation.
 
 ## Readiness targets
 
@@ -140,8 +142,8 @@ every one-line step of `ci.yml` must be in the second table.
 | `bin/gpforum os-preflight --json` | same |
 | `postgresql-client-16` | same |
 | `clamd --config-file` | same |
-| `make integration` | `make integration JOBS=2` |
-| `script/gpforum-carton exec prove -lr t` | `script/gpforum-carton exec prove -l -j 4 t`, `make integration JOBS=2` |
+| `make integration` | `script/gpforum-carton exec script/test-features --configured --jobs 2 --output "$RUNNER_TEMP/features"` |
+| `script/gpforum-carton exec prove -lr t` | `script/gpforum-carton exec prove -l -j 4 t`, `script/gpforum-carton exec script/test-features --configured --jobs 2 --output "$RUNNER_TEMP/features"` |
 | `bin/gpforum benchmark --fixture --check` | same |
 | `bin/gpforum query-plan-evidence --check` | same |
 | `script/benchmark-http --configured --check` | same |
@@ -181,7 +183,6 @@ developer's laptop.
 | `integration` | `script/query-plan-check --require-db` |
 | `integration` | `bin/gpforum os-preflight --json` |
 | `integration` | `clamd --config-file` |
-| `integration` | `make integration JOBS=2` |
 | `integration` | `script/gpforum-carton exec script/test-features --configured --jobs 2 --output "$RUNNER_TEMP/features"` |
 | `integration` | `bin/gpforum benchmark --fixture --check` |
 | `integration` | `bin/gpforum query-plan-evidence --check` |

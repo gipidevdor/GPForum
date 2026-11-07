@@ -7,9 +7,8 @@ use Const::Fast;
 use List::Util  qw(any);
 use Digest::SHA qw(hmac_sha256_hex);
 use JSON::MaybeXS;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
-use Mojo::Promise;
 use GPForum::Config;
 use Mojo::Util qw(encode decode);
 use GPForum::X::Config;
@@ -73,28 +72,26 @@ sub load ($self) {
     };
 }
 
-sub load_p ( $self, $context = undef ) {
-    return Mojo::Promise->resolve->then( sub { return $self->load; } )
-      if !$self->functions;
-    return $self->functions->row_p( 'admin_configuration_state', {}, $context )
-      ->then(
-        sub ($row) {
-            return {
-                available          => $row ? 1 : 0,
-                revision           => $row->{revision} // 0,
-                public_cache_epoch => $row->{public_cache_epoch},
-                settings => $row->{settings} // { plugins => {}, general => {} }
-            };
-        }
-      )->catch(
-        sub {
-            return {
-                available => 0,
-                revision  => 0,
-                settings  => { plugins => {}, general => {} }
-            };
-        }
-      );
+async sub load_p ( $self, $context = undef ) {
+    return $self->load if !$self->functions;
+    my $row;
+    try {
+        $row = await $self->functions->row_p( 'admin_configuration_state', {},
+            $context );
+    }
+    catch ($error) {
+        return {
+            available => 0,
+            revision  => 0,
+            settings  => { plugins => {}, general => {} }
+        };
+    };
+    return {
+        available          => $row ? 1 : 0,
+        revision           => $row->{revision} // 0,
+        public_cache_epoch => $row->{public_cache_epoch},
+        settings => $row->{settings} // { plugins => {}, general => {} }
+    };
 }
 
 sub environment ($self) {

@@ -15,6 +15,7 @@ use GPForum::Infrastructure::ResultRow::Thread;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Service::Forum::PostingCommand;
+use GPForum::Service::Forum::PostingNative;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::Visibility;
@@ -83,6 +84,16 @@ has functions => sub ($self) {
 sub create_thread ( $self, $input ) {
     return $self->_screened( 'thread.create', $input,
         sub ($screened) { return $self->_write_thread($screened); } );
+}
+
+sub async_call_p (
+    $self, $method, $arguments,
+    $context = undef,
+    $cancelled = undef
+  )
+{
+    return GPForum::Service::Forum::PostingNative->new( workflow => $self )
+      ->call_p( $method, $arguments, $context, $cancelled );
 }
 
 sub create_reply ( $self, $input ) {
@@ -310,15 +321,17 @@ sub _create_reply_by_function ( $self, $functions, $input ) {
 
     my $result;
     try {
+        return {
+            native_kind => 'reply',
+            type        => $REPLY,
+            call        => $call,
+            prepared    => $prepared
+          }
+          if $self->{native_plan};
         $result = $self->_reply_called( $functions, $call, $prepared );
     }
     catch ($error) {
-        if ( "$error" =~ $STORE_FUNCTION ) {
-            $self->_log( error => "reply create failed: $error" );
-            return _result( status => 'failed', error => 'post store failed' );
-        }
-        $self->_log( error => "command log failed: $error" );
-        return _result( status => 'failed', error => 'command log failed' );
+        return $self->_function_failure( $REPLY, $error );
     };
 
     return $result;
@@ -768,34 +781,16 @@ sub _run_by_function ( $self, $type, $input, $run ) {
         $self->_log( error => "command log failed: $error" );
         return _result( status => 'failed', error => 'command log failed' );
     };
+    return {
+        native_kind => 'write',
+        type        => $type,
+        call        => $call,
+        prepared    => $prepared
+      }
+      if $self->{native_plan};
     my $execute = sub {
-        my $row     = $self->functions->row( 'forum_write_command', $call );
-        my $outcome = $row->{outcome} // q{};
-        return $self->codec->replay( $type, $row->{response} )
-          if $outcome eq 'replayed';
-        return _result(
-            status => 'conflict',
-            error  =>
-              GPForum::Service::Operations::CommandIdempotency->refusal_error(
-                $outcome)
-        ) if $outcome ne 'recorded';
-        my $response = $row->{response};
-        return _result( status => 'invalid', prepared => $prepared )
-          if $response->{status} eq 'invalid';
-        return _result(
-            status => $response->{status},
-            error  => $response->{error}
-        ) if !$response->{ok};
-        my $stored =
-          $self->_function_store($type)->function_answer( $row->{stored} );
-        my $result =
-          _result( status => 'ok', stored => $stored, prepared => $prepared );
-        my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
-
-        if ($mentions) {
-            $self->_record_post_mentions( $stored, $call->{command} );
-        }
-        return $result;
+        my $row = $self->functions->row( 'forum_write_command', $call );
+        return $self->_write_result( $type, $call, $prepared, $row );
     };
     my $result;
     try {
@@ -809,15 +804,56 @@ sub _run_by_function ( $self, $type, $input, $run ) {
           : $self->_function_store($type)->schema->txn_do($execute);
     }
     catch ($error) {
-        my ( $noun, undef, $label ) = @{ $STORE{$type} };
-        if ( "$error" =~ /\bapi[.]core_forum_\w+_v1\b/msx ) {
-            $self->_log( error => "$label failed: $error" );
-            return _result( status => 'failed', error => "$noun store failed" );
-        }
-        $self->_log( error => "command log failed: $error" );
-        return _result( status => 'failed', error => 'command log failed' );
+        return $self->_function_failure( $type, $error );
     };
     return $result;
+}
+
+sub _write_result ( $self, $type, $call, $prepared, $row ) {
+    my $outcome = $row->{outcome} // q{};
+    return $self->codec->replay( $type, $row->{response} )
+      if $outcome eq 'replayed';
+    return _result(
+        status => 'conflict',
+        error  =>
+          GPForum::Service::Operations::CommandIdempotency->refusal_error(
+            $outcome)
+    ) if $outcome ne 'recorded';
+    my $response = $row->{response};
+    return _result( status => 'invalid', prepared => $prepared )
+      if $response->{status} eq 'invalid';
+    return _result(
+        status => $response->{status},
+        error  => $response->{error}
+    ) if !$response->{ok};
+    my $stored =
+      $self->_function_store($type)->function_answer( $row->{stored} );
+    my $result =
+      _result( status => 'ok', stored => $stored, prepared => $prepared );
+    my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
+
+    if ($mentions) {
+        $self->_record_post_mentions( $stored, $call->{command} );
+    }
+    return $result;
+}
+
+sub _function_failure ( $self, $type, $error ) {
+    my $store_error =
+      $type eq $REPLY
+      ? "$error" =~ $STORE_FUNCTION
+      : "$error" =~ /\bapi[.]core_forum_\w+_v1\b/msx;
+    if ($store_error) {
+        my ( $noun, undef, $label ) = @{ $STORE{$type} };
+        $self->_log( error => "$label failed: $error" );
+        return _result( status => 'failed', error => "$noun store failed" );
+    }
+    return $self->_command_log_failure($error);
+}
+
+sub _command_log_failure ( $self, $error ) {
+    $self->_log( error => "command log failed: $error" );
+    return _result( status => 'failed', error => 'command log failed' );
 }
 
 sub _function_store ( $self, $type ) {
@@ -1154,6 +1190,12 @@ is optional: with it a new thread, a reply, a post edit and a thread title
 edit are screened against the watched words and the link rule (ADR 0133),
 and a block answers C<invalid> with an C<automod> member naming the field
 and what matched.
+
+=head2 async_call_p
+
+Use native PostgreSQL commands with isolated data-only preparation. Moderation
+and mention workflows that require extended transactions retain their complete
+isolated executor.
 
 =head2 create_thread
 

@@ -16,7 +16,6 @@ use GPForum::Infrastructure::AsyncWork;
 
 use GPForum::Infrastructure::Row;
 use GPForum::Service::Forum::SourceThread;
-use GPForum::Service::Forum::Viewer;
 use GPForum::Service::Forum::ThreadTags;
 use GPForum::Service::Search::DocumentBuilder;
 use Mojo::Date;

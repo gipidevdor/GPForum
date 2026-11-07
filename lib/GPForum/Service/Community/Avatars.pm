@@ -7,7 +7,6 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
-use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::ImageBytes;
 use GPForum::Service::Attachment::Validator;

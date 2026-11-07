@@ -4,7 +4,6 @@
 package GPForum::Infrastructure::FileAsset;
 use Mojo::Base 'Mojo::Asset::File', -signatures;
 use v5.40;
-use Carp       qw(croak);
 use List::Util qw(min);
 use Mojo::Promise;
 use GPForum::Infrastructure::FileReader;

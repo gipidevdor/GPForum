@@ -145,9 +145,7 @@ async sub thread_page_p ( $self, $request, $context = undef ) {
     return $self->thread_page($request) if !$self->functions;
     if ( !defined $request->{post} || !length $request->{post} ) {
         return await GPForum::Service::Forum::ThreadPageSnapshot->new(
-            schema        => $self->schema,
-            detail_reader => $self
-        )->read_p($request);
+            detail_reader => $self )->read_p($request);
     }
 
     my $viewer = $request->{viewer}

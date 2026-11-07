@@ -6,7 +6,6 @@ package GPForum::Infrastructure::PublicResolver;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Const::Fast;
-use Carp       qw(croak);
 use List::Util qw(min any);
 use Mojo::IOLoop;
 use Mojo::Promise;

@@ -37,7 +37,6 @@ use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::PeerAuthentication;
 use GPForum::Service::Operations::ServiceAccount;
 use GPForum::Service::Operations::ServiceFiles;
-use GPForum::X::Usage;
 
 our $VERSION = '0.001';
 

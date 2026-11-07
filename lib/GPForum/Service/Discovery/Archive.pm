@@ -11,7 +11,6 @@ use File::Temp;
 use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Discovery::Mbox;
-use GPForum::Service::Forum::Viewer;
 
 our $VERSION = '0.001';
 

@@ -16,7 +16,6 @@ use GPForum::Command::Usage;
 use GPForum::Service::Operations::Dependencies;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::ReadinessFindings;
-use GPForum::X::Usage;
 
 our $VERSION = '0.001';
 

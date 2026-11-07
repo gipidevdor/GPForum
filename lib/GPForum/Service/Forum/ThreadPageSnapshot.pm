@@ -7,14 +7,13 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use GPForum::Infrastructure::ResultRow::Post;
 use GPForum::Infrastructure::ResultRow::Thread;
-use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Attachment::Lifecycle;
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Forum::Viewer;
 
 our $VERSION = '0.001';
 
-__PACKAGE__->requires(qw(schema detail_reader));
+__PACKAGE__->requires('detail_reader');
 has lifecycle => sub { return GPForum::Service::Attachment::Lifecycle->new; };
 has window    => sub { return GPForum::Service::Forum::PageWindow->new; };
 
@@ -111,7 +110,7 @@ Version 0.001.
 =head1 SYNOPSIS
 
     my $snapshot = GPForum::Service::Forum::ThreadPageSnapshot->new(
-        schema => $schema, detail_reader => $reader,
+        detail_reader => $reader,
     );
     my $page = await $snapshot->read_p($request);
 
@@ -134,7 +133,7 @@ the existing detail-reader path; ordinary cursors and C<at> use this operation.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-C<schema> and C<detail_reader> are required. C<lifecycle> supplies attachment
+C<detail_reader> is required. C<lifecycle> supplies attachment
 target and per-post bounds; C<window> bounds pagination and handles cursors.
 
 =head1 DIAGNOSTICS

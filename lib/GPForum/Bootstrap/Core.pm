@@ -11,7 +11,6 @@ use Compress::Raw::Zlib qw(WANT_GZIP Z_OK);
 use Const::Fast;
 use Mojo::IOLoop;
 
-use GPForum::Service::Attachment::Validator;
 use GPForum::Service::Clock;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::ConnectionAdmission;

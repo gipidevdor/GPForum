@@ -8,7 +8,6 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 use GPForum::Infrastructure::Row;
 use GPForum::Infrastructure::Text qw(has_text);

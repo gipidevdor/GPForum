@@ -34,7 +34,8 @@ sub run ( $self, @arguments ) {
         return $EXIT_USAGE;
     };
 
-    return _print_usage() if $options->{help};
+    return GPForum::Command::Usage->help( \*STDOUT, _usage() )
+      if $options->{help};
 
     my $code = 0;
     for my $file_path ( @{ $options->{paths} } ) {
@@ -111,10 +112,6 @@ sub _options (@arguments) {
     }
 
     return \%options;
-}
-
-sub _print_usage {
-    return GPForum::Command::Usage->help( \*STDOUT, _usage() );
 }
 
 # Public so the Mojolicious command adapter in GPForum::CLI can show the same

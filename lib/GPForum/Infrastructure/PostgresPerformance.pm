@@ -6,7 +6,7 @@ package GPForum::Infrastructure::PostgresPerformance;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 use Carp          qw(croak);
-use JSON::MaybeXS qw(encode_json decode_json);
+use JSON::MaybeXS qw(encode_json);
 use Fcntl         qw(O_WRONLY O_CREAT O_EXCL);
 use IO::Handle;
 use Const::Fast;

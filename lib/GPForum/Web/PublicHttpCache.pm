@@ -6,7 +6,6 @@ package GPForum::Web::PublicHttpCache;
 use Const::Fast;
 use Digest::SHA                   qw(sha1_hex);
 use GPForum::Infrastructure::Text qw(has_text);
-use GPForum::Web::Access;
 use GPForum::Web::PublicCacheAccess;
 use GPForum::X::Argument;
 use Mojo::Base -base, -signatures;

@@ -16,7 +16,6 @@ use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::RetentionStore;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
 has functions => sub ($self) {

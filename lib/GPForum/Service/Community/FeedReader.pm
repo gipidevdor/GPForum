@@ -13,7 +13,6 @@ use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Forum::SourceThread;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::SourceFunction;
 
 our $VERSION = '0.001';

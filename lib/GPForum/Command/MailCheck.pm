@@ -53,36 +53,16 @@ has check => undef;    # optional: a test's double; else the real check
 # gets by default.
 has default_format => 'json';
 
-# Misuse -- an option this command does not know, all its parser rejects --
-# is the documented usage exit: the usage on stderr, status 2, without a
-# croak's " at bin/... line N.". A check that stops with an exception instead
-# of evidence is a failure: 1 with its reason, redacted, on stderr and, as
-# JSON, evidence saying fail (Command::Usage). Rethrown, an uncaught exception
-# would exit 255, or with whatever $! held: 2, misuse, after a failed file
-# lookup.
 sub run ( $self, @arguments ) {
-    return $self->_print_usage()
+    return GPForum::Command::Usage->help( \*STDOUT, $self->usage_text )
       if GPForum::Command::Usage->wants_help(@arguments);
-    my $options;
-    try {
-        $options = $self->_options(@arguments);
-    }
-    catch ($error) {
-        return GPForum::Command::Usage->error( undef,
-            GPForum::Command::Usage->trimmed($error) );
-    };
-
-    my $status;
-    try {
-        $status = $self->_run($options);
-    }
-    catch ($error) {
-        return GPForum::Command::Usage->evidence_failure( $error,
-            $options->{format},
-            { check => 'mail_delivery', mode => $options->{mode} } );
-    };
-
-    return $status;
+    return GPForum::Command::Usage->evidence_command(
+        sub { return $self->_options(@arguments); },
+        sub ($options) { return $self->_run($options); },
+        sub ($options) {
+            return { check => 'mail_delivery', mode => $options->{mode} };
+        },
+    );
 }
 
 sub _run ( $self, $options ) {
@@ -154,10 +134,6 @@ sub _options ( $self, @arguments ) {
     }
 
     return \%options;
-}
-
-sub _print_usage ($self) {
-    return GPForum::Command::Usage->help( \*STDOUT, $self->usage_text );
 }
 
 # Public so the Mojolicious command adapter in GPForum::CLI can show the same

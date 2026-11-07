@@ -13,7 +13,6 @@ use GPForum::Infrastructure::PgNotifications;
 use GPForum::Infrastructure::Storage;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
 has functions => sub ($self) {

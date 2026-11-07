@@ -4,7 +4,6 @@
 package GPForum::Controller::Identity::Relations;
 
 use Const::Fast;
-use GPForum::Web::ErrorPayload;
 use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 

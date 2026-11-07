@@ -20,7 +20,6 @@ use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 has functions => sub {
     my ($self) = @_;

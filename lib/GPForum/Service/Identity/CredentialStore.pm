@@ -10,7 +10,6 @@ use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
-use GPForum::Infrastructure::ResultRow::IdentityUser;
 
 use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::Infrastructure::UniqueConflict;

@@ -74,7 +74,7 @@ has sleeper => sub {
 # the database gone -- exits 1 with its reason, and under --json still prints
 # a document.
 sub run ( $self, @arguments ) {
-    return _print_usage( $self->output )
+    return GPForum::Command::Usage->help( $self->output, _usage() )
       if GPForum::Command::Usage->wants_help(@arguments);
     my $options;
     try {
@@ -316,10 +316,6 @@ sub _print_summary ( $output, $summary ) {
       or croak 'failed to write outbox dispatch summary';
 
     return;
-}
-
-sub _print_usage ($output) {
-    return GPForum::Command::Usage->help( $output, _usage() );
 }
 
 # Public so the Mojolicious command adapter in GPForum::CLI can show the same

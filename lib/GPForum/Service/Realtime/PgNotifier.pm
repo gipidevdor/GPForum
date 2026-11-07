@@ -10,7 +10,6 @@ use GPForum::Infrastructure::Storage;
 use GPForum::Service::Realtime::EventEnvelope;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
 has functions => sub ($self) {

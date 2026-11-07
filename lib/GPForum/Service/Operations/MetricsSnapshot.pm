@@ -18,7 +18,6 @@ use GPForum::Service::Operations::Replication;
 use GPForum::Service::Clock;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
 has functions => sub ($self) {

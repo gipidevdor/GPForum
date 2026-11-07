@@ -15,7 +15,6 @@ use GPForum::Infrastructure::Id;
 use GPForum::X::Conflict;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
 

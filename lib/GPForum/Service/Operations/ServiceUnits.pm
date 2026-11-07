@@ -19,7 +19,6 @@ use GPForum::Service::Operations::DeployContract qw(
   deploy_match_text
   deploy_unit_checks
 );
-use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::ServiceFiles;
 

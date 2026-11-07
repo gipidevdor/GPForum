@@ -5,27 +5,22 @@
 # Mojolicious derives the command name from the lower-case basename.
 package GPForum::CLI::postgres_performance;
 ## use critic
-use Mojo::Base 'Mojolicious::Command', -signatures;
+use Mojo::Base 'GPForum::CLI::FrontDoor::Command', -signatures;
 use v5.40;
 use GPForum::CLI::FrontDoor::Launcher;
 use GPForum::Command::PostgresPerformance;
-use GPForum::Command::Usage;
 our $VERSION = '0.001';
 has description =>
   'Inspect, plan, apply and verify PostgreSQL performance settings';
-has usage => sub { return GPForum::Command::PostgresPerformance->usage_text; };
 
 # A relative --plan, --restore, --journal or --output reads from where the
 # operator typed the command, which the front door remembers before it
 # moves to the code directory.
-sub run ( $self, @arguments ) {
+sub command ($self) {
     my $typed_in = GPForum::CLI::FrontDoor::Launcher->typed_in;
 
-    return GPForum::Command::Usage->front_door(
-        GPForum::Command::PostgresPerformance->new(
-            defined $typed_in ? ( directory => $typed_in ) : ()
-        )->run(@arguments)
-    );
+    return GPForum::Command::PostgresPerformance->new(
+        defined $typed_in ? ( directory => $typed_in ) : () );
 }
 1;
 

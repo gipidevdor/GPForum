@@ -46,7 +46,7 @@ has human => 0;
 has words => sub { return GPForum::Command::Support::Words->new; };
 
 sub run ( $self, @arguments ) {
-    return _print_usage( $self->output )
+    return GPForum::Command::Usage->help( $self->output, _usage() )
       if GPForum::Command::Usage->wants_help(@arguments);
     my $options;
     try {
@@ -395,10 +395,6 @@ sub _parse_arguments (@arguments) {
     }
 
     return \%options;
-}
-
-sub _print_usage ($output) {
-    return GPForum::Command::Usage->help( $output, _usage() );
 }
 
 # Public so the Mojolicious command adapter in GPForum::CLI can show the same

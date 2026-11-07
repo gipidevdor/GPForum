@@ -17,6 +17,7 @@ use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::Service::Operations::DbQueryStats;
 use GPForum::Test::PgDatabase;
+use GPForum::Test::Promise qw(await_result);
 
 our $VERSION = '0.001';
 const my $SLOW_SECONDS   => 0.15;
@@ -56,8 +57,8 @@ my $functions = GPForum::Infrastructure::SqlFunction->new(
 my $stats = GPForum::Service::Operations::DbQueryStats->new;
 $stats->attach_to_schema($schema);
 my $executor = GPForum::Infrastructure::AsyncQuery->for_schema($schema);
-is( $executor->prewarm, 2,
-    'worker startup retains two isolated asynchronous leases' );
+is( await_result( $executor->prewarm_p ),
+    2, 'worker startup retains two isolated asynchronous leases' );
 
 for my $db ( @{ $executor->connections } ) {
     $db->dbh->{Callbacks} =

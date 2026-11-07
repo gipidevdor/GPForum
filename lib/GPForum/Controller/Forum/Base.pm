@@ -821,29 +821,6 @@ async sub _move_categories_p( $self, $page, $user_id, $parts ) {
       : [];
 }
 
-sub thread_page_payload ( $self, $page, $user_id, %option ) {
-    my $payload =
-      sub { return $self->_thread_page_payload( $page, $user_id, %option ) };
-    my $reads;
-    try {
-        $reads = $self->gp_thread_page_reads;
-    }
-    catch ($error) {
-        return $payload->();
-    };
-
-    my $parts = $option{fragment};
-    return $reads->reading(
-        {
-            page           => $page,
-            thread_id      => $self->param('thread_id'),
-            viewer_user_id => $user_id,
-            omit_thread    => $parts && !$parts->{header} && !$parts->{toolbar},
-        },
-        $payload
-    );
-}
-
 sub _thread_page_payload ( $self, $page, $user_id, %option ) {
 
     my $parts        = $option{fragment};

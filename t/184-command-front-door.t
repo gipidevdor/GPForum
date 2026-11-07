@@ -10,6 +10,7 @@ use Const::Fast;
 use English       qw(-no_match_vars);
 use JSON::MaybeXS qw(decode_json);
 use Mojo::File    qw(path);
+use Mojo::Util    qw(encode);
 use Test::More;
 
 use lib 'lib';
@@ -73,6 +74,7 @@ for my $adapter (@adapters) {
     my $command = $class->new;
     ok( length $command->description, "$adapter has a description" );
     like( $command->usage, qr/Usage:/msx, "$adapter reports its usage" );
+    _check_help( $command, $adapter );
 }
 
 # The exit-code contract the entrypoints share.
@@ -130,5 +132,26 @@ is( decode_json($printed)->{status},
     'ok', 'bin/gpforum budgets --json prints a document' );
 
 done_testing();
+
+sub _check_help ( $command, $adapter ) {
+    return if !$command->isa('GPForum::CLI::FrontDoor::Command');
+    my $help_text = q{};
+    open my $output, '>', \$help_text or croak "capture help: $ERRNO";
+    my $help_status;
+    {
+        local *STDOUT = $output;
+        $help_status = $command->run('--help');
+    }
+    close $output or croak "close help capture: $ERRNO";
+    is( $help_status, $EXIT_OK, "$adapter --help succeeds without services" );
+    my $usage = $command->usage;
+    if ( $usage !~ /\n\z/msx ) { $usage .= "\n"; }
+    is(
+        $help_text,
+        encode( 'UTF-8', $usage ),
+        "$adapter executes the command whose help it advertises"
+    );
+    return;
+}
 
 1;

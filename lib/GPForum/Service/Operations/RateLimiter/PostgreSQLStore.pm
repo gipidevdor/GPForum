@@ -8,7 +8,6 @@ use Digest::SHA qw(sha256_hex);
 use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 use Mojo::Promise;
-use GPForum::Infrastructure::AsyncWork;
 use POSIX qw(strftime);
 
 use GPForum::Service::Clock;

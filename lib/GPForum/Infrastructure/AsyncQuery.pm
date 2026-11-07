@@ -41,18 +41,6 @@ sub _owned ($self) {
     return;
 }
 
-sub _connect ($self) {
-    my $db = $self->schema->pg->db;
-
-    # These leases stay outside Mojo::Pg's idle queue, whose checkout sends
-    # a synchronous DBD::Pg ping. Failed leases are discarded, never replayed.
-    $db->dbh->{private_mojo_no_reuse} = 1;
-    $db->dbh->{pg_skip_deallocate}    = 1;
-    push @{ $self->connections }, $db;
-    $self->stats->{created}++;
-    return $db;
-}
-
 sub _connect_p ( $self, $context ) {
     return $self->schema->storage->database_p($context)->then(
         sub ($db) {
@@ -75,15 +63,6 @@ sub retire_connections ($self) {
         $db->disconnect;
     }
     return;
-}
-
-sub prewarm ($self) {
-    $self->_owned;
-    $self->schema->storage->database;
-    while ( @{ $self->connections } < $self->gate->concurrency ) {
-        push @{ $self->idle }, $self->_connect;
-    }
-    return scalar @{ $self->connections };
 }
 
 sub prewarm_p ($self) {
@@ -192,7 +171,7 @@ One executor belongs to a schema. Two dedicated Mojo::Pg connections serve activ
 
 =head1 SUBROUTINES/METHODS
 
-=head2 for_schema, run_p, prewarm, prewarm_p, retire_connections
+=head2 for_schema, run_p, prewarm_p, retire_connections
 
 Lease isolated Mojo::Pg connections for asynchronous operations.
 

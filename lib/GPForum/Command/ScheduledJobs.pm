@@ -80,7 +80,7 @@ has words => sub { return GPForum::Command::Support::Words->new; };
 # apart from it: 1 with its reason rather than the 255 of an uncaught
 # exception, and under --json still a document.
 sub run ( $self, @arguments ) {
-    return _print_usage( $self->output )
+    return GPForum::Command::Usage->help( $self->output, _usage() )
       if GPForum::Command::Usage->wants_help(@arguments);
     my $options;
     try {
@@ -383,10 +383,6 @@ sub _job_count ($result) {
     }
 
     return $result->{ok} ? 1 : 0;
-}
-
-sub _print_usage ($output) {
-    return GPForum::Command::Usage->help( $output, _usage() );
 }
 
 # Public so the Mojolicious command adapter in GPForum::CLI can show the same

@@ -121,6 +121,25 @@ sub read_arguments ( $class, $usage, $read ) {
     return $read_arguments;
 }
 
+# Evidence commands share two error boundaries: argument errors are usage,
+# while execution errors retain the selected format and evidence identity.
+sub evidence_command ( $class, $read, $run, $identify ) {
+    my $options;
+    try { $options = $read->(); }
+    catch ($error) {
+        return $class->error( undef, $class->trimmed($error) );
+    };
+
+    my $status;
+    try { $status = $run->($options); }
+    catch ($error) {
+        return $class->evidence_failure( $error, $options->{format},
+            $identify->($options) );
+    };
+
+    return $status;
+}
+
 # Reads a command line against a command's option tables. A switch sets the
 # keys it lists; a number option sets its key to the number that follows, which
 # must have the option's shape; a value option hands what follows to its own
@@ -458,6 +477,12 @@ finalized as evidence by L<GPForum::Service::Operations::EvidenceMeta> --
 C<secrets_redacted>, C<private_beta_claimed>, C<residual_gaps> -- with
 C<status> C<fail> and the redacted C<error>; with any other, only the reason
 on standard error. Returns C<$EXIT_FAILURE>.
+
+=head2 evidence_command
+
+Runs an evidence command through its argument reader, execution callback and
+failure-identity callback. Argument errors keep the usage exit status;
+execution errors use L</evidence_failure> with the parsed output format.
 
 =head2 wants_help
 

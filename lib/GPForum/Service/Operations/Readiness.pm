@@ -20,7 +20,6 @@ use GPForum::Service::Operations::QueryBudget;
 use GPForum::Service::Operations::Replication;
 
 use GPForum::Infrastructure::SqlFunction;
-use GPForum::Infrastructure::ResultRow;
 
 use Mojo::Promise;
 use GPForum::Infrastructure::AsyncWork;

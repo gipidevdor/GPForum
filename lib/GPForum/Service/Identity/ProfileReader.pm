@@ -9,7 +9,6 @@ use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
-use GPForum::Infrastructure::ResultRow::IdentityUser;
 
 use GPForum::Infrastructure::Keyset;
 use GPForum::Infrastructure::Row;

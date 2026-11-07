@@ -287,10 +287,13 @@ sub review_pending_allowance {
     my $reviewer     = user('reviewer');
     my $both_owner   = user('scan_and_review');
     my $both_pending = pipeline(
-        $schema, 'postgres',
+        $schema,
+        'postgres',
         owner_max_pending => $EXACT_UPLOADS,
-        review            =>
-          GPForum::Service::Attachment::ContentReview->new( schema => $schema ),
+        review            => GPForum::Service::Attachment::ContentReview->new(
+            schema       => $schema,
+            source_hosts => ['media.example.org']
+        ),
         antivirus => GPForum::Test::Antivirus->new( immediate => 0 )
     );
     for ( 1 .. $EXACT_UPLOADS ) {
@@ -307,9 +310,11 @@ sub review_pending_allowance {
     );
 
     for my $mode (qw(off immediate)) {
-        my $owner = user( 'review_' . $mode );
-        my $review =
-          GPForum::Service::Attachment::ContentReview->new( schema => $schema );
+        my $owner  = user( 'review_' . $mode );
+        my $review = GPForum::Service::Attachment::ContentReview->new(
+            schema       => $schema,
+            source_hosts => ['media.example.org']
+        );
         my $scanner = $mode eq 'off' ? undef : GPForum::Test::Antivirus->new;
         my $source  = {
             %{ input($owner) },
@@ -425,7 +430,8 @@ sub review_pending_allowance {
                     ? undef
                     : GPForum::Test::Antivirus->new,
                     review => GPForum::Service::Attachment::ContentReview->new(
-                        schema => $connection
+                        schema       => $connection,
+                        source_hosts => ['media.example.org']
                     )
                 );
                 my $answer = $race_writer->upload_and_link( input($racer) );
@@ -482,7 +488,8 @@ sub input ($owner) {
         content           => $PNG,
         media_type        => 'image/png',
         original_filename => 'photo.png',
-        source_kind       => 'original',
+        source_kind       => 'authorized',
+        source_url        => 'https://media.example.org/file',
         rights_confirmed  => 1
     };
 }

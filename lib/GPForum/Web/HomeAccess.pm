@@ -121,6 +121,12 @@ Returns the success hash with C<home> and C<runtime>.
 
 Returns the C<home_unavailable> error hash.
 
+=head2 cache_options
+
+Returns the public home-page cache options for the controller's locale and
+theme. Cursor, JSON and fragment requests return C<undef> and bypass this
+full-page cache.
+
 =head2 render_page
 
 Renders the home index through L<GPForum::Web::Responder>.

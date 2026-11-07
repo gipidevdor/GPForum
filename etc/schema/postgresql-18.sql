@@ -2229,6 +2229,61 @@ $$;
 
 
 --
+-- Name: admin_request_context_v1(bigint, uuid, uuid, text, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.admin_request_context_v1(p_known_revision bigint, p_session_id uuid, p_user_id uuid, p_token_hash text, p_now timestamp with time zone, p_touch_interval_seconds integer, p_resolve_viewer boolean) RETURNS TABLE(revision bigint, public_cache_epoch bigint, settings jsonb, validation jsonb, viewer jsonb)
+    LANGUAGE plpgsql
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+DECLARE
+    configuration record;
+    checked record;
+BEGIN
+    SELECT * INTO STRICT configuration FROM api.admin_configuration_state_v3();
+    revision := configuration.revision;
+    public_cache_epoch := configuration.public_cache_epoch;
+    settings := CASE WHEN p_known_revision IS NOT DISTINCT FROM revision
+        THEN NULL ELSE configuration.settings::jsonb END;
+
+    IF p_session_id IS NOT NULL AND p_user_id IS NOT NULL THEN
+        SELECT * INTO checked FROM api.session_validate_v1(
+            p_session_id, p_user_id, p_token_hash, p_now,
+            p_touch_interval_seconds
+        );
+        validation := jsonb_build_object('ok',
+            CASE WHEN checked.result_code = 'ok' THEN 1 ELSE 0 END,
+            'error', coalesce(checked.result_code, 'not_found'));
+        IF checked.result_code IS DISTINCT FROM 'ok' THEN
+            RETURN NEXT;
+            RETURN;
+        END IF;
+    END IF;
+    IF p_resolve_viewer AND p_user_id IS NOT NULL THEN
+        SELECT to_jsonb(v) INTO viewer FROM api.forum_resolve_viewer_v9(p_user_id) v;
+    END IF;
+    RETURN NEXT;
+END;
+$$;
+
+
+--
+-- Name: admin_request_context_v2(bigint, uuid, uuid, text, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.admin_request_context_v2(p_known_revision bigint, p_session_id uuid, p_user_id uuid, p_token_hash text, p_now timestamp with time zone, p_touch_interval_seconds integer, p_resolve_viewer boolean) RETURNS TABLE(revision bigint, public_cache_epoch bigint, settings jsonb, validation jsonb, viewer jsonb)
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.admin_request_context_v1(
+    p_known_revision,p_session_id,p_user_id,p_token_hash,p_now,
+    p_touch_interval_seconds,p_resolve_viewer);
+$$;
+
+
+--
 -- Name: admin_retire_announcement_v1(uuid, jsonb); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -17019,6 +17074,96 @@ $$;
 
 
 --
+-- Name: notification_fanout_page_v1(text, uuid, text, uuid, uuid, uuid, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.notification_fanout_page_v1(p_target_type text, p_target_id uuid, p_notification_type text, p_actor_id uuid, p_excluded_user_id uuid, p_after_user_id uuid, p_through_user_id uuid, p_row_limit integer) RETURNS TABLE(user_id uuid, in_app boolean, email boolean, email_address text, locale text, event_type text, silenced boolean, status text, suspended boolean, grants json, moderates boolean, listed uuid[], trust_level integer, web_push boolean, through_user_id uuid)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+DECLARE
+    stop_at uuid := p_through_user_id;
+    page_size integer := least(greatest(coalesce(p_row_limit, 100), 1), 1000);
+BEGIN
+    IF stop_at IS NULL THEN
+        SELECT last_user.user_id INTO stop_at FROM (
+            (SELECT s.user_id FROM public.subscriptions s
+            WHERE s.target_type = p_target_type AND s.target_id = p_target_id
+                AND s.revoked_at IS NULL AND s.muted_at IS NULL AND s.preference <> 'none'
+                AND (s.preference = 'all' OR p_notification_type = 'mention')
+                AND (p_excluded_user_id IS NULL OR s.user_id <> p_excluded_user_id)
+            ORDER BY s.user_id DESC LIMIT 1)
+            UNION ALL
+            (SELECT s.user_id FROM public.threads t JOIN public.subscriptions s
+                ON s.target_type = 'category' AND s.target_id = t.category_id
+            WHERE p_target_type = 'thread' AND t.thread_id = p_target_id
+                AND s.revoked_at IS NULL AND s.muted_at IS NULL AND s.preference <> 'none'
+                AND (s.preference = 'all' OR p_notification_type = 'mention')
+                AND (p_excluded_user_id IS NULL OR s.user_id <> p_excluded_user_id)
+                AND NOT EXISTS (SELECT 1 FROM public.subscriptions own
+                    WHERE own.user_id = s.user_id AND own.target_type = 'thread'
+                        AND own.target_id = p_target_id AND own.revoked_at IS NULL)
+            ORDER BY s.user_id DESC LIMIT 1)
+        ) last_user ORDER BY last_user.user_id DESC LIMIT 1;
+    END IF;
+    IF stop_at IS NULL THEN RETURN; END IF;
+    RETURN QUERY
+    WITH candidates AS MATERIALIZED (
+        (SELECT s.user_id FROM public.subscriptions s
+        WHERE s.target_type = p_target_type AND s.target_id = p_target_id
+            AND s.revoked_at IS NULL AND s.muted_at IS NULL AND s.preference <> 'none'
+            AND (s.preference = 'all' OR p_notification_type = 'mention')
+            AND (p_excluded_user_id IS NULL OR s.user_id <> p_excluded_user_id)
+            AND s.user_id >= coalesce(p_after_user_id, '00000000-0000-0000-0000-000000000000'::uuid)
+            AND (p_after_user_id IS NULL OR s.user_id <> p_after_user_id)
+            AND s.user_id <= stop_at
+        ORDER BY s.user_id LIMIT page_size)
+        UNION
+        (SELECT s.user_id FROM public.threads t JOIN public.subscriptions s
+            ON s.target_type = 'category' AND s.target_id = t.category_id
+        WHERE p_target_type = 'thread' AND t.thread_id = p_target_id
+            AND s.revoked_at IS NULL AND s.muted_at IS NULL AND s.preference <> 'none'
+            AND (s.preference = 'all' OR p_notification_type = 'mention')
+            AND (p_excluded_user_id IS NULL OR s.user_id <> p_excluded_user_id)
+            AND s.user_id >= coalesce(p_after_user_id, '00000000-0000-0000-0000-000000000000'::uuid)
+            AND (p_after_user_id IS NULL OR s.user_id <> p_after_user_id)
+            AND s.user_id <= stop_at
+            AND NOT EXISTS (SELECT 1 FROM public.subscriptions own
+                WHERE own.user_id = s.user_id AND own.target_type = 'thread'
+                    AND own.target_id = p_target_id AND own.revoked_at IS NULL)
+        ORDER BY s.user_id LIMIT page_size)
+    )
+    SELECT s.user_id, coalesce(plan.in_app, true), coalesce(plan.email, false),
+        plan.email_address, plan.locale, plan.event_type,
+        p_actor_id IS NOT NULL AND s.user_id <> p_actor_id AND EXISTS (
+            SELECT 1 FROM api.community_relation_between_v1(s.user_id, p_actor_id)),
+        v.status, v.suspended, v.grants, v.moderates, v.listed, v.trust_level,
+        api.core_notification_push_enabled_v1(s.user_id,p_notification_type), stop_at
+    FROM (SELECT c.user_id FROM candidates c ORDER BY c.user_id LIMIT page_size) s
+    LEFT JOIN LATERAL api.notification_delivery_plan_v3(s.user_id,p_notification_type) plan ON true
+    LEFT JOIN LATERAL api.forum_resolve_viewer_v9(s.user_id) v ON true
+    ORDER BY s.user_id;
+END;
+$$;
+
+
+--
+-- Name: notification_fanout_page_v2(text, uuid, text, uuid, uuid, uuid, uuid, integer); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.notification_fanout_page_v2(p_target_type text, p_target_id uuid, p_notification_type text, p_actor_id uuid, p_excluded_user_id uuid, p_after_user_id uuid, p_through_user_id uuid, p_row_limit integer) RETURNS TABLE(user_id uuid, in_app boolean, email boolean, email_address text, locale text, event_type text, silenced boolean, status text, suspended boolean, grants json, moderates boolean, listed uuid[], trust_level integer, web_push boolean, through_user_id uuid)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.notification_fanout_page_v1(
+    p_target_type,p_target_id,p_notification_type,p_actor_id,p_excluded_user_id,
+    p_after_user_id,p_through_user_id,p_row_limit);
+$$;
+
+
+--
 -- Name: notification_find_subscription_v1(uuid, text, uuid); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -26436,6 +26581,13 @@ CREATE INDEX oidc_login_transactions_user ON public.oidc_login_transactions USIN
 
 
 --
+-- Name: subscriptions_fanout_cursor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX subscriptions_fanout_cursor ON public.subscriptions USING btree (target_type, target_id, user_id) INCLUDE (preference) WHERE ((revoked_at IS NULL) AND (muted_at IS NULL) AND (preference <> 'none'::text));
+
+
+--
 -- Name: audit_log_default_action_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
@@ -28651,6 +28803,20 @@ REVOKE ALL ON FUNCTION api.admin_registration_state_v1(p_actor uuid) FROM PUBLIC
 --
 
 REVOKE ALL ON FUNCTION api.admin_registration_state_v2(p_actor uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION admin_request_context_v1(p_known_revision bigint, p_session_id uuid, p_user_id uuid, p_token_hash text, p_now timestamp with time zone, p_touch_interval_seconds integer, p_resolve_viewer boolean); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.admin_request_context_v1(p_known_revision bigint, p_session_id uuid, p_user_id uuid, p_token_hash text, p_now timestamp with time zone, p_touch_interval_seconds integer, p_resolve_viewer boolean) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION admin_request_context_v2(p_known_revision bigint, p_session_id uuid, p_user_id uuid, p_token_hash text, p_now timestamp with time zone, p_touch_interval_seconds integer, p_resolve_viewer boolean); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.admin_request_context_v2(p_known_revision bigint, p_session_id uuid, p_user_id uuid, p_token_hash text, p_now timestamp with time zone, p_touch_interval_seconds integer, p_resolve_viewer boolean) FROM PUBLIC;
 
 
 --
@@ -32774,6 +32940,20 @@ REVOKE ALL ON FUNCTION api.notification_fanout_deliver_v3(p_recipients jsonb) FR
 --
 
 REVOKE ALL ON FUNCTION api.notification_fanout_deliver_v4(p_recipients jsonb) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION notification_fanout_page_v1(p_target_type text, p_target_id uuid, p_notification_type text, p_actor_id uuid, p_excluded_user_id uuid, p_after_user_id uuid, p_through_user_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.notification_fanout_page_v1(p_target_type text, p_target_id uuid, p_notification_type text, p_actor_id uuid, p_excluded_user_id uuid, p_after_user_id uuid, p_through_user_id uuid, p_row_limit integer) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION notification_fanout_page_v2(p_target_type text, p_target_id uuid, p_notification_type text, p_actor_id uuid, p_excluded_user_id uuid, p_after_user_id uuid, p_through_user_id uuid, p_row_limit integer); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.notification_fanout_page_v2(p_target_type text, p_target_id uuid, p_notification_type text, p_actor_id uuid, p_excluded_user_id uuid, p_after_user_id uuid, p_through_user_id uuid, p_row_limit integer) FROM PUBLIC;
 
 
 --

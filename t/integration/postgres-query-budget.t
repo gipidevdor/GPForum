@@ -227,10 +227,16 @@ sub _statements {
 
     # Each page is built, not answered from the page cache or the category
     # list's: they ignore parameters other than the page size.
-    my $cache = $client->app->build_controller->gp_local_cache;
+    my $controller = $client->app->build_controller;
+    my $cache      = $controller->gp_local_cache;
     for my $tag (qw(forum:public-html categories forum-index)) {
         $cache->invalidate_tag($tag);
     }
+
+    # Search now has its own bounded result cache. Compare uncached SQL work
+    # for both page sizes, just as for the public HTML and category caches.
+    my $search_cache = $controller->gp_search_service->result_cache;
+    if ($search_cache) { $search_cache->clear; }
     my $before = -s $execution_files{$who};
     $client->get_ok( $path => { 'Accept-Language' => 'en' } )
       ->status_is($HTTP_OK);

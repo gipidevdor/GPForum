@@ -513,6 +513,15 @@ Saves the enabled state and display mode of one independent plugin with a revisi
 
 Restores one setting to the installation value after checking the resulting complete configuration.
 
+=head2 request_context_p
+
+Reads the live GUI configuration, session and viewer context in one native
+asynchronous SQL call. Takes the request identity fields and an optional
+query-statistics context. The application-owned settings cache reuses only
+the encrypted settings for the revision confirmed by that request's durable
+read. Returns the context row and updates this request's configuration state;
+database failures reject the promise.
+
 =head2 load_p
 
 Reads authoritative configuration with native SQL and returns the same state shape as C<load>. Unavailable configuration retains the existing degraded-state contract.

@@ -465,6 +465,19 @@ Returns a hash reference of counts: C<selected>, C<dispatched> (the
 transport accepted it), C<acknowledged>, C<failed> (scheduled for a retry),
 C<dead_lettered> and C<lost> (a claim another worker took).
 
+=head2 dispatch_pending_p
+
+Claims a bounded batch asynchronously and dispatches it through at most eight
+isolated worker lanes. Takes the batch limit and an optional concurrency
+(default two). Messages for the same aggregate stay on one ordered lane.
+Returns a promise for the same counter summary as C<dispatch_pending>.
+
+=head2 dispatch_claimed_rows
+
+Dispatches an already claimed row batch inside its owning worker lane. Takes
+the row array reference and returns the selected, dispatched, acknowledged,
+failed, dead-lettered and lost counters, preserving ownership checks.
+
 =head2 claim_ready_batch
 
 Claims ready pending, failed, and stale running messages.

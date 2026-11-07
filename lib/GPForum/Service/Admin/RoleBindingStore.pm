@@ -28,20 +28,11 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has recorder => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
 has events => sub { return GPForum::Service::Admin::Event->new; };
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub bind_role ( $self, $input ) {
     return $self->_txn( sub { return $self->_bind_role_once($input); } );

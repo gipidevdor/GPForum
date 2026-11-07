@@ -36,9 +36,7 @@ has event_recorder => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions       => \&GPForum::Infrastructure::SqlFunction::for_service;
 has logger          => undef;          # optional: failures are only counted
 has schema          => undef;          # optional: without one nothing is queued
 has viewer_resolver => sub ($self) {

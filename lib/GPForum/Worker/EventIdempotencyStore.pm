@@ -14,9 +14,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # How long a claim is honoured before another worker may take it over. A
 # worker killed between claiming and finishing would otherwise park its event

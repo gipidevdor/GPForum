@@ -56,10 +56,8 @@ const my $UNSUBSCRIBE_AUDIT_ACTION => 'notification.email_unsubscribed';
 
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has recorder => sub ($self) {
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has recorder  => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };

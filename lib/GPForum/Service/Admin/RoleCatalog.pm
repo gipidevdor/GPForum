@@ -35,14 +35,7 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has recorder => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
 has events => sub { return GPForum::Service::Admin::Event->new; };
 
@@ -50,9 +43,7 @@ has events => sub { return GPForum::Service::Admin::Event->new; };
 # attempt, or by a concurrent request that won the unique key -- completing
 # its audit entry if that attempt left none. A minted id already stored with
 # no such row is minted once more.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub create_role ( $self, $input ) {
     my $find =

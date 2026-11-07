@@ -22,9 +22,7 @@ const my $STATE_ID_CONSTRAINT => 'thread_read_state_pkey';
 const my $DELTA_ID_CONSTRAINT => 'user_read_marker_deltas_pkey';
 
 __PACKAGE__->requires('schema');
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 has clock    => sub { return GPForum::Service::Clock->new; };
 has prepared => sub { return GPForum::Infrastructure::PreparedQuery->new; };

@@ -34,9 +34,7 @@ const my $SOURCE_CONSTRAINT       => 'idx_reputation_events_source_unique';
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub record_event ( $self, $input ) {
     return $self->schema->txn_do(

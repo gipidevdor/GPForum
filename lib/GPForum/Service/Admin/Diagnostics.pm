@@ -66,12 +66,7 @@ has mailer     => sub ($self) {
         smtp_timeout => $SMTP_TIMEOUT_SECONDS,
     );
 };
-has recorder => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 has schema   => undef;        # optional: only the default collaborators read it
 has settings => sub ($self) {
     return GPForum::Service::Admin::Settings->new( config => $self->config );
@@ -80,9 +75,7 @@ has settings => sub ($self) {
 # What the settings page shows beside its two buttons: where a test message
 # would go, how mail and scanning are configured, and the last audited
 # result of each.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub overview ( $self, $user_id ) {
     return {

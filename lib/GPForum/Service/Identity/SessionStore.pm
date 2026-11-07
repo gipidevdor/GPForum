@@ -44,9 +44,7 @@ has session_touch_interval_seconds =>
   sub { return $DEFAULT_TOUCH_INTERVAL_SECONDS; };
 has session_tokens => sub { return GPForum::Service::SessionToken->new; };
 has support        => sub { return GPForum::Service::Identity::Support->new; };
-has functions      => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions      => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub create_session ( $self, $user, $input ) {
     return $self->_create_session_by_function( $user, $input )

@@ -21,9 +21,7 @@ use GPForum::Jobs::EventPayload;
 
 our $VERSION = '0.001';
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $MAX_CONCURRENCY     => 8;
 const my $DIGEST_PREFIX_BYTES => 4;

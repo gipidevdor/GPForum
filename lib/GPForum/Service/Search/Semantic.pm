@@ -9,9 +9,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 __PACKAGE__->requires(qw(schema embedding));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Called after lexical indexing commits. Slow model inference never holds
 # the document lock. Publication checks the exact projection we read again.

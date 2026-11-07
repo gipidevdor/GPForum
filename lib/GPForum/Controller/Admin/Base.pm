@@ -114,82 +114,34 @@ async sub _scoped_user_id ( $self, $action, $scope ) {
     return $user_id;
 }
 
-async sub role_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->role_response( $ok_status, $result->{stored} )
-        )
-    );
+sub role_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'role_response' );
 }
 
-async sub permission_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->permission_response( $ok_status, $result->{stored} )
-        )
-    );
+sub permission_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'permission_response' );
 }
 
-async sub role_permission_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->role_permission_response( $ok_status, $result->{stored} )
-        )
-    );
+sub role_permission_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'role_permission_response' );
 }
 
-async sub binding_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->binding_response( $ok_status, $result->{stored} )
-        )
-    );
+sub binding_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'binding_response' );
 }
 
-async sub category_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->category_response( $ok_status, $result->{stored} )
-        )
-    );
+sub category_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'category_response' );
 }
 
-async sub announcement_write_response ( $self, $result, $ok_status ) {
-    my $failure = $self->write_failure($result);
-    if ($failure) {
-        return $failure;
-    }
-
-    return (
-        await $self->await_p(
-            $self->announcement_response( $ok_status, $result->{stored} )
-        )
-    );
+sub announcement_write_response ( $self, $result, $ok_status ) {
+    return $self->stored_write_response_p( $result, $ok_status,
+        'announcement_response' );
 }
 
 # The response a failed write answers with, or undef when it did not fail.
@@ -220,134 +172,51 @@ sub write_failure ( $self, $result ) {
     return undef;
 }
 
-async sub role_response ( $self, $status, $role ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json =>
-              $self->gp_admin_view_model->role_response( $status, $role, ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success(
-                $status, $self->admin_access->default_redirect
-            )
-        )
-    );
+sub role_response ( $self, $status, $stored ) {
+    return $self->_catalogue_response( 'role_response', $status, $stored );
 }
 
-async sub permission_response ( $self, $status, $permission ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json => $self->gp_admin_view_model->permission_response(
-                $status, $permission,
-            ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success(
-                $status, $self->admin_access->default_redirect
-            )
-        )
-    );
+sub permission_response ( $self, $status, $stored ) {
+    return $self->_catalogue_response( 'permission_response', $status,
+        $stored );
 }
 
-async sub role_permission_response ( $self, $status, $role_permission ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json => $self->gp_admin_view_model->role_permission_response(
-                $status, $role_permission,
-            ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success(
-                $status, $self->admin_access->default_redirect
-            )
-        )
-    );
+sub role_permission_response ( $self, $status, $stored ) {
+    return $self->_catalogue_response( 'role_permission_response', $status,
+        $stored );
 }
 
-async sub binding_response ( $self, $status, $binding ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json => $self->gp_admin_view_model->role_binding_response(
-                $status, $binding,
-            ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success(
-                $status, $self->admin_access->default_redirect
-            )
-        )
-    );
+sub binding_response ( $self, $status, $stored ) {
+    return $self->_catalogue_response( 'role_binding_response', $status,
+        $stored );
 }
 
-async sub category_response ( $self, $status, $category ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json => $self->gp_admin_view_model->category_response(
-                $status, $category,
-            ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success(
-                $status, $self->admin_access->categories_redirect
-            )
-        )
-    );
+sub category_response ( $self, $status, $stored ) {
+    return $self->_catalogue_response( 'category_response', $status, $stored,
+        'categories_redirect' );
 }
 
-async sub announcement_response ( $self, $status, $announcement ) {
-    if ( $self->wants_json ) {
-        return $self->render(
-            json => $self->gp_admin_view_model->announcement_response(
-                $status, $announcement,
-            ),
-            status => $HTTP_OK,
-        );
-    }
-
-    return (
-        await $self->await_p(
-            $self->_html_success(
-                $status, $self->admin_access->announcements_redirect
-            )
-        )
-    );
+sub announcement_response ( $self, $status, $stored ) {
+    return $self->_catalogue_response( 'announcement_response', $status,
+        $stored, 'announcements_redirect' );
 }
 
-async sub dead_letter_replay_response ( $self, $status, $replayed ) {
+sub dead_letter_replay_response ( $self, $status, $stored ) {
+    return $self->_catalogue_response( 'dead_letter_replay_response', $status,
+        $stored, 'jobs_redirect' );
+}
+
+async sub _catalogue_response ( $self, $response, $status, $stored,
+    $redirect = 'default_redirect' )
+{
     if ( $self->wants_json ) {
         return $self->render(
-            json => $self->gp_admin_view_model->dead_letter_replay_response(
-                $status, $replayed,
-            ),
+            json   => $self->gp_admin_view_model->$response( $status, $stored ),
             status => $HTTP_OK,
         );
     }
-
-    return (
-        await $self->await_p(
-            $self->_html_success( $status, $self->admin_access->jobs_redirect )
-        )
-    );
+    return await $self->await_p(
+        $self->_html_success( $status, $self->admin_access->$redirect ) );
 }
 
 # A maintenance command's answer: JSON, or back to the jobs page with a

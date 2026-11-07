@@ -86,9 +86,7 @@ has realtime_notifier => undef;    # optional: no realtime badge
 # private or the recipient lost their grant.
 has readability => undef;    # optional: every source counts as readable
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions          => \&GPForum::Infrastructure::SqlFunction::for_service;
 has subscription_store => undef;    # optional: only fan-out reads it
 
 # ADR 0130: a reply or mention by a member the recipient ignores or blocks

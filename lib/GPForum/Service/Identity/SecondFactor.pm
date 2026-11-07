@@ -53,12 +53,7 @@ has password => sub { return GPForum::Service::Password->new; };
 has events   => sub ($self) {
     return GPForum::Service::Identity::Event->new( clock => $self->clock );
 };
-has recorder => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 
 # The member's active password credential, for the checks that ask for the
 # password again (Service::Identity::CredentialStore).
@@ -66,9 +61,7 @@ has credential_store => undef;    # optional: without it no password matches
 
 # A schema without the function layer -- the in-memory doubles -- has no
 # second factors: every member reads as off, and writes are unavailable.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Whether this forum can seal secrets: without a key nobody can turn
 # two-step sign-in on.

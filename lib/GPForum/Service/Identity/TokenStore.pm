@@ -37,9 +37,7 @@ has support        => sub { return GPForum::Service::Identity::Support->new; };
 # hash already stored is reminted with its token. Any other conflict is
 # idx_identity_tokens_open_user_type: the member already holds an open token
 # of this type, which is rotated rather than duplicated.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub create_token ( $self, $input ) {
     my $issued = $self->new_token_issue($input);

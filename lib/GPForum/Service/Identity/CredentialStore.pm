@@ -52,9 +52,7 @@ has support => sub { return GPForum::Service::Identity::Support->new; };
 # there before or a concurrent insert committed it first. A minted id already
 # stored is this very credential, committed by an earlier attempt, or another
 # one, and then a new id is minted.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub create_password_credential ( $self, $input ) {
     my $existing = $self->active_password_credential( $input->{user_id} );

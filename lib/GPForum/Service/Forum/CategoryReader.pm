@@ -51,9 +51,7 @@ has cache_epoch => undef;    # optional: missing required epoch bypasses cache
 has cache_epoch_required => 0;
 has prepared => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has cache_ttl_seconds => sub { return $DEFAULT_CACHE_TTL_SECONDS; };
-has functions         => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions         => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # ADR 0102: only the categories the viewer can read, judged on the category
 # and its space in the query. A request without a viewer reads as anonymous.

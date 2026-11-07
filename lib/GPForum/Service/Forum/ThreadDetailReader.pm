@@ -76,9 +76,7 @@ has prepared => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 # ADR 0126: on PostgreSQL the row is api.forum_thread_page_head's, the
 # statement below transplanted into a function. A schema that has no
 # function layer -- an in-memory double -- keeps the prepared statement.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # One shape, one statement for the life of the process
 # (Infrastructure::PreparedQuery): only the thread's id changes.

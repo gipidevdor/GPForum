@@ -11,9 +11,7 @@ use GPForum::Infrastructure::Id;
 our $VERSION = '0.001';
 
 __PACKAGE__->requires('schema');
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub change ( $self, $input ) {
     return { status => 'invalid' }

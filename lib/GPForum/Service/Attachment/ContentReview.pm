@@ -17,10 +17,8 @@ const my $HTTPS_PORT        => 443;
 const my $FETCH_LIMIT       => 51;
 __PACKAGE__->requires('schema');
 has source_hosts => sub { return []; };
-has functions    => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has recorder => sub ($self) {
+has functions    => \&GPForum::Infrastructure::SqlFunction::for_service;
+has recorder     => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };

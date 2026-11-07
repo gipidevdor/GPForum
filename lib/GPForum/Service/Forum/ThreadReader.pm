@@ -39,9 +39,7 @@ SQL
 __PACKAGE__->requires('schema');
 
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
-has functions   => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions   => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub list_category_threads ( $self, $request ) {
     my $plan = $self->_category_plan($request);

@@ -52,19 +52,12 @@ const my $MAPPED_PREFIX => ( '0' x 80 ) . ( '1' x 16 );
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
-has recorder   => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder   => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
 
 # A schema without the function layer -- the in-memory doubles -- holds no
 # bans: the lookup finds none and every write is unavailable.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub scopes ($self) { return [@SCOPES]; }
 

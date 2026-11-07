@@ -103,10 +103,8 @@ __PACKAGE__->requires(
     qw(schema like_store reaction_store reply_links thread_tags
       attachment_store bookmark_store subscription_store read_state)
 );
-has logger    => undef;       # optional: without it a failed read is not logged
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has logger    => undef;    # optional: without it a failed read is not logged
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Runs the code that builds a thread page's payload with its reads answered.
 sub reading ( $self, $input, $code ) {

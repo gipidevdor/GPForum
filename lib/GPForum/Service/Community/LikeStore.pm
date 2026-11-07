@@ -18,9 +18,7 @@ has id_service => sub { return GPForum::Infrastructure::Id->new; };
 
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # The row a like or an unlike is written from: the post, the member, the
 # time, and the ids of the event the write records, drawn here so the

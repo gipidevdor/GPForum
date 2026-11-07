@@ -15,9 +15,7 @@ const my $PICKER_PAGE  => 50;
 const my $QUERY_LENGTH => 100;
 
 __PACKAGE__->requires('schema');
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub history ( $self, $actor ) {
     my $row = $self->functions->row( 'moderation_thread_transfers',

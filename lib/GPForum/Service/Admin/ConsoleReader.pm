@@ -47,9 +47,7 @@ has query_budget     => sub {
 has readiness => undef;           # optional: the health block shows unknown
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub dashboard_summary ( $self, $options ) {
     $options ||= {};

@@ -25,9 +25,7 @@ const my @SUSPENSION_CURSOR_COLUMNS => qw(valid_from suspension_id);
 has clock       => sub { return GPForum::Service::Clock->new; };
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub list_actions ( $self, $options ) {
     $options ||= {};

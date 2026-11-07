@@ -38,18 +38,9 @@ has readability => undef;    # optional: every source counts as readable
 # ADR 0130: a member who blocks the author is not mentioned at all -- no
 # mention row, no notification. Service::Community::RelationStore.
 has relations => undef;    # optional: nobody blocks anyone
-has recorder  => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder  => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub record_for_source ( $self, $input ) {
     my $mentions = $self->extractor->extract( $input->{body_source} );

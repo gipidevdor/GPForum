@@ -11,9 +11,7 @@ use GPForum::Infrastructure::Id;
 our $VERSION = '0.001';
 
 __PACKAGE__->requires('schema');
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub overview ( $self, $actor, $thread_id ) {
     my $row = $self->functions->row( 'forum_poll_read',

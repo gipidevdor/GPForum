@@ -23,9 +23,7 @@ const my $SCAN_ERROR_LENGTH => 500;
 has clock  => sub { return GPForum::Service::Clock->new; };
 has record => sub { return GPForum::Service::Attachment::Record->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Uploads no scanner has decided yet, oldest first: what the scheduled rescan
 # retries once the antivirus answers again (ADR 0108).

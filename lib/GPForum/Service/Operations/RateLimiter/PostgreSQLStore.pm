@@ -20,9 +20,7 @@ const my $DEFAULT_WINDOW_SECONDS => 60;
 
 has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 async sub check_p ( $self, $input, $context = undef ) {
     my $limit          = $input->{limit}          || $DEFAULT_LIMIT;

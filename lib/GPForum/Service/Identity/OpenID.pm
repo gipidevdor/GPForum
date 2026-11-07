@@ -49,10 +49,8 @@ has sessions => sub ($self) {
     return GPForum::Service::Identity::SessionStore->new(
         schema => $self->schema );
 };
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has recorder => sub ($self) {
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has recorder  => sub ($self) {
     return GPForum::Infrastructure::EventRecorder->new(
         schema => $self->schema );
 };

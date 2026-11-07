@@ -33,9 +33,7 @@ const my $PUBLIC_HTML_TAG => 'forum:public-html';
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions   => \&GPForum::Infrastructure::SqlFunction::for_service;
 has cache       => undef;  # optional: without it the counts are read every time
 has cache_epoch => undef;  # optional: missing required epoch bypasses cache
 has cache_epoch_required => 0;

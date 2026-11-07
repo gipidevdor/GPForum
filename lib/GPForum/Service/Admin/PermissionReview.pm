@@ -17,9 +17,7 @@ const my $DEFAULT_LIMIT => 50;
 
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub roles_for_user ( $self, $user_id, $options ) {
     if ( $self->functions ) {

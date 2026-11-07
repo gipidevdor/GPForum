@@ -33,9 +33,7 @@ has prepared    => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has id_service  => sub { return GPForum::Infrastructure::Id->new; };
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # ADR 0102: only rows whose post or thread the reader can still read, judged
 # in the query before LIMIT. A bookmark kept pointing at a thread after its

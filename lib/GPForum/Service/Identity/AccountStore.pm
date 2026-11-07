@@ -32,9 +32,7 @@ __PACKAGE__->requires(
 has clock   => sub { return GPForum::Service::Clock->new; };
 has support => sub { return GPForum::Service::Identity::Support->new; };
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub request_password_reset ( $self, $input ) {
     return $self->schema->txn_do(

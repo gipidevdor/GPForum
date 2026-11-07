@@ -26,9 +26,7 @@ has clock => sub { return GPForum::Service::Clock->new; };
 __PACKAGE__->requires(qw(schema));
 has support => sub { return GPForum::Service::Identity::Support->new; };
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub bio_for_user ( $self, $input ) {
     return $self->_read_preference( $input, 'bio' );

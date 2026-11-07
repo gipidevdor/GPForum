@@ -25,9 +25,7 @@ use Mojo::Promise;
 use GPForum::Infrastructure::AsyncWork;
 
 our $VERSION = '0.001';
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $MILLISECONDS_PER_SECOND => 1000;
 const my $MAX_ERROR_LENGTH        => 240;

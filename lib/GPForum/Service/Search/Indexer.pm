@@ -108,9 +108,7 @@ has id_service => sub { return GPForum::Infrastructure::Id->new; };
 has rebuild_batch_size => $REBUILD_BATCH;
 has semantic           => undef;          # optional: local embedding projection
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # How far search can be behind the forum: the outbox says, which every search
 # update passes through.

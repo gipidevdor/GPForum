@@ -39,19 +39,10 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has recorder => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has events => sub { return GPForum::Service::Moderation::Event->new; };
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has events    => sub { return GPForum::Service::Moderation::Event->new; };
 
 sub create_suspension ( $self, $input ) {
     return $self->schema->txn_do(

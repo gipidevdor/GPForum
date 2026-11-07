@@ -43,10 +43,8 @@ const my %NETWORK_SECRET_LIMIT =>
 my $JSON = JSON::MaybeXS->new( canonical => 1, utf8 => 0 );
 
 __PACKAGE__->requires(qw(schema base_config));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
-has state => sub ($self) { return $self->load; };
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has state     => sub ($self) { return $self->load; };
 
 # One replacement slot owned by the application, never a global revision
 # cache. The durable state is still read once on every request.

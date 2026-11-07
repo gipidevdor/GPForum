@@ -66,6 +66,10 @@ has query_context => undef;    # optional: CLI callers have no request context
 
 # The runtime schema owns Mojo::Pg. Every call joins its worker connection
 # and transaction; in-memory service doubles keep their scripted answers.
+sub for_service ($service) {
+    return __PACKAGE__->for_schema( $service->schema );
+}
+
 sub for_schema ( $class, $schema ) {
     return undef if !blessed $schema || !$schema->isa('GPForum::Schema');
 
@@ -616,15 +620,21 @@ no call, and no rows.
 
 =head2 new
 
-Constructor (L<GPForum::Base>): C<schema>, the L<DBIx::Class> schema whose
-handle the calls run on, is required. C<catalogue> defaults to the
+Constructor (L<GPForum::Base>): C<schema>, the L<GPForum::Schema> connection
+boundary whose handle the calls run on, is required. C<catalogue> defaults to the
 process's one L<GPForum::Infrastructure::SqlFunctionCatalogue>.
+
+=head2 for_service
+
+Lazy attribute factory: C<has functions =E<gt> \&GPForum::Infrastructure::SqlFunction::for_service>.
+Mojo::Base passes the owning service; its schema is routed through L</for_schema>.
+Explicitly injected C<functions>, including undef, retain their usual behavior.
 
 =head2 for_schema
 
-The layer for a DBIx::Class schema configured for PostgreSQL. An unconfigured
+The layer for a Good Phorum schema configured for PostgreSQL. An unconfigured
 real schema or another database driver raises C<GPForum::X::Argument>.
-Returns undef for non-DBIx test doubles, whose callers retain their test path.
+Returns undef for in-memory test doubles, whose callers retain their test path.
 
 =head2 rows
 

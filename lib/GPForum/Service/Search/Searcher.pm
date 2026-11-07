@@ -180,9 +180,7 @@ const my $SET_STATEMENT_TIMEOUT =>
 has candidate_limit   => $DEFAULT_CANDIDATES;
 has permission_engine => undef;  # optional: without one only public posts match
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Milliseconds. Zero or undef keeps the connection's own statement_timeout:
 # zero there would switch the timeout off for search, not relax it.

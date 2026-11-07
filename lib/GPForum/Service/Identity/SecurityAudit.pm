@@ -17,16 +17,9 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has recorder => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
-has schema => undef;    # optional: only the default recorder reads it
-has events => sub { return GPForum::Service::Identity::Event->new; };
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
+has schema   => undef;    # optional: only the default recorder reads it
+has events   => sub { return GPForum::Service::Identity::Event->new; };
 
 sub record_login_request ( $self, $input ) {
     return $self->_record(

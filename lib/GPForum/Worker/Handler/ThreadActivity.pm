@@ -11,9 +11,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $POST_CREATED => 'post.created';
 const my $BUMP_SQL => join q{ },

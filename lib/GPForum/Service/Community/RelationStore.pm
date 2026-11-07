@@ -32,9 +32,7 @@ __PACKAGE__->requires(qw(schema));
 
 # A schema without the function layer -- the in-memory doubles -- holds no
 # relations: its reads are empty and its writes unavailable.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub maximum_relations ($self) { return $MAXIMUM_RELATIONS; }
 

@@ -20,9 +20,7 @@ use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $ID_CONSTRAINT  => 'command_log_pkey';
 const my $KEY_CONSTRAINT => 'command_log_idempotency_key_key';

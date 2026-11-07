@@ -18,16 +18,9 @@ has id_service => sub {
     require GPForum::Infrastructure::Id;
     return GPForum::Infrastructure::Id->new;
 };
-has recorder => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
-has schema => undef;          # optional: only the default recorder reads it
-has events => sub ($self) {
+has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
+has schema   => undef;          # optional: only the default recorder reads it
+has events   => sub ($self) {
     return GPForum::Service::Identity::Event->new( clock => $self->clock );
 };
 

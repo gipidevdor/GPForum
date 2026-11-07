@@ -40,9 +40,7 @@ const my @ENTRY_COLUMNS => qw(
 __PACKAGE__->requires(qw(schema));
 
 # The dashboard's recent activity.
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub recent ( $self, $options ) {
     if ( $self->functions ) {

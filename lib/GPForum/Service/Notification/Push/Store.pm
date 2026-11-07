@@ -25,9 +25,7 @@ const my $KEY_ID_DIGITS => 16;
 const my @KINDS         => qw(reply mention moderation message);
 const my %KIND          => map { $_ => 1 } @KINDS;
 __PACKAGE__->requires(qw(schema config));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 has crypto => sub { return GPForum::Service::Notification::Push::Crypto->new; };
 has endpoint => sub ($self) {
     return GPForum::Service::Notification::Push::Endpoint->new(

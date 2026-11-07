@@ -51,9 +51,7 @@ const my $PLACEMENT_SQL => {
 };
 
 __PACKAGE__->requires('schema');
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 has viewer_resolver => sub ($self) {
     return GPForum::Service::Forum::ViewerResolver->new(

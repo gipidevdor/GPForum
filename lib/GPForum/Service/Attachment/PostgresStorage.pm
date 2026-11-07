@@ -21,9 +21,7 @@ our $VERSION = '0.001';
 const my $SHA_BITS => 256;
 __PACKAGE__->requires('schema');
 has legacy => undef;   # optional filesystem read compatibility during migration
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub transactional ($self) { return 1; }
 

@@ -16,9 +16,7 @@ use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
 
 our $VERSION = '0.001';
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $DEFAULT_TRANSACTION_BUDGET => 1;
 const my $BUDGET_SEARCH_ROWS         => 1_000;

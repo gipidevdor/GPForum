@@ -27,9 +27,7 @@ has clock      => sub { return GPForum::Service::Clock->new; };
 has prepared   => sub { return GPForum::Infrastructure::PreparedQuery->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
 __PACKAGE__->requires(qw(schema));
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # The member's subscription to the target, revoked or not, is restored rather
 # than doubled -- whether it was there before or a concurrent save won the

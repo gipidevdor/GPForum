@@ -32,13 +32,8 @@ const my $CACHE_TAG                 => 'announcements';
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub { return GPForum::Infrastructure::Id->new; };
-has recorder   => sub ($self) {
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
-has events => sub { return GPForum::Service::Admin::Event->new; };
+has recorder   => \&GPForum::Infrastructure::EventRecorder::for_service;
+has events     => sub { return GPForum::Service::Admin::Event->new; };
 
 has cache       => undef;    # optional: without it every page reads the list
 has cache_epoch => undef;    # optional: missing required epoch bypasses cache
@@ -47,9 +42,7 @@ has cache_ttl_seconds    => sub { return $DEFAULT_CACHE_TTL_SECONDS; };
 
 __PACKAGE__->requires(qw(schema));
 
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 # Publishes a few words from the operators: plain text, trimmed, up to 500
 # characters, in a notice or a warning tone. Answers the row, or the errors

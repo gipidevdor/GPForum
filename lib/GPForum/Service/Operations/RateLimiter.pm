@@ -41,14 +41,7 @@ has id_service => sub {
     return GPForum::Infrastructure::Id->new;
 };
 has primary_store => undef;   # optional: without one the fallback store decides
-has recorder      => sub {
-    my ($self) = @_;
-
-    return GPForum::Infrastructure::EventRecorder->new(
-        id_service => $self->id_service,
-        schema     => $self->schema,
-    );
-};
+has recorder      => \&GPForum::Infrastructure::EventRecorder::for_service;
 has schema             => undef;  # optional: without one blocks are not audited
 has security_telemetry => undef;  # optional: without one nothing is recorded
 has stats              => sub {

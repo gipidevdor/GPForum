@@ -15,9 +15,7 @@ use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::SqlFunction;
 
 our $VERSION = '0.001';
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 const my $DEFAULT_CHANNEL => 'gpforum_cache_invalidation';
 

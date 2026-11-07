@@ -25,9 +25,7 @@ const my %AUTOMATIC_PRECEDENCE   => ( bulk => 1, junk => 1, list => 1 );
 __PACKAGE__->requires(
     qw(tokens schema viewer_resolver suspension_store rate_limiter reputation_rate workflow)
 );
-has functions => sub ($self) {
-    return GPForum::Infrastructure::SqlFunction->for_schema( $self->schema );
-};
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub receive ( $self, $raw ) {
     croak 'email exceeds one MiB' if length($raw) > $MAX_MAIL_BYTES;

@@ -1,0 +1,773 @@
+{
+  "kind": "competitor-comparison",
+  "date": "2026-11-08",
+  "forums": {
+    "gpforum": {
+      "version": "main at cddae6e (server started 20:37, before 0c4f484)",
+      "server": "Hypnotoad, 1 worker, benchmarks/hypnotoad-app.pl entrypoint (quotas raised), local caches as in benchmark-http-complete",
+      "user": "perf_user_4 (trust level 3)"
+    },
+    "nodebb": {
+      "version": "v4.16.7",
+      "server": "node app.js, 1 process, NODE_ENV=production, PostgreSQL backend, no Redis",
+      "user": "member1",
+      "runtime": "Node 26.13.0"
+    },
+    "discourse": {
+      "version": "v2026.11.0-latest",
+      "server": "Pitchfork, 1 worker, RAILS_ENV=production, YJIT on, discourse_docker GC settings, Valkey 9.1.3, no Sidekiq",
+      "user": "member4 (trust level 3)",
+      "runtime": "Ruby 4.0.9"
+    }
+  },
+  "machine": "Apple M4 (10 core, 16 GiB), macOS Low Power Mode on, shared with other sessions (1-minute load 3-6)",
+  "postgres": "one shared PostgreSQL 18.6 cluster (shared_buffers 512MB, max_connections 300, otherwise defaults); each forum in its own database",
+  "dataset": "103 users, 8 categories, 240 threads x 20 posts (4,800 posts), 3 notifications per user; same titles and bodies as PerformanceSeed",
+  "dataset_differences": [
+    "NodeBB and Discourse add 4 default categories each; Discourse adds 14 system topics",
+    "NodeBB shows member1 6 notifications (3 seeded plus reply notifications)",
+    "Search results per page: GPForum 20, NodeBB 10, Discourse 50"
+  ],
+  "generator": "wrk 1 thread at 1 client, 4 threads above; benchmarks/wrk-metrics.lua; keep-alive; one authenticated cookie per forum, checked before each cell; Chrome User-Agent; Accept text/html (application/json for notifications.json)",
+  "cell": "2 s warm-up, 6 s measured; 2 rounds; forum order rotated between rounds",
+  "cpu_accounting": "ps cumulative CPU of the forum processes (Discourse includes Valkey) and of all PostgreSQL processes, before and after each cell, divided by completed requests; short-lived children are not counted",
+  "page_model": "Each page is the first full HTML document a browser receives. Discourse answers with its JavaScript application and preloaded JSON; its notifications list arrives by a further request, measured as notifications.json.",
+  "cells": [
+    {
+      "forum": "discourse",
+      "page": "home",
+      "path": "/",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 221811,
+      "requests_per_second": 8.57,
+      "requests_per_second_by_round": [
+        8.7,
+        8.5
+      ],
+      "completed": 103,
+      "errors": 0,
+      "p50_ms": 114.99,
+      "p95_ms": 122.98,
+      "app_cpu_ms_per_request": 93.02,
+      "postgres_cpu_ms_per_request": 23.01
+    },
+    {
+      "forum": "gpforum",
+      "page": "home",
+      "path": "/",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 37264,
+      "requests_per_second": 141.81,
+      "requests_per_second_by_round": [
+        135.9,
+        147.7
+      ],
+      "completed": 1713,
+      "errors": 0,
+      "p50_ms": 7.0,
+      "p95_ms": 7.65,
+      "app_cpu_ms_per_request": 6.47,
+      "postgres_cpu_ms_per_request": 0.72
+    },
+    {
+      "forum": "nodebb",
+      "page": "home",
+      "path": "/",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 115145,
+      "requests_per_second": 29.71,
+      "requests_per_second_by_round": [
+        29.0,
+        30.4
+      ],
+      "completed": 362,
+      "errors": 0,
+      "p50_ms": 33.48,
+      "p95_ms": 34.7,
+      "app_cpu_ms_per_request": 10.78,
+      "postgres_cpu_ms_per_request": 30.62
+    },
+    {
+      "forum": "discourse",
+      "page": "notifications",
+      "path": "/u/member4/notifications",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 200280,
+      "requests_per_second": 10.25,
+      "requests_per_second_by_round": [
+        10.2,
+        10.3
+      ],
+      "completed": 124,
+      "errors": 0,
+      "p50_ms": 95.9,
+      "p95_ms": 100.57,
+      "app_cpu_ms_per_request": 72.42,
+      "postgres_cpu_ms_per_request": 21.54
+    },
+    {
+      "forum": "gpforum",
+      "page": "notifications",
+      "path": "/notifications",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 13421,
+      "requests_per_second": 192.92,
+      "requests_per_second_by_round": [
+        193.7,
+        192.1
+      ],
+      "completed": 2326,
+      "errors": 0,
+      "p50_ms": 5.11,
+      "p95_ms": 5.71,
+      "app_cpu_ms_per_request": 4.88,
+      "postgres_cpu_ms_per_request": 0.49
+    },
+    {
+      "forum": "nodebb",
+      "page": "notifications",
+      "path": "/notifications",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 78380,
+      "requests_per_second": 49.22,
+      "requests_per_second_by_round": [
+        49.7,
+        48.8
+      ],
+      "completed": 597,
+      "errors": 0,
+      "p50_ms": 20.01,
+      "p95_ms": 22.26,
+      "app_cpu_ms_per_request": 8.24,
+      "postgres_cpu_ms_per_request": 16.52
+    },
+    {
+      "forum": "discourse",
+      "page": "notifications.json",
+      "path": "/notifications.json?username=member4",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 1115,
+      "requests_per_second": 106.33,
+      "requests_per_second_by_round": [
+        106.7,
+        106.0
+      ],
+      "completed": 1286,
+      "errors": 0,
+      "p50_ms": 9.09,
+      "p95_ms": 10.29,
+      "app_cpu_ms_per_request": 7.54,
+      "postgres_cpu_ms_per_request": 1.59
+    },
+    {
+      "forum": "discourse",
+      "page": "search",
+      "path": "/search?q=performance",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 228562,
+      "requests_per_second": 7.86,
+      "requests_per_second_by_round": [
+        7.9,
+        7.9
+      ],
+      "completed": 96,
+      "errors": 0,
+      "p50_ms": 125.53,
+      "p95_ms": 133.71,
+      "app_cpu_ms_per_request": 91.04,
+      "postgres_cpu_ms_per_request": 35.62
+    },
+    {
+      "forum": "gpforum",
+      "page": "search",
+      "path": "/search?q=performance",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 24045,
+      "requests_per_second": 148.38,
+      "requests_per_second_by_round": [
+        145.7,
+        151.1
+      ],
+      "completed": 1793,
+      "errors": 0,
+      "p50_ms": 6.5,
+      "p95_ms": 8.19,
+      "app_cpu_ms_per_request": 6.57,
+      "postgres_cpu_ms_per_request": 0.31
+    },
+    {
+      "forum": "nodebb",
+      "page": "search",
+      "path": "/search?term=performance&in=titlesposts",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 97391,
+      "requests_per_second": 10.81,
+      "requests_per_second_by_round": [
+        10.6,
+        11.0
+      ],
+      "completed": 132,
+      "errors": 0,
+      "p50_ms": 92.07,
+      "p95_ms": 99.31,
+      "app_cpu_ms_per_request": 9.79,
+      "postgres_cpu_ms_per_request": 90.17
+    },
+    {
+      "forum": "discourse",
+      "page": "thread",
+      "path": "/t/performance-thread-1/15",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 231885,
+      "requests_per_second": 6.63,
+      "requests_per_second_by_round": [
+        6.6,
+        6.7
+      ],
+      "completed": 81,
+      "errors": 0,
+      "p50_ms": 143.7,
+      "p95_ms": 158.98,
+      "app_cpu_ms_per_request": 117.2,
+      "postgres_cpu_ms_per_request": 30.74
+    },
+    {
+      "forum": "gpforum",
+      "page": "thread",
+      "path": "/t/018f1004-0001-7000-8000-000000000001",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 181674,
+      "requests_per_second": 96.78,
+      "requests_per_second_by_round": [
+        91.2,
+        102.4
+      ],
+      "completed": 1172,
+      "errors": 0,
+      "p50_ms": 10.23,
+      "p95_ms": 11.48,
+      "app_cpu_ms_per_request": 9.51,
+      "postgres_cpu_ms_per_request": 1.06
+    },
+    {
+      "forum": "nodebb",
+      "page": "thread",
+      "path": "/topic/2/performance-thread-1",
+      "clients": 1,
+      "rounds": 2,
+      "response_bytes": 218843,
+      "requests_per_second": 45.56,
+      "requests_per_second_by_round": [
+        44.8,
+        46.3
+      ],
+      "completed": 554,
+      "errors": 0,
+      "p50_ms": 21.79,
+      "p95_ms": 23.06,
+      "app_cpu_ms_per_request": 9.0,
+      "postgres_cpu_ms_per_request": 17.32
+    },
+    {
+      "forum": "discourse",
+      "page": "home",
+      "path": "/",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 221811,
+      "requests_per_second": 7.12,
+      "requests_per_second_by_round": [
+        6.9,
+        7.4
+      ],
+      "completed": 87,
+      "errors": 0,
+      "p50_ms": 976.93,
+      "p95_ms": 1551.27,
+      "app_cpu_ms_per_request": 112.8,
+      "postgres_cpu_ms_per_request": 27.51
+    },
+    {
+      "forum": "gpforum",
+      "page": "home",
+      "path": "/",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 37264,
+      "requests_per_second": 163.76,
+      "requests_per_second_by_round": [
+        156.7,
+        170.8
+      ],
+      "completed": 1997,
+      "errors": 0,
+      "p50_ms": 48.34,
+      "p95_ms": 51.97,
+      "app_cpu_ms_per_request": 6.12,
+      "postgres_cpu_ms_per_request": 0.71
+    },
+    {
+      "forum": "nodebb",
+      "page": "home",
+      "path": "/",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 115145,
+      "requests_per_second": 115.39,
+      "requests_per_second_by_round": [
+        111.0,
+        119.7
+      ],
+      "completed": 1405,
+      "errors": 0,
+      "p50_ms": 68.98,
+      "p95_ms": 76.82,
+      "app_cpu_ms_per_request": 9.78,
+      "postgres_cpu_ms_per_request": 31.46
+    },
+    {
+      "forum": "discourse",
+      "page": "notifications",
+      "path": "/u/member4/notifications",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 200280,
+      "requests_per_second": 9.17,
+      "requests_per_second_by_round": [
+        9.0,
+        9.3
+      ],
+      "completed": 112,
+      "errors": 0,
+      "p50_ms": 769.38,
+      "p95_ms": 1181.61,
+      "app_cpu_ms_per_request": 81.63,
+      "postgres_cpu_ms_per_request": 24.56
+    },
+    {
+      "forum": "gpforum",
+      "page": "notifications",
+      "path": "/notifications",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 13421,
+      "requests_per_second": 219.39,
+      "requests_per_second_by_round": [
+        224.8,
+        214.0
+      ],
+      "completed": 2675,
+      "errors": 0,
+      "p50_ms": 36.13,
+      "p95_ms": 37.76,
+      "app_cpu_ms_per_request": 4.56,
+      "postgres_cpu_ms_per_request": 0.46
+    },
+    {
+      "forum": "nodebb",
+      "page": "notifications",
+      "path": "/notifications",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 78380,
+      "requests_per_second": 158.79,
+      "requests_per_second_by_round": [
+        156.7,
+        160.9
+      ],
+      "completed": 1931,
+      "errors": 0,
+      "p50_ms": 49.83,
+      "p95_ms": 55.71,
+      "app_cpu_ms_per_request": 7.06,
+      "postgres_cpu_ms_per_request": 16.99
+    },
+    {
+      "forum": "discourse",
+      "page": "notifications.json",
+      "path": "/notifications.json?username=member4",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 1115,
+      "requests_per_second": 108.74,
+      "requests_per_second_by_round": [
+        108.5,
+        109.0
+      ],
+      "completed": 1327,
+      "errors": 0,
+      "p50_ms": 72.93,
+      "p95_ms": 76.72,
+      "app_cpu_ms_per_request": 7.51,
+      "postgres_cpu_ms_per_request": 1.59
+    },
+    {
+      "forum": "discourse",
+      "page": "search",
+      "path": "/search?q=performance",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 228562,
+      "requests_per_second": 6.63,
+      "requests_per_second_by_round": [
+        6.4,
+        6.9
+      ],
+      "completed": 81,
+      "errors": 0,
+      "p50_ms": 1037.86,
+      "p95_ms": 1661.91,
+      "app_cpu_ms_per_request": 108.94,
+      "postgres_cpu_ms_per_request": 42.41
+    },
+    {
+      "forum": "gpforum",
+      "page": "search",
+      "path": "/search?q=performance",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 24045,
+      "requests_per_second": 149.88,
+      "requests_per_second_by_round": [
+        142.0,
+        157.8
+      ],
+      "completed": 1829,
+      "errors": 0,
+      "p50_ms": 52.96,
+      "p95_ms": 58.3,
+      "app_cpu_ms_per_request": 6.69,
+      "postgres_cpu_ms_per_request": 0.39
+    },
+    {
+      "forum": "nodebb",
+      "page": "search",
+      "path": "/search?term=performance&in=titlesposts",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 97391,
+      "requests_per_second": 66.84,
+      "requests_per_second_by_round": [
+        66.8,
+        66.9
+      ],
+      "completed": 816,
+      "errors": 0,
+      "p50_ms": 117.06,
+      "p95_ms": 129.92,
+      "app_cpu_ms_per_request": 7.27,
+      "postgres_cpu_ms_per_request": 94.9
+    },
+    {
+      "forum": "discourse",
+      "page": "thread",
+      "path": "/t/performance-thread-1/15",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 231885,
+      "requests_per_second": 5.65,
+      "requests_per_second_by_round": [
+        5.7,
+        5.6
+      ],
+      "completed": 69,
+      "errors": 2,
+      "p50_ms": 1169.94,
+      "p95_ms": 1793.71,
+      "app_cpu_ms_per_request": 137.99,
+      "postgres_cpu_ms_per_request": 38.11
+    },
+    {
+      "forum": "gpforum",
+      "page": "thread",
+      "path": "/t/018f1004-0001-7000-8000-000000000001",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 181674,
+      "requests_per_second": 106.13,
+      "requests_per_second_by_round": [
+        106.4,
+        105.9
+      ],
+      "completed": 1293,
+      "errors": 0,
+      "p50_ms": 72.93,
+      "p95_ms": 89.71,
+      "app_cpu_ms_per_request": 9.41,
+      "postgres_cpu_ms_per_request": 1.16
+    },
+    {
+      "forum": "nodebb",
+      "page": "thread",
+      "path": "/topic/2/performance-thread-1",
+      "clients": 10,
+      "rounds": 2,
+      "response_bytes": 218843,
+      "requests_per_second": 135.59,
+      "requests_per_second_by_round": [
+        125.2,
+        145.9
+      ],
+      "completed": 1652,
+      "errors": 0,
+      "p50_ms": 58.46,
+      "p95_ms": 68.88,
+      "app_cpu_ms_per_request": 8.04,
+      "postgres_cpu_ms_per_request": 18.3
+    },
+    {
+      "forum": "discourse",
+      "page": "home",
+      "path": "/",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 221811,
+      "requests_per_second": 0.41,
+      "requests_per_second_by_round": [
+        0.2,
+        0.7
+      ],
+      "completed": 5,
+      "errors": 5,
+      "note": "saturated: requests timed out (wrk 2 s), latency and CPU not meaningful"
+    },
+    {
+      "forum": "gpforum",
+      "page": "home",
+      "path": "/",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 37264,
+      "requests_per_second": 157.69,
+      "requests_per_second_by_round": [
+        157.6,
+        157.8
+      ],
+      "completed": 1923,
+      "errors": 0,
+      "p50_ms": 296.38,
+      "p95_ms": 306.89,
+      "app_cpu_ms_per_request": 6.37,
+      "postgres_cpu_ms_per_request": 0.98
+    },
+    {
+      "forum": "nodebb",
+      "page": "home",
+      "path": "/",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 115145,
+      "requests_per_second": 109.07,
+      "requests_per_second_by_round": [
+        108.0,
+        110.2
+      ],
+      "completed": 1321,
+      "errors": 0,
+      "p50_ms": 420.85,
+      "p95_ms": 506.0,
+      "app_cpu_ms_per_request": 10.48,
+      "postgres_cpu_ms_per_request": 32.55
+    },
+    {
+      "forum": "discourse",
+      "page": "notifications",
+      "path": "/u/member4/notifications",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 200280,
+      "requests_per_second": 2.87,
+      "requests_per_second_by_round": [
+        2.9,
+        2.8
+      ],
+      "completed": 35,
+      "errors": 35,
+      "note": "saturated: requests timed out (wrk 2 s), latency and CPU not meaningful"
+    },
+    {
+      "forum": "gpforum",
+      "page": "notifications",
+      "path": "/notifications",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 13421,
+      "requests_per_second": 203.26,
+      "requests_per_second_by_round": [
+        201.6,
+        204.9
+      ],
+      "completed": 2476,
+      "errors": 0,
+      "p50_ms": 229.72,
+      "p95_ms": 259.61,
+      "app_cpu_ms_per_request": 4.93,
+      "postgres_cpu_ms_per_request": 1.05
+    },
+    {
+      "forum": "nodebb",
+      "page": "notifications",
+      "path": "/notifications",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 78380,
+      "requests_per_second": 152.36,
+      "requests_per_second_by_round": [
+        151.1,
+        153.6
+      ],
+      "completed": 1860,
+      "errors": 0,
+      "p50_ms": 303.88,
+      "p95_ms": 332.89,
+      "app_cpu_ms_per_request": 7.75,
+      "postgres_cpu_ms_per_request": 17.94
+    },
+    {
+      "forum": "discourse",
+      "page": "notifications.json",
+      "path": "/notifications.json?username=member4",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 1115,
+      "requests_per_second": 102.78,
+      "requests_per_second_by_round": [
+        102.8,
+        102.8
+      ],
+      "completed": 1253,
+      "errors": 0,
+      "p50_ms": 440.8,
+      "p95_ms": 482.25,
+      "app_cpu_ms_per_request": 8.0,
+      "postgres_cpu_ms_per_request": 1.67
+    },
+    {
+      "forum": "discourse",
+      "page": "search",
+      "path": "/search?q=performance",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 228562,
+      "requests_per_second": 0.0,
+      "requests_per_second_by_round": [
+        0.0,
+        0.0
+      ],
+      "completed": 0,
+      "errors": 0,
+      "note": "saturated: requests timed out (wrk 2 s), latency and CPU not meaningful"
+    },
+    {
+      "forum": "gpforum",
+      "page": "search",
+      "path": "/search?q=performance",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 24045,
+      "requests_per_second": 149.3,
+      "requests_per_second_by_round": [
+        145.7,
+        152.9
+      ],
+      "completed": 1818,
+      "errors": 0,
+      "p50_ms": 312.96,
+      "p95_ms": 347.07,
+      "app_cpu_ms_per_request": 6.71,
+      "postgres_cpu_ms_per_request": 1.57
+    },
+    {
+      "forum": "nodebb",
+      "page": "search",
+      "path": "/search?term=performance&in=titlesposts",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 97391,
+      "requests_per_second": 73.15,
+      "requests_per_second_by_round": [
+        68.2,
+        78.1
+      ],
+      "completed": 888,
+      "errors": 0,
+      "p50_ms": 606.62,
+      "p95_ms": 805.79,
+      "app_cpu_ms_per_request": 9.43,
+      "postgres_cpu_ms_per_request": 107.16
+    },
+    {
+      "forum": "discourse",
+      "page": "thread",
+      "path": "/t/performance-thread-1/15",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 231885,
+      "requests_per_second": 0.0,
+      "requests_per_second_by_round": [
+        0.0,
+        0.0
+      ],
+      "completed": 0,
+      "errors": 0,
+      "note": "saturated: requests timed out (wrk 2 s), latency and CPU not meaningful"
+    },
+    {
+      "forum": "gpforum",
+      "page": "thread",
+      "path": "/t/018f1004-0001-7000-8000-000000000001",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 181674,
+      "requests_per_second": 108.73,
+      "requests_per_second_by_round": [
+        107.6,
+        109.8
+      ],
+      "completed": 1324,
+      "errors": 0,
+      "p50_ms": 435.32,
+      "p95_ms": 480.71,
+      "app_cpu_ms_per_request": 9.24,
+      "postgres_cpu_ms_per_request": 2.27
+    },
+    {
+      "forum": "nodebb",
+      "page": "thread",
+      "path": "/topic/2/performance-thread-1",
+      "clients": 50,
+      "rounds": 2,
+      "response_bytes": 218843,
+      "requests_per_second": 134.8,
+      "requests_per_second_by_round": [
+        134.2,
+        135.4
+      ],
+      "completed": 1645,
+      "errors": 0,
+      "p50_ms": 337.5,
+      "p95_ms": 377.22,
+      "app_cpu_ms_per_request": 8.42,
+      "postgres_cpu_ms_per_request": 18.95
+    }
+  ],
+  "limitations": [
+    "One application process per forum. NodeBB and Discourse are usually run with more (Discourse defaults to 3 workers); Discourse, one request at a time per worker, saturates at 10 clients and times out at 50.",
+    "Low Power Mode and other sessions on the same machine: absolute numbers are lower than on an idle machine; the comparison holds within this run.",
+    "Reads only; no writes, uploads, realtime or background jobs.",
+    "A first run sent Accept text/html,application/json; GPForum answered with JSON there, so that run was discarded.",
+    "Raw wrk output is not kept; per-round values are in this file."
+  ]
+}

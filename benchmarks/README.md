@@ -54,6 +54,11 @@ compares the commit that removed the subprocess fallback from `call_p` with its
 parent: p95 latency, CPU per request and PostgreSQL sessions, at 1 to 100
 clients.
 
+[GPForum, NodeBB and Discourse, 8 November 2026](forum-comparison/2026-11-08/README.md)
+measures the home, thread, search and notifications pages of the three forums
+with one application process each, the same dataset, PostgreSQL cluster and
+wrk generator: requests per second, p95 latency and CPU per request.
+
 [Perl core review, sixth iteration, 6 November 2026](perl-review/2026-11-06-iteration-6/README.md)
 records a single scan for unread-post summaries and deferred mathematical state
 allocation on rendered-body cache hits. Its isolated final comparison covers

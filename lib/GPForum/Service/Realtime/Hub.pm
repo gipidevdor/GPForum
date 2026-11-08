@@ -26,6 +26,10 @@ const my $THREAD_UPDATE         => 'thread.update';
 const my $NOTIFICATION_BADGE    => 'notification.badge';
 const my $NOTIFICATIONS         => 'notifications';
 const my $MODERATION_INVALIDATE => 'moderation.queue.invalidate';
+
+# Channels authorised again on every broadcast, not only when subscribed: a
+# moderator demoted while their queue page stayed open kept receiving it.
+const my %PRIVILEGED => map { $_ => 1 } qw(moderation admin);
 const my %CHANNEL_TYPE_FOR_EVENT => (
     $THREAD_UPDATE      => 'thread',
     $NOTIFICATION_BADGE => $NOTIFICATIONS,
@@ -161,8 +165,9 @@ async sub resend_badge_snapshots_p ($self) {
 }
 
 async sub broadcast_p ( $self, $channel, $payload ) {
-    my @subscribers = $self->registry->subscribers($channel);
-    my @resources   = _readability_resources( $channel, $payload );
+    my @subscribers = await $self->_still_authorized_p( $channel,
+        $self->registry->subscribers($channel) );
+    my @resources = _readability_resources( $channel, $payload );
     for my $resource (@resources) {
         last if !@subscribers || !$self->readability;
         my %users =
@@ -196,6 +201,41 @@ async sub broadcast_p ( $self, $channel, $payload ) {
         delivered => $delivered,
         failed    => $failed
     };
+}
+
+# The subscribers of a privileged channel the authorizer still admits, each
+# member asked once; every subscriber of any other channel.
+async sub _still_authorized_p ( $self, $channel, @subscribers ) {
+    return @subscribers if !_privileged($channel);
+    my %allowed;
+    for my $row (@subscribers) {
+        my $user = _user_id( $row->{actor} ) // next;
+        next if exists $allowed{$user};
+        my $answer =
+          await $self->_call_p( $self->authorizer, 'authorize', $row->{actor},
+            $channel, {} );
+        $allowed{$user} = $answer->{ok} ? 1 : 0;
+    }
+    return grep { $allowed{ _user_id( $_->{actor} ) // q{} } } @subscribers;
+}
+
+sub _still_authorized ( $self, $channel, @subscribers ) {
+    return @subscribers if !_privileged($channel);
+    my %allowed;
+    for my $row (@subscribers) {
+        my $user = _user_id( $row->{actor} ) // next;
+        $allowed{$user} //=
+          $self->authorizer->authorize( $row->{actor}, $channel, {} )->{ok}
+          ? 1
+          : 0;
+    }
+    return grep { $allowed{ _user_id( $_->{actor} ) // q{} } } @subscribers;
+}
+
+sub _privileged ($channel) {
+    my $parsed =
+      GPForum::Service::Realtime::ChannelAuthorizer::parse_channel($channel);
+    return $parsed && exists $PRIVILEGED{ $parsed->{type} };
 }
 
 sub _readability_resources( $channel, $payload ) {
@@ -358,8 +398,15 @@ sub subscribe ( $self, $request ) {
 }
 
 sub broadcast ( $self, $channel, $payload ) {
-    my @subscribers = $self->_post_readers( $payload,
-        $self->_readers( $channel, $self->registry->subscribers($channel) ) );
+    my @subscribers = $self->_post_readers(
+        $payload,
+        $self->_readers(
+            $channel,
+            $self->_still_authorized(
+                $channel, $self->registry->subscribers($channel)
+            )
+        )
+    );
     my $delivered = 0;
     my $failed    = 0;
     $self->stats->{broadcast}  += 1;
@@ -513,8 +560,9 @@ sub snapshot ($self) {
 # nothing but stay subscribed: every broadcast asks again, so a subscriber
 # who regains access -- a thread restored, a grant given back -- resumes,
 # and one who lost it receives nothing. Dropping them for good left every
-# open page deaf after a thread was hidden and restored. Other channels were
-# authorised to their own user or permission when subscribed.
+# open page deaf after a thread was hidden and restored. A moderation or
+# admin channel is authorised again on every broadcast (_still_authorized);
+# a notifications channel belongs to its own user.
 sub _readers ( $self, $channel, @subscribers ) {
     my $parsed =
       GPForum::Service::Realtime::ChannelAuthorizer::parse_channel($channel);

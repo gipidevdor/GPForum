@@ -13,6 +13,7 @@ use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::AsyncQuery;
 use GPForum::Infrastructure::PgTransaction;
 use Mojo::Promise;
+use Mojo::Util   qw(monkey_patch);
 use Scalar::Util qw(blessed weaken);
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::X::Argument;
@@ -106,6 +107,24 @@ sub settle ( $class, $service, $method, @arguments ) {
       : $service;
 
     return $class->settled( $blocking->$method(@arguments) );
+}
+
+# Declares, in the calling store, each named method as its promise method
+# settled on the blocking layer (ADR 0177). The blocking twins are declared,
+# not written: a store holds one body per operation.
+#
+#     GPForum::Infrastructure::SqlFunction->blocking_twins(qw(add edit));
+sub blocking_twins ( $class, @methods ) {
+    my $package = caller;
+    monkey_patch $package, map { $_ => $class->_twin("${_}_p") } @methods;
+
+    return $package;
+}
+
+sub _twin ( $class, $promised ) {
+    return sub ( $service, @arguments ) {
+        return $class->settle( $service, $promised, @arguments );
+    };
 }
 
 # A promise's answer, which must already be there: its value, or its
@@ -777,6 +796,30 @@ Promise versions of rows and row, using a separate pooled connection per
 in-flight operation. Parameter checks, JSON decoding and bytea bindings retain
 the synchronous contracts. A changed prepared result type is retried once in
 autocommit; connection loss never retries a potentially committed mutation.
+
+=head2 blocking_layer
+
+The same call layer with C<blocking> set: C<rows_p> and C<row_p> run
+L</rows>, and L</transaction_p> runs C<txn_do> (a savepoint when one is
+open), each answering a promise already settled (ADR 0177).
+
+=head2 settle
+
+Takes a service, the name of its promise method and that method's
+arguments. Calls the method on a copy of the service whose call layer is
+L</blocking_layer> and answers its value, or raises its failure.
+
+=head2 settled
+
+A promise's answer when it has one: its value, or its failure raised as it
+was. A pending promise croaks; anything that is not a promise is answered as
+it is.
+
+=head2 blocking_twins
+
+Called as a class method from a store's package with method names: installs
+each name as L</settle> of the method with C<_p> appended, so the blocking
+method is the promise method's one body run on the blocking layer.
 
 =head1 DIAGNOSTICS
 

@@ -31,12 +31,13 @@ nests. Each answers a promise that is already settled. An `async sub` whose
 awaits all meet settled promises runs to its end without an event loop.
 
 The blocking method is that body run on the blocking layer, and nothing
-else:
+else. A store declares its blocking twins instead of writing them:
 
-    sub create_suspension ( $self, $input ) {
-        return GPForum::Infrastructure::SqlFunction->settle( $self,
-            create_suspension_p => $input );
-    }
+    GPForum::Infrastructure::SqlFunction->blocking_twins(
+        qw(create_suspension revoke_suspension));
+
+installs `create_suspension` as `settle` of `create_suspension_p`, with the
+caller's arguments.
 
 `settle` copies the service with its call layer made blocking, calls the
 promise method and returns its value, or raises its failure as it was.
@@ -49,13 +50,21 @@ its tests run on PostgreSQL (`t/integration`), as the moderation stores'
 already did. Tests that compared a store with its retained Perl path state
 the expected answers instead.
 
-`SuspensionStore` is the first store converted. The others follow area by
-area, each with its tests moved to PostgreSQL in the same change.
+`SuspensionStore` was the first store converted. Amended 2026-11-09: the
+whole moderation area followed -- `ActionStore`, `AutomodStore`,
+`MemberNoteStore`, `ReportStore`, `ReviewReader`, `ReviewStore` and
+`ThreadTransfers`. `ActionStore`'s eight actions became one table of data
+(the event, the target kind, whether the target is already there, the
+changes) applied by one body. The other areas follow, each with its tests
+moved to PostgreSQL in the same change.
 
 ## Consequences
 
 - One body per operation: a fix, a refusal or a lock is written once and
-  holds on both paths. `SuspensionStore` went from 880 to about 630 lines.
+  holds on both paths. `SuspensionStore` went from 880 to about 630 lines;
+  the other seven moderation stores together from 3,738 to 2,760.
+- A test double of the call layer speaks the whole contract: `row_p` and
+  `rows_p` answering settled promises, and `blocking_layer`.
 - A web worker still never blocks: the blocking layer reaches the storage's
   blocking handle, which refuses an HTTP request context as before
   (ADR 0176).
@@ -68,7 +77,8 @@ area, each with its tests moved to PostgreSQL in the same change.
 ## Related Decisions and Implementation
 
 ADR 0126, ADR 0174, ADR 0176. `lib/GPForum/Infrastructure/SqlFunction.pm`
-(`blocking_layer`, `settle`, `settled`),
-`lib/GPForum/Service/Moderation/SuspensionStore.pm`,
+(`blocking_layer`, `settle`, `settled`,
+`blocking_twins`), the stores of `lib/GPForum/Service/Moderation/`,
 `t/integration/postgres-suspension-races.t`,
-`t/integration/postgres-sql-function-prologue.t`.
+`t/integration/postgres-sql-function-prologue.t`,
+`t/integration/postgres-moderation-review.t`.

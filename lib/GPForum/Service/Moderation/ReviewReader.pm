@@ -7,141 +7,33 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
-use GPForum::Infrastructure::Keyset;
-use GPForum::Infrastructure::Row  qw(rows_in);
-use GPForum::Infrastructure::Text qw(has_text);
-use GPForum::Service::Forum::PageWindow;
-use GPForum::Service::Clock;
-
-use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Service::Clock;
+use GPForum::Service::Forum::PageWindow;
+use GPForum::X::Unavailable;
 
 our $VERSION = '0.001';
 
 const my $DEFAULT_LIMIT             => 25;
 const my @ACTION_CURSOR_COLUMNS     => qw(created_at moderation_action_id);
 const my @SUSPENSION_CURSOR_COLUMNS => qw(valid_from suspension_id);
+const my %INACTIVE_MODES            => map { $_ => 1 } qw(:0 all: all:0);
 
 has clock       => sub { return GPForum::Service::Clock->new; };
 has page_window => sub { return GPForum::Service::Forum::PageWindow->new; };
 __PACKAGE__->requires(qw(schema));
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
-sub list_actions ( $self, $options ) {
-    $options ||= {};
+# Each read is written once, as its promise method (ADR 0177).
+GPForum::Infrastructure::SqlFunction->blocking_twins(
+    qw(list_actions list_suspensions));
 
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    if ( $self->functions ) {
-        return $self->_action_page( $page,
-            $self->functions->rows( _action_values( $options, $page ) ) );
-    }
-    my $query = _action_query(
-        {
-            after       => $page->{after},
-            target_id   => $options->{target_id},
-            target_type => $options->{target_type},
-        }
-    );
-
-    my $search = $self->schema->resultset('ModerationAction')->search_rs(
-        $query,
-        {
-            columns => [
-                qw(
-                  moderation_action_id actor_user_id action_type
-                  target_type target_id reason metadata created_at
-                  reversed_at reversed_by_user_id
-                )
-            ],
-            order_by => [
-                { -desc => 'created_at' },
-                { -desc => 'moderation_action_id' },
-            ],
-            rows => $page->{fetch_rows} || $DEFAULT_LIMIT,
-        }
-    );
-
-    my @rows = rows_in($search);
-
-    return $self->page_window->page( \@rows,
-        $page->{limit}, \@ACTION_CURSOR_COLUMNS );
-}
-
-sub list_suspensions ( $self, $options ) {
-    $options ||= {};
-
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    if ( $self->functions ) {
-        return $self->_suspension_page(
-            $page,
-            $self->functions->rows(
-                $self->_suspension_values( $options, $page )
-            )
-        );
-    }
-    my $query = _suspension_query(
-        {
-            active_only => _active_only($options),
-            after       => $page->{after},
-            now         => $self->clock->now_iso8601,
-            user_id     => $options->{user_id},
-        }
-    );
-
-    my $search = $self->schema->resultset('Suspension')->search_rs(
-        $query,
-        {
-            columns => [
-                qw(
-                  suspension_id user_id actor_user_id reason valid_from
-                  valid_to revoked_at metadata
-                )
-            ],
-            order_by =>
-              [ { -desc => 'valid_from' }, { -desc => 'suspension_id' }, ],
-            rows => $page->{fetch_rows} || $DEFAULT_LIMIT,
-        }
-    );
-
-    my @rows = rows_in($search);
-
-    return $self->page_window->page( \@rows,
-        $page->{limit}, \@SUSPENSION_CURSOR_COLUMNS );
-}
-
-# The moderation pages' reads on the worker's pooled asynchronous
-# connections, not a forked child with a connection of its own each.
 async sub list_actions_p ( $self, $options, $context = undef ) {
-    return $self->list_actions($options) if !$self->functions;
-    $options ||= {};
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    return $self->_action_page(
-        $page,
-        await $self->functions->rows_p(
-            _action_values( $options, $page ), $context
-        )
-    );
-}
-
-async sub list_suspensions_p ( $self, $options, $context = undef ) {
-    return $self->list_suspensions($options) if !$self->functions;
-    $options ||= {};
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    return $self->_suspension_page(
-        $page,
-        await $self->functions->rows_p(
-            $self->_suspension_values( $options, $page ), $context
-        )
-    );
-}
-
-sub _action_values ( $options, $page ) {
+    $options //= {};
+    my $page  = $self->_plan($options);
     my $after = $page->{after} || {};
-    return (
+    my $rows  = await $self->_functions->rows_p(
         'moderation_action_list',
         {
             target_type => $options->{target_type} || undef,
@@ -149,19 +41,18 @@ sub _action_values ( $options, $page ) {
             after_at    => $after->{sort_value},
             after_id    => $after->{id},
             row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
-        }
+        },
+        $context
     );
+
+    return $self->_page( $page, $rows, \@ACTION_CURSOR_COLUMNS );
 }
 
-sub _action_page ( $self, $page, $rows ) {
-    return $self->page_window->page(
-        [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ],
-        $page->{limit}, \@ACTION_CURSOR_COLUMNS );
-}
-
-sub _suspension_values ( $self, $options, $page ) {
+async sub list_suspensions_p ( $self, $options, $context = undef ) {
+    $options //= {};
+    my $page  = $self->_plan($options);
     my $after = $page->{after} || {};
-    return (
+    my $rows  = await $self->_functions->rows_p(
         'moderation_suspension_list',
         {
             user_id     => $options->{user_id} || undef,
@@ -170,83 +61,33 @@ sub _suspension_values ( $self, $options, $page ) {
             after_at    => $after->{sort_value},
             after_id    => $after->{id},
             row_limit   => $page->{fetch_rows} || $DEFAULT_LIMIT
-        }
+        },
+        $context
     );
+
+    return $self->_page( $page, $rows, \@SUSPENSION_CURSOR_COLUMNS );
 }
 
-sub _suspension_page ( $self, $page, $rows ) {
+sub _plan ( $self, $options ) {
+    return $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
+}
+
+sub _page ( $self, $page, $rows, $cursor ) {
     return $self->page_window->page(
         [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ],
-        $page->{limit}, \@SUSPENSION_CURSOR_COLUMNS );
+        $page->{limit}, $cursor );
 }
 
-sub _action_query ($options) {
-    my $query = {};
-    if ( has_text( $options->{target_type} ) ) {
-        $query->{target_type} = $options->{target_type};
-    }
-    if ( has_text( $options->{target_id} ) ) {
-        $query->{target_id} = $options->{target_id};
-    }
-    if ( $options->{after} ) {
-        GPForum::Infrastructure::Keyset->after(
-            $query,
-            {
-                direction => 'desc',
-                id        => [ 'moderation_action_id', $options->{after}{id} ],
-                sort      => [ 'created_at', $options->{after}{sort_value} ],
-            }
-        );
-    }
-
-    return $query;
-}
-
-sub _suspension_query ($options) {
-    my $query = {};
-    my @clauses;
-    if ( $options->{active_only} ) {
-        $query->{revoked_at} = undef;
-        push @clauses, _active_valid_to_clause( $options->{now} );
-    }
-    if ( has_text( $options->{user_id} ) ) {
-        $query->{user_id} = $options->{user_id};
-    }
-    if ( $options->{after} ) {
-        push @clauses,
-          GPForum::Infrastructure::Keyset->after(
-            {},
-            {
-                direction => 'desc',
-                id        => [ 'suspension_id', $options->{after}{id} ],
-                sort      => [ 'valid_from',    $options->{after}{sort_value} ],
-            }
-          );
-    }
-    if (@clauses) {
-        $query->{-and} = \@clauses;
-    }
-
-    return $query;
-}
-
-sub _active_valid_to_clause ($now) {
-    return {
-        -or => [ { valid_to => undef }, { valid_to => { q{>=} => $now } }, ], };
-}
-
+# Active suspensions only, unless the status is all or active is 0.
 sub _active_only ($options) {
-    my %inactive_modes = map { $_ => 1 } qw(:0 all: all:0);
-    my $mode = join q{:}, _option_value( $options, 'status' ),
-      _option_value( $options, 'active' );
+    my $mode = join q{:}, map { $options->{$_} // q{} } qw(status active);
 
-    return exists $inactive_modes{$mode} ? 0 : 1;
+    return exists $INACTIVE_MODES{$mode} ? 0 : 1;
 }
 
-sub _option_value ( $options, $name ) {
-    return q{} if !$options || !defined $options->{$name};
-
-    return $options->{$name};
+sub _functions ($self) {
+    return $self->functions // GPForum::X::Unavailable->throw( message =>
+          'the moderation review needs the PostgreSQL function layer' );
 }
 
 1;
@@ -303,19 +144,18 @@ C<suspensions> rows.
 =head2 list_actions_p
 
 L</list_actions> as a promise, with an optional query context last, read on
-the worker's pooled asynchronous connections. Without SQL functions it
-answers the blocking read.
+the worker's pooled asynchronous connections. It is the read's one body: the
+blocking method runs it on the blocking call layer (ADR 0177).
 
 =head2 list_suspensions_p
 
-L</list_suspensions> as a promise, with an optional query context last,
-read on the worker's pooled asynchronous connections. Without SQL functions
-it answers the blocking read.
+L</list_suspensions> as a promise, as L</list_actions_p> is.
 
 =head1 DIAGNOSTICS
 
-None of its own; database errors propagate. A cursor that cannot be decoded
-gives the first page.
+Without the PostgreSQL function layer every read raises
+L<GPForum::X::Unavailable>; database errors propagate. A cursor that cannot
+be decoded gives the first page.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -323,8 +163,8 @@ None.
 
 =head1 DEPENDENCIES
 
-L<GPForum::Infrastructure::Keyset>, L<GPForum::Service::Forum::PageWindow>,
-L<GPForum::Service::Clock>.
+L<GPForum::Infrastructure::SqlFunction>,
+L<GPForum::Service::Forum::PageWindow>, L<GPForum::Service::Clock>.
 
 Extends L<GPForum::Base>: built without C<schema> it throws
 L<GPForum::X::Argument>.

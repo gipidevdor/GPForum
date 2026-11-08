@@ -35,30 +35,18 @@ __PACKAGE__->requires(qw(schema));
 # rules: a write is not screened, and staff changes are unavailable.
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
+# Each operation is written once, as its promise method (ADR 0177).
+GPForum::Infrastructure::SqlFunction->blocking_twins(
+    qw(rules_for words add_word remove_word set_link_rule record_decisions));
+
 # The rules a write by the author is screened by, or undef with no function
 # layer.
-sub rules_for ( $self, $user_id ) {
-    return undef if !$self->functions;
-    my $row = $self->functions->row( 'moderation_automod_rules',
-        { user_id => _uuid_or_undef($user_id) } );
-
-    return $row ? $row->{document} : undef;
-}
-
-# The rules and the word list on the worker's pooled asynchronous
-# connections, not a forked child with a connection of its own each.
 async sub rules_for_p ( $self, $user_id, $context = undef ) {
     return undef if !$self->functions;
     my $row = await $self->functions->row_p( 'moderation_automod_rules',
         { user_id => _uuid_or_undef($user_id) }, $context );
 
     return $row ? $row->{document} : undef;
-}
-
-sub words ($self) {
-    return [] if !$self->functions;
-
-    return $self->functions->rows( 'moderation_watched_word_list', {} );
 }
 
 async sub words_p ( $self, $context = undef ) {
@@ -70,48 +58,24 @@ async sub words_p ( $self, $context = undef ) {
 
 # Adds a watched word. Answers ok with the word, or a refusal: invalid
 # (with the field), duplicate or limit.
-sub add_word ( $self, $input ) {
-    return $self->_settle( $self->_add_word_call($input) );
-}
-
-# The same staff change on the worker's pooled asynchronous connections,
-# not a forked child with a connection of its own; as are remove_word_p
-# and set_link_rule_p.
 async sub add_word_p ( $self, $input, $context = undef ) {
-    return $self->add_word($input) if !$self->functions;
-    return await $self->_settle_p( $context, $self->_add_word_call($input) );
+    return await $self->_change_p( $context, $self->_add_word_call($input) );
 }
 
 # Takes a watched word off the list; one not listed is no error.
-sub remove_word ( $self, $input ) {
-    return $self->_settle( $self->_remove_word_call($input) );
-}
-
 async sub remove_word_p ( $self, $input, $context = undef ) {
-    return $self->remove_word($input) if !$self->functions;
-    return await $self->_settle_p( $context, $self->_remove_word_call($input) );
+    return await $self->_change_p( $context, $self->_remove_word_call($input) );
 }
 
 # Sets the link rule: an empty limit turns it off. Answers ok, unchanged
 # or invalid (with the field).
-sub set_link_rule ( $self, $input ) {
-    return $self->_settle( $self->_link_rule_call($input) );
-}
-
 async sub set_link_rule_p ( $self, $input, $context = undef ) {
-    return $self->set_link_rule($input) if !$self->functions;
-    return await $self->_settle_p( $context, $self->_link_rule_call($input) );
+    return await $self->_change_p( $context, $self->_link_rule_call($input) );
 }
 
 # A staff change is a refusal, or undef with the function's name, its
 # values and the sub that answers from the function's row.
-sub _settle ( $self, $refusal, $name = undef, $values = undef, $answer = undef )
-{
-    return $refusal if $refusal;
-    return $answer->( $self->_functions->row( $name, $values ) );
-}
-
-async sub _settle_p (
+async sub _change_p (
     $self, $context, $refusal,
     $name   = undef,
     $values = undef,
@@ -239,24 +203,13 @@ sub _link_rule_call ( $self, $input ) {
 # Records the decisions of one write in one call: the system's report
 # when the content is flagged (with its report.created event and audit),
 # and the audit of every decision. Answers the report's id and whether it
-# was created (an open system report on the target is reused).
-sub record_decisions ( $self, $input ) {
-    return _decisions_recorded(
-        $self->_functions->row(
-            'moderation_automod_record', $self->_decisions_values($input)
-        )
-    );
-}
-
-# The same call on a pooled asynchronous connection, or on the transaction
-# $functions belongs to (the write's own, when the write is recorded with
-# its decisions).
+# was created (an open system report on the target is reused). The call
+# joins the transaction $functions belongs to, when given: the write's own,
+# when the write is recorded with its decisions.
 async sub record_decisions_p ( $self, $input, $context = undef,
     $functions = undef )
 {
-    return $self->record_decisions($input)
-      if !$functions && !$self->functions;
-    $functions //= $self->functions;
+    $functions //= $self->_functions;
     return _decisions_recorded(
         await $functions->row_p(
             'moderation_automod_record', $self->_decisions_values($input),
@@ -370,63 +323,41 @@ or records the decisions and their audit in one transaction.
 
 =head1 SUBROUTINES/METHODS
 
-=head2 rules_for
+Each operation answers a promise and takes an optional query context last.
+Its blocking twin, named without C<_p>, runs the same body on the blocking
+call layer (ADR 0177).
+
+=head2 rules_for_p
 
 The watched words, the link rule and the author's trust level, or undef
 with no function layer.
 
-=head2 rules_for_p
-
-L</rules_for> as a promise, with an optional query context last, read on
-the worker's pooled asynchronous connections.
-
-=head2 words
-
-The list as the admin console shows it.
-
 =head2 words_p
 
-L</words> as a promise, with an optional query context, read on the
-worker's pooled asynchronous connections.
+The list as the admin console shows it; empty with no function layer.
 
-=head2 add_word
+=head2 add_word_p
 
 Adds a watched word: ok with the word, or invalid (naming the field),
 duplicate or limit.
 
-=head2 add_word_p
-
-L</add_word> as a promise, with an optional query context last, written
-on the worker's pooled asynchronous connections.
-
-=head2 remove_word
+=head2 remove_word_p
 
 Removes a watched word; C<removed> says whether it was listed.
 
-=head2 remove_word_p
-
-L</remove_word> as a promise, with an optional query context last,
-written on the worker's pooled asynchronous connections.
-
-=head2 set_link_rule
+=head2 set_link_rule_p
 
 Sets the link rule: ok, unchanged, or invalid naming the field.
 
-=head2 set_link_rule_p
-
-L</set_link_rule> as a promise, with an optional query context last,
-written on the worker's pooled asynchronous connections.
-
-=head2 record_decisions
-
-Records a write's decisions: the system report when flagged, and the audit
-of each decision.
-
 =head2 record_decisions_p
 
-L</record_decisions> as a promise, with an optional query context and an
-optional call layer last: on the worker's pooled asynchronous connections,
-or inside the transaction the given call layer belongs to.
+Records a write's decisions: the system report when flagged, and the audit
+of each decision. After the query context it takes an optional call layer:
+the transaction the call then joins.
+
+=head2 rules_for, words, add_word, remove_word, set_link_rule, record_decisions
+
+The blocking twins.
 
 =head2 in_transaction
 

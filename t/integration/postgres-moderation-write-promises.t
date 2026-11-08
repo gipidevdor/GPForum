@@ -31,11 +31,13 @@ const my $TRANSFERABLE => 3;
 const my $HEX          => qr/[[:xdigit:]]/msx;
 const my $UUID => qr/$HEX {8} - $HEX {4} - $HEX {4} - $HEX {4} - $HEX {12}/msx;
 
-# The keys each write draws for itself or names its own target by.
+# The keys each write draws for itself or names its own target by. Times
+# (valid_from, valid_to and every *_at) are the clock's, which may tick to the
+# next second between the two writes.
 const my %DRAWN => map { $_ => 1 } qw(command_id moderation_action_id
   suspension_id word_id phrase note_id transfer_id new_thread_id thread_id
   target_id post_id report_id review_id link_limit first_posts
-  review_first_posts);
+  review_first_posts valid_from valid_to);
 
 if ( !GPForum::Test::PgDatabase->admin_dsn ) {
     plan skip_all =>

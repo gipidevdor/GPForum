@@ -18,9 +18,9 @@ use GPForum::Service::Moderation::ActionStore;
 use GPForum::Service::Moderation::ReportStore;
 use GPForum::Service::Moderation::ReviewReader;
 use GPForum::Service::Moderation::SuspensionStore;
+use GPForum::Test::AuditCallFailure;
 use GPForum::Test::FixedClock;
 use GPForum::Test::PgDatabase;
-use GPForum::Test::RacedSchema;
 use GPForum::Test::ScriptedId;
 
 our $VERSION = '0.001';
@@ -97,9 +97,17 @@ const my $SUSPENSION_ROW_SQL =>
   'SELECT * FROM suspensions WHERE suspension_id = ?';
 const my $ACTION_ROW_SQL =>
   'SELECT * FROM moderation_actions WHERE moderation_action_id = ?';
+const my $LEFTOVER_REPORT_SQL => join q{ },
+  'INSERT INTO reports (report_id, reporter_user_id, target_type, target_id,',
+  q{reason, details, status, created_at)},
+  q{VALUES (?, ?, 'post', ?, 'spam', '', 'open', ?)};
 const my $REPORTS_SQL => join q{ },
   'SELECT count(*) FROM reports',
   'WHERE reporter_user_id = ? AND target_id = ?';
+const my %INSERT_FUNCTION => (
+    reports     => qr/api[.]moderation_report_insert_v\d+/msx,
+    suspensions => qr/api[.]moderation_suspension_insert_v\d+/msx,
+);
 const my $USER_SUSPENSIONS_SQL =>
   'SELECT count(*) FROM suspensions WHERE user_id = ?';
 const my $TARGET_ACTIONS_SQL => join q{ },
@@ -279,6 +287,9 @@ sub _report_lifecycle {
     _report_queue( $ctx, $store, $report_id );
     _report_release( $ctx, $store, $report_id );
     _report_resolution( $ctx, $store, $report_id );
+    _report_id_collision( $ctx, $report_id );
+    _leftover_report($ctx);
+    _report_rollback($ctx);
 
     return;
 }
@@ -307,6 +318,127 @@ sub _duplicate_report {
         1, 'and emits no second event' );
     is( _value( $ctx, $DUPLICATE_AUDITS_SQL, $report_id ),
         1, 'the duplicate is audited against the first report' );
+
+    return;
+}
+
+# A minted id already stored, with no open report on this key: the insert
+# is tried once more, in a savepoint, with a fresh id.
+sub _report_id_collision {
+    my ( $ctx, $taken ) = @_;
+
+    my $store = GPForum::Service::Moderation::ReportStore->new(
+        clock      => $ctx->{clock},
+        id_service => GPForum::Test::ScriptedId->new( next_ids => [$taken] ),
+        schema     => $ctx->{schema},
+    );
+    my ( $report, $inserts ) = _inserts(
+        $ctx,
+        'reports',
+        sub {
+            return $store->create_report(
+                {
+                    reason           => 'spam',
+                    reporter_user_id => $ctx->{users}{moderator},
+                    target_id        => $ctx->{thread_id},
+                    target_type      => 'thread',
+                }
+            );
+        }
+    );
+
+    is( scalar @{$inserts}, 2, 'a report id already taken is inserted twice' );
+    like( $inserts->[0] // q{},
+        qr/\Q$taken\E/msx, 'the first time with the id already taken' );
+    my $minted = $report->{report_id} // q{};
+    ok( GPForum::Infrastructure::Id->is_uuid($minted) && $minted ne $taken,
+        'the report gets a fresh id' );
+    is(
+        $report->{reporter_user_id},
+        $ctx->{users}{moderator},
+        'and keeps its reporter'
+    );
+    is( _value( $ctx, $EVENTS_SQL, 'report.created', $minted ),
+        1, 'the fresh report records its event' );
+    is( _value( $ctx, $DUPLICATE_AUDITS_SQL, $taken ),
+        1, 'and is not audited as a duplicate of the report holding the id' );
+
+    return;
+}
+
+# An open report left without its event by a write that did not finish: the
+# same report again gets that event and audit, not a duplicate.
+sub _leftover_report {
+    my ($ctx) = @_;
+
+    my $leftover = $ctx->{ids}->uuid;
+    my $reporter = $ctx->{users}{reviewer};
+    $ctx->{dbh}
+      ->do( $LEFTOVER_REPORT_SQL, undef, $leftover, $reporter, $ctx->{post_id},
+        $BEFORE );
+    my $report =
+      _store( $ctx, 'GPForum::Service::Moderation::ReportStore' )
+      ->create_report(
+        {
+            reason           => 'spam',
+            reporter_user_id => $reporter,
+            target_id        => $ctx->{post_id},
+            target_type      => 'post',
+        }
+      );
+
+    is( GPForum::Infrastructure::Row->column( $report, 'report_id' ),
+        $leftover, 'a leftover open report is answered' );
+    is( _value( $ctx, $REPORTS_SQL, $reporter, $ctx->{post_id} ),
+        1, 'with no second row' );
+    is( _value( $ctx, $EVENTS_SQL, 'report.created', $leftover ),
+        1, 'its missing event is recorded' );
+    is( _value( $ctx, $REPORT_AUDITS_SQL, 'report.created', $leftover ),
+        1, 'with its audit' );
+    is( _value( $ctx, $DUPLICATE_AUDITS_SQL, $leftover ),
+        0, 'and the repeat is not audited as a duplicate' );
+
+    return;
+}
+
+# The report, its event and its audit are one transaction: an audit that
+# fails leaves none of them.
+sub _report_rollback {
+    my ($ctx) = @_;
+
+    my $reporter = _user( $ctx, 'rollback_reporter' );
+    my $store    = GPForum::Service::Moderation::ReportStore->new(
+        clock      => $ctx->{clock},
+        id_service => $ctx->{ids},
+        recorder   => GPForum::Test::AuditCallFailure->new(
+            id_service => $ctx->{ids},
+            schema     => $ctx->{schema},
+        ),
+        schema => $ctx->{schema},
+    );
+    my $before = _totals($ctx);
+    my $error;
+    try {
+        $store->create_report(
+            {
+                reason           => 'spam',
+                reporter_user_id => $reporter,
+                target_id        => $ctx->{post_id},
+                target_type      => 'post',
+            }
+        );
+    }
+    catch ($caught) { $error = $caught; };
+
+    like(
+        $error,
+        qr/audit [ ] write [ ] failed/msx,
+        'a failing audit fails the report'
+    );
+    is( _value( $ctx, $REPORTS_SQL, $reporter, $ctx->{post_id} ),
+        0, 'and leaves no report' );
+    is_deeply( _totals($ctx), $before,
+        'nor an event, an outbox message or an audit entry' );
 
     return;
 }
@@ -675,6 +807,8 @@ sub _command_replay {
 # look-up for it and this insert. PostgreSQL refuses the insert on
 # idx_moderation_actions_command_id, and the store answers with the action
 # the command already recorded, as a replay does.
+# An action its command recorded without its event -- a write that did not
+# finish -- is replayed, and gets that event now.
 sub _command_race {
     my ($ctx) = @_;
 
@@ -682,15 +816,8 @@ sub _command_race {
     my $rival   = $ctx->{ids}->uuid;
     $ctx->{dbh}->do( $RIVAL_ACTION_SQL, undef, $rival, $ctx->{users}{moderator},
         $ctx->{post_id}, $command, $NOW );
-    my $store = GPForum::Service::Moderation::ActionStore->new(
-        clock      => $ctx->{clock},
-        id_service => $ctx->{ids},
-        schema     => GPForum::Test::RacedSchema->new(
-            misses => { ModerationAction => 1 },
-            schema => $ctx->{schema},
-        ),
-    );
-    my $raced = $store->restore_post(
+    my $store    = _store( $ctx, 'GPForum::Service::Moderation::ActionStore' );
+    my $replayed = $store->restore_post(
         {
             actor_user_id => $ctx->{users}{moderator},
             command_id    => $command,
@@ -699,11 +826,96 @@ sub _command_race {
         }
     );
 
-    ok( $raced->{replayed}, 'a command raced to its action replays it' );
-    is( $raced->{action}{moderation_action_id},
-        $rival, 'the action the rival recorded' );
+    ok( $replayed->{replayed}, 'a command already recorded replays' );
+    is( $replayed->{action}{moderation_action_id},
+        $rival, 'the action that command recorded' );
     is( _value( $ctx, $COMMAND_ACTIONS_SQL, $command ),
         1, 'and records no second action' );
+    _assert_recorded_once( $ctx, $replayed->{action},
+        'an action left without its event' );
+    _action_id_collision($ctx);
+    _action_rollback($ctx);
+
+    return;
+}
+
+# A minted action id already stored: the insert is tried once more, in a
+# savepoint, with a fresh id.
+sub _action_id_collision {
+    my ($ctx) = @_;
+
+    my $taken = $ctx->{hide_action_id};
+    my $store = GPForum::Service::Moderation::ActionStore->new(
+        clock      => $ctx->{clock},
+        id_service => GPForum::Test::ScriptedId->new( next_ids => [$taken] ),
+        schema     => $ctx->{schema},
+    );
+    my $pinned = $store->pin_thread(
+        {
+            actor_user_id => $ctx->{users}{moderator},
+            command_id    => $ctx->{ids}->uuid,
+            reason        => 'pk remint',
+            thread_id     => $ctx->{thread_id},
+        }
+    );
+    my $minted = $pinned->{action}{moderation_action_id} // q{};
+
+    ok( $pinned->{ok}, 'an action id already taken is minted again' );
+    ok( GPForum::Infrastructure::Id->is_uuid($minted) && $minted ne $taken,
+        'with a fresh id' );
+    is( _row( $ctx, $ACTION_ROW_SQL, $taken )->{action_type},
+        'post.hidden', 'the action holding the id is left alone' );
+    _assert_recorded_once( $ctx, $pinned->{action}, 'the reminted action' );
+    $store->unpin_thread(
+        {
+            actor_user_id => $ctx->{users}{moderator},
+            reason        => 'pk remint',
+            thread_id     => $ctx->{thread_id},
+        }
+    );
+
+    return;
+}
+
+# The target's change, the action, its event and its audit are one
+# transaction: an audit that fails leaves none of them.
+sub _action_rollback {
+    my ($ctx) = @_;
+
+    my $store = GPForum::Service::Moderation::ActionStore->new(
+        clock      => $ctx->{clock},
+        id_service => $ctx->{ids},
+        recorder   => GPForum::Test::AuditCallFailure->new(
+            id_service => $ctx->{ids},
+            schema     => $ctx->{schema},
+        ),
+        schema => $ctx->{schema},
+    );
+    my $before  = _totals($ctx);
+    my $actions = _value( $ctx, 'SELECT count(*) FROM moderation_actions' );
+    my $error;
+    try {
+        $store->pin_thread(
+            {
+                actor_user_id => $ctx->{users}{moderator},
+                reason        => 'rollback',
+                thread_id     => $ctx->{thread_id},
+            }
+        );
+    }
+    catch ($caught) { $error = $caught; };
+
+    like(
+        $error,
+        qr/audit [ ] write [ ] failed/msx,
+        'a failing audit fails the action'
+    );
+    ok( !_row( $ctx, $THREAD_ROW_SQL, $ctx->{thread_id} )->{pinned},
+        'and leaves the thread unpinned' );
+    is( _value( $ctx, 'SELECT count(*) FROM moderation_actions' ),
+        $actions, 'with no action' );
+    is_deeply( _totals($ctx), $before,
+        'nor an event, an outbox message or an audit entry' );
 
     return;
 }
@@ -1421,9 +1633,8 @@ sub _inserts {
             my ( $operation, $statement ) = @_;
             if (
                 $statement =~ /\A INSERT [ ] INTO [ ] "?\Q$table\E"? [ ]/msx
-                || (   $table eq 'suspensions'
-                    && $statement =~
-                    /api[.]moderation_suspension_insert_v\d+/msx )
+                || (   $INSERT_FUNCTION{$table}
+                    && $statement =~ $INSERT_FUNCTION{$table} )
               )
             {
                 push @inserts, $statement;

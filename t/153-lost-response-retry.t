@@ -12,8 +12,6 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
-use GPForum::Service::Moderation::ActionStore;
-use GPForum::Service::Moderation::ReportStore;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::Privacy::Workflow;
 use GPForum::Test::AdminWebServices;
@@ -21,8 +19,6 @@ use GPForum::Test::AllowLimiter;
 use GPForum::Test::AllowPermissionGate;
 use GPForum::Test::AttachmentWebServices;
 use GPForum::Test::CountingWrite;
-use GPForum::Test::EngineeringCorrectness::Schema;
-use GPForum::Test::FixedClock;
 use GPForum::Test::ForumWebServices;
 use GPForum::Test::Id;
 use GPForum::Test::IdentitySecurityAudit;
@@ -194,7 +190,7 @@ $test->status_is($HTTP_OK);
 is( _community_count( $forum->{services}, 'subscription_revokes' ),
     $ONCE, 'lost unsubscribe response does not persist twice' );
 
-my $reports     = _install_report_store($test);
+$test->app->helper( gp_report_store => sub { return $forum->{services}; } );
 my $report_form = {
     command_id => 'report-lost-response-1',
     csrf_token => $csrf_token,
@@ -209,10 +205,10 @@ ok( $report_id, 'first report commit returns a report id' );
 _post_json( $test, '/t/thread-1/report', $report_form );
 $test->status_is($HTTP_OK);
 $test->json_is( '/report/report_id' => $report_id );
-is( scalar @{ $reports->created_for('Report') },
-    $ONCE, 'lost report response does not insert a second report' );
+is( scalar @{ $forum->{services}->report_creates },
+    $ONCE, 'lost report response does not create a second report' );
 
-my $actions = _install_hide_store($test);
+_install_moderation_fakes( $test, $forum->{services} );
 $test->get_ok('/__test/session/moderator-1');
 $test->status_is($HTTP_OK);
 _get_json_ok( $test, '/moderation/reports' );
@@ -230,8 +226,8 @@ ok( $action_id, 'first hide commit returns an action id' );
 _post_json( $test, "/moderation/posts/$ID{post}/hide", $hide_form );
 $test->status_is($HTTP_OK);
 $test->json_is( '/action/moderation_action_id' => $action_id );
-is( scalar @{ $actions->created_for('ModerationAction') },
-    $ONCE, 'lost hide response does not insert a second action' );
+is( scalar @{ $forum->{services}->post_hides },
+    $ONCE, 'lost hide response does not hide twice' );
 
 $test->app->helper( gp_report_store => sub { return $forum->{services}; } );
 $test->app->helper(
@@ -700,51 +696,14 @@ sub _install_admin_write_fakes {
     return $services;
 }
 
-sub _community_count {
-    my ( $store, $method ) = @_;
+# The moderation pages' collaborators: the forum's fakes for the stores, the
+# review reader and the rate limiter, and a gate that lets the moderator in.
+sub _install_moderation_fakes {
+    my ( $test_object, $services ) = @_;
 
-    return scalar @{ $store->$method };
-}
-
-sub _attachment_delete_count {
-    my ($store) = @_;
-
-    return scalar @{ $store->delete_calls };
-}
-
-sub _install_report_store {
-    my ($test_object) = @_;
-
-    my $schema = GPForum::Test::EngineeringCorrectness::Schema->new;
-    my $store  = GPForum::Service::Moderation::ReportStore->new(
-        clock      => GPForum::Test::FixedClock->new,
-        id_service => GPForum::Test::Id->new,
-        schema     => $schema,
-    );
-    $test_object->app->helper( gp_report_store => sub { return $store; } );
-
-    return $schema;
-}
-
-sub _install_hide_store {
-    my ($test_object) = @_;
-
-    my $schema = GPForum::Test::EngineeringCorrectness::Schema->new;
-    $schema->resultset('Post')->create(
-        {
-            hidden_at        => undef,
-            moderation_state => 'visible',
-            post_id          => $ID{post},
-        }
-    );
-    my $store = GPForum::Service::Moderation::ActionStore->new(
-        clock      => GPForum::Test::FixedClock->new,
-        id_service => GPForum::Test::Id->new,
-        schema     => $schema,
-    );
     my $fakes = GPForum::Test::ForumWebServices->new;
     $test_object->app->helper(
-        gp_moderation_action_store => sub { return $store; } );
+        gp_moderation_action_store => sub { return $services; } );
     $test_object->app->helper(
         gp_moderation_review_reader => sub { return $fakes; } );
     $test_object->app->helper( gp_rate_limiter => sub { return $fakes; } );
@@ -759,7 +718,19 @@ sub _install_hide_store {
         }
     );
 
-    return $schema;
+    return;
+}
+
+sub _community_count {
+    my ( $store, $method ) = @_;
+
+    return scalar @{ $store->$method };
+}
+
+sub _attachment_delete_count {
+    my ($store) = @_;
+
+    return scalar @{ $store->delete_calls };
 }
 
 sub _install_privacy_fakes {

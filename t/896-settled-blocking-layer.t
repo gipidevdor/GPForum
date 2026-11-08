@@ -60,6 +60,15 @@ is_deeply(
     'a service without a call layer runs as it is'
 );
 
+# blocking_twins declares the blocking method in the store's package, with
+# the promise method's body and arguments.
+ok( $service->can('double'), 'a declared twin is a method of the store' );
+is_deeply(
+    $service->double($HALF),
+    { blocking => 1, value => $ANSWER },
+    'and answers its promise method settled on the blocking layer'
+);
+
 done_testing();
 
 1;

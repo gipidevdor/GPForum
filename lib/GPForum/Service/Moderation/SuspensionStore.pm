@@ -39,35 +39,11 @@ has events    => sub { return GPForum::Service::Moderation::Event->new; };
 
 # Each operation has one body, its promise method, written against the call
 # layer (ADR 0177). The blocking method is that same body on the process's
-# own connection: GPForum::Infrastructure::SqlFunction->settle.
-sub create_suspension ( $self, $input ) {
-    return _settle( $self, create_suspension_p => $input );
-}
-
-sub revoke_suspension ( $self, $suspension_id, $actor_user_id, $reason ) {
-    return _settle(
-        $self,
-        revoke_suspension_p => $suspension_id,
-        $actor_user_id, $reason
-    );
-}
-
-sub end_suspension ( $self, $user_id, $suspension_id ) {
-    return _settle( $self, end_suspension_p => $user_id, $suspension_id );
-}
-
-sub active_for_user ( $self, $user_id ) {
-    return _settle( $self, active_for_user_p => $user_id );
-}
-
-sub can_participate ( $self, $user_id ) {
-    return _settle( $self, can_participate_p => $user_id );
-}
-
-sub _settle ( $self, $method, @arguments ) {
-    return GPForum::Infrastructure::SqlFunction->settle( $self, $method,
-        @arguments );
-}
+# own connection.
+GPForum::Infrastructure::SqlFunction->blocking_twins(
+    qw(create_suspension revoke_suspension end_suspension active_for_user
+      can_participate)
+);
 
 # A member already under an active suspension keeps it. A minted id already
 # stored is minted once more: under the member's lock nothing else can have

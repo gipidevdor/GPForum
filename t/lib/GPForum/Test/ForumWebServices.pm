@@ -46,6 +46,7 @@ has last_moderation_input => sub { return {}; };
 has mode                  => 'forum';
 has read_marker_writes    => sub { return []; };
 has report_assigns        => sub { return []; };
+has report_creates        => sub { return []; };
 has report_releases       => sub { return []; };
 has report_resolves       => sub { return []; };
 has action_reverses       => sub { return []; };
@@ -577,6 +578,7 @@ sub delete_post {
 
 sub create_report {
     my ( $self, $input ) = @_;
+    push @{ $self->report_creates }, $input;
 
     return {
         report_id        => 'report-created',

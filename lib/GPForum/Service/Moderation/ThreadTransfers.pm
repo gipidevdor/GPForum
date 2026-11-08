@@ -3,51 +3,38 @@
 
 package GPForum::Service::Moderation::ThreadTransfers;
 
+use Const::Fast;
 use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
+
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::SqlFunction;
+use GPForum::X::Unavailable;
 use Mojo::URL;
 
 our $VERSION = '0.001';
-use Const::Fast;
+
 const my $PICKER_PAGE  => 50;
 const my $QUERY_LENGTH => 100;
 
 __PACKAGE__->requires('schema');
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
-sub history ( $self, $actor ) {
-    return _history(
-        $self->functions->row(
-            'moderation_thread_transfers', { actor => $actor }
-        )
-    );
-}
+# Each operation is written once, as its promise method (ADR 0177).
+GPForum::Infrastructure::SqlFunction->blocking_twins(
+    qw(history picker change undo redirect));
 
-# The transfers page's reads on the worker's pooled asynchronous
-# connections, not a forked child with a connection of its own each.
+# The hundred most recent transfers, for staff who may see them.
 async sub history_p ( $self, $actor, $context = undef ) {
-    return _history(
-        await $self->functions->row_p(
-            'moderation_thread_transfers', { actor => $actor }, $context
-        )
-    );
-}
-
-sub _history ($row) {
+    my $row = await $self->_functions->row_p( 'moderation_thread_transfers',
+        { actor => $actor }, $context );
     return $row ? $row->{result} : { status => 'forbidden' };
-}
-
-sub picker ( $self, $input ) {
-    my ( $refusal, @call ) = _picker_values($input);
-    return $refusal // _picker_page( $self->functions->row(@call) );
 }
 
 async sub picker_p ( $self, $input, $context = undef ) {
     my ( $refusal, @call ) = _picker_values($input);
     return $refusal
-      // _picker_page( await $self->functions->row_p( @call, $context ) );
+      // _picker_page( await $self->_functions->row_p( @call, $context ) );
 }
 
 # A refusal, or undef and the picker function's name and values.
@@ -80,18 +67,11 @@ sub _picker_page ($row) {
     return $page;
 }
 
-sub change ( $self, $input ) {
-    my ( $refusal, @call ) = _change_values($input);
-    return $refusal // _transfer_result( $self->functions->row(@call) );
-}
-
-# The same move, merge or split on the worker's pooled asynchronous
-# connections, not a forked child with a connection of its own.
+# A move, merge or split.
 async sub change_p ( $self, $input, $context = undef ) {
-    return $self->change($input) if !$self->functions;
     my ( $refusal, @call ) = _change_values($input);
     return $refusal
-      // _transfer_result( await $self->functions->row_p( @call, $context ) );
+      // _transfer_result( await $self->_functions->row_p( @call, $context ) );
 }
 
 # A refusal, or undef and the transfer function's name and values.
@@ -121,41 +101,33 @@ sub _change_values ($input) {
     );
 }
 
-sub undo ( $self, $input ) {
-    my ( $refusal, @call ) = _undo_values($input);
-    return $refusal // _transfer_result( $self->functions->row(@call) );
-}
-
-# The same undo on the worker's pooled asynchronous connections.
 async sub undo_p ( $self, $input, $context = undef ) {
-    return $self->undo($input) if !$self->functions;
-    my ( $refusal, @call ) = _undo_values($input);
-    return $refusal
-      // _transfer_result( await $self->functions->row_p( @call, $context ) );
-}
-
-sub _undo_values ($input) {
     return { status => 'invalid' }
       if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
-    return ( undef, 'moderation_thread_transfer_undo', $input );
+    return _transfer_result(
+        await $self->_functions->row_p(
+            'moderation_thread_transfer_undo',
+            $input, $context
+        )
+    );
 }
 
 sub _transfer_result ($row) {
     return $row ? $row->{result} : { status => 'invalid' };
 }
 
-sub redirect ( $self, $actor, $thread_id ) {
-    return undef if !$self->functions;
-    my $row = $self->functions->row( 'forum_thread_redirect',
-        { actor => $actor, thread_id => $thread_id } );
-    return $row ? $row->{target_id} : undef;
-}
-
+# A merged thread's destination. A schema without the function layer -- an
+# in-memory double -- has merged nothing.
 async sub redirect_p ( $self, $actor, $thread_id, $context = undef ) {
     return undef if !$self->functions;
     my $row = await $self->functions->row_p( 'forum_thread_redirect',
         { actor => $actor, thread_id => $thread_id }, $context );
     return $row ? $row->{target_id} : undef;
+}
+
+sub _functions ($self) {
+    return $self->functions // GPForum::X::Unavailable->throw(
+        message => 'thread transfers need the PostgreSQL function layer' );
 }
 
 sub _thread_id ($value) {
@@ -190,55 +162,40 @@ threads/posts and polls are refused. One command moves at most 1000 posts.
 
 =head1 SUBROUTINES/METHODS
 
-=head2 history
-
-The hundred most recent transfers for authorized staff.
+Each method answers a promise and takes an optional query context last.
+Its blocking twin, named without C<_p>, runs the same body on the blocking
+call layer (ADR 0177).
 
 =head2 history_p
 
-L</history> as a promise, with an optional query context last, read on the
-worker's pooled asynchronous connections.
+The hundred most recent transfers for authorized staff.
 
-=head2 picker
+=head2 picker_p
 
 Returns bounded, permission-checked title choices and a keyset page of selectable
 replies. Destinations match the chosen source audience and category.
 
-=head2 picker_p
-
-L</picker> as a promise, with an optional query context last, read on the
-worker's pooled asynchronous connections.
-
-=head2 change
+=head2 change_p
 
 Move numbered posts, split them into a thread, or merge an entire thread.
 
-=head2 change_p
-
-L</change> as a promise, with an optional query context last, written on
-the worker's pooled asynchronous connections.
-
-=head2 undo
+=head2 undo_p
 
 Restores original placement when subsequent work permits safe reversal.
 
-=head2 undo_p
-
-L</undo> as a promise, with an optional query context last, written on the
-worker's pooled asynchronous connections.
-
-=head2 redirect
+=head2 redirect_p
 
 A merged thread's readable destination, otherwise undef.
 
-=head2 redirect_p
+=head2 history, picker, change, undo, redirect
 
-L</redirect> as a promise, with an optional query context last, read on the
-worker's pooled asynchronous connections.
+The blocking twins.
 
 =head1 DIAGNOSTICS
 
 A conflict leaves all content untouched; database failures propagate.
+Without the PostgreSQL function layer every call but L</redirect_p> raises
+L<GPForum::X::Unavailable>.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

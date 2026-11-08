@@ -39,6 +39,10 @@ __PACKAGE__->requires(qw(schema));
 # nothing: every call is unavailable.
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
+# Each operation is written once, as its promise method (ADR 0177).
+GPForum::Infrastructure::SqlFunction->blocking_twins(
+    qw(hold queue mine take decide set_rule));
+
 sub maximum_first_posts ($self) { return $MAXIMUM_FIRST; }
 
 sub maximum_reason ($self) { return $MAXIMUM_REASON; }
@@ -47,17 +51,7 @@ sub maximum_reason ($self) { return $MAXIMUM_REASON; }
 # it goes, its text as composed, why it is held and the draft it was
 # written in. Answers the entry: its id, its status and whether it was
 # already held under that command id (replayed).
-sub hold ( $self, $input ) {
-    return _held(
-        $self->_functions->row(
-            'moderation_review_hold', $self->_hold_values($input)
-        )
-    );
-}
-
-# The hold on the worker's pooled asynchronous connections.
 async sub hold_p ( $self, $input, $context = undef ) {
-    return $self->hold($input) if !$self->functions;
     return _held(
         await $self->_functions->row_p(
             'moderation_review_hold', $self->_hold_values($input), $context
@@ -118,40 +112,23 @@ sub _held ($row) {
 }
 
 # The pending posts staff review, oldest first.
-sub queue ( $self, $limit = $QUEUE_LIMIT ) {
-    return $self->_functions->rows( 'moderation_review_queue',
-        { row_limit => $limit } );
-}
-
-# The review queue's read on the worker's pooled asynchronous connections,
-# not a forked child with a connection of its own.
 async sub queue_p ( $self, $limit = $QUEUE_LIMIT, $context = undef ) {
     return await $self->_functions->rows_p( 'moderation_review_queue',
         { row_limit => $limit }, $context );
 }
 
 # The author's own held posts: pending, and those decided lately.
-sub mine ( $self, $user_id, $viewer, $limit = $QUEUE_LIMIT ) {
-    return [] if !GPForum::Infrastructure::Id->is_uuid_spelling($user_id);
-
-    return $self->_functions->rows( 'moderation_review_mine',
-        _mine_values( $user_id, $viewer, $limit ) );
-}
-
-# The /pending page's read, at the default limit, on the worker's pooled
-# asynchronous connections. The page passes no limit, so the query context
-# follows the viewer.
 async sub mine_p ( $self, $user_id, $viewer, $context = undef ) {
     return [] if !GPForum::Infrastructure::Id->is_uuid_spelling($user_id);
 
     return await $self->_functions->rows_p( 'moderation_review_mine',
-        _mine_values( $user_id, $viewer, $QUEUE_LIMIT ), $context );
+        _mine_values( $user_id, $viewer ), $context );
 }
 
-sub _mine_values ( $user_id, $viewer, $limit ) {
+sub _mine_values ( $user_id, $viewer ) {
     return {
         user_id      => $user_id,
-        row_limit    => $limit,
+        row_limit    => $QUEUE_LIMIT,
         member       => $viewer->member      ? 1 : 0,
         global_read  => $viewer->global_read ? 1 : 0,
         category_ids => $viewer->category_ids,
@@ -160,16 +137,8 @@ sub _mine_values ( $user_id, $viewer, $limit ) {
 }
 
 # One held post, locked for the rest of the transaction; undef when there
-# is none.
-sub take ( $self, $review_id ) {
-    return undef if !GPForum::Infrastructure::Id->is_uuid_spelling($review_id);
-
-    return $self->_functions->row( 'moderation_review_take',
-        { review_id => $review_id } );
-}
-
-# take on the worker's pooled asynchronous connections; the lock is held
-# only within a transaction, so the store is one in_transaction_p joined.
+# is none. The lock holds only within a transaction: the store
+# in_transaction_p hands its work, or take inside in_transaction.
 async sub take_p ( $self, $review_id, $context = undef ) {
     return undef if !GPForum::Infrastructure::Id->is_uuid_spelling($review_id);
 
@@ -180,16 +149,7 @@ async sub take_p ( $self, $review_id, $context = undef ) {
 # Records a decision: approved (with the post it became), rejected (with
 # a reason) or withdrawn by its author. Answers the function's row: ok,
 # unchanged, decided, not_found or invalid, with the entry's status.
-sub decide ( $self, $input ) {
-    my ( $refusal, @call ) = $self->_decide_call($input);
-    return $refusal // $self->_functions->row(@call)
-      // { status => 'not_found' };
-}
-
-# The same decision on the worker's pooled asynchronous connections, not a
-# forked child with a connection of its own.
 async sub decide_p ( $self, $input, $context = undef ) {
-    return $self->decide($input) if !$self->functions;
     my ( $refusal, @call ) = $self->_decide_call($input);
     return $refusal // ( await $self->_functions->row_p( @call, $context ) )
       // { status => 'not_found' };
@@ -231,14 +191,7 @@ sub _decide_call ( $self, $input ) {
 # Sets the review rule: how many first posts are held (0 is off), and
 # whether flagged posts are held too. Answers ok, unchanged or invalid
 # (with the field).
-sub set_rule ( $self, $input ) {
-    my ( $refusal, @call ) = $self->_rule_call($input);
-    return $refusal // _rule_answer( $self->_functions->row(@call) );
-}
-
-# The same rule set on the worker's pooled asynchronous connections.
 async sub set_rule_p ( $self, $input, $context = undef ) {
-    return $self->set_rule($input) if !$self->functions;
     my ( $refusal, @call ) = $self->_rule_call($input);
     return $refusal
       // _rule_answer( await $self->_functions->row_p( @call, $context ) );
@@ -353,64 +306,43 @@ changes the queue and records its audit in one transaction.
 
 =head1 SUBROUTINES/METHODS
 
-=head2 hold
+Each operation answers a promise and takes an optional query context last.
+Its blocking twin, named without C<_p>, runs the same body on the blocking
+call layer (ADR 0177).
+
+=head2 hold_p
 
 Holds a post; the author's command id keys it, so the same submission
 again answers the entry it made.
 
-=head2 hold_p
-
-L</hold> as a promise, with an optional query context last, written on the
-worker's pooled asynchronous connections.
-
-=head2 queue
-
-The pending posts, oldest first, with how many are pending in all.
-
 =head2 queue_p
 
-L</queue> as a promise, with an optional query context after the limit,
-read on the worker's pooled asynchronous connections.
-
-=head2 mine
-
-The author's own held posts: pending, and decided in the last 30 days, the
-place each went to read with the viewer's scopes (a place they cannot read
-names no title or id).
+The pending posts, oldest first, with how many are pending in all; an
+optional limit comes before the query context.
 
 =head2 mine_p
 
-L</mine> at its default limit as a promise: the author's id, the viewer and
-an optional query context, read on the worker's pooled asynchronous
-connections.
-
-=head2 take
-
-One held post, locked until the transaction ends.
+The author's own held posts: pending, and decided in the last 30 days, the
+place each went to read with the viewer's scopes (a place they cannot read
+names no title or id). Takes the author's id and the viewer.
 
 =head2 take_p
 
-L</take> as a promise, with an optional query context last. The lock holds
-only within a transaction: call it on the store L</in_transaction_p> hands
-its work.
-
-=head2 decide
-
-Records an approval, a rejection or a withdrawal of a pending post.
+One held post, locked until the transaction ends: call it on the store
+L</in_transaction_p> hands its work, or as C<take> inside
+L</in_transaction>.
 
 =head2 decide_p
 
-L</decide> as a promise, with an optional query context last, written on
-the worker's pooled asynchronous connections.
-
-=head2 set_rule
-
-Sets how many first posts are held and whether flagged posts are held.
+Records an approval, a rejection or a withdrawal of a pending post.
 
 =head2 set_rule_p
 
-L</set_rule> as a promise, with an optional query context last, written
-on the worker's pooled asynchronous connections.
+Sets how many first posts are held and whether flagged posts are held.
+
+=head2 hold, queue, mine, take, decide, set_rule
+
+The blocking twins.
 
 =head2 in_transaction
 

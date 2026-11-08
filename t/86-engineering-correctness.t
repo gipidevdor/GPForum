@@ -16,14 +16,10 @@ use lib 't/lib';
 use GPForum::Domain::EventEnvelope;
 use GPForum::Service::Forum::ThreadStore;
 use GPForum::Service::Forum::PostStore;
-use GPForum::Service::Moderation::ActionStore;
-use GPForum::Service::Moderation::ReportStore;
 use GPForum::Service::Privacy::DeletionWorkflow;
 use GPForum::Test::FixedClock;
 use GPForum::Test::EngineeringCorrectness::Schema;
 use GPForum::Test::Id;
-use GPForum::Test::ModerationResultSet;
-use GPForum::Test::ModerationSchema;
 
 our $VERSION = '0.001';
 
@@ -282,78 +278,10 @@ sub _assert_thread_write_rollback {
 }
 
 sub _assert_pre_commit_write_rollback {
-    subtest 'report, hide, and approval roll back on insert timeout' => sub {
-        _assert_report_write_rollback('EventLog');
-        _assert_report_write_rollback('OutboxMessage');
-        _assert_hide_write_rollback('OutboxMessage');
-        _assert_hide_write_rollback('AuditLog');
+    subtest 'approval rolls back on insert timeout' => sub {
         _assert_approval_write_rollback('OutboxMessage');
         _assert_approval_write_rollback('AuditLog');
     };
-
-    return;
-}
-
-sub _assert_report_write_rollback {
-    my ($fail_resultset) = @_;
-
-    my $schema = _failing_schema($fail_resultset);
-    my $store  = GPForum::Service::Moderation::ReportStore->new(
-        clock      => GPForum::Test::FixedClock->new,
-        id_service => GPForum::Test::Id->new,
-        schema     => $schema,
-    );
-    my $error = exception { $store->create_report( _report_command() ) };
-
-    like(
-        $error,
-        _timeout_pattern($fail_resultset),
-        "report $fail_resultset timeout is surfaced to the canonical write"
-    );
-    is( $schema->transactions, 1,
-        "report $fail_resultset write attempted one transaction" );
-    _assert_empty_after_rollback( $schema,
-        [qw(Report EventLog OutboxMessage AuditLog)],
-    );
-
-    return;
-}
-
-sub _assert_hide_write_rollback {
-    my ($fail_resultset) = @_;
-
-    my $schema = _failing_schema($fail_resultset);
-    $schema->resultset('Post')->create(
-        {
-            hidden_at        => undef,
-            moderation_state => 'visible',
-            post_id          => 'post-1',
-        }
-    );
-    my $store = GPForum::Service::Moderation::ActionStore->new(
-        clock      => GPForum::Test::FixedClock->new,
-        id_service => GPForum::Test::Id->new,
-        schema     => $schema,
-    );
-    my $error = exception { $store->hide_post( _hide_command() ) };
-
-    like(
-        $error,
-        _timeout_pattern($fail_resultset),
-        "hide $fail_resultset timeout is surfaced to the canonical write"
-    );
-    is( $schema->transactions, 1,
-        "hide $fail_resultset write attempted one transaction" );
-    is(
-        $schema->resultset('Post')
-          ->find('post-1')
-          ->get_column('moderation_state'),
-        'visible',
-        "hide $fail_resultset does not keep a mutated post after rollback"
-    );
-    _assert_empty_after_rollback( $schema,
-        [qw(ModerationAction EventLog OutboxMessage AuditLog)],
-    );
 
     return;
 }
@@ -603,7 +531,6 @@ sub _assert_empty_after_rollback {
 sub _assert_reply_and_moderation_concurrency {
     subtest 'reply and moderation concurrency invariants are guarded' => sub {
         _assert_duplicate_reply_position_rolls_back();
-        _assert_repeated_moderation_action_is_idempotent();
     };
 
     return;
@@ -634,60 +561,6 @@ sub _assert_duplicate_reply_position_rolls_back {
         1, 'duplicate reply does not commit a second outbox row' );
     is( scalar @{ $schema->created_for('AuditLog') },
         1, 'duplicate reply does not commit a second audit row' );
-
-    return;
-}
-
-sub _assert_repeated_moderation_action_is_idempotent {
-    my $posts   = GPForum::Test::ModerationResultSet->new;
-    my $actions = GPForum::Test::ModerationResultSet->new;
-    my $events  = GPForum::Test::ModerationResultSet->new;
-    my $outbox  = GPForum::Test::ModerationResultSet->new;
-    my $audits  = GPForum::Test::ModerationResultSet->new;
-    my $schema  = GPForum::Test::ModerationSchema->new(
-        resultsets => {
-            AuditLog         => $audits,
-            EventLog         => $events,
-            ModerationAction => $actions,
-            OutboxMessage    => $outbox,
-            Post             => $posts,
-        },
-    );
-    $posts->create(
-        {
-            hidden_at        => undef,
-            moderation_state => 'visible',
-            post_id          => 'post-1',
-        }
-    );
-
-    my $store = GPForum::Service::Moderation::ActionStore->new(
-        clock      => GPForum::Test::FixedClock->new,
-        id_service => GPForum::Test::Id->new,
-        schema     => $schema,
-    );
-    my $first = $store->hide_post( _hide_command() );
-    my $again = $store->hide_post( _hide_command() );
-
-    ok( $first->{ok}, 'first moderation action succeeds' );
-    ok( $again->{ok}, 'repeated moderation action succeeds' );
-    ok( $again->{skipped},
-        'repeated moderation action is skipped when already applied' );
-    is( $posts->find('post-1')->get_column('moderation_state'),
-        'hidden', 'repeated moderation action leaves post hidden' );
-    is(
-        $first->{action}{moderation_action_id},
-        $again->{action}{moderation_action_id},
-        'repeated moderation action returns the original action'
-    );
-    is( scalar @{ $actions->created },
-        1, 'repeated moderation action does not insert a second row' );
-    is( scalar @{ $events->created },
-        1, 'repeated moderation action does not emit a second event' );
-    is( scalar @{ $audits->created },
-        1, 'repeated moderation action does not emit a second audit' );
-    is( scalar @{ $outbox->created },
-        1, 'repeated moderation action does not emit a second outbox row' );
 
     return;
 }
@@ -1082,24 +955,6 @@ sub _reply_command {
         revision => {
             revision_id => 'revision-' . $post_id,
         },
-    };
-}
-
-sub _report_command {
-    return {
-        details          => 'too much spam',
-        reason           => 'spam',
-        reporter_user_id => 'user-1',
-        target_id        => 'post-1',
-        target_type      => 'post',
-    };
-}
-
-sub _hide_command {
-    return {
-        actor_user_id => 'moderator-1',
-        post_id       => 'post-1',
-        reason        => 'spam',
     };
 }
 

@@ -13,7 +13,6 @@ use lib 'lib';
 use lib 't/lib';
 
 use GPForum::Service::Community::MentionStore;
-use GPForum::Service::Moderation::ReportStore;
 use GPForum::Service::Operations::RateLimiter;
 use GPForum::Service::Operations::RateLimiter::DegradationPolicy;
 use GPForum::Service::Operations::RateLimiter::PostgreSQLStore;
@@ -142,44 +141,6 @@ subtest 'mention fanout is bounded and audit-backed' => sub {
         'fanout_limited', 'skipped mentions name fanout limit' );
     is( $schema->created_for('AuditLog')->[0]{action},
         'mention.fanout_limited', 'mention fanout limit writes audit record' );
-};
-
-subtest 'duplicate reports are blocked without duplicate domain events' => sub {
-    my $schema = GPForum::Test::Schema->new(
-        reports => [
-            {
-                created_at       => '2026-05-23T12:00:00Z',
-                reason           => 'spam',
-                report_id        => 'report-existing',
-                reporter_user_id => 'user-1',
-                status           => 'open',
-                target_id        => 'post-1',
-                target_type      => 'post',
-            },
-        ],
-    );
-    my $store = GPForum::Service::Moderation::ReportStore->new(
-        clock      => GPForum::Test::FixedClock->new,
-        id_service => GPForum::Test::Id->new,
-        schema     => $schema,
-    );
-
-    my $report = $store->create_report(
-        {
-            details          => 'same target',
-            reason           => 'spam',
-            reporter_user_id => 'user-1',
-            target_id        => 'post-1',
-            target_type      => 'post',
-        }
-    );
-
-    is( $report->{report_id},
-        'report-existing', 'duplicate report returns existing open report' );
-    is( scalar @{ $schema->created_for('EventLog') },
-        1, 'duplicate report inserts the missing created event' );
-    is( $schema->created_for('AuditLog')->[0]{action},
-        'report.created', 'duplicate report writes leftover created audit' );
 };
 
 subtest 'authorization denial matrix returns explicit statuses' => sub {

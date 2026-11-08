@@ -13,6 +13,8 @@ use JSON::MaybeXS;
 use MIME::Base64 qw(encode_base64url decode_base64url);
 use Mojo::File   qw(path);
 
+use GPForum::X::Config;
+
 our $VERSION = '0.001';
 
 const my $PUBLIC_KEY_BYTES => 32;
@@ -48,10 +50,12 @@ sub _load_key ($self) {
             croak 'cannot publish signing key' if !-e $file;
         }
     }
-    croak 'signing key must be a private regular file'
+    GPForum::X::Config->throw(
+        message => 'signing key must be a private regular file' )
       if -l $file || !-f $file || ( ( stat $file )[2] & oct '077' );
     my $key = Crypt::PK::Ed25519->new( $file->to_string );
-    croak 'signing key has no private key' if !$key->is_private;
+    GPForum::X::Config->throw( message => 'signing key has no private key' )
+      if !$key->is_private;
     return $key;
 }
 
@@ -92,11 +96,13 @@ sub _read_trusted_keys ($self) {
         next
           if $entry->basename !~
           /\A \Q$prefix\E [.] [[:xdigit:]]{64} [.]pub[.]json \z/msx;
-        croak 'public signing key must be a regular file'
+        GPForum::X::Config->throw(
+            message => 'public signing key must be a regular file' )
           if -l $entry || !-f $entry;
         my $key = $JSON->decode( $entry->slurp );
         my $raw = decode_base64url( $key->{x} // q{} );
-        croak 'invalid archived public signing key'
+        GPForum::X::Config->throw(
+            message => 'invalid archived public signing key' )
           if length($raw) != $PUBLIC_KEY_BYTES
           || sha256_hex($raw) ne ( $key->{kid} // q{} );
         $keys{ $key->{kid} } = $key;

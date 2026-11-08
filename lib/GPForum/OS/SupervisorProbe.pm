@@ -9,6 +9,7 @@ use English    qw(-no_match_vars);
 use Mojo::File qw(path);
 use Mojo::Util qw(xml_escape);
 use GPForum::OS;
+use GPForum::X::Argument;
 our $VERSION = '0.001';
 const my $EPOLL     => 4;
 const my $KQUEUE    => 8;
@@ -25,8 +26,10 @@ has domain    => q{};
 # This maintainer probe can control only its own private test job. The runner
 # is injected, keeping command capture and test assertions out of the OS layer.
 sub start ($self) {
-    croak 'native probe already started' if $self->active;
-    croak 'native probe requires its own label'
+    GPForum::X::Argument->throw( message => 'native probe already started' )
+      if $self->active;
+    GPForum::X::Argument->throw(
+        message => 'native probe requires its own label' )
       if $self->label ne "com.gpforum.test.$PROCESS_ID";
     $self->owner_pid($PROCESS_ID);
     for my $name (qw(supervisor.log supervisor.out)) {
@@ -52,7 +55,10 @@ sub start ($self) {
         );
     }
     elsif ( $kind eq 'linux' ) { $result = $self->_systemd_start( \@payload ); }
-    else                       { croak "no native supervisor probe for $kind"; }
+    else {
+        GPForum::X::Argument->throw(
+            message => "no native supervisor probe for $kind" );
+    }
     if ( !$result->{status} ) { $self->active(1); }
     return $result;
 }
@@ -72,7 +78,9 @@ sub stop ($self) {
     }
     else {
         my $pid = _read_pid( $self->directory . '/supervisor.pid' );
-        croak 'missing native test supervisor PID' if !$pid;
+        GPForum::X::Argument->throw(
+            message => 'missing native test supervisor PID' )
+          if !$pid;
         $result = { status => kill( 'TERM', $pid ) ? 0 : 1, output => q{} };
     }
     if ( !$result->{status} ) { $self->active(0); }
@@ -89,7 +97,8 @@ sub crash ($self) {
         '--kill-whom=main', '--signal=KILL', $self->label )
       if $kind eq 'linux';
     my $pid = $self->pid;
-    croak 'missing native test manager PID' if !$pid;
+    GPForum::X::Argument->throw( message => 'missing native test manager PID' )
+      if !$pid;
     return { status => kill( 'KILL', $pid ) ? 0 : 1, output => q{} };
 }
 
@@ -108,7 +117,8 @@ sub supports_watchdog ($self) { return $self->platform->name eq 'linux'; }
 
 sub block ($self) {
     $self->_owned;
-    croak 'this native supervisor has no watchdog probe'
+    GPForum::X::Argument->throw(
+        message => 'this native supervisor has no watchdog probe' )
       if !$self->supports_watchdog;
     return $self->_command( 'sudo', '-n', 'systemctl', 'kill',
         '--kill-whom=main', '--signal=STOP', $self->label );
@@ -145,7 +155,8 @@ sub diagnostics ($self) {
 }
 
 sub _owned ($self) {
-    croak 'native probe does not own this job'
+    GPForum::X::Argument->throw(
+        message => 'native probe does not own this job' )
       if $self->owner_pid != $PROCESS_ID
       || $self->label ne "com.gpforum.test.$PROCESS_ID";
     return;

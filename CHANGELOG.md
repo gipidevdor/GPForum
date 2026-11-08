@@ -4502,6 +4502,15 @@ Migrations 2000–2025 install a fresh database only; use the current
 
 ### Development
 
+- **Eleven bare `croak` calls are typed exceptions (`t/887`).** The native
+  supervisor probe's seven contract failures are `GPForum::X::Argument`; the
+  post signer's four refusals of an unusable key are `GPForum::X::Config`.
+  Messages are unchanged. Only broken contracts and bad configuration moved:
+  a typed exception declares its `failure_type` (`permanent`), where a bare
+  string was `transient` to the outbox, so the file and descriptor failures
+  (`cannot write ...`) stay `croak` until each has a class that says they may
+  be retried.
+
 - **Fewer private copies of the same helpers.** Three modules read a row's
   column with their own `_column`; they now use `column_of`
   (`GPForum::Infrastructure::Row`). Five modules kept their own copy of the

@@ -4502,6 +4502,12 @@ Migrations 2000–2025 install a fresh database only; use the current
 
 ### Development
 
+- **File failures have a class: `GPForum::X::Io` (`t/887`).** A local read,
+  write, sync, link or lock that failed is `transient`, as a bare `croak` was,
+  so the outbox still retries it, but the exception now says what it is. The
+  post signer's and the Push key ring's `cannot ...` failures use it; the key
+  ring's unsafe directory is `X::Config` and its "keys already exist" is
+  `X::Argument`. Messages are unchanged.
 - **Eleven bare `croak` calls are typed exceptions (`t/887`).** The native
   supervisor probe's seven contract failures are `GPForum::X::Argument`; the
   post signer's four refusals of an unusable key are `GPForum::X::Config`.

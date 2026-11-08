@@ -6,7 +6,6 @@ package GPForum::Service::Notification::Push::Keyring;
 use Mojo::Base -base, -signatures;
 use v5.40;
 use English qw(-no_match_vars);
-use Carp    qw(croak);
 use Const::Fast;
 use Crypt::PK::ECC;
 use Crypt::URandom qw(urandom);
@@ -19,6 +18,9 @@ use File::Temp   qw(tempfile);
 use MIME::Base64 qw(encode_base64url);
 use Mojo::JSON   qw(encode_json);
 use GPForum::Service::Notification::Push::Secrets;
+use GPForum::X::Argument;
+use GPForum::X::Config;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 const my $DIRECTORY_MODE => oct '0700';
@@ -37,8 +39,9 @@ sub generate ( $self, $rotate = 0 ) {
         directory => $directory );
     my $exists = -e "$directory/private.json";
     if ( $exists && !$rotate ) {
-        croak
-'Push keys already exist; use --rotate to preserve existing subscriptions';
+        GPForum::X::Argument->throw( message =>
+'Push keys already exist; use --rotate to preserve existing subscriptions'
+        );
     }
     my $private = $exists ? $secrets->private : { keys => {} };
     my $public  = $exists ? $secrets->public  : { keys => {} };
@@ -61,8 +64,9 @@ sub generate ( $self, $rotate = 0 ) {
 sub _rotation_lock ( $self, $directory ) {
     sysopen my $lock, "$directory/.rotation.lock",
       O_RDWR | O_CREAT | O_NOFOLLOW, $FILE_MODE
-      or croak 'cannot open Push rotation lock';
-    flock $lock, LOCK_EX or croak 'cannot lock Push key ring';
+      or GPForum::X::Io->throw( message => 'cannot open Push rotation lock' );
+    flock $lock, LOCK_EX
+      or GPForum::X::Io->throw( message => 'cannot lock Push key ring' );
     return $lock;
 }
 
@@ -72,11 +76,13 @@ sub _directory ($self) {
         make_path( $directory, { mode => $DIRECTORY_MODE } );
     }
     my @directory_stat = lstat $directory;
-    croak 'unsafe Push key directory'
-      if !@directory_stat
-      || !S_ISDIR( $directory_stat[$STAT_MODE] )
-      || $directory_stat[$STAT_OWNER] != $EFFECTIVE_USER_ID
-      || ( $directory_stat[$STAT_MODE] & $OTHER_ACCESS );
+    if (   !@directory_stat
+        || !S_ISDIR( $directory_stat[$STAT_MODE] )
+        || $directory_stat[$STAT_OWNER] != $EFFECTIVE_USER_ID
+        || ( $directory_stat[$STAT_MODE] & $OTHER_ACCESS ) )
+    {
+        GPForum::X::Config->throw( message => 'unsafe Push key directory' );
+    }
     return $directory;
 }
 
@@ -84,15 +90,21 @@ sub _ensure_storage ( $self, $secrets, $exists ) {
     my $directory = $self->directory;
     if ( !-e "$directory/storage.key" ) {
         if ($exists) {
-            croak 'Push storage key missing; restore it before rotating';
+            GPForum::X::Config->throw( message =>
+                  'Push storage key missing; restore it before rotating' );
         }
         sysopen my $output, "$directory/storage.key",
           O_WRONLY | O_CREAT | O_EXCL, $FILE_MODE
-          or croak 'cannot create Push storage key';
+          or
+          GPForum::X::Io->throw( message => 'cannot create Push storage key' );
         print {$output} encode_base64url( urandom($KEY_BYTES) )
-          or croak 'cannot write Push storage key';
-        $output->sync or croak 'cannot sync Push storage key';
-        close $output or croak 'cannot close Push storage key';
+          or
+          GPForum::X::Io->throw( message => 'cannot write Push storage key' );
+        $output->sync
+          or GPForum::X::Io->throw( message => 'cannot sync Push storage key' );
+        close $output
+          or
+          GPForum::X::Io->throw( message => 'cannot close Push storage key' );
     }
     $secrets->storage;
     return;
@@ -101,18 +113,24 @@ sub _ensure_storage ( $self, $secrets, $exists ) {
 sub _publish ( $self, $name, $document ) {
     my ( $output, $temporary ) =
       tempfile( '.push-XXXXXX', DIR => $self->directory, UNLINK => 1 );
-    chmod $FILE_MODE, $temporary or croak 'cannot protect Push key file';
+    chmod $FILE_MODE, $temporary
+      or GPForum::X::Io->throw( message => 'cannot protect Push key file' );
     print {$output} encode_json($document)
-      or croak 'cannot write Push key file';
-    $output->sync or croak 'cannot sync Push key file';
-    close $output or croak 'cannot close Push key file';
+      or GPForum::X::Io->throw( message => 'cannot write Push key file' );
+    $output->sync
+      or GPForum::X::Io->throw( message => 'cannot sync Push key file' );
+    close $output
+      or GPForum::X::Io->throw( message => 'cannot close Push key file' );
     rename $temporary, $self->directory . q{/} . $name
-      or croak 'cannot publish Push key file';
+      or GPForum::X::Io->throw( message => 'cannot publish Push key file' );
     sysopen my $directory_handle, $self->directory,
       O_RDONLY | O_DIRECTORY | O_NOFOLLOW
-      or croak 'cannot open Push key directory for sync';
-    $directory_handle->sync or croak 'cannot sync Push key directory';
-    close $directory_handle or croak 'cannot close Push key directory';
+      or GPForum::X::Io->throw(
+        message => 'cannot open Push key directory for sync' );
+    $directory_handle->sync
+      or GPForum::X::Io->throw( message => 'cannot sync Push key directory' );
+    close $directory_handle
+      or GPForum::X::Io->throw( message => 'cannot close Push key directory' );
     return;
 }
 

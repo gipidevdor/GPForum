@@ -6,7 +6,6 @@ package GPForum::Service::Forum::PostSigner;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
 use Const::Fast;
-use Carp qw(croak);
 use Crypt::PK::Ed25519;
 use Digest::SHA qw(sha256_hex);
 use JSON::MaybeXS;
@@ -14,6 +13,7 @@ use MIME::Base64 qw(encode_base64url decode_base64url);
 use Mojo::File   qw(path);
 
 use GPForum::X::Config;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -42,12 +42,14 @@ sub _load_key ($self) {
             DIR    => $file->dirname->to_string,
             UNLINK => 1
         );
-        chmod oct '600', $temporary or croak 'cannot protect signing key';
+        chmod oct '600', $temporary
+          or GPForum::X::Io->throw( message => 'cannot protect signing key' );
         print {$fh} $key->export_key_pem('private')
-          or croak 'cannot write signing key';
-        close $fh or croak 'cannot close signing key';
-        if ( !link $temporary, $file ) {
-            croak 'cannot publish signing key' if !-e $file;
+          or GPForum::X::Io->throw( message => 'cannot write signing key' );
+        close $fh
+          or GPForum::X::Io->throw( message => 'cannot close signing key' );
+        if ( !link( $temporary, $file ) && !-e $file ) {
+            GPForum::X::Io->throw( message => 'cannot publish signing key' );
         }
     }
     GPForum::X::Config->throw(
@@ -78,10 +80,14 @@ sub _archive_public_key ($self) {
             UNLINK => 1
         );
         print {$fh} $JSON->encode($key)
-          or croak 'cannot archive public signing key';
-        close $fh or croak 'cannot close public signing key';
-        if ( !link $temporary, $file ) {
-            croak 'cannot publish public signing key' if !-e $file;
+          or GPForum::X::Io->throw(
+            message => 'cannot archive public signing key' );
+        close $fh
+          or
+          GPForum::X::Io->throw( message => 'cannot close public signing key' );
+        if ( !link( $temporary, $file ) && !-e $file ) {
+            GPForum::X::Io->throw(
+                message => 'cannot publish public signing key' );
         }
     }
     return $key;

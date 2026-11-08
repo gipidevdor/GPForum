@@ -16,6 +16,7 @@ use GPForum::OS::SupervisorProbe;
 use GPForum::Service::Forum::PostSigner;
 use GPForum::X::Argument;
 use GPForum::X::Config;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -57,6 +58,15 @@ subtest 'a probe misused by its caller is an Argument error' => sub {
         'native probe requires its own label',
         'it says what it said'
     );
+};
+
+subtest 'a failed file operation is an Io error the outbox retries' => sub {
+    my $error =
+      exception { GPForum::X::Io->throw( message => 'cannot write a key' ) };
+    isa_ok( $error, 'GPForum::X::Io' );
+    is( "$error", 'cannot write a key',    'it stringifies to its message' );
+    is( $error->failure_type, 'transient', 'and a retry may succeed' );
+    ok( GPForum::X::Io->caught($error), 'a reader can catch the class' );
 };
 
 done_testing();

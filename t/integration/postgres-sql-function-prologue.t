@@ -250,29 +250,36 @@ q{INSERT INTO permissions (permission_id, name, resource_type, action) VALUES (?
     return;
 }
 
+# The viewer is compared with the retained Perl path. Participation has no
+# such path since SuspensionStore was written once (ADR 0177): what each
+# account status answers is stated here.
 sub _account_policy {
+    my %participation = (
+        active    => { ok => 1 },
+        pending   => { ok => 1 },
+        suspended => { ok => 0, reason => 'suspended' },
+        deleted   => { ok => 0, reason => 'user_deleted' },
+    );
     for my $status (qw(active pending suspended deleted)) {
         $dbh->do( 'UPDATE users SET status = ? WHERE id = ?',
             undef, $status, $ALICE );
-        my @results;
+        my @members;
         for my $old ( 1, 0 ) {
-            my $resolver = GPForum::Service::Forum::ViewerResolver->new(
+            push @members,
+              GPForum::Service::Forum::ViewerResolver->new(
                 schema => $schema,
                 ( $old ? ( functions => undef ) : () )
-            );
-            my $viewer = $resolver->resolve($ALICE);
-            my $store  = GPForum::Service::Moderation::SuspensionStore->new(
-                schema => $schema,
-                clock  => $clock,
-                ( $old ? ( functions => undef ) : () )
-            );
-            push @results,
-              {
-                member        => $viewer->member,
-                participation => $store->can_participate($ALICE)
-              };
+              )->resolve($ALICE)->member;
         }
-        is_deeply( $results[1], $results[0], "$status account" );
+        is( $members[1], $members[0], "$status account's viewer" );
+        is_deeply(
+            GPForum::Service::Moderation::SuspensionStore->new(
+                schema => $schema,
+                clock  => $clock
+            )->can_participate($ALICE),
+            $participation{$status},
+            "$status account's participation"
+        );
     }
     return;
 }
@@ -339,7 +346,16 @@ sub _grant_policy {
     return;
 }
 
+# A suspension is in force while it has no end or its end is not before the
+# clock's now, compared as instants: the boundary itself still holds.
 sub _suspension_policy {
+    my %in_force = (
+        'unlimited'            => 1,
+        '2026-05-22T12:00:00Z' => 0,
+        $NOW                   => 1,
+        '2026-05-23T13:00:00Z' => 1,
+        '9999-12-31T12:00:00Z' => 1,
+    );
     for my $until ( undef, '2026-05-22T12:00:00Z', $NOW,
         '2026-05-23T13:00:00Z', '9999-12-31T12:00:00Z' )
     {
@@ -354,21 +370,29 @@ sub _suspension_policy {
             '2020-01-01T00:00:00Z',
             $until
         );
-        my @results;
-        for my $old ( 1, 0 ) {
-            my $store = GPForum::Service::Moderation::SuspensionStore->new(
-                schema => $schema,
-                clock  => $clock,
-                ( $old ? ( functions => undef ) : () )
+        my $store = GPForum::Service::Moderation::SuspensionStore->new(
+            schema => $schema,
+            clock  => $clock,
+        );
+        my $label  = $until // 'unlimited';
+        my $active = $store->active_for_user($ALICE);
+        if ( $in_force{$label} ) {
+            is( $active && $active->{suspension_id},
+                $SID, "suspension boundary $label is in force" );
+            is_deeply(
+                $store->can_participate($ALICE),
+                { ok => 0, reason => 'suspended', suspension_id => $SID },
+                'and refuses participation'
             );
-            push @results,
-              {
-                active        => _normal( $store->active_for_user($ALICE) ),
-                participation => $store->can_participate($ALICE),
-              };
         }
-        is_deeply( $results[1], $results[0],
-            'suspension boundary ' . ( $until // 'unlimited' ) );
+        else {
+            is( $active, undef, "suspension boundary $label has ended" );
+            is_deeply(
+                $store->can_participate($ALICE),
+                { ok => 1 },
+                'and allows participation'
+            );
+        }
     }
     return;
 }

@@ -849,75 +849,65 @@ sub _revocation {
 sub _revocation_states {
     my ($ctx) = @_;
 
-    for my $orm ( 0, 1 ) {
-        my $store =
-          _store( $ctx, 'GPForum::Service::Moderation::SuspensionStore' );
-        if ($orm) {
-            $store->functions(undef);
+    my $store = _store( $ctx, 'GPForum::Service::Moderation::SuspensionStore' );
+    for my $status (qw(deleted pending)) {
+        my $user = _user( $ctx, "revoke_$status", $status );
+        my $id   = _suspend( $ctx, $user, { valid_from => $BEFORE } );
+        for my $attempt ( 1, 2 ) {
+            $store->revoke_suspension(
+                $id,
+                $ctx->{users}{moderator},
+                'appeal accepted'
+            );
+            is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
+                $status, "revocation $attempt preserves $status" );
         }
-        for my $status (qw(deleted pending)) {
-            my $user = _user( $ctx, "revoke_${status}_$orm", $status );
-            my $id   = _suspend( $ctx, $user, { valid_from => $BEFORE } );
-            for my $attempt ( 1, 2 ) {
-                $store->revoke_suspension(
-                    $id,
-                    $ctx->{users}{moderator},
-                    'appeal accepted'
-                );
-                is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
-                    $status,
-                    "revocation $attempt preserves $status, ORM=$orm" );
-            }
-        }
-        my $user  = _user( $ctx, "revoke_overlapping_$orm", 'suspended' );
-        my $first = _suspend( $ctx, $user, { valid_from => $BEFORE } );
-        my $other =
-          _suspend( $ctx, $user, { valid_from => $TEN, valid_to => $TONIGHT } );
-        $store->revoke_suspension( $first, $ctx->{users}{moderator}, 'first' );
-        is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
-            'suspended',
-            "another active suspension keeps the user suspended, ORM=$orm" );
-        $store->revoke_suspension( $other, $ctx->{users}{moderator}, 'last' );
-        is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
-            'active',
-            "revoking the last active suspension restores the user, ORM=$orm" );
-
-        # Suspended through the store, as staff suspend: a pending account
-        # stays pending, and lifting the suspension leaves it pending.
-        my $unconfirmed = _user( $ctx, "suspend_pending_$orm", 'pending' );
-        my $suspended   = $store->create_suspension(
-            {
-                user_id       => $unconfirmed,
-                actor_user_id => $ctx->{users}{moderator},
-                reason        => 'spam',
-            }
-        );
-        is( _row( $ctx, $USER_ROW_SQL, $unconfirmed )->{status},
-            'pending', "a suspended pending account stays pending, ORM=$orm" );
-        $store->revoke_suspension(
-            $suspended->{suspension}{suspension_id},
-            $ctx->{users}{moderator},
-            'appeal accepted'
-        );
-        is( _row( $ctx, $USER_ROW_SQL, $unconfirmed )->{status},
-            'pending',
-            "and lifting its suspension does not activate it, ORM=$orm" );
-
-        my $deleted = _user( $ctx, "suspend_deleted_$orm", 'deleted' );
-        is(
-            $store->create_suspension(
-                {
-                    user_id       => $deleted,
-                    actor_user_id => $ctx->{users}{moderator},
-                    reason        => 'deleted account',
-                }
-            ),
-            undef,
-            "a deleted account cannot be suspended, ORM=$orm"
-        );
-        is( _row( $ctx, $USER_ROW_SQL, $deleted )->{status},
-            'deleted', "a refused suspension preserves deletion, ORM=$orm" );
     }
+    my $user  = _user( $ctx, 'revoke_overlapping', 'suspended' );
+    my $first = _suspend( $ctx, $user, { valid_from => $BEFORE } );
+    my $other =
+      _suspend( $ctx, $user, { valid_from => $TEN, valid_to => $TONIGHT } );
+    $store->revoke_suspension( $first, $ctx->{users}{moderator}, 'first' );
+    is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
+        'suspended', 'another active suspension keeps the user suspended' );
+    $store->revoke_suspension( $other, $ctx->{users}{moderator}, 'last' );
+    is( _row( $ctx, $USER_ROW_SQL, $user )->{status},
+        'active', 'revoking the last active suspension restores the user' );
+
+    # Suspended through the store, as staff suspend: a pending account
+    # stays pending, and lifting the suspension leaves it pending.
+    my $unconfirmed = _user( $ctx, 'suspend_pending', 'pending' );
+    my $suspended   = $store->create_suspension(
+        {
+            user_id       => $unconfirmed,
+            actor_user_id => $ctx->{users}{moderator},
+            reason        => 'spam',
+        }
+    );
+    is( _row( $ctx, $USER_ROW_SQL, $unconfirmed )->{status},
+        'pending', 'a suspended pending account stays pending' );
+    $store->revoke_suspension(
+        $suspended->{suspension}{suspension_id},
+        $ctx->{users}{moderator},
+        'appeal accepted'
+    );
+    is( _row( $ctx, $USER_ROW_SQL, $unconfirmed )->{status},
+        'pending', 'and lifting its suspension does not activate it' );
+
+    my $deleted = _user( $ctx, 'suspend_deleted', 'deleted' );
+    is(
+        $store->create_suspension(
+            {
+                user_id       => $deleted,
+                actor_user_id => $ctx->{users}{moderator},
+                reason        => 'deleted account',
+            }
+        ),
+        undef,
+        'a deleted account cannot be suspended'
+    );
+    is( _row( $ctx, $USER_ROW_SQL, $deleted )->{status},
+        'deleted', 'a refused suspension preserves deletion' );
 
     return;
 }
@@ -1097,19 +1087,17 @@ sub _suspension_instants {
         $ctx->{dbh}
           ->selectrow_array( q{SELECT set_config('TimeZone', ?, false)},
             undef, $zone );
-        for my $mode (qw(functions orm)) {
-            my $store =
-              _store( $ctx, 'GPForum::Service::Moderation::SuspensionStore' );
-            if ( $mode eq 'orm' ) {
-                $store->functions(undef);
-            }
-            is( $store->active_for_user($user)->get_column('suspension_id'),
-                $open, "$mode/$zone finds an older active suspension" );
-            is( $store->active_for_user($ending)->get_column('suspension_id'),
-                $at_end, "$mode/$zone includes the exact end instant" );
-            is( $store->active_for_user($expired),
-                undef, "$mode/$zone excludes a genuinely expired suspension" );
-        }
+
+        # The store has one path since ADR 0177: the function's, which
+        # compares instants whatever the session's zone.
+        my $store =
+          _store( $ctx, 'GPForum::Service::Moderation::SuspensionStore' );
+        is( $store->active_for_user($user)->get_column('suspension_id'),
+            $open, "$zone finds an older active suspension" );
+        is( $store->active_for_user($ending)->get_column('suspension_id'),
+            $at_end, "$zone includes the exact end instant" );
+        is( $store->active_for_user($expired),
+            undef, "$zone excludes a genuinely expired suspension" );
     }
     $ctx->{dbh}->selectrow_array( q{SELECT set_config('TimeZone', ?, false)},
         undef, $original_zone );

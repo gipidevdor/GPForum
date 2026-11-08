@@ -146,9 +146,24 @@ sub _assert_canonical_boundaries {
 sub _assert_write_store_boundaries {
     for my $file (@CANONICAL_WRITE_STORES) {
         my $source = _slurp($file);
-        like( $source, qr/->txn_do[(]/msx, "$file uses transaction boundary" );
-        like( $source, qr/record_event[(]/msx, "$file records domain event" );
-        like( $source, qr/record_audit[(]/msx, "$file records audit event" );
+
+        # A store written once, as its promise method (ADR 0177), opens its
+        # transaction with transaction_p and records through the calls.
+        like(
+            $source,
+            qr/->(?:txn_do|transaction_p)[(]/msx,
+            "$file uses transaction boundary"
+        );
+        like(
+            $source,
+            qr/record_event[(] | 'ops_record_event'/msx,
+            "$file records domain event"
+        );
+        like(
+            $source,
+            qr/record_audit[(] | 'ops_record_audit'/msx,
+            "$file records audit event"
+        );
         like(
             $source . _event_module_source($file),
             qr/idempotency_key/msx,

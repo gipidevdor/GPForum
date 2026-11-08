@@ -13,7 +13,7 @@ use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::AsyncQuery;
 use GPForum::Infrastructure::PgTransaction;
 use Mojo::Promise;
-use Scalar::Util qw(weaken);
+use Scalar::Util qw(blessed weaken);
 use GPForum::Infrastructure::SqlFunctionCatalogue;
 use GPForum::X::Argument;
 use GPForum::X::Conflict;
@@ -76,6 +76,47 @@ has async_database =>
 has async_transaction =>
   undef;    # optional: the transaction's serialized query runner
 has query_context => undef;    # optional: CLI callers have no request context
+has blocking      => 0;
+
+# One implementation per operation (ADR 0177): a service writes it once, as
+# the promise method, against its call layer. A blocking layer runs those same
+# calls on the process's own connection and transaction -- the one rows and
+# txn_do use -- and answers each with a promise already settled, so the
+# promise method runs to its end without an event loop and the blocking
+# method only reads its answer (settle). Commands, jobs and workers use it;
+# a web worker never does (ADR 0176), which the storage refuses as before.
+sub blocking_layer ($self) {
+    return $self if $self->blocking;
+    return $self->{gp_blocking} //= ref($self)->new(
+        schema        => $self->schema,
+        catalogue     => $self->catalogue,
+        query_context => $self->query_context,
+        blocking      => 1,
+    );
+}
+
+# What a promise method answers, called on a copy of the service whose call
+# layer blocks: the blocking twin of that method, without a second body.
+sub settle ( $class, $service, $method, @arguments ) {
+    my $functions = $service->functions;
+    my $blocking =
+      $functions
+      ? ref($service)
+      ->new( %{$service}, functions => $functions->blocking_layer )
+      : $service;
+
+    return $class->settled( $blocking->$method(@arguments) );
+}
+
+# A promise's answer, which must already be there: its value, or its
+# failure raised again as it was. Anything else is answered as it is.
+sub settled ( $, $value ) {
+    return $value if !blessed $value || !$value->can('AWAIT_IS_READY');
+    croak 'A blocking call waited on work still running on the event loop'
+      if !$value->AWAIT_IS_READY;
+
+    return $value->AWAIT_GET;
+}
 
 # The runtime schema owns Mojo::Pg. Every call joins its worker connection
 # and transaction; in-memory service doubles keep their scripted answers.
@@ -126,6 +167,7 @@ sub rows ( $self, $name, $values ) {
 # Existing transactional workflows keep rows(); promises never borrow their
 # handle or retry an ambiguous write after a connection failure.
 async sub rows_p ( $self, $name, $values, $context = undef ) {
+    return $self->rows( $name, $values ) if $self->blocking;
     my $storage = $self->schema->storage;
     my $stats   = $storage->debug ? $storage->debugobj : undef;
     $context //= $self->query_context;
@@ -197,6 +239,8 @@ async sub row_p ( $self, $name, $values, $context = undef ) {
 }
 
 sub transaction_p ( $self, $work, $context = undef, $readonly = 0 ) {
+    return $self->_blocking_transaction_p( $work, $readonly )
+      if $self->blocking;
     $context //= $self->query_context;
     my $storage = $self->schema->storage;
     my $stats   = $storage->debug ? $storage->debugobj : undef;
@@ -225,6 +269,40 @@ sub transaction_p ( $self, $work, $context = undef, $readonly = 0 ) {
         },
         $context
       );
+}
+
+# transaction_p on the blocking layer: txn_do, which opens the transaction
+# or a savepoint of the one already open, as a pooled transaction nests.
+sub _blocking_transaction_p ( $self, $work, $readonly ) {
+    my $promise = Mojo::Promise->new;
+    try {
+        my $storage = $self->schema->storage;
+        $promise->resolve(
+            scalar $self->schema->txn_do(
+                sub {
+                    if ( $readonly && $storage->transaction_depth == 1 ) {
+                        $storage->dbh->do( _transaction_mode($readonly) );
+                    }
+                    return $self->settled( $work->($self) );
+                }
+            )
+        );
+    }
+    catch ($error) { $promise->reject($error); };
+
+    return $promise;
+}
+
+# SET TRANSACTION for transaction_p's read-only mode: a true scalar is READ
+# ONLY; a hash may also ask for REPEATABLE READ (PgTransaction's BEGIN).
+sub _transaction_mode ($mode) {
+    my %mode  = ref $mode eq 'HASH' ? %{$mode} : ( read_only => $mode );
+    my @words = ('SET TRANSACTION');
+    if ( $mode{repeatable_read} ) {
+        push @words, 'ISOLATION LEVEL REPEATABLE READ';
+    }
+    if ( $mode{read_only} ) { push @words, 'READ ONLY'; }
+    return join q{ }, @words;
 }
 
 sub _query_p ( $self, $db, $entry, $parameters, $attempt = 0 ) {

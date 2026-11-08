@@ -10,11 +10,16 @@ use Carp qw(croak);
 use Const::Fast;
 use Digest::SHA;
 use Mojo::Asset::Memory;
+use GPForum::Infrastructure::ImageMetadata;
 use GPForum::X::Argument;
 
 our $VERSION = '0.001';
 const my $CHUNK_BYTES => 1_024 * 1_024;
 const my $SHA_BITS    => 256;
+
+# The largest picture rewritten in memory without its location; an upload
+# past it is refused by the size limit long before.
+const my $REWRITE_BYTES => 64 * 1_024 * 1_024;
 
 __PACKAGE__->requires('asset');
 
@@ -29,6 +34,20 @@ sub from_input ( $class, $input ) {
         asset => Mojo::Asset::Memory->new->add_chunk( $upload->slurp ) )
       if $upload->can('slurp');
     GPForum::X::Argument->throw( message => 'unsupported upload object' );
+}
+
+# A member's upload as it is kept: a picture without where it was taken
+# (Infrastructure::ImageMetadata), anything else as it came. The checksum,
+# the scan and the stored object all see the kept bytes.
+sub from_upload ( $class, $input ) {
+    my $source = $class->from_input($input) or return undef;
+    return $source
+      if $source->size > $REWRITE_BYTES
+      || !GPForum::Infrastructure::ImageMetadata->kind( $source->sample );
+    my $bytes = $source->asset->slurp;
+    my $kept = GPForum::Infrastructure::ImageMetadata->without_location($bytes);
+    return $source if $kept eq $bytes;
+    return $class->new( asset => Mojo::Asset::Memory->new->add_chunk($kept) );
 }
 
 sub size   ($self) { return $self->asset->size; }
@@ -87,6 +106,11 @@ and visits its bytes in at most one MiB chunks. A short read is an error.
 
 Builds a source from scalar content or a Mojo upload asset; returns undef without an upload.
 
+
+=head2 from_upload
+
+L</from_input> for a member's upload: a JPEG, PNG or WebP comes back without
+its location metadata (L<GPForum::Infrastructure::ImageMetadata>).
 
 =head2 size
 

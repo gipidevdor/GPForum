@@ -49,7 +49,7 @@ sub upload_and_link ( $self, $input ) {
 }
 
 sub _upload_and_link ( $self, $input ) {
-    my $source = GPForum::Service::Attachment::Source->from_input($input);
+    my $source = GPForum::Service::Attachment::Source->from_upload($input);
     return _missing() if !$source || !$source->size;
 
     my $validated = $self->_validate_source( $input, $source );
@@ -114,7 +114,7 @@ async sub upload_and_link_p ( $self, $input, $context = undef,
 
 async sub _upload_and_link_p ( $self, $input, $scope, $context ) {
     my $store  = $self->store;
-    my $source = GPForum::Service::Attachment::Source->from_input($input);
+    my $source = GPForum::Service::Attachment::Source->from_upload($input);
     return _missing() if !$source || !$source->size;
 
     my $validated =
@@ -367,7 +367,7 @@ sub _scan_at_upload ( $self, $attachment_id, $source ) {
 # { verdict => ... }, the verdict undef when the scanner could not answer or
 # the worker scans the object later.
 async sub prescan_p ( $self, $input ) {
-    my $source = GPForum::Service::Attachment::Source->from_input($input);
+    my $source = GPForum::Service::Attachment::Source->from_upload($input);
     return { verdict => undef } if !$source || !$source->size;
     my $plan = $self->_scan_plan($source) or return { verdict => undef };
     return { verdict => $plan->{verdict} } if $plan->{verdict};

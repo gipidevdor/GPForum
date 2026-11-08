@@ -267,11 +267,31 @@ sub _staff_are_suspended_by_an_administrator {
     $dbh->do( $GLOBAL_ADMIN_SQL, undef, GPForum::Infrastructure::Id->uuid,
         $admin );
     $dbh->do('UPDATE second_factor_policy SET staff_required = false');
-    ok(
-        _suspend( $schema, $admin, $FIRST_AT, $mod )
-          ->{suspension}{suspension_id},
-        'an administrator may suspend a moderator'
+    my $suspension_id =
+      _suspend( $schema, $admin, $FIRST_AT, $mod )->{suspension}{suspension_id};
+    ok( $suspension_id, 'an administrator may suspend a moderator' );
+
+    # Lifting is refused as imposing is: the moderator may not lift their
+    # own suspension on either path, the administrator may.
+    is_deeply(
+        _revoke( $schema, $mod, $FIRST_AT, $suspension_id ),
+        { ok => 0, refused => 'self' },
+        'nobody lifts their own suspension'
     );
+    undef $async;
+    _store( $schema, $FIRST_AT )
+      ->revoke_suspension_p( $suspension_id, $mod, 'appeal' )
+      ->then( sub ($answer) { $async = $answer } )
+      ->wait;
+    is_deeply(
+        $async,
+        { ok => 0, refused => 'self' },
+        'nor on the pooled connections'
+    );
+    is_deeply( $dbh->selectcol_arrayref( $ACTIVE_SQL, undef, $mod ),
+        [$suspension_id], 'the moderator stays suspended' );
+    ok( _revoke( $schema, $admin, $FIRST_AT, $suspension_id )->{revoked_at},
+        'the administrator lifts it' );
 
     return;
 }

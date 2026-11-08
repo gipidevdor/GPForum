@@ -17,11 +17,12 @@ has command_idempotency => undef;    # optional: writes run unlogged without one
 has logger              => undef;    # optional: errors are dropped without one
 
 # The actions on a post or a thread, each answered not found by its target.
-# Why a suspension was refused (SuspensionStore): the member is the actor,
-# or staff and the actor does not manage the admin console.
+# Why a suspension, or its revocation, was refused (SuspensionStore): the
+# member is the actor, or staff and the actor does not manage the admin
+# console.
 const my %REFUSALS => (
-    self  => 'you cannot suspend yourself',
-    staff => 'only an administrator can suspend a staff member',
+    self  => 'you cannot suspend yourself or lift your own suspension',
+    staff => 'only an administrator can suspend a staff member or lift theirs',
 );
 const my %ACTION_NOT_FOUND => (
     hide_post      => 'post not found',

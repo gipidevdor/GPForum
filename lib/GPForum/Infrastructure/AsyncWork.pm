@@ -16,6 +16,7 @@ use Storable      qw(nfreeze thaw);
 use JSON::MaybeXS ();
 use GPForum::Infrastructure::AsyncGate;
 use GPForum::Log;
+use GPForum::X::Unavailable;
 
 our $VERSION = '0.001';
 const my $MAX_SCHEMA_DEPTH => 8;
@@ -26,6 +27,12 @@ our $IS_CHILD;
 our $CPU_LANE;
 has gate =>
   sub { return GPForum::Infrastructure::AsyncGate->new( concurrency => 1 ); };
+
+# Seconds a cpu_p child may run before it is killed and its promise refused:
+# a hung resolver or a decoder caught in a pathological image would
+# otherwise hold the lane's one slot, and every request queued behind it,
+# for good.
+has cpu_timeout => 120;
 
 sub shared ($class) {
     state $worker = $class->new;
@@ -43,7 +50,8 @@ sub run_p (
     $self, $work,
     $cancelled     = undef,
     $preserve_rows = 0,
-    $context       = undef
+    $context       = undef,
+    $timeout       = undef
   )
 {
     my $log_context = GPForum::Log->request_context;
@@ -62,7 +70,7 @@ sub run_p (
                 },
                 deserialize => \&thaw,
             );
-            return $child->run_p(
+            my $result = $child->run_p(
                 sub {
                     local $IS_CHILD = 1;    ## no critic (Variables::ProhibitLocalVars) -- child ownership lasts only for this subprocess callback
                     return GPForum::Log->in_context(
@@ -73,6 +81,7 @@ sub run_p (
                     );
                 }
             );
+            return $timeout ? _bounded( $child, $result, $timeout ) : $result;
         },
         $context
     );
@@ -99,7 +108,37 @@ sub cpu_p (
         },
         $cancelled,
         $preserve_rows,
-        $context
+        $context,
+        $self->cpu_timeout
+    );
+}
+
+# The child's answer, or Unavailable once it has run past $timeout seconds:
+# it is killed, its socket closes, and the lane's slot is free again.
+sub _bounded ( $child, $result, $timeout ) {
+    my $expired;
+    my $timer = Mojo::IOLoop->timer(
+        $timeout => sub {
+            $expired = 1;
+            if ( $child->pid ) { kill 'KILL', $child->pid; }
+            return;
+        }
+    );
+    return $result->then(
+        sub (@values) {
+            Mojo::IOLoop->remove($timer);
+            return @values;
+        },
+        sub ($error) {
+            Mojo::IOLoop->remove($timer);
+            return Mojo::Promise->reject(
+                $expired
+                ? GPForum::X::Unavailable->new(
+                    message => "CPU work exceeded its $timeout second deadline"
+                  )
+                : $error
+            );
+        }
     );
 }
 
@@ -333,6 +372,9 @@ The per-worker lanes: each admits one child at a time.
 =head2 run_p
 
 Runs a callback in a bounded child and resolves with its plain-data answer.
+With a timeout (seconds, last), a child still running then is killed and the
+promise rejects with GPForum::X::Unavailable; C<cpu_p> passes C<cpu_timeout>
+(120).
 Modules use C<cpu_p>, which adds the no-database guard.
 
 =head2 holds_database

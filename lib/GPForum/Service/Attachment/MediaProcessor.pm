@@ -40,14 +40,11 @@ has preview    => sub ($self) {
 };
 has bytes => sub { return GPForum::Infrastructure::ImageBytes->new; };
 
+# No transaction spans the image tool's runs: each variant is written once
+# by its key (Store::add_variant answers the row a concurrent delivery
+# wrote), its bytes before its row, and a member's picture commits its own
+# rows (Community::Avatars).
 sub process ( $self, $attachment_id ) {
-    return $self->store->schema->txn_do(
-        sub { return $self->_process($attachment_id); } )
-      if $self->store->can('schema');
-    return $self->_process($attachment_id);
-}
-
-sub _process ( $self, $attachment_id ) {
     my $attachment = $self->store->find_attachment($attachment_id);
     my $rejected   = _rejected_attachment($attachment);
     if ($rejected) {

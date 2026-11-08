@@ -218,13 +218,6 @@ sub _processed_status ($processed) {
 # any other. Throws GPForum::X::Unavailable when the tool cannot run, so the
 # outbox tries again.
 sub process ( $self, $attachment_id, $content = undef ) {
-    return $self->attachments->schema->txn_do(
-        sub { return $self->_process( $attachment_id, $content ); } )
-      if $self->attachments->can('schema');
-    return $self->_process( $attachment_id, $content );
-}
-
-sub _process ( $self, $attachment_id, $content ) {
     my $attachment = $self->attachments->find_attachment($attachment_id);
     return undef if !$attachment;
 
@@ -233,12 +226,31 @@ sub _process ( $self, $attachment_id, $content ) {
       $self->_skipped( $attachment, $self->store->status($user_id) );
     return $answer if $skipped;
 
+    # The image tool runs before the transaction opens, as process_p runs
+    # it: a crop may take the tool's whole timeout, and no row is held
+    # locked meanwhile. The settle decides whether the picture is still the
+    # one waiting.
     my $object_key = column_of( $attachment, 'object_key' );
     $content //= $self->storage->read_object($object_key);
     my $squares =
       $self->_squares( $content, column_of( $attachment, 'media_type' ) );
-    return $self->_unreadable( $user_id, $attachment_id ) if !$squares;
+    return $self->_in_transaction(
+        sub {
+            return $self->_unreadable( $user_id, $attachment_id )
+              if !$squares;
+            return $self->_show( $user_id, $attachment_id, $object_key,
+                $squares );
+        }
+    );
+}
 
+sub _in_transaction ( $self, $work ) {
+    return $self->attachments->schema->txn_do($work)
+      if $self->attachments->can('schema');
+    return $work->();
+}
+
+sub _show ( $self, $user_id, $attachment_id, $object_key, $squares ) {
     for my $side ( @{ $self->store->sides } ) {
         $self->_store_square( $attachment_id, $object_key, $side,
             $squares->{$side} );

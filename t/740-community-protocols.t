@@ -9,6 +9,7 @@ use utf8;
 use lib 'lib';
 use lib 't/lib';
 use GPForum::Test::ProtocolFixture;
+use GPForum::Test::SkewedClock;
 use Test::More;
 use Test::Mojo;
 use Mojolicious;
@@ -42,6 +43,10 @@ const my $HTTP_UNAVAILABLE => 503;
 const my $KEY_SECRET_LENGTH => 32;
 const my $LONG_URL          => 1024;
 const my $MAX_TRUST         => 4;
+const my $DAY               => 86_400;
+const my $WITHIN_MONTH      => 29 * $DAY;
+const my $PAST_MONTH        => 31 * $DAY;
+const my $TWO_DAYS_BACK     => -2 * $DAY;
 const my $OVERSIZED_MAIL    => 1_048_577;
 const my $READ_LIMIT        => 60;
 const my $REPORT_LIMIT      => 5;
@@ -187,6 +192,30 @@ my $rotated = GPForum::Service::Identity::MailReplyToken->new(
     domain  => 'forum.example'
 );
 ok( $rotated->verify($token), 'configured previous secret supports rotation' );
+ok(
+    GPForum::Service::Identity::MailReplyToken->new(
+        secrets => [ 'a' x $KEY_SECRET_LENGTH ],
+        domain  => 'forum.example',
+        clock   => GPForum::Test::SkewedClock->new( seconds => $WITHIN_MONTH )
+    )->verify($token),
+    'a reply within the month is accepted'
+);
+ok(
+    !GPForum::Service::Identity::MailReplyToken->new(
+        secrets => [ 'a' x $KEY_SECRET_LENGTH ],
+        domain  => 'forum.example',
+        clock   => GPForum::Test::SkewedClock->new( seconds => $PAST_MONTH )
+    )->verify($token),
+    'a capability older than thirty days is refused'
+);
+ok(
+    !GPForum::Service::Identity::MailReplyToken->new(
+        secrets => [ 'a' x $KEY_SECRET_LENGTH ],
+        domain  => 'forum.example',
+        clock   => GPForum::Test::SkewedClock->new( seconds => $TWO_DAYS_BACK )
+    )->verify($token),
+    'and one dated in the future'
+);
 my $fixture = GPForum::Test::ProtocolFixture->new(
     user   => $user,
     thread => $thread,

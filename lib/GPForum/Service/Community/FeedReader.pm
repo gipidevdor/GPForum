@@ -8,7 +8,6 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
-use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Forum::SourceThread;
 
@@ -32,64 +31,37 @@ has readability => undef;    # optional: every source counts as readable
 # The page as the web worker reads it, on its pooled connections; without
 # SQL functions the blocking read answers.
 async sub list_page_for_user_p ( $self, $user_id, $options, $context = undef ) {
-    return $self->list_page_for_user( $user_id, $options ) if !$self->functions;
     return (
         await GPForum::Infrastructure::SourceFunction->page_p(
-            $self, $user_id, $options, \@CURSOR_COLUMNS, $context
+            $self,            $user_id,         $options,
+            \@CURSOR_COLUMNS, 'feed_resultset', $context
         )
     );
 }
 
 sub list_page_for_user ( $self, $user_id, $options ) {
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    if ( $self->functions ) {
-        my $rows = GPForum::Infrastructure::SourceFunction->list(
-            $self->functions,
-            $self->source_list_call(
-                $user_id,
-                {
-                    %{ $options || {} },
-                    limit => $page->{fetch_rows},
-                    after => $page->{after},
-                }
-            ),
-            $self->readability ? 1 : 0
-        );
-        return $self->page_window->page( $rows, $page->{limit},
-            \@CURSOR_COLUMNS );
-    }
-    my $search = $self->feed_resultset(
-        $user_id,
-        {
-            %{ $options || {} },
-            limit => $page->{fetch_rows},
-            after => $page->{after},
-        }
-    );
-
-    my @rows = rows_in($search);
-
-    return $self->page_window->page( \@rows, $page->{limit}, \@CURSOR_COLUMNS );
+    return GPForum::Infrastructure::SourceFunction->page( $self, $user_id,
+        $options, \@CURSOR_COLUMNS, 'feed_resultset' );
 }
 
 sub source_list_call ( $self, $user_id, $options ) {
-    my $after  = $options->{after} || {};
-    my $values = {
-        %{ GPForum::Infrastructure::SourceFunction->parameters(
-                $self->readability, $user_id, $options->{viewer} )
-        },
-        after_created_at => $after->{sort_value},
-        after_id         => $after->{id},
-        row_limit        => $options->{limit} || $DEFAULT_LIMIT,
-    };
-    return [ 'community_list_feed', $values ];
+    return [
+        'community_list_feed',
+        GPForum::Infrastructure::SourceFunction->page_values(
+            $self->readability, $user_id, $options, $DEFAULT_LIMIT
+        )
+    ];
 }
 
 sub feed_resultset ( $self, $user_id, $options ) {
     my $query = {
         user_id => $user_id,
-        %{ $self->_readable_items( $user_id, $options->{viewer} ) },
+        %{ GPForum::Infrastructure::SourceFunction->readable_condition(
+                $self->readability, $user_id,
+                $options->{viewer}, 'me.item_type',
+                'me.item_id'
+            )
+        },
     };
     if ( $options->{after} ) {
         GPForum::Infrastructure::Keyset->after(
@@ -118,19 +90,6 @@ sub feed_resultset ( $self, $user_id, $options ) {
             rows     => $options->{limit} || $DEFAULT_LIMIT,
         }
     );
-}
-
-sub _readable_items ( $self, $user_id, $viewer ) {
-    return {} if !$self->readability;
-
-    return {
-        -and => [
-            $self->readability->sources_condition(
-                $viewer // $user_id,
-                'me.item_type', 'me.item_id'
-            )
-        ]
-    };
 }
 
 1;

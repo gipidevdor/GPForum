@@ -45,40 +45,16 @@ has events    => sub { return GPForum::Service::Moderation::Event->new; };
 sub create_report ( $self, $input ) {
     return $self->schema->txn_do(
         sub {
-            my $duplicate = $self->_open_duplicate_report($input);
-            if ($duplicate) {
-                return $self->_finish_leftover_report( $duplicate, $input );
-            }
-
-            my $insert = sub { return $self->_insert_report($input); };
-            my ( $created, $error ) =
-              GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-                $insert );
-            if ($created) {
-                return $created;
-            }
-
-            my $conflict = GPForum::X::Conflict->caught($error);
-            my $id_taken = $conflict && $conflict->on($ID_CONSTRAINT);
-            if ( $id_taken
-                || ( $conflict && $conflict->on($OPEN_CONSTRAINT) ) )
-            {
-                $duplicate = $self->_open_duplicate_report($input);
-                if ($duplicate) {
-                    return $self->_finish_leftover_report( $duplicate, $input );
-                }
-            }
-            if ( !$id_taken ) {
-                GPForum::Infrastructure::UniqueConflict->rethrow($error);
-            }
-
-            ( $created, $error ) =
-              GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-                $insert );
-            if ($created) {
-                return $created;
-            }
-            GPForum::Infrastructure::UniqueConflict->rethrow($error);
+            return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+                $self->schema,
+                find  => sub { return $self->_open_duplicate_report($input); },
+                reuse => sub ($row) {
+                    return $self->_finish_leftover_report( $row, $input );
+                },
+                create         => sub { return $self->_insert_report($input); },
+                id_constraint  => $ID_CONSTRAINT,
+                key_constraint => $OPEN_CONSTRAINT,
+            );
         }
     );
 }

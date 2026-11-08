@@ -28,7 +28,31 @@ sub apply ( $self, $controller ) {
     }
     $headers->content_security_policy($policy);
     $self->_apply_hsts($headers);
+    _apply_private_cache($controller);
 
+    return;
+}
+
+# A page or JSON answer rendered for a member carries their data and their
+# CSRF token: unless the action chose its own caching, no cache keeps it
+# (ASVS 5.0 14.3.2). The same URL answers HTML, JSON or an htmx fragment, so
+# every such answer varies on the headers that choose among them, or a
+# browser shows the cached JSON or fragment when going back to the page.
+sub _apply_private_cache ($controller) {
+    my $headers = $controller->res->headers;
+    return
+      if ( $headers->content_type // q{} ) !~
+      m{\A(?:text/html|application/json)}imsx;
+
+    my $vary = $headers->vary // q{};
+    for my $name (qw(Accept HX-Request)) {
+        next if $vary =~ /\b\Q$name\E\b/imsx;
+        $headers->append( Vary => $name );
+    }
+    return if defined $headers->cache_control;
+    return if !$controller->session('user_id') && !$headers->set_cookie;
+
+    $headers->cache_control('private, no-store');
     return;
 }
 

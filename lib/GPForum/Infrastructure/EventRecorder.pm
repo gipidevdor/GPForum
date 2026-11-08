@@ -186,25 +186,14 @@ sub _insert_or_retry_event ( $self, $event ) {
 
     my $retry = $self->_event_with_new_id($event);
 
-    return $self->_once_more( sub { return $self->_insert_event($retry); } );
+    return GPForum::Infrastructure::UniqueConflict->once_more( $self->schema,
+        sub { return $self->_insert_event($retry); } );
 }
 
 sub _insert_event ( $self, $event ) {
     $self->schema->resultset('EventLog')->create($event);
 
     return $event;
-}
-
-# The insert tried once more, after a collision on an id minted here: a
-# second collision on a fresh id is no race to recover from, and is raised.
-sub _once_more ( $self, $code ) {
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema, $code );
-    if ($created) {
-        return $created;
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
 }
 
 # The stored event is the same open event when both carry the same
@@ -269,7 +258,7 @@ sub _ensure_outbox ( $self, $event, $outbox_payload ) {
         GPForum::Infrastructure::UniqueConflict->rethrow($error);
     }
 
-    return $self->_once_more(
+    return GPForum::Infrastructure::UniqueConflict->once_more( $self->schema,
         sub { return $self->_insert_outbox( $event, $outbox_payload ); } );
 }
 
@@ -455,7 +444,8 @@ sub _insert_or_retry_audit ( $self, $input ) {
 
     my %retry = ( %{$input}, audit_id => $self->id_service->uuid );
 
-    return $self->_once_more( sub { return $self->_insert_audit( \%retry ); } );
+    return GPForum::Infrastructure::UniqueConflict->once_more( $self->schema,
+        sub { return $self->_insert_audit( \%retry ); } );
 }
 
 # ADR 0156: the row takes the next position in its target's chain and links

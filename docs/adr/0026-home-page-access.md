@@ -17,10 +17,17 @@ template, which would change the home contract.
 Introduce `GPForum::Web::HomeAccess` for:
 
 - home-page reader query limits;
-- the `{ home, runtime }` success payload;
+- the `{ home }` success payload;
 - the `home_unavailable` failure payload, status 500, and template.
 
 `Controller::Home#show` still evaluates the reader and logs failures.
+
+Amended 2026-11-08: the payload carried `runtime`, the worker's OS and
+process diagnostics (Perl version, CPU count, open descriptors, swap). Any
+anonymous `Accept: application/json` request read them and forked a child
+on the shared one-slot CPU lane to compute them, bypassing the operations
+token that guards the same data on `/health`. The home answers its data
+only; diagnostics stay on `/health` behind the token.
 
 ## Consequences
 

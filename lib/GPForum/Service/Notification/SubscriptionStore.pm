@@ -35,42 +35,18 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 # minted once more.
 sub save_subscription ( $self, $input ) {
     return $self->_save_by_function( $input, 1 ) if $self->functions;
-    my $find = sub {
-        return $self->find_for_user_target( $input->{user_id},
-            $input->{target_type}, $input->{target_id}, );
-    };
-    my $existing = $find->();
-    if ($existing) {
-        return $self->_restore_subscription( $existing, $input );
-    }
-
-    my $create = sub { return $self->subscribe($input); };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($ID_CONSTRAINT);
-    if ( $id_taken || ( $conflict && $conflict->on($TARGET_CONSTRAINT) ) ) {
-        $existing = $find->();
-        if ($existing) {
-            return $self->_restore_subscription( $existing, $input );
-        }
-    }
-    if ( !$id_taken ) {
-        GPForum::Infrastructure::UniqueConflict->rethrow($error);
-    }
-
-    ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find => sub {
+            return $self->find_for_user_target( $input->{user_id},
+                $input->{target_type}, $input->{target_id} );
+        },
+        reuse =>
+          sub ($row) { return $self->_restore_subscription( $row, $input ); },
+        create         => sub { return $self->subscribe($input); },
+        id_constraint  => $ID_CONSTRAINT,
+        key_constraint => $TARGET_CONSTRAINT,
+    );
 }
 
 sub subscribe ( $self, $input ) {

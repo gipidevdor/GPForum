@@ -215,6 +215,13 @@ sub _response ($tx) {
         GPForum::X::Unavailable->throw(
             message => 'integration transport unavailable' );
     }
+
+    # A body cut at max_response_size, or by a timeout after the headers,
+    # keeps the status line: Mojo records it on the message, not the code.
+    if ( my $error = $tx->res->error ) {
+        GPForum::X::Unavailable->throw(
+            message => "integration response incomplete: $error->{message}" );
+    }
     my $encoding = lc( $tx->res->headers->content_encoding // q{} );
     if ( length($encoding) && $encoding ne 'identity' ) {
         GPForum::X::Unavailable->throw(

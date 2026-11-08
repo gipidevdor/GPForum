@@ -283,6 +283,43 @@ subtest 'a limiter without a primary store is never degraded' => sub {
         0, 'nothing is counted as a fallback' );
 };
 
+# One host is routed a whole IPv6 /64: every address in it shares one budget,
+# or a client rotating its address gets a fresh one each time.
+subtest 'IPv6 actors share the budget of their /64' => sub {
+    my $limiter = _limiter(
+        {
+            audit     => GPForum::Test::Schema->new,
+            primary   => _postgresql_store(),
+            telemetry => _telemetry(),
+        }
+    );
+    ok(
+        $limiter->check(
+            { %{ _limit_input() }, actor_id => '2001:db8:1:2::1' }
+        )->{ok},
+        'the first address of a /64 is allowed'
+    );
+    ok(
+        !$limiter->check(
+            { %{ _limit_input() }, actor_id => '2001:db8:1:2:ffff::9' }
+        )->{ok},
+        'another address of the same /64 shares its budget'
+    );
+    ok(
+        $limiter->check(
+            { %{ _limit_input() }, actor_id => '2001:db8:1:3::1' }
+        )->{ok},
+        'the next /64 has its own'
+    );
+    ok(
+        $limiter->check( { %{ _limit_input() }, actor_id => '192.0.2.1' } )
+          ->{ok}
+          && $limiter->check( { %{ _limit_input() }, actor_id => '192.0.2.2' } )
+          ->{ok},
+        'IPv4 addresses keep a budget each'
+    );
+};
+
 done_testing();
 
 sub _limiter {

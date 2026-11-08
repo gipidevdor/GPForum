@@ -87,38 +87,16 @@ sub _record_event ( $self, $input ) {
         };
     }
 
-    my $existing = $self->_existing_event($input);
-    if ($existing) {
-        return $self->_complete_existing_event( $existing, $input );
-    }
-
-    my $insert = sub { return $self->_insert_event($input); };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $insert );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($ID_CONSTRAINT);
-    if ( $id_taken || ( $conflict && $conflict->on($SOURCE_CONSTRAINT) ) ) {
-        $existing = $self->_existing_event($input);
-        if ($existing) {
-            return $self->_complete_existing_event( $existing, $input );
-        }
-    }
-    if ( !$id_taken ) {
-        GPForum::Infrastructure::UniqueConflict->rethrow($error);
-    }
-
-    ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $insert );
-    if ($created) {
-        return $created;
-    }
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find  => sub { return $self->_existing_event($input); },
+        reuse =>
+          sub ($row) { return $self->_complete_existing_event( $row, $input ); }
+        ,
+        create         => sub { return $self->_insert_event($input); },
+        id_constraint  => $ID_CONSTRAINT,
+        key_constraint => $SOURCE_CONSTRAINT,
+    );
 }
 
 sub _insert_event ( $self, $input ) {

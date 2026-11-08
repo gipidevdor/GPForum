@@ -4,7 +4,6 @@
 package GPForum::Controller::Home;
 
 use GPForum::Web::HomeAccess;
-use GPForum::Web::RequestPreference;
 use Mojo::Base 'GPForum::Controller::Base', -async_await;
 use v5.40;
 
@@ -43,15 +42,7 @@ async sub show ($self) {
 
     # The line under the forum's name is the operator's, not the page's data.
     $self->stash( site_description => $self->gp_config->site_description );
-
-    # Diagnostics are part of the JSON contract, not the HTML template.
-    # Keep them live when requested without probing the OS on every page.
-    my $runtime =
-      GPForum::Web::RequestPreference->wants_json($self)
-      ? ( await $self->call_p( $self->gp_runtime, 'as_hash' ) )
-      : undef;
-    return $access->render_page( $self,
-        $access->page_payload( $home, $runtime ), $cache );
+    return $access->render_page( $self, $access->page_payload($home), $cache );
 }
 
 # The tags of each listed thread on its row (ADR 0135).

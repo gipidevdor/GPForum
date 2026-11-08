@@ -21,6 +21,7 @@ use GPForum::Service::Realtime::ListenerSupervisor;
 use GPForum::Service::Realtime::PgListener;
 use GPForum::Service::Realtime::PgNotifier;
 use GPForum::Service::Realtime::SubscriptionPolicy;
+use GPForum::Web::RequestPreference;
 use GPForum::Web::Warmup;
 use GPForum::Bootstrap::Branding;
 
@@ -209,8 +210,7 @@ sub _configure_compression ($application) {
             my $headers = $controller->res->headers;
             $headers->append( Vary => 'Accept-Encoding' );
             return
-              if ( $controller->req->headers->accept_encoding // q{} ) !~
-              /gzip/imsx;
+              if !_accepts_gzip( $controller->req->headers->accept_encoding );
             return if $headers->content_encoding;
 
             $headers->content_encoding('gzip');
@@ -255,6 +255,15 @@ sub _gzip_shared ( $etag, $plain ) {
 }
 
 my $DEFLATE;
+
+# RFC 9110 12.5.3: gzip is acceptable when it, or failing it *, is listed
+# with a quality above zero.
+sub _accepts_gzip ($header) {
+    my %quality =
+      map { @{$_} } GPForum::Web::RequestPreference::weighted($header);
+
+    return ( $quality{gzip} // $quality{q{*}} // 0 ) > 0;
+}
 
 sub _gzip ($plain) {
     if ( !$DEFLATE ) {

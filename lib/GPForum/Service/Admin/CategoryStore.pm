@@ -325,48 +325,21 @@ sub _create_once ( $self, $input ) {
         slug     => _slug($input),
         space_id => $space->{space_id},
     };
-    my $existing = $self->_existing_category($category);
-    if ($existing) {
-        return $self->_finish_leftover_category( $existing, $category );
-    }
-
-    my $create = sub { return $self->_create_category_row($category); };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($CATEGORY_ID_CONSTRAINT);
-    if ( $id_taken
-        || ( $conflict && $conflict->on($CATEGORY_SLUG_CONSTRAINT) ) )
-    {
-        $existing = $self->_existing_category($category);
-        if ($existing) {
-            return $self->_finish_leftover_category( $existing, $category );
-        }
-        return $id_taken ? $self->_once_more($create) : _slug_taken();
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find  => sub { return $self->_existing_category($category); },
+        reuse => sub ($row) {
+            return $self->_finish_leftover_category( $row, $category );
+        },
+        create        => sub { return $self->_create_category_row($category); },
+        id_constraint => $CATEGORY_ID_CONSTRAINT,
+        key_constraint => $CATEGORY_SLUG_CONSTRAINT,
+        key_taken      => \&_slug_taken,
+    );
 }
 
 sub _slug_taken {
     return { errors => { slug => $SLUG_TAKEN } };
-}
-
-# The second attempt after a minted id collided: any failure is final.
-sub _once_more ( $self, $create ) {
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
 }
 
 sub _create_category_row ( $self, $input ) {
@@ -547,32 +520,14 @@ sub _ensure_space ( $self, $input ) {
 # already stored, is answered by the space then found by its slug; a minted
 # id with none is minted once more.
 sub _default_space ($self) {
-    my $existing = $self->_space_by_slug;
-    if ($existing) {
-        return $existing;
-    }
-
-    my $create = sub { return $self->_insert_default_space; };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($SPACE_ID_CONSTRAINT);
-    if ( $id_taken || ( $conflict && $conflict->on($SPACE_SLUG_CONSTRAINT) ) ) {
-        $existing = $self->_space_by_slug;
-        if ($existing) {
-            return $existing;
-        }
-        if ($id_taken) {
-            return $self->_once_more($create);
-        }
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find           => sub { return $self->_space_by_slug; },
+        reuse          => sub ($row) { return $row; },
+        create         => sub { return $self->_insert_default_space; },
+        id_constraint  => $SPACE_ID_CONSTRAINT,
+        key_constraint => $SPACE_SLUG_CONSTRAINT,
+    );
 }
 
 sub _insert_default_space ($self) {

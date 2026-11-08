@@ -12,8 +12,50 @@ sub wants_json ( $self, $controller ) {
     my $format = $controller->param('format') || q{};
     return 1 if $format eq 'json';
 
-    my $accept = $controller->req->headers->accept || q{};
-    return $accept =~ m{application/json}msx ? 1 : 0;
+    my $accept = $controller->req->headers->accept // q{};
+    return 0 if $accept !~ m{json|application/[*]}imsx;
+
+    my @json = _preference( $accept, 'application', 'json' );
+    return 0 if $json[0] <= 0;
+    my @html = _preference( $accept, 'text', 'html' );
+
+    # RFC 9110 12.5.1: the order of the list carries no preference, so a tie
+    # in quality goes to the more specific range and then to the HTML page.
+    return $json[0] > $html[0]
+      || ( $json[0] == $html[0] && $json[1] > $html[1] )
+      ? 1
+      : 0;
+}
+
+# The quality the Accept header gives one media type, and how specific the
+# range that gave it was: the type itself (3), its type/* (2) or */* (1).
+# A type no range matches has quality 0 (RFC 9110 12.5.1).
+sub _preference ( $accept, $type, $subtype ) {
+    my %rank = ( "$type/$subtype" => 3, "$type/*" => 2, q{*/*} => 1 );
+    my ( $quality, $specificity ) = ( 0, 0 );
+    for my $weighted ( weighted($accept) ) {
+        my ( $media, $weight ) = @{$weighted};
+        next if ( $rank{$media} // 0 ) < ( $specificity || 1 );
+
+        ( $quality, $specificity ) = ( $weight, $rank{$media} );
+    }
+
+    return ( $quality, $specificity );
+}
+
+# The members of an Accept-style header, lower-cased, each with its quality
+# (RFC 9110 12.4.2): q defaults to 1.
+sub weighted ($header) {
+    my @weighted;
+    for my $member ( split /,/msx, $header // q{} ) {
+        my ( $name, @parameters ) = split /;/msx, $member;
+        my ($weight) =
+          map { /\A\s*q\s*=\s*([\d.]+)\s*\z/imsx ? $1 : () } @parameters;
+        push @weighted,
+          [ lc( $name // q{} ) =~ s/\A\s+|\s+\z//grmsx, $weight // 1 ];
+    }
+
+    return @weighted;
 }
 
 # A request the page made from its script (htmx sends HX-Request: true): it
@@ -57,11 +99,19 @@ C<application/json>. Anything else gets HTML.
 True when the request carries C<HX-Request: true>, the header htmx sends:
 the page asks for the part an action changed, not a redirect to the page.
 
+=head2 weighted
+
+Takes an Accept-style header (C<Accept>, C<Accept-Encoding>) and returns
+its members as C<[ name, quality ]> pairs, the name lower-cased and the
+quality 1 when no C<q> parameter gives one.
+
 =head2 wants_json
 
 Takes a Mojolicious controller. Returns 1 when the C<format> parameter is
-C<json> or the C<Accept> header contains C<application/json>, and 0
-otherwise. It can be called as a class method or on an instance.
+C<json>, or when the C<Accept> header prefers C<application/json> to
+C<text/html> under RFC 9110: by quality, then by the more specific range.
+A tie, a C<q=0> for JSON and a type that merely contains C<json> answer 0,
+the HTML page. It can be called as a class method or on an instance.
 
 =head1 DIAGNOSTICS
 

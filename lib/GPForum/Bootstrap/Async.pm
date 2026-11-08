@@ -11,7 +11,8 @@ use GPForum::Web::Guard;
 use GPForum::Web::HealthPayload;
 use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::Text qw(has_text);
-use File::Find                    ();
+use GPForum::Web::RequestPreference;
+use File::Find ();
 use File::Spec;
 use Const::Fast;
 const my $DEFAULT_TOUCH_INTERVAL => 300;
@@ -56,7 +57,16 @@ sub register ( $class, $application ) {
                 sub {
                     return if $controller->stash('mojo.finished');
                     delete $controller->stash->{'mojo.rendered'};
-                    return $controller->within_request($next);
+
+                    # Dispatch runs a tick after Mojolicious's own exception
+                    # guard returned: a die in a bridge, a hook or a plain
+                    # action is a server error to render as one, not a
+                    # preparation failure answered 503 below.
+                    try { return $controller->within_request($next); }
+                    catch ($error) {
+                        return if $controller->stash('mojo.finished');
+                        return $controller->helpers->reply->exception($error);
+                    };
                 }
             )->catch(
                 sub ($error) {
@@ -148,7 +158,7 @@ async sub _prepare_identity_p ( $, $controller, $path ) {
 
 async sub _prepare_announcements_p ( $, $controller, $path ) {
     return
-      if ( $controller->req->headers->accept // q{} ) =~ /json/msx
+      if GPForum::Web::RequestPreference->wants_json($controller)
       || $path =~ m{\A/(?:health|metrics|realtime)(?:/|\z)}msx;
     my $announcements = [];
     try {

@@ -11,10 +11,10 @@ use Mojo::Message::Response;
 use Time::HiRes qw(time);
 use POSIX       qw(floor);
 use Mojo::UserAgent;
+use GPForum::Infrastructure::PublicResolver;
 use GPForum::Service::Integration::DirectProxy;
 use GPForum::Service::Integration::PinnedPeer;
 use GPForum::Service::Notification::Push::Endpoint;
-use GPForum::Service::Notification::Push::Resolver;
 
 our $VERSION = '0.001';
 const my $CONNECT_SECONDS => 3;
@@ -24,8 +24,11 @@ const my $MAX_CLIENTS     => 16;
 const my $HTTP_TIMEOUT    => 408;
 has endpoint =>
   sub { return GPForum::Service::Notification::Push::Endpoint->new; };
-has resolver =>
-  sub { return GPForum::Service::Notification::Push::Resolver->new; };
+has resolver => sub ($self) {
+    my $endpoint = $self->endpoint;
+    return GPForum::Infrastructure::PublicResolver->new( allowed_address =>
+          sub ($address) { return $endpoint->public_address($address); } );
+};
 has clients        => sub { return {}; };
 has client_factory => sub {
     return sub { return Mojo::UserAgent->new; };

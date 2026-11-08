@@ -160,7 +160,8 @@ sub request_deletion ( $self, $input ) {
                     return $self->_finish_leftover_deletion($existing);
                 }
                 if ($id_taken) {
-                    return $self->_once_more($create);
+                    return GPForum::Infrastructure::UniqueConflict->once_more(
+                        $self->schema, $create );
                 }
             }
 
@@ -642,7 +643,12 @@ sub _insert_or_reuse_job ( $self, $input ) {
             return { job => $existing, reused => 1 };
         }
         if ($id_taken) {
-            return { job => $self->_once_more($create), reused => 0 };
+            return {
+                job => GPForum::Infrastructure::UniqueConflict->once_more(
+                    $self->schema, $create
+                ),
+                reused => 0
+            };
         }
     }
 
@@ -772,19 +778,8 @@ sub _record_action ( $self, $request_id, $input ) {
 
     my ($id_taken) = _lost_race( $error, $ACTION_ID_CONSTRAINT );
     if ($id_taken) {
-        return $self->_once_more($create);
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
-}
-
-# The second attempt after a minted id collided: any failure is final.
-sub _once_more ( $self, $create ) {
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
+        return GPForum::Infrastructure::UniqueConflict->once_more(
+            $self->schema, $create );
     }
 
     GPForum::Infrastructure::UniqueConflict->rethrow($error);
@@ -1102,7 +1097,10 @@ async sub request_deletion_p ( $self, $input, $context = undef ) {
                 return await $self->_finish_leftover_deletion_p( $db,
                     $existing, $context )
                   if $existing;
-                return await _once_more_p( $db, $create ) if $id_taken;
+                return
+                  await GPForum::Infrastructure::UniqueConflict->once_more_p(
+                    $db, $create )
+                  if $id_taken;
             }
 
             GPForum::Infrastructure::UniqueConflict->rethrow($error);
@@ -1316,7 +1314,12 @@ async sub _insert_or_reuse_job_p ( $self, $db, $input, $context ) {
         my $existing =
           await _latest_p( $db, $context, _job_query( $input->{request_id} ) );
         return { job => $existing, reused => 1 } if $existing;
-        return { job => await _once_more_p( $db, $create ), reused => 0 }
+        return {
+            job => await GPForum::Infrastructure::UniqueConflict->once_more_p(
+                $db, $create
+            ),
+            reused => 0
+          }
           if $id_taken;
     }
 
@@ -1428,15 +1431,9 @@ async sub _record_action_p ( $self, $db, $request_id, $input, $context ) {
     return $created if $created;
 
     my ($id_taken) = _lost_race( $error, $ACTION_ID_CONSTRAINT );
-    return await _once_more_p( $db, $create ) if $id_taken;
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
-}
-
-async sub _once_more_p ( $db, $create ) {
-    my ( $created, $error ) =
-      await GPForum::Infrastructure::UniqueConflict->attempt_p( $db, $create );
-    return $created if $created;
+    return await GPForum::Infrastructure::UniqueConflict->once_more_p( $db,
+        $create )
+      if $id_taken;
 
     GPForum::Infrastructure::UniqueConflict->rethrow($error);
 }

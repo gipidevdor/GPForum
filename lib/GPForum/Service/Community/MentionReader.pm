@@ -8,7 +8,6 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Keyset;
-use GPForum::Infrastructure::Row qw(rows_in);
 use GPForum::Service::Forum::PageWindow;
 use GPForum::Service::Forum::SourceThread;
 
@@ -34,65 +33,37 @@ has readability => undef;    # optional: every source counts as readable
 async sub list_page_for_recipient_p ( $self, $user_id, $options,
     $context = undef )
 {
-    return $self->list_page_for_recipient( $user_id, $options )
-      if !$self->functions;
     return (
         await GPForum::Infrastructure::SourceFunction->page_p(
-            $self, $user_id, $options, \@CURSOR_COLUMNS, $context
+            $self,            $user_id,             $options,
+            \@CURSOR_COLUMNS, 'mentions_resultset', $context
         )
     );
 }
 
 sub list_page_for_recipient ( $self, $user_id, $options ) {
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    if ( $self->functions ) {
-        my $rows = GPForum::Infrastructure::SourceFunction->list(
-            $self->functions,
-            $self->source_list_call(
-                $user_id,
-                {
-                    %{ $options || {} },
-                    limit => $page->{fetch_rows},
-                    after => $page->{after},
-                }
-            ),
-            $self->readability ? 1 : 0
-        );
-        return $self->page_window->page( $rows, $page->{limit},
-            \@CURSOR_COLUMNS );
-    }
-    my $search = $self->mentions_resultset(
-        $user_id,
-        {
-            %{ $options || {} },
-            limit => $page->{fetch_rows},
-            after => $page->{after},
-        }
-    );
-
-    my @rows = rows_in($search);
-
-    return $self->page_window->page( \@rows, $page->{limit}, \@CURSOR_COLUMNS );
+    return GPForum::Infrastructure::SourceFunction->page( $self, $user_id,
+        $options, \@CURSOR_COLUMNS, 'mentions_resultset' );
 }
 
 sub source_list_call ( $self, $user_id, $options ) {
-    my $after  = $options->{after} || {};
-    my $values = {
-        %{ GPForum::Infrastructure::SourceFunction->parameters(
-                $self->readability, $user_id, $options->{viewer} )
-        },
-        after_created_at => $after->{sort_value},
-        after_id         => $after->{id},
-        row_limit        => $options->{limit} || $DEFAULT_LIMIT,
-    };
-    return [ 'community_list_mentions', $values ];
+    return [
+        'community_list_mentions',
+        GPForum::Infrastructure::SourceFunction->page_values(
+            $self->readability, $user_id, $options, $DEFAULT_LIMIT
+        )
+    ];
 }
 
 sub mentions_resultset ( $self, $user_id, $options ) {
     my $query = {
         'me.mentioned_user_id' => $user_id,
-        %{ $self->_readable_sources( $user_id, $options->{viewer} ) },
+        %{ GPForum::Infrastructure::SourceFunction->readable_condition(
+                $self->readability, $user_id,
+                $options->{viewer}, 'me.source_type',
+                'me.source_id'
+            )
+        },
     };
     if ( $options->{after} ) {
         GPForum::Infrastructure::Keyset->after(
@@ -125,19 +96,6 @@ sub mentions_resultset ( $self, $user_id, $options ) {
             rows => $options->{limit} || $DEFAULT_LIMIT,
         }
     );
-}
-
-sub _readable_sources ( $self, $user_id, $viewer ) {
-    return {} if !$self->readability;
-
-    return {
-        -and => [
-            $self->readability->sources_condition(
-                $viewer // $user_id,
-                'me.source_type', 'me.source_id'
-            )
-        ]
-    };
 }
 
 1;

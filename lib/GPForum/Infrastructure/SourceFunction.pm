@@ -6,6 +6,7 @@ package GPForum::Infrastructure::SourceFunction;
 use Mojo::Base -base, -async_await;
 use v5.40;
 use GPForum::Infrastructure::ResultRow;
+use GPForum::Infrastructure::Row qw(rows_in);
 
 our $VERSION = '0.001';
 
@@ -47,6 +48,55 @@ sub list ( $class, $functions, $call, $filtered ) {
     return $class->rows( $functions->rows( $name, $values ), $filtered );
 }
 
+# The values every source list function takes: the viewer's parameters, the
+# keyset position after which the page starts and the row limit.
+sub page_values ( $class, $readability, $user_id, $options, $default_limit ) {
+    my $after = $options->{after} || {};
+    return {
+        %{ $class->parameters( $readability, $user_id, $options->{viewer} ) },
+        after_created_at => $after->{sort_value},
+        after_id         => $after->{id},
+        row_limit        => $options->{limit} || $default_limit,
+    };
+}
+
+# The resultset condition keeping only sources the viewer can still read
+# (ADR 0102); empty without readability.
+sub readable_condition ( $class, $readability, $user_id, $viewer, $type_column,
+    $id_column )
+{
+    return {} if !$readability;
+    return {
+        -and => [
+            $readability->sources_condition(
+                $viewer // $user_id,
+                $type_column, $id_column
+            )
+        ]
+    };
+}
+
+# A source list page read on the blocking connection: through the reader's
+# function when it has SQL functions, through its resultset otherwise.
+sub page ( $class, $reader, $user_id, $options, $columns, $resultset ) {
+    my $page =
+      $reader->page_window->plan( { %{$options}, sort => 'timestamp' } );
+    my %window = (
+        %{ $options || {} },
+        limit => $page->{fetch_rows},
+        after => $page->{after},
+    );
+    my $rows =
+      $reader->functions
+      ? $class->list(
+        $reader->functions,
+        $reader->source_list_call( $user_id, \%window ),
+        $reader->readability ? 1 : 0
+      )
+      : [ rows_in( $reader->$resultset( $user_id, \%window ) ) ];
+    return $reader->page_window->page( $rows, $page->{limit}, $columns );
+}
+
 # The viewer parameters would resolve, read on a pooled asynchronous connection.
 async sub viewer_p ( $class, $readability, $user_id, $viewer, $context ) {
     return $viewer if !$readability || ref $viewer;
@@ -61,8 +111,13 @@ async sub viewer_p ( $class, $readability, $user_id, $viewer, $context ) {
 # the list read on the worker's pooled asynchronous connections. Through
 # call_p's fallback each page forked a child that opened a connection of
 # its own, one child at a time per worker. The reader gives page_window,
-# functions, readability and source_list_call, as the three readers do.
-async sub page_p ( $class, $reader, $user_id, $options, $columns, $context ) {
+# functions, readability and source_list_call, as the three readers do;
+# without SQL functions the blocking page through its resultset answers.
+async sub page_p ( $class, $reader, $user_id, $options, $columns, $resultset,
+    $context = undef )
+{
+    return $class->page( $reader, $user_id, $options, $columns, $resultset )
+      if !$reader->functions;
     my $readability = $reader->readability;
     my $page =
       $reader->page_window->plan( { %{$options}, sort => 'timestamp' } );
@@ -127,14 +182,35 @@ requested. Returns generic result rows with the originally selected columns.
 Takes the function layer, a C<[ name, values ]> call and whether the rows
 are filtered, and returns the call's rows as L</rows> gives them.
 
+=head2 page_values
+
+Takes the readability service, member id, the page options (C<after> as a
+decoded C<< { sort_value, id } >>, C<limit>, C<viewer>) and the default
+limit. Returns L</parameters> with C<after_created_at>, C<after_id> and
+C<row_limit> added: the values every source list function takes.
+
+=head2 readable_condition
+
+Takes the readability service, member id, optional viewer and the source
+type and id columns. Returns the resultset condition keeping only sources
+the viewer can still read, or an empty hash without readability.
+
+=head2 page
+
+Takes a source list reader, the member id, the page options, the cursor
+columns and the name of the reader's resultset method. Returns the page
+read on the blocking connection: through C<source_list_call> when the
+reader has SQL functions, through the resultset otherwise.
+
 =head2 page_p
 
 Takes a source list reader (its C<page_window>, C<functions>,
 C<readability> and C<source_list_call>), the member id, the page options
-(C<after> cursor string, C<limit>, C<viewer>), the cursor columns and the
-request's query context. Returns a promise of the page L</list> and the
-reader's page window give, read on the worker's pooled asynchronous
-connections, the viewer resolved there too when it is not given.
+(C<after> cursor string, C<limit>, C<viewer>), the cursor columns, the name
+of its resultset method and the request's query context. Returns a promise
+of the page L</list> and the reader's page window give, read on the
+worker's pooled asynchronous connections, the viewer resolved there too
+when it is not given. Without SQL functions it answers L</page>.
 
 =head2 viewer_p
 

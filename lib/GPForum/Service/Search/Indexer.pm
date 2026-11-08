@@ -255,10 +255,14 @@ sub _index_post ( $self, $post_id ) {
     return $self->_upsert_document($document);
 }
 
+# A hidden or deleted post leaves the index by being indexed again under its
+# lock: indexing removes the document of a post that is no longer live. A
+# blind delete let a hide retried after the restore that followed it remove
+# the restored post's document, as remove_thread below explains for threads.
 sub remove_post ( $self, $post_id ) {
     return $self->schema->txn_do(
         sub {
-            return $self->_remove_document( 'post', $post_id );
+            return $self->_index_post($post_id);
         }
     );
 }
@@ -843,9 +847,10 @@ or in a thread that is not live.
 
 =head2 remove_post
 
-Takes a post id and deletes its document in a transaction, without
-reading the post. Returns C<< { ok => 1, removed => 1, deleted,
-entity_type => 'post', entity_id } >>.
+Takes a post id and, in a transaction, removes its document when the post
+is no longer live: missing, not visible, or in a thread that is not live.
+A post restored before the removal ran keeps its document. Returns as
+L</index_post>.
 
 =head2 remove_thread
 

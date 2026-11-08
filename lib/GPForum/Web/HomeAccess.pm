@@ -28,11 +28,10 @@ sub query ( $, $after ) {
     };
 }
 
-sub page_payload ( $, $home, $runtime ) {
-    return {
-        home    => $home,
-        runtime => $runtime,
-    };
+# The page's data only: runtime diagnostics stay behind the operations
+# token of /health (ADR 0026).
+sub page_payload ( $, $home ) {
+    return { home => $home };
 }
 
 sub failure_payload {
@@ -115,7 +114,8 @@ Returns the home-page reader input, including category and thread limits.
 
 =head2 page_payload
 
-Returns the success hash with C<home> and C<runtime>.
+Returns the success hash, C<home>. Runtime diagnostics are not part of
+it: they are served by C</health> to holders of the operations token.
 
 =head2 failure_payload
 

@@ -72,7 +72,8 @@ $test->content_is($page);
 $test->get_ok('/gzip-short');
 my $short_headers = $test->tx->res->headers;
 ok( !$short_headers->content_encoding, 'a short response is not compressed' );
-ok( !$short_headers->vary,             'and does not vary' );
+unlike( $short_headers->vary // q{},
+    qr/Accept-Encoding/msx, 'and does not vary on the encoding' );
 $test->content_is($short);
 
 $test->get_ok('/gzip-encoded');

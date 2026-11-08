@@ -5,6 +5,7 @@ package GPForum::Service::Operations::RateLimiter;
 
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
+use Socket      qw(AF_INET6 inet_ntop inet_pton);
 use Mojo::Base -base, -async_await;
 use v5.40;
 
@@ -57,6 +58,7 @@ has stats              => sub {
 };
 
 async sub check_p ( $self, $input, $context = undef ) {
+    $input = _limited_input($input);
     my $decision;
     if ( my $store = $self->primary_store ) {
         try {
@@ -91,6 +93,7 @@ async sub check_p ( $self, $input, $context = undef ) {
 }
 
 sub check ( $self, $input ) {
+    $input = _limited_input($input);
     my $decision = $self->_check_primary($input);
     if ( !$decision ) {
         $decision = $self->_degraded_decision($input);
@@ -337,6 +340,26 @@ sub _fail_closed_key ($input) {
 
 sub _actor_hash ($input) {
     return sha256_hex( join q{:}, $input->{scope}, $input->{actor_id} || q{} );
+}
+
+sub _limited_input ($input) {
+    my $actor_id = _limited_actor( $input->{actor_id} );
+    return $input if ( $actor_id // q{} ) eq ( $input->{actor_id} // q{} );
+
+    return { %{$input}, actor_id => $actor_id };
+}
+
+# One host is routed a whole IPv6 /64, so an anonymous actor keyed by its
+# full address would get a fresh budget from each of 2^64 addresses: an
+# IPv6 address is limited by its /64. Member ids, IPv4 and IPv4-mapped
+# addresses are limited as they are.
+sub _limited_actor ($actor_id) {
+    return $actor_id if !defined $actor_id || index( $actor_id, q{:} ) < 0;
+    my $packed = inet_pton( AF_INET6, $actor_id );
+    return $actor_id if !defined $packed || $actor_id =~ /[.]/msx;
+
+    # The first eight bytes, the network, and eight zero bytes for the host.
+    return inet_ntop( AF_INET6, pack 'a8 x8', $packed ) . '/64';
 }
 
 sub _uuid_or_undef ($value) {

@@ -49,38 +49,16 @@ sub _txn ( $self, $code ) {
 # active key -- completing its audit entry if that attempt left none. A
 # minted id already stored with no such binding is minted once more.
 sub _bind_role_once ( $self, $input ) {
-    my $existing = $self->_active_binding($input);
-    if ($existing) {
-        return $self->_finish_leftover_binding( $existing, $input );
-    }
-
-    my $create = sub { return $self->_create_binding($input); };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ( !$error ) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($ID_CONSTRAINT);
-    if ( $id_taken || ( $conflict && $conflict->on($ACTIVE_CONSTRAINT) ) ) {
-        $existing = $self->_active_binding($input);
-        if ($existing) {
-            return $self->_finish_leftover_binding( $existing, $input );
-        }
-        if ($id_taken) {
-            my ( $retried, $retry_error ) =
-              GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-                $create );
-            if ($retry_error) {
-                GPForum::Infrastructure::UniqueConflict->rethrow($retry_error);
-            }
-            return $retried;
-        }
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find  => sub { return $self->_active_binding($input); },
+        reuse =>
+          sub ($row) { return $self->_finish_leftover_binding( $row, $input ); }
+        ,
+        create         => sub { return $self->_create_binding($input); },
+        id_constraint  => $ID_CONSTRAINT,
+        key_constraint => $ACTIVE_CONSTRAINT,
+    );
 }
 
 sub _create_binding ( $self, $input ) {

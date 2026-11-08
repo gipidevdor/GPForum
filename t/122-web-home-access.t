@@ -31,12 +31,9 @@ is_deeply(
     'query keeps the after cursor and home reader limits'
 );
 is_deeply(
-    $access->page_payload( { categories => [] }, { workers => 1 } ),
-    {
-        home    => { categories => [] },
-        runtime => { workers    => 1 },
-    },
-    'page_payload keeps home and runtime hashes'
+    $access->page_payload( { categories => [] } ),
+    { home => { categories => [] } },
+    'page_payload carries the home data and no runtime diagnostics'
 );
 is_deeply(
     $access->failure_payload,
@@ -48,13 +45,7 @@ is_deeply(
 );
 
 my $html = GPForum::Test::ResponderController->new;
-$access->render_page(
-    $html,
-    {
-        home    => { categories => [] },
-        runtime => { workers    => 1 },
-    }
-);
+$access->render_page( $html, { home => { categories => [] } } );
 is( $html->last_render->{status}, $HTTP_OK, 'render_page uses HTTP 200' );
 is( $html->last_render->{template},
     'home/index', 'render_page uses the home index template' );

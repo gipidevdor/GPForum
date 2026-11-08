@@ -143,13 +143,19 @@ sub service_account_commands ( $self, $user, $home ) {
 # count a performance core is one worker and two efficiency cores are one.
 # A Mac without performance levels, or whose sysctl does not answer, counts
 # its CPUs as any other host.
-sub worker_cpu_count ($self) {
+# The core mix does not change while the process runs: it is asked once,
+# like cpu_detection, not with two sysctl runs per snapshot.
+has _worker_cpus => sub ($self) {
     my $performance = $self->_perflevel_cpus(0);
     return $self->cpu_count if !defined $performance;
 
     my $efficiency = $self->_perflevel_cpus(1) // 0;
 
     return $performance + int $efficiency / 2;
+};
+
+sub worker_cpu_count ($self) {
+    return $self->_worker_cpus;
 }
 
 sub _perflevel_cpus ( $self, $level ) {

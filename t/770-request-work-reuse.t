@@ -282,7 +282,9 @@ subtest
     );
   };
 
-subtest 'home HTML skips diagnostics; JSON retains live runtime data' => sub {
+# The home answers its data only: runtime diagnostics stay on /health
+# behind the operations token, and no home request probes the OS (ADR 0026).
+subtest 'neither home HTML nor JSON probes the operating system' => sub {
     my $calls = 0;
     with_replaced_subs(
         'GPForum::Runtime',
@@ -302,15 +304,14 @@ subtest 'home HTML skips diagnostics; JSON retains live runtime data' => sub {
             );
             $calls = 0;
             $test->get_ok(q{/})->status_is($HTTP_OK);
-            is( $calls, 0, 'HTML does not probe the operating system' );
             $test->get_ok('/?format=json')
               ->status_is($HTTP_OK)
-              ->json_is( '/runtime/web_processes', 1 );
-            is( $calls, 1, 'the JSON contract retains current diagnostics' );
+              ->json_has('/home')
+              ->json_hasnt('/runtime');
             $test->get_ok( q{/} => { Accept => 'application/json' } )
-              ->status_is($HTTP_OK);
-            is( $calls, 2,
-                'JSON diagnostics remain live rather than being cached' );
+              ->status_is($HTTP_OK)
+              ->json_hasnt('/runtime');
+            is( $calls, 0, 'no home request probes the operating system' );
         }
     );
 };

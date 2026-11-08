@@ -282,7 +282,11 @@ like( ${ $indexed_post->{search_vector} }->[0],
 is( scalar @{ $indexed_documents->created },
     2, 'post index upserts search document' );
 
+ok( !$indexer->remove_post('post-1')->{removed},
+    'a removal that arrives after the restore keeps the live post' );
+$post->update( { moderation_state => 'hidden' } );
 my $removed = $indexer->remove_post('post-1');
+$post->update( { moderation_state => 'visible' } );
 ok( $removed->{ok}, 'post removal succeeds' );
 is( $indexed_documents->deleted->[0]{entity_type},
     'post', 'post removal targets post documents' );

@@ -53,46 +53,17 @@ has events => sub { return GPForum::Service::Admin::Event->new; };
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub create_role ( $self, $input ) {
-    my $find =
-      sub { return $self->_single_row( 'Role', { name => $input->{name} } ); };
-    my $existing = $find->();
-    if ($existing) {
-        return $self->_finish_leftover_role( $existing, $input );
-    }
-
-    my $create = sub { return $self->_create_role_row($input); };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($ROLE_ID_CONSTRAINT);
-    if ( $id_taken || ( $conflict && $conflict->on($ROLE_NAME_CONSTRAINT) ) ) {
-        $existing = $find->();
-        if ($existing) {
-            return $self->_finish_leftover_role( $existing, $input );
-        }
-        if ($id_taken) {
-            return $self->_once_more($create);
-        }
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
-}
-
-# The second attempt after a minted id collided: any failure is final.
-sub _once_more ( $self, $create ) {
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find => sub {
+            return $self->_single_row( 'Role', { name => $input->{name} } );
+        },
+        reuse =>
+          sub ($row) { return $self->_finish_leftover_role( $row, $input ); },
+        create         => sub { return $self->_create_role_row($input); },
+        id_constraint  => $ROLE_ID_CONSTRAINT,
+        key_constraint => $ROLE_NAME_CONSTRAINT,
+    );
 }
 
 sub _create_role_row ( $self, $input ) {
@@ -143,35 +114,17 @@ sub create_permission ( $self, $input ) {
             }
         );
     };
-    my $existing = $find->();
-    if ($existing) {
-        return $self->_finish_leftover_permission( $existing, $input );
-    }
-
-    my $create = sub { return $self->_create_permission_row($input); };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict   = GPForum::X::Conflict->caught($error);
-    my $id_taken   = $conflict && $conflict->on($PERMISSION_ID_CONSTRAINT);
-    my $pair_taken = $conflict
-      && ( $conflict->on($PERMISSION_NAME_CONSTRAINT)
-        || $conflict->on($PERMISSION_ACTION_CONSTRAINT) );
-    if ( $id_taken || $pair_taken ) {
-        $existing = $find->();
-        if ($existing) {
-            return $self->_finish_leftover_permission( $existing, $input );
-        }
-        if ($id_taken) {
-            return $self->_once_more($create);
-        }
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find  => $find,
+        reuse => sub ($row) {
+            return $self->_finish_leftover_permission( $row, $input );
+        },
+        create         => sub { return $self->_create_permission_row($input); },
+        id_constraint  => $PERMISSION_ID_CONSTRAINT,
+        key_constraint =>
+          [ $PERMISSION_NAME_CONSTRAINT, $PERMISSION_ACTION_CONSTRAINT ],
+    );
 }
 
 sub _create_permission_row ( $self, $input ) {
@@ -223,27 +176,15 @@ sub attach_permission ( $self, $input ) {
             }
         );
     };
-    my $existing = $find->();
-    if ($existing) {
-        return $self->_finish_leftover_attachment( $existing, $input );
-    }
-
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        sub { return $self->_attach_permission_row($input); } );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    if ( $conflict && $conflict->on($ROLE_PERMISSION_CONSTRAINT) ) {
-        $existing = $find->();
-        if ($existing) {
-            return $self->_finish_leftover_attachment( $existing, $input );
-        }
-    }
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find  => $find,
+        reuse => sub ($row) {
+            return $self->_finish_leftover_attachment( $row, $input );
+        },
+        create         => sub { return $self->_attach_permission_row($input); },
+        key_constraint => $ROLE_PERMISSION_CONSTRAINT,
+    );
 }
 
 sub _attach_permission_row ( $self, $input ) {

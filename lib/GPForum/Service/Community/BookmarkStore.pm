@@ -46,42 +46,18 @@ has readability => undef;    # optional: every source counts as readable
 # once more.
 sub save_bookmark ( $self, $input ) {
     return $self->_save_by_function( $input, 1 ) if $self->functions;
-    my $find = sub {
-        return $self->find_for_user_target( $input->{user_id},
-            $input->{target_type}, $input->{target_id}, );
-    };
-    my $existing = $find->();
-    if ($existing) {
-        return $self->_restore_bookmark( $existing, $input );
-    }
-
-    my $create = sub { return $self->create_bookmark($input); };
-    my ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($ID_CONSTRAINT);
-    if ( $id_taken || ( $conflict && $conflict->on($TARGET_CONSTRAINT) ) ) {
-        $existing = $find->();
-        if ($existing) {
-            return $self->_restore_bookmark( $existing, $input );
-        }
-    }
-    if ( !$id_taken ) {
-        GPForum::Infrastructure::UniqueConflict->rethrow($error);
-    }
-
-    ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        $create );
-    if ($created) {
-        return $created;
-    }
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return GPForum::Infrastructure::UniqueConflict->create_or_reuse(
+        $self->schema,
+        find => sub {
+            return $self->find_for_user_target( $input->{user_id},
+                $input->{target_type}, $input->{target_id} );
+        },
+        reuse =>
+          sub ($row) { return $self->_restore_bookmark( $row, $input ); },
+        create         => sub { return $self->create_bookmark($input); },
+        id_constraint  => $ID_CONSTRAINT,
+        key_constraint => $TARGET_CONSTRAINT,
+    );
 }
 
 sub create_bookmark ( $self, $input ) {
@@ -211,45 +187,17 @@ sub list_for_user ( $self, $user_id, $options ) {
 # The page as the web worker reads it, on its pooled connections; without
 # SQL functions the blocking read answers.
 async sub list_page_for_user_p ( $self, $user_id, $options, $context = undef ) {
-    return $self->list_page_for_user( $user_id, $options ) if !$self->functions;
     return (
         await GPForum::Infrastructure::SourceFunction->page_p(
-            $self, $user_id, $options, \@CURSOR_COLUMNS, $context
+            $self,            $user_id,              $options,
+            \@CURSOR_COLUMNS, 'bookmarks_resultset', $context
         )
     );
 }
 
 sub list_page_for_user ( $self, $user_id, $options ) {
-    my $page =
-      $self->page_window->plan( { %{$options}, sort => 'timestamp' } );
-    if ( $self->functions ) {
-        my $rows = GPForum::Infrastructure::SourceFunction->list(
-            $self->functions,
-            $self->source_list_call(
-                $user_id,
-                {
-                    %{ $options || {} },
-                    limit => $page->{fetch_rows},
-                    after => $page->{after},
-                }
-            ),
-            $self->readability ? 1 : 0
-        );
-        return $self->page_window->page( $rows, $page->{limit},
-            \@CURSOR_COLUMNS );
-    }
-    my $search = $self->bookmarks_resultset(
-        $user_id,
-        {
-            %{ $options || {} },
-            limit => $page->{fetch_rows},
-            after => $page->{after},
-        }
-    );
-
-    my @rows = rows_in($search);
-
-    return $self->page_window->page( \@rows, $page->{limit}, \@CURSOR_COLUMNS );
+    return GPForum::Infrastructure::SourceFunction->page( $self, $user_id,
+        $options, \@CURSOR_COLUMNS, 'bookmarks_resultset' );
 }
 
 sub _restore_bookmark ( $self, $bookmark, $input ) {
@@ -291,31 +239,12 @@ sub _bookmark_already_active ( $bookmark, $note ) {
     return 1;
 }
 
-sub _readable_targets ( $self, $user_id, $viewer ) {
-    return {} if !$self->readability;
-
-    return {
-        -and => [
-            $self->readability->sources_condition(
-                $viewer // $user_id,
-                'me.target_type', 'me.target_id'
-            )
-        ]
-    };
-}
-
 sub source_list_call ( $self, $user_id, $options ) {
-    my $after  = $options->{after} || {};
-    my $values = {
-        %{ GPForum::Infrastructure::SourceFunction->parameters(
-                $self->readability, $user_id, $options->{viewer} )
-        },
-        after_created_at => $after->{sort_value},
-        after_id         => $after->{id},
-        folder           => $options->{folder}      || undef,
-        row_limit        => $options->{limit}       || $DEFAULT_LIMIT,
-        target_type      => $options->{target_type} || undef,
-    };
+    my $values =
+      GPForum::Infrastructure::SourceFunction->page_values( $self->readability,
+        $user_id, $options, $DEFAULT_LIMIT );
+    $values->{folder}      = $options->{folder}      || undef;
+    $values->{target_type} = $options->{target_type} || undef;
     return [ 'community_list_bookmarks', $values ];
 }
 
@@ -323,7 +252,12 @@ sub bookmarks_resultset ( $self, $user_id, $options ) {
     my $query = {
         user_id    => $user_id,
         deleted_at => undef,
-        %{ $self->_readable_targets( $user_id, $options->{viewer} ) },
+        %{ GPForum::Infrastructure::SourceFunction->readable_condition(
+                $self->readability, $user_id,
+                $options->{viewer}, 'me.target_type',
+                'me.target_id'
+            )
+        },
     };
     if ( $options->{target_type} ) {
         $query->{target_type} = $options->{target_type};

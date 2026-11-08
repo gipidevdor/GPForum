@@ -8,6 +8,8 @@ use Const::Fast;
 use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
+use List::Util qw(any);
+
 use GPForum::Infrastructure::Storage;
 use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::X::Conflict;
@@ -95,9 +97,48 @@ sub conflict_of ( $class, $error ) {
 # returned, or, on a second conflict, that error rethrown.
 sub once_more ( $class, $schema, $code ) {
     my ( $done, $error ) = $class->attempt( $schema, $code );
-    return $done if $done;
+    return $done if !$error;
 
     $class->rethrow($error);
+}
+
+async sub once_more_p ( $class, $functions, $code ) {
+    my ( $done, $error ) = await $class->attempt_p( $functions, $code );
+    return $done if !$error;
+
+    return $class->rethrow($error);
+}
+
+# A row created once per key: an existing row is reused, whether it was
+# there before or a concurrent write won the key; a minted id already
+# stored with no such row is minted once more. Steps: find (the row by its
+# key, or undef), reuse (what to answer for it), create, key_constraint
+# (one name or a list) and, optionally, id_constraint (no retry without it)
+# and key_taken (the answer when the key is held by a row find cannot see).
+sub create_or_reuse ( $class, $schema, %step ) {
+    my $existing = $step{find}->();
+    return $step{reuse}->($existing) if $existing;
+
+    my ( $created, $error ) = $class->attempt( $schema, $step{create} );
+    return $created if !$error;
+
+    my $conflict = GPForum::X::Conflict->caught($error);
+    my $id_taken = _on_any( $conflict, $step{id_constraint} );
+    if ( $id_taken || _on_any( $conflict, $step{key_constraint} ) ) {
+        $existing = $step{find}->();
+        return $step{reuse}->($existing) if $existing;
+        return $step{key_taken}->()      if !$id_taken && $step{key_taken};
+    }
+    return $class->once_more( $schema, $step{create} ) if $id_taken;
+
+    return $class->rethrow($error);
+}
+
+# True when the conflict names one of the constraints (a name or a list).
+sub _on_any ( $conflict, $names ) {
+    return 0 if !$conflict || !$names;
+    my @names = ref $names ? @{$names} : $names;
+    return any { $conflict->on($_) } @names;
 }
 
 # DBIx::Class mints the name so that nesting works. A fixed name does not:
@@ -265,6 +306,20 @@ L<GPForum::X::Conflict> it is; any other error is rethrown.
 Takes a schema and a code reference and runs it in a savepoint as
 L</attempt> does, for a write retried after a conflict: returns what it
 returned, or rethrows a second conflict.
+
+=head2 once_more_p
+
+The same through L</attempt_p>, inside a pooled asynchronous transaction.
+
+=head2 create_or_reuse
+
+Takes the schema and the steps C<find>, C<reuse>, C<create>,
+C<key_constraint> (a name or an array reference of names) and optionally
+C<id_constraint> and C<key_taken>. Answers
+C<reuse> of the row C<find> returns, before creating or after a conflict on
+any of the constraints; otherwise the row C<create> returns, minted once
+more after an id conflict. A key conflict with no row to reuse answers
+C<key_taken> when given; every other error is rethrown.
 
 =head2 throw
 

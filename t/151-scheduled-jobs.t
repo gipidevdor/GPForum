@@ -17,6 +17,7 @@ use GPForum::Service::Operations::RetentionStore;
 use GPForum::Service::Operations::ScheduledJobs;
 use GPForum::Test::Antivirus;
 use GPForum::Test::AttachmentFixtures;
+use GPForum::Test::DyingRetentionStore;
 use GPForum::Test::FixedClock;
 use GPForum::Test::PartitionLifecycleProbe;
 use GPForum::Test::PurgeSchema;
@@ -362,6 +363,29 @@ for my $case (
     close $handle or croak 'close capture';
     is( $exit,     $status, "the command exits $status for $label" );
     is( $captured, $line,   "and its line reports $label" );
+}
+
+# A job that dies fails alone: the jobs after it still run, and the run says
+# which one failed and why.
+{
+    my $dying = GPForum::Service::Operations::ScheduledJobs->new(
+        retention_store => GPForum::Test::DyingRetentionStore->new );
+    my ( $dying_run, $lived );
+    try {
+        $dying_run = $dying->run( { jobs => [qw(sessions attachments)] } );
+        $lived     = 1;
+    }
+    catch ($error) {
+        $lived = 0;
+    };
+    ok( $lived, 'a job that dies does not end the run' );
+    is( $dying_run->{ok}, 0, 'the run is not ok' );
+    is_deeply(
+        $dying_run->{sessions},
+        { error => 'database restarted', ok => 0 },
+        'the job that died reports its first line'
+    );
+    is( $dying_run->{attachments}{ok}, 1, 'and the job after it still ran' );
 }
 
 done_testing();

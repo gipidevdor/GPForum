@@ -4,6 +4,7 @@
 package GPForum::Worker::EventIdempotencyStore;
 
 use Const::Fast;
+use GPForum::Infrastructure::Id;
 use GPForum::Infrastructure::UniqueConflict;
 use GPForum::Service::Clock;
 use GPForum::X::Conflict;
@@ -33,17 +34,7 @@ has lease_seconds => $CLAIM_LEASE_SECONDS;
 
 sub is_done ( $self, $key ) {
     if ( $self->functions ) {
-        return $self->functions->row(
-            'ops_event_claim',
-            {
-                operation      => 'is_done',
-                key            => $key,
-                event_id       => undef,
-                now            => $self->clock->now_iso8601,
-                expired_before =>
-                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
-            }
-        )->{claimed} ? 1 : 0;
+        return $self->_claim( 'is_done', $key );
     }
     my $row = $self->_find($key);
     return 0 if !$row;
@@ -51,22 +42,19 @@ sub is_done ( $self, $key ) {
     return defined $self->_column( $row, 'completed_at' ) ? 1 : 0;
 }
 
-# Returns true only for the worker that owns the event. The primary key does
-# the excluding: the first insert wins and every later one conflicts, so two
-# workers can no longer both pass this point and both run the side effect.
+# Returns the claim's token only for the worker that owns the event, and
+# false for every other. The primary key does the excluding: the first insert
+# wins and every later one conflicts, so two workers can no longer both pass
+# this point and both run the side effect. The token names this run of the
+# handler: mark_failed releases the claim only when it is still the one this
+# run took, not the one a worker took over after this run's lease ran out.
 sub begin ( $self, $key, $event_id = undef ) {
     if ( $self->functions ) {
-        return $self->functions->row(
-            'ops_event_claim',
-            {
-                operation      => 'begin',
-                key            => $key,
-                event_id       => _event_id( $key, { event_id => $event_id } ),
-                now            => $self->clock->now_iso8601,
-                expired_before =>
-                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
-            }
-        )->{claimed} ? 1 : 0;
+        my $token = GPForum::Infrastructure::Id->uuid;
+        return $self->_claim( 'begin', $key,
+            _event_id( $key, { event_id => $event_id } ), $token )
+          ? $token
+          : 0;
     }
     my ( $claimed, $error ) = GPForum::Infrastructure::UniqueConflict->attempt(
         $self->schema,
@@ -84,19 +72,12 @@ sub begin ( $self, $key, $event_id = undef ) {
     return $self->_take_over($key);
 }
 
-sub mark_done ( $self, $key, $result ) {
+# The side effect has happened, so the event is handled whoever holds the
+# claim now: completion is recorded whatever the token.
+sub mark_done ( $self, $key, $result, $token = undef ) {
     if ( $self->functions ) {
-        return $self->functions->row(
-            'ops_event_claim',
-            {
-                operation      => 'done',
-                key            => $key,
-                event_id       => _event_id( $key, $result ),
-                now            => $self->clock->now_iso8601,
-                expired_before =>
-                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
-            }
-        )->{claimed} ? 1 : 0;
+        return $self->_claim( 'done', $key, _event_id( $key, $result ),
+            $token );
     }
     my $row = $self->_find($key);
 
@@ -111,20 +92,12 @@ sub mark_done ( $self, $key, $result ) {
 
 # Releasing the claim is what makes a failure retryable. Leaving the row would
 # suppress every later attempt at the same event, turning one transient error
-# into permanent silence.
-sub mark_failed ( $self, $key, $error ) {
+# into permanent silence. Only the run that holds the claim releases it: a
+# run whose lease ran out, and whose claim another worker took over, leaves
+# that worker's claim alone.
+sub mark_failed ( $self, $key, $error, $token = undef ) {
     if ( $self->functions ) {
-        return $self->functions->row(
-            'ops_event_claim',
-            {
-                operation      => 'failed',
-                key            => $key,
-                event_id       => undef,
-                now            => $self->clock->now_iso8601,
-                expired_before =>
-                  $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
-            }
-        )->{claimed} ? 1 : 0;
+        return $self->_claim( 'failed', $key, undef, $token );
     }
     my $row = $self->_find($key);
     return 1 if !$row;
@@ -133,6 +106,21 @@ sub mark_failed ( $self, $key, $error ) {
     $row->delete;
 
     return 1;
+}
+
+sub _claim ( $self, $operation, $key, $event_id = undef, $token = undef ) {
+    return $self->functions->row(
+        'ops_event_claim',
+        {
+            operation      => $operation,
+            key            => $key,
+            event_id       => $event_id,
+            now            => $self->clock->now_iso8601,
+            expired_before =>
+              $self->clock->epoch_plus_iso8601( -$self->lease_seconds ),
+            token => $token,
+        }
+    )->{claimed} ? 1 : 0;
 }
 
 # One statement, so the database is the arbiter of both the expiry and the

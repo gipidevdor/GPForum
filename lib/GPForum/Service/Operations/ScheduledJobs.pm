@@ -96,12 +96,20 @@ sub job_names {
 
 # ok is true only when every job that reports ok did: a timer whose job
 # failed -- an antivirus that cannot be reached, a file that cannot be read --
-# must not look like a run that succeeded.
+# must not look like a run that succeeded. A job that dies -- the database
+# restarting during a purge -- fails alone: the jobs after it still run, so
+# one broken purge cannot keep digests or the end of suspensions waiting.
 sub run ( $self, $input ) {
     $input ||= {};
     my %summary = ( ok => 1 );
     for my $name ( @{ $self->selected_jobs($input) } ) {
-        my $result = $self->run_job( $name, $input );
+        my $result;
+        try {
+            $result = $self->run_job( $name, $input );
+        }
+        catch ($error) {
+            $result = { error => _first_line($error), ok => 0 };
+        };
         $summary{$name} = $result;
         if ( ref $result eq 'HASH' && exists $result->{ok} && !$result->{ok} ) {
             $summary{ok} = 0;

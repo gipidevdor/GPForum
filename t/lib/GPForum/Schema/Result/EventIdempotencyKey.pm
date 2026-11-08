@@ -31,6 +31,12 @@ __PACKAGE__->add_columns(
         data_type   => 'timestamp with time zone',
         is_nullable => 1,
     },
+
+    # The worker run holding the claim: only its failure releases the claim.
+    claim_token => {
+        data_type   => 'uuid',
+        is_nullable => 1,
+    },
 );
 
 __PACKAGE__->set_primary_key('idempotency_key');

@@ -104,6 +104,12 @@ a host set up from an earlier `main`, newest first.
 
 ### Operator action required
 
+- **Apply migrations 2050 and 2051, refresh runtime API grants, then restart
+  the web service and the workers.** 2050 adds the owner of a handler claim
+  (`ops_event_claim_v4`); 2051 adds the suspension target check
+  (`moderation_suspension_target_v2`). The previous claim boundary stays for
+  workers from the preceding release.
+
 - **Synchronize the query-budget catalogue after deploying this change.**
   On a database already using 2000–2025, run `gpforum budgets --sync` and
   `gpforum budgets --check`; the ordinary `gpforum migrate` step also syncs
@@ -620,6 +626,13 @@ Migrations 2000–2025 install a fresh database only; use the current
   restart services. Follow the [runtime role guide](docs/ops/sql-api-role.md).
 
 ### Security
+
+- **A moderator can no longer suspend an administrator (migration 2051).**
+  A suspended member cannot write in the consoles, lifting a suspension
+  included, so suspending the administrators locked them out of the web.
+  Staff -- members holding a permission beyond read, write and create --
+  are now suspended only by an actor who manages the admin console, and
+  nobody suspends themselves; the console answers 403 with the reason.
 
 - **A timed suspension ends when its time is up (migration 1055,
   `v5.0.0-2.3.2`).** It set the member's status to suspended and only a
@@ -2840,6 +2853,26 @@ Migrations 2000–2025 install a fresh database only; use the current
   production floors fail the same gate as OS preflight and query-budget drift.
 
 ### Fixed
+
+- **One failing scheduled job no longer stops the jobs after it.** A purge
+  that died, a database restarting under it, ended the whole run, so the
+  digests and the end of timed suspensions waited for every later run. Each
+  job now fails alone and the summary names it.
+- **A worker releases only the handler claim it holds (migration 2050).**
+  A worker whose handler outlived the lease and then failed deleted the claim
+  of the worker that had taken it over, and a third could run the same side
+  effect. A claim now carries a token; only its run's failure releases it.
+- **A completion that cannot be recorded no longer repeats the side
+  effect.** The handler's result and the record of it were one failure, so a
+  database lost right after an email went out released the claim and the
+  retry sent the email again. The run now succeeds and the claim is left to
+  its lease; a claim that cannot be released keeps the handler's own error.
+- **A Discord announcement no longer holds database locks during the
+  request.** The thread, category and space stayed share-locked for up to
+  twelve seconds, so activity bumps and moderation on the thread hit their
+  lock timeout, and a slow request could lose the record that Discord had
+  the message. The topic is read and checked first; the request runs with no
+  transaction open.
 
 - **The explicit legacy ORM search comparison binds valid tag arrays.**
   Combined tag filters now pass an actual PostgreSQL array value, preserving

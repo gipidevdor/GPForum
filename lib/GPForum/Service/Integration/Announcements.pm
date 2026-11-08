@@ -246,17 +246,21 @@ sub deliver ( $self, $id ) {
         return $self->_finish( $id, 'cancelled' );
     }
 
-    # The sending marker already committed. Hold visibility rows only for this
-    # bounded request: privacy changes serialize with the actual external send.
-    my $answer = $self->schema->txn_do(
-        sub {
-            my $row = $self->functions->row( 'integration_announcement_payload',
-                { announcement => $id } );
-            return $self->_finish( $id, 'cancelled' ) if !$row;
-            my $topic = $row->{result};
-            return $self->_send( $id, $topic );
-        }
-    );
+    # The sending marker already committed. The topic is read, still public,
+    # in its own statement, and the request goes out after it: no transaction
+    # stays open across the request. Held open, its share locks on the
+    # thread, category and space kept every write to them waiting for Discord
+    # -- an activity bump, a moderator hiding the thread -- past their lock
+    # timeout, and a request longer than the idle-transaction timeout lost
+    # the session, and with it the record that Discord had the message. A
+    # topic hidden while the request is out is hidden after the announcement,
+    # as one hidden a moment later would be.
+    my $row = $self->functions->row( 'integration_announcement_payload',
+        { announcement => $id } );
+    my $answer =
+        $row
+      ? $self->_send( $id, $row->{result} )
+      : $self->_finish( $id, 'cancelled' );
     if ( $answer->{status} eq 'rate_limited' ) {
         GPForum::X::RateLimited->throw(
             message     => 'Discord rate limited the announcement',

@@ -181,6 +181,9 @@ sub write_failure ( $self, $result ) {
         return $guard->bad_request( $self,
             $access->invalid_request( $result->{errors} ) );
     }
+    if ( $status eq 'forbidden' ) {
+        return $guard->forbidden( $self, { error => $result->{error} } );
+    }
     if ( $status eq 'conflict' ) {
         return $guard->conflict(
             $self,

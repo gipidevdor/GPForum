@@ -17,6 +17,12 @@ has command_idempotency => undef;    # optional: writes run unlogged without one
 has logger              => undef;    # optional: errors are dropped without one
 
 # The actions on a post or a thread, each answered not found by its target.
+# Why a suspension was refused (SuspensionStore): the member is the actor,
+# or staff and the actor does not manage the admin console.
+const my %REFUSALS => (
+    self  => 'you cannot suspend yourself',
+    staff => 'only an administrator can suspend a staff member',
+);
 const my %ACTION_NOT_FOUND => (
     hide_post      => 'post not found',
     restore_post   => 'post not found',
@@ -416,6 +422,12 @@ sub _stored_result ( $job, $value ) {
         return workflow_result(
             status => 'not_found',
             error  => $job->{not_found},
+        );
+    }
+    if ( ref $value eq 'HASH' && $value->{refused} ) {
+        return workflow_result(
+            status => 'forbidden',
+            error  => $REFUSALS{ $value->{refused} } || 'permission denied',
         );
     }
 

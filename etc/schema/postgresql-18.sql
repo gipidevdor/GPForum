@@ -15704,6 +15704,42 @@ $$;
 
 
 --
+-- Name: moderation_suspension_target_v1(uuid, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.moderation_suspension_target_v1(p_actor uuid, p_user_id uuid) RETURNS TABLE(result text)
+    LANGUAGE sql STABLE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT CASE
+    WHEN p_actor IS NOT DISTINCT FROM p_user_id THEN 'self'
+    WHEN EXISTS (SELECT 1 FROM public.role_bindings b
+            JOIN public.role_permissions rp ON rp.role_id = b.role_id
+            JOIN public.permissions p ON p.permission_id = rp.permission_id
+            WHERE b.user_id = p_user_id AND b.revoked_at IS NULL
+                AND p.action NOT IN ('read', 'write', 'create'))
+        AND NOT coalesce(api.core_product_staff_v1(p_actor, 'admin_console', 'manage'), false)
+        THEN 'staff'
+    ELSE 'allowed'
+END;
+$$;
+
+
+--
+-- Name: moderation_suspension_target_v2(uuid, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.moderation_suspension_target_v2(p_actor uuid, p_user_id uuid) RETURNS TABLE(result text)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.moderation_suspension_target_v1(p_actor, p_user_id);
+$$;
+
+
+--
 -- Name: moderation_suspension_update_v3(uuid, timestamp with time zone); Type: FUNCTION; Schema: api; Owner: -
 --
 
@@ -18696,6 +18732,74 @@ CREATE FUNCTION api.ops_event_claim_v2(p_operation text, p_key text, p_event_id 
     SET plan_cache_mode TO 'force_generic_plan'
     AS $$
 SELECT * FROM api.ops_event_claim_v1(p_operation, p_key, p_event_id, p_now, p_expired_before);
+$$;
+
+
+--
+-- Name: ops_event_claim_v3(text, text, text, text, text, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.ops_event_claim_v3(p_operation text, p_key text, p_event_id text, p_now text, p_expired_before text, p_token uuid) RETURNS TABLE(claimed boolean)
+    LANGUAGE plpgsql
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+DECLARE reported text; affected integer;
+BEGIN
+    IF p_operation = 'is_done' THEN
+        RETURN QUERY SELECT EXISTS(SELECT 1 FROM public.event_idempotency_keys me
+            WHERE me.idempotency_key = p_key AND me.completed_at IS NOT NULL); RETURN;
+    ELSIF p_operation = 'failed' THEN
+        DELETE FROM public.event_idempotency_keys me
+        WHERE me.idempotency_key = p_key AND me.completed_at IS NULL
+          AND me.claim_token IS NOT DISTINCT FROM p_token;
+        GET DIAGNOSTICS affected = ROW_COUNT;
+        RETURN QUERY SELECT affected > 0; RETURN;
+    ELSIF p_operation = 'done' THEN
+        UPDATE public.event_idempotency_keys me SET completed_at = p_now::timestamptz
+        WHERE me.idempotency_key = p_key AND me.completed_at IS NULL;
+        IF FOUND THEN RETURN QUERY SELECT true; RETURN; END IF;
+        BEGIN
+            INSERT INTO public.event_idempotency_keys(idempotency_key,event_id,created_at,completed_at,claim_token)
+            VALUES (p_key,p_event_id::uuid,p_now::timestamptz,p_now::timestamptz,p_token);
+        EXCEPTION WHEN unique_violation THEN
+            GET STACKED DIAGNOSTICS reported = CONSTRAINT_NAME;
+            IF NOT api.core_unique_on_v1(reported,'event_idempotency_keys_pkey') THEN RAISE; END IF;
+        END;
+        RETURN QUERY SELECT true; RETURN;
+    ELSIF p_operation <> 'begin' THEN
+        RAISE EXCEPTION USING ERRCODE = '22023',MESSAGE = 'unknown event claim operation';
+    END IF;
+    IF p_token IS NULL THEN
+        RAISE EXCEPTION USING ERRCODE = '22023',MESSAGE = 'an event claim needs its token';
+    END IF;
+    BEGIN
+        INSERT INTO public.event_idempotency_keys(idempotency_key,event_id,created_at,completed_at,claim_token)
+        VALUES (p_key,p_event_id::uuid,p_now::timestamptz,NULL,p_token);
+        RETURN QUERY SELECT true; RETURN;
+    EXCEPTION WHEN unique_violation THEN
+        GET STACKED DIAGNOSTICS reported = CONSTRAINT_NAME;
+        IF NOT api.core_unique_on_v1(reported,'event_idempotency_keys_pkey') THEN RAISE; END IF;
+    END;
+    UPDATE public.event_idempotency_keys me
+    SET created_at = p_now::timestamptz, claim_token = p_token
+    WHERE me.idempotency_key = p_key AND me.completed_at IS NULL
+      AND me.created_at < p_expired_before::timestamptz;
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    RETURN QUERY SELECT affected > 0;
+END $$;
+
+
+--
+-- Name: ops_event_claim_v4(text, text, text, text, text, uuid); Type: FUNCTION; Schema: api; Owner: -
+--
+
+CREATE FUNCTION api.ops_event_claim_v4(p_operation text, p_key text, p_event_id text, p_now text, p_expired_before text, p_token uuid) RETURNS TABLE(claimed boolean)
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    SET plan_cache_mode TO 'force_generic_plan'
+    AS $$
+SELECT * FROM api.ops_event_claim_v3(p_operation, p_key, p_event_id, p_now, p_expired_before, p_token);
 $$;
 
 
@@ -22765,7 +22869,8 @@ CREATE TABLE public.event_idempotency_keys (
     idempotency_key text NOT NULL,
     event_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    completed_at timestamp with time zone
+    completed_at timestamp with time zone,
+    claim_token uuid
 );
 
 
@@ -22774,6 +22879,13 @@ CREATE TABLE public.event_idempotency_keys (
 --
 
 COMMENT ON TABLE public.event_idempotency_keys IS 'The events a worker has claimed or handled: the claim, taken before the side effect, is what keeps two workers from running it twice.';
+
+
+--
+-- Name: COLUMN event_idempotency_keys.claim_token; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.event_idempotency_keys.claim_token IS 'The worker run holding the claim: set by a claim or a takeover, and the only run whose failure releases it.';
 
 
 --
@@ -32814,6 +32926,20 @@ REVOKE ALL ON FUNCTION api.moderation_suspension_list_v2(p_user_id uuid, p_activ
 
 
 --
+-- Name: FUNCTION moderation_suspension_target_v1(p_actor uuid, p_user_id uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.moderation_suspension_target_v1(p_actor uuid, p_user_id uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION moderation_suspension_target_v2(p_actor uuid, p_user_id uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.moderation_suspension_target_v2(p_actor uuid, p_user_id uuid) FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION moderation_suspension_update_v3(p_suspension_id uuid, p_revoked_at timestamp with time zone); Type: ACL; Schema: api; Owner: -
 --
 
@@ -33630,6 +33756,20 @@ REVOKE ALL ON FUNCTION api.ops_event_claim_v1(p_operation text, p_key text, p_ev
 --
 
 REVOKE ALL ON FUNCTION api.ops_event_claim_v2(p_operation text, p_key text, p_event_id text, p_now text, p_expired_before text) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION ops_event_claim_v3(p_operation text, p_key text, p_event_id text, p_now text, p_expired_before text, p_token uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.ops_event_claim_v3(p_operation text, p_key text, p_event_id text, p_now text, p_expired_before text, p_token uuid) FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION ops_event_claim_v4(p_operation text, p_key text, p_event_id text, p_now text, p_expired_before text, p_token uuid); Type: ACL; Schema: api; Owner: -
+--
+
+REVOKE ALL ON FUNCTION api.ops_event_claim_v4(p_operation text, p_key text, p_event_id text, p_now text, p_expired_before text, p_token uuid) FROM PUBLIC;
 
 
 --

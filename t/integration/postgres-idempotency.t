@@ -28,6 +28,9 @@ const my $REP_DELTA     => 2;
 const my $REPLAY_TITLE  => 'Lost response replay probe';
 const my $REPLAY_BODY   => 'Replayed thread body.';
 const my $REPLAY_KEY    => '018f9999-0001-7000-8000-00000000d020';
+const my $TAKEN_KEY     => 'worker.mail:018f9999-0001-7000-8000-00000000d030';
+const my $TAKEN_ID      => '018f9999-0001-7000-8000-00000000d030';
+const my $LEASE_GONE_SECONDS => -60;
 const my $SEED_CATEGORY_SQL =>
   'SELECT category_id FROM categories ORDER BY position LIMIT 1';
 
@@ -50,6 +53,7 @@ is( $setup->{seed},    0, 'small seed profile loads' );
 
 my $context = _load_context($database);
 _event_idempotency_key_race($context);
+_claim_taken_over_stays_with_its_owner($context);
 _reputation_source_unique_race($context);
 _thread_replay_recovers_after_conflict($context);
 
@@ -151,6 +155,43 @@ sub _event_idempotency_key_race {
         ),
         1,
         'event_idempotency_keys race keeps one key row'
+    );
+
+    return;
+}
+
+# A worker whose handler outlived the lease must not release the claim the
+# worker that took it over is running under: only the owner's failure does.
+sub _claim_taken_over_stays_with_its_owner {
+    my ($ctx) = @_;
+
+    my $schema = GPForum::Test::PostgresHarness::connect_schema();
+    my $slow = GPForum::Worker::EventIdempotencyStore->new( schema => $schema );
+    my $late = GPForum::Worker::EventIdempotencyStore->new(
+        schema        => $schema,
+        lease_seconds => $LEASE_GONE_SECONDS,
+    );
+    my $slow_token = $slow->begin( $TAKEN_KEY, $TAKEN_ID );
+    ok( $slow_token, 'the first worker claims the event' );
+    my $late_token = $late->begin( $TAKEN_KEY, $TAKEN_ID );
+    ok( $late_token, 'a worker past the lease takes the claim over' );
+    isnt( $late_token, $slow_token, 'under a token of its own' );
+
+    ok( !$slow->mark_failed( $TAKEN_KEY, 'smtp timeout', $slow_token ),
+        'the first worker\'s failure releases nothing' );
+    ok(
+        !$slow->begin( $TAKEN_KEY, $TAKEN_ID ),
+        'so a third worker cannot start the event again'
+    );
+    ok( $late->mark_failed( $TAKEN_KEY, 'smtp timeout', $late_token ),
+        'the owner\'s failure releases the claim' );
+    is(
+        GPForum::Test::PostgresHarness::count_rows(
+            $ctx->{dbh}, 'event_idempotency_keys',
+            { idempotency_key => $TAKEN_KEY }
+        ),
+        0,
+        'and the event can be tried again'
     );
 
     return;

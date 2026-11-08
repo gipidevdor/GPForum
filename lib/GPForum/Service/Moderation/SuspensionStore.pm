@@ -54,13 +54,18 @@ sub create_suspension ( $self, $input ) {
 
 # A member already under an active suspension keeps it. A minted id already
 # stored is minted once more: under the member's lock nothing else can have
-# suspended them meanwhile.
+# suspended them meanwhile. A member the actor may not suspend -- themselves,
+# or staff when the actor does not manage the admin console -- is refused:
+# suspended staff can no longer lift a suspension from the consoles.
 sub _create_or_reuse ( $self, $input ) {
     $self->_lock_member( $input->{user_id} );
     my $user = $self->_user( $input->{user_id} );
     if ( !$user || ( column_of( $user, 'status' ) // q{} ) eq $STATUS_DELETED )
     {
         return undef;
+    }
+    if ( my $refused = $self->_refused_target($input) ) {
+        return $refused;
     }
 
     my $active = $self->active_for_user( $input->{user_id} );
@@ -251,6 +256,13 @@ async sub create_suspension_p ( $self, $input, $context = undef ) {
             return undef
               if !$user
               || ( column_of( $user, 'status' ) // q{} ) eq $STATUS_DELETED;
+            my $refused = _target_refusal(
+                await $scope->row_p(
+                    'moderation_suspension_target',
+                    _target_of($input)
+                )
+            );
+            return $refused if $refused;
 
             my $active = await $self->_active_p( $scope, $input->{user_id} );
             return { ok => 1, suspension => _suspension_hash($active) }
@@ -392,6 +404,32 @@ sub _active_values ( $self, $user_id ) {
 # suspensions of one member both found none active and both inserted one.
 # Without the function layer -- the tests' doubles -- there is one writer
 # and nothing to wait for.
+# The refusal for a member this actor may not suspend, or undef.
+sub _refused_target ( $self, $input ) {
+    return undef if !$self->functions;
+
+    return _target_refusal(
+        $self->functions->row(
+            'moderation_suspension_target',
+            _target_of($input)
+        )
+    );
+}
+
+sub _target_of ($input) {
+    return { actor => $input->{actor_user_id}, user_id => $input->{user_id} };
+}
+
+sub _target_refusal ($target) {
+    my $answer = ref $target eq 'HASH' ? $target->{result} // q{} : q{};
+    return undef if $answer eq 'allowed';
+
+    return {
+        ok      => 0,
+        refused => $answer eq 'self' ? 'self' : 'staff',
+    };
+}
+
 sub _lock_member ( $self, $user_id ) {
     return if !$self->functions;
 

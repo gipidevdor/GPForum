@@ -11,6 +11,7 @@ use Test::More;
 use lib 'lib';
 use lib 't/lib';
 
+use GPForum::Infrastructure::Id;
 use GPForum::Service::Moderation::SuspensionStore;
 use GPForum::Test::FixedClock;
 use GPForum::Test::PgDatabase;
@@ -32,6 +33,19 @@ const my $ACTIVE_SQL => join q{ },
   'SELECT suspension_id FROM suspensions',
   'WHERE user_id = ? AND revoked_at IS NULL';
 const my $STATUS_SQL => 'SELECT status FROM users WHERE id = ?';
+const my $MANAGE_PERMISSION_SQL => join q{ },
+  'INSERT INTO permissions (permission_id, name, resource_type, action)',
+  q{VALUES (?, 'admin_console.manage', 'admin_console', 'manage')},
+  'RETURNING permission_id';
+const my $GRANT_SQL => join q{ },
+  'INSERT INTO role_permissions (role_id, permission_id)',
+  q{SELECT role_id, ? FROM roles WHERE name = 'administrator'};
+const my $GLOBAL_ADMIN_SQL => join q{ },
+  'INSERT INTO role_bindings (binding_id, user_id, role_id, resource_type)',
+  q{SELECT ?, ?, role_id, 'global' FROM roles WHERE name = 'administrator'};
+const my $ROLE_HOLDER_SQL => join q{ },
+  'SELECT b.user_id FROM role_bindings b JOIN roles r USING (role_id)',
+  'WHERE r.name = ? AND b.revoked_at IS NULL ORDER BY b.user_id LIMIT 1';
 const my $AUDITS_SQL =>
   'SELECT count(*) FROM audit_log WHERE action = ? AND target_id = ?';
 const my $REVOCATION_AUDITS_SQL => join q{ },
@@ -68,6 +82,7 @@ is( scalar @members,
 _suspensions_serialise( $members[0] );
 _revocations_serialise( $members[1] );
 _suspension_waits_for_a_revocation( $members[2] );
+_staff_are_suspended_by_an_administrator();
 
 done_testing();
 
@@ -208,6 +223,57 @@ sub _race {
     }
 
     return @outcomes;
+}
+
+# A suspended administrator can no longer lift a suspension from the
+# consoles: a moderator may not suspend one, nor anyone themselves; an
+# administrator may suspend a moderator. Both paths refuse alike.
+sub _staff_are_suspended_by_an_administrator {
+    my ($admin) =
+      $dbh->selectrow_array( $ROLE_HOLDER_SQL, undef, 'administrator' );
+    my ($mod) = $dbh->selectrow_array( $ROLE_HOLDER_SQL, undef, 'moderator' );
+    ok( $admin && $mod, 'the seed has an administrator and a moderator' );
+    my $schema = GPForum::Test::PostgresHarness::connect_schema();
+
+    is_deeply(
+        _suspend( $schema, $mod, $FIRST_AT, $admin ),
+        { ok => 0, refused => 'staff' },
+        'a moderator may not suspend an administrator'
+    );
+    my $async;
+    _store( $schema, $FIRST_AT )
+      ->create_suspension_p(
+        { actor_user_id => $mod, reason => 'abuse', user_id => $admin } )
+      ->then( sub ($answer) { $async = $answer } )
+      ->wait;
+    is_deeply(
+        $async,
+        { ok => 0, refused => 'staff' },
+        'nor on the pooled connections'
+    );
+    is_deeply(
+        _suspend( $schema, $mod, $FIRST_AT, $mod ),
+        { ok => 0, refused => 'self' },
+        'nobody suspends themselves'
+    );
+    is_deeply( $dbh->selectcol_arrayref( $ACTIVE_SQL, undef, $admin ),
+        [], 'the administrator stays unsuspended' );
+
+    # The seed's administrator role is bound to one space and has no console
+    # management: an administrator of the whole forum has both.
+    my ($manage) = $dbh->selectrow_array( $MANAGE_PERMISSION_SQL, undef,
+        GPForum::Infrastructure::Id->uuid );
+    $dbh->do( $GRANT_SQL, undef, $manage );
+    $dbh->do( $GLOBAL_ADMIN_SQL, undef, GPForum::Infrastructure::Id->uuid,
+        $admin );
+    $dbh->do('UPDATE second_factor_policy SET staff_required = false');
+    ok(
+        _suspend( $schema, $admin, $FIRST_AT, $mod )
+          ->{suspension}{suspension_id},
+        'an administrator may suspend a moderator'
+    );
+
+    return;
 }
 
 sub _suspend {

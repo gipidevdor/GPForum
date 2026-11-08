@@ -48,6 +48,7 @@ const my $STATUS_FAILED             => 'failed';
 const my $STATUS_NOT_FOUND          => 'not_found';
 const my $STATUS_INVALID            => 'invalid';
 const my $STATUS_CONFLICT           => 'conflict';
+const my $STATUS_FORBIDDEN          => 'forbidden';
 
 const my %WRITE_FLASH => (
     $STATUS_ACTION_REVERSED    => 'moderation.reversed',
@@ -239,7 +240,8 @@ sub failure_status ( $self, $result ) {
     return $status
       if $status eq $STATUS_NOT_FOUND
       || $status eq $STATUS_INVALID
-      || $status eq $STATUS_CONFLICT;
+      || $status eq $STATUS_CONFLICT
+      || $status eq $STATUS_FORBIDDEN;
     return undef;
 }
 
@@ -419,7 +421,7 @@ True when the workflow status is C<failed>.
 
 =head2 failure_status
 
-Returns C<not_found> or C<invalid> when those statuses are present.
+Returns C<not_found>, C<invalid>, C<conflict> or C<forbidden> when the result has that status.
 
 =head2 invalid_request
 

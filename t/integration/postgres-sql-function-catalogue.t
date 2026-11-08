@@ -150,6 +150,13 @@ sub _check_live_invariants ( $catalogue, $functions ) {
         [ excluded_user_id  => 'uuid' ]
     ];
     $previous{notification_fanout_deliver_v2} = [ [ recipients => 'jsonb' ] ];
+    $previous{ops_event_claim_v2}             = [
+        [ operation      => 'text' ],
+        [ key            => 'text' ],
+        [ event_id       => 'text' ],
+        [ now            => 'text' ],
+        [ expired_before => 'text' ],
+    ];
     $previous{admin_configuration_change_v4} =
       $previous{admin_configuration_change_v2};
 

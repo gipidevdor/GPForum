@@ -29,11 +29,21 @@ __PACKAGE__->requires(qw(store));
 # (the key is done, the run is skipped) or its lease has run out (the claim
 # is taken over). The error is kept as it was raised, so a declared failure
 # type reaches the outbox's classification.
+#
+# Only the handler's own failure releases the claim. The side effect has
+# happened once the handler returns, so a failure to record that -- the
+# database gone between the email leaving and the completion being written --
+# is not the handler's failure: released, the claim let the next try send the
+# email again. The run succeeds, the message is done, and the claim is left
+# to its lease, under the error in unrecorded. A failure to release the claim
+# does not replace the handler's own error, which is the one the outbox
+# classifies.
 sub run ( $self, $idempotency_key, $code, $event_id = undef ) {
     return { ok => 1, skipped => 1 }
       if $self->store->is_done($idempotency_key);
 
-    if ( !$self->store->begin( $idempotency_key, $event_id ) ) {
+    my $token = $self->store->begin( $idempotency_key, $event_id );
+    if ( !$token ) {
         return { ok => 1, skipped => 1 }
           if $self->store->is_done($idempotency_key);
 
@@ -45,18 +55,34 @@ sub run ( $self, $idempotency_key, $code, $event_id = undef ) {
         };
     }
 
-    my $result;
+    my ( $value, $failure, $failed );
     try {
-        my $value = $code->();
-        $self->store->mark_done( $idempotency_key, $value );
-        $result = { ok => 1, skipped => 0, result => $value };
+        $value = $code->();
     }
     catch ($error) {
-        $self->store->mark_failed( $idempotency_key, "$error" );
-        $result = { ok => 0, skipped => 0, error => $error };
+        ( $failure, $failed ) = ( $error, 1 );
+    };
+    if ($failed) {
+        try {
+            $self->store->mark_failed( $idempotency_key, "$failure", $token );
+        }
+        catch ($release_error) {
+
+            # The claim stays until its lease runs out; the handler's error
+            # is still the run's.
+        };
+        return { ok => 0, skipped => 0, error => $failure };
+    }
+
+    my %outcome = ( ok => 1, skipped => 0, result => $value );
+    try {
+        $self->store->mark_done( $idempotency_key, $value, $token );
+    }
+    catch ($record_error) {
+        $outcome{unrecorded} = "$record_error";
     };
 
-    return $result;
+    return \%outcome;
 }
 
 1;

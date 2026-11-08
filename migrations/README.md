@@ -96,3 +96,12 @@ subscription mute/revocation stores with their command log in one atomic call.
 Apply the migration and refresh runtime API grants before restarting the new
 application code. Existing target-store functions and command-log semantics are
 retained; a failed store or command-log close rolls back the complete command.
+
+## Handler claim owner and suspension rank
+
+`2050_event_claim_owner.sql` gives each worker handler claim a token: only the
+run that holds the claim releases it on failure, so a worker whose lease ran
+out cannot free the claim another worker took over. `ops_event_claim_v2` stays
+for workers from the preceding release. `2051_suspension_rank.sql` adds the
+check of whom an actor may suspend: staff only by an administrator, never
+oneself. Refresh runtime API grants and restart the web service and workers.

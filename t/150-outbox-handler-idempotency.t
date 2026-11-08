@@ -5,6 +5,7 @@ package main;
 
 use v5.40;
 
+use Carp qw(croak);
 use Const::Fast;
 use Test::Exception;
 use Test::More;
@@ -15,6 +16,7 @@ use lib 't/lib';
 use GPForum::Service::Identity::MailToken;
 use GPForum::Service::Outbox::DomainEventTransport;
 use GPForum::Service::Outbox::Dispatcher;
+use GPForum::Test::ClaimLosingStore;
 use GPForum::Test::CountingNotifier;
 use GPForum::Test::EventIdempotencySchema;
 use GPForum::Test::IdempotencyStore;
@@ -40,6 +42,7 @@ use GPForum::Worker::IdempotentJobRunner;
 
 our $VERSION = '0.001';
 
+const my $TOKEN_FIELD         => 3;
 const my $POST_HANDLERS       => 5;
 const my $SINGLE_HANDLER      => 1;
 const my $MAIL_RETRY_SENDS    => 2;
@@ -404,6 +407,46 @@ is( scalar @{ $mail_crash_mailer->sent },
     'recovered identity mail resends after send-before-ack' );
 is( $mail_crash_mailer->sent->[1]{token},
     'crash-token', 'recovered identity mail still has the raw token' );
+
+# The side effect has happened once the handler returns: a completion that
+# cannot be recorded leaves the claim to its lease, and the run is a success,
+# so the outbox does not send the email again. A claim that cannot be
+# released does not hide the handler's own error. The claim's token reaches
+# both calls, so a run releases only the claim it took.
+{
+    my $unrecorded = GPForum::Worker::IdempotentJobRunner->new(
+        store => GPForum::Test::ClaimLosingStore->new( break_done => 1 ) );
+    my $sent    = 0;
+    my $outcome = $unrecorded->run( 'worker.mail:event-9',
+        sub { $sent++; return { sent => 1 } } );
+    is( $outcome->{ok}, 1, 'an unrecorded completion is still a success' );
+    like(
+        $outcome->{unrecorded},
+        qr/database [ ] gone/msx,
+        'and says why it was not recorded'
+    );
+    ok( !grep( { $_->[0] eq 'failed' } @{ $unrecorded->store->events } ),
+        'and does not release the claim' );
+    is( $sent, 1, 'the side effect ran once' );
+
+    my $unreleased = GPForum::Worker::IdempotentJobRunner->new(
+        store => GPForum::Test::ClaimLosingStore->new( break_failed => 1 ) );
+    my $failed = $unreleased->run( 'worker.mail:event-10',
+        sub { croak "smtp refused\n" } );
+    is( $failed->{ok}, 0, 'a failing handler fails the run' );
+    like(
+        $failed->{error},
+        qr/smtp [ ] refused/msx,
+        'with its own error, not the release error'
+    );
+
+    my $owned = GPForum::Test::ClaimLosingStore->new;
+    GPForum::Worker::IdempotentJobRunner->new( store => $owned )
+      ->run( 'worker.mail:event-11', sub { croak "boom\n" } );
+    is( $owned->events->[-1][$TOKEN_FIELD],
+        'token-worker.mail:event-11',
+        'the release names the claim this run took' );
+}
 
 done_testing();
 

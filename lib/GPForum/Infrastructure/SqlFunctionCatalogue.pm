@@ -1838,6 +1838,12 @@ const my %FUNCTION => (
     moderation_suspension_insert =>
       { version => 6, parameters => [ values => 'jsonb' ] },
 
+    # Whom an actor may suspend: staff only by an admin, never oneself.
+    moderation_suspension_target => {
+        version    => 2,
+        parameters => [ actor => 'uuid', user_id => 'uuid' ]
+    },
+
     # v5.0.0-2.3.2: the hourly sweep queues the ends a timed suspension lacks.
     moderation_queue_suspension_ends => {
         version    => 2,
@@ -1900,13 +1906,14 @@ const my %FUNCTION => (
         parameters => [ command_id => 'uuid', changes => 'jsonb' ]
     },
     ops_event_claim => {
-        version    => 2,
+        version    => 4,
         parameters => [
             operation      => 'text',
             key            => 'text',
             event_id       => 'text',
             now            => 'text',
-            expired_before => 'text'
+            expired_before => 'text',
+            token          => 'uuid'
         ]
     },
     outbox_claim_ready => {

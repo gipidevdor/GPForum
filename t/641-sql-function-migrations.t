@@ -115,6 +115,7 @@ my %previous_arguments = (
     community_follow_feed => [
         qw(actor member global_read category_ids space_ids after_at after_id row_limit)
     ],
+    ops_event_claim => [qw(operation key event_id now expired_before)],
 );
 for my $name ( sort keys %previous_arguments ) {
     $boundaries{ $name . '_v2' } = {

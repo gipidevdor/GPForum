@@ -14,6 +14,7 @@ use lib 't/lib';
 use GPForum::Service::Moderation::Workflow;
 use GPForum::Test::CommandIdempotency;
 use GPForum::Test::ForumWebServices;
+use GPForum::Test::RefusingSuspensions;
 
 our $VERSION = '0.001';
 
@@ -353,6 +354,31 @@ _replay_moderation(
         services => $services,
     }
 );
+
+# A member the actor may not suspend -- staff, or themselves -- is refused
+# as forbidden, with the reason, not answered as found or missing.
+for my $case (
+    [ staff => qr/only [ ] an [ ] administrator/msx ],
+    [ self  => qr/cannot [ ] suspend [ ] yourself/msx ],
+  )
+{
+    my ( $why, $message ) = @{$case};
+    my $refused = GPForum::Service::Moderation::Workflow->new(
+        action_store     => GPForum::Test::ForumWebServices->new,
+        report_store     => GPForum::Test::ForumWebServices->new,
+        suspension_store =>
+          GPForum::Test::RefusingSuspensions->new( refused => $why ),
+    )->suspend_user(
+        {
+            actor_user_id => 'moderator-1',
+            command_id    => "suspend-refused-$why",
+            reason        => 'abuse campaign',
+            user_id       => $ID{user},
+        }
+    );
+    is( $refused->{status}, 'forbidden', "a $why target is forbidden" );
+    like( $refused->{error}, $message, 'and says why' );
+}
 
 done_testing();
 

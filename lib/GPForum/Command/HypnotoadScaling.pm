@@ -3,7 +3,6 @@
 
 package GPForum::Command::HypnotoadScaling;
 
-use Carp qw(croak);
 use Const::Fast;
 use JSON::MaybeXS qw(encode_json);
 use Mojo::Base -base, -signatures;
@@ -13,6 +12,7 @@ use GPForum::Command::Usage;
 use GPForum::Command::HypnotoadBenchmark;
 use GPForum::Command::PerformanceSeed;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -77,7 +77,8 @@ sub _run ( $self, @arguments ) {
     my $report  = $self->scaling_report($options);
 
     print $self->format_report( $report, $options->{format} )
-      or croak 'failed to write hypnotoad scaling benchmark report';
+      or GPForum::X::Io->throw(
+        message => 'failed to write hypnotoad scaling benchmark report' );
 
     return $options->{check} && $report->{status} ne 'ok' ? 1 : 0;
 }

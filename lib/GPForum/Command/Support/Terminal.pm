@@ -3,11 +3,11 @@
 
 package GPForum::Command::Support::Terminal;
 
-use Carp qw(croak);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::Util qw(decode encode);
 use POSIX      ();
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -59,14 +59,15 @@ sub hidden_line ( $self, $question ) {
     }
     $terminal->setlflag($echoing);
     $terminal->setattr( $fileno, POSIX::TCSANOW() );
-    print { $self->prompt } "\n" or croak 'failed to write the prompt';
+    print { $self->prompt } "\n"
+      or GPForum::X::Io->throw( message => 'failed to write the prompt' );
 
     return _chomped($answer);
 }
 
 sub _ask ( $self, $question ) {
     print { $self->prompt } encode( 'UTF-8', "$question " )
-      or croak 'failed to write the prompt';
+      or GPForum::X::Io->throw( message => 'failed to write the prompt' );
 
     return;
 }

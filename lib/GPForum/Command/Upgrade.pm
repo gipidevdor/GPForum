@@ -3,7 +3,6 @@
 
 package GPForum::Command::Upgrade;
 
-use Carp qw(croak);
 use Const::Fast;
 use English qw(-no_match_vars);
 use Mojo::Base -base, -signatures;
@@ -16,6 +15,7 @@ use GPForum::Command::Usage;
 use GPForum::Service::Operations::Dependencies;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::ReadinessFindings;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -163,7 +163,7 @@ sub _print ( $self, $plan ) {
     push @lines, $self->_said('cli.upgrade.guide');
 
     print encode( 'UTF-8', join( "\n", @lines ) . "\n" )
-      or croak 'failed to write the upgrade';
+      or GPForum::X::Io->throw( message => 'failed to write the upgrade' );
 
     return 0;
 }

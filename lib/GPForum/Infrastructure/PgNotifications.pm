@@ -14,6 +14,7 @@ use Mojo::Promise;
 use GPForum::Infrastructure::AsyncGate;
 
 use GPForum::Infrastructure::Storage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -224,7 +225,9 @@ sub ensure_p ($self) {
         delete $self->{async_busy};
         if ( my $socket = delete $self->{async_watch} ) {
             Mojo::IOLoop->singleton->reactor->remove($socket);
-            close $socket or croak 'cannot close notification descriptor';
+            close $socket
+              or GPForum::X::Io->throw(
+                message => 'cannot close notification descriptor' );
         }
         $self->{async_owner} = $PROCESS_ID;
         $self->{async_gate} =
@@ -324,7 +327,9 @@ sub _native_command_p ( $self, $work ) {
 sub _unwatch_native ($self) {
     if ( my $socket = delete $self->{async_watch} ) {
         Mojo::IOLoop->singleton->reactor->remove($socket);
-        close $socket or croak 'cannot close notification descriptor';
+        close $socket
+          or GPForum::X::Io->throw(
+            message => 'cannot close notification descriptor' );
     }
     return;
 }

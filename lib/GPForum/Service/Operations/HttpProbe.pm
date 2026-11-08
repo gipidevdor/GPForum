@@ -3,7 +3,6 @@
 
 package GPForum::Service::Operations::HttpProbe;
 
-use Carp qw(croak);
 use Const::Fast;
 use English    qw(-no_match_vars);
 use File::Temp ();
@@ -15,6 +14,7 @@ use Mojo::File qw(path);
 use Mojo::IOLoop::TLS;
 use Mojo::UserAgent;
 use Symbol qw(gensym);
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -160,8 +160,10 @@ sub _curl ( $self, $url, $headers ) {
     my $stderr = File::Temp->new;
     my $stdout = gensym;
     my $pid    = open3( my $stdin, $stdout, '>&' . fileno($stderr), @command );
-    print {$stdin} $config or croak "cannot write to curl: $OS_ERROR";
-    close $stdin           or croak "cannot write to curl: $OS_ERROR";
+    print {$stdin} $config
+      or GPForum::X::Io->throw( message => "cannot write to curl: $OS_ERROR" );
+    close $stdin
+      or GPForum::X::Io->throw( message => "cannot write to curl: $OS_ERROR" );
     my $code = do { local $INPUT_RECORD_SEPARATOR = undef; <$stdout> };
     waitpid $pid, 0;
     my $exit    = _exit_status($CHILD_ERROR);

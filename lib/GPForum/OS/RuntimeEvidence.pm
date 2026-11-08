@@ -3,7 +3,6 @@
 
 package GPForum::OS::RuntimeEvidence;
 
-use Carp qw(croak);
 use Const::Fast;
 use Cwd        qw(abs_path);
 use File::Temp qw(tempdir);
@@ -19,6 +18,7 @@ use GPForum::OS::RuntimePolicy;
 use GPForum::OS::Reactor ();
 use GPForum::Schema;
 use GPForum::Infrastructure::PostgresPerformance;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -355,7 +355,9 @@ sub _probe_socket_option ( $name, $level_name, $option_name ) {
       defined $raw && length $raw >= $SOCKET_INT_BYTES
       ? unpack 'i', $raw
       : undef;
-    close $socket or croak 'failed to close socket evidence probe';
+    close $socket
+      or GPForum::X::Io->throw(
+        message => 'failed to close socket evidence probe' );
 
     return {
         status    => $set_ok ? $STATUS_ACTIVE : $STATUS_UNAVAILABLE,

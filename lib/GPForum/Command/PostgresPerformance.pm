@@ -15,6 +15,7 @@ use Mojo::File    qw(path);
 use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::Infrastructure::PostgresPerformance;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 has config => sub { return GPForum::Config->from_environment; };
@@ -50,7 +51,10 @@ sub run ( $self, @arguments ) {
         if ( $options{json} ) {
             GPForum::Command::Usage->json( \*STDOUT, $report );
         }
-        else { print _text($report) or croak 'cannot write report'; }
+        else {
+            print _text($report)
+              or GPForum::X::Io->throw( message => 'cannot write report' );
+        }
         return 1 if $report->{status} eq 'fail';
         return 1 if $mode eq 'verify' && @{ $report->{findings} // [] };
     }
@@ -124,9 +128,10 @@ sub _path_option ( $self, $name, $usage ) {
 sub _write_plan ( $report, $options ) {
     sysopen my $fh, $options->{output}, O_WRONLY | O_CREAT | O_EXCL,
       $PRIVATE_MODE
-      or croak 'cannot create new plan file';
-    print {$fh} encode_json($report), "\n" or croak 'cannot write plan';
-    close $fh or croak 'cannot close plan';
+      or GPForum::X::Io->throw( message => 'cannot create new plan file' );
+    print {$fh} encode_json($report), "\n"
+      or GPForum::X::Io->throw( message => 'cannot write plan' );
+    close $fh or GPForum::X::Io->throw( message => 'cannot close plan' );
 
     return;
 }

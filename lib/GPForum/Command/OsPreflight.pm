@@ -3,7 +3,6 @@
 
 package GPForum::Command::OsPreflight;
 
-use Carp qw(croak);
 use Const::Fast;
 use JSON::MaybeXS ();
 use Mojo::Base -base, -signatures;
@@ -21,6 +20,7 @@ use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::OSPreflight;
 use GPForum::X::Config;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -88,7 +88,8 @@ sub _run ( $self, $options ) {
       ? JSON::MaybeXS->new( canonical => 1 )->encode($report) . "\n"
       : $findings->human_text;
     print encode( 'UTF-8', $output )
-      or croak 'failed to write OS preflight report';
+      or
+      GPForum::X::Io->throw( message => 'failed to write OS preflight report' );
 
     # Under --strict -- what the service files run before a start -- the
     # report on stdout is JSON, for the journal to keep; each problem is
@@ -97,7 +98,8 @@ sub _run ( $self, $options ) {
     if ( $options->{strict} && $options->{json} ) {
         for my $line ( @{ $findings->problem_lines($JOURNAL_PREFIX) } ) {
             print {*STDERR} encode( 'UTF-8', "$line\n" )
-              or croak 'failed to write OS preflight problem';
+              or GPForum::X::Io->throw(
+                message => 'failed to write OS preflight problem' );
         }
     }
 
@@ -124,7 +126,9 @@ sub _settings_failure ( $self, $error, $options ) {
           ->config_report(
             \@problems, GPForum::Command::Support::ServiceEnvironment->loaded
           )
-    ) or croak 'failed to write the settings report';
+      )
+      or
+      GPForum::X::Io->throw( message => 'failed to write the settings report' );
     if ( $options->{json} ) {
         GPForum::Command::Usage->json(
             \*STDOUT,

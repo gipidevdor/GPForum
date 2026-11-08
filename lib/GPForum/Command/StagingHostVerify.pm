@@ -3,7 +3,6 @@
 
 package GPForum::Command::StagingHostVerify;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -12,6 +11,7 @@ use GPForum::Command::Usage;
 use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::Service::Operations::StagingHostVerify;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -46,7 +46,8 @@ sub _run ( $self, $options ) {
     my $service  = $self->_service;
     my $evidence = $service->run($options);
     print $service->format_evidence( $evidence, $options->{format} )
-      or croak 'failed to write staging-host-verify evidence';
+      or GPForum::X::Io->throw(
+        message => 'failed to write staging-host-verify evidence' );
 
     return $service->exit_status($evidence);
 }

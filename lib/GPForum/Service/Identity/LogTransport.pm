@@ -3,12 +3,12 @@
 
 package GPForum::Service::Identity::LogTransport;
 
-use Carp qw(croak);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::Util qw(encode);
 
 use GPForum::Service::I18N::CliCatalog;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -42,7 +42,8 @@ sub send ( $self, $email, $envelope ) {    ## no critic (Subroutines::ProhibitBu
     }
 
     print {*STDERR} encode( 'UTF-8', "$text\n" )
-      or croak 'failed to write the mail to standard error';
+      or GPForum::X::Io->throw(
+        message => 'failed to write the mail to standard error' );
 
     return 1;
 }

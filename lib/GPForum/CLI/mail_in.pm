@@ -12,6 +12,7 @@ use Carp qw(croak);
 use GPForum::Command::Usage;
 use GPForum::Service::Operations::DatabaseFailure;
 use GPForum::X::Unavailable;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -86,13 +87,16 @@ sub temporary ( $, $error, $status ) {
 }
 
 sub _read_message {
-    binmode STDIN or croak 'cannot read email input';
+    binmode STDIN
+      or GPForum::X::Io->throw( message => 'cannot read email input' );
     my $raw = q{};
     while (1) {
         my $chunk;
         my $read = read STDIN, $chunk, $INPUT_CHUNK_BYTES;
-        croak 'cannot read email input' if !defined $read;
-        last                            if !$read;
+        if ( !defined $read ) {
+            GPForum::X::Io->throw( message => 'cannot read email input' );
+        }
+        last if !$read;
         $raw .= $chunk;
         croak 'email exceeds one MiB' if length($raw) > $MAX_MAIL_BYTES;
     }

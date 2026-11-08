@@ -3,13 +3,13 @@
 package GPForum::OS::SupervisorProbe;
 use Mojo::Base 'GPForum::Base', -signatures;
 use v5.40;
-use Carp qw(croak);
 use Const::Fast;
 use English    qw(-no_match_vars);
 use Mojo::File qw(path);
 use Mojo::Util qw(xml_escape);
 use GPForum::OS;
 use GPForum::X::Argument;
+use GPForum::X::Io;
 our $VERSION = '0.001';
 const my $EPOLL     => 4;
 const my $KQUEUE    => 8;
@@ -35,7 +35,9 @@ sub start ($self) {
     for my $name (qw(supervisor.log supervisor.out)) {
         my $file = path( $self->directory, $name );
         $file->spew(q{});
-        chmod $LOG_MODE, $file or croak 'cannot protect native probe log';
+        chmod $LOG_MODE, $file
+          or
+          GPForum::X::Io->throw( message => 'cannot protect native probe log' );
     }
     my $kind    = $self->platform->name;
     my @payload = (
@@ -221,7 +223,9 @@ sub _read_pid ($file) {
     open my $handle, '<', $file or return 0;
     my $value = q{};
     my $read  = sysread $handle, $value, $PID_BYTES;
-    close $handle or croak 'cannot close native probe PID file';
+    close $handle
+      or
+      GPForum::X::Io->throw( message => 'cannot close native probe PID file' );
     return 0 if !defined $read;
     my ($digits) = $value =~ /\A([1-9]\d*)\n?\z/amsx;
     return 0 if !defined $digits;

@@ -16,6 +16,7 @@ use Symbol      qw(gensym);
 use Time::HiRes qw(sleep time);
 
 use GPForum::X::Unavailable;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -53,12 +54,16 @@ sub spawn ( $child, @command ) {
 
     try {
         if ( $child->{session} ) {
-            setsid or croak "failed to create $child->{name} process session";
+            setsid
+              or GPForum::X::Io->throw(
+                message => "failed to create $child->{name} process session" );
         }
         open STDOUT, '>>', $child->{log_file}
-          or croak "failed to open $child->{log_file}";
+          or GPForum::X::Io->throw(
+            message => "failed to open $child->{log_file}" );
         open STDERR, '>>', $child->{log_file}
-          or croak "failed to open $child->{log_file}";
+          or GPForum::X::Io->throw(
+            message => "failed to open $child->{log_file}" );
         local %ENV = ( %ENV, %{ $child->{environment} || {} } );
         exec @command or croak "failed to exec $child->{name}";
     }
@@ -182,7 +187,9 @@ sub free_port {
     ) or croak 'failed to allocate a local benchmark port';
 
     my $port = $socket->sockport;
-    close $socket or croak 'failed to close benchmark port probe socket';
+    close $socket
+      or GPForum::X::Io->throw(
+        message => 'failed to close benchmark port probe socket' );
 
     return $port;
 }

@@ -12,6 +12,7 @@ use GPForum::Infrastructure::AsyncGate;
 use GPForum::Infrastructure::Subprocess;
 use GPForum::Infrastructure::Cancellation;
 use Mojo::Promise;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 const my $COMMAND_BYTES => 17;
@@ -185,7 +186,8 @@ sub _read_loop ( $child, $path, $expected ) {
         $child->progress(
             { bytes => _read_chunk( $file, $path, $metadata, $command ) } );
     }
-    CORE::close $file or croak 'cannot close streamed file';
+    CORE::close $file
+      or GPForum::X::Io->throw( message => 'cannot close streamed file' );
     return 1;
 }
 
@@ -237,9 +239,12 @@ sub _command ($socket) {
         my $remaining = $COMMAND_BYTES - length $command;
         my $part      = q{};
         my $count     = read $socket, $part, $remaining;
-        croak 'cannot read file reader command' if !defined $count;
-        return undef                            if !$count && !length $command;
-        croak 'incomplete file reader command'  if !$count;
+        if ( !defined $count ) {
+            GPForum::X::Io->throw(
+                message => 'cannot read file reader command' );
+        }
+        return undef                           if !$count && !length $command;
+        croak 'incomplete file reader command' if !$count;
         $command .= $part;
     }
     return $command;

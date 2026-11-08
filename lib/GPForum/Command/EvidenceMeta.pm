@@ -16,6 +16,7 @@ use GPForum::Service::Operations::EvidenceHost qw(evidence_trimmed);
 use GPForum::Service::Operations::EvidenceMeta qw(evidence_finalize);
 use GPForum::X::Config;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -30,7 +31,8 @@ sub run ( $self, @arguments ) {
     }
     catch ($error) {
         print {*STDERR} evidence_trimmed($error) . "\n"
-          or croak 'failed to write evidence-meta usage error';
+          or GPForum::X::Io->throw(
+            message => 'failed to write evidence-meta usage error' );
         return $EXIT_USAGE;
     };
 
@@ -45,13 +47,15 @@ sub run ( $self, @arguments ) {
         }
         catch ($error) {
             print {*STDERR} evidence_trimmed($error) . "\n"
-              or croak 'failed to write evidence-meta error';
+              or GPForum::X::Io->throw(
+                message => 'failed to write evidence-meta error' );
             $code = 1;
             next;
         };
         if ( !$options->{write} ) {
             print encode_json($result) . "\n"
-              or croak 'failed to write stamped evidence';
+              or GPForum::X::Io->throw(
+                message => 'failed to write stamped evidence' );
         }
     }
 

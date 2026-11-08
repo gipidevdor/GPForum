@@ -22,6 +22,7 @@ use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::MetricsTokens;
 use GPForum::Service::Operations::ServiceFiles;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -548,7 +549,7 @@ sub _failed ( $self, $request, $key, $parameters ) {
         );
     }
     print {*STDERR} encode( 'UTF-8', "$sentence\n" )
-      or croak 'failed to write secret failure';
+      or GPForum::X::Io->throw( message => 'failed to write secret failure' );
 
     return $GPForum::Command::Usage::EXIT_FAILURE;
 }
@@ -579,7 +580,7 @@ sub _said ( $self, $key, $parameters = {} ) {
 sub _say ( $self, $line ) {
     my $read = GPForum::Command::Support::ServiceEnvironment->as_read($line);
     print encode( 'UTF-8', "$read\n" )
-      or croak 'failed to write secret result';
+      or GPForum::X::Io->throw( message => 'failed to write secret result' );
 
     return;
 }

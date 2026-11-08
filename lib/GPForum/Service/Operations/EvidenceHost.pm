@@ -5,12 +5,12 @@ package GPForum::Service::Operations::EvidenceHost;
 
 use v5.40;
 
-use Carp qw(croak);
 use Const::Fast;
 use English    qw(-no_match_vars);
 use Exporter   qw(import);
 use IPC::Open3 qw(open3);
 use Mojo::File qw(path);
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -31,10 +31,13 @@ const my $ROOT_WALK_LIMIT  => 8;
 # not succeed, whatever its exit code reads.
 sub evidence_capture ($command) {
     my $pid = open3( my $input, my $output, undef, @{$command} );
-    close $input or croak "cannot close the input of $command->[0]: $OS_ERROR";
+    close $input
+      or GPForum::X::Io->throw(
+        message => "cannot close the input of $command->[0]: $OS_ERROR" );
     my $text = do { local $INPUT_RECORD_SEPARATOR = undef; <$output> };
     close $output
-      or croak "cannot close the output of $command->[0]: $OS_ERROR";
+      or GPForum::X::Io->throw(
+        message => "cannot close the output of $command->[0]: $OS_ERROR" );
     waitpid $pid, 0;
 
     return {

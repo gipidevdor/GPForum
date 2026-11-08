@@ -3,7 +3,6 @@
 
 package GPForum::Command::DeadLetterReplay;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -14,6 +13,7 @@ use GPForum::Schema;
 use GPForum::Service::Admin::ConsoleReader;
 use GPForum::Service::Outbox::DeadLetterReplay;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -235,7 +235,9 @@ sub _one_line ($text) {
 }
 
 sub _say ($line) {
-    print "$line\n" or croak 'failed to write dead-letter-replay output';
+    print "$line\n"
+      or GPForum::X::Io->throw(
+        message => 'failed to write dead-letter-replay output' );
 
     return;
 }

@@ -20,6 +20,7 @@ use GPForum::Service::Attachment::Source;
 use GPForum::Service::Clock;
 use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 const my $MIB => 1_024 * 1_024;
@@ -267,7 +268,8 @@ sub _largest ( $self, $scanner ) {
     my $file   = tempfile;
     my $handle = $file->open('>');
     truncate $handle, $size or croak 'cannot size antivirus probe';
-    close $handle or croak 'cannot close antivirus probe';
+    close $handle
+      or GPForum::X::Io->throw( message => 'cannot close antivirus probe' );
     return $scanner->scan_source(
         GPForum::Service::Attachment::Source->new(
             asset => Mojo::Asset::File->new( path => "$file" )

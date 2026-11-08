@@ -3,13 +3,13 @@
 
 package GPForum::Command::EvidenceValidate;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::Command::Usage;
 use GPForum::Service::Operations::EvidenceValidate;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -36,7 +36,8 @@ sub _run ( $self, $options ) {
     my $service  = $self->_service;
     my $evidence = $service->run($options);
     print $service->format_evidence( $evidence, $options->{format} )
-      or croak 'failed to write evidence-validate evidence';
+      or GPForum::X::Io->throw(
+        message => 'failed to write evidence-validate evidence' );
 
     return $service->exit_status($evidence);
 }

@@ -20,6 +20,7 @@ use GPForum::Command::Usage;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::ServiceFiles;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -417,11 +418,15 @@ sub _replace ( $into, $file ) {
     my $written = path( $temporary->filename );
     try {
         print {$temporary} encode( 'UTF-8', $file->{text} )
-          or croak "cannot write $written: $OS_ERROR";
-        close $temporary or croak "cannot close $written: $OS_ERROR";
+          or GPForum::X::Io->throw(
+            message => "cannot write $written: $OS_ERROR" );
+        close $temporary
+          or GPForum::X::Io->throw(
+            message => "cannot close $written: $OS_ERROR" );
         $written->chmod( $file->{mode} );
         rename $written->to_string, $into->child( $file->{name} )->to_string
-          or croak "cannot rename $written: $OS_ERROR";
+          or GPForum::X::Io->throw(
+            message => "cannot rename $written: $OS_ERROR" );
     }
     catch ($error) {
         unlink $written->to_string;

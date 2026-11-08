@@ -3,7 +3,6 @@
 
 package GPForum::Command::MailCheck;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -16,6 +15,7 @@ use GPForum::Infrastructure::Text qw(has_text);
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::MailCheck;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -77,7 +77,9 @@ sub _run ( $self, $options ) {
     if ( $options->{format} eq 'human' ) {
         $text = GPForum::Command::Support::ServiceEnvironment->as_read($text);
     }
-    print $text or croak 'failed to write mail-check evidence';
+    print {*STDOUT} $text
+      or
+      GPForum::X::Io->throw( message => 'failed to write mail-check evidence' );
 
     return $service->exit_status($evidence);
 }

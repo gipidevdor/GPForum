@@ -13,6 +13,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 
 use GPForum::OS::Filesystem;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -45,14 +46,16 @@ sub write_object ( $self, $object_key, $content ) {
 sub read_object ( $self, $object_key ) {
     my $path = $self->path_for($object_key);
     open my $handle, '<', $path
-      or croak "failed to open attachment object $object_key: $ERRNO";
+      or GPForum::X::Io->throw(
+        message => "failed to open attachment object $object_key: $ERRNO" );
     binmode $handle
       or croak
       "failed to set binary mode for attachment object $object_key: $ERRNO";
     local $INPUT_RECORD_SEPARATOR = undef;
     my $content = <$handle>;
     close $handle
-      or croak "failed to close attachment object $object_key: $ERRNO";
+      or GPForum::X::Io->throw(
+        message => "failed to close attachment object $object_key: $ERRNO" );
 
     return $content;
 }

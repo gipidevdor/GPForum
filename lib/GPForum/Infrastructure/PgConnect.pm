@@ -17,6 +17,7 @@ use Socket
   qw(getaddrinfo getnameinfo NI_NUMERICHOST NI_NUMERICSERV SOCK_STREAM AF_INET AF_INET6 inet_pton);
 use Mojo::Promise;
 use GPForum::X::Unavailable;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 const my $CONNECT_SECONDS  => 5;
@@ -128,7 +129,8 @@ sub _service_dsn($pg) {
       getnameinfo( $peer, NI_NUMERICHOST | NI_NUMERICSERV );
     my $selected = $probe->{pg_host};
     close $socket
-      or croak 'cannot close PostgreSQL peer descriptor';
+      or GPForum::X::Io->throw(
+        message => 'cannot close PostgreSQL peer descriptor' );
     $probe->disconnect;
     return $dsn if !$selected || $selected =~ m{\A/}msx;
     croak 'PostgreSQL service peer unavailable' if $error;
@@ -192,7 +194,9 @@ sub _poll_p ( $self, $dbh ) {
     my $clear    = sub {
         if ($socket) {
             $reactor->remove($socket);
-            close $socket or croak 'cannot close PostgreSQL poll descriptor';
+            close $socket
+              or GPForum::X::Io->throw(
+                message => 'cannot close PostgreSQL poll descriptor' );
             undef $socket;
         }
         return;

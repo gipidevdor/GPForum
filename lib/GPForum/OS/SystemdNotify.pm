@@ -12,6 +12,7 @@ use English qw(-no_match_vars);
 use Mojo::UserAgent;
 use Mojo::Util qw(steady_time);
 use Socket     qw(AF_UNIX SOCK_DGRAM sockaddr_un);
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -32,10 +33,13 @@ sub notify ( $self, $message ) {
     return false if !defined $path || !length $path;
     $path =~ s/\A@/\x00/msx;
     socket my $socket, AF_UNIX, SOCK_DGRAM, 0
-      or croak "cannot open systemd notification socket: $OS_ERROR";
+      or GPForum::X::Io->throw(
+        message => "cannot open systemd notification socket: $OS_ERROR" );
     CORE::send( $socket, $message, 0, sockaddr_un($path) )
       or croak "cannot notify systemd: $OS_ERROR";
-    close $socket or croak "cannot close notification socket: $OS_ERROR";
+    close $socket
+      or GPForum::X::Io->throw(
+        message => "cannot close notification socket: $OS_ERROR" );
     return true;
 }
 

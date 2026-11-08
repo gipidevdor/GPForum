@@ -3,7 +3,6 @@
 
 package GPForum::Command::PlatformCheck;
 
-use Carp qw(croak);
 use Const::Fast;
 use List::Util qw(any);
 use Mojo::Base -base, -signatures;
@@ -16,6 +15,7 @@ use GPForum::Runtime;
 use GPForum::Service::Operations::OSPreflight;
 use GPForum::Service::Operations::Profile;
 use GPForum::Service::Operations::QueryBudget;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -61,7 +61,8 @@ sub _platform_check ( $self, $options ) {
 
     for my $check ( @{$checks} ) {
         print "$check->{name} status=$check->{status}\n"
-          or croak 'failed to write platform check';
+          or
+          GPForum::X::Io->throw( message => 'failed to write platform check' );
     }
 
     return $exit;

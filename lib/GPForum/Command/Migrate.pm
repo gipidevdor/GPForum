@@ -21,6 +21,7 @@ use GPForum::Schema;
 use GPForum::Service::Admin::Bootstrapper;
 use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::QueryBudget;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -491,10 +492,11 @@ sub _print_check ( $pending, $status ) {
     for my $migration ( @{$pending} ) {
         print
 "pending $migration->{version} $migration->{description} $migration->{file}\n"
-          or croak 'failed to write migration check';
+          or
+          GPForum::X::Io->throw( message => 'failed to write migration check' );
     }
     print 'migrate check status=' . $status . ' pending=' . @{$pending} . "\n"
-      or croak 'failed to write migration check';
+      or GPForum::X::Io->throw( message => 'failed to write migration check' );
 
     return;
 }
@@ -540,7 +542,7 @@ sub _next ( $self, $step ) {
 sub _say ( $self, $line ) {
     my $read = GPForum::Command::Support::ServiceEnvironment->as_read($line);
     print encode( 'UTF-8', "$read\n" )
-      or croak 'failed to write migration result';
+      or GPForum::X::Io->throw( message => 'failed to write migration result' );
 
     return;
 }

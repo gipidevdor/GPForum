@@ -3,7 +3,6 @@
 
 package GPForum::Command::AntivirusCheck;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -14,6 +13,7 @@ use GPForum::Command::Support::Words;
 use GPForum::Config;
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::AntivirusCheck;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -78,7 +78,8 @@ sub _run ( $self, $format ) {
       );
     my $evidence = $check->run;
     print $check->format_evidence( $evidence, $format )
-      or croak 'failed to write antivirus-check evidence';
+      or GPForum::X::Io->throw(
+        message => 'failed to write antivirus-check evidence' );
 
     return $check->exit_status($evidence);
 }

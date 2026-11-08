@@ -3,7 +3,6 @@
 
 package GPForum::Command::Benchmark;
 
-use Carp qw(croak);
 use Const::Fast;
 use English       qw(-no_match_vars);
 use JSON::MaybeXS qw(decode_json encode_json);
@@ -20,6 +19,7 @@ use GPForum::Benchmark::Measure qw(
   route_summary sample_route statuses_text
 );
 use GPForum::Service::Operations::QueryBudget;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -97,7 +97,7 @@ sub _run ( $self, @arguments ) {
     }
 
     print $self->format_report( $report, $options->{format} )
-      or croak 'failed to write benchmark report';
+      or GPForum::X::Io->throw( message => 'failed to write benchmark report' );
 
     return $options->{check} && $report->{status} ne 'ok' ? 1 : 0;
 }
@@ -299,20 +299,27 @@ sub _compare_baseline ( $report, $options ) {
 
 sub _read_baseline ($path) {
     open my $handle, '<', $path
-      or croak "failed to read benchmark baseline $path: $ERRNO";
+      or GPForum::X::Io->throw(
+        message => "failed to read benchmark baseline $path: $ERRNO" );
     local $INPUT_RECORD_SEPARATOR = undef;
     my $json = <$handle>;
-    close $handle or croak "failed to close benchmark baseline $path: $ERRNO";
+    close $handle
+      or GPForum::X::Io->throw(
+        message => "failed to close benchmark baseline $path: $ERRNO" );
 
     return decode_json($json);
 }
 
 sub _write_baseline ( $path, $report ) {
     open my $handle, '>', $path
-      or croak "failed to write benchmark baseline $path: $ERRNO";
+      or GPForum::X::Io->throw(
+        message => "failed to write benchmark baseline $path: $ERRNO" );
     print {$handle} _report_json($report)
-      or croak "failed to write benchmark baseline $path: $ERRNO";
-    close $handle or croak "failed to close benchmark baseline $path: $ERRNO";
+      or GPForum::X::Io->throw(
+        message => "failed to write benchmark baseline $path: $ERRNO" );
+    close $handle
+      or GPForum::X::Io->throw(
+        message => "failed to close benchmark baseline $path: $ERRNO" );
 
     return;
 }

@@ -13,6 +13,7 @@ use Mojo::UserAgent;
 use GPForum::Benchmark::Process qw(command_output find_binary free_port spawn);
 use GPForum::X::Config;
 use GPForum::X::Unavailable;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -108,11 +109,14 @@ sub proxy_config ($settings) {
 
 sub _write_config ($settings) {
     open my $handle, '>', $settings->{config_file}
-      or croak "failed to write reverse proxy config $settings->{config_file}";
+      or GPForum::X::Io->throw( message =>
+          "failed to write reverse proxy config $settings->{config_file}" );
     print {$handle} proxy_config($settings)
-      or croak "failed to write reverse proxy config $settings->{config_file}";
+      or GPForum::X::Io->throw( message =>
+          "failed to write reverse proxy config $settings->{config_file}" );
     close $handle
-      or croak "failed to close reverse proxy config $settings->{config_file}";
+      or GPForum::X::Io->throw( message =>
+          "failed to close reverse proxy config $settings->{config_file}" );
 
     return;
 }

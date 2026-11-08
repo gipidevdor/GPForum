@@ -5,10 +5,10 @@ package GPForum::Command::Support::Manual;
 
 use Mojo::Base -base, -signatures;
 use v5.40;
-use Carp       qw(croak);
 use Mojo::File qw(path);
 use Pod::Usage ();
 use Pod::Man;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -50,14 +50,16 @@ sub text ( $self, $verb, $class ) {
 
 sub man ( $self, $verb, $class, $destination ) {
     my $pod = $self->pod( $verb, $class );
-    open my $input, '<', \$pod or croak 'cannot read command POD';
+    open my $input, '<', \$pod
+      or GPForum::X::Io->throw( message => 'cannot read command POD' );
     Pod::Man->new(
         name    => "gpforum-$verb",
         section => 1,
         release => 'GPForum',
         date    => q{}
     )->parse_from_file( $input, $destination );
-    close $input or croak 'cannot close command POD';
+    close $input
+      or GPForum::X::Io->throw( message => 'cannot close command POD' );
     return;
 }
 

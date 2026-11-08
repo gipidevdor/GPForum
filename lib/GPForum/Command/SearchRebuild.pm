@@ -3,7 +3,6 @@
 
 package GPForum::Command::SearchRebuild;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -15,6 +14,7 @@ use GPForum::Service::Search::Indexer;
 use GPForum::Service::Search::Semantic;
 use GPForum::Infrastructure::Embedding;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -181,7 +181,9 @@ sub _options (@arguments) {
 }
 
 sub _say ($line) {
-    print "$line\n" or croak 'failed to write search-rebuild output';
+    print "$line\n"
+      or GPForum::X::Io->throw(
+        message => 'failed to write search-rebuild output' );
 
     return;
 }

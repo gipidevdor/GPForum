@@ -3,7 +3,6 @@
 
 package GPForum::Command::QueryBudget;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -16,6 +15,7 @@ use GPForum::Config;
 use GPForum::Schema;
 use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::QueryBudget;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -116,7 +116,8 @@ sub print_catalog ($self) {
         my $budget = $catalog->{$endpoint_name};
         print
 "$endpoint_name queries=$budget->{max_queries} transactions=$budget->{max_transactions} $budget->{notes}\n"
-          or croak 'failed to write query budget catalog';
+          or GPForum::X::Io->throw(
+            message => 'failed to write query budget catalog' );
     }
 
     return 0;
@@ -128,14 +129,16 @@ sub sync_catalog ($self) {
     my $result = $budget->sync_schema;
 
     print "synced $result->{synced} endpoint query budgets\n"
-      or croak 'failed to write query budget sync result';
+      or GPForum::X::Io->throw(
+        message => 'failed to write query budget sync result' );
     my @removed = @{ $result->{removed} };
     if (@removed) {
         print 'removed '
           . scalar(@removed)
           . ' dropped endpoint query budgets: '
           . join( q{,}, @removed ) . "\n"
-          or croak 'failed to write query budget sync result';
+          or GPForum::X::Io->throw(
+            message => 'failed to write query budget sync result' );
     }
 
     return 0;
@@ -148,12 +151,14 @@ sub check_catalog ($self) {
 
     if ( $report->{status} eq 'ok' ) {
         print "ok endpoint query budgets aligned\n"
-          or croak 'failed to write query budget check result';
+          or GPForum::X::Io->throw(
+            message => 'failed to write query budget check result' );
         return 0;
     }
 
     print _drift_line($report)
-      or croak 'failed to write query budget drift result';
+      or GPForum::X::Io->throw(
+        message => 'failed to write query budget drift result' );
 
     return 1;
 }
@@ -219,7 +224,8 @@ sub _say_sync_catalog ($self) {
 sub _say ( $self, $text ) {
     my $read = GPForum::Command::Support::ServiceEnvironment->as_read($text);
     print encode( 'UTF-8', "$read\n" )
-      or croak 'failed to write query budget result';
+      or
+      GPForum::X::Io->throw( message => 'failed to write query budget result' );
 
     return;
 }

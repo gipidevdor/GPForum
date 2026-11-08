@@ -11,6 +11,7 @@ use File::Temp;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Service::Discovery::Mbox;
 use Mojo::Promise;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -184,7 +185,8 @@ sub _spool_file {
         TMPDIR   => 1,
         UNLINK   => 1
     );
-    binmode $file or croak 'cannot open mbox spool';
+    binmode $file
+      or GPForum::X::Io->throw( message => 'cannot open mbox spool' );
     return $file;
 }
 
@@ -325,7 +327,7 @@ sub _write_posts ( $self, $file, $head, $posts, $envelopes, $root ) {
             ? $self->_verified( $post, $envelope )
             : undef,
             ${$root} )
-          or croak 'cannot write mbox spool';
+          or GPForum::X::Io->throw( message => 'cannot write mbox spool' );
         ${$root} //= $post->{post_id};
     }
     return;

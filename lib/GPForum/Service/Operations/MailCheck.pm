@@ -3,7 +3,6 @@
 
 package GPForum::Service::Operations::MailCheck;
 
-use Carp qw(croak);
 use Const::Fast;
 use English                                    qw(-no_match_vars);
 use GPForum::Infrastructure::Text              qw(has_text);
@@ -21,6 +20,7 @@ use GPForum::Service::Operations::EvidenceMeta
   qw(evidence_finalize evidence_scrub_text);
 use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -449,7 +449,9 @@ sub _default_smtp_connect ( $host, $port, $timeout ) {
         GPForum::X::Unavailable->throw(
             message => "SMTP TCP connect failed to $host:$port: $OS_ERROR" );
     }
-    close $socket or croak "failed to close SMTP probe socket: $OS_ERROR";
+    close $socket
+      or GPForum::X::Io->throw(
+        message => "failed to close SMTP probe socket: $OS_ERROR" );
 
     return 1;
 }

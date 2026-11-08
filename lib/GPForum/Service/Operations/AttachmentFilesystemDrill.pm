@@ -23,6 +23,7 @@ use GPForum::Service::Operations::EvidenceHost qw(
 );
 use GPForum::Service::Operations::EvidenceMeta qw(evidence_finalize);
 use GPForum::X::Check;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -125,11 +126,13 @@ sub _inventory ($root) {
                 my $relative = File::Spec->abs2rel( $File::Find::name, $root );
                 $relative =~ s{\\}{/}gmsx;
                 open my $handle, '<:raw', $File::Find::name
-                  or croak "failed to read $File::Find::name: $ERRNO";
+                  or GPForum::X::Io->throw(
+                    message => "failed to read $File::Find::name: $ERRNO" );
                 local $INPUT_RECORD_SEPARATOR = undef;
                 my $content = <$handle>;
                 close $handle
-                  or croak "failed to close $File::Find::name: $ERRNO";
+                  or GPForum::X::Io->throw(
+                    message => "failed to close $File::Find::name: $ERRNO" );
                 $files{$relative} = sha256_hex($content);
             },
             no_chdir => 1,

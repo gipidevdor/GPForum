@@ -15,6 +15,7 @@ use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::Dependencies;
 use GPForum::Service::Operations::Findings;
 use GPForum::Service::Operations::Host;
+use GPForum::X::Io;
 
 # The checks themselves are loaded when they run, not with the command: they
 # load most of the application, and a module an upgrade added and nobody
@@ -180,7 +181,8 @@ sub _report ( $self, $options, $result ) {
     $text .= "\n" . $findings->summary . "\n";
     print encode( 'UTF-8',
         GPForum::Command::Support::ServiceEnvironment->as_read($text) )
-      or croak 'failed to write the doctor report';
+      or
+      GPForum::X::Io->throw( message => 'failed to write the doctor report' );
 
     return $exit;
 }

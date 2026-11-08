@@ -3,7 +3,6 @@
 
 package GPForum::Command::StagingDrillAttachments;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -14,6 +13,7 @@ use GPForum::Service::Operations::AttachmentFilesystemDrill;
 use GPForum::Service::Operations::DeployChecklistDrill;
 use GPForum::Service::Operations::EvidenceMeta qw(evidence_finalize);
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -48,7 +48,8 @@ sub run ( $self, @arguments ) {
 sub _run ( $self, $options ) {
     my $evidence = $self->_run_phases($options);
     print $self->_format( $evidence, $options->{format} )
-      or croak 'failed to write staging drill attachments evidence';
+      or GPForum::X::Io->throw(
+        message => 'failed to write staging drill attachments evidence' );
 
     return $self->_exit_status($evidence);
 }

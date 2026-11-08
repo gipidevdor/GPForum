@@ -22,6 +22,7 @@ use GPForum::Service::Operations::EvidenceMeta qw(evidence_finalize);
 use GPForum::X::Argument;
 use GPForum::X::Config;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -72,7 +73,7 @@ sub front_door ( $, $status ) {
 
 sub help ( $class, $output, $text ) {
     print {$output} _for_terminal( _terminated($text) )
-      or croak 'failed to write usage';
+      or GPForum::X::Io->throw( message => 'failed to write usage' );
 
     return $EXIT_OK;
 }
@@ -92,7 +93,7 @@ sub error ( $class, $message, $text ) {
         $body =~ s/\s+\z/\n/msx;
     }
     print {*STDERR} _for_terminal( $body . ( _terminated($text) // q{} ) )
-      or croak 'failed to write usage error';
+      or GPForum::X::Io->throw( message => 'failed to write usage error' );
 
     return $EXIT_USAGE;
 }
@@ -242,13 +243,14 @@ sub json ( $, $output, $document ) {
     }
 
     print {$output} JSON::MaybeXS->new(%JSON_SETTINGS)->encode($document), "\n"
-      or croak 'failed to write JSON';
+      or GPForum::X::Io->throw( message => 'failed to write JSON' );
 
     # Each document reaches its reader when it is printed. Standard output
     # into a pipe is block-buffered, so `outbox-dispatch --loop --json | jq`
     # saw nothing until 8 KB of batches had piled up -- six minutes of idle
     # passes -- and a kill lost them.
-    $output->flush or croak 'failed to write JSON';
+    $output->flush
+      or GPForum::X::Io->throw( message => 'failed to write JSON' );
 
     return;
 }
@@ -291,7 +293,7 @@ sub failure ( $class, $error, $output = undef, $document = undef ) {
         )
       )
       . "\n"
-      or croak 'failed to write failure';
+      or GPForum::X::Io->throw( message => 'failed to write failure' );
     if ( defined $document ) {
         $class->json(
             $output,

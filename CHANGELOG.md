@@ -4513,6 +4513,14 @@ Migrations 2000–2025 install a fresh database only; use the current
   manager's lock and PID file operations throw it; messages are unchanged.
   The refusals that need an operator (a symlinked PID file, a live PID, a
   held lock) stay as they were.
+- **Failed writes, reads and closes in commands and probes are `X::Io`.** About
+  sixty modules (the `Command::*` writers of reports and evidence, the CLI
+  entry points, the operations probes, benchmark helpers, the file reader and
+  filesystem storage) throw it for a `cannot|failed to write|read|open|close`
+  failure. Messages are unchanged. `Infrastructure::PerlRuntime` keeps to core
+  modules and is untouched; `HypnotoadBenchmark` and two reads in
+  `PostgresPerformance` stay `croak` where the heredoc and the filehandle
+  span made the critic's brief-open rule fire.
 - **Eleven bare `croak` calls are typed exceptions (`t/887`).** The native
   supervisor probe's seven contract failures are `GPForum::X::Argument`; the
   post signer's four refusals of an unusable key are `GPForum::X::Config`.

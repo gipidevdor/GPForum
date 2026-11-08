@@ -11,6 +11,7 @@ use Fcntl        qw(O_RDONLY O_NOFOLLOW S_ISREG);
 use English      qw(-no_match_vars);
 use MIME::Base64 qw(decode_base64url encode_base64url);
 use Mojo::JSON   qw(decode_json);
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 const my $STAT_MODE    => 2;
@@ -52,7 +53,7 @@ sub private ($self) {
 sub _read ( $self, $name, $private ) {
     my $file = $self->directory . q{/} . $name;
     sysopen my $input, $file, O_RDONLY | O_NOFOLLOW
-      or croak 'cannot open push key material';
+      or GPForum::X::Io->throw( message => 'cannot open push key material' );
     my @stat = stat $input;
     if (
            !@stat
@@ -68,7 +69,8 @@ sub _read ( $self, $name, $private ) {
         croak 'unsafe push key material';
     }
     my $bytes = do { local $INPUT_RECORD_SEPARATOR = undef; <$input> };
-    close $input or croak 'cannot close push key material';
+    close $input
+      or GPForum::X::Io->throw( message => 'cannot close push key material' );
     return $bytes;
 }
 

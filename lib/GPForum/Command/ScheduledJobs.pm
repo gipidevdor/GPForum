@@ -15,6 +15,7 @@ use GPForum::Command::Usage;
 use GPForum::Service::Operations::Findings;
 use GPForum::X::Argument;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -234,7 +235,8 @@ sub _print_summary ( $output, $summary ) {
     }
 
     print {$output} join( q{ }, 'scheduled_jobs', @pairs ), "\n"
-      or croak 'failed to write scheduled jobs summary';
+      or GPForum::X::Io->throw(
+        message => 'failed to write scheduled jobs summary' );
 
     return;
 }
@@ -251,7 +253,8 @@ sub _say_summary ( $self, $summary ) {
     my $text = GPForum::Command::Support::ServiceEnvironment->as_read(
         $findings->human_text( summary => 0 ) );
     print { $self->output } encode( 'UTF-8', $text )
-      or croak 'failed to write scheduled jobs summary';
+      or GPForum::X::Io->throw(
+        message => 'failed to write scheduled jobs summary' );
 
     return;
 }

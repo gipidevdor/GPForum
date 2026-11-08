@@ -3,7 +3,6 @@
 
 package GPForum::Service::Operations::ServiceUnits;
 
-use Carp qw(croak);
 use Const::Fast;
 use English    qw(-no_match_vars);
 use File::Find qw(find);
@@ -23,6 +22,7 @@ use GPForum::Service::Operations::DeployContract qw(
 );
 use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::ServiceFiles;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -502,7 +502,9 @@ sub _capture ( $binary, @arguments ) {
     my $output = gensym;
     my $pid =
       open3( my $input, $output, '>&' . fileno($errors), $binary, @arguments );
-    close $input or croak "cannot close systemctl's input: $OS_ERROR";
+    close $input
+      or GPForum::X::Io->throw(
+        message => "cannot close systemctl's input: $OS_ERROR" );
     my $text = do { local $INPUT_RECORD_SEPARATOR = undef; <$output> }
       // q{};
     waitpid $pid, 0;

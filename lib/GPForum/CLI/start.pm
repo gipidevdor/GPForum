@@ -11,7 +11,6 @@ package GPForum::CLI::start;
 use Const::Fast;
 use Mojo::Base 'Mojolicious::Command', -signatures;
 use v5.40;
-use Carp    qw(croak);
 use English qw(-no_match_vars);
 use POSIX   ();
 use Mojo::URL;
@@ -23,6 +22,7 @@ use GPForum::OS::ServiceManager;
 use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Command::Support::Words;
 use GPForum::Command::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -195,7 +195,7 @@ sub _refuse_tcp ( $words, $listen ) {
       $words->text( 'cli.start.tcp_listen',
         { listen => $listen, where => $where } );
     print {*STDERR} encode( 'UTF-8', "$sentence\n" )
-      or croak 'failed to write start failure';
+      or GPForum::X::Io->throw( message => 'failed to write start failure' );
 
     return $GPForum::Command::Usage::EXIT_FAILURE;
 }
@@ -226,7 +226,7 @@ sub _cannot_listen ( $words, $listen, $error ) {
     my $read =
       GPForum::Command::Support::ServiceEnvironment->as_read($sentence);
     print {*STDERR} encode( 'UTF-8', "$read\n" )
-      or croak 'failed to write start failure';
+      or GPForum::X::Io->throw( message => 'failed to write start failure' );
 
     return $GPForum::Command::Usage::EXIT_FAILURE;
 }

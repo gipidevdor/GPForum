@@ -26,6 +26,7 @@ use GPForum::Config::Report;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Schema;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -104,12 +105,14 @@ sub _run ( $self, @arguments ) {
           'gpforum query-plan-evidence: PostgreSQL query plan evidence failed. '
           . 'Run script/bootstrap-deps --postgres, apply migrations, '
           . "seed benchmark data, and ensure the database is reachable.\n"
-          or croak 'failed to write the query plan error';
+          or GPForum::X::Io->throw(
+            message => 'failed to write the query plan error' );
         return $GPForum::Command::Usage::EXIT_FAILURE;
     };
 
     print $self->format_report( $report, $options->{format} )
-      or croak 'failed to write query plan evidence report';
+      or GPForum::X::Io->throw(
+        message => 'failed to write query plan evidence report' );
 
     return $options->{check} && $report->{status} ne 'ok' ? 1 : 0;
 }

@@ -3,7 +3,6 @@
 
 package GPForum::Command::OutboxDispatch;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -14,6 +13,7 @@ use GPForum::Command::Support::Words;
 use GPForum::Command::Usage;
 use GPForum::X::Argument;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -307,7 +307,8 @@ sub _said ( $self, $key, $parameters = {} ) {
 sub _say ( $self, $line ) {
     my $read = GPForum::Command::Support::ServiceEnvironment->as_read($line);
     print { $self->output } encode( 'UTF-8', "$read\n" )
-      or croak 'failed to write outbox dispatch summary';
+      or GPForum::X::Io->throw(
+        message => 'failed to write outbox dispatch summary' );
 
     return;
 }
@@ -318,7 +319,8 @@ sub _print_summary ( $output, $summary ) {
         map { $_ . q{=} . ( defined $summary->{$_} ? $summary->{$_} : 0 ) }
           @COUNT_KEYS ),
       "\n"
-      or croak 'failed to write outbox dispatch summary';
+      or GPForum::X::Io->throw(
+        message => 'failed to write outbox dispatch summary' );
 
     return;
 }

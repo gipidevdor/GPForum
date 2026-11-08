@@ -23,6 +23,7 @@ use GPForum::Command::Support::Words;
 use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::X::Config;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -367,14 +368,16 @@ sub _is_command ($class) {
 }
 
 sub _print ( $self, $text ) {
-    print {*STDOUT} encode( 'UTF-8', $text ) or croak 'failed to write help';
+    print {*STDOUT} encode( 'UTF-8', $text )
+      or GPForum::X::Io->throw( message => 'failed to write help' );
 
     return $GPForum::Command::Usage::EXIT_OK;
 }
 
 sub _complain ( $self, $text ) {
     print {*STDERR} encode( 'UTF-8', "$text\n" )
-      or croak 'failed to write to standard error';
+      or
+      GPForum::X::Io->throw( message => 'failed to write to standard error' );
 
     return;
 }

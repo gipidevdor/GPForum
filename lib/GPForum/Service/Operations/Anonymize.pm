@@ -13,6 +13,7 @@ use DBI;
 use File::Temp qw(tempdir);
 use GPForum::Service::Operations::StagingDrill::PgTools;
 use GPForum::Service::Search::DocumentBuilder;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -81,7 +82,8 @@ sub run ( $self, $target ) {
         my $dump = "$directory/source.dump";
         $tools->dump_database( $tools->rewrite_dsn( $dsn, $source ), $dump );
         $tools->restore_database( $target_dsn, $dump );
-        unlink $dump or croak 'cannot remove source dump';
+        unlink $dump
+          or GPForum::X::Io->throw( message => 'cannot remove source dump' );
         $copy = DBI->connect( $target_dsn, $user, $password,
             { RaiseError => 1, PrintError => 0, AutoCommit => 1 } );
         $self->_scrub($copy);

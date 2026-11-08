@@ -16,6 +16,7 @@ use GPForum::Config;
 use GPForum::Config::Report;
 use GPForum::Schema;
 use GPForum::X::Config;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -78,7 +79,8 @@ sub _run ( $self, @arguments ) {
     }
     catch ($error) {
         print {*STDERR} _seed_error($error)
-          or croak 'failed to write the seed error';
+          or
+          GPForum::X::Io->throw( message => 'failed to write the seed error' );
 
         # Settings it refuses are 78, as for every verb; anything else that
         # stops the seed is a failure, 1 -- not misuse.
@@ -261,7 +263,9 @@ sub _print_report ( $report, $options ) {
       ? encode_json($report) . "\n"
       : _text_report($report);
 
-    print $text or croak 'failed to write performance seed report';
+    print {*STDOUT} $text
+      or GPForum::X::Io->throw(
+        message => 'failed to write performance seed report' );
 
     return 0;
 }
@@ -277,7 +281,8 @@ sub _text_report ($report) {
 }
 
 sub _print_usage {
-    print _usage(), "\n" or croak 'failed to write usage';
+    print _usage(), "\n"
+      or GPForum::X::Io->throw( message => 'failed to write usage' );
 
     return 0;
 }

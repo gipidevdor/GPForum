@@ -37,6 +37,7 @@ use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::PeerAuthentication;
 use GPForum::Service::Operations::ServiceAccount;
 use GPForum::Service::Operations::ServiceFiles;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -313,7 +314,9 @@ sub _setup ( $self, $options ) {
             GPForum::Command::Support::Words->new->config_report(
                 $problems, $state->{file}
             )
-        ) or croak 'failed to write the settings report';
+          )
+          or GPForum::X::Io->throw(
+            message => 'failed to write the settings report' );
         return $GPForum::Command::Usage::EXIT_CONFIG;
     }
 
@@ -1756,21 +1759,21 @@ sub _said ( $self, $key, $parameters = {} ) {
 
 sub _ask_line ( $self, $line ) {
     print { $self->prompt } encode( 'UTF-8', "$line\n" )
-      or croak 'failed to write the question';
+      or GPForum::X::Io->throw( message => 'failed to write the question' );
 
     return;
 }
 
 sub _say ( $self, $text ) {
     print { $self->output } encode( 'UTF-8', $self->_as_read($text) . "\n" )
-      or croak 'failed to write the setup report';
+      or GPForum::X::Io->throw( message => 'failed to write the setup report' );
 
     return;
 }
 
 sub _complain ( $self, $text ) {
     print {*STDERR} encode( 'UTF-8', "$text\n" )
-      or croak 'failed to write the setup report';
+      or GPForum::X::Io->throw( message => 'failed to write the setup report' );
 
     return;
 }

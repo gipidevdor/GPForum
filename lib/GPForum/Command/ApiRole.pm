@@ -13,6 +13,7 @@ use GPForum::Command::Usage;
 use GPForum::Command::Support::Words;
 use GPForum::Config;
 use GPForum::Service::Operations::ApiRole;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -45,7 +46,8 @@ sub run ( $self, @arguments ) {
             else {
                 print
 "provisioned $result->{role} with $result->{functions} API functions\n"
-                  or croak 'failed to write API role result';
+                  or GPForum::X::Io->throw(
+                    message => 'failed to write API role result' );
             }
         }
         else {
@@ -64,7 +66,8 @@ sub run ( $self, @arguments ) {
             }
             else {
                 print join( ";\n", @{$statements} ) . ";\n"
-                  or croak 'failed to write API role plan';
+                  or GPForum::X::Io->throw(
+                    message => 'failed to write API role plan' );
             }
         }
     }

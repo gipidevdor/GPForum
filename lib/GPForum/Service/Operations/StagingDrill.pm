@@ -28,6 +28,7 @@ use GPForum::Service::Operations::EvidenceMeta qw(evidence_finalize);
 use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::StagingDrill::PgTools;
 use GPForum::X::Check;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -222,7 +223,9 @@ sub _run_dump_restore_phase ( $self, $evidence, $options ) {
         UNLINK   => 1,
     );
     my $dump = $temporary->filename;
-    close $temporary or croak 'failed to close temporary dump handle';
+    close $temporary
+      or GPForum::X::Io->throw(
+        message => 'failed to close temporary dump handle' );
     $self->tools->dump_database( $source->{dsn}, $dump );
     my $target = $self->_create_throwaway( $options, 'restore' );
     $self->tools->restore_database( $target->{dsn}, $dump );
@@ -497,8 +500,10 @@ sub _quietly ($code) {
         local *STDERR = $err_handle;
         $status = $code->();
     }
-    close $out_handle or croak 'failed to close stdout capture';
-    close $err_handle or croak 'failed to close stderr capture';
+    close $out_handle
+      or GPForum::X::Io->throw( message => 'failed to close stdout capture' );
+    close $err_handle
+      or GPForum::X::Io->throw( message => 'failed to close stderr capture' );
 
     return $status;
 }

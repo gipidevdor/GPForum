@@ -15,6 +15,7 @@ use GPForum::Infrastructure::PostgresProfile;
 use GPForum::Infrastructure::AsyncWork;
 use Mojo::Promise;
 use GPForum::X::Check;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 __PACKAGE__->requires('config');
@@ -434,7 +435,8 @@ sub _mutate ( $self, $options, $prepare ) {
         croak '--journal path is required' if !$options->{journal};
         sysopen $fh, $options->{journal}, O_WRONLY | O_CREAT | O_EXCL,
           $PRIVATE_MODE
-          or croak 'cannot create new journal (never overwrite an earlier run)';
+          or GPForum::X::Io->throw( message =>
+              'cannot create new journal (never overwrite an earlier run)' );
         $fh->autoflush(1);
 
         # JSON Lines: the first record is metadata; each subsequent record is
@@ -457,7 +459,7 @@ sub _mutate ( $self, $options, $prepare ) {
           if !$dbh->selectrow_array('SELECT pg_catalog.pg_reload_conf()');
         $journal->{reload_requested} = 1;
         _record( $fh, $journal );
-        close $fh or croak 'cannot close journal';
+        close $fh or GPForum::X::Io->throw( message => 'cannot close journal' );
         $fh     = undef;
         $result = {
             status     => 'ok',
@@ -478,8 +480,11 @@ sub _mutate ( $self, $options, $prepare ) {
 }
 
 sub _record ( $fh, $journal ) {
-    print {$fh} encode_json($journal), "\n" or croak 'cannot write journal';
-    $fh->sync or croak 'cannot sync journal before changing PostgreSQL';
+    print {$fh} encode_json($journal), "\n"
+      or GPForum::X::Io->throw( message => 'cannot write journal' );
+    $fh->sync
+      or GPForum::X::Io->throw(
+        message => 'cannot sync journal before changing PostgreSQL' );
     return;
 }
 

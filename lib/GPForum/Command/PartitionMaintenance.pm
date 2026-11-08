@@ -16,6 +16,7 @@ use GPForum::Command::Usage;
 use GPForum::Service::Operations::DatabaseFailure;
 use GPForum::Service::Operations::Findings;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -134,7 +135,8 @@ sub _say_result ( $self, $result, $options ) {
     my $findings = $self->_problems($result);
     if ( @{ $findings->items } ) {
         print { $self->output } encode( 'UTF-8', $findings->human_text )
-          or croak 'failed to write partition maintenance output';
+          or GPForum::X::Io->throw(
+            message => 'failed to write partition maintenance output' );
         return;
     }
 
@@ -235,7 +237,8 @@ sub _said ( $self, $key, $parameters = {} ) {
 sub _say ( $self, $line ) {
     my $read = GPForum::Command::Support::ServiceEnvironment->as_read($line);
     print { $self->output } encode( 'UTF-8', "$read\n" )
-      or croak 'failed to write partition maintenance output';
+      or GPForum::X::Io->throw(
+        message => 'failed to write partition maintenance output' );
 
     return;
 }
@@ -361,7 +364,8 @@ sub _print_remediation ( $output, $steps ) {
 
 sub _print_line ( $output, $line ) {
     print {$output} $line, "\n"
-      or croak 'failed to write partition maintenance output';
+      or GPForum::X::Io->throw(
+        message => 'failed to write partition maintenance output' );
 
     return;
 }

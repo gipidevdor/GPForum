@@ -11,6 +11,7 @@ use Socket  qw(AF_UNIX SOCK_STREAM PF_UNSPEC);
 use POSIX   qw(WNOHANG);
 use Const::Fast;
 use Mojo::IOLoop::Stream;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 const my $REAP_INTERVAL => 0.01;
@@ -51,7 +52,8 @@ sub _child ( $self, $writer, $work ) {
         try { @values = $work->($self); }
         catch ($caught) { $error = $caught; };
         print {$writer} '0-', $self->serialize->( [ $error // q{}, @values ] )
-          or croak "cannot write subprocess result: $OS_ERROR";
+          or GPForum::X::Io->throw(
+            message => "cannot write subprocess result: $OS_ERROR" );
         $self->emit('cleanup');
     }
     catch ($caught) {

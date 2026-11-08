@@ -3,7 +3,6 @@
 
 package GPForum::Command::Status;
 
-use Carp qw(croak);
 use Const::Fast;
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -14,6 +13,7 @@ use GPForum::Command::Usage;
 use GPForum::Config;
 use GPForum::Service::I18N::CliCatalog;
 use GPForum::Service::Operations::StatusReport;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -101,7 +101,8 @@ sub run ( $self, @arguments ) {
         $text = "$shown->{heading}\n\n$text";
     }
     print encode( 'UTF-8', $self->service_environment->as_read($text) )
-      or croak 'failed to write the status report';
+      or
+      GPForum::X::Io->throw( message => 'failed to write the status report' );
 
     return $findings->exit_status;
 }

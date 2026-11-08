@@ -3,7 +3,6 @@
 
 package GPForum::Service::Operations::Backup;
 
-use Carp qw(croak);
 use Const::Fast;
 use Cwd qw(realpath);
 use Digest::SHA;
@@ -27,6 +26,7 @@ use GPForum::Service::Operations::Host;
 use GPForum::Service::Operations::StagingDrill::PgTools;
 use GPForum::Service::Operations::BackupVerifier;
 use GPForum::X::Unavailable;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -663,10 +663,14 @@ sub _check_archive ( $self, $findings, $at, $file, $said, $fail ) {
 # GPForum::X::Unavailable with what it said.
 sub _run ( $self, $command ) {
     my $pid = open3( my $input, my $output, undef, @{$command} );
-    close $input or croak "cannot close $command->[0]'s input: $OS_ERROR";
+    close $input
+      or GPForum::X::Io->throw(
+        message => "cannot close $command->[0]'s input: $OS_ERROR" );
     my $said = do { local $INPUT_RECORD_SEPARATOR = undef; <$output> }
       // q{};
-    close $output or croak "cannot close $command->[0]'s output: $OS_ERROR";
+    close $output
+      or GPForum::X::Io->throw(
+        message => "cannot close $command->[0]'s output: $OS_ERROR" );
     waitpid $pid, 0;
     if ( !WIFEXITED($CHILD_ERROR) || WEXITSTATUS($CHILD_ERROR) != 0 ) {
         GPForum::X::Unavailable->throw(

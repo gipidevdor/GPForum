@@ -13,6 +13,7 @@ use Perl::Tidy;
 use Carp       qw(croak);
 use Fcntl      qw(O_WRONLY O_CREAT O_EXCL);
 use Mojo::File qw(path);
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 const my $INITIAL_VERSION      => 999;
@@ -80,10 +81,12 @@ sub run ( $self, $name = undef, @arguments ) {
             }
             $target->dirname->make_path;
             sysopen my $handle, $target, O_WRONLY | O_CREAT | O_EXCL
-              or croak "cannot create $target";
+              or GPForum::X::Io->throw( message => "cannot create $target" );
             push @made, $target;
-            print {$handle} $text or croak "cannot write $target";
-            close $handle         or croak "cannot close $target";
+            print {$handle} $text
+              or GPForum::X::Io->throw( message => "cannot write $target" );
+            close $handle
+              or GPForum::X::Io->throw( message => "cannot close $target" );
         }
         croak 'catalogue changed while generating'
           if $catalogue->slurp ne $source;

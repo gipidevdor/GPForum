@@ -3,7 +3,6 @@
 
 package GPForum::Command::AdminBootstrap;
 
-use Carp qw(croak);
 use Const::Fast;
 use English qw(-no_match_vars);
 use Mojo::Base -base, -signatures;
@@ -19,6 +18,7 @@ use GPForum::Schema;
 use GPForum::Service::Admin::Bootstrapper;
 use GPForum::Service::Password;
 use GPForum::X::Usage;
+use GPForum::X::Io;
 
 our $VERSION = '0.001';
 
@@ -429,7 +429,7 @@ sub _failed ( $self, $request, $key, $parameters = {} ) {
         );
     }
     print {*STDERR} encode( 'UTF-8', "$sentence\n" )
-      or croak 'failed to write admin failure';
+      or GPForum::X::Io->throw( message => 'failed to write admin failure' );
 
     return $GPForum::Command::Usage::EXIT_FAILURE;
 }
@@ -519,7 +519,7 @@ sub _said ( $self, $key, $parameters = {} ) {
 sub _say ( $self, $line ) {
     my $read = GPForum::Command::Support::ServiceEnvironment->as_read($line);
     print encode( 'UTF-8', "$read\n" )
-      or croak 'failed to write admin result';
+      or GPForum::X::Io->throw( message => 'failed to write admin result' );
 
     return;
 }

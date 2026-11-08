@@ -16,6 +16,7 @@ use Socket      qw(SOCK_STREAM);
 use Time::HiRes qw(time);
 use Time::Piece ();
 
+use GPForum::Infrastructure::Text qw(error_text);
 use GPForum::X::Argument;
 use GPForum::X::Config;
 use GPForum::X::Unavailable;
@@ -50,7 +51,7 @@ sub scan ( $self, $content ) {
         $reply = $self->_instream( $content, $deadline );
     }
     catch ($error) {
-        return _error( _trimmed($error) );
+        return _error( error_text( $error, 'unknown clamd failure' ) );
     };
 
     my $verdict = _verdict($reply);
@@ -120,7 +121,11 @@ sub health ( $self, $now_epoch ) {
         $version = $self->version;
     }
     catch ($error) {
-        return { %check, status => 'degraded', error => _trimmed($error) };
+        return {
+            %check,
+            status => 'degraded',
+            error  => error_text( $error, 'unknown clamd failure' )
+        };
     };
 
     # clamd writes the date in the host's local time (ctime), so it is read
@@ -335,13 +340,6 @@ sub _verdict ($reply) {
 
 sub _error ($message) {
     return { status => 'error', error => $message };
-}
-
-sub _trimmed ($message) {
-    my $text = defined $message ? "$message" : 'unknown clamd failure';
-    $text =~ s/\s+ at \s+ \S+ \s+ line \s+ \d+ [.]? \s* \z//msx;
-
-    return $text;
 }
 
 1;

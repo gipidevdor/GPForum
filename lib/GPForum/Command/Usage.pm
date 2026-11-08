@@ -15,6 +15,7 @@ use Mojo::Util qw(encode);
 
 use GPForum::Command::Support::ServiceEnvironment;
 use GPForum::Command::Support::Words;
+use GPForum::Infrastructure::Text qw(error_text);
 use GPForum::Service::Operations::DatabaseFailure;
 use GPForum::Service::Admin::Settings;
 use GPForum::Service::Operations::EvidenceMeta qw(evidence_finalize);
@@ -362,14 +363,7 @@ sub wants_help ( $, @arguments ) {
 # per throw -- a DBIx::Class connection failure ends "at DBI.pm line 1639. at
 # Migrate.pm line 9" -- so every trailing one goes.
 sub trimmed ( $, $error ) {
-    my $text = defined $error ? "$error" : q{};
-    while (
-        $text =~ s/\s+ at \s+ \S+ \s+ line \s+ [[:digit:]]+ [.]? \s*\z//msx )
-    {
-    }
-    $text =~ s/\s+\z//msx;
-
-    return $text;
+    return error_text($error);
 }
 
 # The name the operator actually invoked: "gpforum hypnotoad-benchmark"

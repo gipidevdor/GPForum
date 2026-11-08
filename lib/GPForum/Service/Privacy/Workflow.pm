@@ -10,6 +10,7 @@ use v5.40;
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Service::Privacy::ErasedExports;
 use GPForum::Service::WorkflowResult qw(log_error workflow_result);
+use GPForum::Infrastructure::Row     qw(column_of);
 
 our $VERSION = '0.001';
 
@@ -264,8 +265,8 @@ sub _hold_input ( $command, $request ) {
     return {
         created_by    => $command->{actor_user_id},
         reason        => $command->{reason},
-        resource_id   => _column( $request, 'resource_id' ),
-        resource_type => _column( $request, 'resource_type' ),
+        resource_id   => column_of( $request, 'resource_id' ),
+        resource_type => column_of( $request, 'resource_type' ),
     };
 }
 
@@ -486,17 +487,6 @@ sub _stored ( $not_found, $value ) {
         status => 'ok',
         stored => $value,
     );
-}
-
-sub _column ( $row, $name ) {
-    if ( ref $row eq 'HASH' ) {
-        return $row->{$name};
-    }
-    if ( $row && $row->can('get_column') ) {
-        return $row->get_column($name);
-    }
-
-    return undef;
 }
 
 1;

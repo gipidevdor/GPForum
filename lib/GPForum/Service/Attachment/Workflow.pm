@@ -6,6 +6,7 @@ package GPForum::Service::Attachment::Workflow;
 use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
+use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::WorkflowResult
   qw(log_error missing_command_id workflow_result);
 our $VERSION = '0.001';
@@ -202,7 +203,7 @@ async sub _upload_once_p ( $self, $input, $functions, $context ) {
 sub _upload_request ( $input, $post ) {
     return {
         actor_user_id    => $input->{actor_user_id},
-        target_id        => _column( $post, 'post_id' ),
+        target_id        => column_of( $post, 'post_id' ),
         target_type      => 'post',
         upload           => $input->{upload},
         source_kind      => $input->{source_kind},
@@ -383,12 +384,12 @@ sub _public_attachment ($attachment) {
     }
 
     return {
-        attachment_id     => _column( $attachment, 'attachment_id' ),
-        byte_size         => _column( $attachment, 'byte_size' ),
-        media_type        => _column( $attachment, 'media_type' ),
-        original_filename => _column( $attachment, 'original_filename' ),
-        scan_status       => _column( $attachment, 'scan_status' ),
-        state             => _column( $attachment, 'state' ),
+        attachment_id     => column_of( $attachment, 'attachment_id' ),
+        byte_size         => column_of( $attachment, 'byte_size' ),
+        media_type        => column_of( $attachment, 'media_type' ),
+        original_filename => column_of( $attachment, 'original_filename' ),
+        scan_status       => column_of( $attachment, 'scan_status' ),
+        state             => column_of( $attachment, 'state' ),
     };
 }
 
@@ -398,10 +399,10 @@ sub _public_link ($link) {
     }
 
     return {
-        attachment_id      => _column( $link, 'attachment_id' ),
-        attachment_link_id => _column( $link, 'attachment_link_id' ),
-        target_id          => _column( $link, 'target_id' ),
-        target_type        => _column( $link, 'target_type' ),
+        attachment_id      => column_of( $link, 'attachment_id' ),
+        attachment_link_id => column_of( $link, 'attachment_link_id' ),
+        target_id          => column_of( $link, 'target_id' ),
+        target_type        => column_of( $link, 'target_type' ),
     };
 }
 
@@ -411,8 +412,8 @@ sub _public_post ($post) {
     }
 
     return {
-        post_id   => _column( $post, 'post_id' ),
-        thread_id => _column( $post, 'thread_id' ),
+        post_id   => column_of( $post, 'post_id' ),
+        thread_id => column_of( $post, 'thread_id' ),
     };
 }
 
@@ -461,7 +462,7 @@ sub _delete_link ( $input, $post ) {
     return {
         actor_id      => $input->{actor_user_id},
         attachment_id => $input->{attachment_id},
-        target_id     => _column( $post, 'post_id' ),
+        target_id     => column_of( $post, 'post_id' ),
         target_type   => 'post',
     };
 }
@@ -505,7 +506,8 @@ sub _linked_delete ( $deleted, $post ) {
 }
 
 sub _same_author ( $post, $user_id ) {
-    return ( _column( $post, 'author_user_id' ) || q{} ) eq ( $user_id || q{} );
+    return ( column_of( $post, 'author_user_id' ) || q{} ) eq
+      ( $user_id || q{} );
 }
 
 sub _run_store ( $self, $not_found, $code ) {
@@ -560,17 +562,6 @@ sub _stored_result ( $not_found, $value ) {
     }
 
     return workflow_result( status => 'ok', stored => $value );
-}
-
-sub _column ( $row, $name ) {
-    if ( !$row ) {
-        return undef;
-    }
-    if ( ref $row eq 'HASH' ) {
-        return $row->{$name};
-    }
-
-    return $row->can('get_column') ? $row->get_column($name) : undef;
 }
 
 1;

@@ -10,7 +10,7 @@ use Mojo::Util qw(html_unescape);
 
 our $VERSION = '0.001';
 
-our @EXPORT_OK = qw(has_text plain_excerpt trimmed);
+our @EXPORT_OK = qw(error_text has_text plain_excerpt trimmed);
 
 # Whether a value is text with something in it: defined and not empty. There
 # were thirty-five copies of this in lib/, seven public, in three spellings.
@@ -22,6 +22,19 @@ sub has_text ($value) {
 # the empty string.
 sub trimmed ($value) {
     return ( $value // q{} ) =~ s/\A \s+ | \s+ \z//grmsx;
+}
+
+# What an error says, for a report or a log line: the message without the
+# " at FILE line N." Perl appends (however many times it was appended) and
+# without trailing whitespace. A value that is not defined, or says nothing,
+# is the fallback. There were five copies of this, with five fallbacks.
+sub error_text ( $error, $fallback = q{} ) {
+    my $text = defined $error ? "$error" : q{};
+    while ( $text =~ s/\s+ at \s+ \S+ \s+ line \s+ \d+ [.]? \s*\z//msx ) {
+    }
+    $text =~ s/\s+\z//msx;
+
+    return length $text ? $text : $fallback;
 }
 
 # The start of a body's safe HTML as one line of plain text, at most $length
@@ -84,6 +97,12 @@ Takes a value and returns 1 when it is defined and not empty, 0 otherwise.
 
 Takes a value and returns it without leading and trailing whitespace; undef
 returns the empty string.
+
+=head2 error_text
+
+Takes an error and an optional fallback. Returns what it says without the
+C<at FILE line N.> suffix Perl appends and without trailing whitespace, or
+the fallback (empty by default) when it says nothing.
 
 =head2 plain_excerpt
 

@@ -10,7 +10,7 @@ use Test::More;
 
 use lib 'lib';
 
-use GPForum::Infrastructure::Text qw(has_text plain_excerpt trimmed);
+use GPForum::Infrastructure::Text qw(error_text has_text plain_excerpt trimmed);
 
 our $VERSION = '0.001';
 
@@ -65,6 +65,15 @@ is( plain_excerpt( '<p>Q &amp; A &am', $WIDE ),
 is( plain_excerpt( "<p>\N{NO-BREAK SPACE}  spaced\n\tout </p>", $WIDE ),
     'spaced out', 'whitespace is one space, and none at the ends' );
 is( plain_excerpt( undef, $SHORT ), q{}, 'undef has no excerpt' );
+
+is( error_text("it broke at lib/X.pm line 4.\n"),
+    'it broke', 'the location Perl appended goes' );
+is( error_text('twice at a.pm line 1. at b.pm line 2.'),
+    'twice', 'however many times it was appended' );
+is( error_text( undef, 'unknown' ), 'unknown', 'undef is the fallback' );
+is( error_text( q{ at x line 1.}, 'unknown' ),
+    'unknown', 'a message that was only a location is the fallback too' );
+is( error_text(undef), q{}, 'the fallback is empty by default' );
 
 done_testing();
 

@@ -9,7 +9,7 @@ use Scalar::Util qw(blessed);
 use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
-use GPForum::Infrastructure::Row qw(rows_in);
+use GPForum::Infrastructure::Row qw(column_of rows_in);
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow::Audit;
 
@@ -215,8 +215,8 @@ sub _newest_first {
 sub _cursor ($row) {
     return encode_base64url(
         join q{|},
-        _column( $row, 'created_at' ),
-        _column( $row, 'audit_id' )
+        column_of( $row, 'created_at' ),
+        column_of( $row, 'audit_id' )
     );
 }
 
@@ -233,10 +233,6 @@ sub _decode_cursor ($cursor) {
         $audit_id, 'timestamp' );
 
     return { created_at => $created_at, audit_id => $audit_id };
-}
-
-sub _column ( $row, $name ) {
-    return ref $row eq 'HASH' ? $row->{$name} : $row->get_column($name);
 }
 
 # The rows as the function path answers them: audit rows whose metadata is

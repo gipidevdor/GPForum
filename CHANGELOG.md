@@ -4502,6 +4502,14 @@ Migrations 2000–2025 install a fresh database only; use the current
 
 ### Development
 
+- **Fewer private copies of the same helpers.** Three modules read a row's
+  column with their own `_column`; they now use `column_of`
+  (`GPForum::Infrastructure::Row`). Five modules kept their own copy of the
+  code that strips Perl's ` at FILE line N.` from an error; they now use
+  `error_text` (`GPForum::Infrastructure::Text`, `t/759`), each keeping its
+  own fallback sentence. Where a copy differed in meaning -- a row double's
+  method, a hash fallback, an exception on a bad row -- it stays.
+
 - **A controller cannot call a service that has no asynchronous twin
   (`t/886`).** `call_p` fails a request whose service holds a database
   connection and has no `METHOD_p`; the test now checks every literal

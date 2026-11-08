@@ -13,6 +13,7 @@ use Mojo::File qw(path);
 use GPForum::Config;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Config::Report;
+use GPForum::Infrastructure::Text qw(error_text);
 use GPForum::Migration::Plan;
 use GPForum::Migration::Runner;
 use GPForum::OS;
@@ -632,7 +633,7 @@ sub _over_tcp ( $self, $state, $source ) {
 }
 
 sub _database_failed ( $self, $state, $error, $name = 'database' ) {
-    my $text  = _trimmed($error);
+    my $text  = error_text($error);
     my $parts = GPForum::Service::Operations::DatabaseFailure->new(
         language         => $self->catalog->language,
         environment      => $state->{config}->environment,
@@ -1130,7 +1131,7 @@ sub _probe_schema ( $self, $schema ) {
         $runner->verify_order;
     }
     catch ($error) {
-        $changed = _trimmed($error);
+        $changed = error_text($error);
     };
 
     return {
@@ -1257,14 +1258,6 @@ sub _server_name ( $self, $source ) {
 }
 
 # An error's text without croak's " at FILE line N." or the newline after it.
-sub _trimmed ($error) {
-    my $text = defined $error ? "$error" : q{};
-    while ( $text =~ s/\s+ at \s+ \S+ \s+ line \s+ \d+ [.]? \s*\z//msx ) {
-    }
-
-    return $text =~ s/\s+\z//rmsx;
-}
-
 # A sentence written to stand alone, put after a label ("database: "): its
 # first word lowercased, unless that word is a name with capitals of its own,
 # such as PostgreSQL.

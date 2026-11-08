@@ -14,6 +14,7 @@ use Mojo::File qw(tempfile);
 
 use GPForum::Config;
 use GPForum::Infrastructure::Antivirus;
+use GPForum::Infrastructure::Text qw(error_text);
 use GPForum::Service::Attachment::Validator;
 use GPForum::Service::Attachment::Source;
 use GPForum::Service::Clock;
@@ -49,7 +50,7 @@ sub run ($self) {
         return {
             status   => 'fail',
             engine   => 'unknown',
-            problems => [ _trimmed($error) ]
+            problems => [ error_text( $error, 'unknown failure' ) ]
         };
     };
 
@@ -71,7 +72,7 @@ sub run ($self) {
         return {
             status   => 'fail',
             engine   => $engine,
-            problems => [ _trimmed($error) ]
+            problems => [ error_text( $error, 'unknown failure' ) ]
         };
     };
 
@@ -284,13 +285,6 @@ sub _status ( $health, $problems ) {
 sub _describe ($verdict) {
     return $verdict->{status}
       . ( $verdict->{error} ? " ($verdict->{error})" : q{} );
-}
-
-sub _trimmed ($message) {
-    my $text = defined $message ? "$message" : 'unknown failure';
-    $text =~ s/\s+ at \s+ \S+ \s+ line \s+ \d+ [.]? \s* \z//msx;
-
-    return $text;
 }
 
 1;

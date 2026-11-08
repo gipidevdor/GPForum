@@ -13,6 +13,7 @@ use Mojo::Base -base, -signatures;
 use v5.40;
 use Symbol qw(gensym);
 
+use GPForum::Infrastructure::Text qw(error_text);
 use GPForum::X::Argument;
 use GPForum::X::Config;
 use GPForum::X::Unavailable;
@@ -81,7 +82,10 @@ sub scan ( $self, $content ) {
         $outcome = $self->_run($content);
     }
     catch ($error) {
-        return { status => 'error', error => _trimmed($error) };
+        return {
+            status => 'error',
+            error  => error_text( $error, 'unknown scanner failure' )
+        };
     };
 
     return _verdict( $self->_engine, $outcome );
@@ -231,14 +235,6 @@ sub _signature ( $output, $path ) {
     }
 
     return 'unnamed';
-}
-
-sub _trimmed ($message) {
-    my $text = defined $message ? "$message" : 'unknown scanner failure';
-    $text =~ s/\s+ at \s+ \S+ \s+ line \s+ \d+ [.]? \s* \z//msx;
-    chomp $text;
-
-    return $text;
 }
 
 1;

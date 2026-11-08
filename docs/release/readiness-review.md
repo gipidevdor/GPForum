@@ -1,5 +1,10 @@
 # Good Phorum release-readiness review
 
+> A record of the review as it was made on 2026-09-20. Its migration numbers
+> (`001`--`036`) are the 0.x chain; the current baseline is files 2000--2051
+> ([migrations/README.md](../../migrations/README.md)). Its verdict is not
+> renewed: no release tag, staging run or load evidence exists yet.
+
 Date: 2026-09-20 (refresh post-merge through outbox reclaim / PG evidence
 on `main`; earlier baseline 2026-06-02).
 

@@ -627,6 +627,14 @@ Migrations 2000–2025 install a fresh database only; use the current
 
 ### Security
 
+- **Suspended staff can no longer act in the privacy review.** The admin and
+  moderation consoles refused a suspended staff member's writes; the privacy
+  review (approve or hold a deletion, release a hold, run an erasure) checked
+  only the permission, so a suspended administrator or moderator kept those
+  powers. It now answers 403 and records a `suspended_user_block`, as the
+  other consoles do. A suspended member still asks for their own export and
+  erasure: that right is not staff work. `t/714` covers the four routes.
+
 - **A moderator can no longer suspend an administrator (migration 2051).**
   A suspended member cannot write in the consoles, lifting a suspension
   included, so suspending the administrators locked them out of the web.
@@ -4493,6 +4501,12 @@ Migrations 2000–2025 install a fresh database only; use the current
   and controller `optional_param` now return an explicit undef.
 
 ### Development
+
+- **A controller cannot call a service that has no asynchronous twin
+  (`t/886`).** `call_p` fails a request whose service holds a database
+  connection and has no `METHOD_p`; the test now checks every literal
+  `call_p( $self->gp_helper, 'method' )` in the controllers, so the gap shows
+  in the unit tier. All 61 helpers pass today.
 
 - **Consolidation regression is green (2026-11-02).** The complete unit and
   PostgreSQL tiers, browser clients and performance-evidence contracts pass;

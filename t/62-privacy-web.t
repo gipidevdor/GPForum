@@ -19,6 +19,7 @@ use GPForum::Test::AllowPermissionGate;
 use GPForum::Test::DenyLimiter;
 use GPForum::Test::DenyPermissionGate;
 use GPForum::Test::PrivacyWebServices;
+use GPForum::Test::ScriptedParticipation;
 use GPForum::Test::Schema;
 
 our $VERSION = '0.001';
@@ -387,6 +388,13 @@ sub _install_privacy_fakes {
     );
     $test_object->app->helper(
         gp_rate_limiter => sub { return GPForum::Test::AllowLimiter->new; } );
+
+    # Staff writes ask whether the actor may take part (not suspended).
+    $test_object->app->helper(
+        gp_suspension_store => sub {
+            return GPForum::Test::ScriptedParticipation->new;
+        }
+    );
 
     return;
 }

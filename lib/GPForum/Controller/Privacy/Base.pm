@@ -79,17 +79,31 @@ async sub authorized_write_user_id ($self) {
     }
 
     # scalar, as in write_user_id: a 401, 403 or 404 already rendered.
+    my $user_id = scalar(
+        await $self->await_p(
+            $self->authorized_user_id( $self->privacy_access->manage_action )
+        )
+    );
+    if ( !$user_id ) {
+        return;
+    }
+
+    # Staff take no part while suspended, as in the admin and moderation
+    # consoles. Only these staff writes: a suspended member keeps the right
+    # to ask for their own export or erasure (write_user_id).
+    return
+      if !(
+        await $self->await_p(
+            $self->participating(
+                $user_id, $self->privacy_access->review_action
+            )
+        )
+      );
+
     return (
         await $self->await_p(
             $self->_rate_limited_user_id(
-                scalar(
-                    await $self->await_p(
-                        $self->authorized_user_id(
-                            $self->privacy_access->manage_action
-                        )
-                    )
-                ),
-                $self->privacy_access->review_action,
+                $user_id, $self->privacy_access->review_action,
             )
         )
     );
@@ -307,8 +321,10 @@ actors.
 
 =head2 authorized_write_user_id
 
-Rejects invalid CSRF tokens, unauthorized staff writes, and rate-limited
-actors.
+Rejects invalid CSRF tokens, unauthorized staff writes, suspended staff (403,
+recorded as a C<suspended_user_block>, as in the admin and moderation
+consoles), and rate-limited actors. A suspended member can still use
+L</write_user_id> for their own export and erasure requests.
 
 =head2 authorized_user_id
 

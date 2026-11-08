@@ -28,6 +28,7 @@ const my $POST_ID        => '018f1000-0000-7000-8000-000000000101';
 const my $THREAD_ID      => '018f1000-0000-7000-8000-000000000201';
 const my $ATTACHMENT_ID  => '018f1000-0000-7000-8000-000000000301';
 const my $SUSPENSION_ID  => '018f1000-0000-7000-8000-000000000501';
+const my $REQUEST_ID     => '018f1000-0000-7000-8000-000000000601';
 
 # A suspended member takes no part in the forum: no like, no reaction, no
 # report, no attachment, no words on their profile, as no post, and no staff
@@ -71,6 +72,10 @@ my @writes = (
     '/admin/roles',
     "/moderation/suspensions/$SUSPENSION_ID/revoke",
     "/moderation/posts/$POST_ID/hide",
+    "/admin/privacy/deletions/$REQUEST_ID/approve",
+    "/admin/privacy/deletions/$REQUEST_ID/hold",
+    "/admin/privacy/holds/$REQUEST_ID/release",
+    "/admin/privacy/erasure/$REQUEST_ID/run",
 );
 for my $path (@writes) {
     my $before = _blocks();

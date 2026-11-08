@@ -49,6 +49,14 @@ $curl->spew(<<"SH");
 # CURL_EXIT asks.
 printf '%s\\n' "\$*" > '$log'
 cat >> '$log'
+if [ -n "\$CURL_KILL" ]; then kill -9 \$\$; fi
+if [ -n "\$CURL_NOISE" ]; then
+    i=0
+    while [ \$i -lt 4000 ]; do
+        echo 'curl: a warning long enough to fill a pipe on its own' >&2
+        i=\$((i + 1))
+    done
+fi
 if [ -n "\$CURL_EXIT" ]; then
     echo "curl: (\$CURL_EXIT) it failed" >&2
     exit "\$CURL_EXIT"
@@ -101,6 +109,18 @@ subtest q{curl's failures, by kind} => sub {
         is( $answer->{error}, 'it failed',
             'with what curl said, its prefix gone' );
     }
+};
+
+subtest 'a killed curl fails, and a talkative one answers' => sub {
+    {
+        local $ENV{CURL_KILL} = 1;
+        my $answer = $probe->get('https://forum.gpforum.net/health/live');
+        is( $answer->{kind}, 'other', 'killed by a signal is a failure' );
+    }
+    local $ENV{CURL_NOISE} = 1;
+    my $answer = $probe->get('https://forum.gpforum.net/health/live');
+    ok( !$answer->{error},
+        'diagnostics past a pipe buffer do not stall the probe' );
 };
 
 subtest 'no curl is said, not guessed' => sub {

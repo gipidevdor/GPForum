@@ -8,6 +8,7 @@ use Const::Fast;
 use English    qw(-no_match_vars);
 use File::Temp ();
 use IPC::Open3 qw(open3);
+use POSIX      qw(WEXITSTATUS WIFEXITED WTERMSIG);
 use Mojo::Base -base, -signatures;
 use v5.40;
 use Mojo::File qw(path);
@@ -28,7 +29,7 @@ our $VERSION = '0.001';
 # which checks the certificate as a browser would.
 
 const my $DEFAULT_TIMEOUT => 5;
-const my $EXIT_SHIFT      => 8;
+const my $SIGNALLED       => 128;
 
 # curl's exit statuses, by what they mean to an operator. A handshake that
 # failed (35) is no certificate's fault: most often the port answers plain
@@ -154,14 +155,17 @@ sub _curl ( $self, $url, $headers ) {
       sort keys %{$headers};
     $config .= _curl_line( url => $url );
 
-    my $stderr = gensym;
-    my $pid    = open3( my $stdin, my $stdout, $stderr, @command );
+    # curl's diagnostics go to a file, not a pipe read after its output: a
+    # pipe it filled while the status line waited unread blocked both.
+    my $stderr = File::Temp->new;
+    my $stdout = gensym;
+    my $pid    = open3( my $stdin, $stdout, '>&' . fileno($stderr), @command );
     print {$stdin} $config or croak "cannot write to curl: $OS_ERROR";
     close $stdin           or croak "cannot write to curl: $OS_ERROR";
-    my $code    = do { local $INPUT_RECORD_SEPARATOR = undef; <$stdout> };
-    my $message = do { local $INPUT_RECORD_SEPARATOR = undef; <$stderr> };
+    my $code = do { local $INPUT_RECORD_SEPARATOR = undef; <$stdout> };
     waitpid $pid, 0;
-    my $exit = $CHILD_ERROR >> $EXIT_SHIFT;
+    my $exit    = _exit_status($CHILD_ERROR);
+    my $message = path( $stderr->filename )->slurp;
 
     if ($exit) {
         $message //= q{};
@@ -195,6 +199,14 @@ sub _failed ( $client, $message ) {
 
 # A line of a curl config file: the value double-quoted, with \ and "
 # escaped, as curl reads it.
+# The child's exit status, or 128 plus the signal that ended it: a child
+# killed by a signal has no exit status, and read as one it was 0, success.
+sub _exit_status ($status) {
+    return WIFEXITED($status)
+      ? WEXITSTATUS($status)
+      : $SIGNALLED + WTERMSIG($status);
+}
+
 sub _curl_line ( $name, $value ) {
     $value =~ s/(["\\])/\\$1/gmsx;
 

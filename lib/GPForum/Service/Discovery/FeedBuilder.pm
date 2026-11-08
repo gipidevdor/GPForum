@@ -12,6 +12,13 @@ use GPForum::Service::Discovery::VisibilityPolicy;
 
 our $VERSION = '0.001';
 
+# What XML 1.0 lets a document carry (section 2.2, Char), and its opposite.
+const my $XML_WHITESPACE => qr/[\x{9}\x{A}\x{D}]/msx;
+const my $XML_BASIC      => qr/[\x{20}-\x{D7FF}\x{E000}-\x{FFFD}]/msx;
+const my $XML_ASTRAL     => qr/[\x{10000}-\x{10FFFF}]/msx;
+const my $XML_CHAR       => qr/$XML_WHITESPACE|$XML_BASIC|$XML_ASTRAL/msx;
+const my $NOT_XML        => qr/(?!$XML_CHAR)./msx;
+
 const my $MAX_SUMMARY_LENGTH => 240;
 
 __PACKAGE__->requires(qw(canonical_url));
@@ -94,10 +101,14 @@ sub _atom_entry ($item) {
       '  </entry>';
 }
 
+# Escaped for XML 1.0 text and attributes, without the characters XML 1.0
+# cannot carry at all: a thread title with a C0 control or a lone surrogate
+# in it made the whole feed malformed for every reader.
 sub _xml_escape ($value) {
     if ( !defined $value ) {
         $value = q{};
     }
+    $value =~ s/$NOT_XML//gmsx;
     $value =~ s/&/&amp;/gmsx;
     $value =~ s/</&lt;/gmsx;
     $value =~ s/>/&gt;/gmsx;

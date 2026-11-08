@@ -8,6 +8,8 @@ use Const::Fast;
 use English    qw(-no_match_vars);
 use File::Find qw(find);
 use IPC::Open3 qw(open3);
+use File::Temp ();
+use POSIX      qw(WEXITSTATUS WIFEXITED WTERMSIG);
 use List::Util qw(any first max);
 use Mojo::Base -base, -signatures;
 use v5.40;
@@ -48,7 +50,7 @@ const my @CODE => qw(lib bin migrations);
 const my $SECONDS_PER_MINUTE => 60;
 const my $MINUTES_PER_HOUR   => 60;
 const my $HOURS_PER_DAY      => 24;
-const my $EXIT_SHIFT         => 8;
+const my $SIGNALLED          => 128;
 const my $STAT_MTIME         => 9;
 
 has host => sub { return GPForum::Service::Operations::Host->new; };
@@ -491,20 +493,27 @@ sub _show ( $self, $unit, @properties ) {
     return \%shown;
 }
 
+# systemctl's output, diagnostics and exit status. Its diagnostics go to a
+# file, not a pipe read after its output: a pipe it filled while its output
+# waited unread blocked both. A child killed by a signal answers 128 plus
+# the signal, never 0.
 sub _capture ( $binary, @arguments ) {
-    my $errors = gensym;
-    my $pid    = open3( my $input, my $output, $errors, $binary, @arguments );
+    my $errors = File::Temp->new;
+    my $output = gensym;
+    my $pid =
+      open3( my $input, $output, '>&' . fileno($errors), $binary, @arguments );
     close $input or croak "cannot close systemctl's input: $OS_ERROR";
     my $text = do { local $INPUT_RECORD_SEPARATOR = undef; <$output> }
       // q{};
-    my $said = do { local $INPUT_RECORD_SEPARATOR = undef; <$errors> }
-      // q{};
     waitpid $pid, 0;
+    my $status = $CHILD_ERROR;
 
     return {
-        exit   => $CHILD_ERROR >> $EXIT_SHIFT,
+        exit => WIFEXITED($status)
+        ? WEXITSTATUS($status)
+        : $SIGNALLED + WTERMSIG($status),
         output => $text,
-        errors => $said,
+        errors => path( $errors->filename )->slurp,
     };
 }
 

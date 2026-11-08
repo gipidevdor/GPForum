@@ -21,7 +21,10 @@ use GPForum::ViewModel::Discovery::Presenter;
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS       => 44;
+const my $EXPECTED_TESTS       => 47;
+const my $BELL                 => 7;
+const my $VERTICAL_TAB         => 11;
+const my $NONCHARACTER         => 0xFF_FE;
 const my $VISIBLE_THREAD_COUNT => 1;
 const my $LEGAL_PAGE_COUNT     => 3;
 const my $ROBOT_RULE_COUNT     => 6;
@@ -305,5 +308,30 @@ unlike(
     qr/secret|private [ ] text/msx,
     'feed does not render non-public content'
 );
+my $controls = $feed->render_atom(
+    {
+        id      => 'https://forum.gp/feed.atom',
+        title   => join( q{}, 'Forum', chr 1, chr $VERTICAL_TAB ),
+        url     => 'https://forum.gp/feed.atom',
+        updated => '2026-05-23T12:00:00Z',
+        items   => [
+            {
+                url   => 'https://forum.gp/t/1',
+                title =>
+                  join( q{}, 'Bell', chr $BELL, chr $NONCHARACTER, "\ttab" ),
+                updated => '2026-05-23T12:00:00Z',
+                summary => join( q{}, 'nul', chr 0, 'byte' ),
+            }
+        ],
+    }
+);
+like( $controls, qr{<title>Forum</title>}msx,
+    'characters XML 1.0 cannot carry leave the feed title' );
+like(
+    $controls,
+    qr{<title>Bell\ttab</title>}msx,
+    'and an entry title, which keeps its tab'
+);
+like( $controls, qr{<summary>nulbyte</summary>}msx, 'and its summary' );
 
 1;

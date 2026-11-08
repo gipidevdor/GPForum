@@ -12,6 +12,7 @@ use Email::Address::XS;
 use Digest::SHA qw(sha256_hex);
 use Encode      qw(encode);
 use GPForum::Infrastructure::SqlFunction;
+use GPForum::X::Unavailable;
 
 our $VERSION = '0.001';
 
@@ -41,7 +42,13 @@ sub receive ( $self, $raw ) {
               ( 2**$self->reputation_rate->level( $user->{id} ) )
         }
     );
-    croak 'email reply rate limit exceeded' if !$decision->{ok};
+
+    # Over the limit now, not refused for good: the mail server keeps the
+    # message and delivers it again later (CLI::mail_in, EX_TEMPFAIL).
+    if ( !$decision->{ok} ) {
+        GPForum::X::Unavailable->throw(
+            message => 'email reply rate limit exceeded' );
+    }
     my ( $body, $message_id ) = _content($mail);
     return $self->workflow->create_reply(
         {

@@ -48,44 +48,63 @@ sub maximum_reason ($self) { return $MAXIMUM_REASON; }
 # written in. Answers the entry: its id, its status and whether it was
 # already held under that command id (replayed).
 sub hold ( $self, $input ) {
+    return _held(
+        $self->_functions->row(
+            'moderation_review_hold', $self->_hold_values($input)
+        )
+    );
+}
+
+# The hold on the worker's pooled asynchronous connections.
+async sub hold_p ( $self, $input, $context = undef ) {
+    return $self->hold($input) if !$self->functions;
+    return _held(
+        await $self->_functions->row_p(
+            'moderation_review_hold', $self->_hold_values($input), $context
+        )
+    );
+}
+
+sub _hold_values ( $self, $input ) {
     my $review_id = $self->id_service->uuid;
     my $now       = $self->clock->now_iso8601;
-    my $row       = $self->_functions->row(
-        'moderation_review_hold',
-        {
-            review_id          => $review_id,
-            author_user_id     => $input->{author_user_id},
-            command_id         => $input->{command_id},
-            kind               => $input->{kind},
-            category_id        => _uuid_or_undef( $input->{category_id} ),
-            thread_id          => _uuid_or_undef( $input->{thread_id} ),
-            title              => $input->{title} // q{},
-            body_source        => $input->{body_source},
-            body_rendered_safe => $input->{body_rendered_safe},
-            visibility         => $input->{visibility},
-            reply_to_post_id   => _uuid_or_undef( $input->{reply_to_post_id} ),
-            reason             => $input->{reason},
-            details            => $input->{details} // {},
-            draft_id           => _uuid_or_undef( $input->{draft_id} ),
-            draft_revision     => $input->{draft_revision},
-            now                => $now,
-            tags               => $input->{tags} // q{},
-            audit              => $self->_audit(
-                'review.held',
-                $input->{author_user_id},
-                $TARGET,
-                $review_id,
-                {
-                    author_user_id => $input->{author_user_id},
-                    command_type   => $input->{command_type},
-                    kind           => $input->{kind},
-                    reason         => $input->{reason},
-                    details        => $input->{details} // {},
-                },
-                $now,
-            ),
-        }
-    ) // {};
+    return {
+        review_id          => $review_id,
+        author_user_id     => $input->{author_user_id},
+        command_id         => $input->{command_id},
+        kind               => $input->{kind},
+        category_id        => _uuid_or_undef( $input->{category_id} ),
+        thread_id          => _uuid_or_undef( $input->{thread_id} ),
+        title              => $input->{title} // q{},
+        body_source        => $input->{body_source},
+        body_rendered_safe => $input->{body_rendered_safe},
+        visibility         => $input->{visibility},
+        reply_to_post_id   => _uuid_or_undef( $input->{reply_to_post_id} ),
+        reason             => $input->{reason},
+        details            => $input->{details} // {},
+        draft_id           => _uuid_or_undef( $input->{draft_id} ),
+        draft_revision     => $input->{draft_revision},
+        now                => $now,
+        tags               => $input->{tags} // q{},
+        audit              => $self->_audit(
+            'review.held',
+            $input->{author_user_id},
+            $TARGET,
+            $review_id,
+            {
+                author_user_id => $input->{author_user_id},
+                command_type   => $input->{command_type},
+                kind           => $input->{kind},
+                reason         => $input->{reason},
+                details        => $input->{details} // {},
+            },
+            $now,
+        ),
+    };
+}
+
+sub _held ($row) {
+    $row //= {};
     my $status = $row->{status} // 'invalid';
     return { ok => 0, status => 'invalid' } if $status eq 'invalid';
 
@@ -149,10 +168,34 @@ sub take ( $self, $review_id ) {
         { review_id => $review_id } );
 }
 
+# take on the worker's pooled asynchronous connections; the lock is held
+# only within a transaction, so the store is one in_transaction_p joined.
+async sub take_p ( $self, $review_id, $context = undef ) {
+    return undef if !GPForum::Infrastructure::Id->is_uuid_spelling($review_id);
+
+    return await $self->_functions->row_p( 'moderation_review_take',
+        { review_id => $review_id }, $context );
+}
+
 # Records a decision: approved (with the post it became), rejected (with
 # a reason) or withdrawn by its author. Answers the function's row: ok,
 # unchanged, decided, not_found or invalid, with the entry's status.
 sub decide ( $self, $input ) {
+    my ( $refusal, @call ) = $self->_decide_call($input);
+    return $refusal // $self->_functions->row(@call)
+      // { status => 'not_found' };
+}
+
+# The same decision on the worker's pooled asynchronous connections, not a
+# forked child with a connection of its own.
+async sub decide_p ( $self, $input, $context = undef ) {
+    return $self->decide($input) if !$self->functions;
+    my ( $refusal, @call ) = $self->_decide_call($input);
+    return $refusal // ( await $self->_functions->row_p( @call, $context ) )
+      // { status => 'not_found' };
+}
+
+sub _decide_call ( $self, $input ) {
     my $review_id = $input->{review_id} // q{};
     return { status => 'not_found' }
       if !GPForum::Infrastructure::Id->is_uuid_spelling($review_id);
@@ -160,7 +203,8 @@ sub decide ( $self, $input ) {
     return { status => 'invalid' } if !exists $DECISION_ACTION{$decision};
 
     my $now = $self->clock->now_iso8601;
-    return $self->_functions->row(
+    return (
+        undef,
         'moderation_review_decide',
         {
             review_id     => $review_id,
@@ -181,20 +225,34 @@ sub decide ( $self, $input ) {
                 $now,
             ),
         }
-    ) // { status => 'not_found' };
+    );
 }
 
 # Sets the review rule: how many first posts are held (0 is off), and
 # whether flagged posts are held too. Answers ok, unchanged or invalid
 # (with the field).
 sub set_rule ( $self, $input ) {
+    my ( $refusal, @call ) = $self->_rule_call($input);
+    return $refusal // _rule_answer( $self->_functions->row(@call) );
+}
+
+# The same rule set on the worker's pooled asynchronous connections.
+async sub set_rule_p ( $self, $input, $context = undef ) {
+    return $self->set_rule($input) if !$self->functions;
+    my ( $refusal, @call ) = $self->_rule_call($input);
+    return $refusal
+      // _rule_answer( await $self->_functions->row_p( @call, $context ) );
+}
+
+sub _rule_call ( $self, $input ) {
     my $first = $input->{first_posts} // q{};
     return _invalid('first_posts')
       if $first !~ $FIRST_POSTS || $first > $MAXIMUM_FIRST;
     my $flagged = $input->{flagged} ? 1 : 0;
 
     my $now = $self->clock->now_iso8601;
-    my $row = $self->_functions->row(
+    return (
+        undef,
         'moderation_review_settings_set',
         {
             first_posts   => 0 + $first,
@@ -213,15 +271,31 @@ sub set_rule ( $self, $input ) {
                 $now,
             ),
         }
-    ) // { status => 'invalid' };
-    my $status = $row->{status} // 'invalid';
+    );
+}
 
+sub _rule_answer ($row) {
+    my $status = ( $row // {} )->{status} // 'invalid';
     return { ok => ( $status eq 'invalid' ? 0 : 1 ), status => $status };
 }
 
 # Runs the code in one transaction of the store's schema.
 sub in_transaction ( $self, $code ) {
     return $self->schema->txn_do($code);
+}
+
+# Runs the work in one transaction on the worker's pooled asynchronous
+# connections: it is handed the store joined to the transaction and the
+# transaction's call layer, which other stores' writes join.
+async sub in_transaction_p ( $self, $work, $context = undef ) {
+    return await $self->_functions->transaction_p(
+        async sub ($scope) {
+            return await $work->(
+                ref($self)->new( %{$self}, functions => $scope ), $scope
+            );
+        },
+        $context
+    );
 }
 
 sub _audit ( $self, $action, $actor_id, $type, $target_id, $metadata, $now ) {
@@ -284,6 +358,11 @@ changes the queue and records its audit in one transaction.
 Holds a post; the author's command id keys it, so the same submission
 again answers the entry it made.
 
+=head2 hold_p
+
+L</hold> as a promise, with an optional query context last, written on the
+worker's pooled asynchronous connections.
+
 =head2 queue
 
 The pending posts, oldest first, with how many are pending in all.
@@ -309,17 +388,41 @@ connections.
 
 One held post, locked until the transaction ends.
 
+=head2 take_p
+
+L</take> as a promise, with an optional query context last. The lock holds
+only within a transaction: call it on the store L</in_transaction_p> hands
+its work.
+
 =head2 decide
 
 Records an approval, a rejection or a withdrawal of a pending post.
+
+=head2 decide_p
+
+L</decide> as a promise, with an optional query context last, written on
+the worker's pooled asynchronous connections.
 
 =head2 set_rule
 
 Sets how many first posts are held and whether flagged posts are held.
 
+=head2 set_rule_p
+
+L</set_rule> as a promise, with an optional query context last, written
+on the worker's pooled asynchronous connections.
+
 =head2 in_transaction
 
 Runs code in one transaction of the store's schema.
+
+=head2 in_transaction_p
+
+Takes an asynchronous work and an optional query context, and runs the
+work in one transaction on the worker's pooled asynchronous connections.
+The work receives the store joined to the transaction and the
+transaction's call layer, and answers a promise; its answer is the
+transaction's, and a failure rolls the transaction back.
 
 =head2 maximum_first_posts
 

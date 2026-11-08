@@ -3,7 +3,7 @@
 
 package GPForum::Service::Operations::SecurityTelemetry;
 
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Service::Clock;
@@ -30,6 +30,12 @@ sub record ( $self, $event_type, $metadata ) {    ## no critic (NamingConvention
         event_type => $event_type,
         count      => $event->{count},
     };
+}
+
+# The counters live in this worker's memory: a promise answered here, so a
+# forked child no longer counts an event the worker never sees.
+async sub record_p ( $self, $event_type, $metadata, $context = undef ) {
+    return $self->record( $event_type, $metadata );
 }
 
 sub snapshot ($self) {
@@ -102,6 +108,11 @@ Takes an event type and a metadata hash reference (or undef). Increments the
 type's count and the total, stamps C<last_seen_at> from the clock, and keeps
 the allowed metadata keys that are defined. Returns
 C<< { ok => 1, event_type => $type, count => $count } >>.
+
+=head2 record_p
+
+L</record> as a promise answered in the worker, with an optional query
+context last: the counters are this process's memory and need no child.
 
 =head2 snapshot
 

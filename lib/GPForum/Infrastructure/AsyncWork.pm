@@ -20,6 +20,10 @@ use GPForum::Log;
 our $VERSION = '0.001';
 const my $MAX_SCHEMA_DEPTH => 8;
 our $IS_CHILD;
+
+# True while cpu_p starts its child, so an observer of run_p (a test) can
+# tell the CPU lane from any other child.
+our $CPU_LANE;
 has gate =>
   sub { return GPForum::Infrastructure::AsyncGate->new( concurrency => 1 ); };
 
@@ -74,62 +78,57 @@ sub run_p (
     );
 }
 
-# In-memory collaborators have no external I/O and retain their state in
-# this process. Persistent services run their entire transaction in one
-# child: no transaction or database handle crosses an asynchronous yield.
-sub service_p (
-    $self, $service, $method, $input,
-    $context = undef,
-    $cancelled = undef
+# CPU-bound or blocking system work (password hashing, image decoding,
+# rendering, name resolution, OS snapshots) runs in a child so the event
+# loop keeps serving. The child never touches
+# PostgreSQL: its input is plain data and so is its answer. Database work
+# belongs on the pooled asynchronous connections (SqlFunction rows_p,
+# row_p, transaction_p), never in a child.
+sub cpu_p (
+    $self, $work,
+    $cancelled     = undef,
+    $preserve_rows = 0,
+    $context       = undef
   )
 {
-    return $self->_call_p( $service, sub { return $service->$method($input); },
-        $context, $cancelled );
+    local $CPU_LANE = 1;    ## no critic (Variables::ProhibitLocalVars) -- marks only the synchronous start of this child
+    return $self->run_p(
+        sub {
+            local $GPForum::Infrastructure::PgStorage::NO_DATABASE = 1;
+            return $work->();
+        },
+        $cancelled,
+        $preserve_rows,
+        $context
+    );
 }
 
-sub service_args_p (
-    $self, $service, $method, $arguments,
-    $context = undef,
-    $cancelled = undef
-  )
-{
+# The command-line job runner's lanes (GPForum::Service::Outbox::Dispatcher):
+# a batch of claimed outbox rows is handed to a bounded number of children,
+# each running its lane's handlers on its own connection. It is a process
+# model for a background runner, not a request path: a web request never
+# calls it (t/885-no-database-in-children.t holds that), and its children
+# are per batch, never per query.
+sub job_p ( $self, $service, $method, $arguments, $context = undef ) {
+    my $schema = _schema_in( $service, {}, 0 );
     return $self->_call_p( $service,
         sub { return $service->$method( @{$arguments} ); },
-        $context, $cancelled );
-}
-
-sub service_result_p (
-    $self, $service, $method, $arguments,
-    $context = undef,
-    $cancelled = undef
-  )
-{
-    my $primary = $service;
-    if ( $service->isa('GPForum::Service::Notification::Workflow') ) {
-        $primary =
-            $method =~ /\Amark/msx
-          ? $service->dispatcher
-          : $service->preference_store;
-    }
-    elsif ( $service->isa('GPForum::Service::Admin::Workflow') ) {
-        my $name =
-            $method =~ /category/msx          ? 'category_store'
-          : $method =~ /announcement/msx      ? 'announcement_store'
-          : $method =~ /binding|bind_role/msx ? 'binding_store'
-          : $method =~ /replay/msx            ? 'dead_letter_replay'
-          : $method =~ /maintenance/msx       ? 'maintenance'
-          :                                     'role_catalog';
-        $primary = $service->$name // $service;
-    }
-    my $schema = _schema_in( $primary, {}, 0 );
-    return $self->_call_p( $service,
-        sub { return $service->$method( @{$arguments} ); },
-        $context, $cancelled, $schema, 1 )->then(
+        $context, undef, $schema, 1 )->then(
         sub ( $result = undef ) {
             _load_rows($result);
             return $result;
         }
         );
+}
+
+# Whether a service reaches PostgreSQL: its schema, or its store's, is a
+# GPForum::Schema. call_p refuses such a service without a METHOD_p twin;
+# in-memory doubles answer in process.
+sub holds_database ( $class, $service ) {
+    my $store = $service->can('store') ? $service->store : $service;
+    my $schema =
+      blessed($store) && $store->can('schema') ? $store->schema : undef;
+    return blessed($schema) && $schema->isa('GPForum::Schema') ? 1 : 0;
 }
 
 sub _schema_in ( $value, $seen, $depth ) {
@@ -322,9 +321,29 @@ The per-worker shared executor allows one active child and a bounded queue. Pers
 
 =head1 SUBROUTINES/METHODS
 
-=head2 shared, run_p, service_p, service_args_p, service_result_p
+=head2 cpu_p
 
-Run blocking services in bounded Mojolicious subprocesses.
+Runs CPU-bound work in a child process that may not open a PostgreSQL
+connection; any attempt croaks.
+
+=head2 shared, rendering
+
+The per-worker lanes: each admits one child at a time.
+
+=head2 run_p
+
+Runs a callback in a bounded child and resolves with its plain-data answer.
+Modules use C<cpu_p>, which adds the no-database guard.
+
+=head2 holds_database
+
+Takes a service and answers whether it reaches PostgreSQL (its schema, or
+its store's, is a L<GPForum::Schema>).
+
+=head2 job_p
+
+Runs a service method in a child for the command-line outbox runner's
+lanes, one child per lane and batch. Web requests never use it.
 
 =head1 DIAGNOSTICS
 

@@ -123,7 +123,7 @@ async sub upload_post ($self) {
     }
 
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_attachment_workflow,
             'upload_for_post',
             {

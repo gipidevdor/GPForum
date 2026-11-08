@@ -23,10 +23,7 @@ sub run_p ( $self, $work, $readonly = 0 ) {
     my $nested = $self->level;
     my $savepoint =
       'gp_async_' . ( $self->sequence( $self->sequence + 1 )->sequence );
-    my $begin =
-        $nested   ? "SAVEPOINT $savepoint"
-      : $readonly ? 'BEGIN READ ONLY'
-      :             'BEGIN';
+    my $begin  = $nested ? "SAVEPOINT $savepoint"         : _begin($readonly);
     my $commit = $nested ? "RELEASE SAVEPOINT $savepoint" : 'COMMIT';
     return $self->_control_p($begin)->then(
         sub {
@@ -52,6 +49,19 @@ sub run_p ( $self, $work, $readonly = 0 ) {
             return $self->_rollback_p( $error, $nested, $savepoint, $commit );
         }
     );
+}
+
+# BEGIN for a mode: a true scalar is READ ONLY (the long-standing form); a
+# hash may also ask for REPEATABLE READ, the isolation a consistent export
+# (the mbox archive) reads its pages under.
+sub _begin ($mode) {
+    my %mode  = ref $mode eq 'HASH' ? %{$mode} : ( read_only => $mode );
+    my @words = ('BEGIN');
+    if ( $mode{repeatable_read} ) {
+        push @words, 'ISOLATION LEVEL REPEATABLE READ';
+    }
+    if ( $mode{read_only} ) { push @words, 'READ ONLY'; }
+    return join q{ }, @words;
 }
 
 sub _rollback_p ( $self, $error, $nested, $savepoint, $commit ) {
@@ -118,6 +128,8 @@ commit is never replayed, and rollback failure preserves the original rejection.
 =head2 run_p
 
 Owns a transaction for the lifetime of a promise. Nested calls use savepoints.
+The second argument is a true value for READ ONLY, or a hash with
+C<read_only> and C<repeatable_read> flags.
 
 =head2 query_p
 

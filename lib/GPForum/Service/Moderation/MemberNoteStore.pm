@@ -52,6 +52,38 @@ sub body ( $self, $value ) {
 # submission again answers replayed. Answers ok, replayed, invalid (with
 # the field), not_found or conflict, and the note's id.
 sub add ( $self, $input ) {
+    return $self->_write( $self->_add_call($input) );
+}
+
+# The same note added on the worker's pooled asynchronous connections, not
+# a forked child with a connection of its own; as are edit_p and remove_p.
+async sub add_p ( $self, $input, $context = undef ) {
+    return $self->add($input) if !$self->functions;
+    return await $self->_write_p( $context, $self->_add_call($input) );
+}
+
+# Replaces a note's text. Answers ok, unchanged, invalid or not_found.
+sub edit ( $self, $input ) {
+    return $self->_write( $self->_edit_call($input) );
+}
+
+async sub edit_p ( $self, $input, $context = undef ) {
+    return $self->edit($input) if !$self->functions;
+    return await $self->_write_p( $context, $self->_edit_call($input) );
+}
+
+# Deletes a note. Answers ok or not_found.
+sub remove ( $self, $input ) {
+    return $self->_write( $self->_remove_call($input) );
+}
+
+async sub remove_p ( $self, $input, $context = undef ) {
+    return $self->remove($input) if !$self->functions;
+    return await $self->_write_p( $context, $self->_remove_call($input) );
+}
+
+# A write's refusal, or undef and its function's name and values.
+sub _add_call ( $self, $input ) {
     return { status => 'not_found' }
       if !_is_uuid( $input->{subject_user_id} );
     my $body = $self->body( $input->{body} );
@@ -62,7 +94,8 @@ sub add ( $self, $input ) {
       ? $input->{command_id}
       : $self->id_service->uuid;
     my $now = $self->clock->now_iso8601;
-    return $self->_functions->row(
+    return (
+        undef,
         'moderation_member_note_add',
         {
             note_id         => $note_id,
@@ -74,11 +107,10 @@ sub add ( $self, $input ) {
                 'add', $input, $note_id, { body_length => length $body }, $now
             ),
         }
-    ) // { status => 'invalid' };
+    );
 }
 
-# Replaces a note's text. Answers ok, unchanged, invalid or not_found.
-sub edit ( $self, $input ) {
+sub _edit_call ( $self, $input ) {
     return { status => 'not_found' }
       if !_is_uuid( $input->{subject_user_id} )
       || !_is_uuid( $input->{note_id} );
@@ -86,7 +118,8 @@ sub edit ( $self, $input ) {
     return _invalid() if !defined $body;
 
     my $now = $self->clock->now_iso8601;
-    return $self->_functions->row(
+    return (
+        undef,
         'moderation_member_note_edit',
         {
             note_id         => $input->{note_id},
@@ -99,17 +132,17 @@ sub edit ( $self, $input ) {
                 { body_length => length $body }, $now
             ),
         }
-    ) // { status => 'invalid' };
+    );
 }
 
-# Deletes a note. Answers ok or not_found.
-sub remove ( $self, $input ) {
+sub _remove_call ( $self, $input ) {
     return { status => 'not_found' }
       if !_is_uuid( $input->{subject_user_id} )
       || !_is_uuid( $input->{note_id} );
 
     my $now = $self->clock->now_iso8601;
-    return $self->_functions->row(
+    return (
+        undef,
         'moderation_member_note_delete',
         {
             note_id         => $input->{note_id},
@@ -117,7 +150,17 @@ sub remove ( $self, $input ) {
             audit           =>
               $self->_audit( 'delete', $input, $input->{note_id}, {}, $now ),
         }
-    ) // { status => 'invalid' };
+    );
+}
+
+sub _write ( $self, $refusal, @call ) {
+    return $refusal // $self->_functions->row(@call) // { status => 'invalid' };
+}
+
+async sub _write_p ( $self, $context, $refusal, @call ) {
+    return $refusal if $refusal;
+    return ( await $self->_functions->row_p( @call, $context ) )
+      // { status => 'invalid' };
 }
 
 # The notes about a member, newest first.
@@ -126,6 +169,16 @@ sub for_member ( $self, $subject_user_id, $limit = $LIST_LIMIT ) {
 
     return $self->_functions->rows( 'moderation_member_notes',
         { subject_user_id => $subject_user_id, row_limit => $limit } );
+}
+
+# The member's notes, as for_member, on the worker's pooled asynchronous
+# connections with the default number of notes.
+async sub for_member_p ( $self, $subject_user_id, $context = undef ) {
+    return [] if !_is_uuid($subject_user_id);
+
+    return await $self->_functions->rows_p( 'moderation_member_notes',
+        { subject_user_id => $subject_user_id, row_limit => $LIST_LIMIT },
+        $context );
 }
 
 # For each report the member it is about, with their newest notes: a hash
@@ -247,17 +300,38 @@ L</maximum_body> characters.
 
 Adds a note; the form's command id keys it.
 
+=head2 add_p
+
+L</add> as a promise, with an optional query context last, written on the
+worker's pooled asynchronous connections.
+
 =head2 edit
 
 Replaces a note's text, recording the editor and the time.
+
+=head2 edit_p
+
+L</edit> as a promise, with an optional query context last, written on the
+worker's pooled asynchronous connections.
 
 =head2 remove
 
 Deletes a note.
 
+=head2 remove_p
+
+L</remove> as a promise, with an optional query context last, written on
+the worker's pooled asynchronous connections.
+
 =head2 for_member
 
 The notes about a member, newest first, with their authors and editors.
+
+=head2 for_member_p
+
+L</for_member> with the default hundred notes, as a promise, with an
+optional query context after the member's id, read on the worker's pooled
+asynchronous connections.
 
 =head2 for_reports
 

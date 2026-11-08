@@ -105,10 +105,8 @@ sub dispatch_pending_p ( $self, $limit, $concurrency = 2 ) {
                     concurrency => $concurrency
                 )
             );
-            my @work = map {
-                $executor->service_result_p( $self, 'dispatch_claimed_rows',
-                    [$_] )
-              }
+            my @work =
+              map { $executor->job_p( $self, 'dispatch_claimed_rows', [$_] ) }
               grep { @{$_} } @{$lanes};
             return _dispatch_summary() if !@work;
             return Mojo::Promise->all(@work)->then(

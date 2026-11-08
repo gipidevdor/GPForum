@@ -8,7 +8,6 @@ use Mojo::Base -base, -async_await;
 use v5.40;
 
 use GPForum::Web::Guard;
-use GPForum::Infrastructure::AsyncWork;
 use GPForum::Web::SecurityEvent;
 
 our $VERSION = '0.001';
@@ -86,8 +85,8 @@ async sub admits_p ( $self, $controller, $client ) {
         $ban =
           $controller->can('call_p')
           ? await $controller->call_p( $service, 'covering', $client )
-          : await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
-            $service, 'covering', [$client] );
+          : $service->can('covering_p') ? await $service->covering_p($client)
+          :                               $service->covering($client);
     }
     catch ($error) {
         $controller->app->log->warn("address ban lookup failed: $error");

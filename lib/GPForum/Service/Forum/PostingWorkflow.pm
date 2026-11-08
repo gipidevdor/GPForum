@@ -4,7 +4,7 @@
 package GPForum::Service::Forum::PostingWorkflow;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Domain::Post;
@@ -111,6 +111,26 @@ sub publish_reviewed ( $self, $type, $input ) {
     return _result( status => 'invalid', error => 'not a held command' );
 }
 
+# publish_reviewed on the worker's pooled asynchronous connections. With
+# $scope -- the call layer of the review store's transaction, which holds
+# the held post's lock -- the command, its post and its mentions commit with
+# the decision, as the blocking path's do under the store's transaction.
+async sub publish_reviewed_p (
+    $self, $type, $input,
+    $context = undef,
+    $scope = undef
+  )
+{
+    return $self->publish_reviewed( $type, $input )
+      if !$self->functions
+      || ( $type ne 'thread.create' && $type ne $REPLY );
+
+    return await GPForum::Service::Forum::PostingNative->new(
+        workflow => $self,
+        scope    => $scope
+    )->publish_p( $type, $input, $context );
+}
+
 sub _write_thread ( $self, $input ) {
     return $self->_run( 'thread.create', $input,
         sub { return $self->_create_thread_once($input); } );
@@ -166,15 +186,24 @@ sub edit_post ( $self, $input ) {
 # or run with its decisions recorded in its own transaction. The rules live
 # in PostgreSQL, so only the function path is screened; the in-memory
 # doubles are not.
+#
+# A native plan (PostingNative) is handed the screen already made on the
+# pooled connections; its write to settle comes back as the plan marked to
+# settle, and the write and its decisions then commit together there.
 sub _screened ( $self, $type, $input, $write ) {
     my $automod = $self->automod;
     return $write->($input) if !$automod || !$self->functions;
 
-    my $screen = $automod->screen( $type, $input );
+    my $screen = $self->{native_screen} // $automod->screen( $type, $input );
     return $screen->{refusal} if $screen->{refusal};
     return $self->_held( $type, $screen )
       if $screen->{hold} && $self->review;
     return $write->( $screen->{input} ) if !$screen->{settle};
+    if ( $self->{native_plan} ) {
+        my $plan = $write->( $screen->{input} );
+        if ( $plan->{native_kind} ) { $plan->{settle} = 1; }
+        return $plan;
+    }
 
     return $automod->settle( $type, $screen, $write );
 }
@@ -192,6 +221,12 @@ sub _held ( $self, $type, $screen ) {
       ? $self->_reply_checked_for_review($input)
       : $self->_thread_checked_for_review($input);
     return $checked if !$checked->{ok};
+    return {
+        native_kind => 'hold',
+        type        => $type,
+        command     => $checked->{command},
+      }
+      if $self->{native_plan};
 
     return $self->review->hold( $type, $screen, $checked->{command} );
 }
@@ -409,24 +444,43 @@ sub _store_refusals ($self) {
 # as the Perl path recorded them in the command's; one that cannot is one
 # statement in autocommit.
 sub _reply_called ( $self, $functions, $call, $prepared ) {
-    my $run = sub {
+    my $mentioning = $self->_mentioning( $REPLY, $call, $prepared );
+    my $run        = sub {
         my $result =
           $self->_reply_result( $functions->row( 'forum_create_reply', $call ),
             $prepared );
-        if ( $result->{ok} && !$result->{idempotent} ) {
-            $self->_record_post_mentions( $result->{stored},
-                $prepared->{command} );
+        if ( _records_mentions($result) ) {
+            $self->_record_post_mentions( $result->{stored}, $mentioning );
         }
         return $result;
     };
-    my $body =
-        $prepared && $prepared->{ok}
-      ? $prepared->{command}{body}{body_source} // q{}
-      : q{};
 
-    return $run->() if index( $body, $MENTION_SIGN ) < 0;
+    return $run->() if !$mentioning;
 
     return $self->post_store->schema->txn_do($run);
+}
+
+# The command whose body may mention someone, when the type records the
+# mentions of its post (a new thread, a reply, a post edit): its call and
+# their recording then share one transaction. undef for any other.
+sub _mentioning ( $self, $type, $call, $prepared ) {
+    my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
+    return undef if !$mentions;
+    my $command =
+      $type eq $REPLY
+      ? ( $prepared && $prepared->{ok} ? $prepared->{command} : undef )
+      : $call->{command};
+    return undef if !$command;
+
+    return
+      index( $command->{body}{body_source} // q{}, $MENTION_SIGN ) < 0
+      ? undef
+      : $command;
+}
+
+# A stored write, not a replay of one, has its mentions recorded.
+sub _records_mentions ($result) {
+    return $result->{ok} && !$result->{idempotent} ? 1 : 0;
 }
 
 # The function's row as the result the Perl path answers: a replay of the
@@ -788,18 +842,19 @@ sub _run_by_function ( $self, $type, $input, $run ) {
         prepared    => $prepared
       }
       if $self->{native_plan};
-    my $execute = sub {
-        my $row = $self->functions->row( 'forum_write_command', $call );
-        return $self->_write_result( $type, $call, $prepared, $row );
+    my $mentioning = $self->_mentioning( $type, $call, $prepared );
+    my $execute    = sub {
+        my $row    = $self->functions->row( 'forum_write_command', $call );
+        my $result = $self->_write_answer( $type, $call, $prepared, $row );
+        if ( $mentioning && _records_mentions($result) ) {
+            $self->_record_post_mentions( $result->{stored}, $mentioning );
+        }
+        return $result;
     };
     my $result;
     try {
-        my $body =
-            $call->{command}
-          ? $call->{command}{body}{body_source} // q{}
-          : q{};
         $result =
-          index( $body, $MENTION_SIGN ) < 0
+           !$mentioning
           ? $execute->()
           : $self->_function_store($type)->schema->txn_do($execute);
     }
@@ -809,7 +864,9 @@ sub _run_by_function ( $self, $type, $input, $run ) {
     return $result;
 }
 
-sub _write_result ( $self, $type, $call, $prepared, $row ) {
+# The function's row as the result the Perl path answers; the mentions of
+# the stored post are recorded by the caller, on its transaction.
+sub _write_answer ( $self, $type, $call, $prepared, $row ) {
     my $outcome = $row->{outcome} // q{};
     return $self->codec->replay( $type, $row->{response} )
       if $outcome eq 'replayed';
@@ -828,14 +885,7 @@ sub _write_result ( $self, $type, $call, $prepared, $row ) {
     ) if !$response->{ok};
     my $stored =
       $self->_function_store($type)->function_answer( $row->{stored} );
-    my $result =
-      _result( status => 'ok', stored => $stored, prepared => $prepared );
-    my ( undef, undef, undef, $mentions ) = @{ $STORE{$type} };
-
-    if ($mentions) {
-        $self->_record_post_mentions( $stored, $call->{command} );
-    }
-    return $result;
+    return _result( status => 'ok', stored => $stored, prepared => $prepared );
 }
 
 sub _function_failure ( $self, $type, $error ) {
@@ -929,22 +979,51 @@ sub _call_store ( $self, $type, $command ) {
 sub _record_post_mentions ( $self, $stored, $command ) {
     try {
         $self->mention_store->record_for_source(
-            {
-                actor_id => column_of( $stored->{post}, 'author_user_id' )
-                  || $command->{post}{author_user_id},
-                body_source  => $command->{body}{body_source},
-                max_mentions => $MAX_MENTIONS,
-                source_id    => column_of( $stored->{post}, 'post_id' ),
-                source_type  => 'post',
-                thread_id    => $command->{post}{thread_id},
-            }
-        );
+            _mention_input( $stored, $command ) );
     }
     catch ($error) {
         $self->_log( warn => "mention recording degraded: $error" );
     };
 
     return;
+}
+
+# The mentions of a stored write, recorded on its transaction's call layer
+# when its answer stored one. They run in a savepoint of it: a failure only
+# degrades, and must not abort the transaction the post commits in.
+async sub record_mentions_p ( $self, $result, $command, $context, $scope ) {
+    return if !_records_mentions($result);
+    my $store = $self->mention_store;
+    my $input = _mention_input( $result->{stored}, $command );
+    try {
+        if ( $store->can('record_for_source_p') ) {
+            await $scope->transaction_p(
+                async sub ($savepoint) {
+                    return await $store->record_for_source_p( $input,
+                        $context, $savepoint );
+                },
+                $context
+            );
+        }
+        else { $store->record_for_source($input); }
+    }
+    catch ($error) {
+        $self->_log( warn => "mention recording degraded: $error" );
+    };
+
+    return;
+}
+
+sub _mention_input ( $stored, $command ) {
+    return {
+        actor_id => column_of( $stored->{post}, 'author_user_id' )
+          || $command->{post}{author_user_id},
+        body_source  => $command->{body}{body_source},
+        max_mentions => $MAX_MENTIONS,
+        source_id    => column_of( $stored->{post}, 'post_id' ),
+        source_type  => 'post',
+        thread_id    => $command->{post}{thread_id},
+    };
 }
 
 # ADR 0102: the effective visibility a new thread or reply may not exceed,
@@ -1189,9 +1268,10 @@ and what matched.
 
 =head2 async_call_p
 
-Use native PostgreSQL commands with isolated data-only preparation. Moderation
-and mention workflows that require extended transactions retain their complete
-isolated executor.
+Use native PostgreSQL commands with isolated data-only preparation
+(L<GPForum::Service::Forum::PostingNative>). A body that mentions someone
+has its command, its mentions and their notifications in one transaction on
+the pooled connections.
 
 =head2 create_thread
 
@@ -1210,6 +1290,25 @@ C<< { ok => 1, thread => { thread_id }, post => { post_id } } >>.
 
 Publishes a post staff approved from the review queue (ADR 0134) as its
 author's command, neither screened nor held again.
+
+=head2 record_mentions_p
+
+Takes a write's result, the command whose body mentions someone, a query
+context and the call layer of the transaction the write ran in. When the
+result stored a post (not a replay), records its mentions through the
+mention store's C<record_for_source_p> in a savepoint of that transaction,
+at most ten; a failure is logged as C<mention recording degraded> and only
+degrades. L<GPForum::Service::Forum::PostingNative> calls it after the
+command's call.
+
+=head2 publish_reviewed_p
+
+L</publish_reviewed> as a promise; takes the command type, the input, an
+optional query context and an optional transaction call layer (the review
+store's, which holds the held post's lock). The reads, the preparation and
+the write run as L</async_call_p> runs a command, the write and its mentions
+on that layer when one is given, so the post commits with the review's
+decision. Without the function layer the blocking method answers.
 
 =head2 create_reply
 

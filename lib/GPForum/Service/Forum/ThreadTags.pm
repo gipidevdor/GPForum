@@ -67,16 +67,34 @@ sub _slug ($name) {
 # thread has now, in order. A thread id that is not a uuid sets nothing.
 sub set_thread_tags ( $self, $thread_id, $text ) {
     return [] if !GPForum::Infrastructure::Id->is_uuid($thread_id);
-    my $tags = $self->normalise($text);
-    my $rows = $self->_functions->rows(
-        'forum_set_thread_tags',
-        {
-            names     => [ map { $_->{name} } @{$tags} ],
-            slugs     => [ map { $_->{slug} } @{$tags} ],
-            thread_id => $thread_id,
-        }
+    return _tags(
+        $self->_functions->rows(
+            'forum_set_thread_tags', $self->_set_values( $thread_id, $text )
+        )
     );
+}
 
+# The replacement on the web worker's pooled asynchronous connections.
+async sub set_thread_tags_p ( $self, $thread_id, $text, $context = undef ) {
+    return [] if !GPForum::Infrastructure::Id->is_uuid($thread_id);
+    return _tags(
+        await $self->_functions->rows_p(
+            'forum_set_thread_tags', $self->_set_values( $thread_id, $text ),
+            $context
+        )
+    );
+}
+
+sub _set_values ( $self, $thread_id, $text ) {
+    my $tags = $self->normalise($text);
+    return {
+        names     => [ map { $_->{name} } @{$tags} ],
+        slugs     => [ map { $_->{slug} } @{$tags} ],
+        thread_id => $thread_id,
+    };
+}
+
+sub _tags ($rows) {
     return [ map { _tag($_) } @{$rows} ];
 }
 
@@ -329,6 +347,11 @@ to five, each up to thirty characters, one per slug.
 
 Replaces a thread's tags with those a text names; answers the thread's tags
 now, in order.
+
+=head2 set_thread_tags_p
+
+L</set_thread_tags> as a promise, with an optional query context last, run on
+the worker's pooled asynchronous connections.
 
 =head2 tags_for_threads
 

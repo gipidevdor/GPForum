@@ -8,6 +8,7 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
+use Mojo::Promise;
 
 use GPForum::Infrastructure::Row  qw(column_of rows_in);
 use GPForum::Infrastructure::Text qw(has_text);
@@ -65,6 +66,29 @@ sub dashboard_summary ( $self, $options ) {
             ),
         },
         users => $self->list_users( { limit => $limit } ),
+    };
+}
+
+# The dashboard's reads on the worker's pooled asynchronous connections,
+# and its health block from the collaborators' own promises.
+async sub dashboard_summary_p ( $self, $options, $context = undef ) {
+    return $self->dashboard_summary($options) if !$self->functions;
+    $options ||= {};
+    my $limit = _limit($options);
+
+    return {
+        async  => await $self->async_jobs_p( { limit => $limit }, $context ),
+        health => await $self->operations_status_p($context),
+        moderation => {
+            reports => await $self->list_reports_p(
+                {
+                    limit  => $limit,
+                    status => $STATUS_OPEN,
+                },
+                $context
+            ),
+        },
+        users => await $self->list_users_p( { limit => $limit }, $context ),
     };
 }
 
@@ -141,13 +165,7 @@ sub list_reports ( $self, $options ) {
     $options ||= {};
 
     if ( $self->functions ) {
-        return $self->functions->rows(
-            'admin_console_reports',
-            {
-                status    => $options->{status} || $STATUS_OPEN,
-                row_limit => _limit($options)
-            }
-        );
+        return $self->functions->rows( _reports_values($options) );
     }
     my $search = $self->schema->resultset('Report')->search_rs(
         { status => $options->{status} || $STATUS_OPEN },
@@ -159,6 +177,22 @@ sub list_reports ( $self, $options ) {
     );
 
     return [ map { _row_hash( $_, @REPORT_COLUMNS ) } rows_in($search) ];
+}
+
+async sub list_reports_p ( $self, $options, $context = undef ) {
+    return $self->list_reports($options) if !$self->functions;
+    return await $self->functions->rows_p( _reports_values( $options || {} ),
+        $context );
+}
+
+sub _reports_values ($options) {
+    return (
+        'admin_console_reports',
+        {
+            status    => $options->{status} || $STATUS_OPEN,
+            row_limit => _limit($options)
+        }
+    );
 }
 
 sub async_jobs ( $self, $options ) {
@@ -322,6 +356,52 @@ sub operations_status ($self) {
         sub { return $self->query_budget->drift_report( $self->schema ); },
         { status => 'unknown' } );
 
+    return _operations_status( $readiness, $metrics, $query_budgets,
+        $query_budget_drift );
+}
+
+# operations_status from the collaborators' promises: readiness, metrics and
+# the stored budgets read on pooled asynchronous connections. A collaborator
+# without one answers its blocking report.
+async sub operations_status_p ( $self, $context = undef ) {
+    my $readiness = await _safe_call_p(
+        sub {
+            my $service = $self->readiness;
+            return $service->can('check_p')
+              ? $service->check_p($context)
+              : $service->check;
+        },
+        { status => 'unknown', checks => [] }
+    );
+    my $metrics = await _safe_call_p(
+        sub {
+            my $service = $self->metrics_snapshot;
+            return $service->can('collect_p')
+              ? $service->collect_p($context)
+              : $service->collect;
+        },
+        {}
+    );
+    my $query_budgets =
+      _safe_call( sub { return $self->query_budget->snapshot; },
+        { endpoints => {} } );
+    my $query_budget_drift = await _safe_call_p(
+        sub {
+            my $budget = $self->query_budget;
+            return $budget->can('drift_report_p')
+              ? $budget->drift_report_p($context)
+              : $budget->drift_report( $self->schema );
+        },
+        { status => 'unknown' }
+    );
+
+    return _operations_status( $readiness, $metrics, $query_budgets,
+        $query_budget_drift );
+}
+
+sub _operations_status ( $readiness, $metrics, $query_budgets,
+    $query_budget_drift )
+{
     return {
         benchmark => {
             configured_command => 'script/benchmark-http --configured --check',
@@ -334,6 +414,18 @@ sub operations_status ($self) {
         query_budgets      => $query_budgets,
         readiness          => $readiness,
     };
+}
+
+async sub _safe_call_p ( $callback, $fallback ) {
+    my $result;
+    try {
+        $result = await Mojo::Promise->resolve( $callback->() );
+    }
+    catch ($error) {
+        return $fallback;
+    };
+
+    return $result // $fallback;
 }
 
 sub _safe_call ( $callback, $fallback ) {
@@ -411,6 +503,11 @@ reference with C<async> (as C<async_jobs>), C<health> (as
 C<operations_status>), C<< moderation => { reports => [...] } >> (the open
 reports) and C<users> (as C<list_users>), each list bounded by the limit.
 
+=head2 dashboard_summary_p
+
+Answers a promise of L</dashboard_summary>, read on pooled asynchronous
+connections.
+
 =head2 list_users
 
 Takes a hash reference (or undef) with optional C<status> and C<limit>.
@@ -446,6 +543,11 @@ status, oldest first, each a hash reference of C<report_id>,
 C<reporter_user_id>, C<target_type>, C<target_id>, C<reason>, C<details>,
 C<status>, C<assigned_moderator_user_id>, C<created_at>, C<resolved_at>
 and C<resolution>.
+
+=head2 list_reports_p
+
+Answers a promise of L</list_reports>, read on a pooled asynchronous
+connection.
 
 =head2 async_jobs
 
@@ -494,6 +596,11 @@ or C<< { endpoints => {} } >>), C<query_budget_drift> (the drift report, or
 C<< { status => 'unknown' } >>) and C<benchmark>, which names the
 benchmark commands and reports C<manual>: no benchmark baseline is
 persisted.
+
+=head2 operations_status_p
+
+Answers a promise of L</operations_status>: readiness, metrics and the
+stored budgets read without a child touching PostgreSQL.
 
 =head1 DIAGNOSTICS
 

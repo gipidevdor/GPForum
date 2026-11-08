@@ -63,11 +63,23 @@ sub normalize_body ( $self, $body ) {
 # Sends a message to the member called $input->{username}, in the one
 # conversation the two hold, starting it when there is none.
 sub start ( $self, $input ) {
+    my ( $refused, @send ) = $self->_start_call($input);
+    return $refused // $self->_send(@send);
+}
+
+# The send on the worker's pooled asynchronous connections.
+async sub start_p ( $self, $input, $context = undef ) {
+    my ( $refused, @send ) = $self->_start_call($input);
+    return $refused // await $self->_send_p( @send, $context );
+}
+
+sub _start_call ( $self, $input ) {
     my $username = $input->{username} // q{};
     return _refused( 'invalid', 'username' )
       if !length $username || length $username > $MAXIMUM_USERNAME;
 
-    return $self->_send(
+    return (
+        undef,
         'community_message_start',
         $input,
         {
@@ -82,11 +94,21 @@ sub start ( $self, $input ) {
 
 # Sends a message in a conversation the sender is a member of.
 sub reply ( $self, $input ) {
+    my ( $refused, @send ) = _reply_call($input);
+    return $refused // $self->_send(@send);
+}
+
+async sub reply_p ( $self, $input, $context = undef ) {
+    my ( $refused, @send ) = _reply_call($input);
+    return $refused // await $self->_send_p( @send, $context );
+}
+
+sub _reply_call ($input) {
     return _refused('not_found')
       if !GPForum::Infrastructure::Id->is_uuid_spelling(
         $input->{conversation_id} );
 
-    return $self->_send( 'community_message_reply', $input,
+    return ( undef, 'community_message_reply', $input,
         { conversation_id => $input->{conversation_id} } );
 }
 
@@ -95,22 +117,67 @@ sub reply ( $self, $input ) {
 # (with the field), forbidden, not_found, self, blocked, gone, limit,
 # conflict, or the automod's refusal (status invalid, with automod).
 sub _send ( $self, $name, $input, $extra ) {
+    my $plan = $self->_send_plan( $input, $extra );
+    return $plan->{refused} if $plan->{refused};
+    my $functions = $self->_functions;
+    my $write     = sub ($screened) {
+        return _answer( $functions->row( $name, $plan->{call}->($screened) )
+              || { status => 'failed' } );
+    };
+    return $write->( $plan->{screening} ) if !$self->automod;
+
+    my $screen = $self->automod->screen( $SEND, $plan->{screening} );
+    return $screen->{refusal}           if $screen->{refusal};
+    return $write->( $screen->{input} ) if !$screen->{settle};
+
+    return $self->automod->settle( $SEND, $screen, $write );
+}
+
+# The same send on the worker's pooled asynchronous connections: the screen,
+# and a settled write with its decisions in one transaction, there too.
+async sub _send_p ( $self, $name, $input, $extra, $context ) {
+    return $self->_send( $name, $input, $extra ) if !$self->functions;
+    my $plan = $self->_send_plan( $input, $extra );
+    return $plan->{refused} if $plan->{refused};
+    my $write_p = async sub ( $screened, $functions = undef ) {
+        $functions //= $self->functions;
+        return _answer(
+            (
+                await $functions->row_p(
+                    $name, $plan->{call}->($screened), $context
+                )
+            )
+              || { status => 'failed' }
+        );
+    };
+    return await $write_p->( $plan->{screening} ) if !$self->automod;
+
+    my $screen =
+      await $self->automod->screen_p( $SEND, $plan->{screening}, $context );
+    return $screen->{refusal}                   if $screen->{refusal};
+    return await $write_p->( $screen->{input} ) if !$screen->{settle};
+
+    return await $self->automod->settle_p( $SEND, $screen, $write_p, $context );
+}
+
+# The checks before a send, then what is screened and the call's values for
+# the screened text.
+sub _send_plan ( $self, $input, $extra ) {
     my $body = $self->normalize_body( $input->{body} );
-    return _refused( 'invalid', 'body' )
+    return { refused => _refused( 'invalid', 'body' ) }
       if !length $body || length $body > $MAXIMUM_BODY;
-    return _refused('invalid')
+    return { refused => _refused('invalid') }
       if !GPForum::Infrastructure::Id->is_uuid_spelling(
         $input->{sender_user_id} );
-    my $functions = $self->_functions;
+    $self->_functions;
 
     my $message_id =
       GPForum::Infrastructure::Id->is_uuid_spelling( $input->{command_id} )
       ? $input->{command_id}
       : $self->id_service->uuid;
-    my $write = sub ($screened) {
-        my $row = $functions->row(
-            $name,
-            {
+    return {
+        call => sub ($screened) {
+            return {
                 row => {
                     %{$extra},
                     message_id     => $message_id,
@@ -121,24 +188,14 @@ sub _send ( $self, $name, $input, $extra ) {
                     correlation_id => $self->id_service->uuid,
                     outbox_id      => $self->id_service->uuid,
                 }
-            }
-        ) || { status => 'failed' };
-
-        return _answer($row);
+            };
+        },
+        screening => {
+            author_user_id => $input->{sender_user_id},
+            viewer         => $input->{viewer},
+            body           => $body,
+        },
     };
-
-    my $screening = {
-        author_user_id => $input->{sender_user_id},
-        viewer         => $input->{viewer},
-        body           => $body,
-    };
-    return $write->($screening) if !$self->automod;
-
-    my $screen = $self->automod->screen( $SEND, $screening );
-    return $screen->{refusal}           if $screen->{refusal};
-    return $write->( $screen->{input} ) if !$screen->{settle};
-
-    return $self->automod->settle( $SEND, $screen, $write );
 }
 
 sub _answer ($row) {
@@ -297,15 +354,34 @@ sub _messages_page ( $plan, $rows ) {
 
 # The member has read the conversation, and the notifications of it.
 sub mark_read ( $self, $conversation_id, $user_id ) {
-    my $row = $self->_functions->row(
-        'community_message_mark_read',
-        {
-            conversation_id => $conversation_id,
-            user_id         => $user_id,
-            now             => $self->clock->now_iso8601,
-        }
-    ) || { status => 'not_found' };
+    return _marked(
+        $self->_functions->row(
+            'community_message_mark_read',
+            $self->_mark_values( $conversation_id, $user_id )
+        )
+    );
+}
 
+async sub mark_read_p ( $self, $conversation_id, $user_id, $context = undef ) {
+    return _marked(
+        await $self->_functions->row_p(
+            'community_message_mark_read',
+            $self->_mark_values( $conversation_id, $user_id ),
+            $context
+        )
+    );
+}
+
+sub _mark_values ( $self, $conversation_id, $user_id ) {
+    return {
+        conversation_id => $conversation_id,
+        user_id         => $user_id,
+        now             => $self->clock->now_iso8601,
+    };
+}
+
+sub _marked ($row) {
+    $row ||= { status => 'not_found' };
     return {
         status             => $row->{status},
         notifications_read => 0 + ( $row->{notifications_read} // 0 ),
@@ -343,13 +419,24 @@ sub _names_recipient ( $self, $user_id, $username ) {
 # The message the member may report -- another member's, in a conversation
 # of theirs -- or undef.
 sub reportable ( $self, $message_id, $user_id ) {
-    return undef
-      if !$self->functions
-      || !defined $user_id
-      || !GPForum::Infrastructure::Id->is_uuid_spelling($message_id);
+    return undef if !$self->_names_message( $message_id, $user_id );
 
     return $self->functions->row( 'community_message_for_report',
         { message_id => $message_id, user_id => $user_id } );
+}
+
+async sub reportable_p ( $self, $message_id, $user_id, $context = undef ) {
+    return undef if !$self->_names_message( $message_id, $user_id );
+
+    return await $self->functions->row_p( 'community_message_for_report',
+        { message_id => $message_id, user_id => $user_id }, $context );
+}
+
+sub _names_message ( $self, $message_id, $user_id ) {
+    return
+         $self->functions
+      && defined $user_id
+      && GPForum::Infrastructure::Id->is_uuid_spelling($message_id) ? 1 : 0;
 }
 
 # ADR 0139: the one way staff read a member's message. The reading is
@@ -358,6 +445,26 @@ sub reportable ( $self, $message_id, $user_id ) {
 # message reads one: { status => ok, message } or { status => not_found |
 # gone | invalid }.
 sub read_reported ( $self, $report_id, $actor_user_id ) {
+    my ( $refusal, @call ) =
+      $self->_reported_values( $report_id, $actor_user_id );
+    return $refusal // _reported_answer( $self->_functions->row(@call) );
+}
+
+# The same audited read on the worker's pooled asynchronous connections,
+# not a forked child with a connection of its own.
+async sub read_reported_p ( $self, $report_id, $actor_user_id,
+    $context = undef )
+{
+    return $self->read_reported( $report_id, $actor_user_id )
+      if !$self->functions;
+    my ( $refusal, @call ) =
+      $self->_reported_values( $report_id, $actor_user_id );
+    return $refusal
+      // _reported_answer( await $self->functions->row_p( @call, $context ) );
+}
+
+# A refusal, or undef and the audited read's function and values.
+sub _reported_values ( $self, $report_id, $actor_user_id ) {
     return { status => 'not_found' }
       if !GPForum::Infrastructure::Id->is_uuid_spelling($report_id);
 
@@ -368,10 +475,12 @@ sub read_reported ( $self, $report_id, $actor_user_id ) {
         target_id   => $report_id,
         target_type => 'message',
     )->{audit};
-    my $row =
-      $self->_functions->row( 'moderation_reported_message',
-        { report_id => $report_id, audit => $audit } )
-      || { status => 'not_found' };
+    return ( undef, 'moderation_reported_message',
+        { report_id => $report_id, audit => $audit } );
+}
+
+sub _reported_answer ($row) {
+    $row ||= { status => 'not_found' };
     return { status => $row->{status} } if $row->{status} ne 'ok';
 
     return {
@@ -470,11 +579,22 @@ C<recipient_user_id>, C<started> and C<first_unread>; or C<ok> 0 with
 C<status> C<invalid> (with C<field>, or C<automod>), C<forbidden>,
 C<not_found>, C<self>, C<blocked>, C<limit>, C<conflict> or C<failed>.
 
+=head2 start_p
+
+L</start> as a promise, with an optional query context last: the screen and
+the send run on the worker's pooled asynchronous connections, a settled
+send and its automod decisions in one transaction.
+
 =head2 reply
 
 As L</start>, in the conversation C<conversation_id>; refuses C<not_found>
 for a conversation that is not the sender's and C<gone> when the other
 member's account was erased.
+
+=head2 reply_p
+
+L</reply> as a promise, with an optional query context last, sent as
+L</start_p> sends.
 
 =head2 normalize_body
 
@@ -513,6 +633,11 @@ Marks the conversation read for the member, and the inbox's notifications
 of its messages; answers C<status> (C<ok>, C<unchanged>, C<not_found>) and
 C<notifications_read>.
 
+=head2 mark_read_p
+
+L</mark_read> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
+
 =head2 recipient
 
 Whom the member would write to by that name, with the conversation the two
@@ -527,10 +652,20 @@ the worker's pooled asynchronous connections.
 
 The message the member may report, or undef.
 
+=head2 reportable_p
+
+L</reportable> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections.
+
 =head2 read_reported
 
 Reads the message a report names for the staff member given, and audits
 the reading in the same call.
+
+=head2 read_reported_p
+
+L</read_reported> as a promise, with an optional query context last, read
+and audited on the worker's pooled asynchronous connections.
 
 =head2 maximum_body
 

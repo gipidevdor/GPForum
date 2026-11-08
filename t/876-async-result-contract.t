@@ -14,7 +14,7 @@ use GPForum::Test::AsyncResult;
 my $schema  = GPForum::Schema->connect('dbi:Pg:dbname=unused_async_result');
 my $service = GPForum::Test::AsyncResult->new( schema => $schema );
 my $work    = GPForum::Infrastructure::AsyncWork->new;
-my $row     = await_result( $work->service_result_p( $service, 'inbox', [] ) );
+my $row     = await_result( $work->job_p( $service, 'inbox', [] ) );
 isa_ok( $row, 'GPForum::Infrastructure::ResultRow::NotificationInbox' );
 isa_ok( $row->notification,
     'GPForum::Infrastructure::ResultRow::Notification' );
@@ -32,7 +32,7 @@ is(
     'joined columns survive'
 );
 my $error;
-$work->service_result_p( $service, 'invalid', [] )
+$work->job_p( $service, 'invalid', [] )
   ->catch( sub ($failure) { $error = $failure; return; } )
   ->wait;
 isa_ok( $error, 'GPForum::X::Argument' );

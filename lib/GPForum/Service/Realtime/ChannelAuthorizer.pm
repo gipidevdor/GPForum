@@ -4,7 +4,7 @@
 package GPForum::Service::Realtime::ChannelAuthorizer;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -21,6 +21,37 @@ const my %SUPPORTED_CHANNELS => map { $_ => 1 }
 has permission_engine => undef;    # optional: all channels forbidden without it
 
 sub authorize ( $self, $actor, $channel, $context ) {
+    my ( $answer, $parsed ) = $self->_before_policy( $actor, $channel );
+    return $answer if $answer;
+
+    return $self->_authorize_with_policy( $actor, $parsed, $context || {} );
+}
+
+# The same decision with the policy asked on the worker's pooled
+# asynchronous connections.
+async sub authorize_p (
+    $self, $actor, $channel,
+    $context = undef,
+    $query_context = undef
+  )
+{
+    my ( $answer, $parsed ) = $self->_before_policy( $actor, $channel );
+    return $answer if $answer;
+    my $engine = $self->permission_engine;
+    return $self->_authorize_with_policy( $actor, $parsed, $context || {} )
+      if !$engine || !$engine->can('permits_p');
+
+    return _normalize_policy_decision(
+        await $engine->permits_p(
+            $actor,             'realtime.subscribe',
+            _resource($parsed), $context || {}
+        )
+    );
+}
+
+# The answer every channel gets before its policy is asked, or undef and
+# the parsed channel.
+sub _before_policy ( $self, $actor, $channel ) {
     my $parsed = parse_channel($channel);
     return { ok => 0, reason => 'malformed_channel' } if !$parsed;
     return { ok => 0, reason => 'unknown_channel' }
@@ -31,7 +62,14 @@ sub authorize ( $self, $actor, $channel, $context ) {
     return $self->_authorize_notifications( $actor, $parsed )
       if $parsed->{type} eq $NOTIFICATION_PREFIX;
 
-    return $self->_authorize_with_policy( $actor, $parsed, $context || {} );
+    return ( undef, $parsed );
+}
+
+sub _resource ($parsed) {
+    return {
+        type => $parsed->{type},
+        id   => $parsed->{resource_id},
+    };
 }
 
 sub parse_channel ($channel) {
@@ -57,15 +95,9 @@ sub _authorize_notifications ( $self, $actor, $parsed ) {
 sub _authorize_with_policy ( $self, $actor, $parsed, $context ) {
     return { ok => 0, reason => 'forbidden' } if !$self->permission_engine;
 
-    my $decision = $self->permission_engine->permits(
-        $actor,
-        'realtime.subscribe',
-        {
-            type => $parsed->{type},
-            id   => $parsed->{resource_id},
-        },
-        $context
-    );
+    my $decision =
+      $self->permission_engine->permits( $actor, 'realtime.subscribe',
+        _resource($parsed), $context );
 
     return _normalize_policy_decision($decision);
 }
@@ -149,6 +181,11 @@ normalized: a hash reference keeps its C<ok> as 1 or 0 and its C<reason>,
 which defaults to C<policy_allowed> or C<forbidden>; any other true value
 becomes C<< { ok => 1, reason => 'policy_allowed' } >>, and a false one
 C<< { ok => 0, reason => 'forbidden' } >>.
+
+=head2 authorize_p
+
+L</authorize> as a promise, with the same arguments: the policy is asked on
+the worker's pooled asynchronous connections when it can be.
 
 =head2 parse_channel
 

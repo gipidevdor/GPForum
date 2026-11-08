@@ -5,9 +5,11 @@ package GPForum::Service::Operations::MetricsSnapshot;
 
 use Const::Fast;
 use English qw(-no_match_vars);
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
+use GPForum::Infrastructure::AsyncQuery;
+use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::Storage;
 use Scalar::Util qw(blessed);
 use Time::HiRes  qw(time);
@@ -49,6 +51,39 @@ has started_at     => sub { return time; };
 has notification_dispatcher => undef;    # optional: no section without one
 
 sub collect ($self) {
+    return {
+        %{ $self->_process_sections( $self->_os_sections ) },
+        query_budget_drift => $self->_query_budget_drift,
+        database           => $self->_database,
+        outbox             => $self->_outbox,
+        replication        => $self->_replication,
+    };
+}
+
+# collect in the worker whose counters it reports: the database sections
+# read on pooled asynchronous connections, and only the host's sections --
+# ps and the like -- in a CPU-only child that never touches PostgreSQL.
+# Without the function layer (test doubles) the blocking collect answers.
+async sub collect_p ( $self, $context = undef ) {
+    return $self->collect
+      if !$self->schema
+      || !$self->schema->isa('GPForum::Schema')
+      || !$self->functions;
+    my $os = await GPForum::Infrastructure::AsyncWork->shared->cpu_p(
+        sub { return $self->_os_sections; } );
+    my $sections = $self->_process_sections($os);
+    return {
+        %{$sections},
+        query_budget_drift => await $self->_query_budget_drift_p($context),
+        database           => await $self->_database_p($context),
+        outbox             => await $self->_outbox_p($context),
+        replication        => await $self->_replication_p($context),
+    };
+}
+
+# Every section but the database's: the process's own counters, with the
+# host's sections given.
+sub _process_sections ( $self, $os ) {
     my $runtime = $self->runtime;
 
     return {
@@ -58,7 +93,7 @@ sub collect ($self) {
             uptime_seconds => int( time - $self->started_at ),
         },
         runtime => $runtime ? $runtime->as_hash : {},
-        %{ $self->_os_sections },
+        %{$os},
         runtime_enforcement => _section( $self->runtime_policy, 'report' ),
         local_caches        => [
             grep { defined }
@@ -79,11 +114,69 @@ sub collect ($self) {
           && $self->schema->{gp_async_query}
         ? $self->schema->{gp_async_query}->snapshot
         : {},
-        query_budgets      => $self->query_budget->snapshot,
-        query_budget_drift => $self->_query_budget_drift,
-        database           => $self->_database,
-        outbox             => $self->_outbox,
-        replication        => $self->_replication,
+        query_budgets => $self->query_budget->snapshot,
+    };
+}
+
+async sub _query_budget_drift_p ( $self, $context ) {
+    my $report;
+    try {
+        $report =
+          await GPForum::Service::Operations::QueryBudget->new(
+            schema => $self->schema )->drift_report_p($context);
+    }
+    catch ($error) {
+        return {};
+    };
+
+    return $report || {};
+}
+
+async sub _database_p ( $self, $context ) {
+    my $started = time;
+    my $ok      = 1;
+    try {
+        await GPForum::Infrastructure::AsyncQuery->for_schema( $self->schema )
+          ->run_p( sub ($db) { return $db->query_p('SELECT 1'); }, $context );
+    }
+    catch ($error) {
+        $ok = 0;
+    };
+
+    return {
+        ready_latency_ms =>
+          int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+        status => $ok ? 'ok' : 'fail',
+    };
+}
+
+async sub _outbox_p ( $self, $context ) {
+    my $snapshot;
+    try {
+        $snapshot = await $self->functions->row_p( 'ops_outbox_metrics',
+            { now => $self->clock->now_iso8601 }, $context );
+    }
+    catch ($error) {
+        return {};
+    };
+
+    return $snapshot;
+}
+
+async sub _replication_p ( $self, $context ) {
+    my ( $snapshot, $failure );
+    try {
+        $snapshot =
+          await $self->replication->snapshot_p( $self->functions, $context );
+    }
+    catch ($error) {
+        $failure = $error;
+    };
+    return $snapshot if $snapshot;
+
+    return {
+        error  => _compact_error($failure),
+        status => 'unavailable',
     };
 }
 
@@ -329,6 +422,12 @@ C<db_query_stats>, C<query_budgets>, C<query_budget_drift>, C<database>
 (C<pending>, C<failed>, C<retry_backlog>, C<dead_letters>) and
 C<replication> (the replication snapshot, or C<status> C<unavailable> and the
 C<error>).
+
+=head2 collect_p
+
+Answers a promise of what L</collect> returns, collected in the worker
+whose counters it reports, with the database sections read on pooled
+asynchronous connections.
 
 =head2 retry_backlog_resultset
 

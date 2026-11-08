@@ -14,7 +14,6 @@ use GPForum::Service::Realtime::ChannelAuthorizer;
 use GPForum::Service::Realtime::ConnectionRegistry;
 use GPForum::Service::Realtime::EventEnvelope;
 
-use GPForum::Infrastructure::AsyncWork;
 use Mojo::Promise;
 
 our $VERSION = '0.001';
@@ -77,11 +76,13 @@ has ioloop                => undef;  # optional: the check runs only when called
 has session_check_seconds => $SESSION_CHECK_SECONDS;
 has session_timer_id      => undef;    # optional: set while a check runs
 
+# Every collaborator on PostgreSQL answers with its own promise on the
+# pooled connections; an in-memory double answers in the worker.
 sub _call_p ( $self, $service, $method, @args ) {
     my $native = $method . '_p';
     return $service->$native(@args) if $service->can($native);
-    return GPForum::Infrastructure::AsyncWork->shared->service_result_p(
-        $service, $method, \@args );
+    return Mojo::Promise->resolve->then(
+        sub { return $service->$method(@args); } );
 }
 
 async sub subscribe_p ( $self, $request ) {

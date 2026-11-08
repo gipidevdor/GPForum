@@ -40,24 +40,52 @@ sub maximum_relations ($self) { return $MAXIMUM_RELATIONS; }
 # list. Answers ok (and changed, when it was not already so) or a refusal:
 # invalid, self, not_found, limit or forbidden (the owner cannot act).
 sub set_relation ( $self, $input ) {
-    my $kind     = $input->{kind}     // q{};
-    my $username = $input->{username} // q{};
-    return _refused('invalid')
-      if !exists $KINDS{$kind}
-      || !length $username
-      || length $username > $MAXIMUM_USERNAME
-      || !GPForum::Infrastructure::Id->is_uuid_spelling(
-        $input->{owner_user_id} );
+    return _refused('invalid') if !_valid_set($input);
 
-    my $row = $self->_functions->row(
-        'community_relation_set',
-        {
-            owner_user_id => $input->{owner_user_id},
-            username      => $username,
-            kind          => $kind,
-            now           => $self->clock->now_iso8601,
-        }
-    ) || { status => 'forbidden' };
+    return _set_answer(
+        $self->_functions->row(
+            'community_relation_set', $self->_set_values($input)
+        )
+    );
+}
+
+# set_relation on the worker's pooled asynchronous connections.
+async sub set_relation_p ( $self, $input, $context = undef ) {
+    return $self->set_relation($input) if !$self->functions;
+    return _refused('invalid')         if !_valid_set($input);
+
+    return _set_answer(
+        await $self->functions->row_p(
+            'community_relation_set', $self->_set_values($input), $context
+        )
+    );
+}
+
+sub _valid_set ($input) {
+    return exists $KINDS{ $input->{kind} // q{} }
+      && _valid_owner_and_name($input);
+}
+
+sub _valid_owner_and_name ($input) {
+    my $username = $input->{username} // q{};
+    return
+         length $username
+      && length $username <= $MAXIMUM_USERNAME
+      && GPForum::Infrastructure::Id->is_uuid_spelling(
+        $input->{owner_user_id} ) ? 1 : 0;
+}
+
+sub _set_values ( $self, $input ) {
+    return {
+        owner_user_id => $input->{owner_user_id},
+        username      => $input->{username},
+        kind          => $input->{kind},
+        now           => $self->clock->now_iso8601,
+    };
+}
+
+sub _set_answer ($row) {
+    $row ||= { status => 'forbidden' };
     my $status = $row->{status} // 'forbidden';
     return _refused($status) if $status ne 'ok' && $status ne 'unchanged';
 
@@ -76,16 +104,35 @@ sub set_relation ( $self, $input ) {
 # Takes the member called $username off the owner's list; removing one not
 # listed is no error (removed is 0).
 sub remove_relation ( $self, $input ) {
-    my $username = $input->{username} // q{};
-    return _refused('invalid')
-      if !length $username
-      || length $username > $MAXIMUM_USERNAME
-      || !GPForum::Infrastructure::Id->is_uuid_spelling(
-        $input->{owner_user_id} );
+    return _refused('invalid') if !_valid_owner_and_name($input);
 
-    my $row = $self->_functions->row( 'community_relation_remove',
-        { owner_user_id => $input->{owner_user_id}, username => $username } );
+    return _remove_answer(
+        $self->_functions->row(
+            'community_relation_remove', _remove_values($input)
+        )
+    );
+}
 
+# remove_relation on the worker's pooled asynchronous connections.
+async sub remove_relation_p ( $self, $input, $context = undef ) {
+    return $self->remove_relation($input) if !$self->functions;
+    return _refused('invalid')            if !_valid_owner_and_name($input);
+
+    return _remove_answer(
+        await $self->functions->row_p(
+            'community_relation_remove', _remove_values($input), $context
+        )
+    );
+}
+
+sub _remove_values ($input) {
+    return {
+        owner_user_id => $input->{owner_user_id},
+        username      => $input->{username},
+    };
+}
+
+sub _remove_answer ($row) {
     return { ok => 1, status => 'ok', removed => 0 + ( $row->{removed} // 0 ) };
 }
 
@@ -145,6 +192,16 @@ sub blocks ( $self, $owner_user_id, $other_user_id ) {
     return defined $kind && $kind eq 'block' ? 1 : 0;
 }
 
+# The block on the worker's pooled asynchronous connections, or on the
+# call layer of the transaction the store was joined to.
+async sub blocks_p ( $self, $owner_user_id, $other_user_id, $context = undef ) {
+    my $kind =
+      await $self->relation_between_p( $owner_user_id, $other_user_id,
+        $context );
+
+    return defined $kind && $kind eq 'block' ? 1 : 0;
+}
+
 # True when a notification of this type, from this actor, is silenced for
 # the recipient: a reply, mention or direct message by a member they ignore
 # or block.
@@ -154,6 +211,17 @@ sub silences ( $self, $recipient_user_id, $notification_type, $actor_id ) {
     return defined $self->relation_between( $recipient_user_id, $actor_id )
       ? 1
       : 0;
+}
+
+async sub silences_p ( $self, $recipient_user_id, $notification_type,
+    $actor_id, $context = undef )
+{
+    return 0 if !$self->silenceable($notification_type);
+
+    return
+      defined(
+        await $self->relation_between_p( $recipient_user_id, $actor_id,
+            $context ) ) ? 1 : 0;
 }
 
 # Whether relations silence notifications of this kind at all: replies,
@@ -210,9 +278,20 @@ kind of one already listed. Answers C<ok> with C<status> C<ok> or
 C<unchanged>, or C<ok> 0 with C<status> C<invalid>, C<self>, C<not_found>,
 C<limit> or C<forbidden>.
 
+=head2 set_relation_p
+
+The same change and answer as L</set_relation>, on the worker's pooled
+asynchronous PostgreSQL connections; a double without the function layer
+is answered by L</set_relation>.
+
 =head2 remove_relation
 
 Takes a member off the list by username; answers how many rows went.
+
+=head2 remove_relation_p
+
+The same removal and answer as L</remove_relation>, on the worker's pooled
+asynchronous PostgreSQL connections.
 
 =head2 list_for_user
 
@@ -238,10 +317,21 @@ read on the worker's pooled asynchronous connections.
 
 True when the owner blocks the other member.
 
+=head2 blocks_p
+
+L</blocks> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections, or on a transaction's call layer
+when the store was built with that layer as its C<functions>.
+
 =head2 silences
 
 True when a notification of this type from this actor is silenced for the
 recipient: only replies, mentions and direct messages are.
+
+=head2 silences_p
+
+L</silences> as a promise, with an optional query context last, read as
+L</blocks_p> reads.
 
 =head2 silenceable
 

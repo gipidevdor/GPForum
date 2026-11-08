@@ -43,7 +43,19 @@ sub _overview ($row) {
 sub change ( $self, $input ) {
     return { status => 'invalid' }
       if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
-    my $row = $self->functions->row( 'forum_poll_change', $input );
+    return _changed( $self->functions->row( 'forum_poll_change', $input ) );
+}
+
+async sub change_p ( $self, $input, $context = undef ) {
+    return $self->change($input) if !$self->functions;
+    return { status => 'invalid' }
+      if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
+    return _changed(
+        await $self->functions->row_p( 'forum_poll_change', $input, $context )
+    );
+}
+
+sub _changed ($row) {
     return $row ? $row->{result} : { status => 'invalid' };
 }
 
@@ -83,6 +95,11 @@ read on the worker's pooled asynchronous connections.
 =head2 change
 
 Creates, votes or closes, authorizing and recording the command atomically.
+
+=head2 change_p
+
+L</change> as a promise, with the request's optional query context last, run
+on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

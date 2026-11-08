@@ -4,7 +4,7 @@
 package GPForum::Service::Operations::QueryBudget;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row qw(rows_in);
@@ -125,10 +125,10 @@ const my %DEFAULT_BUDGETS => (
         notes       => 'bounded inbox read plus unread counter',
     },
     metrics => {
-        max_queries => 3,
-        notes => 'rate limit buckets, budget drift, outbox and dead letters;'
-          . ' the database probe and the replication reads go to the'
-          . ' handle directly and are not counted',
+        max_queries => 6,
+        notes => 'rate limit buckets, budget drift, outbox and dead letters,'
+          . ' and the three replication reads, on pooled connections; the'
+          . ' database probe is a bare SELECT 1 and is not counted',
     },
 );
 
@@ -291,7 +291,29 @@ sub _unchanged_budget ( $held, $incoming ) {
 }
 
 sub drift_report ( $self, $schema = undef ) {
-    my %stored     = $self->_stored_budget_rows($schema);
+    return $self->_drift( { $self->_stored_budget_rows($schema) } );
+}
+
+# drift_report on a pooled asynchronous connection. Without the function
+# layer (a test double's schema) the blocking read answers.
+async sub drift_report_p ( $self, $context = undef ) {
+    my $functions = $self->functions;
+    return $self->drift_report if !$functions;
+    my $rows = await $functions->rows_p( 'ops_query_budget_list',
+        { row_limit => $BUDGET_SEARCH_ROWS }, $context );
+    return $self->_drift( _stored_from_rows($rows) );
+}
+
+sub _stored_from_rows ($rows) {
+    return {
+        map {
+            $_->{endpoint_name} => GPForum::Infrastructure::ResultRow->from($_)
+        } @{$rows}
+    };
+}
+
+sub _drift ( $self, $stored_rows ) {
+    my %stored     = %{$stored_rows};
     my $catalog    = $self->catalog;
     my @missing    = _missing_endpoints( $catalog, \%stored );
     my @extra      = _extra_endpoints( $catalog, \%stored );
@@ -367,12 +389,14 @@ sub _stored_budget_rows ( $self, $schema ) {
     my $functions = GPForum::Infrastructure::SqlFunction->for_schema( $schema
           || $self->schema );
     if ($functions) {
-        return map {
-            $_->{endpoint_name} => GPForum::Infrastructure::ResultRow->from($_)
-          } @{
-            $functions->rows( 'ops_query_budget_list',
-                { row_limit => $BUDGET_SEARCH_ROWS } )
-          };
+        return %{
+            _stored_from_rows(
+                $functions->rows(
+                    'ops_query_budget_list',
+                    { row_limit => $BUDGET_SEARCH_ROWS }
+                )
+            )
+        };
     }
     my $search = $self->_resultset($schema)->search_rs(
         {},
@@ -516,6 +540,11 @@ catalog. Returns C<< { status, missing, extra, mismatched } >>: the
 endpoints in the catalog but not stored, stored but not in the catalog, and
 stored with a different C<max_queries> or C<max_transactions>; the status
 is C<fail> when any list is not empty and C<ok> otherwise.
+
+=head2 drift_report_p
+
+Answers a promise of the report L</drift_report> returns, reading the stored
+budgets on a pooled asynchronous connection.
 
 =head1 DIAGNOSTICS
 

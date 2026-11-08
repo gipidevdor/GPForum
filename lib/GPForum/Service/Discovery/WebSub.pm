@@ -3,7 +3,7 @@
 
 package GPForum::Service::Discovery::WebSub;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 use Mojo::Promise;
 use Socket
@@ -34,7 +34,7 @@ has ua => sub {
 
 has resolve_host_p => sub {
     return sub ($host) {
-        return GPForum::Infrastructure::AsyncWork->shared->run_p(
+        return GPForum::Infrastructure::AsyncWork->shared->cpu_p(
             sub {
                 my ( $error, @peers ) =
                   getaddrinfo( $host, undef, { socktype => SOCK_STREAM } );
@@ -117,6 +117,11 @@ sub subscription ( $self, $params ) {
     };
 }
 
+# The check needs no database and no child: it answers in the worker.
+async sub subscription_p ( $self, $params, $context = undef ) {
+    return $self->subscription($params);
+}
+
 sub _hub ($self) {
     my $url = Mojo::URL->new( $self->hub_url );
     croak 'WebSub hub needs an absolute HTTPS URL'
@@ -157,6 +162,11 @@ Notifies the trusted HTTPS hub of the fixed public Atom topic; throws on failed 
 =head2 subscription
 
 Validates a subscription form and returns only protocol parameters for forwarding to the hub.
+
+=head2 subscription_p
+
+L</subscription> as a promise, answered in the worker: the check reads no
+database. A refused form rejects the promise.
 
 =head1 VERSION
 

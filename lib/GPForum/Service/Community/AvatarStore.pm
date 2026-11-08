@@ -52,13 +52,31 @@ sub offer ( $self, $user_id, $attachment_id ) {
       if !_is_uuid($user_id) || !_is_uuid($attachment_id);
 
     return $self->_functions->row(
+        $self->_offer_values( $user_id, $attachment_id ) )
+      // { status => 'invalid' };
+}
+
+# offer on the worker's pooled asynchronous connections.
+async sub offer_p ( $self, $user_id, $attachment_id, $context = undef ) {
+    return { status => 'invalid' }
+      if !_is_uuid($user_id) || !_is_uuid($attachment_id);
+
+    return (
+        await $self->_functions->row_p(
+            $self->_offer_values( $user_id, $attachment_id ), $context
+        )
+    ) // { status => 'invalid' };
+}
+
+sub _offer_values ( $self, $user_id, $attachment_id ) {
+    return (
         'community_avatar_offer',
         {
             user_id       => $user_id,
             attachment_id => $attachment_id,
             now           => $self->clock->now_iso8601,
         }
-    ) // { status => 'invalid' };
+    );
 }
 
 # What became of the waiting upload: ready or unreadable. Answers ok (with
@@ -68,6 +86,32 @@ sub settle ( $self, $user_id, $attachment_id, $outcome ) {
       if !_is_uuid($user_id) || !_is_uuid($attachment_id);
 
     return $self->_functions->row(
+        $self->_settle_values( $user_id, $attachment_id, $outcome ) )
+      // { status => 'invalid' };
+}
+
+# settle on the worker's pooled asynchronous connections, or on the
+# transaction $functions belongs to.
+async sub settle_p (
+    $self, $user_id, $attachment_id, $outcome,
+    $context = undef,
+    $functions = undef
+  )
+{
+    return { status => 'invalid' }
+      if !_is_uuid($user_id) || !_is_uuid($attachment_id);
+
+    $functions //= $self->_functions;
+    return (
+        await $functions->row_p(
+            $self->_settle_values( $user_id, $attachment_id, $outcome ),
+            $context
+        )
+    ) // { status => 'invalid' };
+}
+
+sub _settle_values ( $self, $user_id, $attachment_id, $outcome ) {
+    return (
         'community_avatar_settle',
         {
             user_id       => $user_id,
@@ -75,7 +119,7 @@ sub settle ( $self, $user_id, $attachment_id, $outcome ) {
             outcome       => $outcome,
             now           => $self->clock->now_iso8601,
         }
-    ) // { status => 'invalid' };
+    );
 }
 
 # The member takes their picture away, and the one waiting with it.
@@ -84,46 +128,73 @@ sub remove_own ( $self, $user_id ) {
     return { status => 'not_found', attachment_ids => [] }
       if !_is_uuid($user_id);
 
+    return _removed( $self->_functions->rows( _remove_own_values($user_id) ) );
+}
+
+# remove_own on the worker's pooled asynchronous connections.
+async sub remove_own_p ( $self, $user_id, $context = undef ) {
+    return { status => 'not_found', attachment_ids => [] }
+      if !_is_uuid($user_id);
+
     return _removed(
-        $self->_functions->rows(
-            'community_avatar_remove',
-            { user_id => $user_id, attachment_id => undef, audit => undef }
-        )
-    );
+        await $self->_functions->rows_p( _remove_own_values($user_id),
+            $context ) );
+}
+
+sub _remove_own_values ($user_id) {
+    return ( 'community_avatar_remove',
+        { user_id => $user_id, attachment_id => undef, audit => undef } );
 }
 
 # Staff take the picture a member shows away, audited with who did it, the
 # member, and the reason given. Answers ok with the upload removed,
 # not_found when it is not the picture shown, or invalid (field reason).
 sub remove_by_staff ( $self, $input ) {
+    my $refused = $self->_staff_refusal($input);
+    return $refused if $refused;
+
+    return _removed( $self->_functions->rows( $self->_staff_values($input) ) );
+}
+
+# remove_by_staff on the worker's pooled asynchronous connections.
+async sub remove_by_staff_p ( $self, $input, $context = undef ) {
+    my $refused = $self->_staff_refusal($input);
+    return $refused if $refused;
+
+    return _removed(
+        await $self->_functions->rows_p( $self->_staff_values($input),
+            $context ) );
+}
+
+sub _staff_refusal ( $self, $input ) {
     return { status => 'not_found', attachment_ids => [] }
       if !_is_uuid( $input->{subject_user_id} )
       || !_is_uuid( $input->{attachment_id} );
-    my $reason = $self->reason( $input->{reason} );
     return { status => 'invalid', field => 'reason', attachment_ids => [] }
-      if !defined $reason;
+      if !defined $self->reason( $input->{reason} );
+    return undef;
+}
 
+sub _staff_values ( $self, $input ) {
     my $now = $self->clock->now_iso8601;
-    return _removed(
-        $self->_functions->rows(
-            'community_avatar_remove',
-            {
-                user_id       => $input->{subject_user_id},
-                attachment_id => $input->{attachment_id},
-                audit         => $self->recorder->audit_call(
-                    action     => $AUDIT_ACTION,
-                    actor_id   => $input->{actor_user_id},
-                    created_at => $now,
-                    metadata   => {
-                        subject_user_id => $input->{subject_user_id},
-                        reason          => $reason,
-                    },
-                    schema_version => $SCHEMA,
-                    target_id      => $input->{attachment_id},
-                    target_type    => $AUDIT_TARGET,
-                )->{audit},
-            }
-        )
+    return (
+        'community_avatar_remove',
+        {
+            user_id       => $input->{subject_user_id},
+            attachment_id => $input->{attachment_id},
+            audit         => $self->recorder->audit_call(
+                action     => $AUDIT_ACTION,
+                actor_id   => $input->{actor_user_id},
+                created_at => $now,
+                metadata   => {
+                    subject_user_id => $input->{subject_user_id},
+                    reason          => $self->reason( $input->{reason} ),
+                },
+                schema_version => $SCHEMA,
+                target_id      => $input->{attachment_id},
+                target_type    => $AUDIT_TARGET,
+            )->{audit},
+        }
     );
 }
 
@@ -185,6 +256,23 @@ sub objects ( $self, $user_id, $attachment_id = undef ) {
 
     return $self->_functions->rows( 'community_avatar_objects',
         { user_id => $user_id, attachment_id => $attachment_id } );
+}
+
+# objects on the worker's pooled asynchronous connections, or on the
+# transaction $functions belongs to.
+async sub objects_p (
+    $self, $user_id,
+    $attachment_id = undef,
+    $context       = undef,
+    $functions     = undef
+  )
+{
+    return [] if !_is_uuid($user_id);
+    return [] if defined $attachment_id && !_is_uuid($attachment_id);
+
+    $functions //= $self->_functions;
+    return await $functions->rows_p( 'community_avatar_objects',
+        { user_id => $user_id, attachment_id => $attachment_id }, $context );
 }
 
 sub _removed ($rows) {
@@ -258,6 +346,11 @@ Takes a member id and an attachment id. Answers C<ok> with
 C<replaced_attachment_id> (the upload no longer waiting, or undef),
 C<replayed>, C<not_found> or C<invalid>.
 
+=head2 offer_p
+
+L</offer> as a promise, with an optional query context last, answered on
+the worker's pooled asynchronous connections.
+
 =head2 settle
 
 Takes a member id, an attachment id and C<ready> or C<unreadable>. Answers
@@ -265,11 +358,21 @@ C<ok> with C<replaced_attachment_id> (the picture a ready one replaces),
 C<shown> when it already is the picture shown, C<stale> when it is neither
 shown nor waiting, or C<invalid>.
 
+=head2 settle_p
+
+L</settle> as a promise, with an optional query context and an optional
+transaction call layer last.
+
 =head2 remove_own
 
 Takes a member id. Answers C<< { status => 'ok', attachment_ids => [...] } >>
 for the uploads removed (the picture shown and the one waiting), or
 C<not_found>.
+
+=head2 remove_own_p
+
+L</remove_own> as a promise, with an optional query context last, answered
+on the worker's pooled asynchronous connections.
 
 =head2 remove_by_staff
 
@@ -277,6 +380,12 @@ Takes C<subject_user_id>, C<attachment_id> (the picture the staff member
 saw), C<actor_user_id> and an optional C<reason>. Removes that picture
 while it is the one shown and audits C<avatar.removed>. Answers as
 L</remove_own>, or C<invalid> with C<< field => 'reason' >>.
+
+=head2 remove_by_staff_p
+
+L</remove_by_staff> as a promise, with an optional query context last: the
+removal and its audit row are written by one function call on the worker's
+pooled asynchronous connections.
 
 =head2 reason
 
@@ -304,6 +413,12 @@ C<media_type> and C<byte_size> of the square, or undef.
 
 Takes a member id and optionally an attachment id. Returns
 C<< { attachment_id, object_key } >> rows, the original's and its variants'.
+
+=head2 objects_p
+
+L</objects> as a promise, with an optional query context and an optional
+transaction call layer last: read on the worker's pooled asynchronous
+connections, in that transaction when one is given.
 
 =head2 image_p
 

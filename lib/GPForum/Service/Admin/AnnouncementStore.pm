@@ -48,6 +48,80 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 # characters, in a notice or a warning tone. Answers the row, or the errors
 # of a message that cannot be published.
 sub create_announcement ( $self, $input ) {
+    my $announcement = $self->_new_announcement($input);
+    return $announcement if !$announcement->{announcement_id};
+    $self->_functions->row( 'admin_insert_announcement',
+        { values => $announcement } );
+    $self->_record_write(
+        'announcement.published', $input->{actor_user_id},
+        $announcement,            $announcement->{created_at}
+    );
+    return $announcement;
+}
+
+# The two announcement writes on a pooled asynchronous connection, inside
+# the caller's transaction ($scope, the call layer transaction_p hands its
+# work) or in one of their own, with the blocking writes' answers.
+async sub create_announcement_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    my $announcement = $self->_new_announcement($input);
+    return $announcement if !$announcement->{announcement_id};
+    my $work = async sub ($functions) {
+        await $functions->row_p( 'admin_insert_announcement',
+            { values => $announcement }, $context );
+        await $self->_record_write_p(
+            $functions,
+            [
+                'announcement.published', $input->{actor_user_id},
+                $announcement,            $announcement->{created_at}
+            ],
+            $context
+        );
+        return $announcement;
+    };
+    return await(
+          $scope
+        ? $work->($scope)
+        : $self->_functions->transaction_p( $work, $context )
+    );
+}
+
+async sub retire_announcement_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    my $work = async sub ($functions) {
+        my $existing = await $functions->row_p( 'admin_announcement_by_id',
+            { announcement_id => $input->{announcement_id} }, $context );
+        return undef if !$existing;
+        return { %{$existing}, skipped => 1 }
+          if defined $existing->{retired_at};
+
+        my $retired_at = $self->clock->now_iso8601;
+        my $retired =
+          await $functions->row_p( _retire_call( $input, $retired_at ),
+            $context );
+        return { %{$existing}, skipped => 1 } if !$retired;
+        await $self->_record_write_p(
+            $functions,
+            [
+                'announcement.retired', $input->{actor_user_id},
+                $retired,               $retired_at
+            ],
+            $context
+        );
+        return $retired;
+    };
+    return await(
+          $scope
+        ? $work->($scope)
+        : $self->_functions->transaction_p( $work, $context )
+    );
+}
+
+# The announcement a create writes, or the errors of a message that cannot
+# be published.
+sub _new_announcement ( $self, $input ) {
     my $message = trimmed( $input->{message} );
     my $tone    = trimmed( $input->{tone} ) || 'notice';
     my %errors;
@@ -62,7 +136,7 @@ sub create_announcement ( $self, $input ) {
     }
     return { errors => \%errors, ok => 0 } if %errors;
 
-    my $announcement = {
+    return {
         announcement_id => $self->id_service->uuid,
         created_at      => $self->clock->now_iso8601,
         created_by      => $input->{actor_user_id},
@@ -71,13 +145,6 @@ sub create_announcement ( $self, $input ) {
         retired_by      => undef,
         tone            => $tone,
     };
-    $self->_functions->row( 'admin_insert_announcement',
-        { values => $announcement } );
-    $self->_record_write(
-        'announcement.published', $input->{actor_user_id},
-        $announcement,            $announcement->{created_at}
-    );
-    return $announcement;
 }
 
 # Takes an announcement down. One already retired is answered as it is,
@@ -89,16 +156,7 @@ sub retire_announcement ( $self, $input ) {
     return { %{$existing}, skipped => 1 } if defined $existing->{retired_at};
 
     my $retired_at = $self->clock->now_iso8601;
-    my $retired    = $self->_functions->row(
-        'admin_retire_announcement',
-        {
-            announcement_id => $input->{announcement_id},
-            values          => {
-                retired_at => $retired_at,
-                retired_by => $input->{actor_user_id},
-            },
-        }
-    );
+    my $retired = $self->_functions->row( _retire_call( $input, $retired_at ) );
     return { %{$existing}, skipped => 1 } if !$retired;
     $self->_record_write( 'announcement.retired', $input->{actor_user_id},
         $retired, $retired_at );
@@ -177,19 +235,56 @@ sub _active_rows ( $self, $limit ) {
         { row_limit => $limit } );
 }
 
+sub _retire_call ( $input, $retired_at ) {
+    return (
+        'admin_retire_announcement',
+        {
+            announcement_id => $input->{announcement_id},
+            values          => {
+                retired_at => $retired_at,
+                retired_by => $input->{actor_user_id},
+            },
+        }
+    );
+}
+
 sub _record_write ( $self, $action, $actor_user_id, $announcement, $at ) {
-    my $payload = {
+    my $payload =
+      $self->_write_payload( $action, $actor_user_id, $announcement, $at );
+    $self->recorder->record_event(
+        %{ $self->events->announcement_event($payload) } );
+    $self->recorder->record_audit(
+        %{ $self->events->announcement_audit($payload) } );
+    return;
+}
+
+async sub _record_write_p ( $self, $functions, $write, $context ) {
+    my $payload = $self->_write_payload( @{$write} );
+    await $functions->row_p(
+        'ops_record_event',
+        $self->recorder->event_call(
+            %{ $self->events->announcement_event($payload) }
+        ),
+        $context
+    );
+    await $functions->row_p(
+        'ops_record_audit',
+        $self->recorder->audit_call(
+            %{ $self->events->announcement_audit($payload) }
+        ),
+        $context
+    );
+    return;
+}
+
+sub _write_payload ( $self, $action, $actor_user_id, $announcement, $at ) {
+    return {
         action         => $action,
         actor_user_id  => $actor_user_id,
         announcement   => $announcement,
         correlation_id => $self->id_service->uuid,
         created_at     => $at,
     };
-    $self->recorder->record_event(
-        %{ $self->events->announcement_event($payload) } );
-    $self->recorder->record_audit(
-        %{ $self->events->announcement_audit($payload) } );
-    return;
 }
 
 # Announcements exist only as api.* functions (ADR 0126): there is no Perl
@@ -240,11 +335,23 @@ Takes C<actor_user_id>, C<message> (plain text, 1 to 500 characters once
 trimmed) and C<tone> (C<notice>, the default, or C<warning>). Returns the
 announcement row, or C<< { ok => 0, errors } >> naming the field at fault.
 
+=head2 create_announcement_p
+
+Publishes as L</create_announcement> does, on a pooled asynchronous
+connection: inside the transaction of the call layer given as its last
+argument, or in one of its own.
+
 =head2 retire_announcement
 
 Takes C<actor_user_id> and C<announcement_id>. Returns the retired row;
 one retired already comes back as it is with C<skipped>; an unknown id
 returns nothing.
+
+=head2 retire_announcement_p
+
+Retires as L</retire_announcement> does, on a pooled asynchronous
+connection: inside the transaction of the call layer given as its last
+argument, or in one of its own.
 
 =head2 list_announcements
 

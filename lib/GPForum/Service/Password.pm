@@ -6,8 +6,9 @@ package GPForum::Service::Password;
 use Const::Fast;
 use Crypt::Argon2 qw(argon2id_pass argon2id_verify);
 use Encode        qw(encode FB_CROAK LEAVE_SRC);
+use GPForum::Infrastructure::AsyncWork;
 use GPForum::X::Argument;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -19,6 +20,9 @@ const my $SALT_BYTES     => 16;
 const my $PARALLELISM    => 1;
 const my $TAG_BYTES      => 32;
 const my $MINIMUM_LENGTH => 12;
+
+# The decoy hash of each cost, made once per process (decoy_hash).
+my %DECOY;
 
 has memory_mib => 32;
 has iterations => 3;
@@ -32,6 +36,30 @@ sub from_config ( $class, $config ) {
 }
 
 sub hash_password ( $self, $password ) {
+    $self->_require_hashable($password);
+
+    return $self->_hashed($password);
+}
+
+# hash_password in a child of the CPU lane: Argon2 never holds the event
+# loop. The password and the costs are checked here first, so a refusal is
+# the same exception hash_password throws.
+async sub hash_password_p ( $self, $password ) {
+    $self->_require_hashable($password);
+
+    return await GPForum::Infrastructure::AsyncWork->shared->cpu_p(
+        sub { return $self->_hashed($password); } );
+}
+
+# verify_password in a child of the CPU lane.
+async sub verify_password_p ( $self, $password, $encoded_hash ) {
+    return 0 if !_verifiable( $password, $encoded_hash );
+
+    return await GPForum::Infrastructure::AsyncWork->shared->cpu_p(
+        sub { return $self->verify_password( $password, $encoded_hash ); } );
+}
+
+sub _require_hashable ( $self, $password ) {
     _require_password($password);
     if (   $self->memory_mib !~ /\A\d+\z/msx
         || $self->memory_mib < $MINIMUM_ARGON_MEMORY_MIB
@@ -44,6 +72,10 @@ sub hash_password ( $self, $password ) {
             message => 'Argon2 requires 19..256 MiB and 2..10 iterations' );
     }
 
+    return;
+}
+
+sub _hashed ( $self, $password ) {
     return argon2id_pass(
         _octets( $password, 'UTF-8' ),
         _random_bytes($SALT_BYTES),
@@ -53,9 +85,7 @@ sub hash_password ( $self, $password ) {
 }
 
 sub verify_password ( $self, $password, $encoded_hash ) {
-    return 0 if !defined $password;
-    return 0 if !defined $encoded_hash;
-    return 0 if $encoded_hash !~ /\A \x{24} argon2id \x{24} /msx;
+    return 0 if !_verifiable( $password, $encoded_hash );
 
     # A password is hashed as its UTF-8 octets, and verified so: nothing
     # released ever hashed one otherwise.
@@ -73,10 +103,27 @@ sub _octets ( $password, $encoding ) {
 # password costs: answering at once told anyone timing the reply which
 # usernames and addresses have an account.
 sub decoy_hash ($self) {
-    state %decoy;
-    my $cost = join q{:}, $self->memory_mib, $self->iterations;
-    return $decoy{$cost} //=
+    return $DECOY{ $self->_cost } //=
       $self->hash_password( unpack 'H*', _random_bytes($SALT_BYTES) );
+}
+
+# decoy_hash made in a child of the CPU lane the first time, and kept in
+# this process as decoy_hash keeps it.
+async sub decoy_hash_p ($self) {
+    my $cost = $self->_cost;
+    return $DECOY{$cost} //=
+      await $self->hash_password_p( unpack 'H*', _random_bytes($SALT_BYTES) );
+}
+
+sub _cost ($self) {
+    return join q{:}, $self->memory_mib, $self->iterations;
+}
+
+sub _verifiable ( $password, $encoded_hash ) {
+    return
+         defined $password
+      && defined $encoded_hash
+      && $encoded_hash =~ /\A \x{24} argon2id \x{24} /msx ? 1 : 0;
 }
 
 sub _require_password ($password) {
@@ -139,6 +186,22 @@ No trimming, normalization, case folding or truncation is performed.
 An Argon2id hash of a random password, made once per process, to verify
 against when there is no account: an unknown login then takes as long as a
 wrong password.
+
+=head2 hash_password_p
+
+L</hash_password> as a promise: the password and the costs are checked in
+this process, and Argon2 runs in a child of the CPU lane
+(L<GPForum::Infrastructure::AsyncWork/cpu_p>), so it never holds the event
+loop.
+
+=head2 verify_password_p
+
+L</verify_password> as a promise, Argon2 run in a child of the CPU lane.
+
+=head2 decoy_hash_p
+
+L</decoy_hash> as a promise: made in a child of the CPU lane the first
+time, then kept in this process.
 
 =head2 from_config
 

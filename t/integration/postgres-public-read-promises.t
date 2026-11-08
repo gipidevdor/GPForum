@@ -24,10 +24,10 @@ use GPForum::Service::Discovery::SitemapPages;
 use GPForum::Service::Forum::Polls;
 use GPForum::Service::Identity::ProfileReader;
 use GPForum::Service::Operations::LocalCache;
+use GPForum::Test::Forks qw(children_during);
 use GPForum::Test::GuiDriver;
 use GPForum::Test::PgDatabase;
-use GPForum::Test::Promise      qw(await_result);
-use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
+use GPForum::Test::Promise qw(await_result);
 
 our $VERSION = '0.001';
 const my $HTTP_OK        => 200;
@@ -234,8 +234,6 @@ subtest 'the sitemaps and the signing keys answer the same' => sub {
 subtest 'public pages never reach the fork fallback' => sub {
     my $gui = GPForum::Test::GuiDriver->new( test => $t );
     $gui->install_session;
-    my @forked;
-    my $fallback = GPForum::Infrastructure::AsyncWork->can('service_result_p');
     my $no_picture =
         '/avatars/'
       . $fixture->{author} . q{/}
@@ -250,14 +248,7 @@ subtest 'public pages never reach the fork fallback' => sub {
         [ '/.well-known/gpforum-signing-keys', $HTTP_OK ],
         [ $no_picture,                         $HTTP_NOT_FOUND ],
     );
-    with_replaced_subs(
-        'GPForum::Infrastructure::AsyncWork',
-        {
-            service_result_p => sub {
-                push @forked, ref( $_[1] ) . "->$_[2]";
-                return $fallback->(@_);
-            },
-        },
+    my $children = children_during(
         sub {
             for my $page (@pages) {
                 $t->get_ok( $page->[0] )->status_is( $page->[1] );
@@ -268,7 +259,8 @@ subtest 'public pages never reach the fork fallback' => sub {
             }
         }
     );
-    is_deeply( \@forked, [], 'no public page forked a child to read' );
+    is_deeply( $children->{other}, [],
+        'no public page forked a child to read' );
 };
 
 done_testing;

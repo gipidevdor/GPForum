@@ -5,7 +5,7 @@ package GPForum::Service::Identity::Registration;
 
 use Const::Fast;
 use Unicode::Normalize qw(NFC);
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
@@ -26,21 +26,42 @@ has password_service => sub { return GPForum::Service::Password->new; };
 # The display name is composed, so "e" + U+0301 and U+00E9 are the same
 # string rather than two spellings of the same name that compare unequal.
 sub prepare ( $self, $input ) {
-    my $values = {
-        username         => lc trimmed( $input->{username} ),
-        display_name     => NFC( trimmed( $input->{display_name} ) ),
-        email_normalized => lc trimmed( $input->{email} ),
-        password         => $input->{password} // q{},
-    };
+    my $values = _values($input);
     my $errors = _validation_errors($values);
     if ( keys %{$errors} ) {
         return { ok => 0, errors => $errors, values => $values };
     }
 
+    return $self->_prepared( $values,
+        $self->password_service->hash_password( $values->{password} ) );
+}
+
+# prepare with Argon2 in a child of the CPU lane: the event loop keeps
+# serving while the password is hashed.
+async sub prepare_p ( $self, $input ) {
+    my $values = _values($input);
+    my $errors = _validation_errors($values);
+    if ( keys %{$errors} ) {
+        return { ok => 0, errors => $errors, values => $values };
+    }
+
+    return $self->_prepared( $values,
+        await $self->password_service->hash_password_p( $values->{password} ) );
+}
+
+sub _values ($input) {
+    return {
+        username         => lc trimmed( $input->{username} ),
+        display_name     => NFC( trimmed( $input->{display_name} ) ),
+        email_normalized => lc trimmed( $input->{email} ),
+        password         => $input->{password} // q{},
+    };
+}
+
+sub _prepared ( $self, $values, $secret_hash ) {
     my $credential = {
         type        => 'password',
-        secret_hash =>
-          $self->password_service->hash_password( $values->{password} ),
+        secret_hash => $secret_hash,
     };
 
     return {
@@ -139,6 +160,11 @@ classes.
 
 Returns either validation errors or normalized user, credential, and audit
 records ready for persistence.
+
+=head2 prepare_p
+
+L</prepare> as a promise: the same checks here, Argon2 in a child of the
+CPU lane (L<GPForum::Service::Password/hash_password_p>).
 
 =head1 DIAGNOSTICS
 

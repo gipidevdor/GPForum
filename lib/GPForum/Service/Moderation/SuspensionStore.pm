@@ -92,21 +92,7 @@ sub _create_or_reuse ( $self, $input ) {
 }
 
 sub _insert_suspension ( $self, $input, $user ) {
-    my $timestamp       = $self->clock->now_iso8601;
-    my $previous_status = column_of( $user, 'status' );
-    my $suspension      = {
-        suspension_id => $self->id_service->uuid,
-        user_id       => $input->{user_id},
-        actor_user_id => $input->{actor_user_id},
-        reason        => $input->{reason},
-        valid_from    => $timestamp,
-        valid_to      => $input->{valid_to},
-        revoked_at    => undef,
-        metadata      => {
-            previous_status => $previous_status,
-            source          => $input->{source} || 'moderation',
-        },
-    };
+    my $suspension = $self->_new_suspension( $input, $user );
     if ( $self->functions ) {
         $self->functions->row( 'moderation_suspension_insert',
             { values => $suspension } );
@@ -115,40 +101,64 @@ sub _insert_suspension ( $self, $input, $user ) {
         $self->schema->resultset('Suspension')->create($suspension);
     }
 
-    # Only an active account becomes suspended: the suspension row bars any
-    # account from taking part, and a pending one -- its address not
-    # confirmed -- stays pending, so lifting the suspension cannot make it
-    # active without the confirmation.
-    if ( ( $previous_status // $STATUS_ACTIVE ) eq $STATUS_ACTIVE ) {
-        $user->update(
-            {
-                status     => $STATUS_SUSPEND,
-                updated_at => $timestamp,
-            }
-        );
-    }
-    $self->_record_event_and_audit(
-        {
-            action         => 'user.suspended',
-            actor_id       => $input->{actor_user_id},
-            correlation_id => $input->{correlation_id},
-            created_at     => $timestamp,
-            metadata       => {
-                previous_status => $previous_status,
-                reason          => $input->{reason},
-                suspension_id   => $suspension->{suspension_id},
-            },
-            payload => {
-                reason        => $input->{reason},
-                suspension_id => $suspension->{suspension_id},
-                valid_from    => $timestamp,
-                valid_to      => $input->{valid_to},
-            },
-            user_id => $input->{user_id},
-        }
-    );
+    my $status = _suspended_status($suspension);
+    if ($status) { $user->update($status); }
+    $self->_record_event_and_audit( _suspended_record( $input, $suspension ) );
 
     return { ok => 1, suspension => $suspension };
+}
+
+# The suspension a member gets, stamped now, with the status it found.
+sub _new_suspension ( $self, $input, $user ) {
+    return {
+        suspension_id => $self->id_service->uuid,
+        user_id       => $input->{user_id},
+        actor_user_id => $input->{actor_user_id},
+        reason        => $input->{reason},
+        valid_from    => $self->clock->now_iso8601,
+        valid_to      => $input->{valid_to},
+        revoked_at    => undef,
+        metadata      => {
+            previous_status => column_of( $user, 'status' ),
+            source          => $input->{source} || 'moderation',
+        },
+    };
+}
+
+# Only an active account becomes suspended: the suspension row bars any
+# account from taking part, and a pending one -- its address not
+# confirmed -- stays pending, so lifting the suspension cannot make it
+# active without the confirmation. Undef when the status stays.
+sub _suspended_status ($suspension) {
+    return undef
+      if ( $suspension->{metadata}{previous_status} // $STATUS_ACTIVE ) ne
+      $STATUS_ACTIVE;
+    return {
+        status     => $STATUS_SUSPEND,
+        updated_at => $suspension->{valid_from},
+    };
+}
+
+sub _suspended_record ( $input, $suspension ) {
+    my $timestamp = $suspension->{valid_from};
+    return {
+        action         => 'user.suspended',
+        actor_id       => $input->{actor_user_id},
+        correlation_id => $input->{correlation_id},
+        created_at     => $timestamp,
+        metadata       => {
+            previous_status => $suspension->{metadata}{previous_status},
+            reason          => $input->{reason},
+            suspension_id   => $suspension->{suspension_id},
+        },
+        payload => {
+            reason        => $input->{reason},
+            suspension_id => $suspension->{suspension_id},
+            valid_from    => $timestamp,
+            valid_to      => $input->{valid_to},
+        },
+        user_id => $input->{user_id},
+    };
 }
 
 sub revoke_suspension ( $self, $suspension_id, $actor_user_id, $reason ) {
@@ -203,25 +213,177 @@ sub _revoke_in_txn ( $self, $input ) {
     }
     $self->_restore_user_if_needed( $user_id, $timestamp );
     $self->_record_event_and_audit(
-        {
-            action         => 'user.suspension_revoked',
-            actor_id       => $input->{actor_user_id},
-            correlation_id => undef,
-            created_at     => $timestamp,
-            metadata       => {
-                reason        => $input->{reason},
-                suspension_id => $input->{suspension_id},
-            },
-            payload => {
-                reason        => $input->{reason},
-                suspension_id => $input->{suspension_id},
-                revoked_at    => $timestamp,
-            },
-            user_id => $user_id,
-        }
-    );
+        _revoked_record( $input, $user_id, $timestamp ) );
 
     return { suspension_id => $input->{suspension_id}, %{$changes} };
+}
+
+sub _revoked_record ( $input, $user_id, $timestamp ) {
+    return {
+        action         => 'user.suspension_revoked',
+        actor_id       => $input->{actor_user_id},
+        correlation_id => undef,
+        created_at     => $timestamp,
+        metadata       => {
+            reason        => $input->{reason},
+            suspension_id => $input->{suspension_id},
+        },
+        payload => {
+            reason        => $input->{reason},
+            suspension_id => $input->{suspension_id},
+            revoked_at    => $timestamp,
+        },
+        user_id => $user_id,
+    };
+}
+
+# create_suspension in one transaction on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own: the
+# member's lock, the active suspension it may already have, and the insert
+# in a savepoint, minted once more when its id was taken.
+async sub create_suspension_p ( $self, $input, $context = undef ) {
+    return $self->create_suspension($input) if !$self->functions;
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            await $scope->row_p( 'moderation_lock_member',
+                { user_id => $input->{user_id} } );
+            my $user = await _user_p( $scope, $input->{user_id} );
+            return undef
+              if !$user
+              || ( column_of( $user, 'status' ) // q{} ) eq $STATUS_DELETED;
+
+            my $active = await $self->_active_p( $scope, $input->{user_id} );
+            return { ok => 1, suspension => _suspension_hash($active) }
+              if $active;
+
+            my $insert = async sub ($savepoint) {
+                return await $self->_insert_suspension_p( $savepoint, $input,
+                    $user );
+            };
+            for my $attempt ( 0, 1 ) {
+                my ( $created, $error ) =
+                  await GPForum::Infrastructure::UniqueConflict->attempt_p(
+                    $scope, $insert );
+                return $created if $created;
+                my $conflict = GPForum::X::Conflict->caught($error);
+                if ( $attempt || !$conflict || !$conflict->on($ID_CONSTRAINT) )
+                {
+                    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+                }
+            }
+            return undef;
+        },
+        $context
+    );
+}
+
+async sub _insert_suspension_p ( $self, $scope, $input, $user ) {
+    my $suspension = $self->_new_suspension( $input, $user );
+    await $scope->row_p( 'moderation_suspension_insert',
+        { values => $suspension } );
+    my $status = _suspended_status($suspension);
+    if ($status) { await _update_user_p( $scope, $user, $status ); }
+    await $self->_record_p( $scope, _suspended_record( $input, $suspension ) );
+
+    return { ok => 1, suspension => $suspension };
+}
+
+# revoke_suspension in one transaction on the worker's pooled asynchronous
+# connections, read again under the member's lock as the blocking path
+# reads it.
+async sub revoke_suspension_p ( $self, $suspension_id, $actor_user_id,
+    $reason, $context = undef )
+{
+    return $self->revoke_suspension( $suspension_id, $actor_user_id, $reason )
+      if !$self->functions;
+    my $input = {
+        actor_user_id => $actor_user_id,
+        reason        => $reason,
+        suspension_id => $suspension_id,
+    };
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $suspension = await _suspension_p( $scope, $suspension_id );
+            return undef if !$suspension;
+            my $user_id = column_of( $suspension, 'user_id' );
+            await $scope->row_p( 'moderation_lock_member',
+                { user_id => $user_id } );
+            $suspension = await _suspension_p( $scope, $suspension_id );
+            my $revoked_at = column_of( $suspension, 'revoked_at' );
+            if ( defined $revoked_at ) {
+                await $self->_restore_user_if_needed_p( $scope, $user_id,
+                    $revoked_at );
+                return {
+                    suspension_id => column_of( $suspension, 'suspension_id' ),
+                    revoked_at    => $revoked_at,
+                };
+            }
+
+            my $timestamp = $self->clock->now_iso8601;
+            await $scope->row_p(
+                'moderation_suspension_update',
+                {
+                    suspension_id => $suspension_id,
+                    revoked_at    => $timestamp
+                }
+            );
+            await $self->_restore_user_if_needed_p( $scope, $user_id,
+                $timestamp );
+            await $self->_record_p( $scope,
+                _revoked_record( $input, $user_id, $timestamp ) );
+
+            return {
+                suspension_id => $suspension_id,
+                revoked_at    => $timestamp
+            };
+        },
+        $context
+    );
+}
+
+async sub _restore_user_if_needed_p ( $self, $scope, $user_id, $timestamp ) {
+    return if !defined $user_id || !length $user_id;
+    my $user = await _user_p( $scope, $user_id );
+    return
+      if !$user || ( column_of( $user, 'status' ) || q{} ) ne $STATUS_SUSPEND;
+    return if await $self->_active_p( $scope, $user_id );
+
+    await _update_user_p( $scope, $user,
+        { status => $STATUS_ACTIVE, updated_at => $timestamp } );
+    return;
+}
+
+async sub _user_p ( $scope, $user_id ) {
+    return GPForum::Infrastructure::ResultRow->from(
+        await $scope->row_p( 'identity_user_by_id', { user_id => $user_id } ) );
+}
+
+# The member's row changed as ResultRow::IdentityUser->update changes it.
+async sub _update_user_p ( $scope, $user, $values ) {
+    return await $scope->row_p( 'identity_update_user',
+        { user_id => $user->{id}, changes => $values } );
+}
+
+async sub _suspension_p ( $scope, $suspension_id ) {
+    return GPForum::Infrastructure::ResultRow->from(
+        await $scope->row_p(
+            'moderation_suspension_find', { suspension_id => $suspension_id }
+        )
+    );
+}
+
+async sub _active_p ( $self, $scope, $user_id ) {
+    return undef if !defined $user_id || !length $user_id;
+    return GPForum::Infrastructure::ResultRow->from(
+        await $scope->row_p(
+            'moderation_active_suspension',
+            $self->_active_values($user_id)
+        )
+    );
+}
+
+sub _active_values ( $self, $user_id ) {
+    return { user_id => $user_id, now => $self->clock->now_iso8601 };
 }
 
 # Every write of a member's suspensions takes the member's row first
@@ -355,7 +517,7 @@ sub active_for_user ( $self, $user_id ) {
         return GPForum::Infrastructure::ResultRow->from(
             $self->functions->row(
                 'moderation_active_suspension',
-                { user_id => $user_id, now => $self->clock->now_iso8601 }
+                $self->_active_values($user_id)
             )
         );
     }
@@ -486,16 +648,32 @@ sub _instant ($value) {
 }
 
 sub _record_event_and_audit ( $self, $input ) {
+    my ( $event, $audit ) = $self->_suspension_records($input);
+    $self->recorder->record_event( %{$event} );
+    $self->recorder->record_audit( %{$audit} );
+
+    return;
+}
+
+async sub _record_p ( $self, $scope, $input ) {
+    my ( $event, $audit ) = $self->_suspension_records($input);
+    await $scope->row_p( 'ops_record_event',
+        $self->recorder->event_call( %{$event} ) );
+    await $scope->row_p( 'ops_record_audit',
+        $self->recorder->audit_call( %{$audit} ) );
+    return;
+}
+
+# The event and the audit entry of a suspension's change.
+sub _suspension_records ( $self, $input ) {
     my $recorded = {
         %{$input},
         correlation_id => $input->{correlation_id} || $self->id_service->uuid,
     };
-    $self->recorder->record_event(
-        %{ $self->events->suspension_envelope($recorded) } );
-    $self->recorder->record_audit(
-        %{ $self->events->suspension_audit($recorded) } );
-
-    return;
+    return (
+        $self->events->suspension_envelope($recorded),
+        $self->events->suspension_audit($recorded),
+    );
 }
 
 1;
@@ -566,6 +744,11 @@ C<< { ok => 1, suspension => \%suspension } >> with the new row, whose
 metadata also keeps the user's previous status, or the user's active one.
 Returns undef when the user does not exist or is deleted.
 
+=head2 create_suspension_p
+
+L</create_suspension> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 revoke_suspension
 
 Takes a suspension id, the acting user's id and a reason. In a transaction,
@@ -573,6 +756,11 @@ returns C<< { suspension_id, revoked_at } >>, or undef when there is no such
 suspension. Revoking one that is already revoked records nothing new and
 returns its original C<revoked_at>. It restores a still-suspended user only
 when no other active suspension remains; other account states stay as they are.
+
+=head2 revoke_suspension_p
+
+L</revoke_suspension> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 end_suspension
 

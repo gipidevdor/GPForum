@@ -31,15 +31,26 @@ has functions => sub ($self) {
 
 sub find ( $self, $owner, $id ) {
     return undef if !defined $id || !length $id;
-    my $row = $self->functions->row(
-        'forum_draft_find',
-        {
-            owner_user_id => $owner,
-            draft_id      => $id,
-            now           => $self->clock->now_iso8601
-        }
-    );
+    my $row =
+      $self->functions->row( 'forum_draft_find',
+        $self->_find_values( $owner, $id ) );
     return $row ? $row->{draft} : undef;
+}
+
+# find on the worker's pooled asynchronous connections.
+async sub find_p ( $self, $owner, $id, $context = undef ) {
+    return undef if !defined $id || !length $id;
+    my $row = await $self->functions->row_p( 'forum_draft_find',
+        $self->_find_values( $owner, $id ), $context );
+    return $row ? $row->{draft} : undef;
+}
+
+sub _find_values ( $self, $owner, $id ) {
+    return {
+        owner_user_id => $owner,
+        draft_id      => $id,
+        now           => $self->clock->now_iso8601
+    };
 }
 
 sub list_for_user ( $self, $owner ) {
@@ -64,6 +75,21 @@ sub _list_values ( $self, $owner ) {
 }
 
 sub save ( $self, $input ) {
+    my ( $values, $invalid ) = $self->_save_values($input);
+    return $invalid if $invalid;
+    return _answer( $self->functions->row( 'forum_draft_save', $values ) );
+}
+
+# The save on the worker's pooled asynchronous connections.
+async sub save_p ( $self, $input, $context = undef ) {
+    my ( $values, $invalid ) = $self->_save_values($input);
+    return $invalid if $invalid;
+    return _answer(
+        await $self->functions->row_p( 'forum_draft_save', $values, $context )
+    );
+}
+
+sub _save_values ( $self, $input ) {
     my %values = map { $_ => $input->{$_} }
       qw(owner_user_id draft_id draft_revision kind category_id thread_id
       title body_source visibility command_id);
@@ -75,9 +101,10 @@ sub save ( $self, $input ) {
         }
     }
     my $errors = _validation_errors( \%values );
-    return { ok => 0, status => 'invalid', errors => $errors } if %{$errors};
+    return ( undef, { ok => 0, status => 'invalid', errors => $errors } )
+      if %{$errors};
     $values{now} = $self->clock->now_iso8601;
-    return _answer( $self->functions->row( 'forum_draft_save', \%values ) );
+    return ( \%values, undef );
 }
 
 sub _validation_errors ($values) {
@@ -118,14 +145,25 @@ sub _validation_errors ($values) {
 sub remove ( $self, $input ) {
     return _answer(
         $self->functions->row(
-            'forum_draft_remove',
-            {
-                map( { $_ => $input->{$_} }
-                    qw(owner_user_id draft_id draft_revision) ),
-                now => $self->clock->now_iso8601
-            }
+            'forum_draft_remove', $self->_remove_values($input)
         )
     );
+}
+
+# The removal on the worker's pooled asynchronous connections.
+async sub remove_p ( $self, $input, $context = undef ) {
+    return _answer(
+        await $self->functions->row_p(
+            'forum_draft_remove', $self->_remove_values($input), $context
+        )
+    );
+}
+
+sub _remove_values ( $self, $input ) {
+    return {
+        map( { $_ => $input->{$_} } qw(owner_user_id draft_id draft_revision) ),
+        now => $self->clock->now_iso8601
+    };
 }
 
 sub purge_expired ( $self, $input = undef ) {
@@ -183,6 +221,11 @@ service has no ORM fallback. C<find> does not query for an absent identifier.
 Takes the authenticated owner identifier and a draft identifier. Returns
 the owner's unexpired draft, or C<undef>. An absent identifier sends no call.
 
+=head2 find_p
+
+L</find> on the worker's pooled asynchronous connections; answers a promise
+of the draft or undef.
+
 =head2 list_for_user
 
 Takes the owner identifier. Returns at most 100 unexpired drafts, newest
@@ -201,10 +244,20 @@ current revision. Returns C<ok>, C<status>, field errors on invalid input,
 and the acknowledged draft on success. Retries of an unchanged save are
 idempotent. The acknowledged draft carries the publish command identifier.
 
+=head2 save_p
+
+L</save> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
+
 =head2 remove
 
 Takes C<owner_user_id>, C<draft_id> and C<draft_revision>. Removes that
 owner's draft only if the revision agrees. Returns C<ok> and C<status>.
+
+=head2 remove_p
+
+L</remove> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
 
 =head2 purge_expired
 

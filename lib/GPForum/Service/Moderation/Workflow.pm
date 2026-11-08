@@ -3,10 +3,12 @@
 
 package GPForum::Service::Moderation::Workflow;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Const::Fast;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
-use GPForum::Infrastructure::Text    qw(trimmed);
+use GPForum::Infrastructure::Text qw(trimmed);
+use GPForum::Log;
 use GPForum::Service::WorkflowResult qw(log_error workflow_result);
 our $VERSION = '0.001';
 
@@ -14,131 +16,173 @@ __PACKAGE__->requires(qw(action_store report_store suspension_store));
 has command_idempotency => undef;    # optional: writes run unlogged without one
 has logger              => undef;    # optional: errors are dropped without one
 
+# The actions on a post or a thread, each answered not found by its target.
+const my %ACTION_NOT_FOUND => (
+    hide_post      => 'post not found',
+    restore_post   => 'post not found',
+    lock_thread    => 'thread not found',
+    unlock_thread  => 'thread not found',
+    pin_thread     => 'thread not found',
+    unpin_thread   => 'thread not found',
+    hide_thread    => 'thread not found',
+    restore_thread => 'thread not found',
+);
+
+# Every command but the actions: the job it is, built from its input.
+const my %JOB => (
+    reverse_action    => \&_reverse_job,
+    assign_report     => \&_assign_job,
+    release_report    => \&_release_job,
+    resolve_report    => \&_resolve_job,
+    suspend_user      => \&_suspend_job,
+    revoke_suspension => \&_revoke_job,
+);
+
+# Each command answers as its blocking method; its _p twin answers the
+# same on the worker's pooled asynchronous connections, the command log
+# and the store's writes in one transaction, not in a forked child.
 sub hide_post ( $self, $input ) {
-    return $self->_action_write(
-        {
-            command_type => 'moderation.hide_post',
-            input        => $input,
-            not_found    => 'post not found',
-            request      => _action_request($input),
-            run => sub { return $self->action_store->hide_post($input); },
-        }
-    );
+    return $self->_write( _job( hide_post => $input ) );
+}
+
+async sub hide_post_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( hide_post => $input ), $context );
 }
 
 sub restore_post ( $self, $input ) {
-    return $self->_action_write(
-        {
-            command_type => 'moderation.restore_post',
-            input        => $input,
-            not_found    => 'post not found',
-            request      => _action_request($input),
-            run          => sub {
-                return $self->action_store->restore_post($input);
-            },
-        }
-    );
+    return $self->_write( _job( restore_post => $input ) );
+}
+
+async sub restore_post_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( restore_post => $input ), $context );
 }
 
 sub lock_thread ( $self, $input ) {
-    return $self->_action_write(
-        {
-            command_type => 'moderation.lock_thread',
-            input        => $input,
-            not_found    => 'thread not found',
-            request      => _action_request($input),
-            run          => sub {
-                return $self->action_store->lock_thread($input);
-            },
-        }
-    );
+    return $self->_write( _job( lock_thread => $input ) );
+}
+
+async sub lock_thread_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( lock_thread => $input ), $context );
 }
 
 sub unlock_thread ( $self, $input ) {
-    return $self->_action_write(
-        {
-            command_type => 'moderation.unlock_thread',
-            input        => $input,
-            not_found    => 'thread not found',
-            request      => _action_request($input),
-            run          => sub {
-                return $self->action_store->unlock_thread($input);
-            },
-        }
-    );
+    return $self->_write( _job( unlock_thread => $input ) );
+}
+
+async sub unlock_thread_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( unlock_thread => $input ), $context );
 }
 
 sub pin_thread ( $self, $input ) {
-    return $self->_action_write(
-        {
-            command_type => 'moderation.pin_thread',
-            input        => $input,
-            not_found    => 'thread not found',
-            request      => _action_request($input),
-            run          => sub {
-                return $self->action_store->pin_thread($input);
-            },
-        }
-    );
+    return $self->_write( _job( pin_thread => $input ) );
+}
+
+async sub pin_thread_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( pin_thread => $input ), $context );
 }
 
 sub unpin_thread ( $self, $input ) {
-    return $self->_action_write(
-        {
-            command_type => 'moderation.unpin_thread',
-            input        => $input,
-            not_found    => 'thread not found',
-            request      => _action_request($input),
-            run          => sub {
-                return $self->action_store->unpin_thread($input);
-            },
-        }
-    );
+    return $self->_write( _job( unpin_thread => $input ) );
+}
+
+async sub unpin_thread_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( unpin_thread => $input ), $context );
 }
 
 sub hide_thread ( $self, $input ) {
-    return $self->_action_write(
-        {
-            command_type => 'moderation.hide_thread',
-            input        => $input,
-            not_found    => 'thread not found',
-            request      => _action_request($input),
-            run          => sub {
-                return $self->action_store->hide_thread($input);
-            },
-        }
-    );
+    return $self->_write( _job( hide_thread => $input ) );
+}
+
+async sub hide_thread_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( hide_thread => $input ), $context );
 }
 
 sub restore_thread ( $self, $input ) {
-    return $self->_action_write(
+    return $self->_write( _job( restore_thread => $input ) );
+}
+
+async sub restore_thread_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( restore_thread => $input ), $context );
+}
+
+sub reverse_action ( $self, $input ) {
+    return $self->_write( _job( reverse_action => $input ) );
+}
+
+async sub reverse_action_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( reverse_action => $input ), $context );
+}
+
+sub assign_report ( $self, $input ) {
+    return $self->_write( _job( assign_report => $input ) );
+}
+
+async sub assign_report_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( assign_report => $input ), $context );
+}
+
+sub release_report ( $self, $input ) {
+    return $self->_write( _job( release_report => $input ) );
+}
+
+async sub release_report_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( release_report => $input ), $context );
+}
+
+sub resolve_report ( $self, $input ) {
+    return $self->_write( _job( resolve_report => $input ) );
+}
+
+async sub resolve_report_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( resolve_report => $input ), $context );
+}
+
+sub suspend_user ( $self, $input ) {
+    return $self->_write( _job( suspend_user => $input ) );
+}
+
+async sub suspend_user_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( suspend_user => $input ), $context );
+}
+
+sub revoke_suspension ( $self, $input ) {
+    return $self->_write( _job( revoke_suspension => $input ) );
+}
+
+async sub revoke_suspension_p ( $self, $input, $context = undef ) {
+    return await $self->_write_p( _job( revoke_suspension => $input ),
+        $context );
+}
+
+# The command's job: which store method writes it with which arguments,
+# its kind, its request as the command log fingerprints it and what it
+# answers when nothing is found; or { invalid } when a required field is
+# missing, checked in the order the command names them.
+sub _job ( $name, $input ) {
+    return $JOB{$name}->($input) if !exists $ACTION_NOT_FOUND{$name};
+    my $not_found = $ACTION_NOT_FOUND{$name};
+
+    return _checked(
+        $input,
+        [qw(reason command_id)],
         {
-            command_type => 'moderation.restore_thread',
-            input        => $input,
-            not_found    => 'thread not found',
+            command_type => "moderation.$name",
+            kind         => 'action',
+            not_found    => $not_found,
             request      => _action_request($input),
-            run          => sub {
-                return $self->action_store->restore_thread($input);
-            },
+            store        => 'action_store',
+            method       => $name,
+            arguments    => [$input],
         }
     );
 }
 
-sub reverse_action ( $self, $input ) {
-    my $invalid = $self->_missing_field( $input, 'command_id' );
-    if ($invalid) {
-        return $invalid;
-    }
-
-    $invalid = $self->_missing_field( $input, 'reason' );
-    if ($invalid) {
-        return $invalid;
-    }
-
-    return $self->_queue_write(
+sub _reverse_job ($input) {
+    return _checked(
+        $input,
+        [qw(command_id reason)],
         {
             command_type => 'moderation.reverse',
-            input        => $input,
             kind         => 'reverse',
             not_found    => 'moderation action not found',
             request      => {
@@ -146,92 +190,63 @@ sub reverse_action ( $self, $input ) {
                 actor_user_id => $input->{actor_user_id},
                 reason        => trimmed( $input->{reason} ),
             },
-            run => sub {
-                return $self->action_store->reverse_action( $input->{action_id},
-                    $input->{actor_user_id},
-                    $input->{reason}, );
-            },
+            store     => 'action_store',
+            method    => 'reverse_action',
+            arguments => [
+                $input->{action_id}, $input->{actor_user_id},
+                $input->{reason},
+            ],
         }
     );
 }
 
-sub assign_report ( $self, $input ) {
-    return $self->_queue_write(
+sub _assign_job ($input) {
+    return _report_job( $input, 'moderation.assign', 'assign_report' );
+}
+
+sub _release_job ($input) {
+    return _report_job( $input, 'moderation.release', 'release_report' );
+}
+
+sub _report_job ( $input, $command_type, $method ) {
+    return _checked(
+        $input,
+        [qw(command_id)],
         {
-            command_type => 'moderation.assign',
-            input        => $input,
+            command_type => $command_type,
+            kind         => 'report',
+            not_found    => 'report not found',
             request      => _assign_request($input),
-            run          => sub {
-                return $self->report_store->assign_report( $input->{report_id},
-                    $input->{actor_user_id} );
-            },
+            store        => 'report_store',
+            method       => $method,
+            arguments    => [ $input->{report_id}, $input->{actor_user_id} ],
         }
     );
 }
 
-sub release_report ( $self, $input ) {
-    return $self->_queue_write(
-        {
-            command_type => 'moderation.release',
-            input        => $input,
-            request      => _assign_request($input),
-            run          => sub {
-                return $self->report_store->release_report( $input->{report_id},
-                    $input->{actor_user_id} );
-            },
-        }
-    );
-}
-
-sub resolve_report ( $self, $input ) {
-    my $invalid = $self->_missing_field( $input, 'resolution' );
-    if ($invalid) {
-        return $invalid;
-    }
-
-    return $self->_queue_write(
+sub _resolve_job ($input) {
+    return _checked(
+        $input,
+        [qw(resolution command_id)],
         {
             command_type => 'moderation.resolve',
-            input        => $input,
+            kind         => 'report',
+            not_found    => 'report not found',
             request      => {
                 %{ _assign_request($input) },
                 resolution => trimmed( $input->{resolution} ),
             },
-            run => sub {
-                return $self->report_store->resolve_report( $input->{report_id},
-                    $input->{resolution}, $input->{actor_user_id},
-                );
-            },
+            store     => 'report_store',
+            method    => 'resolve_report',
+            arguments => [
+                $input->{report_id}, $input->{resolution},
+                $input->{actor_user_id},
+            ],
         }
     );
 }
 
-sub _queue_write ( $self, $job ) {
-    my $invalid = $self->_missing_field( $job->{input}, 'command_id' );
-    if ($invalid) {
-        return $invalid;
-    }
-
-    return $self->_idempotent_store(
-        {
-            actor_id     => $job->{input}{actor_user_id},
-            command_id   => $job->{input}{command_id},
-            command_type => $job->{command_type},
-            kind         => $job->{kind}      || 'report',
-            not_found    => $job->{not_found} || 'report not found',
-            request      => $job->{request},
-            run          => $job->{run},
-        }
-    );
-}
-
-sub suspend_user ( $self, $input ) {
-    my $invalid = $self->_missing_field( $input, 'reason' )
-      || $self->_missing_field( $input, 'command_id' );
-    if ($invalid) {
-        return $invalid;
-    }
-
+sub _suspend_job ($input) {
     my $request = {
         actor_user_id => $input->{actor_user_id},
         reason        => trimmed( $input->{reason} ),
@@ -241,32 +256,26 @@ sub suspend_user ( $self, $input ) {
         $request->{valid_to} = $input->{valid_to};
     }
 
-    return $self->_idempotent_store(
+    return _checked(
+        $input,
+        [qw(reason command_id)],
         {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
             command_type => 'moderation.suspend',
             kind         => 'suspend',
             not_found    => 'user not found',
             request      => $request,
-            run          => sub {
-                return $self->suspension_store->create_suspension($input);
-            },
+            store        => 'suspension_store',
+            method       => 'create_suspension',
+            arguments    => [$input],
         }
     );
 }
 
-sub revoke_suspension ( $self, $input ) {
-    my $invalid = $self->_missing_field( $input, 'reason' )
-      || $self->_missing_field( $input, 'command_id' );
-    if ($invalid) {
-        return $invalid;
-    }
-
-    return $self->_idempotent_store(
+sub _revoke_job ($input) {
+    return _checked(
+        $input,
+        [qw(reason command_id)],
         {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
             command_type => 'moderation.suspension_revoke',
             kind         => 'revoke',
             not_found    => 'suspension not found',
@@ -275,71 +284,158 @@ sub revoke_suspension ( $self, $input ) {
                 reason        => trimmed( $input->{reason} ),
                 suspension_id => $input->{suspension_id},
             },
-            run => sub {
-                return $self->suspension_store->revoke_suspension(
-                    $input->{suspension_id},
-                    $input->{actor_user_id},
-                    $input->{reason},
-                );
-            },
+            store     => 'suspension_store',
+            method    => 'revoke_suspension',
+            arguments => [
+                $input->{suspension_id}, $input->{actor_user_id},
+                $input->{reason},
+            ],
         }
     );
+}
+
+# The job, keyed by the input's actor and command id, once every field it
+# requires is present.
+sub _checked ( $input, $fields, $job ) {
+    for my $field ( @{$fields} ) {
+        my $invalid = _missing_field( $input, $field );
+        return { invalid => $invalid } if $invalid;
+    }
+
+    return {
+        %{$job},
+        actor_id   => $input->{actor_user_id},
+        command_id => $input->{command_id},
+    };
 }
 
 # The store's answer under the command id: a store that dies fails the
 # command and is logged, one that finds nothing is not found, and any other
 # answer is reduced to the public fields of its kind. Without a command log
 # the write just runs.
-sub _idempotent_store ( $self, $job ) {
-    my $run = sub {
+sub _write ( $self, $job ) {
+    return $job->{invalid} if $job->{invalid};
+    my $accessor = $job->{store};
+    my $store    = $self->$accessor;
+    my $method   = $job->{method};
+    my $run      = sub {
         my $value;
         try {
-            $value = $job->{run}->();
+            $value = $store->$method( @{ $job->{arguments} } );
         }
         catch ($error) {
             log_error( $self->logger, "moderation write failed: $error" );
-            return workflow_result(
-                status => 'failed',
-                error  => 'moderation store failed',
-            );
+            return _store_failed();
         };
-        if ( !$value ) {
-            return workflow_result(
-                status => 'not_found',
-                error  => $job->{not_found},
-            );
-        }
-
-        return workflow_result(
-            status => 'ok',
-            stored => _public_stored( $job->{kind}, $value ),
-        );
+        return _stored_result( $job, $value );
     };
-    if ( !$self->command_idempotency ) {
-        return $run->();
-    }
+    return $run->() if !$self->command_idempotency;
 
     my $result;
     try {
         $result = $self->command_idempotency->result_of(
-            {
-                actor_id     => $job->{actor_id},
-                command_id   => $job->{command_id},
-                command_type => $job->{command_type},
-                request      => $job->{request} || {},
-                run          => $run,
-            }
-        );
+            { %{ _logged($job) }, run => $run } );
     }
     catch ($error) {
         log_error( $self->logger, "moderation command log failed: $error" );
-        return workflow_result(
-            error  => 'moderation store failed',
-            status => 'failed',
-        );
+        return _store_failed();
     };
 
     return $result;
+}
+
+# _write on the worker's pooled asynchronous connections: the command
+# log's steps and the store's own writes share one transaction, the store
+# working on its call layer. A store or command log without the function
+# layer (the tests' doubles) answers through _write.
+async sub _write_p ( $self, $job, $context ) {
+    return $job->{invalid} if $job->{invalid};
+    my $accessor = $job->{store};
+    my $store    = $self->$accessor;
+    my $log      = $self->command_idempotency;
+    return $self->_write($job) if !_native( $store, $log );
+
+    my $method      = $job->{method} . '_p';
+    my $log_context = GPForum::Log->request_context;
+    my $run_p       = async sub ($scope) {
+        my $value;
+        try {
+            $value = await _on( $store, $scope )
+              ->$method( @{ $job->{arguments} }, $context );
+        }
+        catch ($error) {
+            $self->_log_in( $log_context, "moderation write failed: $error" );
+            return _store_failed();
+        };
+        return _stored_result( $job, $value );
+    };
+    return await $run_p->(undef) if !$log;
+
+    my $result;
+    try {
+        $result =
+          await $log->result_of_p( { %{ _logged($job) }, run_p => $run_p },
+            $context );
+    }
+    catch ($error) {
+        $self->_log_in( $log_context, "moderation command log failed: $error" );
+        return _store_failed();
+    };
+
+    return $result;
+}
+
+sub _native ( $store, $log ) {
+    return 0 if !$store->can('functions') || !$store->functions;
+    return 1 if !$log;
+    return
+         $log->can('result_of_p')
+      && $log->can('functions')
+      && $log->functions
+      ? 1
+      : 0;
+}
+
+# The store working on the command log's transaction, or as it is.
+sub _on ( $store, $scope ) {
+    return $store if !$scope;
+    return ref($store)->new( %{$store}, functions => $scope );
+}
+
+sub _logged ($job) {
+    return {
+        actor_id     => $job->{actor_id},
+        command_id   => $job->{command_id},
+        command_type => $job->{command_type},
+        request      => $job->{request} || {},
+    };
+}
+
+sub _stored_result ( $job, $value ) {
+    if ( !$value ) {
+        return workflow_result(
+            status => 'not_found',
+            error  => $job->{not_found},
+        );
+    }
+
+    return workflow_result(
+        status => 'ok',
+        stored => _public_stored( $job->{kind}, $value ),
+    );
+}
+
+sub _store_failed {
+    return workflow_result(
+        status => 'failed',
+        error  => 'moderation store failed',
+    );
+}
+
+sub _log_in ( $self, $log_context, $message ) {
+    GPForum::Log->in_context( $log_context,
+        sub { log_error( $self->logger, $message ); return; } );
+    return;
 }
 
 # The fields of a stored row that the answer, and the command log, carry.
@@ -393,24 +489,6 @@ sub _assign_request ($input) {
     };
 }
 
-sub _action_write ( $self, $job ) {
-    my $invalid = $self->_missing_field( $job->{input}, 'reason' );
-    if ($invalid) {
-        return $invalid;
-    }
-
-    return $self->_queue_write(
-        {
-            command_type => $job->{command_type},
-            input        => $job->{input},
-            kind         => 'action',
-            not_found    => $job->{not_found},
-            request      => $job->{request},
-            run          => $job->{run},
-        }
-    );
-}
-
 # The post or thread acted on, whichever the request names.
 sub _action_request ($input) {
     my $request = {
@@ -426,7 +504,7 @@ sub _action_request ($input) {
     return $request;
 }
 
-sub _missing_field ( $, $input, $field ) {
+sub _missing_field ( $input, $field ) {
     if ( !length trimmed( $input->{$field} ) ) {
         return workflow_result(
             status => 'invalid',
@@ -472,58 +550,128 @@ ownership.
 
 Hides a post when a reason is present.
 
+=head2 hide_post_p
+
+L</hide_post> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 restore_post
 
 Restores a hidden post when a reason is present.
+
+=head2 restore_post_p
+
+L</restore_post> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 lock_thread
 
 Locks a thread when a reason is present.
 
+=head2 lock_thread_p
+
+L</lock_thread> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 unlock_thread
 
 Unlocks a thread when a reason is present.
+
+=head2 unlock_thread_p
+
+L</unlock_thread> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 pin_thread
 
 Pins a thread to the top of its category when a reason is present.
 
+=head2 pin_thread_p
+
+L</pin_thread> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 unpin_thread
 
 Unpins a thread when a reason is present.
+
+=head2 unpin_thread_p
+
+L</unpin_thread> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 hide_thread
 
 Hides a thread when a reason is present.
 
+=head2 hide_thread_p
+
+L</hide_thread> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 restore_thread
 
 Restores a hidden thread when a reason is present.
+
+=head2 restore_thread_p
+
+L</restore_thread> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 reverse_action
 
 Records reversal of a prior moderation action when a command id and reason
 are present.
 
+=head2 reverse_action_p
+
+L</reverse_action> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 assign_report
 
 Assigns an open report to the acting moderator when a command id is present.
+
+=head2 assign_report_p
+
+L</assign_report> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 release_report
 
 Releases a report assignment when a command id is present.
 
+=head2 release_report_p
+
+L</release_report> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 resolve_report
 
 Resolves a report when a command id and resolution are present.
+
+=head2 resolve_report_p
+
+L</resolve_report> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 suspend_user
 
 Creates a user suspension when a command id and reason are present.
 
+=head2 suspend_user_p
+
+L</suspend_user> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 revoke_suspension
 
 Revokes a suspension when a command id and reason are present.
+
+=head2 revoke_suspension_p
+
+L</revoke_suspension> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

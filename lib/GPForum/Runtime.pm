@@ -55,7 +55,7 @@ sub capped_web_processes ( $class, $configured, $cpu_count, $per_cpu, $policy )
 }
 
 sub as_hash_p ( $self, $context = undef ) {
-    return GPForum::Infrastructure::AsyncWork->shared->run_p(
+    return GPForum::Infrastructure::AsyncWork->shared->cpu_p(
         sub { return $self->as_hash; } );
 }
 

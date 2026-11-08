@@ -333,9 +333,9 @@ sub _ranked_read_p ( $self, $call, $hybrid, $context ) {
 
     # Embedding generation overlaps lexical search without retaining a SQL
     # lease or an open transaction while the embedding provider is awaited.
+    my $embedder = $self->semantic;
     my $keys =
-      $work->service_args_p( $self->semantic, 'ranked_call', [ $call->[1] ],
-        $context )
+      $work->cpu_p( sub { return $embedder->ranked_call( $call->[1] ); } )
       ->then(
         sub ($semantic) { return { call => $semantic, status => 'ok' }; } )
       ->catch( sub { return { status => 'degraded' }; } );

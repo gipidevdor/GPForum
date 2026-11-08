@@ -8,6 +8,7 @@ use Scalar::Util qw(blessed);
 use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
+use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::SqlFunction;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -122,53 +123,118 @@ sub send_test_mail ( $self, $input ) {
     my $outcome =
       ( defined $to && length $to )
       ? $self->_deliver($to)
-      : { error => 'this account has no email address', outcome => 'failed' };
+      : _no_address();
     my $result = { %{$outcome}, transport => $self->config->mail_transport };
-
-    # The recipient is the actor, so the audit row names them as its target
-    # instead of copying their address into the log; the result, which the
-    # command log keeps as the command's answer, leaves it out for the same
-    # reason.
-    $self->_audit(
-        {
-            action        => $MAIL_ACTION,
-            actor_user_id => $actor_user_id,
-            metadata      => {
-                (
-                    defined $result->{error}
-                    ? ( error => $result->{error} )
-                    : ()
-                ),
-                outcome   => $result->{outcome},
-                transport => $result->{transport},
-                via       => 'web',
-            },
-            target_id   => $actor_user_id,
-            target_type => 'user',
-        }
-    );
+    $self->_audit( _mail_audit( $actor_user_id, $result ) );
 
     return $result;
+}
+
+# send_test_mail without a database connection held by a child: the
+# address and the audit row on pooled asynchronous connections -- the audit
+# inside the caller's transaction ($scope) when given -- and the SMTP
+# exchange in a CPU-only child that never touches PostgreSQL.
+async sub send_test_mail_p ( $self, $input, $context = undef, $scope = undef ) {
+    my $functions = $scope // $self->recorder->functions;
+    return $self->send_test_mail($input)
+      if !$functions || !$self->accounts->can('email_of_p');
+    my $actor_user_id = $input->{actor_user_id};
+    my $to = await $self->accounts->email_of_p( $actor_user_id, $context );
+    my $outcome =
+      ( defined $to && length $to )
+      ? await $self->_slowly_p( $functions,
+        sub { return $self->_send($to); }, $context )
+      : _no_address();
+    my $result = { %{$outcome}, transport => $self->config->mail_transport };
+    await $self->_audit_p( $functions, _mail_audit( $actor_user_id, $result ),
+        $context );
+
+    return $result;
+}
+
+sub _no_address {
+    return {
+        error   => 'this account has no email address',
+        outcome => 'failed'
+    };
+}
+
+# The recipient is the actor, so the audit row names them as its target
+# instead of copying their address into the log; the result, which the
+# command log keeps as the command's answer, leaves it out for the same
+# reason.
+sub _mail_audit ( $actor_user_id, $result ) {
+    return {
+        action        => $MAIL_ACTION,
+        actor_user_id => $actor_user_id,
+        metadata      => {
+            (
+                defined $result->{error}
+                ? ( error => $result->{error} )
+                : ()
+            ),
+            outcome   => $result->{outcome},
+            transport => $result->{transport},
+            via       => 'web',
+        },
+        target_id   => $actor_user_id,
+        target_type => 'user',
+    };
 }
 
 # 6.5: the console's gpforum antivirus-check, audited with its report.
 sub check_antivirus ( $self, $input ) {
     $self->_allow_slow_answer;
-    my $report = evidence_scrub_structure( $self->_antivirus_report,
-        $self->settings->secret_values );
-    my $correlation_id = $self->id_service->uuid;
-    $self->_audit(
-        {
-            action         => $ANTIVIRUS_ACTION,
-            actor_user_id  => $input->{actor_user_id},
-            correlation_id => $correlation_id,
-            metadata       => { %{$report}, via => 'web' },
-            target_id      => $correlation_id,
-            target_type    => 'antivirus',
-        }
-    );
+    my $report = $self->_scrubbed_report;
+    $self->_audit( $self->_antivirus_audit( $input, $report ) );
 
     return $report;
+}
+
+# check_antivirus with the scan in a CPU-only child that never touches
+# PostgreSQL, and its audit row on a pooled asynchronous connection: inside
+# the caller's transaction ($scope) when given.
+async sub check_antivirus_p ( $self, $input, $context = undef, $scope = undef )
+{
+    my $functions = $scope // $self->recorder->functions;
+    return $self->check_antivirus($input) if !$functions;
+    my $report = await $self->_slowly_p( $functions,
+        sub { return $self->_scrubbed_report; }, $context );
+    await $self->_audit_p( $functions,
+        $self->_antivirus_audit( $input, $report ), $context );
+
+    return $report;
+}
+
+sub _scrubbed_report ($self) {
+    return evidence_scrub_structure( $self->_antivirus_report,
+        $self->settings->secret_values );
+}
+
+sub _antivirus_audit ( $self, $input, $report ) {
+    my $correlation_id = $self->id_service->uuid;
+    return {
+        action         => $ANTIVIRUS_ACTION,
+        actor_user_id  => $input->{actor_user_id},
+        correlation_id => $correlation_id,
+        metadata       => { %{$report}, via => 'web' },
+        target_id      => $correlation_id,
+        target_type    => 'antivirus',
+    };
+}
+
+# Work that waits on another server -- SMTP, clamd -- run in a CPU-only
+# child, with the transaction it holds open allowed to sit idle that long.
+async sub _slowly_p ( $self, $functions, $work, $context ) {
+    my $configured = $self->config->database_idle_in_transaction_timeout_ms;
+    if (   $functions->async_transaction
+        && $configured
+        && $configured < $SLOW_ANSWER_IDLE_MS )
+    {
+        await $functions->row_p( 'admin_allow_slow_answer',
+            { idle_ms => $SLOW_ANSWER_IDLE_MS }, $context );
+    }
+    return await GPForum::Infrastructure::AsyncWork->shared->cpu_p($work);
 }
 
 # A transport failure is the outcome being tested, not an error of this
@@ -179,6 +245,10 @@ sub check_antivirus ( $self, $input ) {
 # audit row everywhere else.
 sub _deliver ( $self, $to ) {
     $self->_allow_slow_answer;
+    return $self->_send($to);
+}
+
+sub _send ( $self, $to ) {
     try {
         $self->mailer->send_test_message( { to => $to } );
     }
@@ -330,7 +400,17 @@ sub _scrubbed ( $self, $error, $recipient = undef ) {
 }
 
 sub _audit ( $self, $input ) {
-    return $self->recorder->record_audit(
+    return $self->recorder->record_audit( %{ $self->_audit_row($input) } );
+}
+
+sub _audit_p ( $self, $functions, $input, $context ) {
+    return $functions->row_p( 'ops_record_audit',
+        $self->recorder->audit_call( %{ $self->_audit_row($input) } ),
+        $context );
+}
+
+sub _audit_row ( $self, $input ) {
+    return {
         action         => $input->{action},
         actor_id       => $input->{actor_user_id},
         correlation_id => $input->{correlation_id} // $self->id_service->uuid,
@@ -341,7 +421,7 @@ sub _audit ( $self, $input ) {
         schema_version => $SCHEMA_VERSION,
         target_id      => $input->{target_id},
         target_type    => $input->{target_type},
-    );
+    };
 }
 
 1;
@@ -402,11 +482,23 @@ C<outcome> C<sent> or C<failed> (with C<error>) and C<transport>. The address
 is in neither the result nor the audit row: where the transport's error
 quotes it, it reads C<[recipient]>.
 
+=head2 send_test_mail_p
+
+Sends the test message as L</send_test_mail> does: the SMTP exchange in a
+CPU-only child that never touches PostgreSQL, the address and the audit
+row on pooled asynchronous connections.
+
 =head2 check_antivirus
 
 Runs the antivirus check and audits its report: C<status> C<ok>,
 C<degraded>, C<fail>, C<disabled>, or C<not_run> when the scanner is a
 command, which cannot answer within a request.
+
+=head2 check_antivirus_p
+
+Runs the check as L</check_antivirus> does: the scan in a CPU-only child
+that never touches PostgreSQL, the audit row on a pooled asynchronous
+connection.
 
 =head1 DIAGNOSTICS
 

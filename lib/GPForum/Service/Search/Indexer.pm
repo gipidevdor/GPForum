@@ -6,7 +6,7 @@ package GPForum::Service::Search::Indexer;
 use Const::Fast;
 use List::Util  qw(any none uniq);
 use Digest::SHA qw(sha1_hex);
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::CountedQuery;
@@ -119,6 +119,17 @@ sub observe_lag ($self) {
       : GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
         $LAG_SQL );
 
+    return _lag($row);
+}
+
+# observe_lag on a pooled asynchronous connection.
+async sub observe_lag_p ( $self, $context = undef ) {
+    return $self->observe_lag if !$self->functions;
+    return _lag(
+        await $self->functions->row_p( 'search_observe_lag', {}, $context ) );
+}
+
+sub _lag ($row) {
     return {
         lag_seconds       => 0 + ( $row->{lag_seconds} // 0 ),
         oldest_pending_at => $row->{oldest_pending_at},
@@ -792,6 +803,11 @@ C<< { projection_name => 'search_documents', pending, oldest_pending_at,
 lag_seconds, status } >>, C<pending> the outbox messages still pending,
 running or failed, C<lag_seconds> the age of the oldest, and C<status>
 C<behind> or C<current>.
+
+=head2 observe_lag_p
+
+Answers a promise of what L</observe_lag> returns, read on a pooled
+asynchronous connection.
 
 =head2 index_thread
 

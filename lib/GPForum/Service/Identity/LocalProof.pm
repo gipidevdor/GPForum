@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 GPForum Contributors
 # SPDX-License-Identifier: BSD-3-Clause
 package GPForum::Service::Identity::LocalProof;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 use GPForum::Infrastructure::Row qw(column_of);
 our $VERSION = '0.001';
@@ -23,6 +23,37 @@ sub verify_local ( $self, $actor, $password, $code = q{} ) {
           $self->second_factor->prepare_answer( $challenge->{token}, $code );
         return undef
           if !$answer || !$self->second_factor->answer($answer)->{ok};
+    }
+    return $id;
+}
+
+# verify_local with the reads and the challenge on the worker's pooled
+# asynchronous connections and Argon2 in a child of the CPU lane.
+async sub verify_local_p ( $self, $actor, $password, $code = q{},
+    $context = undef )
+{
+    my $credential =
+      await $self->credentials->active_password_credential_p( $actor,
+        $context );
+    my $hash =
+      $credential
+      ? column_of( $credential, 'secret_hash' )
+      : await $self->password->decoy_hash_p;
+    my $verified =
+      await $self->password->verify_password_p( $password // q{}, $hash );
+    return undef if !$verified || !$credential;
+    my $id = column_of( $credential, 'id' );
+    my $challenge =
+      await $self->second_factor->open_challenge_p( $actor, $id, $context );
+    if ( $challenge->{status} ne 'none' ) {
+        return undef if $challenge->{status} ne 'open';
+        my $answer =
+          await $self->second_factor->prepare_answer_p( $challenge->{token},
+            $code, $context );
+        return undef
+          if !$answer
+          || !( await $self->second_factor->answer_p( $answer, $context ) )
+          ->{ok};
     }
     return $id;
 }
@@ -50,6 +81,12 @@ Shared by external identity linking and passkey management. Verification returns
 =head2 verify_local
 
 Checks the current password and, when enabled, consumes a TOTP or recovery code. Returns undef on refusal.
+
+=head2 verify_local_p
+
+L</verify_local> as a promise, with an optional query context after the
+code: the reads and the challenge on the worker's pooled asynchronous
+connections, Argon2 in a child of the CPU lane.
 
 =head1 DIAGNOSTICS
 

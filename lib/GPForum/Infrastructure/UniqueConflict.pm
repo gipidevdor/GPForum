@@ -5,7 +5,7 @@ package GPForum::Infrastructure::UniqueConflict;
 
 use Carp qw(croak);
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Storage;
@@ -67,6 +67,18 @@ sub attempt ( $, $schema, $code ) {
     # comes back as it was.
     return ( $value,
         GPForum::X::Conflict->from_error( $error, $schema ) // $error );
+}
+
+# attempt inside a pooled asynchronous transaction: the code takes the call
+# layer and runs in a savepoint of its transaction (transaction_p nests
+# one), so a conflict undoes only the code's own writes. Answers a promise
+# of the value and the error, as attempt answers them.
+async sub attempt_p ( $, $functions, $code ) {
+    my ( $value, $error );
+    try { $value = await $functions->transaction_p($code); }
+    catch ($caught) { $error = $caught; };
+
+    return ( $value, GPForum::X::Conflict->caught($error) // $error );
 }
 
 # The unique conflict an attempt ended in; any other error is rethrown.
@@ -234,6 +246,14 @@ back as a L<GPForum::X::Conflict> that stringifies to the original error text
 and carries the schema, so C<< $error->on($constraint) >> can ask about
 partitions; any other error comes back unchanged, and C<$error> is undef when
 the code did not die.
+
+=head2 attempt_p
+
+Takes a call layer inside an asynchronous transaction (the scope
+L<GPForum::Infrastructure::SqlFunction/transaction_p> hands its work) and a
+code reference that takes it and answers a promise. Runs the code in a
+savepoint and answers a promise of C<($value, $error)>, as L</attempt>
+returns them.
 
 =head2 conflict_of
 

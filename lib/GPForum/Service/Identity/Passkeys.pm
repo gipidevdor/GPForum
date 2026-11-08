@@ -49,14 +49,35 @@ sub _proof ( $self, @arguments ) {
     )->verify_local(@arguments);
 }
 
+async sub _proof_p ( $self, $user_id, $password, $code, $context ) {
+    return await GPForum::Service::Identity::LocalProof->new(
+        credentials   => $self->credentials,
+        password      => $self->password,
+        second_factor => $self->second_factor
+    )->verify_local_p( $user_id, $password, $code, $context );
+}
+
 sub _audit ( $self, $action, $actor ) {
-    $self->recorder->record_audit(
+    $self->recorder->record_audit( _audit_input( $action, $actor ) );
+    return;
+}
+
+# The audit on $scope, the transaction of the write it records, as
+# EventRecorder's record_audit writes it through the call layer.
+async sub _audit_p ( $self, $action, $actor, $context, $scope ) {
+    await $scope->row_p( 'ops_record_audit',
+        $self->recorder->audit_call( _audit_input( $action, $actor ) ),
+        $context );
+    return;
+}
+
+sub _audit_input ( $action, $actor ) {
+    return (
         action      => $action,
         actor_id    => $actor,
         target_type => 'user',
-        target_id   => $actor
+        target_id   => $actor,
     );
-    return;
 }
 
 # The public address is trusted configuration, never a request's Host header.
@@ -77,6 +98,9 @@ sub origin ($self) {
       && !( ( $url->scheme // q{} ) eq 'http' && $host eq 'localhost' );
     return $url->to_string =~ s{/\z}{}rmsx;
 }
+
+# The origin is read from the configuration alone: answered in the worker.
+async sub origin_p ( $self, $context = undef ) { return $self->origin; }
 
 sub enabled ($self) { return defined $self->origin ? 1 : 0; }
 sub rp_id   ($self) { return Mojo::URL->new( $self->origin )->host; }
@@ -114,16 +138,59 @@ sub _listed_values ( $self, $actor ) {
 sub begin ( $self, $input ) {
     return undef if !$self->enabled;
     my $purpose = $input->{purpose};
-    return undef
-      if !defined $purpose || ( $purpose ne 'register' && $purpose ne 'login' );
-    my ( $password, $label );
+    return undef if !_purpose($purpose);
+    my $proof = [];
     if ( $purpose eq 'register' ) {
-        my $proof = $self->_registration_proof($input) or return undef;
-        ( $password, $label ) = @{$proof};
+        return undef if !_registration_shaped($input);
+        my $password =
+          $self->_proof( $input->{user_id}, $input->{password},
+            $input->{code} );
+        $proof = _registration_proof( $input, $password ) or return undef;
     }
+    my ( $challenge, $values ) = $self->_begin_values( $input, $proof );
+    my $row = $self->functions->row( 'identity_passkey_begin', $values );
+    return undef                             if !$row;
+    return $self->_login_options($challenge) if $purpose eq 'login';
+
+    return $self->_registration_options( $row, $challenge,
+        $self->listed( $input->{user_id} ) );
+}
+
+# begin on the worker's pooled asynchronous connections, the password
+# checked in a child of the CPU lane.
+async sub begin_p ( $self, $input, $context = undef ) {
+    return undef if !$self->enabled;
+    my $purpose = $input->{purpose};
+    return undef if !_purpose($purpose);
+    my $proof = [];
+    if ( $purpose eq 'register' ) {
+        return undef if !_registration_shaped($input);
+        my $password =
+          await $self->_proof_p( $input->{user_id}, $input->{password},
+            $input->{code}, $context );
+        $proof = _registration_proof( $input, $password ) or return undef;
+    }
+    my ( $challenge, $values ) = $self->_begin_values( $input, $proof );
+    my $row =
+      await $self->functions->row_p( 'identity_passkey_begin', $values,
+        $context );
+    return undef                             if !$row;
+    return $self->_login_options($challenge) if $purpose eq 'login';
+
+    return $self->_registration_options( $row, $challenge,
+        await $self->listed_p( $input->{user_id}, $context ) );
+}
+
+sub _purpose ($purpose) {
+    return
+      defined $purpose && ( $purpose eq 'register' || $purpose eq 'login' );
+}
+
+sub _begin_values ( $self, $input, $proof ) {
+    my ( $password, $label ) = @{$proof};
     my $challenge = encode_base64url( urandom($RANDOM_BYTES) );
-    my $row       = $self->functions->row(
-        'identity_passkey_begin',
+    return (
+        $challenge,
         {
             input => {
                 %{ $self->_context_input($input) },
@@ -134,14 +201,18 @@ sub begin ( $self, $input ) {
             }
         }
     );
-    return undef if !$row;
+}
+
+sub _login_options ( $self, $challenge ) {
     return {
         challenge        => $challenge,
         rpId             => $self->rp_id,
         userVerification => 'required',
-        timeout          => $TIMEOUT_MS
-      }
-      if $purpose eq 'login';
+        timeout          => $TIMEOUT_MS,
+    };
+}
+
+sub _registration_options ( $self, $row, $challenge, $listed ) {
     my $account = $row->{result};
     my $options = $self->verifier->options(
         {
@@ -153,14 +224,17 @@ sub begin ( $self, $input ) {
     );
     $options->{excludeCredentials} =
       [ map { { type => 'public-key', id => $_->{credential_id_b64} } }
-          @{ $self->listed( $input->{user_id} ) } ];
+          @{$listed} ];
     return $options;
 }
 
-sub _registration_proof ( $self, $input ) {
-    return undef if !$input->{user_id} || !$input->{session_id};
-    my $password =
-      $self->_proof( $input->{user_id}, $input->{password}, $input->{code} );
+sub _registration_shaped ($input) {
+    return $input->{user_id} && $input->{session_id} ? 1 : 0;
+}
+
+# The password credential that proved, with the label: or undef for no
+# proof or a label that is empty, too long or holds control characters.
+sub _registration_proof ( $input, $password ) {
     return undef if !$password;
     my $label = $input->{label} // q{};
     return undef
@@ -188,24 +262,47 @@ sub _context_input ( $self, $input ) {
 
 sub complete ( $self, $input ) {
     return undef if !$self->enabled;
-    my $challenge = $input->{challenge};
-    return undef if ( $challenge // q{} ) !~ /\A [[:alnum:]_-]{43} \z/amsx;
+    my $challenge = _challenge($input) // return undef;
 
     # Commit consumption before crypto: a refused response also spends it, and
     # replaying a previous signed cookie cannot restore the database challenge.
-    my $row = $self->functions->row(
-        'identity_passkey_consume',
-        {
-            input => {
-                %{ $self->_context_input($input) },
-                challenge_hash => sha256_hex($challenge)
-            }
-        }
-    );
+    my $row = $self->functions->row( 'identity_passkey_consume',
+        $self->_consume_values( $input, $challenge ) );
     return undef if !$row;
     return $self->_register( $input, $row->{result} )
       if $input->{purpose} eq 'register';
     return $self->_login($input);
+}
+
+# complete on the worker's pooled asynchronous connections: the challenge
+# spent on its own, then the registration or the sign-in (with its second
+# factor, session and audit) in one transaction. The signature checks are
+# one public-key verification each and run in the worker.
+async sub complete_p ( $self, $input, $context = undef ) {
+    return $self->complete($input) if !$self->functions;
+    return undef                   if !$self->enabled;
+    my $challenge = _challenge($input) // return undef;
+    my $row       = await $self->functions->row_p( 'identity_passkey_consume',
+        $self->_consume_values( $input, $challenge ), $context );
+    return undef if !$row;
+    return await $self->_register_p( $input, $row->{result}, $context )
+      if $input->{purpose} eq 'register';
+    return await $self->_login_p( $input, $context );
+}
+
+sub _challenge ($input) {
+    my $challenge = $input->{challenge};
+    return undef if ( $challenge // q{} ) !~ /\A [[:alnum:]_-]{43} \z/amsx;
+    return $challenge;
+}
+
+sub _consume_values ( $self, $input, $challenge ) {
+    return {
+        input => {
+            %{ $self->_context_input($input) },
+            challenge_hash => sha256_hex($challenge)
+        }
+    };
 }
 
 sub _register ( $self, $input, $state ) {
@@ -213,35 +310,48 @@ sub _register ( $self, $input, $state ) {
       $self->verifier->verify( $input->{credential}, $input->{challenge} );
     return $self->schema->txn_do(
         sub {
-            my $id  = GPForum::Infrastructure::Id->new->uuid;
-            my $row = $self->functions->row(
-                'identity_passkey_register',
-                {
-                    input => {
-                        %{$state}, %{$verified}, id => $id
-                    }
-                }
-            );
+            my $row = $self->functions->row( 'identity_passkey_register',
+                _register_values( $state, $verified ) );
             return undef if !$row;
             $self->_audit( 'identity.passkey.registered', $state->{user_id} );
-            return { ok => 1, persisted => 1, status => 'registered' };
+            return _registered();
         }
     );
 }
 
-sub _login ( $self, $input ) {
-    my $credential = $input->{credential};
-    return undef
-      if ref $credential ne 'HASH'
-      || ref $credential->{rawId}
-      || length( $credential->{rawId} // q{} ) > $CREDENTIAL_TEXT_LIMIT;
-    my $row = $self->functions->row(
-        'identity_passkey_resolve',
-        {
-            credential_id_b64 => $credential->{rawId} // q{},
-            rp_id             => $self->rp_id
-        }
+async sub _register_p ( $self, $input, $state, $context ) {
+    my $verified =
+      $self->verifier->verify( $input->{credential}, $input->{challenge} );
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $row = await $scope->row_p( 'identity_passkey_register',
+                _register_values( $state, $verified ), $context );
+            return undef if !$row;
+            await $self->_audit_p( 'identity.passkey.registered',
+                $state->{user_id}, $context, $scope );
+            return _registered();
+        },
+        $context
     );
+}
+
+sub _register_values ( $state, $verified ) {
+    return {
+        input => {
+            %{$state}, %{$verified},
+            id => GPForum::Infrastructure::Id->new->uuid
+        }
+    };
+}
+
+sub _registered {
+    return { ok => 1, persisted => 1, status => 'registered' };
+}
+
+sub _login ( $self, $input ) {
+    my $credential = _assertion($input) // return undef;
+    my $row        = $self->functions->row( 'identity_passkey_resolve',
+        $self->_resolve_values($credential) );
     return undef if !$row;
     my $key = $row->{result};
     my $verified =
@@ -251,40 +361,102 @@ sub _login ( $self, $input ) {
         sub {
             my $held = $self->functions->row(
                 'identity_passkey_advance',
-                {
-                    id          => $key->{id},
-                    password_id => $key->{password_id},
-                    sign_count  => $verified->{sign_count}
-                }
+                _advance_values( $key, $verified )
             );
             return undef if !$held;
             my $member    = $held->{result};
             my $challenge = $self->second_factor->open_challenge( $member->{id},
                 $key->{password_id} );
-            if ( $challenge->{status} eq 'open' ) {
-                return {
-                    status          => 'second_factor',
-                    challenge_token => $challenge->{token},
-                    user_id         => $member->{id}
-                };
-            }
-            return undef if $challenge->{status} ne 'none';
+            return _second_factor( $member, $challenge )
+              if $challenge->{status} ne 'none';
             my $user    = GPForum::Infrastructure::ResultRow->from($member);
             my $session = $self->sessions->create_session( $user, $input );
             return undef if !$session;
             $self->_audit( 'identity.passkey.login', $member->{id} );
-            return {
-                ok            => 1,
-                status        => 'ok',
-                user_id       => $member->{id},
-                user          => $user,
-                session_token => $session->{session_token},
-                session_id    => column_of( $session->{session}, 'session_id' ),
-                map { $_ => $member->{$_} }
-                  qw(preferred_locale preferred_theme preferred_timezone)
-            };
+            return _signed_in( $member, $user, $session );
         }
     );
+}
+
+async sub _login_p ( $self, $input, $context ) {
+    my $credential = _assertion($input) // return undef;
+    my $row        = await $self->functions->row_p( 'identity_passkey_resolve',
+        $self->_resolve_values($credential), $context );
+    return undef if !$row;
+    my $key = $row->{result};
+    my $verified =
+      $self->verifier->verify_assertion( $credential, $input->{challenge},
+        $key );
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $held = await $scope->row_p( 'identity_passkey_advance',
+                _advance_values( $key, $verified ), $context );
+            return undef if !$held;
+            my $member = $held->{result};
+            my $challenge =
+              await $self->second_factor->open_challenge_p( $member->{id},
+                $key->{password_id}, $context, $scope );
+            return _second_factor( $member, $challenge )
+              if $challenge->{status} ne 'none';
+            my $user = GPForum::Infrastructure::ResultRow->from($member);
+            my $session =
+              await $self->sessions->create_session_p( $user, $input, $context,
+                $scope );
+            return undef if !$session;
+            await $self->_audit_p( 'identity.passkey.login', $member->{id},
+                $context, $scope );
+            return _signed_in( $member, $user, $session );
+        },
+        $context
+    );
+}
+
+sub _assertion ($input) {
+    my $credential = $input->{credential};
+    return undef
+      if ref $credential ne 'HASH'
+      || ref $credential->{rawId}
+      || length( $credential->{rawId} // q{} ) > $CREDENTIAL_TEXT_LIMIT;
+    return $credential;
+}
+
+sub _resolve_values ( $self, $credential ) {
+    return {
+        credential_id_b64 => $credential->{rawId} // q{},
+        rp_id             => $self->rp_id
+    };
+}
+
+sub _advance_values ( $key, $verified ) {
+    return {
+        id          => $key->{id},
+        password_id => $key->{password_id},
+        sign_count  => $verified->{sign_count}
+    };
+}
+
+# An open second-factor challenge answers its token; any status but open
+# or none refuses the sign-in.
+sub _second_factor ( $member, $challenge ) {
+    return undef if $challenge->{status} ne 'open';
+    return {
+        status          => 'second_factor',
+        challenge_token => $challenge->{token},
+        user_id         => $member->{id}
+    };
+}
+
+sub _signed_in ( $member, $user, $session ) {
+    return {
+        ok            => 1,
+        status        => 'ok',
+        user_id       => $member->{id},
+        user          => $user,
+        session_token => $session->{session_token},
+        session_id    => column_of( $session->{session}, 'session_id' ),
+        map { $_ => $member->{$_} }
+          qw(preferred_locale preferred_theme preferred_timezone)
+    };
 }
 
 sub revoke ( $self, $input ) {
@@ -294,20 +466,49 @@ sub revoke ( $self, $input ) {
     return undef if !$password;
     return $self->schema->txn_do(
         sub {
-            my $row = $self->functions->row(
-                'identity_passkey_revoke',
-                {
-                    user_id     => $input->{user_id},
-                    id          => $input->{id},
-                    password_id => $password,
-                    session_id  => $input->{session_id}
-                }
-            );
+            my $row = $self->functions->row( 'identity_passkey_revoke',
+                _revoke_values( $input, $password ) );
             return undef if !$row;
             $self->_audit( 'identity.passkey.revoked', $input->{user_id} );
-            return { ok => 1, status => 'revoked' };
+            return _revoked();
         }
     );
+}
+
+# revoke on the worker's pooled asynchronous connections: the password
+# checked in a child of the CPU lane, then the revocation and its audit in
+# one transaction.
+async sub revoke_p ( $self, $input, $context = undef ) {
+    return $self->revoke($input) if !$self->functions;
+    return undef if !GPForum::Infrastructure::Id->is_uuid( $input->{id} );
+    my $password =
+      await $self->_proof_p( $input->{user_id}, $input->{password},
+        $input->{code}, $context );
+    return undef if !$password;
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $row = await $scope->row_p( 'identity_passkey_revoke',
+                _revoke_values( $input, $password ), $context );
+            return undef if !$row;
+            await $self->_audit_p( 'identity.passkey.revoked',
+                $input->{user_id}, $context, $scope );
+            return _revoked();
+        },
+        $context
+    );
+}
+
+sub _revoke_values ( $input, $password ) {
+    return {
+        user_id     => $input->{user_id},
+        id          => $input->{id},
+        password_id => $password,
+        session_id  => $input->{session_id},
+    };
+}
+
+sub _revoked {
+    return { ok => 1, status => 'revoked' };
 }
 1;
 
@@ -333,6 +534,11 @@ Shares local proof, server sessions, TOTP policy and audit infrastructure with n
 =head2 origin
 
 Returns the configured trusted origin when HTTPS or loopback development is available.
+
+=head2 origin_p
+
+L</origin> as a promise, with an optional query context last; it reads the
+configuration alone, so it is answered in the worker itself.
 
 =head2 enabled
 
@@ -360,13 +566,31 @@ it answers the blocking list.
 
 Issues a five-minute registration or discoverable login ceremony. Registration requires fresh local proof and a valid server session.
 
+=head2 begin_p
+
+L</begin> as a promise, with an optional query context last: the reads and
+the challenge on the worker's pooled asynchronous connections, the local
+proof's Argon2 in a child of the CPU lane.
+
 =head2 complete
 
 Atomically spends the browser-bound challenge before verification. Persists a verified registration or starts the existing TOTP/session flow after a verified assertion.
 
+=head2 complete_p
+
+L</complete> on the worker's pooled asynchronous connections: the challenge
+is spent first, then the registration or the sign-in, with its second
+factor, session and audit, commits in one transaction.
+
 =head2 revoke
 
 Requires fresh local proof, revokes the owned key, other sessions and pending TOTP challenges, and records an audit entry in one transaction. Password rotation and account recovery revoke all passkeys.
+
+=head2 revoke_p
+
+L</revoke> as a promise, with an optional query context last: the local
+proof first, then the revocation and its audit in one transaction on the
+worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

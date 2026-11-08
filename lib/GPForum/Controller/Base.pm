@@ -5,6 +5,7 @@ package GPForum::Controller::Base;
 
 use Mojo::Base 'Mojolicious::Controller', -async_await;
 use v5.40;
+use Carp         qw(croak);
 use Scalar::Util qw(blessed);
 use English      qw(-no_match_vars);
 
@@ -49,6 +50,11 @@ sub await_p ( $self, @values ) {
     return $promise->resolve(@values);
 }
 
+# Every service a request reaches answers on the pooled asynchronous
+# connections through its METHOD_p twin (or its async_call_p). There is no
+# child-process fallback: a PostgreSQL-backed service without one is a
+# defect and fails loudly. In-memory doubles, which hold no connection,
+# answer in process.
 sub call_p ( $self, $service, $method, @arguments ) {
     if ( !$self->stash('mojo.finished') ) { $self->render_later; }
     my $context = $self->stash('gp_db_query_stats_token');
@@ -57,13 +63,18 @@ sub call_p ( $self, $service, $method, @arguments ) {
             my $async = $method . '_p';
             return $service->$async( @arguments, $context )
               if $service->can($async);
-            my $abandoned = 0;
-            $self->tx->on( finish => sub { $abandoned = 1; return; } );
-            return $service->async_call_p( $method, \@arguments, $context,
-                sub { return $abandoned; } )
-              if $service->can('async_call_p');
-            return $self->async_work->service_result_p( $service, $method,
-                \@arguments, $context, sub { return $abandoned; } );
+            if ( $service->can('async_call_p') ) {
+                my $abandoned = 0;
+                $self->tx->on( finish => sub { $abandoned = 1; return; } );
+                return $service->async_call_p( $method, \@arguments, $context,
+                    sub { return $abandoned; } );
+            }
+            croak ref($service)
+              . " has no ${async}: database work never "
+              . 'runs in a child process'
+              if $self->async_work->holds_database($service);
+            return Mojo::Promise->resolve->then(
+                sub { return $service->$method(@arguments); } );
         }
     );
     return $self->await_p($promise);
@@ -112,26 +123,6 @@ sub respond_p ( $self, $promise, $respond, $failure = undef ) {
         }
     );
     return;
-}
-
-sub work_p ( $self, $service, $method, $input ) {
-    my $abandoned = 0;
-    $self->tx->on( finish => sub { $abandoned = 1; return; } );
-    return $self->async_work->service_p(
-        $service, $method, $input,
-        $self->stash('gp_db_query_stats_token'),
-        sub { return $abandoned; }
-    );
-}
-
-sub work_args_p ( $self, $service, $method, $arguments ) {
-    my $abandoned = 0;
-    $self->tx->on( finish => sub { $abandoned = 1; return; } );
-    return $self->async_work->service_args_p(
-        $service, $method, $arguments,
-        $self->stash('gp_db_query_stats_token'),
-        sub { return $abandoned; }
-    );
 }
 
 sub within_request ( $self, $work ) {
@@ -350,9 +341,10 @@ and logging context. No context is retained across a yield.
 
 =head2 call_p
 
-Defers rendering and uses a service's native promise API when present. A
-persistent synchronous workflow runs in the bounded subprocess executor, with
-its transaction, typed result rows and exceptions preserved.
+Defers rendering and calls the service's C<METHOD_p> twin (or its
+C<async_call_p>) on the pooled asynchronous connections. A PostgreSQL-backed
+service without one croaks: database work never runs in a child process. An
+in-memory double answers in process.
 
 =head2 file_p
 
@@ -361,20 +353,13 @@ including HEAD, byte ranges and conditional responses.
 
 =head2 async_work
 
-Returns the shared per-worker executor for blocking operations.
+Returns the shared per-worker executor; controllers use its C<cpu_p> for
+CPU-bound work, which cannot touch PostgreSQL.
 
 =head2 respond_p
 
 Defers rendering until a promise settles, restores request counters and logging
 for callbacks, and skips responses after disconnect. Admission failures answer 503.
-
-=head2 work_p
-
-Runs a persistent service method with one input in a bounded subprocess.
-
-=head2 work_args_p
-
-Runs a persistent service method with positional inputs in a bounded subprocess.
 
 =head2 within_request
 

@@ -71,6 +71,59 @@ async sub words_p ( $self, $context = undef ) {
 # Adds a watched word. Answers ok with the word, or a refusal: invalid
 # (with the field), duplicate or limit.
 sub add_word ( $self, $input ) {
+    return $self->_settle( $self->_add_word_call($input) );
+}
+
+# The same staff change on the worker's pooled asynchronous connections,
+# not a forked child with a connection of its own; as are remove_word_p
+# and set_link_rule_p.
+async sub add_word_p ( $self, $input, $context = undef ) {
+    return $self->add_word($input) if !$self->functions;
+    return await $self->_settle_p( $context, $self->_add_word_call($input) );
+}
+
+# Takes a watched word off the list; one not listed is no error.
+sub remove_word ( $self, $input ) {
+    return $self->_settle( $self->_remove_word_call($input) );
+}
+
+async sub remove_word_p ( $self, $input, $context = undef ) {
+    return $self->remove_word($input) if !$self->functions;
+    return await $self->_settle_p( $context, $self->_remove_word_call($input) );
+}
+
+# Sets the link rule: an empty limit turns it off. Answers ok, unchanged
+# or invalid (with the field).
+sub set_link_rule ( $self, $input ) {
+    return $self->_settle( $self->_link_rule_call($input) );
+}
+
+async sub set_link_rule_p ( $self, $input, $context = undef ) {
+    return $self->set_link_rule($input) if !$self->functions;
+    return await $self->_settle_p( $context, $self->_link_rule_call($input) );
+}
+
+# A staff change is a refusal, or undef with the function's name, its
+# values and the sub that answers from the function's row.
+sub _settle ( $self, $refusal, $name = undef, $values = undef, $answer = undef )
+{
+    return $refusal if $refusal;
+    return $answer->( $self->_functions->row( $name, $values ) );
+}
+
+async sub _settle_p (
+    $self, $context, $refusal,
+    $name   = undef,
+    $values = undef,
+    $answer = undef
+  )
+{
+    return $refusal if $refusal;
+    return $answer->(
+        await $self->_functions->row_p( $name, $values, $context ) );
+}
+
+sub _add_word_call ( $self, $input ) {
     my $automod     = $self->automod;
     my $phrase      = $automod->phrase( $input->{phrase} );
     my $replacement = $automod->replacement( $input->{replacement} );
@@ -82,21 +135,24 @@ sub add_word ( $self, $input ) {
         $replacement = q{};
     }
 
-    my $word_id = $self->id_service->uuid;
-    my $now     = $self->clock->now_iso8601;
-    my $row     = $self->_functions->row(
+    my $word = {
+        word_id     => $self->id_service->uuid,
+        phrase      => $phrase,
+        action      => $action,
+        replacement => $replacement,
+    };
+    my $now = $self->clock->now_iso8601;
+    return (
+        undef,
         'moderation_watched_word_add',
         {
-            word_id       => $word_id,
-            phrase        => $phrase,
-            action        => $action,
-            replacement   => $replacement,
+            %{$word},
             actor_user_id => $input->{actor_user_id},
             now           => $now,
             audit         => $self->_audit(
                 $WORD_ADDED,
                 $input->{actor_user_id},
-                $word_id,
+                $word->{word_id},
                 {
                     phrase      => $phrase,
                     action      => $action,
@@ -104,30 +160,22 @@ sub add_word ( $self, $input ) {
                 },
                 $now,
             ),
-        }
-    ) || { status => 'invalid' };
-    my $status = $row->{status} // 'invalid';
-    return { ok => 0, status => $status } if $status ne 'ok';
-
-    return {
-        ok     => 1,
-        status => 'ok',
-        word   => {
-            word_id     => $word_id,
-            phrase      => $phrase,
-            action      => $action,
-            replacement => $replacement,
         },
-    };
+        sub ($row) {
+            my $status = ( $row || {} )->{status} // 'invalid';
+            return { ok => 0, status => $status } if $status ne 'ok';
+            return { ok => 1, status => 'ok', word => $word };
+        },
+    );
 }
 
-# Takes a watched word off the list; one not listed is no error.
-sub remove_word ( $self, $input ) {
+sub _remove_word_call ( $self, $input ) {
     my $word_id = $input->{word_id} // q{};
     return { ok => 1, status => 'ok', removed => 0 }
       if !GPForum::Infrastructure::Id->is_uuid_spelling($word_id);
 
-    my $row = $self->_functions->row(
+    return (
+        undef,
         'moderation_watched_word_remove',
         {
             word_id => $word_id,
@@ -136,15 +184,18 @@ sub remove_word ( $self, $input ) {
                 $word_id, {},
                 $self->clock->now_iso8601,
             ),
-        }
+        },
+        sub ($row) {
+            return {
+                ok      => 1,
+                status  => 'ok',
+                removed => 0 + ( $row->{removed} // 0 )
+            };
+        },
     );
-
-    return { ok => 1, status => 'ok', removed => 0 + ( $row->{removed} // 0 ) };
 }
 
-# Sets the link rule: an empty limit turns it off. Answers ok, unchanged
-# or invalid (with the field).
-sub set_link_rule ( $self, $input ) {
+sub _link_rule_call ( $self, $input ) {
     my $automod = $self->automod;
     my $limit   = $automod->link_limit( $input->{link_limit} );
     my $below   = $automod->trust_level( $input->{link_trust_below} );
@@ -156,31 +207,33 @@ sub set_link_rule ( $self, $input ) {
         $limit = undef;
     }
 
+    my $rule = {
+        link_limit       => $limit,
+        link_trust_below => $below,
+        link_action      => $action,
+    };
     my $now = $self->clock->now_iso8601;
-    my $row = $self->_functions->row(
+    return (
+        undef,
         'moderation_automod_settings_set',
         {
-            link_limit       => $limit,
-            link_trust_below => $below,
-            link_action      => $action,
-            actor_user_id    => $input->{actor_user_id},
-            now              => $now,
-            audit            => $self->_audit(
-                $LINKS_SET,
-                $input->{actor_user_id},
-                undef,
-                {
-                    link_limit       => $limit,
-                    link_trust_below => $below,
-                    link_action      => $action,
-                },
+            %{$rule},
+            actor_user_id => $input->{actor_user_id},
+            now           => $now,
+            audit         => $self->_audit(
+                $LINKS_SET, $input->{actor_user_id},
+                undef, { %{$rule} },
                 $now,
             ),
-        }
-    ) || { status => 'invalid' };
-    my $status = $row->{status} // 'invalid';
-
-    return { ok => ( $status eq 'invalid' ? 0 : 1 ), status => $status };
+        },
+        sub ($row) {
+            my $status = ( $row || {} )->{status} // 'invalid';
+            return {
+                ok     => ( $status eq 'invalid' ? 0 : 1 ),
+                status => $status
+            };
+        },
+    );
 }
 
 # Records the decisions of one write in one call: the system's report
@@ -188,6 +241,31 @@ sub set_link_rule ( $self, $input ) {
 # and the audit of every decision. Answers the report's id and whether it
 # was created (an open system report on the target is reused).
 sub record_decisions ( $self, $input ) {
+    return _decisions_recorded(
+        $self->_functions->row(
+            'moderation_automod_record', $self->_decisions_values($input)
+        )
+    );
+}
+
+# The same call on a pooled asynchronous connection, or on the transaction
+# $functions belongs to (the write's own, when the write is recorded with
+# its decisions).
+async sub record_decisions_p ( $self, $input, $context = undef,
+    $functions = undef )
+{
+    return $self->record_decisions($input)
+      if !$functions && !$self->functions;
+    $functions //= $self->functions;
+    return _decisions_recorded(
+        await $functions->row_p(
+            'moderation_automod_record', $self->_decisions_values($input),
+            $context
+        )
+    );
+}
+
+sub _decisions_values ( $self, $input ) {
     my ( $report, $event, $report_audit );
     if ( my $flag = $input->{report} ) {
         $report = {
@@ -210,20 +288,20 @@ sub record_decisions ( $self, $input ) {
             %{ $self->events->report_created_audit($recorded) } )->{audit};
     }
 
-    my $row = $self->_functions->row(
-        'moderation_automod_record',
-        {
-            report          => $report,
-            event           => $event ? $event->{event}     : undef,
-            event_outbox_id => $event ? $event->{outbox_id} : undef,
-            report_audit    => $report_audit,
-            audits          => [
-                map { $self->recorder->audit_call( %{$_} )->{audit} }
-                  @{ $input->{audits} // [] }
-            ],
-        }
-    ) // {};
+    return {
+        report          => $report,
+        event           => $event ? $event->{event}     : undef,
+        event_outbox_id => $event ? $event->{outbox_id} : undef,
+        report_audit    => $report_audit,
+        audits          => [
+            map { $self->recorder->audit_call( %{$_} )->{audit} }
+              @{ $input->{audits} // [] }
+        ],
+    };
+}
 
+sub _decisions_recorded ($row) {
+    $row //= {};
     return {
         report_id => $row->{report_id},
         flagged   => $row->{flagged} ? 1 : 0,
@@ -316,18 +394,39 @@ worker's pooled asynchronous connections.
 Adds a watched word: ok with the word, or invalid (naming the field),
 duplicate or limit.
 
+=head2 add_word_p
+
+L</add_word> as a promise, with an optional query context last, written
+on the worker's pooled asynchronous connections.
+
 =head2 remove_word
 
 Removes a watched word; C<removed> says whether it was listed.
+
+=head2 remove_word_p
+
+L</remove_word> as a promise, with an optional query context last,
+written on the worker's pooled asynchronous connections.
 
 =head2 set_link_rule
 
 Sets the link rule: ok, unchanged, or invalid naming the field.
 
+=head2 set_link_rule_p
+
+L</set_link_rule> as a promise, with an optional query context last,
+written on the worker's pooled asynchronous connections.
+
 =head2 record_decisions
 
 Records a write's decisions: the system report when flagged, and the audit
 of each decision.
+
+=head2 record_decisions_p
+
+L</record_decisions> as a promise, with an optional query context and an
+optional call layer last: on the worker's pooled asynchronous connections,
+or inside the transaction the given call layer belongs to.
 
 =head2 in_transaction
 

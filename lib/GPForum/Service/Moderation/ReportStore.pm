@@ -106,9 +106,144 @@ sub _open_duplicate_report ( $self, $input ) {
     )->single;
 }
 
+# create_report on the worker's pooled asynchronous connections: in its own
+# transaction, or in the one $functions belongs to (a command log's). The
+# insert runs in a savepoint, so a lost race on the open key or a minted id
+# already taken is answered as create_report answers it.
+async sub create_report_p ( $self, $input, $context = undef,
+    $functions = undef )
+{
+    return $self->create_report($input) if !$self->functions;
+    my $work = async sub ($scope) {
+        return await $self->_create_report_on_p( $scope, $input, $context );
+    };
+    return await $work->($functions) if $functions;
+    return await $self->functions->transaction_p( $work, $context );
+}
+
+async sub _create_report_on_p ( $self, $scope, $input, $context ) {
+    my $duplicate =
+      await $self->_open_duplicate_report_p( $scope, $input, $context );
+    return await $self->_finish_leftover_report_p( $scope, $duplicate, $input,
+        $context )
+      if $duplicate;
+
+    for my $attempt ( 0, 1 ) {
+        my ( $created, $failure );
+        try {
+            $created = await $scope->transaction_p(
+                async sub ($savepoint) {
+                    return await $self->_insert_report_p( $savepoint, $input,
+                        $context );
+                }
+            );
+        }
+        catch ($error) { $failure = $error; };
+        return $created if $created;
+
+        my $conflict = GPForum::X::Conflict->caught($failure);
+        my $id_taken = $conflict && $conflict->on($ID_CONSTRAINT);
+        if (
+            $attempt == 0
+            && ( $id_taken || ( $conflict && $conflict->on($OPEN_CONSTRAINT) ) )
+          )
+        {
+            $duplicate =
+              await $self->_open_duplicate_report_p( $scope, $input, $context );
+            return await $self->_finish_leftover_report_p( $scope, $duplicate,
+                $input, $context )
+              if $duplicate;
+        }
+        die $failure    ## no critic (ErrorHandling::RequireCarping) -- rethrow the database's own conflict unchanged
+          if $attempt || !$id_taken;
+    }
+    return undef;
+}
+
+async sub _open_duplicate_report_p ( $self, $scope, $input, $context ) {
+    return GPForum::Infrastructure::ResultRow->from(
+        await $scope->row_p(
+            'moderation_report_find',
+            _find_values(
+                {
+                    map { $_ => $input->{$_} }
+                      qw(reporter_user_id target_type target_id)
+                }
+            ),
+            $context
+        )
+    );
+}
+
+async sub _insert_report_p ( $self, $scope, $input, $context ) {
+    my $report = $self->_new_report($input);
+    await $scope->row_p( 'moderation_report_insert', { values => $report },
+        $context );
+    await $self->_record_event_and_audit_p( $scope, $report, $context );
+    return $report;
+}
+
+async sub _finish_leftover_report_p ( $self, $scope, $existing, $input,
+    $context )
+{
+    my $event_key = join q{:}, 'report.created',
+      column_of( $existing, 'report_id' );
+    my $recorded =
+      await $scope->row_p( 'ops_event_recorded', { key => $event_key },
+        $context );
+    if ( !$recorded->{recorded} ) {
+        await $self->_record_event_and_audit_p( $scope, $existing, $context );
+        return $existing;
+    }
+    await $scope->row_p(
+        'ops_record_audit',
+        $self->recorder->audit_call(
+            %{ $self->_duplicate_audit( $existing, $input ) }
+        ),
+        $context
+    );
+    return $existing;
+}
+
+async sub _record_event_and_audit_p ( $self, $scope, $report, $context ) {
+    my $recorded = {
+        correlation_id => $self->id_service->uuid,
+        report         => $report,
+    };
+    await $scope->row_p(
+        'ops_record_event',
+        $self->recorder->event_call(
+            %{ $self->events->report_created_envelope($recorded) }
+        ),
+        $context
+    );
+    await $scope->row_p(
+        'ops_record_audit',
+        $self->recorder->audit_call(
+            %{ $self->events->report_created_audit($recorded) }
+        ),
+        $context
+    );
+    return;
+}
+
 sub _insert_report ( $self, $input ) {
+    my $report = $self->_new_report($input);
+    if ( $self->functions ) {
+        $self->functions->row( 'moderation_report_insert',
+            { values => $report } );
+    }
+    else {
+        $self->schema->resultset('Report')->create($report);
+    }
+    $self->_record_event_and_audit($report);
+
+    return $report;
+}
+
+sub _new_report ( $self, $input ) {
     my $created_at = $self->clock->now_iso8601;
-    my $report     = {
+    return {
         report_id                  => $self->id_service->uuid,
         reporter_user_id           => $input->{reporter_user_id},
         target_type                => $input->{target_type},
@@ -121,17 +256,6 @@ sub _insert_report ( $self, $input ) {
         resolved_at                => undef,
         resolution                 => undef,
     };
-
-    if ( $self->functions ) {
-        $self->functions->row( 'moderation_report_insert',
-            { values => $report } );
-    }
-    else {
-        $self->schema->resultset('Report')->create($report);
-    }
-    $self->_record_event_and_audit($report);
-
-    return $report;
 }
 
 # A report whose event an earlier attempt left out gets it now; a report
@@ -145,118 +269,177 @@ sub _finish_leftover_report ( $self, $existing, $input ) {
     }
 
     $self->recorder->record_audit(
-        %{
-            $self->events->report_duplicate_audit(
-                {
-                    created_at       => $self->clock->now_iso8601,
-                    duplicate        => $existing,
-                    reason           => $input->{reason},
-                    reporter_user_id => $input->{reporter_user_id},
-                    target_id        => $input->{target_id},
-                    target_type      => $input->{target_type},
-                }
-            )
-        }
-    );
+        %{ $self->_duplicate_audit( $existing, $input ) } );
 
     return $existing;
 }
 
-sub assign_report ( $self, $report_id, $moderator_user_id ) {
-    return $self->schema->txn_do(
-        sub {
-            $self->_lock_report($report_id);
-            my $report =
-              $self->_report_row( { report_id => $report_id, hold => 1 } );
-            return if !$report;
-
-            return _report_transition_hash($report)
-              if ( column_of( $report, 'assigned_moderator_user_id' ) || q{} )
-              eq $moderator_user_id;
-
-            my $changes = { assigned_moderator_user_id => $moderator_user_id };
-            $self->_update_report( $report, $changes );
-            my $assigned = { report_id => $report_id, %{$changes} };
-            $self->_record_transition_event_and_audit(
-                {
-                    report     => $report,
-                    event_type => 'report.assigned',
-                    actor_id   => $moderator_user_id,
-                    payload    => {
-                        assigned_moderator_user_id => $moderator_user_id,
-                    },
-                }
-            );
-
-            return $assigned;
+sub _duplicate_audit ( $self, $existing, $input ) {
+    return $self->events->report_duplicate_audit(
+        {
+            created_at       => $self->clock->now_iso8601,
+            duplicate        => $existing,
+            reason           => $input->{reason},
+            reporter_user_id => $input->{reporter_user_id},
+            target_id        => $input->{target_id},
+            target_type      => $input->{target_type},
         }
     );
+}
+
+sub assign_report ( $self, $report_id, $moderator_user_id ) {
+    return $self->_transition( _assign_spec( $report_id, $moderator_user_id ) );
+}
+
+# The same transition in one transaction on the worker's pooled
+# asynchronous connections, not a forked child with a connection of its
+# own; as are release_report_p and resolve_report_p.
+async sub assign_report_p ( $self, $report_id, $moderator_user_id,
+    $context = undef )
+{
+    return await $self->_transition_p(
+        _assign_spec( $report_id, $moderator_user_id ), $context );
 }
 
 sub release_report ( $self, $report_id, $actor_user_id ) {
+    return $self->_transition( _release_spec( $report_id, $actor_user_id ) );
+}
+
+async sub release_report_p ( $self, $report_id, $actor_user_id,
+    $context = undef )
+{
+    return await $self->_transition_p(
+        _release_spec( $report_id, $actor_user_id ), $context );
+}
+
+sub resolve_report ( $self, $report_id, $resolution, $actor_user_id = undef ) {
+    return $self->_transition(
+        $self->_resolve_spec( $report_id, $resolution, $actor_user_id ) );
+}
+
+async sub resolve_report_p (
+    $self, $report_id, $resolution,
+    $actor_user_id = undef,
+    $context = undef
+  )
+{
+    return await $self->_transition_p(
+        $self->_resolve_spec( $report_id, $resolution, $actor_user_id ),
+        $context );
+}
+
+sub _assign_spec ( $report_id, $moderator_user_id ) {
+    return {
+        report_id => $report_id,
+        settled   => sub ($report) {
+            return ( column_of( $report, 'assigned_moderator_user_id' ) || q{} )
+              eq $moderator_user_id;
+        },
+        changes    => { assigned_moderator_user_id => $moderator_user_id },
+        event_type => 'report.assigned',
+        actor_id   => $moderator_user_id,
+        payload    => { assigned_moderator_user_id => $moderator_user_id },
+    };
+}
+
+sub _release_spec ( $report_id, $actor_user_id ) {
+    return {
+        report_id => $report_id,
+        settled   => sub ($report) {
+            return !defined column_of( $report, 'assigned_moderator_user_id' );
+        },
+        changes    => { assigned_moderator_user_id => undef },
+        event_type => 'report.released',
+        actor_id   => $actor_user_id,
+        payload    => { assigned_moderator_user_id => undef },
+    };
+}
+
+sub _resolve_spec ( $self, $report_id, $resolution, $actor_user_id ) {
+    my $resolved_at = $self->clock->now_iso8601;
+    return {
+        report_id => $report_id,
+        settled   => sub ($report) {
+            return ( column_of( $report, 'status' ) || q{} ) eq
+              $STATUS_RESOLVED;
+        },
+        changes => {
+            status      => $STATUS_RESOLVED,
+            resolved_at => $resolved_at,
+            resolution  => $resolution,
+        },
+        event_type => 'report.resolved',
+        actor_id   => $actor_user_id,
+        payload    => {
+            resolution  => $resolution,
+            resolved_at => $resolved_at,
+        },
+    };
+}
+
+# Under the report's lock: a report already where the transition takes it
+# is answered as it stands; any other gets the changes, an event and an
+# audit entry.
+sub _transition ( $self, $spec ) {
     return $self->schema->txn_do(
         sub {
-            $self->_lock_report($report_id);
-            my $report =
-              $self->_report_row( { report_id => $report_id, hold => 1 } );
+            $self->_lock_report( $spec->{report_id} );
+            my $report = $self->_report_row(
+                { report_id => $spec->{report_id}, hold => 1 } );
             return if !$report;
 
             return _report_transition_hash($report)
-              if !defined column_of( $report, 'assigned_moderator_user_id' );
+              if $spec->{settled}->($report);
 
-            my $changes = { assigned_moderator_user_id => undef };
-            $self->_update_report( $report, $changes );
-            my $released = { report_id => $report_id, %{$changes} };
+            $self->_update_report( $report, $spec->{changes} );
             $self->_record_transition_event_and_audit(
-                {
-                    report     => $report,
-                    event_type => 'report.released',
-                    actor_id   => $actor_user_id,
-                    payload    => {
-                        assigned_moderator_user_id => undef,
-                    },
-                }
-            );
+                _transition_input( $spec, $report ) );
 
-            return $released;
+            return { report_id => $spec->{report_id}, %{ $spec->{changes} } };
         }
     );
 }
 
-sub resolve_report ( $self, $report_id, $resolution, $actor_user_id = undef ) {
-    return $self->schema->txn_do(
-        sub {
-            $self->_lock_report($report_id);
-            my $report =
-              $self->_report_row( { report_id => $report_id, hold => 1 } );
-            return if !$report;
+async sub _transition_p ( $self, $spec, $context ) {
+    return $self->_transition($spec) if !$self->functions;
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $report = GPForum::Infrastructure::ResultRow->from(
+                await $scope->row_p(
+                    'moderation_report_find',
+                    _find_values(
+                        { report_id => $spec->{report_id}, hold => 1 }
+                    )
+                )
+            );
+            return undef if !$report;
 
             return _report_transition_hash($report)
-              if ( column_of( $report, 'status' ) || q{} ) eq $STATUS_RESOLVED;
+              if $spec->{settled}->($report);
 
-            my $resolved_at = $self->clock->now_iso8601;
-            my $changes     = {
-                status      => $STATUS_RESOLVED,
-                resolved_at => $resolved_at,
-                resolution  => $resolution,
-            };
-            $self->_update_report( $report, $changes );
-            my $resolved = { report_id => $report_id, %{$changes} };
-            $self->_record_transition_event_and_audit(
-                {
-                    report     => $report,
-                    event_type => 'report.resolved',
-                    actor_id   => $actor_user_id,
-                    payload    => {
-                        resolution  => $resolution,
-                        resolved_at => $resolved_at,
-                    },
-                }
-            );
+            await $scope->row_p( 'moderation_report_update',
+                _report_update_values( $report, $spec->{changes} ) );
+            %{$report} = ( %{$report}, %{ $spec->{changes} } );
+            my ( $event, $audit ) =
+              $self->_transition_records( _transition_input( $spec, $report ) );
+            await $scope->row_p( 'ops_record_event',
+                $self->recorder->event_call( %{$event} ) );
+            await $scope->row_p( 'ops_record_audit',
+                $self->recorder->audit_call( %{$audit} ) );
 
-            return $resolved;
-        }
+            return { report_id => $spec->{report_id}, %{ $spec->{changes} } };
+        },
+        $context
     );
+}
+
+sub _transition_input ( $spec, $report ) {
+    return {
+        report     => $report,
+        event_type => $spec->{event_type},
+        actor_id   => $spec->{actor_id},
+        payload    => $spec->{payload},
+    };
 }
 
 sub list_queue ( $self, $options ) {
@@ -306,26 +489,31 @@ sub _report_row ( $self, $input ) {
     return $self->schema->resultset('Report')->find( $input->{report_id} )
       if !$self->functions;
     return GPForum::Infrastructure::ResultRow->from(
-        $self->functions->row(
-            'moderation_report_find',
-            {
-                report_id        => undef,
-                reporter_user_id => undef,
-                target_type      => undef,
-                target_id        => undef,
-                hold             => 0,
-                %{$input}
-            }
-        )
+        $self->functions->row( 'moderation_report_find', _find_values($input) )
     );
+}
+
+sub _find_values ($input) {
+    return {
+        report_id        => undef,
+        reporter_user_id => undef,
+        target_type      => undef,
+        target_id        => undef,
+        hold             => 0,
+        %{$input}
+    };
 }
 
 sub _update_report ( $self, $row, $changes ) {
     return $row->update($changes) if !$self->functions;
     $self->functions->row( 'moderation_report_update',
-        { report_id => column_of( $row, 'report_id' ), changes => $changes } );
+        _report_update_values( $row, $changes ) );
     %{$row} = ( %{$row}, %{$changes} );
     return $row;
+}
+
+sub _report_update_values ( $row, $changes ) {
+    return { report_id => column_of( $row, 'report_id' ), changes => $changes };
 }
 
 sub _report_transition_hash ($report) {
@@ -353,30 +541,34 @@ sub _record_event_and_audit ( $self, $report ) {
 }
 
 sub _record_transition_event_and_audit ( $self, $input ) {
+    my ( $event, $audit ) = $self->_transition_records($input);
+    $self->recorder->record_event( %{$event} );
+    $self->recorder->record_audit( %{$audit} );
+
+    return;
+}
+
+# The event and the audit entry of a transition.
+sub _transition_records ( $self, $input ) {
     my $recorded = {
         %{$input},
         correlation_id => $self->id_service->uuid,
         created_at     => $self->clock->now_iso8601,
         event_id       => $self->id_service->uuid,
     };
-    $self->recorder->record_event(
-        %{ $self->events->report_transition_envelope($recorded) } );
-    $self->recorder->record_audit(
-        %{
-            $self->events->report_transition_audit(
-                {
-                    action         => $input->{event_type},
-                    actor_id       => $input->{actor_id},
-                    correlation_id => $recorded->{correlation_id},
-                    created_at     => $recorded->{created_at},
-                    metadata       => $input->{payload},
-                    report         => $input->{report},
-                }
-            )
-        }
+    return (
+        $self->events->report_transition_envelope($recorded),
+        $self->events->report_transition_audit(
+            {
+                action         => $input->{event_type},
+                actor_id       => $input->{actor_id},
+                correlation_id => $recorded->{correlation_id},
+                created_at     => $recorded->{created_at},
+                metadata       => $input->{payload},
+                report         => $input->{report},
+            }
+        ),
     );
-
-    return;
 }
 
 sub _lock_report ( $self, $report_id ) {
@@ -453,6 +645,12 @@ Returns a hash reference of the new C<open> report's columns, or, when the
 member already has an open or triaged report on that target, that report's
 row.
 
+=head2 create_report_p
+
+L</create_report> as a promise: takes the input, an optional query context
+and an optional call layer. It runs on the worker's pooled asynchronous
+connections, in its own transaction or in the one the call layer belongs to.
+
 =head2 assign_report
 
 Takes a report id and a moderator's user id. Assigns the report to that
@@ -463,6 +661,11 @@ C<report_id>, C<status>, C<assigned_moderator_user_id>, C<resolution> and
 C<resolved_at> instead. Returns an empty list (undef in scalar context)
 when there is no such report.
 
+=head2 assign_report_p
+
+L</assign_report> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
+
 =head2 release_report
 
 Takes a report id and the acting user's id. Clears the assignment and
@@ -470,6 +673,11 @@ records C<report.released>. Returns
 C<< { report_id, assigned_moderator_user_id => undef } >>; when the report
 is not assigned, the report's state hash as for C<assign_report>. Returns
 an empty list (undef in scalar context) when there is no such report.
+
+=head2 release_report_p
+
+L</release_report> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 resolve_report
 
@@ -479,6 +687,11 @@ records C<report.resolved>. Returns
 C<< { report_id, status, resolved_at, resolution } >>; when the report is
 already resolved, the report's state hash as for C<assign_report>. Returns
 an empty list (undef in scalar context) when there is no such report.
+
+=head2 resolve_report_p
+
+L</resolve_report> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 list_queue
 

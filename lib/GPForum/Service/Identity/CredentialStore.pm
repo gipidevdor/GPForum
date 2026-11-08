@@ -5,7 +5,7 @@ package GPForum::Service::Identity::CredentialStore;
 
 use Carp qw(croak);
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -101,6 +101,54 @@ sub create_password_credential ( $self, $input ) {
     GPForum::Infrastructure::UniqueConflict->rethrow($error);
 }
 
+# create_password_credential on $scope, the transaction the caller holds:
+# each insert is tried in a savepoint of it, and a conflict is answered as
+# create_password_credential answers it.
+async sub create_password_credential_p ( $self, $input, $context, $scope ) {
+    my $existing =
+      await $self->active_password_credential_p( $input->{user_id}, $context,
+        $scope );
+    return $self->_skipped_credential($existing) if $existing;
+
+    my $row    = $self->new_password_credential_row($input);
+    my $insert = sub ($values) {
+        return GPForum::Infrastructure::UniqueConflict->attempt_p(
+            $scope,
+            sub ($savepoint) {
+                return $self->_insert_credential_p( $values, $context,
+                    $savepoint );
+            }
+        );
+    };
+    my ( $created, $error ) = await $insert->($row);
+    return $created if $created;
+
+    my $conflict = GPForum::X::Conflict->caught($error);
+    if ( $conflict && $conflict->on($ID_CONSTRAINT) ) {
+        my $stored = GPForum::Infrastructure::ResultRow->from(
+            await $scope->row_p(
+                'identity_credential_by_id', { credential_id => $row->{id} },
+                $context
+            )
+        );
+        return $self->_skipped_credential($stored)
+          if $self->_same_open_credential( $stored, $row );
+
+        my ( $retried, $retry_error ) =
+          await $insert->( { %{$row}, id => $self->id_service->uuid } );
+        return $retried if $retried;
+        GPForum::Infrastructure::UniqueConflict->rethrow($retry_error);
+    }
+    if ( $conflict && $conflict->on($ACTIVE_CONSTRAINT) ) {
+        $existing =
+          await $self->active_password_credential_p( $input->{user_id},
+            $context, $scope );
+        return $self->_skipped_credential($existing) if $existing;
+    }
+
+    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+}
+
 # A leftover of this very insert is this member's, of this type, and still
 # open. A revoked credential under the id was reused all the same: the store
 # answered with it as the active password, inserted none, and left the
@@ -156,6 +204,25 @@ sub active_password_credential ( $self, $user_id ) {
     )->single;
 }
 
+# active_password_credential on the worker's pooled asynchronous
+# connections, or on $scope: a transaction the caller holds.
+async sub active_password_credential_p (
+    $self, $user_id,
+    $context = undef,
+    $scope = undef
+  )
+{
+    return undef if !has_text($user_id);
+    $scope //= $self->functions;
+    return $self->active_password_credential($user_id) if !$scope;
+
+    return GPForum::Infrastructure::ResultRow->from(
+        await $scope->row_p(
+            'identity_active_password', { user_id => $user_id }, $context
+        )
+    );
+}
+
 # The credential a login verified, FOR SHARE, while it is still this
 # member's active password; undef once a rotation revoked it. Held until the
 # caller's transaction ends, so a rotation that has not reached the row yet
@@ -201,6 +268,27 @@ sub hold_active_password_credential ( $self, $user_id, $credential_id ) {
     )->single;
 }
 
+# hold_active_password_credential on $scope, the transaction that holds
+# the lock until it ends.
+async sub hold_active_password_credential_p (
+    $self, $user_id, $credential_id,
+    $context = undef,
+    $scope = undef
+  )
+{
+    return undef if !has_text($user_id) || !has_text($credential_id);
+    $scope //= $self->functions;
+    return $self->hold_active_password_credential( $user_id, $credential_id )
+      if !$scope;
+
+    return GPForum::Infrastructure::ResultRow->from(
+        await $scope->row_p(
+            'identity_hold_password',
+            { user_id => $user_id, credential_id => $credential_id }, $context
+        )
+    );
+}
+
 # The member's active password credentials, locked FOR UPDATE until the
 # caller's transaction ends, so the caller decides on the password the
 # member has now and no other reset or change can replace it before the
@@ -240,6 +328,21 @@ sub lock_active_password_credentials ( $self, $user_id ) {
       . ' this waited for it; try again';
 }
 
+# lock_active_password_credentials on $scope, the transaction that holds
+# the locks until it ends: a promise of the rows, in a list.
+async sub lock_active_password_credentials_p ( $self, $user_id, $context,
+    $scope )
+{
+    return [
+        map { GPForum::Infrastructure::ResultRow->from($_) }
+          @{ await $scope->rows_p(
+                'identity_lock_passwords', { user_id => $user_id },
+                $context
+            )
+          }
+    ];
+}
+
 # Every active password is revoked before the new one is created, under the
 # lock above: a login holding one of them FOR SHARE opens its session before
 # the rotation goes on, and the caller's revocation of the member's
@@ -248,14 +351,8 @@ sub rotate_password_credential ( $self, $input ) {
     my $user_id = $input->{user_id};
     my @active  = $self->lock_active_password_credentials($user_id);
     if ( @active && $self->functions ) {
-        $self->functions->row(
-            'identity_revoke_passwords',
-            {
-                ids =>
-                  [ map { scalar $self->support->column( $_, 'id' ) } @active ],
-                revoked_at => $self->clock->now_iso8601
-            }
-        );
+        $self->functions->row( 'identity_revoke_passwords',
+            $self->_revoke_values( \@active ) );
     }
     elsif (@active) {
         $self->_credentials->search_rs(
@@ -271,23 +368,62 @@ sub rotate_password_credential ( $self, $input ) {
         );
     }
 
-    return $self->create_password_credential(
-        {
-            secret_hash => $input->{secret_hash},
-            type        => 'password',
-            user_id     => $user_id,
-        }
-    );
+    return $self->create_password_credential( _password_input($input) );
+}
+
+# rotate_password_credential on $scope, the transaction the caller holds.
+async sub rotate_password_credential_p ( $self, $input, $context, $scope ) {
+    my $active =
+      await $self->lock_active_password_credentials_p( $input->{user_id},
+        $context, $scope );
+    if ( @{$active} ) {
+        await $scope->row_p( 'identity_revoke_passwords',
+            $self->_revoke_values($active), $context );
+    }
+
+    return await $self->create_password_credential_p( _password_input($input),
+        $context, $scope );
+}
+
+sub _revoke_values ( $self, $active ) {
+    return {
+        ids => [ map { scalar $self->support->column( $_, 'id' ) } @{$active} ],
+        revoked_at => $self->clock->now_iso8601
+    };
+}
+
+sub _password_input ($input) {
+    return {
+        secret_hash => $input->{secret_hash},
+        type        => 'password',
+        user_id     => $input->{user_id},
+    };
 }
 
 sub _insert_credential ( $self, $values ) {
     if ( $self->functions ) {
-        my $stored = $self->functions->row( 'identity_insert_credential',
-            { values => $values } );
-        return GPForum::Infrastructure::ResultRow->from(
-            { map { $_ => $stored->{$_} } keys %{$values} } );
+        return _stored_credential(
+            $values,
+            $self->functions->row(
+                'identity_insert_credential', { values => $values }
+            )
+        );
     }
     return $self->_credentials->create($values);
+}
+
+async sub _insert_credential_p ( $self, $values, $context, $scope ) {
+    return _stored_credential(
+        $values,
+        await $scope->row_p(
+            'identity_insert_credential', { values => $values }, $context
+        )
+    );
+}
+
+sub _stored_credential ( $values, $stored ) {
+    return GPForum::Infrastructure::ResultRow->from(
+        { map { $_ => $stored->{$_} } keys %{$values} } );
 }
 
 sub _credentials ($self) {
@@ -327,9 +463,21 @@ again. A unique C<id> collision remints the id once and does not return
 another user's credential, nor a revoked one. A leftover unique C<id> with
 this user and type, still open, reuses the active password.
 
+=head2 create_password_credential_p
+
+Inserts the credential as L</create_password_credential> does, on the call
+layer of the transaction the caller holds, given after the query context;
+each insert is tried in a savepoint of it. Answers a promise of the same
+row.
+
 =head2 active_password_credential
 
 Returns the newest non-revoked password credential for a user.
+
+=head2 active_password_credential_p
+
+L</active_password_credential> as a promise, with an optional query context
+and an optional call layer (a transaction the caller holds) last.
 
 =head2 new_password_credential_row
 
@@ -345,6 +493,12 @@ that password credential C<FOR SHARE> while it is still the member's and not
 revoked, and returns it; returns undef otherwise. A login holds the
 credential it verified this way while it opens its session.
 
+=head2 hold_active_password_credential_p
+
+L</hold_active_password_credential> as a promise, with an optional query
+context and an optional call layer last: the transaction on the worker's
+pooled asynchronous connections that holds the lock.
+
 =head2 lock_active_password_credentials
 
 Takes a user id. Inside the caller's transaction, locks the member's active
@@ -353,6 +507,13 @@ the member has none. When a concurrent rotation commits while this waits,
 the credential it created is locked instead: the caller always holds the
 password the member has when it goes on. Croaks when three rotations commit
 in a row while it waits.
+
+=head2 lock_active_password_credentials_p
+
+Locks the member's active password credentials as
+L</lock_active_password_credentials> does, in the transaction whose call
+layer is given after the query context; answers a promise of the rows in an
+array reference, empty when the member has none.
 
 =head2 rotate_password_credential
 
@@ -363,6 +524,12 @@ inserts a replacement. Meant to run in the transaction that then revokes the
 member's sessions, so a login holding the old credential either commits its
 session first, and that session is revoked, or finds the credential revoked
 and opens none.
+
+=head2 rotate_password_credential_p
+
+Rotates the password as L</rotate_password_credential> does, in the
+transaction whose call layer is given after the query context; answers a
+promise of the credential inserted.
 
 =head1 DIAGNOSTICS
 

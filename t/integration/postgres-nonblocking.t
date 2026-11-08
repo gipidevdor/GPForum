@@ -184,6 +184,12 @@ sub _burst_queries {
 }
 
 sub _forked_leases {
+
+    # A child opens its own connection. Over TCP libpq first asks Kerberos
+    # for a GSS credential cache; on macOS that lookup goes through XPC,
+    # which a forked child cannot use, and the child dies of SIGSEGV before
+    # it answers. The connection this test needs is plain, so GSS is off.
+    local $ENV{PGGSSENCMODE} = 'disable';
     my $work = GPForum::Infrastructure::AsyncWork->new;
     my ( $child_pid, $child_error );
     my $forked = $work->run_p(

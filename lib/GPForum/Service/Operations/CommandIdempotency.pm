@@ -7,7 +7,7 @@ use Carp qw(croak);
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use JSON::MaybeXS;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
@@ -65,6 +65,96 @@ sub result_of ( $self, $job ) {
     return $guarded->{result}   if $guarded->{recorded};
 
     return _refusal($guarded);
+}
+
+# result_of on a pooled asynchronous connection: the command log's lookup,
+# its row, the job's own writes and its answer commit in one transaction,
+# no child process. $job->{run_p} takes the transaction's call layer and
+# answers a promise of the result; a failed or abandoned result rolls the
+# whole transaction back, as run() does. A second request that won the key
+# (or a minted id that collided) is answered by one more attempt, which
+# finds the row it left. Without the function layer the job's blocking
+# run answers through result_of.
+async sub result_of_p ( $self, $job, $context = undef ) {
+    my $key = trimmed( $job->{command_id} );
+    return _refusal( { invalid => 1 } ) if !length $key;
+    return $self->result_of($job)       if !$self->functions;
+
+    my $attempt = {
+        actor_id     => $job->{actor_id},
+        command_type => $job->{command_type},
+        key          => $key,
+        refusal      => $job->{refusal},
+        request_hash => _canonical_hash( $job->{request} || {} ),
+        response     => $job->{response},
+        run_p        => $job->{run_p},
+    };
+    my $guarded;
+    for my $retry ( 0, 1 ) {
+        try {
+            $guarded = await $self->functions->transaction_p(
+                sub ($scope) {
+                    return $self->_guarded_p( $scope, $attempt, $context );
+                },
+                $context
+            );
+        }
+        catch ($error) {
+            return $error->{result} if ref $error eq $ABANDONED;
+            croak $error if $retry || !GPForum::X::Conflict->caught($error);
+        };
+        last if $guarded;
+    }
+    return $guarded->{response} if $guarded->{replayed};
+    return $guarded->{result}   if $guarded->{recorded};
+
+    return _refusal($guarded);
+}
+
+async sub _guarded_p ( $self, $scope, $attempt, $context ) {
+    my $found = await $scope->row_p( 'ops_command_lookup',
+        { key => $attempt->{key}, command_id => undef }, $context );
+    if ( $found && $found->{document} ) {
+        return $self->_existing_result( $found->{document},
+            $attempt->{request_hash} );
+    }
+
+    my $row = $self->_command_row(
+        {
+            input => {
+                actor_id     => $attempt->{actor_id},
+                command_type => $attempt->{command_type},
+            },
+            key          => $attempt->{key},
+            request_hash => $attempt->{request_hash},
+        }
+    );
+    await $scope->row_p( 'ops_command_insert', { command => $row }, $context );
+    my $result = await $attempt->{run_p}->($scope);
+    if (   _is_failed($result)
+        || _refusal_abandoned( { input => $attempt }, $result ) )
+    {
+        croak bless { result => $result }, $ABANDONED;
+    }
+    await $scope->row_p(
+        'ops_command_finish',
+        {
+            command_id => $row->{command_id},
+            changes    => $self->_finish_changes(
+                $row,
+                $result,
+                $attempt->{response}
+                ? $attempt->{response}->($result)
+                : $result
+            ),
+        },
+        $context
+    );
+
+    return {
+        recorded => 1,
+        result   => $result,
+    };
 }
 
 sub _refusal ($guarded) {
@@ -296,15 +386,7 @@ sub _create_command ( $self, $row ) {
 }
 
 sub _finish_command_row ( $self, $row, $result, $response ) {
-    my $payload = _payload_hash( _column( $row, 'payload' ) );
-    $payload->{response} = $response || {};
-
-    my $changes = {
-        handled_at    => $self->clock->now_iso8601,
-        payload       => $payload,
-        response_hash => _canonical_hash( $payload->{response} ),
-        status        => _result_status($result),
-    };
+    my $changes = $self->_finish_changes( $row, $result, $response );
     if ( $self->functions ) {
         $self->functions->row(
             'ops_command_finish',
@@ -317,6 +399,20 @@ sub _finish_command_row ( $self, $row, $result, $response ) {
     else { _update_row( $row, $changes ); }
 
     return;
+}
+
+# What a finished command's row becomes: its response kept in the payload,
+# with the response's hash, the time it was handled and its status.
+sub _finish_changes ( $self, $row, $result, $response ) {
+    my $payload = _payload_hash( _column( $row, 'payload' ) );
+    $payload->{response} = $response || {};
+
+    return {
+        handled_at    => $self->clock->now_iso8601,
+        payload       => $payload,
+        response_hash => _canonical_hash( $payload->{response} ),
+        status        => _result_status($result),
+    };
 }
 
 sub _result_status ($result) {
@@ -513,6 +609,15 @@ for an empty command id;
 when the id was used for another request or is still in progress.
 
 =back
+
+=head2 result_of_p
+
+Answers what L</result_of> answers, on a pooled asynchronous connection:
+the command log's steps and the job's C<run_p> -- which takes the
+transaction's call layer and answers a promise -- commit in one
+transaction, and a failed result rolls it back. An optional C<response>
+code reduces the result to what the log records, as L</run>'s response
+builder does.
 
 =head2 run
 

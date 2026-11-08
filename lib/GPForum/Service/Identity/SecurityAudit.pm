@@ -3,7 +3,7 @@
 
 package GPForum::Service::Identity::SecurityAudit;
 
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -33,6 +33,23 @@ sub record_logout_request ( $self, $input ) {
 
 sub _timed ( $self, $input ) {
     return { %{$input}, created_at => $self->clock->now_iso8601, };
+}
+
+# The audits above on the worker's pooled asynchronous connections.
+async sub record_login_request_p ( $self, $input, $context = undef ) {
+    return await $self->_record_p(
+        $self->events->login_request_audit( $self->_timed($input) ), $context );
+}
+
+async sub record_logout_request_p ( $self, $input, $context = undef ) {
+    return await $self->_record_p(
+        $self->events->logout_request_audit( $self->_timed($input) ),
+        $context );
+}
+
+async sub _record_p ( $self, $audit, $context ) {
+    my $row = await $self->recorder->record_audit_p( $audit, $context );
+    return { ok => 1, audit => $row };
 }
 
 sub _record ( $self, $audit ) {
@@ -101,6 +118,17 @@ recorder stored.
 Takes a hash reference with C<actor_id> and C<request_address>. Records an
 C<identity.logout.requested> audit and returns
 C<< { ok => 1, audit => $audit } >>.
+
+=head2 record_login_request_p
+
+L</record_login_request> as a promise, with an optional query context
+last, written on the worker's pooled asynchronous connections
+(L<GPForum::Infrastructure::EventRecorder/record_audit_p>).
+
+=head2 record_logout_request_p
+
+L</record_logout_request> as a promise, with an optional query context
+last, written on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

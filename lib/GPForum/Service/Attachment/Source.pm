@@ -38,13 +38,20 @@ sub each_chunk ( $self, $consume ) {
     my $size   = $self->size;
     my $offset = 0;
     while ( $offset < $size ) {
-        my $chunk = $self->asset->get_chunk( $offset, $CHUNK_BYTES );
-        croak 'upload ended before its declared size' if !length $chunk;
-        croak 'upload content must be bytes' if !utf8::downgrade( $chunk, 1 );
+        my $chunk = $self->chunk($offset);
         $consume->($chunk);
         $offset += length $chunk;
     }
     return;
+}
+
+# The bytes from $offset on, at most one chunk of them: what each_chunk
+# hands its callback, for a caller that awaits between chunks.
+sub chunk ( $self, $offset ) {
+    my $chunk = $self->asset->get_chunk( $offset, $CHUNK_BYTES );
+    croak 'upload ended before its declared size' if !length $chunk;
+    croak 'upload content must be bytes' if !utf8::downgrade( $chunk, 1 );
+    return $chunk;
 }
 
 sub checksum ($self) {
@@ -95,6 +102,13 @@ Reads at most one MiB from the beginning for media identification.
 
 Calls the consumer for each bounded binary chunk; rejects an unexpected short read.
 
+
+=head2 chunk
+
+Takes an offset and returns the bytes from there on, at most one chunk, as
+L</each_chunk> hands them over; it croaks on a source that ends early or
+holds characters. A caller that awaits between chunks walks the source with
+it.
 
 =head2 checksum
 

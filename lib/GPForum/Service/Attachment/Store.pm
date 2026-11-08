@@ -5,7 +5,7 @@ package GPForum::Service::Attachment::Store;
 
 use Const::Fast;
 use List::Util qw(any);
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -95,17 +95,47 @@ has scan_queue => sub {
 };
 
 sub create_intent ( $self, $intent ) {
-    my $result = $self->schema->txn_do(
-        sub {
-            return $self->_persist_intent($intent);
-        }
+    return _intent_answer(
+        $self->schema->txn_do(
+            sub {
+                return $self->_persist_intent($intent);
+            }
+        )
     );
+}
 
+# create_intent on the worker's pooled asynchronous connections: in the
+# transaction $functions belongs to when one is given, else in one of its
+# own.
+async sub create_intent_p ( $self, $intent, $context = undef,
+    $functions = undef )
+{
+    return $self->create_intent($intent) if !$self->functions;
+    return _intent_answer(
+        await $self->_in_transaction_p(
+            $functions,
+            $context,
+            async sub ($scope) {
+                return await $self->_persist_intent_p( $intent, $scope,
+                    $context );
+            }
+        )
+    );
+}
+
+sub _intent_answer ($result) {
     return {
         ok         => 1,
         attachment => $result->{attachment},
         ( $result->{skipped} ? ( skipped => 1 ) : () ),
     };
+}
+
+# The work on the transaction $functions belongs to, or in a transaction of
+# its own on the worker's pooled asynchronous connections.
+sub _in_transaction_p ( $self, $functions, $context, $work ) {
+    return $work->($functions) if $functions;
+    return $self->functions->transaction_p( $work, $context );
 }
 
 # Production schemas route through PostgreSQL functions. The thread lock is
@@ -131,11 +161,45 @@ sub with_post_write ( $self, $input, $work ) {
     );
 }
 
+# with_post_write on the transaction $functions belongs to: the guard's
+# locks, then $work_p, which takes the same call layer.
+async sub with_post_write_p ( $self, $input, $work_p, $functions,
+    $context = undef )
+{
+    my $guard =
+      await $functions->row_p( 'attachment_post_write_guard',
+        { post_id => $input->{post_id}, actor => $input->{actor_user_id} },
+        $context );
+    my $refusal = $guard ? $guard->{refusal} : 'post not found';
+    return undef if ( $refusal // q{} ) eq 'post not found';
+    return { error => $refusal, forbidden => 1 } if $refusal;
+    return await $work_p->($functions);
+}
+
 # Called inside the pipeline's transaction before writing any source bytes.
 # The owner advisory lock lasts until its attachment metadata commits.
 sub check_upload_quota ( $self, $input ) {
     return { ok => 1 } if !$self->functions;
-    my $quota = $self->functions->row( 'attachment_upload_quota', $input );
+    return _quota_answer(
+        $self->functions->row( 'attachment_upload_quota', $input ) );
+}
+
+# check_upload_quota on the transaction $functions belongs to, whose
+# advisory lock it takes, or on a pooled connection of its own.
+async sub check_upload_quota_p (
+    $self, $input,
+    $context = undef,
+    $functions = undef
+  )
+{
+    return { ok => 1 } if !$self->functions;
+    $functions //= $self->functions;
+    return _quota_answer(
+        await $functions->row_p( 'attachment_upload_quota', $input, $context )
+    );
+}
+
+sub _quota_answer ($quota) {
     return { ok => 1 } if $quota && !$quota->{refusal};
     return {
         ok     => 0,
@@ -175,38 +239,20 @@ sub _persist_intent ( $self, $intent ) {
                     { object_key => $intent->{object_key} } )
                   if $on_key;
 
-                my $taken = $self->find_attachment( $intent->{attachment_id} );
-                return undef if !$taken && !$conflicted;
-                my $stored =
-                  ( $taken && $self->record->column( $taken, 'object_key' ) )
-                  || q{};
-                return $taken
-                  if length $stored
-                  && $stored eq ( $intent->{object_key} || q{} );
-
-                my $attachment_id = $self->id_service->uuid;
-                $intent = {
-                    %{$intent},
-                    attachment_id => $attachment_id,
-                    object_key    => join( q{/},
-                        'attachments', $intent->{owner_user_id},
-                        $attachment_id ),
-                };
-                return undef;
+                my $taken;
+                ( $taken, $intent ) =
+                  $self->_taken_or_reissued( $intent,
+                    $self->find_attachment( $intent->{attachment_id} ),
+                    $conflicted );
+                return $taken;
             },
             id_constraint   => $ID_CONSTRAINT,
             key_constraints => [$KEY_CONSTRAINT],
             reuse           => sub ($existing) {
                 my $attachment_id =
                   $self->record->column( $existing, 'attachment_id' );
-                my $recorded = $self->_single_row(
-                    'EventLog',
-                    {
-                        idempotency_key => join q{:},
-                        'attachment.uploaded',
-                        $attachment_id
-                    }
-                );
+                my $recorded = $self->_single_row( 'EventLog',
+                    { idempotency_key => _uploaded_key($attachment_id) } );
                 if ( !$recorded ) {
                     $self->_write_intent_event(
                         { %{$intent}, attachment_id => $attachment_id } );
@@ -217,19 +263,135 @@ sub _persist_intent ( $self, $intent ) {
     );
 }
 
+# _persist_intent on the transaction $functions belongs to: each insert in
+# a savepoint of it, so a conflict undoes only that insert.
+async sub _persist_intent_p ( $self, $intent, $functions, $context ) {
+    return await $self->_insert_once_p(
+        {
+            create_p => async sub ($scope) {
+                my $attachment = GPForum::Infrastructure::ResultRow->from(
+                    await $scope->row_p(
+                        'attachment_insert', { values => $intent },
+                        $context
+                    )
+                );
+                await $self->_record_p( $scope, $context,
+                    $self->_intent_event($intent) );
+                return { attachment => $attachment };
+            },
+            find_p => async sub ( $on_key, $conflicted ) {
+                return await $self->_single_row_p( 'Attachment',
+                    { object_key => $intent->{object_key} },
+                    $context, $functions )
+                  if $on_key;
+
+                my $taken;
+                ( $taken, $intent ) = $self->_taken_or_reissued(
+                    $intent,
+                    await $self->find_attachment_p(
+                        $intent->{attachment_id},
+                        $context, $functions
+                    ),
+                    $conflicted
+                );
+                return $taken;
+            },
+            id_constraint   => $ID_CONSTRAINT,
+            key_constraints => [$KEY_CONSTRAINT],
+            reuse_p         => async sub ($existing) {
+                my $attachment_id =
+                  $self->record->column( $existing, 'attachment_id' );
+                my $recorded = await $functions->row_p( 'ops_event_recorded',
+                    { key => _uploaded_key($attachment_id) }, $context );
+                if ( !$recorded->{recorded} ) {
+                    await $self->_record_p(
+                        $functions,
+                        $context,
+                        $self->_intent_event(
+                            { %{$intent}, attachment_id => $attachment_id }
+                        )
+                    );
+                }
+                return { attachment => $existing, skipped => 1 };
+            },
+        },
+        $functions
+    );
+}
+
+# The row an intent's id finds, when it holds the intent's own key, and the
+# intent find goes on with: as it was, or under a fresh id and key when the
+# id is taken by another key, or conflicted although nothing was found.
+sub _taken_or_reissued ( $self, $intent, $taken, $conflicted ) {
+    return ( undef, $intent ) if !$taken && !$conflicted;
+    my $stored =
+      ( $taken && $self->record->column( $taken, 'object_key' ) ) || q{};
+    return ( $taken, $intent )
+      if length $stored && $stored eq ( $intent->{object_key} || q{} );
+
+    my $attachment_id = $self->id_service->uuid;
+    return (
+        undef,
+        {
+            %{$intent},
+            attachment_id => $attachment_id,
+            object_key    => join( q{/},
+                'attachments', $intent->{owner_user_id},
+                $attachment_id ),
+        }
+    );
+}
+
+sub _uploaded_key ($attachment_id) {
+    return join q{:}, 'attachment.uploaded', $attachment_id;
+}
+
 sub link_attachment ( $self, $input ) {
     return $self->_insert_once(
         {
             create => sub {
                 return $self->_create_row( 'AttachmentLink',
-                    'attachment_link_id',
-                    { %{$input}{qw(attachment_id target_id target_type)} } );
+                    'attachment_link_id', _link_columns($input) );
             },
             find            => sub { return $self->_existing_link($input); },
             id_constraint   => $LINK_ID_CONSTRAINT,
             key_constraints => [$LINK_TARGET_CONSTRAINT],
         }
     );
+}
+
+# link_attachment on the transaction $functions belongs to, or in one of its
+# own.
+async sub link_attachment_p ( $self, $input, $context = undef,
+    $functions = undef )
+{
+    return $self->link_attachment($input) if !$self->functions;
+    return await $self->_in_transaction_p(
+        $functions,
+        $context,
+        async sub ($scope) {
+            return await $self->_insert_once_p(
+                {
+                    create_p => async sub ($savepoint) {
+                        return await $self->_create_row_p( $savepoint,
+                            $context, 'AttachmentLink', 'attachment_link_id',
+                            _link_columns($input) );
+                    },
+                    find_p => async sub (@) {
+                        return await $self->_single_row_p( 'AttachmentLink',
+                            _link_columns($input), $context, $scope );
+                    },
+                    id_constraint   => $LINK_ID_CONSTRAINT,
+                    key_constraints => [$LINK_TARGET_CONSTRAINT],
+                },
+                $scope
+            );
+        }
+    );
+}
+
+sub _link_columns ($input) {
+    return { %{$input}{qw(attachment_id target_id target_type)} };
 }
 
 # An intent, link or variant row, inserted unless an equivalent one is there:
@@ -249,13 +411,7 @@ sub _insert_once ( $self, $spec ) {
         $spec->{create} );
     return $created if $created;
 
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $on_key =
-      $conflict && any { $conflict->on($_) } @{ $spec->{key_constraints} };
-    if ( !$on_key && !( $conflict && $conflict->on( $spec->{id_constraint} ) ) )
-    {
-        GPForum::Infrastructure::UniqueConflict->rethrow($error);
-    }
+    my $on_key = _conflict_on_key( $spec, $error );
     $existing = $spec->{find}->( $on_key, 1 );
     return $reuse->($existing) if $existing;
     if ($on_key) {
@@ -270,26 +426,85 @@ sub _insert_once ( $self, $spec ) {
     GPForum::Infrastructure::UniqueConflict->rethrow($error);
 }
 
+# _insert_once on the transaction $functions belongs to: find_p, create_p
+# and reuse_p answer promises, and each create_p runs in a savepoint.
+async sub _insert_once_p ( $self, $spec, $functions ) {
+    my $reuse = $spec->{reuse_p}
+      || async sub ($row) { return $self->_idempotent_row($row) };
+    my $existing = await $spec->{find_p}->( 0, 0 );
+    return await $reuse->($existing) if $existing;
+
+    my ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $functions,
+        $spec->{create_p} );
+    return $created if $created;
+
+    my $on_key = _conflict_on_key( $spec, $error );
+    $existing = await $spec->{find_p}->( $on_key, 1 );
+    return await $reuse->($existing) if $existing;
+    if ($on_key) {
+        GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    }
+
+    ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $functions,
+        $spec->{create_p} );
+    return $created if $created;
+
+    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+}
+
+# Whether an insert's error is a conflict on one of its keys (true) or on
+# its id (false); any other error is rethrown.
+sub _conflict_on_key ( $spec, $error ) {
+    my $conflict = GPForum::X::Conflict->caught($error);
+    my $on_key =
+      $conflict && any { $conflict->on($_) } @{ $spec->{key_constraints} };
+    if ( !$on_key && !( $conflict && $conflict->on( $spec->{id_constraint} ) ) )
+    {
+        GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    }
+    return $on_key ? 1 : 0;
+}
+
 # A link or variant row under an id drawn on each call, as _insert_once
 # expects of create.
 sub _create_row ( $self, $resultset, $id_column, $columns ) {
-    my $row = {
-        %{$columns},
-        $id_column => $self->id_service->uuid,
-        created_at => $self->clock->now_iso8601,
-    };
+    my $row = $self->_new_row( $id_column, $columns );
     if ( $self->functions ) {
-        my $name =
-          $resultset eq 'AttachmentLink'
-          ? 'attachment_link_insert'
-          : 'attachment_variant_insert';
-        $self->functions->row( $name, { values => $row } );
+        $self->functions->row( _insert_function($resultset),
+            { values => $row } );
     }
     else {
         $self->schema->resultset($resultset)->create($row);
     }
 
     return $row;
+}
+
+# _create_row on the call layer $functions (a savepoint of the caller's
+# transaction).
+async sub _create_row_p ( $self, $functions, $context, $resultset, $id_column,
+    $columns )
+{
+    my $row = $self->_new_row( $id_column, $columns );
+    await $functions->row_p( _insert_function($resultset),
+        { values => $row }, $context );
+    return $row;
+}
+
+sub _new_row ( $self, $id_column, $columns ) {
+    return {
+        %{$columns},
+        $id_column => $self->id_service->uuid,
+        created_at => $self->clock->now_iso8601,
+    };
+}
+
+sub _insert_function ($resultset) {
+    return $resultset eq 'AttachmentLink'
+      ? 'attachment_link_insert'
+      : 'attachment_variant_insert';
 }
 
 sub mark_uploaded ( $self, $attachment_id ) {
@@ -299,13 +514,41 @@ sub mark_uploaded ( $self, $attachment_id ) {
         return $self->lifecycle->uploaded_replay($attachment);
     }
 
-    my $changes = {
-        state       => $STATE_UPLOADED,
-        uploaded_at => $self->clock->now_iso8601,
-    };
+    my $changes = $self->_uploaded_changes;
     $self->_update_attachment( $attachment, $changes );
 
     return { attachment_id => $attachment_id, %{$changes} };
+}
+
+# mark_uploaded on the worker's pooled asynchronous connections, or on the
+# transaction $functions belongs to.
+async sub mark_uploaded_p (
+    $self, $attachment_id,
+    $context = undef,
+    $functions = undef
+  )
+{
+    return $self->mark_uploaded($attachment_id) if !$self->functions;
+    $functions //= $self->functions;
+    my $attachment =
+      await $self->find_attachment_p( $attachment_id, $context, $functions );
+    return undef if !$attachment;
+    if ( $self->lifecycle->already_uploaded($attachment) ) {
+        return $self->lifecycle->uploaded_replay($attachment);
+    }
+
+    my $changes = $self->_uploaded_changes;
+    await $functions->row_p( 'attachment_update',
+        { attachment_id => $attachment_id, changes => $changes }, $context );
+
+    return { attachment_id => $attachment_id, %{$changes} };
+}
+
+sub _uploaded_changes ($self) {
+    return {
+        state       => $STATE_UPLOADED,
+        uploaded_at => $self->clock->now_iso8601,
+    };
 }
 
 # A verdict and its event are written together, in one transaction, and only
@@ -346,19 +589,55 @@ sub record_scan ( $self, $input ) {
                 return $self->lifecycle->scanned_replay(
                     $self->find_attachment($attachment_id) );
             }
-            $self->_record(
-                {
-                    actor_id      => undef,
-                    attachment_id => $attachment_id,
-                    event_type    =>
-                      $self->events->scan_event_type( $input->{scan_status} ),
-                    payload => $self->events->scan_payload($input),
-                }
-            );
+            $self->_record( $self->_scan_event($input) );
 
             return { attachment_id => $attachment_id, %{$changes} };
         }
     );
+}
+
+# record_scan on the transaction $functions belongs to, or in one of its
+# own on the worker's pooled asynchronous connections.
+async sub record_scan_p ( $self, $input, $context = undef, $functions = undef )
+{
+    return $self->record_scan($input) if !$self->functions;
+    my $attachment_id = $input->{attachment_id};
+
+    return await $self->_in_transaction_p(
+        $functions,
+        $context,
+        async sub ($scope) {
+            return undef
+              if !await $self->find_attachment_p( $attachment_id, $context,
+                $scope );
+
+            my $changes = $self->lifecycle->scan_changes($input);
+            my $verdict =
+              await $scope->row_p( 'attachment_scan_verdict',
+                { attachment_id => $attachment_id, changes => $changes },
+                $context );
+            if ( !( $verdict->{changed_count} + 0 ) ) {
+                return $self->lifecycle->scanned_replay(
+                    await $self->find_attachment_p(
+                        $attachment_id, $context, $scope
+                    )
+                );
+            }
+            await $self->_record_p( $scope, $context,
+                $self->_scan_event($input) );
+
+            return { attachment_id => $attachment_id, %{$changes} };
+        }
+    );
+}
+
+sub _scan_event ( $self, $input ) {
+    return {
+        actor_id      => undef,
+        attachment_id => $input->{attachment_id},
+        event_type => $self->events->scan_event_type( $input->{scan_status} ),
+        payload    => $self->events->scan_payload($input),
+    };
 }
 
 sub pending_scan_ids ( $self, $limit ) {
@@ -405,15 +684,38 @@ sub find_variant ( $self, $input ) {
         { object_key => $object_key } );
 }
 
-sub add_variant ( $self, $input ) {
-    my @columns =
-      qw(attachment_id byte_size media_type object_key variant_type);
+async sub find_variant_p ( $self, $input, $context = undef ) {
+    return $self->find_variant($input) if !$self->functions;
+    return await $self->_find_variant_on_p( $input, $context,
+        $self->functions );
+}
 
+async sub _find_variant_on_p ( $self, $input, $context, $functions ) {
+    my $existing = await $self->_single_row_p(
+        'AttachmentVariant',
+        {
+            attachment_id => $input->{attachment_id},
+            variant_type  => $input->{variant_type},
+        },
+        $context,
+        $functions
+    );
+    return $existing if $existing;
+
+    my $object_key = $input->{object_key};
+    return undef if !defined $object_key || !length $object_key;
+
+    return await $self->_single_row_p( 'AttachmentVariant',
+        { object_key => $object_key },
+        $context, $functions );
+}
+
+sub add_variant ( $self, $input ) {
     return $self->_insert_once(
         {
             create => sub {
                 return $self->_create_row( 'AttachmentVariant',
-                    'attachment_variant_id', { %{$input}{@columns} } );
+                    'attachment_variant_id', _variant_columns($input) );
             },
             find            => sub { return $self->find_variant($input); },
             id_constraint   => $VARIANT_ID_CONSTRAINT,
@@ -421,6 +723,41 @@ sub add_variant ( $self, $input ) {
               [ $VARIANT_KEY_CONSTRAINT, $VARIANT_OBJECT_CONSTRAINT ],
         }
     );
+}
+
+# add_variant on the transaction $functions belongs to, or in one of its
+# own on the worker's pooled asynchronous connections.
+async sub add_variant_p ( $self, $input, $context = undef, $functions = undef )
+{
+    return $self->add_variant($input) if !$self->functions;
+    return await $self->_in_transaction_p(
+        $functions,
+        $context,
+        async sub ($scope) {
+            return await $self->_insert_once_p(
+                {
+                    create_p => async sub ($savepoint) {
+                        return await $self->_create_row_p( $savepoint,
+                            $context,                'AttachmentVariant',
+                            'attachment_variant_id', _variant_columns($input) );
+                    },
+                    find_p => async sub (@) {
+                        return await $self->_find_variant_on_p( $input,
+                            $context, $scope );
+                    },
+                    id_constraint   => $VARIANT_ID_CONSTRAINT,
+                    key_constraints =>
+                      [ $VARIANT_KEY_CONSTRAINT, $VARIANT_OBJECT_CONSTRAINT ],
+                },
+                $scope
+            );
+        }
+    );
+}
+
+sub _variant_columns ($input) {
+    return { %{$input}
+          {qw(attachment_id byte_size media_type object_key variant_type)} };
 }
 
 sub _idempotent_row ( $self, $existing ) {
@@ -435,12 +772,9 @@ sub find_attachment ( $self, $attachment_id ) {
     if ( $self->functions ) {
         return GPForum::Infrastructure::ResultRow->from(
             $self->functions->row(
-                'attachment_find',
-                {
-                    attachment_id => $attachment_id,
-                    object_key    => undef,
-                    hold          => 0
-                }
+                _single_call(
+                    'Attachment', { attachment_id => $attachment_id }
+                )
             )
         );
     }
@@ -484,6 +818,67 @@ sub download_for ( $self, $input ) {
             viewer         => $input->{viewer},
             viewer_user_id => $input->{viewer_user_id},
         }
+    );
+}
+
+# The same decision on the worker's pooled asynchronous connections: the
+# file, its links, their posts and whether the reader may read each are
+# read first, and the access rules then decide on what was read.
+async sub download_for_p ( $self, $input, $context = undef ) {
+    return $self->download_for($input) if !$self->functions;
+    my $attachment =
+      await $self->find_attachment_p( $input->{attachment_id}, $context );
+    my $denied = $self->download_access->unavailable($attachment);
+    return $denied if $denied;
+
+    my $reader = $input->{viewer} // $input->{viewer_user_id};
+    my ( @linked, %readable );
+    for my $link (
+        await $self->_attachment_links_p(
+            $self->record->column( $attachment, 'attachment_id' ), $context
+        )
+      )
+    {
+        my ( $type, $id ) =
+          map { $self->record->column( $link, $_ ) } qw(target_type target_id);
+        my @call = _target_call( $type, $id );
+        my $target =
+          @call
+          ? GPForum::Infrastructure::ResultRow->from(
+            await $self->functions->row_p( @call, $context ) )
+          : undef;
+        push @linked, { link => $link, target => $target };
+        if ( $self->readability && @call ) {
+            $readable{"$type:$id"} //=
+              await $self->readability->readable_by_p( $reader, $type, $id,
+                $context );
+        }
+    }
+    return $self->download_access->authorized(
+        {
+            attachment     => $attachment,
+            linked         => \@linked,
+            readable       => \%readable,
+            viewer         => $input->{viewer},
+            viewer_user_id => $input->{viewer_user_id},
+        }
+    );
+}
+
+async sub find_attachment_p (
+    $self, $attachment_id,
+    $context = undef,
+    $functions = undef
+  )
+{
+    return $self->find_attachment($attachment_id) if !$self->functions;
+    return undef if !defined $attachment_id || !length $attachment_id;
+    $functions //= $self->functions;
+    return GPForum::Infrastructure::ResultRow->from(
+        await $functions->row_p(
+            _single_call( 'Attachment', { attachment_id => $attachment_id } ),
+            $context
+        )
     );
 }
 
@@ -572,6 +967,18 @@ sub owned_uploads_for_post ( $self, $post_id, $actor, $after = undef ) {
         { post_id => $post_id, actor_id => $actor, after_id => $after } );
 }
 
+async sub owned_uploads_for_post_p (
+    $self, $post_id, $actor,
+    $after = undef,
+    $context = undef
+  )
+{
+    return [] if !$self->functions;
+    return await $self->functions->rows_p( 'attachment_owned_post_files',
+        { post_id => $post_id, actor_id => $actor, after_id => $after },
+        $context );
+}
+
 sub post_files_call ( $self, $post_ids ) {
     my %requested = map { $_ => 1 } @{$post_ids};
     my @ids       = sort keys %requested;
@@ -656,6 +1063,67 @@ sub delete_linked ( $self, $input ) {
         $input->{attachment_id},
         $input->{actor_id}, $self->lifecycle->author_delete_reason($input),
     );
+}
+
+# delete_linked on the transaction $functions belongs to.
+async sub delete_linked_p ( $self, $input, $functions, $context = undef ) {
+    my $link =
+      await $self->_single_row_p( 'AttachmentLink',
+        { %{$input}{qw(attachment_id target_id target_type)} },
+        $context, $functions );
+    return { error => 'not_found', ok => 0 } if !$link;
+
+    my $attachment =
+      await $self->find_attachment_p( $input->{attachment_id}, $context,
+        $functions );
+    return { error => 'not_found', ok => 0 } if !$attachment;
+    return $self->lifecycle->deleted_replay($attachment)
+      if $self->lifecycle->already_deleted($attachment);
+
+    return await $self->_delete_attachment_p( $attachment, $input->{actor_id},
+        $self->lifecycle->author_delete_reason($input),
+        $functions, $context );
+}
+
+# soft_delete on the transaction $functions belongs to, or in one of its
+# own on the worker's pooled asynchronous connections.
+async sub soft_delete_p (
+    $self, $attachment_id, $actor_id, $reason,
+    $context = undef,
+    $functions = undef
+  )
+{
+    return $self->soft_delete( $attachment_id, $actor_id, $reason )
+      if !$self->functions;
+    return await $self->_in_transaction_p(
+        $functions,
+        $context,
+        async sub ($scope) {
+            my $attachment =
+              await $self->find_attachment_p( $attachment_id, $context,
+                $scope );
+            return { error => 'not_found', ok => 0 } if !$attachment;
+            return $self->lifecycle->deleted_replay($attachment)
+              if $self->lifecycle->already_deleted($attachment);
+
+            return await $self->_delete_attachment_p( $attachment, $actor_id,
+                $reason, $scope, $context );
+        }
+    );
+}
+
+# _delete_attachment on the call layer $functions.
+async sub _delete_attachment_p ( $self, $attachment, $actor_id, $reason,
+    $functions, $context )
+{
+    my ( $row, $update, $event, $audit ) =
+      $self->_deletion( $attachment, $actor_id, $reason );
+    await $functions->row_p( 'attachment_update', $update, $context );
+    await $functions->row_p( 'ops_record_event',
+        $self->recorder->event_call( %{$event} ), $context );
+    await $functions->row_p( 'ops_record_audit',
+        $self->recorder->audit_call( %{$audit} ), $context );
+    return { attachment => $row, ok => 1 };
 }
 
 sub soft_delete ( $self, $attachment_id, $actor_id, $reason ) {
@@ -766,29 +1234,52 @@ sub _error_reason ($error) {
 }
 
 sub _delete_attachment ( $self, $attachment, $actor_id, $reason ) {
-    my $timestamp     = $self->clock->now_iso8601;
-    my $attachment_id = $self->record->column( $attachment, 'attachment_id' );
-    my $deletion      = { deleted_at => $timestamp, state => $STATE_DELETED };
-    $self->_update_attachment( $attachment, $deletion );
-
-    my $row = { %{ $self->lifecycle->row_columns($attachment) }, %{$deletion} };
-    $self->_record(
-        {
-            actor_id      => $actor_id,
-            attachment_id => $attachment_id,
-            event_type    => 'attachment.deleted',
-            payload       => $self->events->deleted_payload(
-                { attachment_id => $attachment_id, reason => $reason }
-            ),
-        },
-        { %{$row}, owner_user_id => $actor_id, reason => $reason },
-    );
+    my ( $row, $update, $event, $audit ) =
+      $self->_deletion( $attachment, $actor_id, $reason );
+    $self->_update_attachment( $attachment, $update->{changes} );
+    $self->recorder->record_event( %{$event} );
+    $self->recorder->record_audit( %{$audit} );
 
     return { attachment => $row, ok => 1 };
 }
 
+# A deletion as its statements: the row it answers, the update's values, and
+# the event and audit _record would write, under one correlation id.
+sub _deletion ( $self, $attachment, $actor_id, $reason ) {
+    my $deletion = {
+        deleted_at => $self->clock->now_iso8601,
+        state      => $STATE_DELETED
+    };
+    my $attachment_id = $self->record->column( $attachment, 'attachment_id' );
+    my $row = { %{ $self->lifecycle->row_columns($attachment) }, %{$deletion} };
+    my ( $event, $audit ) = $self->_record_calls(
+        _deleted_event( $self, $attachment_id, $actor_id, $reason ),
+        { %{$row}, owner_user_id => $actor_id, reason => $reason },
+    );
+    return ( $row, { attachment_id => $attachment_id, changes => $deletion },
+        $event, $audit );
+}
+
+sub _deleted_event ( $self, $attachment_id, $actor_id, $reason ) {
+    return {
+        actor_id      => $actor_id,
+        attachment_id => $attachment_id,
+        event_type    => 'attachment.deleted',
+        payload       => $self->events->deleted_payload(
+            { attachment_id => $attachment_id, reason => $reason }
+        ),
+    };
+}
+
 sub _write_intent_event ( $self, $intent ) {
-    $self->_record(
+    $self->_record( $self->_intent_event($intent) );
+
+    return;
+}
+
+# The upload's event and its audit input, as _record takes them.
+sub _intent_event ( $self, $intent ) {
+    return (
         {
             actor_id      => $intent->{owner_user_id},
             attachment_id => $intent->{attachment_id},
@@ -797,46 +1288,51 @@ sub _write_intent_event ( $self, $intent ) {
         },
         $intent,
     );
-
-    return;
 }
 
 # The event, and the audit row (for the event's own action) when there is
 # one, under one correlation id.
 sub _record ( $self, $event, $audit = undef ) {
-    my $correlation_id = $self->id_service->uuid;
-    $self->recorder->record_event(
-        %{
-            $self->events->envelope(
-                { %{$event}, correlation_id => $correlation_id }
-            )
-        }
-    );
-    if ($audit) {
-        $self->recorder->record_audit(
-            %{
-                $self->events->audit( $event->{event_type}, $audit,
-                    $correlation_id )
-            }
-        );
+    my ( $envelope, $audit_input ) = $self->_record_calls( $event, $audit );
+    $self->recorder->record_event( %{$envelope} );
+    if ($audit_input) {
+        $self->recorder->record_audit( %{$audit_input} );
     }
 
     return;
 }
 
+# _record on the call layer $functions.
+async sub _record_p ( $self, $functions, $context, $event, $audit = undef ) {
+    my ( $envelope, $audit_input ) = $self->_record_calls( $event, $audit );
+    await $functions->row_p( 'ops_record_event',
+        $self->recorder->event_call( %{$envelope} ), $context );
+    if ($audit_input) {
+        await $functions->row_p( 'ops_record_audit',
+            $self->recorder->audit_call( %{$audit_input} ), $context );
+    }
+
+    return;
+}
+
+# The event's envelope and the audit's input, under one correlation id.
+sub _record_calls ( $self, $event, $audit = undef ) {
+    my $correlation_id = $self->id_service->uuid;
+    return (
+        $self->events->envelope(
+            { %{$event}, correlation_id => $correlation_id }
+        ),
+        $audit
+        ? $self->events->audit( $event->{event_type}, $audit, $correlation_id )
+        : undef
+    );
+}
+
 sub _attachment_links ( $self, $attachment_id ) {
     if ( $self->functions ) {
-        return map { GPForum::Infrastructure::ResultRow->from($_) } @{
-            $self->functions->rows(
-                'attachment_links',
-                {
-                    attachment_id => $attachment_id,
-                    target_type   => undef,
-                    target_id     => undef,
-                    row_limit     => $self->lifecycle->link_lookup_rows
-                }
-            )
-        };
+        return
+          map { GPForum::Infrastructure::ResultRow->from($_) }
+          @{ $self->functions->rows( $self->_links_call($attachment_id) ) };
     }
     my $search = $self->schema->resultset('AttachmentLink')->search_rs(
         { attachment_id => $attachment_id },
@@ -846,15 +1342,38 @@ sub _attachment_links ( $self, $attachment_id ) {
     return $self->record->rows($search);
 }
 
+async sub _attachment_links_p ( $self, $attachment_id, $context ) {
+    return
+      map { GPForum::Infrastructure::ResultRow->from($_) }
+      @{ await $self->functions->rows_p( $self->_links_call($attachment_id),
+            $context )
+      };
+}
+
+sub _links_call ( $self, $attachment_id ) {
+    return (
+        'attachment_links',
+        {
+            attachment_id => $attachment_id,
+            target_type   => undef,
+            target_id     => undef,
+            row_limit     => $self->lifecycle->link_lookup_rows
+        }
+    );
+}
+
+# The function that reads a link's target, or nothing for a kind of target
+# that has none.
+sub _target_call ( $target_type, $target_id ) {
+    return if !exists $TARGET_RESULTSET{ $target_type // q{} };
+    return ( 'attachment_source_' . $target_type, { target_id => $target_id } );
+}
+
 sub _target_row ( $self, $target_type, $target_id ) {
     return undef if !exists $TARGET_RESULTSET{$target_type};
     if ( $self->functions ) {
         return GPForum::Infrastructure::ResultRow->from(
-            $self->functions->row(
-                'attachment_source_' . $target_type,
-                { target_id => $target_id }
-            )
-        );
+            $self->functions->row( _target_call( $target_type, $target_id ) ) );
     }
     my $resultset;
     try {
@@ -882,13 +1401,26 @@ sub _update_attachment ( $self, $row, $changes ) {
 }
 
 sub _single_function_row ( $self, $source, $query ) {
-    my ( $name, $params );
     if ( $source eq 'EventLog' ) {
         return $self->recorder->event_recorded( $query->{idempotency_key} )
           ? { recorded => 1 }
           : undef;
     }
-    elsif ( $source eq 'Attachment' ) {
+    return GPForum::Infrastructure::ResultRow->from(
+        $self->functions->row( _single_call( $source, $query ) ) );
+}
+
+async sub _single_row_p ( $self, $source, $query, $context, $functions = undef )
+{
+    $functions //= $self->functions;
+    return GPForum::Infrastructure::ResultRow->from(
+        await $functions->row_p( _single_call( $source, $query ), $context ) );
+}
+
+# The function, and its values, that read one row of an attachment table.
+sub _single_call ( $source, $query ) {
+    my ( $name, $params );
+    if ( $source eq 'Attachment' ) {
         $name = 'attachment_find';
         $params =
           { attachment_id => undef, object_key => undef, hold => 0, %{$query} };
@@ -913,8 +1445,7 @@ sub _single_function_row ( $self, $source, $query ) {
             %{$query}
         };
     }
-    return GPForum::Infrastructure::ResultRow->from(
-        $self->functions->row( $name, $params ) );
+    return ( $name, $params );
 }
 
 sub _single_row ( $self, $resultset_name, $query ) {
@@ -1043,12 +1574,25 @@ are written first if they are missing. When the id is taken by a row with a
 different object key, the intent is reissued with a fresh id and the object
 key C<< attachments/<owner_user_id>/<new id> >>.
 
+=head2 create_intent_p
+
+L</create_intent> as a promise, with an optional query context and an
+optional transaction call layer last: the row, its event and audit are
+written on the worker's pooled asynchronous connections, in that
+transaction when one is given, each insert in a savepoint of it.
+
 =head2 with_post_write
 
 Runs a callback in a transaction after checking the input's C<post_id> and
 C<actor_user_id> against current author-write rules. Shared thread and post
 locks remain held through the callback. An unavailable post returns undef;
 an author or lock refusal returns C<forbidden> with its error.
+
+=head2 with_post_write_p
+
+Takes the input, a work that takes the call layer and answers a promise, a
+call layer and an optional query context. Runs L</with_post_write>'s guard,
+then the work, on the transaction the call layer belongs to.
 
 =head2 check_upload_quota
 
@@ -1057,6 +1601,11 @@ the upload transaction. Serializes uploads for that owner until commit;
 returns C<ok> or attachment field errors. Retained source size includes
 soft-deleted attachment rows because metadata deletion retains bytes.
 
+=head2 check_upload_quota_p
+
+L</check_upload_quota> as a promise, with an optional query context and an
+optional transaction call layer last, whose advisory lock it takes.
+
 =head2 mark_uploaded
 
 Takes an attachment id. Moves an C<intent> attachment to C<uploaded> and
@@ -1064,6 +1613,11 @@ stamps C<uploaded_at>; returns C<< { attachment_id, state, uploaded_at } >>.
 An attachment past the C<intent> state is left alone and returned as
 C<< { attachment_id, idempotent => 1, state, uploaded_at } >>. Returns
 C<undef> for an unknown id.
+
+=head2 mark_uploaded_p
+
+L</mark_uploaded> as a promise, with an optional query context and an
+optional transaction call layer last.
 
 =head2 record_scan
 
@@ -1078,6 +1632,12 @@ C<< { attachment_id, scan_status, scan_engine, scan_signature, scan_error => und
 (plus C<quarantined_at>). When the row may not take the verdict, nothing is
 written and it returns C<< { attachment_id, idempotent => 1, scan_status, state } >>
 with the stored values. Returns C<undef> for an unknown id.
+
+=head2 record_scan_p
+
+L</record_scan> as a promise, with an optional query context and an
+optional transaction call layer last: the verdict and its event commit
+together on the worker's pooled asynchronous connections.
 
 =head2 terminal_scan
 
@@ -1110,11 +1670,22 @@ C<target_id>. Inserts the link and returns its hash
 C<created_at>), or the existing link's columns with C<< idempotent => 1 >>
 when the attachment is already linked to that target.
 
+=head2 link_attachment_p
+
+L</link_attachment> as a promise, with an optional query context and an
+optional transaction call layer last; the insert runs in a savepoint, so a
+conflict that finds the link already there undoes only its own write.
+
 =head2 find_variant
 
 Takes a hash reference with C<attachment_id>, C<variant_type> and an
 optional C<object_key>. Returns the attachment's variant of that type, else
 the variant stored under that object key, else C<undef>.
+
+=head2 find_variant_p
+
+L</find_variant> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections.
 
 =head2 add_variant
 
@@ -1124,9 +1695,19 @@ returns its hash (with C<attachment_variant_id> and C<created_at>), or the
 existing variant's columns with C<< idempotent => 1 >> when
 L</find_variant> finds one.
 
+=head2 add_variant_p
+
+L</add_variant> as a promise, with an optional query context and an
+optional transaction call layer last, as L</link_attachment_p>.
+
 =head2 find_attachment
 
 Takes an attachment id. Returns the C<Attachment> row, or C<undef>.
+
+=head2 find_attachment_p
+
+L</find_attachment> as a promise: takes the id, an optional query context
+and an optional call layer to read on (a transaction's).
 
 =head2 download_for
 
@@ -1141,11 +1722,22 @@ it or to the owner.
 Returns C<< { ok => 0, error => 'forbidden' } >> when no link allows it, or
 C<< { ok => 1, attachment, attachment_id, byte_size, media_type, object_key, original_filename } >>.
 
+=head2 download_for_p
+
+L</download_for> as a promise, with an optional query context last: the
+file, its links, their targets and the reader's access to each are read on
+the worker's pooled asynchronous connections first.
+
 =head2 owned_uploads_for_post
 
 Lists the author's undeleted upload metadata and review decisions for one post.
 The optional link cursor returns the next keyset page, bounded to 51 rows for
 50 items and a continuation marker. No storage keys or bytes are returned.
+
+=head2 owned_uploads_for_post_p
+
+L</owned_uploads_for_post> as a promise, with an optional query context last,
+read on the worker's pooled asynchronous connections.
 
 =head2 attachments_for_posts
 
@@ -1200,6 +1792,12 @@ Soft-deletes the attachment when it is linked to that target; otherwise
 returns C<< { ok => 0, error => 'not_found' } >>. Whether the actor may
 delete it is the caller's decision.
 
+=head2 delete_linked_p
+
+L</delete_linked> on the transaction the given call layer belongs to: takes
+the input, the call layer and an optional query context, and answers a
+promise of what L</delete_linked> answers.
+
 =head2 soft_delete
 
 Takes an attachment id, an actor id and a reason. In a transaction, sets
@@ -1209,6 +1807,12 @@ C<< { ok => 1, attachment => \%attachment } >>, the attachment's columns as
 they now are. An attachment already deleted is returned, with its columns,
 with C<< idempotent => 1 >> and nothing written; an unknown id returns
 C<< { ok => 0, error => 'not_found' } >>.
+
+=head2 soft_delete_p
+
+L</soft_delete> as a promise, with an optional query context and an
+optional transaction call layer last: the row, its event and audit are
+written on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

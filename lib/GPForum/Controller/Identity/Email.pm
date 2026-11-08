@@ -27,7 +27,7 @@ async sub request_email_change ($self) {
     # The current password, as for a password change: a session alone, one
     # left open or stolen, must not move the account to another address.
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_identity_workflow,
             'request_email_change',
             {

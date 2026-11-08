@@ -4,8 +4,9 @@
 package GPForum::Service::Admin::Workflow;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
+use Scalar::Util qw(blessed);
 
 use GPForum::Infrastructure::Text qw(trimmed);
 use GPForum::Service::WorkflowResult
@@ -31,10 +32,19 @@ has command_idempotency => undef;    # optional: writes run unlogged without one
 has logger              => undef;    # optional: errors are dropped without one
 
 sub create_role ( $self, $input ) {
+    return $self->_commanded( $self->_create_role_job($input) );
+}
+
+async sub create_role_p ( $self, $input, $context = undef ) {
+    return $self->create_role($input)
+      if !$self->_async_ready( $self->role_catalog, 'create_role_p' );
+    return await $self->_commanded_p( $self->_create_role_job($input),
+        $context );
+}
+
+sub _create_role_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
     my $command = {
         actor_user_id => $input->{actor_user_id},
@@ -42,31 +52,41 @@ sub create_role ( $self, $input ) {
         name          => trimmed( $input->{name} ),
     };
     $invalid = $self->_missing_fields( $command, ['name'] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_commanded_store(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.role_create',
-            not_found    => 'role not found',
-            request      => {
-                actor_user_id => $command->{actor_user_id},
-                description   => $command->{description},
-                name          => $command->{name},
-            },
-            run => sub { return $self->role_catalog->create_role($command); },
-        }
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.role_create',
+        not_found    => 'role not found',
+        request      => {
+            actor_user_id => $command->{actor_user_id},
+            description   => $command->{description},
+            name          => $command->{name},
+        },
+        run   => sub { return $self->role_catalog->create_role($command); },
+        run_p => sub ( $scope, $context ) {
+            return $self->role_catalog->create_role_p( $command, $context,
+                $scope );
+        },
+    };
 }
 
 sub create_permission ( $self, $input ) {
+    return $self->_commanded( $self->_create_permission_job($input) );
+}
+
+async sub create_permission_p ( $self, $input, $context = undef ) {
+    return $self->create_permission($input)
+      if !$self->_async_ready( $self->role_catalog, 'create_permission_p' );
+    return await $self->_commanded_p( $self->_create_permission_job($input),
+        $context );
+}
+
+sub _create_permission_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
     my $command = {
         action        => trimmed( $input->{action} ),
@@ -76,33 +96,42 @@ sub create_permission ( $self, $input ) {
     };
     $invalid =
       $self->_missing_fields( $command, [qw(name resource_type action)] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_commanded_store(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.permission_create',
-            not_found    => 'permission not found',
-            request      => {
-                action        => $command->{action},
-                actor_user_id => $command->{actor_user_id},
-                name          => $command->{name},
-                resource_type => $command->{resource_type},
-            },
-            run =>
-              sub { return $self->role_catalog->create_permission($command); },
-        }
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.permission_create',
+        not_found    => 'permission not found',
+        request      => {
+            action        => $command->{action},
+            actor_user_id => $command->{actor_user_id},
+            name          => $command->{name},
+            resource_type => $command->{resource_type},
+        },
+        run => sub { return $self->role_catalog->create_permission($command); },
+        run_p => sub ( $scope, $context ) {
+            return $self->role_catalog->create_permission_p( $command,
+                $context, $scope );
+        },
+    };
 }
 
 sub attach_permission ( $self, $input ) {
+    return $self->_commanded( $self->_attach_permission_job($input) );
+}
+
+async sub attach_permission_p ( $self, $input, $context = undef ) {
+    return $self->attach_permission($input)
+      if !$self->_async_ready( $self->role_catalog, 'attach_permission_p' );
+    return await $self->_commanded_p( $self->_attach_permission_job($input),
+        $context );
+}
+
+sub _attach_permission_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
     my $command = {
         actor_user_id => $input->{actor_user_id},
@@ -110,32 +139,40 @@ sub attach_permission ( $self, $input ) {
         role_id       => trimmed( $input->{role_id} ),
     };
     $invalid = $self->_missing_fields( $command, [qw(role_id permission_id)] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_commanded_store(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.permission_attach',
-            not_found    => 'role permission not found',
-            request      => {
-                actor_user_id => $command->{actor_user_id},
-                permission_id => $command->{permission_id},
-                role_id       => $command->{role_id},
-            },
-            run =>
-              sub { return $self->role_catalog->attach_permission($command); },
-        }
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.permission_attach',
+        not_found    => 'role permission not found',
+        request      => {
+            actor_user_id => $command->{actor_user_id},
+            permission_id => $command->{permission_id},
+            role_id       => $command->{role_id},
+        },
+        run => sub { return $self->role_catalog->attach_permission($command); },
+        run_p => sub ( $scope, $context ) {
+            return $self->role_catalog->attach_permission_p( $command,
+                $context, $scope );
+        },
+    };
 }
 
 sub bind_role ( $self, $input ) {
+    return $self->_commanded( $self->_bind_role_job($input) );
+}
+
+async sub bind_role_p ( $self, $input, $context = undef ) {
+    return $self->bind_role($input)
+      if !$self->_async_ready( $self->binding_store, 'bind_role_p' );
+    return await $self->_commanded_p( $self->_bind_role_job($input), $context );
+}
+
+sub _bind_role_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
     my $command = {
         actor_user_id => $input->{actor_user_id},
@@ -147,176 +184,233 @@ sub bind_role ( $self, $input ) {
     };
     $invalid =
       $self->_missing_fields( $command, [qw(user_id role_id resource_type)] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_commanded_store(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.role_bind',
-            not_found    => 'role binding not found',
-            request      => {
-                actor_user_id => $command->{actor_user_id},
-                resource_id   => $command->{resource_id},
-                resource_type => $command->{resource_type},
-                role_id       => $command->{role_id},
-                space_id      => $command->{space_id},
-                user_id       => $command->{user_id},
-            },
-            run => sub { return $self->binding_store->bind_role($command); },
-        }
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.role_bind',
+        not_found    => 'role binding not found',
+        request      => {
+            actor_user_id => $command->{actor_user_id},
+            resource_id   => $command->{resource_id},
+            resource_type => $command->{resource_type},
+            role_id       => $command->{role_id},
+            space_id      => $command->{space_id},
+            user_id       => $command->{user_id},
+        },
+        run   => sub { return $self->binding_store->bind_role($command); },
+        run_p => sub ( $scope, $context ) {
+            return $self->binding_store->bind_role_p( $command, $context,
+                $scope );
+        },
+    };
 }
 
 sub revoke_binding ( $self, $input ) {
-    my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return $self->_commanded( $self->_revoke_binding_job($input) );
+}
 
-    return $self->_commanded_store(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.binding_revoke',
-            not_found    => 'role binding not found',
-            request      => {
-                actor_user_id => $input->{actor_user_id},
-                binding_id    => trimmed( $input->{binding_id} ),
-            },
-            run => sub {
-                return $self->binding_store->revoke_binding(
-                    $input->{binding_id}, $input->{actor_user_id} );
-            },
-        }
-    );
+async sub revoke_binding_p ( $self, $input, $context = undef ) {
+    return $self->revoke_binding($input)
+      if !$self->_async_ready( $self->binding_store, 'revoke_binding_p' );
+    return await $self->_commanded_p( $self->_revoke_binding_job($input),
+        $context );
+}
+
+sub _revoke_binding_job ( $self, $input ) {
+    my $invalid = missing_command_id($input);
+    return { answer => $invalid } if $invalid;
+
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.binding_revoke',
+        not_found    => 'role binding not found',
+        request      => {
+            actor_user_id => $input->{actor_user_id},
+            binding_id    => trimmed( $input->{binding_id} ),
+        },
+        run => sub {
+            return $self->binding_store->revoke_binding( $input->{binding_id},
+                $input->{actor_user_id} );
+        },
+        run_p => sub ( $scope, $context ) {
+            return $self->binding_store->revoke_binding_p( $input->{binding_id},
+                $input->{actor_user_id},
+                $context, $scope );
+        },
+    };
 }
 
 sub create_category ( $self, $input ) {
+    return $self->_commanded( $self->_create_category_job($input) );
+}
+
+async sub create_category_p ( $self, $input, $context = undef ) {
+    return $self->create_category($input)
+      if !$self->_async_ready( $self->category_store, 'create_category_p' );
+    return await $self->_commanded_p( $self->_create_category_job($input),
+        $context );
+}
+
+sub _create_category_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
     my $command = $self->_category_command($input);
     $invalid = $self->_invalid_category( $command, ['title'] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_commanded_store(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.category_create',
-            not_found    => 'space not found',
-            request      => _category_request($command),
-            run          =>
-              sub { return $self->category_store->create_category($command); },
-        }
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.category_create',
+        not_found    => 'space not found',
+        request      => _category_request($command),
+        run => sub { return $self->category_store->create_category($command); },
+        run_p => sub ( $scope, $context ) {
+            return $self->category_store->create_category_p( $command,
+                $context, $scope );
+        },
+    };
 }
 
 sub update_category ( $self, $input ) {
+    return $self->_commanded( $self->_update_category_job($input) );
+}
+
+async sub update_category_p ( $self, $input, $context = undef ) {
+    return $self->update_category($input)
+      if !$self->_async_ready( $self->category_store, 'update_category_p' );
+    return await $self->_commanded_p( $self->_update_category_job($input),
+        $context );
+}
+
+sub _update_category_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
     my $command = $self->_category_command($input);
     $invalid = $self->_invalid_category( $command, ['category_id'] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_commanded_store(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.category_update',
-            not_found    => 'category not found',
-            request      => _category_request($command),
-            run          =>
-              sub { return $self->category_store->update_category($command); },
-        }
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.category_update',
+        not_found    => 'category not found',
+        request      => _category_request($command),
+        run => sub { return $self->category_store->update_category($command); },
+        run_p => sub ( $scope, $context ) {
+            return $self->category_store->update_category_p( $command,
+                $context, $scope );
+        },
+    };
 }
 
 # An announcement published or retired is on every page at once: the
 # public page cache is purged with the write, under the same actor.
 sub create_announcement ( $self, $input ) {
+    return $self->_purging( $input,
+        $self->_commanded( $self->_create_announcement_job($input) ) );
+}
+
+async sub create_announcement_p ( $self, $input, $context = undef ) {
+    return $self->create_announcement($input)
+      if !$self->_async_ready( $self->announcement_store,
+        'create_announcement_p' );
+    return await $self->_purging_p(
+        $input,
+        await $self->_commanded_p(
+            $self->_create_announcement_job($input), $context
+        ),
+        $context
+    );
+}
+
+sub _create_announcement_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
     my $command = {
         actor_user_id => $input->{actor_user_id},
         message       => trimmed( $input->{message} ),
         tone          => trimmed( $input->{tone} ) || 'notice',
     };
     $invalid = $self->_missing_fields( $command, ['message'] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_purging(
-        $input,
-        $self->_commanded_store(
-            {
-                actor_id     => $input->{actor_user_id},
-                command_id   => $input->{command_id},
-                command_type => 'admin.announcement_publish',
-                not_found    => 'announcement not found',
-                request      => $command,
-                run          => sub {
-                    return $self->announcement_store->create_announcement(
-                        $command);
-                },
-            }
-        )
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.announcement_publish',
+        not_found    => 'announcement not found',
+        request      => $command,
+        run          => sub {
+            return $self->announcement_store->create_announcement($command);
+        },
+        run_p => sub ( $scope, $context ) {
+            return $self->announcement_store->create_announcement_p( $command,
+                $context, $scope );
+        },
+    };
 }
 
 sub retire_announcement ( $self, $input ) {
+    return $self->_purging( $input,
+        $self->_commanded( $self->_retire_announcement_job($input) ) );
+}
+
+async sub retire_announcement_p ( $self, $input, $context = undef ) {
+    return $self->retire_announcement($input)
+      if !$self->_async_ready( $self->announcement_store,
+        'retire_announcement_p' );
+    return await $self->_purging_p(
+        $input,
+        await $self->_commanded_p(
+            $self->_retire_announcement_job($input), $context
+        ),
+        $context
+    );
+}
+
+sub _retire_announcement_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
     my $command = {
         actor_user_id   => $input->{actor_user_id},
         announcement_id => trimmed( $input->{announcement_id} ),
     };
     $invalid = $self->_missing_fields( $command, ['announcement_id'] );
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
-    return $self->_purging(
-        $input,
-        $self->_commanded_store(
-            {
-                actor_id     => $input->{actor_user_id},
-                command_id   => $input->{command_id},
-                command_type => 'admin.announcement_retire',
-                not_found    => 'announcement not found',
-                request      => $command,
-                run          => sub {
-                    return $self->announcement_store->retire_announcement(
-                        $command);
-                },
-            }
-        )
-    );
+    return {
+        kind         => 'store',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.announcement_retire',
+        not_found    => 'announcement not found',
+        request      => $command,
+        run          => sub {
+            return $self->announcement_store->retire_announcement($command);
+        },
+        run_p => sub ( $scope, $context ) {
+            return $self->announcement_store->retire_announcement_p( $command,
+                $context, $scope );
+        },
+    };
 }
 
 # A write that changed what every page shows takes the public cache's
 # copies down with it; a write that did not (a refusal, a replay) leaves
 # them. Without a maintenance service nothing is purged.
 sub _purging ( $self, $input, $result ) {
-    return $result if !$result->{ok} || $result->{replayed};
-    return $result if !$self->maintenance;
+    return $result if !_purges( $self, $result );
     try {
         $self->maintenance->purge_public_cache(
             { actor_user_id => $input->{actor_user_id} } );
@@ -327,103 +421,218 @@ sub _purging ( $self, $input, $result ) {
     return $result;
 }
 
+async sub _purging_p ( $self, $input, $result, $context ) {
+    return $result if !_purges( $self, $result );
+    return $self->_purging( $input, $result )
+      if !$self->maintenance->can('purge_public_cache_p');
+    try {
+        await $self->maintenance->purge_public_cache_p(
+            { actor_user_id => $input->{actor_user_id} }, $context );
+    }
+    catch ($error) {
+        log_error( $self->logger, "announcement cache purge failed: $error" );
+    };
+    return $result;
+}
+
+sub _purges ( $self, $result ) {
+    return 0 if !$result->{ok} || $result->{replayed};
+    return $self->maintenance ? 1 : 0;
+}
+
 # Replays a dead letter under the command's idempotency, so a lost response
 # retried with the same command id gets the first answer back instead of a
 # conflict from the replay the first attempt already made.
 sub replay_dead_letter ( $self, $input ) {
+    return $self->_commanded( $self->_replay_job($input) );
+}
+
+async sub replay_dead_letter_p ( $self, $input, $context = undef ) {
+    return $self->replay_dead_letter($input)
+      if !$self->_async_ready( $self->dead_letter_replay, 'replay_p' );
+    return await $self->_commanded_p( $self->_replay_job($input), $context );
+}
+
+sub _replay_job ( $self, $input ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
 
     my $dead_letter_id = trimmed( $input->{dead_letter_id} );
-    return $self->_commanded_write(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'admin.dead_letter_replay',
-            request      => {
-                actor_user_id  => $input->{actor_user_id},
-                dead_letter_id => $dead_letter_id,
-            },
-            run => sub {
-                my $stored = $self->_try_store(
+    my $replay         = {
+        actor_user_id  => $input->{actor_user_id},
+        dead_letter_id => $dead_letter_id,
+        via            => 'web',
+    };
+    return {
+        kind         => 'write',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'admin.dead_letter_replay',
+        request      => {
+            actor_user_id  => $input->{actor_user_id},
+            dead_letter_id => $dead_letter_id,
+        },
+        run => sub {
+            return _replayed(
+                $self->_try_store(
+                    sub { return $self->dead_letter_replay->replay($replay); }
+                )
+            );
+        },
+        run_p => async sub ( $scope, $context ) {
+            return _replayed(
+                await $self->_try_store_p(
                     sub {
-                        return $self->dead_letter_replay->replay(
-                            {
-                                actor_user_id  => $input->{actor_user_id},
-                                dead_letter_id => $dead_letter_id,
-                                via            => 'web',
-                            }
-                        );
+                        return $self->dead_letter_replay->replay_p( $replay,
+                            $context, $scope );
                     }
-                );
-                if ( $stored->{failed} ) {
-                    return _failed_result();
-                }
-                my $outcome = $stored->{value};
-                if ( $outcome->{status} ne 'replayed' ) {
-                    return workflow_result(
-                        error  => $outcome->{error},
-                        status => $outcome->{status},
-                    );
-                }
-                return workflow_result(
-                    status => 'ok',
-                    stored => $outcome->{replayed},
-                );
-            },
-        }
+                )
+            );
+        },
+    };
+}
+
+sub _replayed ($stored) {
+    return _failed_result() if $stored->{failed};
+    my $outcome = $stored->{value};
+    if ( $outcome->{status} ne 'replayed' ) {
+        return workflow_result(
+            error  => $outcome->{error},
+            status => $outcome->{status},
+        );
+    }
+    return workflow_result(
+        status => 'ok',
+        stored => $outcome->{replayed},
     );
 }
 
 # 6.5: a search rebuild through the outbox, and a purge of the public page
 # cache, each under a command id and audited (Admin::Maintenance).
 sub request_search_rebuild ( $self, $input ) {
-    return $self->_maintenance_command( $input, 'admin.search_rebuild',
-        sub { return $self->maintenance->request_search_rebuild($input); } );
+    return $self->_commanded(
+        $self->_maintenance_job(
+            $input, 'admin.search_rebuild',
+            maintenance => 'request_search_rebuild'
+        )
+    );
+}
+
+async sub request_search_rebuild_p ( $self, $input, $context = undef ) {
+    return $self->request_search_rebuild($input)
+      if !$self->_async_ready( $self->maintenance, 'request_search_rebuild_p' );
+    return await $self->_commanded_p(
+        $self->_maintenance_job(
+            $input, 'admin.search_rebuild',
+            maintenance => 'request_search_rebuild'
+        ),
+        $context
+    );
 }
 
 sub purge_public_cache ( $self, $input ) {
-    return $self->_maintenance_command( $input, 'admin.cache_purge',
-        sub { return $self->maintenance->purge_public_cache($input); } );
+    return $self->_commanded(
+        $self->_maintenance_job(
+            $input, 'admin.cache_purge',
+            maintenance => 'purge_public_cache'
+        )
+    );
+}
+
+async sub purge_public_cache_p ( $self, $input, $context = undef ) {
+    return $self->purge_public_cache($input)
+      if !$self->_async_ready( $self->maintenance, 'purge_public_cache_p' );
+    return await $self->_commanded_p(
+        $self->_maintenance_job(
+            $input, 'admin.cache_purge',
+            maintenance => 'purge_public_cache'
+        ),
+        $context
+    );
 }
 
 # 6.5: a test message to the administrator's own address, and the antivirus
 # check, each under a command id -- a resubmitted form sends no second
 # message -- and audited with its outcome (Admin::Diagnostics).
 sub send_test_mail ( $self, $input ) {
-    return $self->_maintenance_command( $input, 'admin.mail_test',
-        sub { return $self->diagnostics->send_test_mail($input); } );
+    return $self->_commanded(
+        $self->_maintenance_job(
+            $input, 'admin.mail_test', diagnostics => 'send_test_mail'
+        )
+    );
+}
+
+async sub send_test_mail_p ( $self, $input, $context = undef ) {
+    return $self->send_test_mail($input)
+      if !$self->_async_ready( $self->diagnostics, 'send_test_mail_p' );
+    return await $self->_commanded_p(
+        $self->_maintenance_job(
+            $input, 'admin.mail_test', diagnostics => 'send_test_mail'
+        ),
+        $context
+    );
 }
 
 sub check_antivirus ( $self, $input ) {
-    return $self->_maintenance_command( $input, 'admin.antivirus_check',
-        sub { return $self->diagnostics->check_antivirus($input); } );
+    return $self->_commanded(
+        $self->_maintenance_job(
+            $input, 'admin.antivirus_check',
+            diagnostics => 'check_antivirus'
+        )
+    );
 }
 
-sub _maintenance_command ( $self, $input, $command_type, $work ) {
+async sub check_antivirus_p ( $self, $input, $context = undef ) {
+    return $self->check_antivirus($input)
+      if !$self->_async_ready( $self->diagnostics, 'check_antivirus_p' );
+    return await $self->_commanded_p(
+        $self->_maintenance_job(
+            $input, 'admin.antivirus_check',
+            diagnostics => 'check_antivirus'
+        ),
+        $context
+    );
+}
+
+# A maintenance or diagnostics command: the collaborator's method under the
+# command id, its answer stored.
+sub _maintenance_job ( $self, $input, $command_type, $collaborator, $method ) {
     my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
-    }
+    return { answer => $invalid } if $invalid;
+    my $async = $method . '_p';
 
-    return $self->_commanded_write(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => $command_type,
-            request      => { actor_user_id => $input->{actor_user_id} },
-            run          => sub {
-                my $stored = $self->_try_store($work);
-                return _failed_result() if $stored->{failed};
+    return {
+        kind         => 'write',
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => $command_type,
+        request      => { actor_user_id => $input->{actor_user_id} },
+        run          => sub {
+            return _stored(
+                $self->_try_store(
+                    sub { return $self->$collaborator->$method($input); }
+                )
+            );
+        },
+        run_p => async sub ( $scope, $context ) {
+            return _stored(
+                await $self->_try_store_p(
+                    sub {
+                        return $self->$collaborator->$async( $input, $context,
+                            $scope );
+                    }
+                )
+            );
+        },
+    };
+}
 
-                return workflow_result(
-                    status => 'ok',
-                    stored => $stored->{value}
-                );
-            },
-        }
+sub _stored ($stored) {
+    return _failed_result() if $stored->{failed};
+
+    return workflow_result(
+        status => 'ok',
+        stored => $stored->{value}
     );
 }
 
@@ -468,6 +677,69 @@ sub _invalid_category ( $self, $command, $required ) {
         status => 'invalid',
         errors => { visibility => 'visibility is invalid' },
     );
+}
+
+# A command's answer: its refusal, or the store's or the write's result
+# under the command id.
+sub _commanded ( $self, $job ) {
+    return $job->{answer} if $job->{answer};
+    return $job->{kind} eq 'store'
+      ? $self->_commanded_store($job)
+      : $self->_commanded_write($job);
+}
+
+# Whether a command runs on pooled asynchronous connections: its
+# collaborator has the asynchronous twin, and the command log (when there
+# is one) runs on the call layer. In-memory doubles keep the blocking path.
+sub _async_ready ( $self, $collaborator, $method ) {
+    return 0 if !blessed $collaborator || !$collaborator->can($method);
+    my $log = $self->command_idempotency;
+    return 1 if !$log;
+    return
+         blessed $log
+      && $log->can('result_of_p')
+      && $log->can('functions')
+      && $log->functions ? 1 : 0;
+}
+
+# _commanded on pooled asynchronous connections: the command log's steps
+# and the collaborator's writes commit in one transaction
+# (CommandIdempotency->result_of_p), whose call layer the collaborator
+# writes through. Without a command log the collaborator runs on its own.
+async sub _commanded_p ( $self, $job, $context ) {
+    return $job->{answer} if $job->{answer};
+    my $run_p = $job->{kind} eq 'store'
+      ? async sub ( $scope = undef ) {
+        return _store_result(
+            $job->{not_found},
+            await $self->_try_store_p(
+                sub { return $job->{run_p}->( $scope, $context ); }
+            )
+        );
+      }
+      : sub ( $scope = undef ) { return $job->{run_p}->( $scope, $context ); };
+    my $log = $self->command_idempotency;
+    return await $run_p->() if !$log;
+
+    my $result;
+    try {
+        $result = await $log->result_of_p(
+            {
+                actor_id     => $job->{actor_id},
+                command_id   => $job->{command_id},
+                command_type => $job->{command_type},
+                request      => $job->{request} || {},
+                run_p        => $run_p,
+            },
+            $context
+        );
+    }
+    catch ($error) {
+        log_error( $self->logger, "admin write failed: $error" );
+        return _failed_result();
+    };
+
+    return $result;
 }
 
 sub _commanded_store ( $self, $job ) {
@@ -526,7 +798,10 @@ sub _missing_fields ( $, $input, $names ) {
 }
 
 sub _run_store ( $self, $not_found, $code ) {
-    my $stored = $self->_try_store($code);
+    return _store_result( $not_found, $self->_try_store($code) );
+}
+
+sub _store_result ( $not_found, $stored ) {
     if ( $stored->{failed} ) {
         return _failed_result();
     }
@@ -565,6 +840,21 @@ sub _try_store ( $self, $code ) {
     my $value;
     try {
         $value = $code->();
+    }
+    catch ($error) {
+        log_error( $self->logger, "admin write failed: $error" );
+        return { failed => 1 };
+    };
+
+    return { value => $value };
+}
+
+async sub _try_store_p ( $self, $code ) {
+    return { value => await $code->() } if $self->command_idempotency;
+
+    my $value;
+    try {
+        $value = await $code->();
     }
     catch ($error) {
         log_error( $self->logger, "admin write failed: $error" );
@@ -616,48 +906,114 @@ Stores keep transaction, event, audit, and outbox ownership.
 
 Creates a role when a name is present.
 
+=head2 create_role_p
+
+Answers what L</create_role> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
+
 =head2 create_permission
 
 Creates a permission when name, resource type, and action are present.
+
+=head2 create_permission_p
+
+Answers what L</create_permission> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
 
 =head2 attach_permission
 
 Attaches a permission to a role.
 
+=head2 attach_permission_p
+
+Answers what L</attach_permission> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
+
 =head2 bind_role
 
 Binds a role to a user for a resource type.
+
+=head2 bind_role_p
+
+Answers what L</bind_role> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
 
 =head2 revoke_binding
 
 Revokes an existing role binding.
 
+=head2 revoke_binding_p
+
+Answers what L</revoke_binding> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
+
 =head2 create_category
 
 Creates a category when a title is present.
 
+=head2 create_category_p
+
+Answers what L</create_category> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
+
 =head2 update_category
 
 Updates a category when a category id is present.
+
+=head2 update_category_p
+
+Answers what L</update_category> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
 
 =head2 create_announcement
 
 Publishes a site announcement (ADR 0131) from C<message> and C<tone>,
 under C<command_id>, and purges the public page cache.
 
+=head2 create_announcement_p
+
+Answers what L</create_announcement> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
+
 =head2 retire_announcement
 
 Retires the announcement C<announcement_id>, under C<command_id>, and
 purges the public page cache.
+
+=head2 retire_announcement_p
+
+Answers what L</retire_announcement> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
 
 =head2 request_search_rebuild
 
 Starts a search rebuild through L<GPForum::Service::Admin::Maintenance>,
 under the command id.
 
+=head2 request_search_rebuild_p
+
+Answers what L</request_search_rebuild> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
+
 =head2 purge_public_cache
 
 Purges the public page cache, under the command id.
+
+=head2 purge_public_cache_p
+
+Answers what L</purge_public_cache> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
 
 =head2 send_test_mail
 
@@ -665,16 +1021,34 @@ Sends a test message to the actor's own address through
 L<GPForum::Service::Admin::Diagnostics>, under the command id; C<ok> whether
 the transport accepted it or not, with the outcome in C<stored>.
 
+=head2 send_test_mail_p
+
+Answers what L</send_test_mail> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
+
 =head2 check_antivirus
 
 Runs the antivirus check, under the command id, with its report in
 C<stored>.
+
+=head2 check_antivirus_p
+
+Answers what L</check_antivirus> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
 
 =head2 replay_dead_letter
 
 Replays a dead letter through L<GPForum::Service::Outbox::DeadLetterReplay>,
 under the command id. C<not_found> when there is no such dead letter,
 C<conflict> when it cannot be replayed.
+
+=head2 replay_dead_letter_p
+
+Answers what L</replay_dead_letter> answers, on pooled asynchronous connections:
+the command log's steps and the collaborator's writes commit in one
+transaction, with no child process.
 
 =head1 DIAGNOSTICS
 

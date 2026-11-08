@@ -19,11 +19,11 @@ use GPForum::Command::AdminBootstrap;
 use GPForum::Infrastructure::AsyncWork;
 use GPForum::Service::Identity::Admission;
 use GPForum::Service::Moderation::ThreadTransfers;
+use GPForum::Test::Forks qw(children_during);
 use GPForum::Test::GuiDriver;
 use GPForum::Test::PgDatabase;
 use GPForum::Test::PostgresHarness;
-use GPForum::Test::Promise      qw(await_result);
-use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
+use GPForum::Test::Promise qw(await_result);
 
 our $VERSION = '0.001';
 const my $HTTP_OK => 200;
@@ -212,16 +212,7 @@ subtest 'staff pages never reach the fork fallback for these reads' => sub {
     my $gui = GPForum::Test::GuiDriver->new( test => $t );
     $gui->install_session;
     $gui->actor($owner);
-    my @forked;
-    my $fallback = GPForum::Infrastructure::AsyncWork->can('service_result_p');
-    with_replaced_subs(
-        'GPForum::Infrastructure::AsyncWork',
-        {
-            service_result_p => sub {
-                push @forked, ref( $_[1] ) . "->$_[2]";
-                return $fallback->(@_);
-            },
-        },
+    my $children = children_during(
         sub {
             for my $path (
                 '/moderation/actions', '/moderation/suspensions',
@@ -241,18 +232,9 @@ subtest 'staff pages never reach the fork fallback for these reads' => sub {
         }
     );
 
-    # Left to the fallback on purpose: the console's health block runs the
-    # readiness checks, metrics and query budget drift (host probes, not
-    # plain reads), and search status reads through Search::Indexer and
-    # Search::RebuildRun.
-    is_deeply(
-        [ sort @forked ],
-        [
-            sort 'GPForum::Service::Admin::ConsoleReader->dashboard_summary',
-            'GPForum::Service::Admin::Maintenance->search_status',
-        ],
-        'only the host probes forked a child'
-    );
+    # The console's health block and search status read on pooled
+    # connections too; only host probes run in a CPU-only child.
+    is_deeply( $children->{other}, [], 'no staff page forked a child' );
 };
 
 done_testing;

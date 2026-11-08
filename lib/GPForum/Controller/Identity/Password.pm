@@ -31,7 +31,7 @@ async sub request_password_reset ($self) {
     }
 
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_identity_workflow,
             'request_password_reset',
             {
@@ -92,7 +92,7 @@ async sub reset_password ($self) {
     }
 
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_identity_workflow,
             'reset_password',
             {
@@ -149,7 +149,7 @@ async sub change_password ($self) {
     # Naming the current session lets the store evict the user's other devices
     # without signing them out of the browser they just used.
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_identity_workflow,
             'change_password',
             {

@@ -4,7 +4,7 @@
 package GPForum::Service::Forum::PostingReview;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
@@ -25,38 +25,61 @@ has logger => undef;    # optional: without it nothing is logged
 # or failed.
 sub hold ( $self, $type, $screen, $command ) {
     return _failed('not a held command') if !exists $KIND{$type};
-    my $kind  = $KIND{$type};
-    my $input = $screen->{input};
-    my $body  = $command->{body} // {};
     my $held;
     try {
-        $held = $self->store->hold(
-            {
-                author_user_id => $input->{author_user_id},
-                command_id     => trimmed( $input->{command_id} ),
-                command_type   => $type,
-                kind           => $kind,
-                category_id    => $command->{thread}{category_id},
-                thread_id      => $kind eq 'reply' ? $command->{post}{thread_id}
-                : undef,
-                title => $kind eq 'thread' ? $command->{thread}{title} : q{},
-                body_source        => $body->{body_source},
-                body_rendered_safe => $body->{body_rendered_safe},
-                visibility         => _visibility( $input->{visibility} ),
-                reply_to_post_id   => $input->{reply_to_post_id},
-                reason             => $screen->{hold},
-                tags => $kind eq 'thread' ? _tags_text( $input->{tags} )
-                : q{},
-                details        => _details( $screen->{verdict} ),
-                draft_id       => $input->{draft_id},
-                draft_revision => $input->{draft_revision},
-            }
-        );
+        $held = $self->store->hold( _hold_input( $type, $screen, $command ) );
     }
     catch ($error) {
         $self->_log( error => "review hold failed: $error" );
         return _failed('review hold failed');
     };
+    return _held_answer( $type, $screen, $held );
+}
+
+# The hold on the worker's pooled asynchronous connections.
+async sub hold_p ( $self, $type, $screen, $command, $context = undef ) {
+    return _failed('not a held command') if !exists $KIND{$type};
+    my $store = $self->store;
+    my $held;
+    try {
+        my $input = _hold_input( $type, $screen, $command );
+        $held =
+          $store->can('hold_p')
+          ? await $store->hold_p( $input, $context )
+          : $store->hold($input);
+    }
+    catch ($error) {
+        $self->_log( error => "review hold failed: $error" );
+        return _failed('review hold failed');
+    };
+    return _held_answer( $type, $screen, $held );
+}
+
+sub _hold_input ( $type, $screen, $command ) {
+    my $kind  = $KIND{$type};
+    my $input = $screen->{input};
+    my $body  = $command->{body} // {};
+    return {
+        author_user_id => $input->{author_user_id},
+        command_id     => trimmed( $input->{command_id} ),
+        command_type   => $type,
+        kind           => $kind,
+        category_id    => $command->{thread}{category_id},
+        thread_id => $kind eq 'reply'  ? $command->{post}{thread_id} : undef,
+        title     => $kind eq 'thread' ? $command->{thread}{title}   : q{},
+        body_source        => $body->{body_source},
+        body_rendered_safe => $body->{body_rendered_safe},
+        visibility         => _visibility( $input->{visibility} ),
+        reply_to_post_id   => $input->{reply_to_post_id},
+        reason             => $screen->{hold},
+        tags     => $kind eq 'thread' ? _tags_text( $input->{tags} ) : q{},
+        details  => _details( $screen->{verdict} ),
+        draft_id => $input->{draft_id},
+        draft_revision => $input->{draft_revision},
+    };
+}
+
+sub _held_answer ( $type, $screen, $held ) {
     return _failed('review hold failed') if !$held->{ok};
 
     return {
@@ -66,7 +89,7 @@ sub hold ( $self, $type, $screen, $command ) {
         held       => {
             review_id     => $held->{review_id},
             review_status => $held->{review_status},
-            kind          => $kind,
+            kind          => $KIND{$type},
             reason        => $screen->{hold},
         },
     };
@@ -144,6 +167,11 @@ found. The author's command id keys the entry.
 
 Holds the composed command of a screened write; answers C<held> with the
 entry, or C<failed>.
+
+=head2 hold_p
+
+L</hold> as a promise, with an optional query context last: the post is held
+on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

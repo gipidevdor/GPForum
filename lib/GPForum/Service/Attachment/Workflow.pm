@@ -3,7 +3,7 @@
 
 package GPForum::Service::Attachment::Workflow;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Service::WorkflowResult
@@ -24,23 +24,75 @@ sub upload_for_post ( $self, $input ) {
 }
 
 sub _commanded_upload ( $self, $input ) {
-    my $result = $self->_commanded_write(
-        {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'attachment.upload',
-            request      => {
-                actor_user_id => $input->{actor_user_id},
-                post_id       => $input->{post_id},
-            },
-            run => sub { return $self->_upload_store_write($input); },
-        }
+    return $self->_settled(
+        $self->_commanded_write(
+            {
+                %{ _upload_job($input) },
+                run => sub { return $self->_upload_store_write($input); },
+            }
+        )
     );
+}
 
-    # The bytes are written before the rows, inside the command's
-    # transaction: a command that does not go through rolls the rows back,
-    # and its bytes stayed in storage, where the orphan purge, which walks
-    # rows, never looks.
+# The upload on the worker's pooled asynchronous connections: the command
+# log's steps, the post's locks, the rows and, in PostgreSQL storage, the
+# bytes in one transaction. The scan runs in a child that cannot reach the
+# database.
+async sub upload_for_post_p ( $self, $input, $context = undef ) {
+    my $invalid = missing_command_id($input);
+    return $invalid if $invalid;
+    my ( $store, $log ) = ( $self->store, $self->command_idempotency );
+    return $self->upload_for_post($input)
+      if !$store->can('with_post_write_p')
+      || !$store->functions
+      || !$self->pipeline->can('upload_and_link_p')
+      || ( $log && !$log->can('result_of_p') );
+
+    # The scan reads the source alone: it runs before the command's
+    # transaction takes a pooled connection and the post's locks.
+    if ( $self->pipeline->can('prescan_p') ) {
+        $input =
+          { %{$input}, prescanned => await $self->pipeline->prescan_p($input) };
+    }
+    my $run_p = async sub ($scope) {
+        return await $self->_post_store_write_p(
+            $input, $scope, $context,
+            sub ($functions) {
+                return $self->_upload_once_p( $input, $functions, $context );
+            }
+        );
+    };
+    my $result;
+    try {
+        $result =
+          $log
+          ? await $log->result_of_p(
+            { %{ _upload_job($input) }, run_p => $run_p }, $context )
+          : await $store->functions->transaction_p( $run_p, $context );
+    }
+    catch ($error) {
+        log_error( $self->logger, "attachment command log failed: $error" );
+        $result = _failed_result();
+    };
+    return $self->_settled($result);
+}
+
+sub _upload_job ($input) {
+    return {
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'attachment.upload',
+        request      => {
+            actor_user_id => $input->{actor_user_id},
+            post_id       => $input->{post_id},
+        },
+    };
+}
+
+# The bytes are written before the rows, inside the command's transaction:
+# a command that does not go through rolls the rows back, and its bytes
+# stayed in storage, where the orphan purge, which walks rows, never looks.
+sub _settled ( $self, $result ) {
     if ( $result->{ok} ) {
         $self->pipeline->forget_written;
     }
@@ -71,7 +123,26 @@ sub download ( $self, $input ) {
 }
 
 sub download_metadata ( $self, $input ) {
-    my $result = $self->download($input);
+    return _metadata( $self->download($input) );
+}
+
+# The download's decision on the worker's pooled asynchronous connections.
+async sub download_metadata_p ( $self, $input, $context = undef ) {
+    my $delivery = $self->delivery;
+    return $self->download_metadata($input) if !$delivery->can('download_p');
+    my ( $value, $failure );
+    try {
+        $value =
+          await $delivery->download_p( _download_input($input), $context );
+    }
+    catch ($error) { $failure = $error; };
+    return _metadata(
+        $self->_store_answer( 'attachment not found', $value, $failure ) );
+}
+
+# A download's answer with its object as plain data: a PostgreSQL object by
+# key, a file by path, anything else read whole.
+sub _metadata ($result) {
     return $result if !$result->{ok};
     my $stored = $result->{stored};
     my $asset  = delete $stored->{object_asset};
@@ -107,19 +178,42 @@ sub _upload_once ( $self, $input ) {
     }
 
     return _linked_upload(
-        $self->pipeline->upload_and_link(
-            {
-                actor_user_id    => $input->{actor_user_id},
-                target_id        => _column( $post, 'post_id' ),
-                target_type      => 'post',
-                upload           => $input->{upload},
-                source_kind      => $input->{source_kind},
-                source_url       => $input->{source_url},
-                rights_confirmed => $input->{rights_confirmed},
-            }
+        $self->pipeline->upload_and_link( _upload_request( $input, $post ) ),
+        $post, );
+}
+
+async sub _upload_once_p ( $self, $input, $functions, $context ) {
+    my $post =
+      await $self->post_reader->find_visible_post_p( $input->{post_id},
+        $input->{viewer}, $context );
+    return undef if !$post;
+    return { error => 'post author required', forbidden => 1 }
+      if !_same_author( $post, $input->{actor_user_id} );
+
+    return _linked_upload(
+        await $self->pipeline->upload_and_link_p(
+            _upload_request( $input, $post ),
+            $context, $functions
         ),
         $post,
     );
+}
+
+sub _upload_request ( $input, $post ) {
+    return {
+        actor_user_id    => $input->{actor_user_id},
+        target_id        => _column( $post, 'post_id' ),
+        target_type      => 'post',
+        upload           => $input->{upload},
+        source_kind      => $input->{source_kind},
+        source_url       => $input->{source_url},
+        rights_confirmed => $input->{rights_confirmed},
+        (
+            exists $input->{prescanned}
+            ? ( prescanned => $input->{prescanned} )
+            : ()
+        ),
+    };
 }
 
 sub delete_for_post ( $self, $input ) {
@@ -134,17 +228,83 @@ sub delete_for_post ( $self, $input ) {
 sub _commanded_delete ( $self, $input ) {
     return $self->_commanded_write(
         {
-            actor_id     => $input->{actor_user_id},
-            command_id   => $input->{command_id},
-            command_type => 'attachment.delete',
-            request      => {
-                actor_user_id => $input->{actor_user_id},
-                attachment_id => $input->{attachment_id},
-                post_id       => $input->{post_id},
-            },
+            %{ _delete_job($input) },
             run => sub { return $self->_delete_store_write($input); },
         }
     );
+}
+
+# The deletion on the worker's pooled asynchronous connections: the command
+# log's steps, the post's locks and the store's writes in one transaction.
+async sub delete_for_post_p ( $self, $input, $context = undef ) {
+    my $invalid = missing_command_id($input);
+    return $invalid if $invalid;
+    my ( $store, $log ) = ( $self->store, $self->command_idempotency );
+    return $self->delete_for_post($input)
+      if !$store->can('delete_linked_p')
+      || !$store->functions
+      || ( $log && !$log->can('result_of_p') );
+
+    my $run_p = async sub ($scope) {
+        return await $self->_post_store_write_p(
+            $input, $scope, $context,
+            sub ($functions) {
+                return $self->_delete_once_p( $input, $functions, $context );
+            }
+        );
+    };
+    my $result;
+    try {
+        $result =
+          $log
+          ? await $log->result_of_p(
+            { %{ _delete_job($input) }, run_p => $run_p }, $context )
+          : await $store->functions->transaction_p( $run_p, $context );
+    }
+    catch ($error) {
+        log_error( $self->logger, "attachment command log failed: $error" );
+        return _failed_result();
+    };
+    return $result;
+}
+
+sub _delete_job ($input) {
+    return {
+        actor_id     => $input->{actor_user_id},
+        command_id   => $input->{command_id},
+        command_type => 'attachment.delete',
+        request      => {
+            actor_user_id => $input->{actor_user_id},
+            attachment_id => $input->{attachment_id},
+            post_id       => $input->{post_id},
+        },
+    };
+}
+
+# A write on a post (_upload_once_p, _delete_once_p) under the post's locks
+# in the transaction $scope belongs to.
+async sub _post_store_write_p ( $self, $input, $scope, $context, $once_p ) {
+    my ( $value, $failure );
+    try {
+        $value = await $self->store->with_post_write_p( $input, $once_p, $scope,
+            $context );
+
+        # As _post_write: a guard's refusal does not reveal a post the
+        # viewer cannot read.
+        if (
+               $value
+            && $value->{forbidden}
+            && !await $self->post_reader->find_visible_post_p(
+                $input->{post_id}, $input->{viewer}, $context
+            )
+          )
+        {
+            $value = undef;
+        }
+    }
+    catch ($error) { $failure = $error; };
+    return _public_write_result(
+        $self->_store_answer( 'post not found', $value, $failure ) );
 }
 
 sub _delete_store_write ( $self, $input ) {
@@ -277,27 +437,46 @@ sub _delete_once ( $self, $input ) {
     }
 
     return _linked_delete(
-        $self->store->delete_linked(
-            {
-                actor_id      => $input->{actor_user_id},
-                attachment_id => $input->{attachment_id},
-                target_id     => _column( $post, 'post_id' ),
-                target_type   => 'post',
-            }
+        $self->store->delete_linked( _delete_link( $input, $post ) ), $post, );
+}
+
+async sub _delete_once_p ( $self, $input, $functions, $context ) {
+    my $post =
+      await $self->post_reader->find_visible_post_p( $input->{post_id},
+        $input->{viewer}, $context );
+    return undef if !$post;
+    return { error => 'post author required', forbidden => 1 }
+      if !_same_author( $post, $input->{actor_user_id} );
+
+    return _linked_delete(
+        await $self->store->delete_linked_p(
+            _delete_link( $input, $post ),
+            $functions, $context
         ),
         $post,
     );
 }
 
+sub _delete_link ( $input, $post ) {
+    return {
+        actor_id      => $input->{actor_user_id},
+        attachment_id => $input->{attachment_id},
+        target_id     => _column( $post, 'post_id' ),
+        target_type   => 'post',
+    };
+}
+
 sub _download_once ( $self, $input ) {
-    return $self->delivery->download(
-        {
-            attachment_id  => $input->{attachment_id},
-            preview        => $input->{preview},
-            viewer         => $input->{viewer},
-            viewer_user_id => $input->{viewer_user_id},
-        }
-    );
+    return $self->delivery->download( _download_input($input) );
+}
+
+sub _download_input ($input) {
+    return {
+        attachment_id  => $input->{attachment_id},
+        preview        => $input->{preview},
+        viewer         => $input->{viewer},
+        viewer_user_id => $input->{viewer_user_id},
+    };
 }
 
 sub _linked_upload ( $uploaded, $post ) {
@@ -330,17 +509,24 @@ sub _same_author ( $post, $user_id ) {
 }
 
 sub _run_store ( $self, $not_found, $code ) {
-    my $value;
+    my ( $value, $failure );
     try {
         $value = $code->();
     }
-    catch ($error) {
-        log_error( $self->logger, "attachment request failed: $error" );
+    catch ($error) { $failure = $error; };
+
+    return $self->_store_answer( $not_found, $value, $failure );
+}
+
+# A store that died failed and is logged; otherwise its answer decides.
+sub _store_answer ( $self, $not_found, $value, $failure ) {
+    if ( defined $failure ) {
+        log_error( $self->logger, "attachment request failed: $failure" );
         return workflow_result(
             error  => 'attachment store failed',
             status => 'failed',
         );
-    };
+    }
 
     return _stored_result( $not_found, $value );
 }
@@ -429,10 +615,24 @@ A failed command log or write is logged at C<error> level through C<logger>
 Uploads and links an attachment to a visible post owned by the actor.
 Requires C<command_id>.
 
+=head2 upload_for_post_p
+
+L</upload_for_post> as a promise, with an optional query context last: the
+command log's steps, the post's locks, the attachment's rows and, in
+PostgreSQL storage, its bytes commit in one transaction on the worker's
+pooled asynchronous connections. Hashing a large upload and the antivirus
+scan run in a child that cannot reach the database.
+
 =head2 delete_for_post
 
 Soft-deletes an attachment linked to a visible post owned by the actor.
 Already-deleted rows replay as success. Requires C<command_id>.
+
+=head2 delete_for_post_p
+
+L</delete_for_post> as a promise, with an optional query context last: the
+command log's steps, the post's locks and the store's writes commit in one
+transaction on the worker's pooled asynchronous connections.
 
 =head2 download
 
@@ -441,6 +641,12 @@ Delivers attachment bytes for an authorized viewer.
 =head2 download_metadata
 
 Authorizes a download and returns a data-only descriptor for reconstruction in the web process; database handles never cross subprocess IPC.
+
+=head2 download_metadata_p
+
+L</download_metadata> as a promise, with an optional query context last: the
+decision and the object's size are read on the worker's pooled asynchronous
+connections.
 
 =head1 DIAGNOSTICS
 

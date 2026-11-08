@@ -3,7 +3,7 @@
 
 package GPForum::Service::Realtime::PgNotifier;
 
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Storage;
@@ -28,26 +28,10 @@ has stats  => sub {
 };
 
 sub notify ( $self, $event ) {
-    my $serialized = $self->event_contract->serialize($event);
-    if ( !$serialized->{ok} ) {
-        $self->stats->{rejected} += 1;
-        return {
-            ok           => 0,
-            failure_type => 'serialization',
-            reason       => $serialized->{reason},
-        };
-    }
-
+    my $serialized = $self->_serialized($event);
+    return $serialized->{refusal} if $serialized->{refusal};
     my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
-    if ( !$dbh ) {
-        $self->stats->{degraded} += 1;
-        return {
-            ok           => 0,
-            degraded     => 1,
-            failure_type => 'transport',
-            reason       => 'notify_unavailable',
-        };
-    }
+    return $self->_unavailable if !$dbh;
 
     try {
         if ( $self->functions ) {
@@ -60,15 +44,65 @@ sub notify ( $self, $event ) {
         }
     }
     catch ($error) {
-        $self->stats->{notify_failures} += 1;
-        return {
-            ok           => 0,
-            degraded     => 1,
-            failure_type => 'transport',
-            reason       => 'notify_failed',
-        };
+        return $self->_notify_failed;
     };
 
+    return $self->_notified($serialized);
+}
+
+# The NOTIFY on the worker's pooled asynchronous connections: one
+# api.ops_publish_notification call. Without the function layer the
+# blocking path answers.
+async sub notify_p ( $self, $event, $context = undef ) {
+    return $self->notify($event) if !$self->functions;
+    my $serialized = $self->_serialized($event);
+    return $serialized->{refusal} if $serialized->{refusal};
+    try {
+        await $self->functions->row_p( 'ops_publish_notification',
+            { channel => $self->channel, payload => $serialized->{json} },
+            $context );
+    }
+    catch ($error) {
+        return $self->_notify_failed;
+    };
+
+    return $self->_notified($serialized);
+}
+
+sub _serialized ( $self, $event ) {
+    my $serialized = $self->event_contract->serialize($event);
+    return $serialized if $serialized->{ok};
+    $self->stats->{rejected} += 1;
+    return {
+        refusal => {
+            ok           => 0,
+            failure_type => 'serialization',
+            reason       => $serialized->{reason},
+        }
+    };
+}
+
+sub _unavailable ($self) {
+    $self->stats->{degraded} += 1;
+    return {
+        ok           => 0,
+        degraded     => 1,
+        failure_type => 'transport',
+        reason       => 'notify_unavailable',
+    };
+}
+
+sub _notify_failed ($self) {
+    $self->stats->{notify_failures} += 1;
+    return {
+        ok           => 0,
+        degraded     => 1,
+        failure_type => 'transport',
+        reason       => 'notify_failed',
+    };
+}
+
+sub _notified ( $self, $serialized ) {
     $self->stats->{notified} += 1;
 
     return {
@@ -203,6 +237,11 @@ refused; C<transport> with C<< degraded => 1 >> and C<notify_unavailable>
 when there is no schema or asking it for a handle fails; C<transport> with
 C<< degraded => 1 >> and C<notify_failed> when the C<pg_notify> statement
 dies.
+
+=head2 notify_p
+
+L</notify> as a promise, with an optional query context last: the NOTIFY is
+sent on the worker's pooled asynchronous connections. Answers as L</notify>.
 
 =head2 notify_many
 

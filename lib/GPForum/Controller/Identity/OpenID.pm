@@ -75,7 +75,7 @@ async sub link_identity ($self) {
 
 sub _begin ( $self, $input ) {
     return $self->respond_p(
-        $self->work_p( $self->_provider, 'begin', $input ),
+        $self->call_p( $self->_provider, 'begin', $input ),
         sub ($result) { return $self->_begin_result($result); },
         sub ($error) {
             return $self->render(
@@ -149,7 +149,7 @@ async sub remove_link ($self) {
         await $self->await_p( $self->identity_post_guard('identity.login') ) );
     my $actor = $self->current_user_id or return $self->redirect_to('login');
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->_provider,
             'remove_link',
             {
@@ -175,7 +175,6 @@ sub _removed_link ( $self, $answer ) {
 
 sub _provider ($self) {
     return GPForum::Service::Identity::OpenID->new(
-        async_work       => $self->async_work,
         query_context    => $self->stash('gp_db_query_stats_token'),
         schema           => $self->gp_schema,
         policy_available => $self->gp_configuration->state->{available} ? 1 : 0,

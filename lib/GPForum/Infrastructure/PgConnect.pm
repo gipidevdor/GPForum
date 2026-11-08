@@ -72,7 +72,7 @@ sub _dsn_p ( $self, $pg ) {
     return Mojo::Promise->resolve( $kept->{dsn} )
       if $kept && $kept->{expires} > time;
     return $self->{resolving}{$key} if $self->{resolving}{$key};
-    my $promise = GPForum::Infrastructure::AsyncWork->shared->run_p(
+    my $promise = GPForum::Infrastructure::AsyncWork->shared->cpu_p(
         sub {
             return !defined $host
               ? _service_dsn($pg)

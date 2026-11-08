@@ -4,7 +4,7 @@
 package GPForum::Service::Identity::Workflow;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(has_text trimmed);
@@ -75,8 +75,30 @@ sub login ( $self, $input ) {
         return $invalid;
     }
 
-    my $tried = $self->_try_store(
-        sub { return $self->store->authenticate_login($input); } );
+    return $self->_login_answer(
+        $self->_try_store(
+            sub { return $self->store->authenticate_login($input); }
+        )
+    );
+}
+
+# login on the worker's pooled asynchronous connections, Argon2 in a child
+# of the CPU lane on plain data.
+async sub login_p ( $self, $input, $context = undef ) {
+    return $self->login($input) if !$self->_native;
+    my $invalid = $self->_missing_fields( $input, [qw(identifier password)] );
+    return $invalid if $invalid;
+
+    return $self->_login_answer(
+        await $self->_try_store_p(
+            sub {
+                return $self->store->authenticate_login_p( $input, $context );
+            }
+        )
+    );
+}
+
+sub _login_answer ( $self, $tried ) {
     if ( $tried->{failed} ) {
         return _failed_result();
     }
@@ -124,8 +146,28 @@ sub _second_step ($stored) {
 # it, with how it passed; or the refusal, status expired, wrong (with
 # attempts_left) or locked.
 sub complete_second_factor ( $self, $input ) {
-    my $tried = $self->_try_store(
-        sub { return $self->store->complete_second_factor($input); } );
+    return $self->_second_factor_answer(
+        $self->_try_store(
+            sub { return $self->store->complete_second_factor($input); }
+        )
+    );
+}
+
+# complete_second_factor on the worker's pooled asynchronous connections.
+async sub complete_second_factor_p ( $self, $input, $context = undef ) {
+    return $self->complete_second_factor($input) if !$self->_native;
+
+    return $self->_second_factor_answer(
+        await $self->_try_store_p(
+            sub {
+                return $self->store->complete_second_factor_p( $input,
+                    $context );
+            }
+        )
+    );
+}
+
+sub _second_factor_answer ( $self, $tried ) {
     if ( $tried->{failed} ) {
         return _failed_result();
     }
@@ -179,24 +221,56 @@ sub logout ( $self, $input ) {
 
     return $self->_commanded_write(
         {
-            actor_id     => $input->{user_id},
-            command_id   => $input->{command_id},
-            command_type => 'identity.logout',
-            request      => {
-                session_id => trimmed( $input->{session_id} ),
-                user_id    => trimmed( $input->{user_id} ),
-            },
+            %{ _logout_command($input) },
             run => sub {
-                if ( !length trimmed( $input->{session_id} ) ) {
-                    return workflow_result(
-                        status => 'ok',
-                        stored => { skipped => 1 },
-                    );
-                }
+                return _signed_out() if !length trimmed( $input->{session_id} );
                 return $self->_public_consume_result(
                     sub { return $self->store->revoke_session($input); } );
             },
         }
+    );
+}
+
+# logout on the worker's pooled asynchronous connections: the command
+# log's steps and the revocation commit in one transaction.
+async sub logout_p ( $self, $input, $context = undef ) {
+    return $self->logout($input) if !$self->_native;
+    my $invalid = $self->_missing_fields( $input, ['command_id'] );
+    return $invalid if $invalid;
+
+    return await $self->_commanded_write_p(
+        {
+            %{ _logout_command($input) },
+            run_p => async sub ($scope) {
+                return _signed_out() if !length trimmed( $input->{session_id} );
+                return await $self->_public_consume_result_p(
+                    sub {
+                        return $self->store->revoke_session_p( $input,
+                            $context, $scope );
+                    }
+                );
+            },
+        },
+        $context
+    );
+}
+
+sub _logout_command ($input) {
+    return {
+        actor_id     => $input->{user_id},
+        command_id   => $input->{command_id},
+        command_type => 'identity.logout',
+        request      => {
+            session_id => trimmed( $input->{session_id} ),
+            user_id    => trimmed( $input->{user_id} ),
+        },
+    };
+}
+
+sub _signed_out {
+    return workflow_result(
+        status => 'ok',
+        stored => { skipped => 1 },
     );
 }
 
@@ -208,29 +282,67 @@ sub request_password_reset ( $self, $input ) {
 
     return $self->_commanded_token_write(
         {
-            actor_id     => undef,
-            command_id   => $input->{command_id},
-            command_type => 'identity.password_reset',
-            request      => { identifier => trimmed( $input->{identifier} ) },
-            run          => sub {
+            %{ _password_reset_command($input) },
+            run => sub {
                 return $self->store->request_password_reset($input);
             },
         }
     );
 }
 
-sub reset_password ( $self, $input ) {
-    return $self->_token_consume_write(
+# The account writes below, each on the worker's pooled asynchronous
+# connections: the command log's steps and the store's writes commit in
+# one transaction, Argon2 in a child of the CPU lane.
+async sub request_password_reset_p ( $self, $input, $context = undef ) {
+    return $self->request_password_reset($input) if !$self->_native;
+    my $invalid = $self->_missing_fields( $input, [qw(command_id identifier)] );
+    return $invalid if $invalid;
+
+    return await $self->_commanded_token_write_p(
         {
-            command_type => 'identity.password_reset_complete',
-            extra_fields => ['password'],
-            input        => $input,
-            refusal      => 'abandon',
-            run          => sub {
-                return $self->store->reset_password($input);
+            %{ _password_reset_command($input) },
+            run_p => sub ($scope) {
+                return $self->store->request_password_reset_p( $input,
+                    $context, $scope );
             },
-        }
+        },
+        $context
     );
+}
+
+sub _password_reset_command ($input) {
+    return {
+        actor_id     => undef,
+        command_id   => $input->{command_id},
+        command_type => 'identity.password_reset',
+        request      => { identifier => trimmed( $input->{identifier} ) },
+    };
+}
+
+sub reset_password ( $self, $input ) {
+    return $self->_token_consume_write( _reset_job($input),
+        sub { return $self->store->reset_password($input); } );
+}
+
+async sub reset_password_p ( $self, $input, $context = undef ) {
+    return $self->reset_password($input) if !$self->_native;
+
+    return await $self->_token_consume_write_p(
+        _reset_job($input),
+        sub ($scope) {
+            return $self->store->reset_password_p( $input, $context, $scope );
+        },
+        $context
+    );
+}
+
+sub _reset_job ($input) {
+    return {
+        command_type => 'identity.password_reset_complete',
+        extra_fields => ['password'],
+        input        => $input,
+        refusal      => 'abandon',
+    };
 }
 
 sub change_password ( $self, $input ) {
@@ -246,17 +358,45 @@ sub change_password ( $self, $input ) {
     # under its command id, got the refusal back until the page was reloaded.
     return $self->_commanded_write(
         {
-            actor_id     => $input->{user_id},
-            command_id   => $input->{command_id},
-            command_type => 'identity.password_change',
-            refusal      => 'abandon',
-            request      => { user_id => $input->{user_id} },
-            run          => sub {
+            %{ _password_change_command($input) },
+            run => sub {
                 return $self->_public_consume_result(
                     sub { return $self->store->change_password($input); } );
             },
         }
     );
+}
+
+async sub change_password_p ( $self, $input, $context = undef ) {
+    return $self->change_password($input) if !$self->_native;
+    my $invalid = $self->_missing_fields( $input,
+        [qw(command_id current_password new_password user_id)] );
+    return $invalid if $invalid;
+
+    return await $self->_commanded_write_p(
+        {
+            %{ _password_change_command($input) },
+            run_p => sub ($scope) {
+                return $self->_public_consume_result_p(
+                    sub {
+                        return $self->store->change_password_p( $input,
+                            $context, $scope );
+                    }
+                );
+            },
+        },
+        $context
+    );
+}
+
+sub _password_change_command ($input) {
+    return {
+        actor_id     => $input->{user_id},
+        command_id   => $input->{command_id},
+        command_type => 'identity.password_change',
+        refusal      => 'abandon',
+        request      => { user_id => $input->{user_id} },
+    };
 }
 
 sub request_email_change ( $self, $input ) {
@@ -269,19 +409,43 @@ sub request_email_change ( $self, $input ) {
     # The current password is not in the request either (see change_password).
     return $self->_commanded_token_write(
         {
-            actor_id     => $input->{user_id},
-            command_id   => $input->{command_id},
-            command_type => 'identity.email_change',
-            refusal      => 'abandon',
-            request      => {
-                email   => trimmed( $input->{email} ),
-                user_id => $input->{user_id},
-            },
+            %{ _email_change_command($input) },
             run => sub {
                 return $self->store->request_email_change($input);
             },
         }
     );
+}
+
+async sub request_email_change_p ( $self, $input, $context = undef ) {
+    return $self->request_email_change($input) if !$self->_native;
+    my $invalid =
+      $self->_missing_fields( $input, [qw(command_id current_password)] );
+    return $invalid if $invalid;
+
+    return await $self->_commanded_token_write_p(
+        {
+            %{ _email_change_command($input) },
+            run_p => sub ($scope) {
+                return $self->store->request_email_change_p( $input,
+                    $context, $scope );
+            },
+        },
+        $context
+    );
+}
+
+sub _email_change_command ($input) {
+    return {
+        actor_id     => $input->{user_id},
+        command_id   => $input->{command_id},
+        command_type => 'identity.email_change',
+        refusal      => 'abandon',
+        request      => {
+            email   => trimmed( $input->{email} ),
+            user_id => $input->{user_id},
+        },
+    };
 }
 
 sub request_email_verification ( $self, $input ) {
@@ -292,81 +456,143 @@ sub request_email_verification ( $self, $input ) {
 
     return $self->_commanded_token_write(
         {
-            actor_id     => undef,
-            command_id   => $input->{command_id},
-            command_type => 'identity.email_verification',
-            request      => { identifier => trimmed( $input->{identifier} ) },
-            run          => sub {
+            %{ _email_verification_command($input) },
+            run => sub {
                 return $self->store->request_email_verification($input);
             },
         }
     );
 }
 
+async sub request_email_verification_p ( $self, $input, $context = undef ) {
+    return $self->request_email_verification($input) if !$self->_native;
+    my $invalid = $self->_missing_fields( $input, [qw(command_id identifier)] );
+    return $invalid if $invalid;
+
+    return await $self->_commanded_token_write_p(
+        {
+            %{ _email_verification_command($input) },
+            run_p => sub ($scope) {
+                return $self->store->request_email_verification_p( $input,
+                    $context, $scope );
+            },
+        },
+        $context
+    );
+}
+
+sub _email_verification_command ($input) {
+    return {
+        actor_id     => undef,
+        command_id   => $input->{command_id},
+        command_type => 'identity.email_verification',
+        request      => { identifier => trimmed( $input->{identifier} ) },
+    };
+}
+
 sub verify_email ( $self, $input ) {
     return $self->_token_consume_write(
-        {
-            command_type => 'identity.email_verification_complete',
-            input        => $input,
-            run          => sub {
-                return $self->store->confirm_email_verification($input);
-            },
-        }
+        _token_job( 'identity.email_verification_complete', $input ),
+        sub { return $self->store->confirm_email_verification($input); }
+    );
+}
+
+async sub verify_email_p ( $self, $input, $context = undef ) {
+    return $self->verify_email($input) if !$self->_native;
+
+    return await $self->_token_consume_write_p(
+        _token_job( 'identity.email_verification_complete', $input ),
+        sub ($scope) {
+            return $self->store->confirm_email_verification_p( $input,
+                $context, $scope );
+        },
+        $context
     );
 }
 
 sub confirm_email_change ( $self, $input ) {
     return $self->_token_consume_write(
-        {
-            command_type => 'identity.email_change_complete',
-            input        => $input,
-            run          => sub {
-                return $self->store->confirm_email_change($input);
-            },
-        }
+        _token_job( 'identity.email_change_complete', $input ),
+        sub { return $self->store->confirm_email_change($input); }
     );
+}
+
+async sub confirm_email_change_p ( $self, $input, $context = undef ) {
+    return $self->confirm_email_change($input) if !$self->_native;
+
+    return await $self->_token_consume_write_p(
+        _token_job( 'identity.email_change_complete', $input ),
+        sub ($scope) {
+            return $self->store->confirm_email_change_p( $input, $context,
+                $scope );
+        },
+        $context
+    );
+}
+
+sub _token_job ( $command_type, $input ) {
+    return {
+        command_type => $command_type,
+        input        => $input,
+    };
 }
 
 sub update_preferred_locale ( $self, $input ) {
-    return $self->_preference_write(
-        {
-            command_type => 'identity.locale_change',
-            field        => 'preferred_locale',
-            input        => $input,
-            required     => [qw(command_id user_id preferred_locale)],
-            run          => sub {
-                return $self->store->update_preferred_locale($input);
-            },
-        }
-    );
+    return $self->_preference_write( _locale_job($input) );
+}
+
+# update_preferred_locale on the worker's pooled asynchronous connections:
+# the command log's steps and the write commit in one transaction.
+async sub update_preferred_locale_p ( $self, $input, $context = undef ) {
+    return await $self->_preference_write_p( _locale_job($input), $context );
+}
+
+sub _locale_job ($input) {
+    return {
+        command_type => 'identity.locale_change',
+        field        => 'preferred_locale',
+        input        => $input,
+        method       => 'update_preferred_locale',
+        required     => [qw(command_id user_id preferred_locale)],
+    };
 }
 
 sub update_preferred_theme ( $self, $input ) {
-    return $self->_preference_write(
-        {
-            command_type => 'identity.theme_change',
-            field        => 'preferred_theme',
-            input        => $input,
-            required     => [qw(command_id user_id preferred_theme)],
-            run          => sub {
-                return $self->store->update_preferred_theme($input);
-            },
-        }
-    );
+    return $self->_preference_write( _theme_job($input) );
 }
 
-# An empty zone is a choice (the forum's default), so only the command and
-# the member are required.
+# update_preferred_theme on the worker's pooled asynchronous connections.
+async sub update_preferred_theme_p ( $self, $input, $context = undef ) {
+    return await $self->_preference_write_p( _theme_job($input), $context );
+}
+
+sub _theme_job ($input) {
+    return {
+        command_type => 'identity.theme_change',
+        field        => 'preferred_theme',
+        input        => $input,
+        method       => 'update_preferred_theme',
+        required     => [qw(command_id user_id preferred_theme)],
+    };
+}
+
 sub update_bio ( $self, $input ) {
-    return $self->_preference_write(
-        {
-            command_type => 'identity.bio_change',
-            field        => 'bio',
-            input        => $input,
-            required     => [qw(command_id user_id)],
-            run          => sub { return $self->store->update_bio($input); },
-        }
-    );
+    return $self->_preference_write( _bio_job($input) );
+}
+
+# update_bio on the worker's pooled asynchronous connections.
+async sub update_bio_p ( $self, $input, $context = undef ) {
+    return await $self->_preference_write_p( _bio_job($input), $context );
+}
+
+sub _bio_job ($input) {
+    return {
+        command_type => 'identity.bio_change',
+        field        => 'bio',
+        input        => $input,
+        method       => 'update_bio',
+        required     => [qw(command_id user_id)],
+    };
 }
 
 sub update_profile ( $self, $input ) {
@@ -374,77 +600,162 @@ sub update_profile ( $self, $input ) {
     return $invalid if $invalid;
     return $self->_commanded_write(
         {
-            actor_id     => $input->{user_id},
-            command_id   => $input->{command_id},
-            command_type => 'identity.profile_change',
-            request      => {
-                map { $_ => trimmed( $input->{$_} ) }
-                  qw(user_id display_name bio)
-            },
+            %{ _profile_command($input) },
             run => sub {
-                my $result = $self->_store_write(
-                    sub { return $self->store->update_profile($input); } );
-                return $result if !$result->{ok};
-                return workflow_result(
-                    status => 'ok',
-                    stored => {
-                        ok => 1,
-                        map { $_ => $result->{stored}{$_} }
-                          qw(display_name bio)
-                    }
+                return _profile_answer(
+                    $self->_store_write(
+                        sub { return $self->store->update_profile($input); }
+                    )
                 );
             },
         }
     );
 }
 
-sub update_preferred_timezone ( $self, $input ) {
-    return $self->_preference_write(
+# update_profile on the worker's pooled asynchronous connections.
+async sub update_profile_p ( $self, $input, $context = undef ) {
+    return $self->update_profile($input) if !$self->_native;
+    my $invalid = $self->_missing_fields( $input, [qw(command_id user_id)] );
+    return $invalid if $invalid;
+    return await $self->_commanded_write_p(
         {
-            command_type => 'identity.timezone_change',
-            field        => 'preferred_timezone',
-            input        => $input,
-            required     => [qw(command_id user_id)],
-            run          => sub {
-                return $self->store->update_preferred_timezone($input);
+            %{ _profile_command($input) },
+            run_p => async sub ($scope) {
+                return _profile_answer(
+                    await $self->_store_write_p(
+                        sub {
+                            return $self->store->update_profile_p( $input,
+                                $context, $scope );
+                        }
+                    )
+                );
             },
+        },
+        $context
+    );
+}
+
+sub _profile_command ($input) {
+    return {
+        actor_id     => $input->{user_id},
+        command_id   => $input->{command_id},
+        command_type => 'identity.profile_change',
+        request      => {
+            map { $_ => trimmed( $input->{$_} ) } qw(user_id display_name bio)
+        },
+    };
+}
+
+sub _profile_answer ($result) {
+    return $result if !$result->{ok};
+    return workflow_result(
+        status => 'ok',
+        stored => {
+            ok => 1,
+            map { $_ => $result->{stored}{$_} } qw(display_name bio)
         }
     );
+}
+
+# An empty zone is a choice (the forum's default), so only the command and
+# the member are required.
+sub update_preferred_timezone ( $self, $input ) {
+    return $self->_preference_write( _timezone_job($input) );
+}
+
+# update_preferred_timezone on the worker's pooled asynchronous connections.
+async sub update_preferred_timezone_p ( $self, $input, $context = undef ) {
+    return await $self->_preference_write_p( _timezone_job($input), $context );
+}
+
+sub _timezone_job ($input) {
+    return {
+        command_type => 'identity.timezone_change',
+        field        => 'preferred_timezone',
+        input        => $input,
+        method       => 'update_preferred_timezone',
+        required     => [qw(command_id user_id)],
+    };
 }
 
 # A preference write answers with the value stored and nothing else.
 sub _preference_write ( $self, $job ) {
-    my $input   = $job->{input};
-    my $field   = $job->{field};
-    my $invalid = $self->_missing_fields( $input, $job->{required} );
-    if ($invalid) {
-        return $invalid;
-    }
+    my $invalid = $self->_missing_fields( $job->{input}, $job->{required} );
+    return $invalid if $invalid;
 
+    my $method = $job->{method};
     return $self->_commanded_write(
         {
-            actor_id     => $input->{user_id},
-            command_id   => $input->{command_id},
-            command_type => $job->{command_type},
-            request      => {
-                $field  => trimmed( $input->{$field} ),
-                user_id => $input->{user_id},
-            },
+            %{ _preference_command($job) },
             run => sub {
-                my $result = $self->_store_write( $job->{run} );
-                if ( !$result->{ok} ) {
-                    return $result;
-                }
-                return workflow_result(
-                    status => 'ok',
-                    stored => {
-                        ok     => 1,
-                        $field => $result->{stored}{$field},
-                    },
+                return _preference_answer(
+                    $job->{field},
+                    $self->_store_write(
+                        sub { return $self->store->$method( $job->{input} ); }
+                    )
                 );
             },
         }
     );
+}
+
+async sub _preference_write_p ( $self, $job, $context ) {
+    return $self->_preference_write($job) if !$self->_native;
+    my $invalid = $self->_missing_fields( $job->{input}, $job->{required} );
+    return $invalid if $invalid;
+
+    my $method = $job->{method} . '_p';
+    return await $self->_commanded_write_p(
+        {
+            %{ _preference_command($job) },
+            run_p => async sub ($scope) {
+                return _preference_answer(
+                    $job->{field},
+                    await $self->_store_write_p(
+                        sub {
+                            return $self->store->$method( $job->{input},
+                                $context, $scope );
+                        }
+                    )
+                );
+            },
+        },
+        $context
+    );
+}
+
+sub _preference_command ($job) {
+    my $input = $job->{input};
+    my $field = $job->{field};
+    return {
+        actor_id     => $input->{user_id},
+        command_id   => $input->{command_id},
+        command_type => $job->{command_type},
+        request      => {
+            $field  => trimmed( $input->{$field} ),
+            user_id => $input->{user_id},
+        },
+    };
+}
+
+sub _preference_answer ( $field, $result ) {
+    return $result if !$result->{ok};
+    return workflow_result(
+        status => 'ok',
+        stored => {
+            ok     => 1,
+            $field => $result->{stored}{$field},
+        },
+    );
+}
+
+# Whether the writes run natively on the pooled asynchronous connections:
+# the store is on PostgreSQL, and so is the command log when there is one.
+# Doubles keep the blocking path.
+sub _native ($self) {
+    return 0 if !_call_layer( $self->store );
+    return 1 if !$self->command_idempotency;
+    return _call_layer( $self->command_idempotency ) ? 1 : 0;
 }
 
 # The store's call layer (Infrastructure::SqlFunction), when the command
@@ -478,14 +789,7 @@ sub _invitation_hash ($input) {
 }
 
 sub _register_by_function ( $self, $input ) {
-    my $request = {
-        email    => trimmed( $input->{email} ),
-        username => trimmed( $input->{username} ),
-    };
-
-    if ( my $hash = _invitation_hash($input) ) {
-        $request->{invitation_hash} = $hash;
-    }
+    my $request = _register_request($input);
 
     # The command log's ids and time are drawn before the registration's, as
     # CommandIdempotency draws them before the work it guards. The password
@@ -501,22 +805,12 @@ sub _register_by_function ( $self, $input ) {
         return _failed_result();
     }
     if ( !$prepared->{ok} ) {
-        my $invalid = workflow_result(
-            errors => $prepared->{errors},
-            status => 'invalid',
-            stored => { values => $prepared->{values} },
-        );
-        my $row = $self->_registered( $log, { answer => $invalid } );
+        my $invalid = _invalid_registration($prepared);
+        my $row     = $self->_registered( $log, { answer => $invalid } );
         return $row->{result} // $invalid;
     }
     my $registration = $prepared->{registration};
-    my $refused      = workflow_result(
-        errors => {
-            registration => 'registration request could not be accepted',
-        },
-        status => 'invalid',
-        stored => { values => $prepared->{values} },
-    );
+    my $refused      = _refused_registration($prepared);
     for my $attempt ( 1 .. $REGISTER_ATTEMPTS ) {
         my $call;
         try {
@@ -526,44 +820,130 @@ sub _register_by_function ( $self, $input ) {
             log_error( $self->logger, "identity registration failed: $error" );
             return _failed_result();
         };
-        my $row = $self->_registered(
-            $log,
-            {
-                %{$call},
-                invitation_hash => _invitation_hash($input),
-                accepted        => workflow_result(
-                    status => 'ok',
-                    stored => {
-                        registration => $registration,
-                        user         => $registration->{user},
-                        values       => $prepared->{values},
-                    }
-                ),
-                refused => $refused,
-            }
-        );
+        my $row = $self->_registered( $log,
+            _register_documents( $call, $input, $prepared, $refused ) );
         if ( $row->{retry} && $attempt < $REGISTER_ATTEMPTS ) {
             $registration->{user}{id} = $self->store->id_service->uuid;
             next;
         }
-        if ( !$row->{recorded} ) {
-            return $row->{result} // _failed_result();
+        return $self->_registration_result( $row, $prepared, $refused );
+    }
+    return _failed_result();
+}
+
+# register on the worker's pooled asynchronous connections: the password
+# hashed in a child of the CPU lane, then the registration as one call
+# (api.identity_register_command), as _register_by_function makes it.
+async sub register_p ( $self, $input, $context = undef ) {
+    return $self->register($input)
+      if !$self->command_idempotency || !$self->_functions;
+    my $invalid = $self->_missing_fields( $input, ['command_id'] );
+    return $invalid if $invalid;
+
+    my $log =
+      $self->_command_log( $input, $REGISTER, _register_request($input) );
+    my $tried = await $self->_try_store_p(
+        sub { return $self->registration->prepare_p($input); } );
+    my $prepared = $tried->{value};
+    if ( $tried->{failed} || !$prepared ) {
+        return _failed_result();
+    }
+    if ( !$prepared->{ok} ) {
+        my $refusal = _invalid_registration($prepared);
+        my $row =
+          await $self->_registered_p( $log, { answer => $refusal }, $context );
+        return $row->{result} // $refusal;
+    }
+    my $registration = $prepared->{registration};
+    my $refused      = _refused_registration($prepared);
+    for my $attempt ( 1 .. $REGISTER_ATTEMPTS ) {
+        my $call;
+        try {
+            $call = $self->store->register_call( $registration, $input );
         }
-        if ( ( $row->{response}{status} // q{} ) ne 'ok' ) {
-            return $refused;
+        catch ($error) {
+            log_error( $self->logger, "identity registration failed: $error" );
+            return _failed_result();
+        };
+        my $row =
+          await $self->_registered_p( $log,
+            _register_documents( $call, $input, $prepared, $refused ),
+            $context );
+        if ( $row->{retry} && $attempt < $REGISTER_ATTEMPTS ) {
+            $registration->{user}{id} = $self->store->id_service->uuid;
+            next;
         }
-        return workflow_result(
+        return $self->_registration_result( $row, $prepared, $refused );
+    }
+    return _failed_result();
+}
+
+sub _register_request ($input) {
+    my $request = {
+        email    => trimmed( $input->{email} ),
+        username => trimmed( $input->{username} ),
+    };
+    if ( my $hash = _invitation_hash($input) ) {
+        $request->{invitation_hash} = $hash;
+    }
+
+    return $request;
+}
+
+sub _invalid_registration ($prepared) {
+    return workflow_result(
+        errors => $prepared->{errors},
+        status => 'invalid',
+        stored => { values => $prepared->{values} },
+    );
+}
+
+sub _refused_registration ($prepared) {
+    return workflow_result(
+        errors => {
+            registration => 'registration request could not be accepted',
+        },
+        status => 'invalid',
+        stored => { values => $prepared->{values} },
+    );
+}
+
+sub _register_documents ( $call, $input, $prepared, $refused ) {
+    my $registration = $prepared->{registration};
+    return {
+        %{$call},
+        invitation_hash => _invitation_hash($input),
+        accepted        => workflow_result(
             status => 'ok',
             stored => {
                 registration => $registration,
-                user => GPForum::Infrastructure::ResultRow::IdentityUser->from(
-                    $row->{stored_user}, $self->_functions
-                ),
-                values => $prepared->{values},
-            },
-        );
+                user         => $registration->{user},
+                values       => $prepared->{values},
+            }
+        ),
+        refused => $refused,
+    };
+}
+
+# What a registration call's row answers: the result it recorded, or the
+# refusal, or the result to return when it did not record.
+sub _registration_result ( $self, $row, $prepared, $refused ) {
+    if ( !$row->{recorded} ) {
+        return $row->{result} // _failed_result();
     }
-    return _failed_result();
+    if ( ( $row->{response}{status} // q{} ) ne 'ok' ) {
+        return $refused;
+    }
+    return workflow_result(
+        status => 'ok',
+        stored => {
+            registration => $prepared->{registration},
+            user => GPForum::Infrastructure::ResultRow::IdentityUser->from(
+                $row->{stored_user}, $self->_functions
+            ),
+            values => $prepared->{values},
+        },
+    );
 }
 
 # One call to api.identity_register_command, with the answers to record
@@ -572,27 +952,47 @@ sub _register_by_function ( $self, $input ) {
 # when the user's id is another account's, or `recorded` with the row's
 # response and the user stored.
 sub _registered ( $self, $log, $call ) {
+    my $row;
+    try {
+        $row = $self->_functions->row( 'identity_register_command',
+            _register_parameters( $log, $call ) );
+    }
+    catch ($error) {
+        return $self->_register_failure($error);
+    };
+    return _register_outcome($row);
+}
+
+async sub _registered_p ( $self, $log, $call, $context ) {
+    my $row;
+    try {
+        $row = await $self->_functions->row_p( 'identity_register_command',
+            _register_parameters( $log, $call ), $context );
+    }
+    catch ($error) {
+        return $self->_register_failure($error);
+    };
+    return _register_outcome($row);
+}
+
+sub _register_parameters ( $log, $call ) {
     my %documents = %{$call};
     for my $answer ( grep { $documents{$_} } qw(answer accepted refused) ) {
         $documents{$answer} = _command_log_response( $documents{$answer} );
     }
-    my $row;
-    try {
-        $row = $self->_functions->row(
-            'identity_register_command',
-            {
-                log => $log,
-                map { $_ => $documents{$_} } @REGISTER_PARAMETERS
-            }
-        );
-    }
-    catch ($error) {
-        my $conflict = GPForum::X::Conflict->caught($error);
-        return { retry => 1 }
-          if $conflict && $conflict->on($USER_ID_CONSTRAINT);
-        log_error( $self->logger, "identity command log failed: $error" );
-        return { result => _failed_result() };
-    };
+
+    return { log => $log, map { $_ => $documents{$_} } @REGISTER_PARAMETERS };
+}
+
+sub _register_failure ( $self, $error ) {
+    my $conflict = GPForum::X::Conflict->caught($error);
+    return { retry => 1 }
+      if $conflict && $conflict->on($USER_ID_CONSTRAINT);
+    log_error( $self->logger, "identity command log failed: $error" );
+    return { result => _failed_result() };
+}
+
+sub _register_outcome ($row) {
     my $outcome = $row->{outcome} // q{};
     return { result => $row->{response} } if $outcome eq 'replayed';
     return {
@@ -681,30 +1081,66 @@ sub _register_account ( $self, $input ) {
     );
 }
 
-sub _token_consume_write ( $self, $job ) {
-    my $input   = $job->{input};
-    my $invalid = $self->_missing_fields( $input,
-        [ 'command_id', 'token', @{ $job->{extra_fields} || [] } ] );
+# A write that consumes a token: the job names the command, the run writes.
+sub _token_consume_write ( $self, $job, $run ) {
+    my $invalid = $self->_token_missing($job);
     if ($invalid) {
         return $invalid;
     }
 
     return $self->_commanded_write(
         {
-            actor_id     => undef,
-            command_id   => $input->{command_id},
-            command_type => $job->{command_type},
-            refusal      => $job->{refusal},
-            request      => { token => trimmed( $input->{token} ) },
-            run          => sub {
-                return $self->_public_consume_result( $job->{run} );
+            %{ _token_command($job) },
+            run => sub {
+                return $self->_public_consume_result($run);
             },
         }
     );
 }
 
+# _token_consume_write on the pooled connections: $run_p takes the call
+# layer to write on.
+async sub _token_consume_write_p ( $self, $job, $run_p, $context ) {
+    my $invalid = $self->_token_missing($job);
+    return $invalid if $invalid;
+
+    return await $self->_commanded_write_p(
+        {
+            %{ _token_command($job) },
+            run_p => sub ($scope) {
+                return $self->_public_consume_result_p(
+                    sub { return $run_p->($scope); } );
+            },
+        },
+        $context
+    );
+}
+
+sub _token_missing ( $self, $job ) {
+    return $self->_missing_fields( $job->{input},
+        [ 'command_id', 'token', @{ $job->{extra_fields} || [] } ] );
+}
+
+sub _token_command ($job) {
+    my $input = $job->{input};
+    return {
+        actor_id     => undef,
+        command_id   => $input->{command_id},
+        command_type => $job->{command_type},
+        refusal      => $job->{refusal},
+        request      => { token => trimmed( $input->{token} ) },
+    };
+}
+
 sub _public_consume_result ( $self, $code ) {
-    my $result = $self->_store_write($code);
+    return _consumed( $self->_store_write($code) );
+}
+
+async sub _public_consume_result_p ( $self, $code ) {
+    return _consumed( await $self->_store_write_p($code) );
+}
+
+sub _consumed ($result) {
     if ( !$result->{ok} ) {
         return $result;
     }
@@ -768,24 +1204,77 @@ sub _commanded_write ( $self, $job ) {
     );
 }
 
+# _commanded_write on the worker's pooled asynchronous connections. The
+# job's run_p takes the call layer to write on: the command log's
+# transaction, or the store's own without a command log. A failed or
+# abandoned answer rolls the whole command back, as the blocking log does.
+async sub _commanded_write_p ( $self, $job, $context ) {
+    if ( !$self->command_idempotency ) {
+        return await $job->{run_p}->( _call_layer( $self->store ) );
+    }
+
+    my $result;
+    try {
+        $result = await $self->command_idempotency->result_of_p(
+            {
+                actor_id     => $job->{actor_id},
+                command_id   => trimmed( $job->{command_id} ),
+                command_type => $job->{command_type},
+                request      => $job->{request} || {},
+                refusal      => $job->{refusal},
+                response     => \&_command_log_response,
+                run_p        => $job->{run_p},
+            },
+            $context
+        );
+    }
+    catch ($error) {
+        log_error( $self->logger, "identity command log failed: $error" );
+        return _failed_result();
+    };
+
+    return $result;
+}
+
 # A write that issues a token answers without its raw value or its hash.
 sub _commanded_token_write ( $self, $job ) {
     return $self->_commanded_write(
         {
-            actor_id     => $job->{actor_id},
-            command_id   => $job->{command_id},
-            command_type => $job->{command_type},
-            refusal      => $job->{refusal},
-            request      => $job->{request},
-            run          => sub {
-                my $result = $self->_store_write( $job->{run} );
-                if ( !$result->{ok} ) {
-                    return $result;
-                }
-                return _public_write_result($result);
+            %{ _command_of($job) },
+            run => sub {
+                return _issued( $self->_store_write( $job->{run} ) );
             },
         }
     );
+}
+
+# _commanded_token_write on the pooled connections: the job's run_p takes
+# the call layer to write on.
+async sub _commanded_token_write_p ( $self, $job, $context ) {
+    return await $self->_commanded_write_p(
+        {
+            %{ _command_of($job) },
+            run_p => async sub ($scope) {
+                return _issued(
+                    await $self->_store_write_p(
+                        sub { return $job->{run_p}->($scope); }
+                    )
+                );
+            },
+        },
+        $context
+    );
+}
+
+sub _command_of ($job) {
+    return { map { $_ => $job->{$_} }
+          qw(actor_id command_id command_type refusal request) };
+}
+
+sub _issued ($result) {
+    return $result if !$result->{ok};
+
+    return _public_write_result($result);
 }
 
 # What the command log keeps of a result: whether it was done and why not,
@@ -851,7 +1340,12 @@ sub _public_write_result ($result) {
 }
 
 sub _store_write ( $self, $code ) {
-    my $tried = $self->_try_store($code);
+    return _stored( $self->_try_store($code) );
+}
+
+# A store's answer as a workflow result: failed when it died or answered
+# nothing, invalid with its reason, or ok with what it stored.
+sub _stored ($tried) {
     my $value = $tried->{value};
     if ( $tried->{failed} || !$value ) {
         return _failed_result();
@@ -869,6 +1363,23 @@ sub _store_write ( $self, $code ) {
         status => 'ok',
         stored => $value,
     );
+}
+
+async sub _store_write_p ( $self, $code ) {
+    return _stored( await $self->_try_store_p($code) );
+}
+
+async sub _try_store_p ( $self, $code ) {
+    my $value;
+    try {
+        $value = await $code->();
+    }
+    catch ($error) {
+        log_error( $self->logger, "identity write failed: $error" );
+        return { failed => 1 };
+    };
+
+    return { value => $value };
 }
 
 sub _missing_fields ( $, $input, $names ) {
@@ -955,6 +1466,13 @@ outbox ownership.
 Prepares and stores a registration, hiding duplicate-account details.
 Requires C<command_id>.
 
+=head2 register_p
+
+L</register> as a promise, with an optional query context last: Argon2 in
+a child of the CPU lane on plain data, then the registration as one call
+on the worker's pooled asynchronous connections. Without a command log or
+the call layer it is answered by L</register>.
+
 =head2 login
 
 Authenticates an identifier and password, which it requires; it records
@@ -963,6 +1481,13 @@ A member with two-step sign-in on (ADR 0142) is answered with status
 C<second_factor> and the challenge's C<challenge_token> instead of a
 session, or C<second_factor_locked>.
 
+=head2 login_p
+
+L</login> as a promise, with an optional query context last: the reads
+and the session on the worker's pooled asynchronous connections, Argon2
+in a child of the CPU lane on plain data. Doubles are answered by
+L</login>.
+
 =head2 complete_second_factor
 
 Takes C<challenge_token>, C<code>, C<request_address> and C<user_agent>
@@ -970,14 +1495,35 @@ and answers the challenge: status C<ok> with the session as L</login>
 answers it, plus C<method> and C<recovery_left>; or C<expired>, C<wrong>
 (with C<attempts_left>), C<locked> or C<failed>.
 
+=head2 complete_second_factor_p
+
+L</complete_second_factor> as a promise, with an optional query context
+last, on the worker's pooled asynchronous connections.
+
 =head2 logout
 
 Revokes a server-side session when a session id is present. Requires
 C<command_id>. Command hashes include C<session_id> and C<user_id> only.
 
+=head2 logout_p
+
+L</logout> as a promise, with an optional query context last: the command
+log's steps and the write commit in one transaction on the worker's
+pooled asynchronous connections, no child process. Doubles of the store or
+the command log are answered by L</logout>.
+
 =head2 request_password_reset
 
 Starts a password reset for an identifier. Requires C<command_id>.
+
+=head2 request_password_reset_p
+
+Starts the reset as L</request_password_reset> does,
+on the worker's pooled asynchronous connections: the command log's
+steps and the store's writes commit in one transaction, Argon2 runs in a
+child of the CPU lane, and no child process touches PostgreSQL. Takes an
+optional query context last and answers a promise of the same result;
+with a double for the store or the command log the blocking write answers.
 
 =head2 reset_password
 
@@ -988,6 +1534,15 @@ answers: the log abandons them (L<GPForum::Service::Operations::CommandIdempoten
 C<< refusal => 'abandon' >>), and the form sent again under the same
 command id with the password corrected runs.
 
+=head2 reset_password_p
+
+Completes the reset as L</reset_password> does,
+on the worker's pooled asynchronous connections: the command log's
+steps and the store's writes commit in one transaction, Argon2 runs in a
+child of the CPU lane, and no child process touches PostgreSQL. Takes an
+optional query context last and answers a promise of the same result;
+with a double for the store or the command log the blocking write answers.
+
 =head2 change_password
 
 Changes the password of an authenticated member. Requires C<command_id>.
@@ -997,6 +1552,15 @@ command's answer: the log abandons it, and the form sent again under the
 same command id with the passwords corrected runs instead of getting the
 refusal back.
 
+=head2 change_password_p
+
+Changes the password as L</change_password> does,
+on the worker's pooled asynchronous connections: the command log's
+steps and the store's writes commit in one transaction, Argon2 runs in a
+child of the CPU lane, and no child process touches PostgreSQL. Takes an
+optional query context last and answers a promise of the same result;
+with a double for the store or the command log the blocking write answers.
+
 =head2 request_email_change
 
 Starts an email change for an authenticated member. Requires C<command_id>
@@ -1005,41 +1569,112 @@ address and C<user_id>, never the password, so the log abandons a refusal
 as it does for L</change_password>. A request for the member's
 already-verified address does not issue a token.
 
+=head2 request_email_change_p
+
+Requests the change as L</request_email_change> does,
+on the worker's pooled asynchronous connections: the command log's
+steps and the store's writes commit in one transaction, Argon2 runs in a
+child of the CPU lane, and no child process touches PostgreSQL. Takes an
+optional query context last and answers a promise of the same result;
+with a double for the store or the command log the blocking write answers.
+
 =head2 confirm_email_change
 
 Completes an email change with a token. Requires C<command_id>.
+
+=head2 confirm_email_change_p
+
+Confirms the change as L</confirm_email_change> does,
+on the worker's pooled asynchronous connections: the command log's
+steps and the store's writes commit in one transaction, Argon2 runs in a
+child of the CPU lane, and no child process touches PostgreSQL. Takes an
+optional query context last and answers a promise of the same result;
+with a double for the store or the command log the blocking write answers.
 
 =head2 request_email_verification
 
 Starts a registration verification resend for an identifier. Requires
 C<command_id>.
 
+=head2 request_email_verification_p
+
+Starts the verification as L</request_email_verification> does,
+on the worker's pooled asynchronous connections: the command log's
+steps and the store's writes commit in one transaction, Argon2 runs in a
+child of the CPU lane, and no child process touches PostgreSQL. Takes an
+optional query context last and answers a promise of the same result;
+with a double for the store or the command log the blocking write answers.
+
 =head2 verify_email
 
 Completes registration verification with a token. Requires C<command_id>.
 
+=head2 verify_email_p
+
+Completes the verification as L</verify_email> does,
+on the worker's pooled asynchronous connections: the command log's
+steps and the store's writes commit in one transaction, Argon2 runs in a
+child of the CPU lane, and no child process touches PostgreSQL. Takes an
+optional query context last and answers a promise of the same result;
+with a double for the store or the command log the blocking write answers.
+
 =head2 update_preferred_locale
 
 Persists an authenticated member locale preference. Requires C<command_id>.
+
+=head2 update_preferred_locale_p
+
+L</update_preferred_locale> as a promise, with an optional query context last: the command
+log's steps and the write commit in one transaction on the worker's
+pooled asynchronous connections, no child process. Doubles of the store or
+the command log are answered by L</update_preferred_locale>.
 
 =head2 update_preferred_timezone
 
 Persists a member's time zone, or the forum's default for an empty one.
 Requires C<command_id>.
 
+=head2 update_preferred_timezone_p
+
+L</update_preferred_timezone> as a promise, with an optional query context last: the command
+log's steps and the write commit in one transaction on the worker's
+pooled asynchronous connections, no child process. Doubles of the store or
+the command log are answered by L</update_preferred_timezone>.
+
 =head2 update_bio
 
 Persists the few words a member shows on their profile (C<bio>, plain
 text up to 500 characters; empty takes it down). Requires C<command_id>.
+
+=head2 update_bio_p
+
+L</update_bio> as a promise, with an optional query context last: the command
+log's steps and the write commit in one transaction on the worker's
+pooled asynchronous connections, no child process. Doubles of the store or
+the command log are answered by L</update_bio>.
 
 =head2 update_profile
 
 Saves a member's display name and biography with an independent idempotent command.
 Recorded responses retain no profile text.
 
+=head2 update_profile_p
+
+L</update_profile> as a promise, with an optional query context last: the command
+log's steps and the write commit in one transaction on the worker's
+pooled asynchronous connections, no child process. Doubles of the store or
+the command log are answered by L</update_profile>.
+
 =head2 update_preferred_theme
 
 Persists an authenticated member theme preference. Requires C<command_id>.
+
+=head2 update_preferred_theme_p
+
+L</update_preferred_theme> as a promise, with an optional query context last: the command
+log's steps and the write commit in one transaction on the worker's
+pooled asynchronous connections, no child process. Doubles of the store or
+the command log are answered by L</update_preferred_theme>.
 
 =head1 DIAGNOSTICS
 

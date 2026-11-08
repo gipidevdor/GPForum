@@ -3,7 +3,7 @@
 
 package GPForum::Service::Notification::Workflow;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text    qw(trimmed);
@@ -31,6 +31,36 @@ sub mark_all_read ( $self, $input ) {
             return $self->dispatcher->mark_all_read( $input->{user_id} );
         },
     );
+}
+
+async sub mark_read_p ( $self, $input, $context = undef ) {
+    return await $self->_run_store_p(
+        'notification not found',
+        sub {
+            return $self->_dispatched_p( 'mark_read', $context,
+                $input->{notification_id},
+                $input->{user_id} );
+        },
+    );
+}
+
+async sub mark_all_read_p ( $self, $input, $context = undef ) {
+    return await $self->_run_store_p(
+        'notification inbox not found',
+        sub {
+            return $self->_dispatched_p( 'mark_all_read', $context,
+                $input->{user_id} );
+        },
+    );
+}
+
+# The dispatcher's own promise when it has one; a double answers here.
+async sub _dispatched_p ( $self, $method, $context, @arguments ) {
+    my $dispatcher = $self->dispatcher;
+    my $async      = "${method}_p";
+    return await $dispatcher->$async( @arguments, $context )
+      if $dispatcher->can($async);
+    return $dispatcher->$method(@arguments);
 }
 
 sub set_preferences ( $self, $input ) {
@@ -67,6 +97,85 @@ sub set_preferences ( $self, $input ) {
     };
 
     return $result;
+}
+
+# set_preferences on the worker's pooled asynchronous connections: the
+# command log's steps and the writes commit in one transaction.
+async sub set_preferences_p ( $self, $input, $context = undef ) {
+    my $functions = $self->preference_store->can('functions')
+      && $self->preference_store->functions;
+    return $self->set_preferences($input) if !$functions;
+    return workflow_result(
+        errors => { command_id => 'command_id is required' },
+        status => 'invalid',
+    ) if !length trimmed( $input->{command_id} );
+
+    my $run_p = async sub ($scope) {
+        return await $self->_store_preferences_p( $input, $context, $scope );
+    };
+    return await $run_p->($functions) if !$self->command_idempotency;
+
+    my $result;
+    try {
+        $result = await $self->command_idempotency->result_of_p(
+            {
+                actor_id     => $input->{user_id},
+                command_id   => $input->{command_id},
+                command_type => 'notification.preferences',
+                request      => _request($input),
+                run   => sub { return $self->_store_preferences($input) },
+                run_p => $run_p,
+            },
+            $context
+        );
+    }
+    catch ($error) {
+        log_error( $self->logger, "notification command log failed: $error" );
+        return workflow_result(
+            error  => 'notification store failed',
+            status => 'failed',
+        );
+    };
+
+    return $result;
+}
+
+async sub _store_preferences_p ( $self, $input, $context, $scope ) {
+    my $value;
+    try {
+        $value = await _preferences_written_p( $self->preference_store,
+            $input, $context, $scope );
+    }
+    catch ($error) {
+        log_error( $self->logger, "notification write failed: $error" );
+        return workflow_result(
+            error  => 'notification store failed',
+            status => 'failed',
+        );
+    };
+
+    return _store_answer( 'notification preferences not found', $value );
+}
+
+async sub _preferences_written_p ( $store, $input, $context, $scope ) {
+    my $types   = $input->{type_preferences};
+    my $refused = defined $types && $store->refused_type_preferences($types);
+    return $refused if $refused;
+    my $channels = await $store->set_preferences_p(
+        {
+            preferences => $input->{preferences},
+            user_id     => $input->{user_id},
+        },
+        $context, $scope
+    );
+    return $channels
+      if !defined $types
+      || ( ref $channels eq 'HASH' && !$channels->{ok} );
+    my $stored = await $store->set_type_preferences_p(
+        { preferences => $types, user_id => $input->{user_id} },
+        $context, $scope );
+
+    return $stored->{ok} ? $channels : $stored;
 }
 
 # ADR 0078: the choices by kind of notification, when the form sent them,
@@ -143,6 +252,27 @@ sub _run_store ( $self, $not_found, $code ) {
             status => 'failed',
         );
     };
+
+    return _store_answer( $not_found, $value );
+}
+
+async sub _run_store_p ( $self, $not_found, $code ) {
+    my $value;
+    try {
+        $value = await $code->();
+    }
+    catch ($error) {
+        log_error( $self->logger, "notification write failed: $error" );
+        return workflow_result(
+            error  => 'notification store failed',
+            status => 'failed',
+        );
+    };
+
+    return _store_answer( $not_found, $value );
+}
+
+sub _store_answer ( $not_found, $value ) {
     my $answer = ref $value eq 'HASH' ? $value : {};
     if ( !$value ) {
         return workflow_result(
@@ -208,6 +338,22 @@ Marks a recipient inbox row read or reports it missing.
 
 Marks every unread inbox row for the member. An empty inbox is success with
 C<marked_count> 0.
+
+=head2 mark_read_p
+
+L</mark_read> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
+
+=head2 mark_all_read_p
+
+L</mark_all_read> as a promise, with an optional query context last, run on
+the worker's pooled asynchronous connections.
+
+=head2 set_preferences_p
+
+L</set_preferences> as a promise, with an optional query context last: the
+command log's steps and the preference writes commit in one transaction on
+the worker's pooled asynchronous connections, no child process.
 
 =head2 set_preferences
 

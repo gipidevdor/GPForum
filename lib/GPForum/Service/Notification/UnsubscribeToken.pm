@@ -6,7 +6,7 @@ package GPForum::Service::Notification::UnsubscribeToken;
 use Const::Fast;
 use Digest::SHA  qw(hmac_sha256);
 use MIME::Base64 qw(decode_base64url encode_base64url);
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
@@ -65,6 +65,12 @@ sub verify ( $self, $token ) {
     }
 
     return undef;
+}
+
+# The check is an HMAC on the token alone: answered in the worker, no
+# child process and no database.
+async sub verify_p ( $self, $token, $context = undef ) {
+    return $self->verify($token);
 }
 
 sub _secrets ($self) {
@@ -134,6 +140,11 @@ secret.
 
 Takes a token and returns C<< { user_id, scope } >>, or undef when it is
 malformed, names an unknown scope or is signed by no secret held.
+
+=head2 verify_p
+
+L</verify> as a promise, with an optional query context last; it reads no
+database, so it is answered in the worker itself.
 
 =head1 DIAGNOSTICS
 

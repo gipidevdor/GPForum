@@ -39,30 +39,57 @@ sub _overview ($row) {
 }
 
 sub change ( $self, $input ) {
-    return { status => 'invalid' }
+    my $plan = $self->_change_call($input);
+    return $plan->{answer} if $plan->{answer};
+
+    return _changed( $plan,
+        $self->functions->row( 'admin_registration_change', $plan->{values} ) );
+}
+
+# change on a pooled asynchronous connection: one api function call.
+async sub change_p ( $self, $input, $context = undef ) {
+    my $plan = $self->_change_call($input);
+    return $plan->{answer} if $plan->{answer};
+
+    return _changed(
+        $plan,
+        await $self->functions->row_p(
+            'admin_registration_change', $plan->{values}, $context
+        )
+    );
+}
+
+# The checks a change makes and the call it ends in: an answer when they
+# refuse it, or the call's values with the invitation token it carries.
+sub _change_call ( $self, $input ) {
+    return { answer => { status => 'invalid' } }
       if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
     my $operation = $input->{operation} // q{};
     my $field =
       { revoke => 'invitation_id', approve => 'user_id', reject => 'user_id' }
       ->{$operation};
-    return { status => 'invalid' }
+    return { answer => { status => 'invalid' } }
       if $field && !GPForum::Infrastructure::Id->is_uuid( $input->{$field} );
     my $prepared = $self->_prepare($input);
-    my $row      = $self->functions->row(
-        'admin_registration_change',
-        {
+    return {
+        operation => $operation,
+        token     => $prepared->{token},
+        values    => {
             actor     => $input->{actor},
             command   => $input->{command},
             operation => $operation,
             values    => $prepared->{values},
-        }
-    );
+        },
+    };
+}
+
+sub _changed ( $plan, $row ) {
     my $result = $row ? $row->{result} : { status => 'invalid' };
-    if (   $operation eq 'invite'
+    if (   $plan->{operation} eq 'invite'
         && $result->{status} eq 'ok'
         && !$result->{replayed} )
     {
-        $result->{invitation} = $prepared->{token};
+        $result->{invitation} = $plan->{token};
     }
     return $result;
 }
@@ -129,6 +156,11 @@ worker's pooled asynchronous connections.
 =head2 change
 
 Changes policy, issues or revokes an invitation, or approves/rejects an account.
+
+=head2 change_p
+
+Makes the change L</change> makes, on a pooled asynchronous connection,
+and answers a promise of the same result.
 
 =head1 DIAGNOSTICS
 

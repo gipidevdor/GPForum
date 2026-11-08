@@ -103,7 +103,7 @@ async sub preview ($self) {
           $storage->can('asset_for')
           ? ( await $self->call_p( $storage, 'asset_for', $row->{object_key} ) )
           : await GPForum::Infrastructure::FileAsset->from_path_p(
-            await $self->call_p( $storage, 'path_for', $row->{object_key} ) );
+            $storage->path_for( $row->{object_key} ) );
     }
     catch ($error) {
         $self->app->log->error("media review preview: $error");

@@ -6,7 +6,7 @@ package GPForum::Service::Privacy::ErasedExports;
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
 use JSON::MaybeXS;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -55,6 +55,18 @@ sub discard ( $self, $user_id ) {
     return [ sort @discarded ];
 }
 
+# discard on the call layer of the caller's asynchronous transaction.
+async sub discard_p ( $self, $user_id, $context = undef, $functions = undef ) {
+    $functions //= $self->functions;
+    return $self->discard($user_id) if !$functions;
+
+    return (
+        await $functions->row_p(
+            'privacy_discard_exports', { user_id => $user_id }, $context
+        )
+    )->{document};
+}
+
 # The other side of the erasure: an export takes the member's account row
 # FOR SHARE before it writes anything and keeps it until it commits. The
 # erasure's anonymizing UPDATE needs that row, so it waits for a running
@@ -76,6 +88,20 @@ sub may_export ( $self, $user_id ) {
     }
 
     return defined $self->record->column( $user, 'deleted_at' ) ? 0 : 1;
+}
+
+# may_export on the call layer of the caller's asynchronous transaction:
+# the share lock lasts until that transaction ends.
+async sub may_export_p ( $self, $user_id, $context = undef, $functions = undef )
+{
+    $functions //= $self->functions;
+    return $self->may_export($user_id) if !$functions;
+
+    return (
+        await $functions->row_p(
+            'privacy_may_export', { user_id => $user_id }, $context
+        )
+    )->{allowed} ? 1 : 0;
 }
 
 sub _scrub_answer ( $self, $row ) {
@@ -164,6 +190,17 @@ L<GPForum::Service::Privacy::Workflow> calls it before an export writes
 anything: an erasure's anonymizing update of that row waits for the export
 to commit, and then discards its bundle; an export that waited for an
 erasure finds the member erased and writes nothing.
+
+=head2 discard_p
+
+L</discard> as a promise, with an optional query context and an optional
+transaction call layer last: given one, it writes in that transaction.
+
+=head2 may_export_p
+
+L</may_export> as a promise, with an optional query context and an optional
+transaction call layer last: given one, the share lock lasts until that
+transaction ends.
 
 =head1 DIAGNOSTICS
 

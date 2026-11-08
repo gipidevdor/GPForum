@@ -3,7 +3,7 @@
 
 package GPForum::Service::Notification::Push::Store;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 use Const::Fast;
 use Crypt::URandom       qw(urandom);
@@ -70,7 +70,26 @@ sub devices ( $self, $user ) {
         { user_id => $user } );
 }
 
+async sub devices_p ( $self, $user, $context = undef ) {
+    return await $self->functions->rows_p( 'notification_push_devices',
+        { user_id => $user }, $context );
+}
+
 sub register ( $self, $user, $session, $input ) {
+    return $self->functions->row( 'notification_push_register',
+        $self->_register_values( $user, $session, $input ) )->{result};
+}
+
+async sub register_p ( $self, $user, $session, $input, $context = undef ) {
+    my $values = $self->_register_values( $user, $session, $input );
+    return (
+        await $self->functions->row_p(
+            'notification_push_register', $values, $context
+        )
+    )->{result};
+}
+
+sub _register_values ( $self, $user, $session, $input ) {
     my $public = $self->public_config;
     if ( !$public->{enabled} ) {
         GPForum::X::Argument->throw( message => 'Push disabled' );
@@ -109,24 +128,35 @@ sub register ( $self, $user, $session, $input ) {
         { endpoint => $url->to_string, keys => $input->{keys} } );
     my $activation = $self->crypto->seal( $storage, "activation:$id",
         { type => 'activation', subscription_id => $id, nonce => $nonce } );
-    return $self->functions->row(
-        'notification_push_register',
-        {
-            user_id         => $user,
-            session_id      => $session,
-            subscription_id => $id,
-            endpoint_hash   => $hash,
-            envelope        => $envelope,
-            provider        => $url->host,
-            key_id          => $public->{key_id},
-            kinds           => $kinds,
-            challenge_hash  => sha256_hex($nonce),
-            activation      => $activation,
-        }
-    )->{result};
+    return {
+        user_id         => $user,
+        session_id      => $session,
+        subscription_id => $id,
+        endpoint_hash   => $hash,
+        envelope        => $envelope,
+        provider        => $url->host,
+        key_id          => $public->{key_id},
+        kinds           => $kinds,
+        challenge_hash  => sha256_hex($nonce),
+        activation      => $activation,
+    };
 }
 
 sub confirm ( $self, $user, $session, $input ) {
+    return $self->functions->row( 'notification_push_confirm',
+        $self->_confirm_values( $user, $session, $input ) )->{result};
+}
+
+async sub confirm_p ( $self, $user, $session, $input, $context = undef ) {
+    my $values = $self->_confirm_values( $user, $session, $input );
+    return (
+        await $self->functions->row_p(
+            'notification_push_confirm', $values, $context
+        )
+    )->{result};
+}
+
+sub _confirm_values ( $self, $user, $session, $input ) {
     if ( ref $input ne 'HASH' ) {
         GPForum::X::Argument->throw( message => 'invalid Push confirmation' );
     }
@@ -134,23 +164,33 @@ sub confirm ( $self, $user, $session, $input ) {
         GPForum::X::Argument->throw( message => 'invalid Push binding' );
     }
     $self->crypto->unbase64( $input->{nonce}, $KEY_BYTES );
-    return $self->functions->row(
-        'notification_push_confirm',
-        {
-            user_id         => $user,
-            session_id      => $session,
-            subscription_id => $input->{subscription_id},
-            challenge_hash  => sha256_hex( $input->{nonce} ),
-        }
-    )->{result};
+    return {
+        user_id         => $user,
+        session_id      => $session,
+        subscription_id => $input->{subscription_id},
+        challenge_hash  => sha256_hex( $input->{nonce} ),
+    };
 }
 
 sub revoke ( $self, $user, $id ) {
+    return $self->functions->row( 'notification_push_revoke',
+        _revoke_values( $user, $id ) )->{result};
+}
+
+async sub revoke_p ( $self, $user, $id, $context = undef ) {
+    my $values = _revoke_values( $user, $id );
+    return (
+        await $self->functions->row_p(
+            'notification_push_revoke', $values, $context
+        )
+    )->{result};
+}
+
+sub _revoke_values ( $user, $id ) {
     if ( !GPForum::Infrastructure::Id->is_uuid($id) ) {
         GPForum::X::Argument->throw( message => 'invalid Push binding' );
     }
-    return $self->functions->row( 'notification_push_revoke',
-        { user_id => $user, subscription_id => $id } )->{result};
+    return { user_id => $user, subscription_id => $id };
 }
 
 1;
@@ -179,17 +219,37 @@ Return the active public VAPID key and its identity. Private signing keys are ne
 
 List at most ten live device bindings belonging to the authenticated user.
 
+=head2 devices_p
+
+L</devices> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections.
+
 =head2 register
 
 Validate the receiver and notification kinds, seal capability material, and queue a visible receipt challenge. Does not return the challenge nonce.
+
+=head2 register_p
+
+L</register> as a promise, with an optional query context last; the binding
+is written on the worker's pooled asynchronous connections.
 
 =head2 confirm
 
 Activate only the matching pending binding, live session and unexpired single-use receipt nonce.
 
+=head2 confirm_p
+
+L</confirm> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
+
 =head2 revoke
 
 Remove only this user's specified binding and its queued jobs. Does not disclose whether another user owns the id.
+
+=head2 revoke_p
+
+L</revoke> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
 
 =head1 VERSION
 

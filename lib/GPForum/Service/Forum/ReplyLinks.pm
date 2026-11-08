@@ -3,7 +3,7 @@
 
 package GPForum::Service::Forum::ReplyLinks;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
@@ -21,16 +21,27 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 # be read; anything else, a target that is not a uuid included, links
 # nothing and says so.
 sub link_reply ( $self, $post_id, $reply_to_post_id ) {
-    return 0
+    my $values = _link_values( $post_id, $reply_to_post_id ) or return 0;
+    return _linked( $self->_functions->row( 'forum_link_reply', $values ) );
+}
+
+# The link on the web worker's pooled asynchronous connections.
+async sub link_reply_p ( $self, $post_id, $reply_to_post_id, $context = undef )
+{
+    my $values = _link_values( $post_id, $reply_to_post_id ) or return 0;
+    return _linked(
+        await $self->_functions->row_p( 'forum_link_reply', $values, $context )
+    );
+}
+
+sub _link_values ( $post_id, $reply_to_post_id ) {
+    return undef
       if !GPForum::Infrastructure::Id->is_uuid($post_id)
       || !GPForum::Infrastructure::Id->is_uuid($reply_to_post_id);
-    my $row = $self->_functions->row(
-        'forum_link_reply',
-        {
-            post_id          => $post_id,
-            reply_to_post_id => $reply_to_post_id,
-        }
-    );
+    return { post_id => $post_id, reply_to_post_id => $reply_to_post_id };
+}
+
+sub _linked ($row) {
     return $row && $row->{linked} ? 1 : 0;
 }
 
@@ -99,6 +110,11 @@ Takes the reply's post id and the id of the post it answers. Returns 1
 when the link holds (made now, or made before), 0 when it cannot: a post
 not in the same thread, not visible, the reply itself, or an id that is
 not a uuid.
+
+=head2 link_reply_p
+
+L</link_reply> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
 
 =head2 targets_for_posts
 

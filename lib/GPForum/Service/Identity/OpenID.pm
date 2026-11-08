@@ -3,7 +3,7 @@
 
 package GPForum::Service::Identity::OpenID;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 use Const::Fast;
 use Crypt::JWT     qw(decode_jwt);
@@ -12,7 +12,6 @@ use Digest::SHA    qw(sha256 sha256_hex);
 use MIME::Base64   qw(encode_base64url);
 use Mojo::JSON     qw(encode_json);
 use Mojo::Promise;
-use GPForum::Infrastructure::AsyncWork;
 use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Infrastructure::ResultRow;
 use GPForum::Infrastructure::SqlFunction;
@@ -35,7 +34,6 @@ const my $MAX_ID_TOKEN           => 16_384;
 const my $LINK_AUTH_SECONDS      => 300;
 has policy_available => 0;
 has query_context    => undef;  # optional: CLI calls have no HTTP query context
-has async_work => sub { return GPForum::Infrastructure::AsyncWork->shared; };
 __PACKAGE__->requires(qw(schema config second_factor));
 has client => sub { return GPForum::Service::Integration::HttpClient->shared; };
 has password => sub ($self) {
@@ -99,11 +97,15 @@ sub _context ($self) {
 }
 
 sub verify_local ( $self, @arguments ) {
+    return $self->_local_proof->verify_local(@arguments);
+}
+
+sub _local_proof ($self) {
     return GPForum::Service::Identity::LocalProof->new(
         credentials   => $self->credentials,
         password      => $self->password,
         second_factor => $self->second_factor
-    )->verify_local(@arguments);
+    );
 }
 
 sub begin ( $self, $input = {} ) {
@@ -115,10 +117,38 @@ sub begin ( $self, $input = {} ) {
           $self->verify_local( $actor, $input->{password}, $input->{code} );
         return { status => 'refused' } if !$credential;
     }
+    my ( $flow, $values ) = _begin_values( $context, $actor, $credential );
+
+    return $self->_begun( $flow, $actor,
+        $self->functions->row( 'identity_oidc_begin', $values ) );
+}
+
+# begin on the worker's pooled asynchronous connections, the local proof's
+# Argon2 in a child of the CPU lane.
+async sub begin_p ( $self, $input = {}, $query_context = undef ) {
+    my $context = $self->_context;
+    my $actor   = $input->{actor_user_id};
+    my $credential;
+    if ( defined $actor ) {
+        $credential = await $self->_local_proof->verify_local_p( $actor,
+            $input->{password}, $input->{code}, $query_context );
+        return { status => 'refused' } if !$credential;
+    }
+    my ( $flow, $values ) = _begin_values( $context, $actor, $credential );
+
+    return $self->_begun(
+        $flow, $actor,
+        await $self->functions->row_p(
+            'identity_oidc_begin', $values, $query_context
+        )
+    );
+}
+
+sub _begin_values ( $context, $actor, $credential ) {
     my %flow = map { $_ => encode_base64url( urandom($TOKEN_BYTES) ) }
       qw(state nonce binding verifier);
-    my $stored = $self->functions->row(
-        'identity_oidc_begin',
+    return (
+        \%flow,
         {
             state_hash   => sha256_hex( $flow{state} ),
             binding_hash => sha256_hex( $flow{binding} ),
@@ -128,24 +158,28 @@ sub begin ( $self, $input = {} ) {
             credential   => $credential
         }
     );
+}
+
+# The provider's authorization address for a stored flow, or the refusal.
+sub _begun ( $self, $flow, $actor, $stored ) {
     return { status => 'refused' } if !$stored;
     my $url =
       $self->client->https_url( $self->config->oidc_authorization_endpoint );
     $url->query(
-        response_type         => 'code',
-        client_id             => $self->config->oidc_client_id,
-        redirect_uri          => $self->callback_url,
-        scope                 => 'openid',
-        state                 => $flow{state},
-        nonce                 => $flow{nonce},
-        code_challenge        => encode_base64url( sha256( $flow{verifier} ) ),
+        response_type  => 'code',
+        client_id      => $self->config->oidc_client_id,
+        redirect_uri   => $self->callback_url,
+        scope          => 'openid',
+        state          => $flow->{state},
+        nonce          => $flow->{nonce},
+        code_challenge => encode_base64url( sha256( $flow->{verifier} ) ),
         code_challenge_method => 'S256'
     );
 
     if ( defined $actor ) {
         $url->query->append( prompt => 'login', max_age => $LINK_AUTH_SECONDS );
     }
-    return { status => 'redirect', url => "$url", flow => \%flow };
+    return { status => 'redirect', url => "$url", flow => $flow };
 }
 
 sub complete ( $self, $input ) {
@@ -193,16 +227,13 @@ sub complete_p ( $self, $input, $context = undef ) {
                                 GPForum::X::Unavailable->throw( message =>
                                       'external signing keys unavailable' );
                             }
-                            return $self->async_work->service_p(
-                                $self,
-                                'complete_verified',
+                            return $self->_complete_verified_p(
                                 {
                                     input    => $input,
                                     state    => $state,
                                     id_token => $token->{id_token},
                                     keys     => $keys->json
-                                },
-                                $self->query_context
+                                }
                             );
                         }
                     );
@@ -213,21 +244,43 @@ sub complete_p ( $self, $input, $context = undef ) {
 }
 
 sub complete_verified ( $self, $prepared ) {
-    my $claims;
+    my $claims = $self->_verified_claims($prepared);
+    return { status => 'refused' } if !$claims;
+    return $self->schema->txn_do(
+        sub {
+            return $self->_accept_identity( $prepared->{input},
+                $prepared->{state}, $claims );
+        }
+    );
+}
+
+# complete_verified in one transaction on the worker's pooled asynchronous
+# connections. The token's signature is one public-key check on data in
+# hand, no I/O: checked here, not in a child.
+async sub _complete_verified_p ( $self, $prepared ) {
+    my $claims = $self->_verified_claims($prepared);
+    return { status => 'refused' } if !$claims;
+    my $context = $self->query_context;
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            return await $self->_accept_identity_p( $prepared->{input},
+                $prepared->{state}, $claims, $context, $scope );
+        },
+        $context
+    );
+}
+
+sub _verified_claims ( $self, $prepared ) {
     my $state = $prepared->{state};
+    my $claims;
     try {
         $claims = $self->verify_id_token(
             $prepared->{id_token}, $prepared->{keys},
             $state->{nonce},       defined $state->{user_id}
         );
     }
-    catch ($error) { return { status => 'refused' }; };
-    return $self->schema->txn_do(
-        sub {
-            return $self->_accept_identity( $prepared->{input}, $state,
-                $claims );
-        }
-    );
+    catch ($error) { return undef; };
+    return $claims;
 }
 
 sub _token_form ( $self, $input ) {
@@ -309,26 +362,83 @@ sub _exchange_code ( $self, $input, $state ) {
 
 sub _accept_identity ( $self, $input, $state, $claims ) {
     if ( defined $state->{user_id} ) {
-        my $answer = $self->functions->row(
-            'identity_oidc_link',
-            {
-                actor      => $state->{user_id},
-                credential => $state->{credential_id},
-                issuer     => $self->config->oidc_issuer,
-                subject    => $claims->{sub}
-            }
-        )->{result};
+        my $answer =
+          $self->functions->row( 'identity_oidc_link',
+            $self->_link_values( $state, $claims ) )->{result};
         if ( $answer->{status} eq 'linked' ) {
             $self->_audit( 'identity.oidc.linked', $state->{user_id} );
         }
         return $answer;
     }
     my $row = $self->functions->row( 'identity_oidc_resolve',
-        { issuer => $self->config->oidc_issuer, subject => $claims->{sub} } );
+        $self->_resolve_values($claims) );
     return { status => 'unlinked' } if !$row;
     my $member    = $row->{result};
     my $challenge = $self->second_factor->open_challenge( $member->{id},
         $member->{credential_id} );
+    my $refused = _challenged( $member, $challenge );
+    return $refused if $refused;
+    my $user    = GPForum::Infrastructure::ResultRow->from($member);
+    my $session = $self->sessions->create_session( $user, $input );
+    return { status => 'refused' } if !$session;
+    $self->_audit( 'identity.oidc.login', $member->{id} );
+    return _signed_in( $member, $user, $session );
+}
+
+# _accept_identity on $scope, the transaction on the worker's pooled
+# asynchronous connections.
+async sub _accept_identity_p ( $self, $input, $state, $claims, $context,
+    $scope )
+{
+    if ( defined $state->{user_id} ) {
+        my $answer = (
+            await $scope->row_p(
+                'identity_oidc_link', $self->_link_values( $state, $claims ),
+                $context
+            )
+        )->{result};
+        if ( $answer->{status} eq 'linked' ) {
+            await $self->_audit_p( 'identity.oidc.linked', $state->{user_id},
+                $context, $scope );
+        }
+        return $answer;
+    }
+    my $row = await $scope->row_p( 'identity_oidc_resolve',
+        $self->_resolve_values($claims), $context );
+    return { status => 'unlinked' } if !$row;
+    my $member = $row->{result};
+    my $challenge =
+      await $self->second_factor->open_challenge_p( $member->{id},
+        $member->{credential_id},
+        $context, $scope );
+    my $refused = _challenged( $member, $challenge );
+    return $refused if $refused;
+    my $user = GPForum::Infrastructure::ResultRow->from($member);
+    my $session =
+      await $self->sessions->create_session_p( $user, $input, $context,
+        $scope );
+    return { status => 'refused' } if !$session;
+    await $self->_audit_p( 'identity.oidc.login', $member->{id}, $context,
+        $scope );
+    return _signed_in( $member, $user, $session );
+}
+
+sub _link_values ( $self, $state, $claims ) {
+    return {
+        actor      => $state->{user_id},
+        credential => $state->{credential_id},
+        issuer     => $self->config->oidc_issuer,
+        subject    => $claims->{sub}
+    };
+}
+
+sub _resolve_values ( $self, $claims ) {
+    return { issuer => $self->config->oidc_issuer, subject => $claims->{sub} };
+}
+
+# The answer for a member whose two-step sign-in asks for a code or refuses,
+# or undef when the session may open.
+sub _challenged ( $member, $challenge ) {
     if ( $challenge->{status} eq 'open' ) {
         return {
             status          => 'second_factor',
@@ -337,10 +447,10 @@ sub _accept_identity ( $self, $input, $state, $claims ) {
         };
     }
     return { status => 'refused' } if $challenge->{status} ne 'none';
-    my $user    = GPForum::Infrastructure::ResultRow->from($member);
-    my $session = $self->sessions->create_session( $user, $input );
-    return { status => 'refused' } if !$session;
-    $self->_audit( 'identity.oidc.login', $member->{id} );
+    return undef;
+}
+
+sub _signed_in ( $member, $user, $session ) {
     return {
         status        => 'ok',
         ok            => 1,
@@ -424,24 +534,15 @@ sub _check_authorized_party ( $self, $claims ) {
 }
 
 sub remove_link ( $self, $input ) {
-    if ( !$self->policy_available ) {
-        GPForum::X::Unavailable->throw(
-            message => 'integration policy unavailable' );
-    }
+    $self->_require_policy;
     my $credential = $self->verify_local( $input->{actor_user_id},
         $input->{password}, $input->{code} );
     return { status => 'refused' } if !$credential;
     return $self->schema->txn_do(
         sub {
-            my $answer = $self->functions->row(
-                'identity_oidc_unlink',
-                {
-                    actor      => $input->{actor_user_id},
-                    credential => $credential,
-                    issuer     => $self->config->oidc_issuer,
-                    session    => $input->{session_id}
-                }
-            )->{result};
+            my $answer =
+              $self->functions->row( 'identity_oidc_unlink',
+                $self->_unlink_values( $input, $credential ) )->{result};
             if ( $answer->{status} eq 'unlinked' ) {
                 $self->_audit( 'identity.oidc.unlinked',
                     $input->{actor_user_id} );
@@ -451,15 +552,72 @@ sub remove_link ( $self, $input ) {
     );
 }
 
+# remove_link on the worker's pooled asynchronous connections: the local
+# proof first, then the unlink and its audit in one transaction.
+async sub remove_link_p ( $self, $input, $context = undef ) {
+    $self->_require_policy;
+    my $credential =
+      await $self->_local_proof->verify_local_p( $input->{actor_user_id},
+        $input->{password}, $input->{code}, $context );
+    return { status => 'refused' } if !$credential;
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $answer = (
+                await $scope->row_p(
+                    'identity_oidc_unlink',
+                    $self->_unlink_values( $input, $credential ), $context
+                )
+            )->{result};
+            if ( $answer->{status} eq 'unlinked' ) {
+                await $self->_audit_p( 'identity.oidc.unlinked',
+                    $input->{actor_user_id},
+                    $context, $scope );
+            }
+            return $answer;
+        },
+        $context
+    );
+}
+
+sub _require_policy ($self) {
+    if ( !$self->policy_available ) {
+        GPForum::X::Unavailable->throw(
+            message => 'integration policy unavailable' );
+    }
+    return;
+}
+
+sub _unlink_values ( $self, $input, $credential ) {
+    return {
+        actor      => $input->{actor_user_id},
+        credential => $credential,
+        issuer     => $self->config->oidc_issuer,
+        session    => $input->{session_id}
+    };
+}
+
 sub _audit ( $self, $action, $actor ) {
-    $self->recorder->record_audit(
+    $self->recorder->record_audit( $self->_audit_input( $action, $actor ) );
+    return;
+}
+
+# The audit on $scope, the transaction of the write it records, as
+# EventRecorder's record_audit writes it through the call layer.
+async sub _audit_p ( $self, $action, $actor, $context, $scope ) {
+    await $scope->row_p( 'ops_record_audit',
+        $self->recorder->audit_call( $self->_audit_input( $action, $actor ) ),
+        $context );
+    return;
+}
+
+sub _audit_input ( $self, $action, $actor ) {
+    return (
         action      => $action,
         actor_id    => $actor,
         target_type => 'user',
         target_id   => $actor,
-        metadata    => { issuer => $self->config->oidc_issuer }
+        metadata    => { issuer => $self->config->oidc_issuer },
     );
-    return;
 }
 
 1;
@@ -500,6 +658,12 @@ Requires the current local password and, when enabled, a fresh second-factor pro
 
 Creates a five-minute single-use browser-bound authorization-code flow with S256 PKCE and nonce.
 
+=head2 begin_p
+
+L</begin> as a promise, with an optional query context last: the local
+proof's reads and the flow on the worker's pooled asynchronous connections,
+Argon2 in a child of the CPU lane.
+
 =head2 complete
 
 Consumes state before exchanging a code, verifies signed claims and either links explicitly or opens the ordinary local MFA/session path.
@@ -512,13 +676,19 @@ Pins signature algorithm, keys, issuer, audience, authorized party, nonce and ti
 
 Checks local password/MFA, removes the binding and revokes other sessions and outstanding challenges while preserving the current local session.
 
+=head2 remove_link_p
+
+L</remove_link> as a promise, with an optional query context last: the
+local proof, then the unlink and its audit in one transaction on the
+worker's pooled asynchronous connections.
+
 =head2 complete_p
 
-Consumes the login flow and performs token and key HTTP exchanges through promises; signature verification and the final transaction run in the bounded subprocess executor.
+Consumes the login flow and performs token and key HTTP exchanges through promises; the token's signature is checked in the worker, and the link or the session is written in one transaction on its pooled asynchronous connections, no child process.
 
 =head2 complete_verified
 
-Completes the verified token workflow inside one subprocess transaction. Takes the token reply, signing keys and consumed flow as plain data.
+Completes the verified token workflow in one blocking transaction. Takes the token reply, signing keys and consumed flow as plain data.
 
 =head1 DIAGNOSTICS
 

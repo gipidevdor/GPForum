@@ -4,7 +4,7 @@
 package GPForum::Service::Community::MentionStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Id;
@@ -46,7 +46,10 @@ sub record_for_source ( $self, $input ) {
     my $mentions = $self->extractor->extract( $input->{body_source} );
     return _empty_result() if !@{$mentions};
 
-    my $limited = $self->_limit_mentions( $input, $mentions );
+    my $limited = $self->_limited_mentions( $input, $mentions );
+    if ( $limited->{audit} ) {
+        $self->_record_fanout_audit( $limited->{audit} );
+    }
     $mentions = $limited->{mentions};
     my $resolved = $self->_resolve_users($mentions);
     my $work     = sub {
@@ -60,7 +63,59 @@ sub record_for_source ( $self, $input ) {
       : $work->();
 }
 
-sub _limit_mentions ( $self, $input, $mentions ) {
+# record_for_source on the worker's pooled asynchronous connections. With
+# $scope -- the call layer of the post's own transaction -- every read and
+# write joins it, as the blocking path joins the command's: the post the
+# readability check reads is not committed yet, and a notification's badge
+# goes out when it commits. Without one the inserts and notifications
+# commit in a transaction of their own.
+async sub record_for_source_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    return $self->record_for_source($input) if !$self->functions;
+    my $mentions = $self->extractor->extract( $input->{body_source} );
+    return _empty_result() if !@{$mentions};
+
+    my $limited = $self->_limited_mentions( $input, $mentions );
+    if ( $limited->{audit} ) {
+        await $self->_record_fanout_audit_p( $limited->{audit}, $context,
+            $scope );
+    }
+    my $work = async sub ($layer) {
+        my $joined = $self->_joined($layer);
+        my $resolved =
+          await $joined->_resolve_users_p( $limited->{mentions}, $context );
+        my $result =
+          await $joined->_insert_mentions_p( $input, $limited->{mentions},
+            $resolved, $context, $layer );
+        push @{ $result->{skipped} }, @{ $limited->{skipped} };
+        return $result;
+    };
+    return await $work->($scope) if $scope;
+
+    return await $self->functions->transaction_p( $work, $context );
+}
+
+# The store, its readability, its relations and its recorder on a
+# transaction's call layer.
+sub _joined ( $self, $layer ) {
+    return ref($self)->new(
+        %{$self},
+        functions => $layer,
+        map { $_ => _joined_store( $self->$_, $layer ) }
+          qw(readability relations recorder)
+    );
+}
+
+sub _joined_store ( $store, $layer ) {
+    return $store if !blessed $store || !$store->can('functions');
+
+    return ref($store)->new( %{$store}, functions => $layer );
+}
+
+# The mentions within the cap, those past it skipped, and the audit of the
+# cut when there was one.
+sub _limited_mentions ( $self, $input, $mentions ) {
     my $max_mentions = $input->{max_mentions} || $DEFAULT_MAX_MENTIONS;
     return { mentions => $mentions, skipped => [] }
       if @{$mentions} <= $max_mentions;
@@ -68,30 +123,60 @@ sub _limit_mentions ( $self, $input, $mentions ) {
     my @allowed = @{$mentions}[ 0 .. $max_mentions - 1 ];
     my @blocked = @{$mentions}[ $max_mentions .. $#{$mentions} ];
     my @skipped = map { _skip( $_, 'fanout_limited' ) } @blocked;
-    $self->_record_fanout_audit( $input, scalar @blocked, $max_mentions );
 
-    return { mentions => \@allowed, skipped => \@skipped };
+    return {
+        mentions => \@allowed,
+        skipped  => \@skipped,
+        audit => $self->_fanout_audit( $input, scalar @blocked, $max_mentions ),
+    };
 }
 
-sub _record_fanout_audit ( $self, $input, $blocked_count, $max_mentions ) {
+sub _fanout_audit ( $self, $input, $blocked_count, $max_mentions ) {
+    return {
+        action     => 'mention.fanout_limited',
+        actor_id   => _uuid_or_undef( $input->{actor_id} ),
+        created_at => $self->clock->now_iso8601,
+        metadata   => {
+            blocked_count => $blocked_count,
+            max_mentions  => $max_mentions,
+            source_id     => $input->{source_id},
+            source_type   => $input->{source_type},
+        },
+        previous_hash  => undef,
+        record_hash    => q{},
+        schema_version => $SCHEMA_VERSION,
+        target_id      => _uuid_or_undef( $input->{source_id} ),
+        target_type    => 'mention',
+    };
+}
+
+sub _record_fanout_audit ( $self, $audit ) {
     my $created;
     try {
-        $created = $self->recorder->record_audit(
-            action     => 'mention.fanout_limited',
-            actor_id   => _uuid_or_undef( $input->{actor_id} ),
-            created_at => $self->clock->now_iso8601,
-            metadata   => {
-                blocked_count => $blocked_count,
-                max_mentions  => $max_mentions,
-                source_id     => $input->{source_id},
-                source_type   => $input->{source_type},
+        $created = $self->recorder->record_audit( %{$audit} );
+    }
+    catch ($error) {
+        return undef;
+    };
+
+    return $created;
+}
+
+# The audit of the cut, in a savepoint of the caller's transaction when
+# there is one: a failure to write it is ignored, and must not abort the
+# post's transaction.
+async sub _record_fanout_audit_p ( $self, $audit, $context, $scope ) {
+    my $created;
+    try {
+        $created = $scope
+          ? await $scope->transaction_p(
+            async sub ($savepoint) {
+                return await $self->_joined($savepoint)
+                  ->recorder->record_audit_p( $audit, $context );
             },
-            previous_hash  => undef,
-            record_hash    => q{},
-            schema_version => $SCHEMA_VERSION,
-            target_id      => _uuid_or_undef( $input->{source_id} ),
-            target_type    => 'mention',
-        );
+            $context
+          )
+          : await $self->recorder->record_audit_p( $audit, $context );
     }
     catch ($error) {
         return undef;
@@ -107,42 +192,14 @@ sub _record_fanout_audit ( $self, $input, $blocked_count, $max_mentions ) {
 sub _insert_mentions ( $self, $input, $mentions, $resolved ) {
     my ( @created, @notifications, @skipped );
     for my $mention ( @{$mentions} ) {
-        my $user = $resolved->{ $mention->{username} };
-        if ( !$user ) {
-            push @skipped, _skip( $mention, 'unknown_user' );
-            next;
-        }
-        my $user_id = column_of( $user, 'id' );
-        if ( $user_id eq $input->{actor_id} ) {
-            push @skipped, _skip( $mention, 'self_mention' );
-            next;
-        }
-        if (
-            $self->readability
-            && !$self->readability->readable_by(
-                $user_id, $input->{source_type}, $input->{source_id}
-            )
-          )
-        {
-            push @skipped, _skip( $mention, 'source_not_readable' );
-            next;
-        }
-        if (   $self->relations
-            && $self->relations->blocks( $user_id, $input->{actor_id} ) )
-        {
-            push @skipped, _skip( $mention, 'blocked' );
+        my ( $skip, $user_id ) = _unmentioned( $input, $mention, $resolved );
+        $skip //= $self->_unreadable_or_blocked( $input, $user_id );
+        if ($skip) {
+            push @skipped, _skip( $mention, $skip );
             next;
         }
 
-        my $row = {
-            actor_id           => $input->{actor_id},
-            created_at         => $self->clock->now_iso8601,
-            mention_id         => $self->id_service->uuid,
-            mentioned_user_id  => $user_id,
-            mentioned_username => $mention->{username},
-            source_id          => $input->{source_id},
-            source_type        => $input->{source_type},
-        };
+        my $row     = $self->_mention_row( $input, $mention, $user_id );
         my $created = $self->_create_or_reuse_mention($row);
         if ($created) {
             push @created, $created;
@@ -153,11 +210,106 @@ sub _insert_mentions ( $self, $input, $mentions, $resolved ) {
     push @notifications,
       map { $self->_accepted_notification( $input, $_ ) } @created;
 
+    return _inserted( \@created, \@notifications, \@skipped );
+}
+
+# _insert_mentions on a transaction's call layer: the store is joined to
+# it, and the dispatcher is handed it.
+async sub _insert_mentions_p ( $self, $input, $mentions, $resolved, $context,
+    $layer )
+{
+    my ( @created, @notifications, @skipped );
+    for my $mention ( @{$mentions} ) {
+        my ( $skip, $user_id ) = _unmentioned( $input, $mention, $resolved );
+        $skip //=
+          await $self->_unreadable_or_blocked_p( $input, $user_id, $context );
+        if ($skip) {
+            push @skipped, _skip( $mention, $skip );
+            next;
+        }
+
+        my $row     = $self->_mention_row( $input, $mention, $user_id );
+        my $created = await $self->_create_by_function_p( $row, $context );
+        if ($created) {
+            push @created, $created;
+            next;
+        }
+        push @notifications,
+          await $self->_accepted_notification_p( $input, $row, $context,
+            $layer );
+    }
+    for my $created (@created) {
+        push @notifications,
+          await $self->_accepted_notification_p( $input, $created, $context,
+            $layer );
+    }
+
+    return _inserted( \@created, \@notifications, \@skipped );
+}
+
+# Why a mention is not recorded before anything is read -- an unknown
+# member, or the author -- and the member's id otherwise.
+sub _unmentioned ( $input, $mention, $resolved ) {
+    my $user = $resolved->{ $mention->{username} };
+    return 'unknown_user' if !$user;
+    my $user_id = column_of( $user, 'id' );
+    return 'self_mention' if $user_id eq $input->{actor_id};
+
+    return ( undef, $user_id );
+}
+
+sub _unreadable_or_blocked ( $self, $input, $user_id ) {
+    return 'source_not_readable'
+      if $self->readability
+      && !$self->readability->readable_by( $user_id, $input->{source_type},
+        $input->{source_id} );
+    return 'blocked'
+      if $self->relations
+      && $self->relations->blocks( $user_id, $input->{actor_id} );
+
+    return undef;
+}
+
+async sub _unreadable_or_blocked_p ( $self, $input, $user_id, $context ) {
+    my ( $readability, $relations ) = ( $self->readability, $self->relations );
+    if ($readability) {
+        my @source = ( $user_id, $input->{source_type}, $input->{source_id} );
+        my $readable =
+          $readability->can('readable_by_p')
+          ? await $readability->readable_by_p( @source, $context )
+          : $readability->readable_by(@source);
+        return 'source_not_readable' if !$readable;
+    }
+    if ($relations) {
+        my @pair = ( $user_id, $input->{actor_id} );
+        my $blocks =
+          $relations->can('blocks_p')
+          ? await $relations->blocks_p( @pair, $context )
+          : $relations->blocks(@pair);
+        return 'blocked' if $blocks;
+    }
+
+    return undef;
+}
+
+sub _mention_row ( $self, $input, $mention, $user_id ) {
+    return {
+        actor_id           => $input->{actor_id},
+        created_at         => $self->clock->now_iso8601,
+        mention_id         => $self->id_service->uuid,
+        mentioned_user_id  => $user_id,
+        mentioned_username => $mention->{username},
+        source_id          => $input->{source_id},
+        source_type        => $input->{source_type},
+    };
+}
+
+sub _inserted ( $created, $notifications, $skipped ) {
     return {
         ok            => 1,
-        created       => \@created,
-        notifications => [ grep { defined } @notifications ],
-        skipped       => \@skipped,
+        created       => $created,
+        notifications => [ grep { defined } @{$notifications} ],
+        skipped       => $skipped,
     };
 }
 
@@ -173,6 +325,26 @@ sub _create_by_function ( $self, $row ) {
         $result =
           $self->functions->row( 'community_create_mention', { row => $row } )
           ->{result};
+        if ( $result && $result->{retry_id} ) {
+            GPForum::X::Conflict->throw(
+                message => 'the replacement mention id is already stored' );
+        }
+    }
+    return $result;
+}
+
+async sub _create_by_function_p ( $self, $row, $context ) {
+    my $create = async sub {
+        return (
+            await $self->functions->row_p(
+                'community_create_mention', { row => $row }, $context
+            )
+        )->{result};
+    };
+    my $result = await $create->();
+    if ( $result && $result->{retry_id} ) {
+        $row->{mention_id} = $self->id_service->uuid;
+        $result = await $create->();
         if ( $result && $result->{retry_id} ) {
             GPForum::X::Conflict->throw(
                 message => 'the replacement mention id is already stored' );
@@ -225,31 +397,52 @@ sub _create_or_reuse_mention ( $self, $row ) {
 # The member is notified through the dispatcher, when there is one. A
 # notification it refused, or already held, answers undef.
 sub _accepted_notification ( $self, $input, $mention ) {
-    if ( !$self->notification_dispatcher ) {
-        return undef;
-    }
+    return undef if !$self->notification_dispatcher;
 
+    return _accepted(
+        $self->notification_dispatcher->create_notification(
+            _notification( $input, $mention )
+        )
+    );
+}
+
+# The same through the dispatcher's asynchronous twin, on the caller's
+# transaction.
+async sub _accepted_notification_p ( $self, $input, $mention, $context, $layer )
+{
+    my $dispatcher = $self->notification_dispatcher;
+    return undef if !$dispatcher;
+    my $notification = _notification( $input, $mention );
+
+    return _accepted(
+        $dispatcher->can('create_notification_p')
+        ? await $dispatcher->create_notification_p( $notification, $context,
+            $layer )
+        : $dispatcher->create_notification($notification)
+    );
+}
+
+sub _notification ( $input, $mention ) {
     my $post_id =
       $input->{source_type} eq q{post} ? $input->{source_id} : undef;
-    my $result = $self->notification_dispatcher->create_notification(
-        {
-            notification_type => 'mention',
-            payload           => {
-                actor_id           => $input->{actor_id},
-                mentioned_username => $mention->{mentioned_username},
-                post_id            => $post_id,
-                source_id          => $input->{source_id},
-                source_type        => $input->{source_type},
-                thread_id          => $input->{thread_id},
-            },
-            recipient_user_id => $mention->{mentioned_user_id},
-            source_id         => $input->{source_id},
-            source_type       => $input->{source_type},
-        }
-    );
-    if ( !$result || !$result->{ok} || $result->{duplicate} ) {
-        return undef;
-    }
+    return {
+        notification_type => 'mention',
+        payload           => {
+            actor_id           => $input->{actor_id},
+            mentioned_username => $mention->{mentioned_username},
+            post_id            => $post_id,
+            source_id          => $input->{source_id},
+            source_type        => $input->{source_type},
+            thread_id          => $input->{thread_id},
+        },
+        recipient_user_id => $mention->{mentioned_user_id},
+        source_id         => $input->{source_id},
+        source_type       => $input->{source_type},
+    };
+}
+
+sub _accepted ($result) {
+    return undef if !$result || !$result->{ok} || $result->{duplicate};
 
     return $result;
 }
@@ -294,6 +487,15 @@ sub _resolve_users ( $self, $mentions ) {
     }
 
     return \%resolved;
+}
+
+async sub _resolve_users_p ( $self, $mentions, $context ) {
+    my @usernames = map { $_->{username} } @{$mentions};
+    my $rows =
+      await $self->functions->rows_p( 'community_resolve_mention_users',
+        { usernames => \@usernames }, $context );
+
+    return { map { lc( $_->{username} ) => $_ } @{$rows} };
 }
 
 sub _empty_result {
@@ -398,6 +600,19 @@ notifications it accepted and did not report as duplicates) and C<skipped>
 C<self_mention>, C<source_not_readable>, C<blocked> (the member blocks the
 author, ADR 0130) or C<fanout_limited>). A body without mentions returns empty lists
 and touches nothing.
+
+=head2 record_for_source_p
+
+L</record_for_source> as a promise, on the worker's pooled asynchronous
+connections; takes the same hash reference, an optional query context and
+an optional transaction call layer (the scope a
+L<GPForum::Infrastructure::SqlFunction/transaction_p> work receives). With
+that layer the readability and block checks, the inserts and the
+dispatcher's C<create_notification_p> all join the caller's transaction, so
+a post still being written is read as its author's transaction sees it;
+without it they commit in a transaction of their own. The fan-out audit is
+written in a savepoint, its failure ignored. Without the function layer the
+blocking method answers.
 
 =head1 DIAGNOSTICS
 

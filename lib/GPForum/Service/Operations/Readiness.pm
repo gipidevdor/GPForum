@@ -5,7 +5,7 @@ package GPForum::Service::Operations::Readiness;
 
 use Const::Fast;
 use Time::HiRes qw(time);
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Config;
@@ -22,6 +22,7 @@ use GPForum::Service::Operations::Replication;
 use GPForum::Infrastructure::SqlFunction;
 
 use Mojo::Promise;
+use GPForum::Infrastructure::AsyncQuery;
 use GPForum::Infrastructure::AsyncWork;
 
 our $VERSION = '0.001';
@@ -76,12 +77,137 @@ sub runbooks ($class) {
     return {%RUNBOOK};
 }
 
-# The last report, when it is at most reuse_seconds old; a fresh one when not.
-sub check_p ( $self, $context = undef ) {
-    my $work = GPForum::Infrastructure::AsyncWork->shared;
-    return $work->service_result_p( $self, 'check', [], $context )
-      if $self->schema && $self->schema->isa('GPForum::Schema');
-    return $work->run_p( sub { return $self->check; } );
+# The report check builds, without a child touching PostgreSQL: the host
+# checks (OS, runtime, cache, antivirus) run in a CPU-only child on plain
+# data while the database checks run on pooled asynchronous connections.
+# Without the function layer (test doubles) the blocking check answers.
+async sub check_p ( $self, $context = undef ) {
+    return $self->check if !$self->functions;
+    my $started = time;
+    my $host    = GPForum::Infrastructure::AsyncWork->shared->cpu_p(
+        sub { return $self->_host_checks; } );
+    my %database = (
+        database      => await $self->_db_check_p($context),
+        eventlog      => await $self->_probe_p( 'EventLog',      $context ),
+        outboxmessage => await $self->_probe_p( 'OutboxMessage', $context ),
+        endpointquerybudget =>
+          await $self->_probe_p( 'EndpointQueryBudget', $context ),
+        query_budget_drift =>
+          await $self->_query_budget_drift_check_p($context),
+        partition_horizon => await $self->_catalog_check_p(
+            'partition_horizon',
+            async sub {
+                my $rows =
+                  await $self->functions->rows_p( 'ops_partition_horizon', {},
+                    $context );
+                return
+                  GPForum::Service::Operations::PartitionLifecycle->new
+                  ->horizon_from_rows( $rows, $self->clock->now_epoch );
+            }
+        ),
+        replication_slots => await $self->_catalog_check_p(
+            'replication_slots',
+            async sub {
+                my $replication =
+                  GPForum::Service::Operations::Replication->new(
+                    max_retained_bytes => $self->_replication_slot_limit );
+                return $replication->slot_report(
+                    await $replication->snapshot_p( $self->functions, $context )
+                );
+            }
+        ),
+        postgres_performance =>
+          await $self->_postgres_performance_check_p($context),
+    );
+    my $local  = await $host;
+    my @checks = (
+        $database{database},
+        @{ $local->{checks} }{qw(runtime os_preflight runtime_enforcement)},
+        @database{qw(eventlog outboxmessage endpointquerybudget)},
+        $database{query_budget_drift},
+        @{ $local->{checks} }{qw(shared_cache antivirus)},
+        $database{partition_horizon},
+        $local->{checks}{operational_profile},
+        @database{qw(replication_slots postgres_performance)},
+    );
+    return $self->_report( \@checks, $local->{runtime}, $started );
+}
+
+# The checks that read the host, not PostgreSQL, as plain data.
+sub _host_checks ($self) {
+    return {
+        checks => {
+            runtime             => $self->_runtime_check,
+            os_preflight        => $self->_os_preflight_check,
+            runtime_enforcement => $self->_runtime_enforcement_check,
+            shared_cache        => $self->_shared_cache_check,
+            antivirus           => $self->_antivirus_check,
+            operational_profile => $self->_profile_check,
+        },
+        runtime => $self->runtime ? $self->runtime->as_hash : {},
+    };
+}
+
+async sub _db_check_p ( $self, $context ) {
+    my $started = time;
+    try {
+        await GPForum::Infrastructure::AsyncQuery->for_schema( $self->schema )
+          ->run_p( sub ($db) { return $db->query_p('SELECT 1'); }, $context );
+    }
+    catch ($error) {
+        return _failed_check( 'database', $started, $error );
+    };
+    return _ok_check( 'database', $started );
+}
+
+async sub _probe_p ( $self, $name, $context ) {
+    my $started = time;
+    try {
+        await $self->functions->row_p( 'ops_readiness_probe',
+            { source => $name }, $context );
+    }
+    catch ($error) {
+        return _failed_check( lc $name, $started, $error );
+    };
+    return _ok_check( lc $name, $started );
+}
+
+async sub _query_budget_drift_check_p ( $self, $context ) {
+    my $started = time;
+    my $report;
+    try {
+        $report =
+          await GPForum::Service::Operations::QueryBudget->new(
+            schema => $self->schema )->drift_report_p($context);
+    }
+    catch ($error) {
+        return _failed_check( 'query_budget_drift', $started, $error );
+    };
+    return _drift_check( $report, $started );
+}
+
+async sub _catalog_check_p ( $self, $name, $read ) {
+    my $started = time;
+    my ( $report, $failure );
+    try { $report = await $read->(); }
+    catch ($error) { $failure = $error; };
+    return _catalog_result( $name, $started, $report, $failure );
+}
+
+async sub _postgres_performance_check_p ( $self, $context ) {
+    my $started = time;
+    my $report =
+      await GPForum::Infrastructure::AsyncQuery->for_schema( $self->schema )
+      ->run_p(
+        sub ($db) {
+            return GPForum::Infrastructure::PostgresPerformance->new(
+                config => $self->_config,
+                dbh    => $db->dbh
+            )->inspect_p($db);
+        },
+        $context
+      );
+    return _performance_check( $report, $started );
 }
 
 sub recent_check_p ( $self, $context = undef ) {
@@ -128,17 +254,22 @@ sub check ($self) {
         $self->_postgres_performance_check,
     );
 
-    for my $check (@checks) {
+    return $self->_report( \@checks,
+        $self->runtime ? $self->runtime->as_hash : {}, $started );
+}
+
+sub _report ( $self, $checks, $runtime, $started ) {
+    for my $check ( @{$checks} ) {
         next if ( $check->{status}               // q{} ) eq 'ok';
         next if !exists $RUNBOOK{ $check->{name} // q{} };
         $check->{runbook} = $RUNBOOK{ $check->{name} };
     }
 
     return {
-        status      => _overall_status( \@checks ),
-        checks      => \@checks,
+        status      => _overall_status($checks),
+        checks      => $checks,
         environment => $self->environment,
-        runtime     => $self->runtime ? $self->runtime->as_hash : {},
+        runtime     => $runtime,
         timestamp   => $self->clock->now_iso8601,
         latency_ms  => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
     };
@@ -155,6 +286,10 @@ sub _postgres_performance_check ($self) {
         config => $self->_config,
         dbh    => $dbh,
     )->inspect;
+    return _performance_check( $report, $started );
+}
+
+sub _performance_check ( $report, $started ) {
     return {
         name   => 'postgres_performance',
         status => $report->{status},
@@ -329,6 +464,10 @@ sub _catalog_check ( $self, $name, $read ) {
     catch ($error) {
         $failure = $error;
     };
+    return _catalog_result( $name, $started, $report, $failure );
+}
+
+sub _catalog_result ( $name, $started, $report, $failure ) {
     if ( !$report ) {
         return {
             %{ _failed_check( $name, $started, $failure ) },
@@ -415,6 +554,10 @@ sub _query_budget_drift_check ($self) {
         return _failed_check( 'query_budget_drift', $started, $error );
     };
 
+    return _drift_check( $report, $started );
+}
+
+sub _drift_check ( $report, $started ) {
     return {
         name       => 'query_budget_drift',
         status     => $report->{status} eq 'ok' ? 'ok' : 'fail',

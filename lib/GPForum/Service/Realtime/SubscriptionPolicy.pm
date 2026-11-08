@@ -4,7 +4,7 @@
 package GPForum::Service::Realtime::SubscriptionPolicy;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -25,8 +25,8 @@ has suspension_store => undef;  # optional: without one suspensions are not read
 # actor, action, resource and context are the authorization question; collapsing
 # them into one hashref would hide which of them a caller forgot.
 sub permits ( $self, $actor, $action, $resource, $context ) {
-    return _deny('forbidden')               if $action ne $ACTION_SUBSCRIBE;
-    return _deny('authentication_required') if !_user_id($actor);
+    my $refused = _refused( $actor, $action );
+    return $refused if $refused;
 
     my $account = $self->_actor_account_status($actor);
     return $account if !$account->{ok};
@@ -38,6 +38,31 @@ sub permits ( $self, $actor, $action, $resource, $context ) {
     return $self->_can_feed( $actor, $resource ) if $type eq 'feed';
 
     return _deny('unknown_channel');
+}
+
+# The same decision on the worker's pooled asynchronous connections. The
+# subscription context is the socket's, not a query context: queries run
+# without the request's statistics token.
+async sub permits_p ( $self, $actor, $action, $resource, $context ) {
+    my $refused = _refused( $actor, $action );
+    return $refused if $refused;
+
+    my $account = await $self->_actor_account_status_p($actor);
+    return $account if !$account->{ok};
+
+    my $type = $resource->{type} || q{};
+    return await $self->_can_thread_p( $actor, $resource ) if $type eq 'thread';
+    return await $self->_can_privileged_channel_p( $actor, $resource )
+      if $type eq 'admin' || $type eq 'moderation';
+    return $self->_can_feed( $actor, $resource ) if $type eq 'feed';
+
+    return _deny('unknown_channel');
+}
+
+sub _refused ( $actor, $action ) {
+    return _deny('forbidden')               if $action ne $ACTION_SUBSCRIBE;
+    return _deny('authentication_required') if !_user_id($actor);
+    return undef;
 }
 
 # ADR 0102: a thread channel is open to whoever can read the thread -- its
@@ -53,18 +78,47 @@ sub _can_thread ( $self, $actor, $resource ) {
       : _deny('invisible_resource');
 }
 
+async sub _can_thread_p ( $self, $actor, $resource ) {
+    return _deny('invisible_resource') if !$self->readability;
+
+    return (
+        await $self->readability->readable_by_p(
+            _user_id($actor), 'thread', $resource->{id}
+        )
+      )
+      ? _allow('thread_readable')
+      : _deny('invisible_resource');
+}
+
 sub _can_privileged_channel ( $self, $actor, $resource ) {
-    my %permission_for = (
-        admin      => { resource_type => 'admin',      action => 'view' },
-        moderation => { resource_type => 'moderation', action => 'review' },
-    );
-    my $permission = $permission_for{ $resource->{type} };
+    my $permission = _privileged_permission($resource);
     return _deny('forbidden') if !$permission;
     return _allow('permission_allowed')
       if $self->permission_gate
       && $self->permission_gate->allowed( $actor, $permission );
 
     return _deny('forbidden');
+}
+
+async sub _can_privileged_channel_p ( $self, $actor, $resource ) {
+    my $permission = _privileged_permission($resource);
+    return _deny('forbidden') if !$permission;
+    my $gate = $self->permission_gate;
+    return _deny('forbidden') if !$gate;
+    my $allowed =
+      $gate->can('allowed_p')
+      ? await $gate->allowed_p( $actor, $permission )
+      : $gate->allowed( $actor, $permission );
+
+    return $allowed ? _allow('permission_allowed') : _deny('forbidden');
+}
+
+sub _privileged_permission ($resource) {
+    my %permission_for = (
+        admin      => { resource_type => 'admin',      action => 'view' },
+        moderation => { resource_type => 'moderation', action => 'review' },
+    );
+    return $permission_for{ $resource->{type} };
 }
 
 sub _can_feed ( $self, $actor, $resource ) {
@@ -108,6 +162,44 @@ sub _actor_account_status ( $self, $actor ) {
     catch ($error) {
         return _deny('authentication_required');
     };
+    return _account_answer($user);
+}
+
+async sub _actor_account_status_p ( $self, $actor ) {
+    my $user_id = _user_id($actor);
+    if ( my $store = $self->suspension_store ) {
+        my $decision;
+        try {
+            $decision =
+              $store->can('can_participate_p')
+              ? await $store->can_participate_p($user_id)
+              : $store->can_participate($user_id);
+        }
+        catch ($error) {
+            return _deny('forbidden');
+        };
+        return _deny('forbidden')
+          if ref $decision ne 'HASH' || !$decision->{ok};
+    }
+
+    return _allow('account_active')             if !$self->schema;
+    return $self->_actor_account_status($actor) if !$self->functions;
+
+    my $user;
+    try {
+        $user = GPForum::Infrastructure::ResultRow->from(
+            await $self->functions->row_p(
+                'identity_user_by_id', { user_id => $user_id }
+            )
+        );
+    }
+    catch ($error) {
+        return _deny('authentication_required');
+    };
+    return _account_answer($user);
+}
+
+sub _account_answer ($user) {
     return _deny('authentication_required') if !$user;
 
     my $status = _column( $user, 'status' ) || $STATUS_ACTIVE;
@@ -210,6 +302,12 @@ permission or feed),
 C<authentication_required> (no user id, no such user, or a user lookup that
 died),
 C<invisible_resource> (a thread the actor cannot read) or C<unknown_channel>.
+
+=head2 permits_p
+
+L</permits> as a promise, with the same arguments: the account, the
+suspension, the thread's readability and the role are read on the worker's
+pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

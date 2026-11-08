@@ -303,6 +303,69 @@ sub update_bio ( $self, $input ) {
     return $self->preference_store->update_bio($input);
 }
 
+# The writes above as promises on the worker's pooled asynchronous
+# connections, each with an optional query context and call layer (the
+# transaction a command log holds) last.
+sub authenticate_login_p ( $self, @arguments ) {
+    return $self->auth_store->authenticate_login_p(@arguments);
+}
+
+sub complete_second_factor_p ( $self, @arguments ) {
+    return $self->auth_store->complete_second_factor_p(@arguments);
+}
+
+sub revoke_session_p ( $self, @arguments ) {
+    return $self->session_store->revoke_session_p(@arguments);
+}
+
+sub update_preferred_locale_p ( $self, @arguments ) {
+    return $self->preference_store->update_preferred_locale_p(@arguments);
+}
+
+sub update_preferred_theme_p ( $self, @arguments ) {
+    return $self->preference_store->update_preferred_theme_p(@arguments);
+}
+
+sub update_preferred_timezone_p ( $self, @arguments ) {
+    return $self->preference_store->update_preferred_timezone_p(@arguments);
+}
+
+sub update_profile_p ( $self, @arguments ) {
+    return $self->preference_store->update_profile_p(@arguments);
+}
+
+sub update_bio_p ( $self, @arguments ) {
+    return $self->preference_store->update_bio_p(@arguments);
+}
+
+sub request_password_reset_p ( $self, @arguments ) {
+    return $self->account_store->request_password_reset_p(@arguments);
+}
+
+sub reset_password_p ( $self, @arguments ) {
+    return $self->account_store->reset_password_p(@arguments);
+}
+
+sub change_password_p ( $self, @arguments ) {
+    return $self->account_store->change_password_p(@arguments);
+}
+
+sub request_email_change_p ( $self, @arguments ) {
+    return $self->account_store->request_email_change_p(@arguments);
+}
+
+sub confirm_email_change_p ( $self, @arguments ) {
+    return $self->account_store->confirm_email_change_p(@arguments);
+}
+
+sub request_email_verification_p ( $self, @arguments ) {
+    return $self->account_store->request_email_verification_p(@arguments);
+}
+
+sub confirm_email_verification_p ( $self, @arguments ) {
+    return $self->account_store->confirm_email_verification_p(@arguments);
+}
+
 sub _session_touch_arguments ($self) {
     if ( !defined $self->session_touch_interval_seconds ) {
         return;
@@ -401,6 +464,88 @@ Delegates registration verification completion to the account store.
 =head2 revoke_session
 
 Revokes one server session.
+
+=head2 authenticate_login_p
+
+L</authenticate_login> as a promise, with an optional query context last
+(L<GPForum::Service::Identity::AuthStore/authenticate_login_p>).
+
+=head2 complete_second_factor_p
+
+L</complete_second_factor> as a promise, with an optional query context
+last (L<GPForum::Service::Identity::AuthStore/complete_second_factor_p>).
+
+=head2 revoke_session_p
+
+L</revoke_session> as a promise, with an optional query context and call
+layer last (L<GPForum::Service::Identity::SessionStore/revoke_session_p>).
+
+=head2 update_preferred_locale_p
+
+L</update_preferred_locale> as a promise, with an optional query context and call layer last
+(L<GPForum::Service::Identity::PreferenceStore/update_preferred_locale_p>).
+
+=head2 update_preferred_theme_p
+
+L</update_preferred_theme> as a promise, with an optional query context and call layer last
+(L<GPForum::Service::Identity::PreferenceStore/update_preferred_theme_p>).
+
+=head2 update_preferred_timezone_p
+
+L</update_preferred_timezone> as a promise, with an optional query context and call layer last
+(L<GPForum::Service::Identity::PreferenceStore/update_preferred_timezone_p>).
+
+=head2 update_profile_p
+
+L</update_profile> as a promise, with an optional query context and call layer last
+(L<GPForum::Service::Identity::PreferenceStore/update_profile_p>).
+
+=head2 update_bio_p
+
+L</update_bio> as a promise, with an optional query context and call layer last
+(L<GPForum::Service::Identity::PreferenceStore/update_bio_p>).
+
+=head2 request_password_reset_p
+
+L</request_password_reset> as a promise on the worker's pooled asynchronous connections,
+with an optional query context and call layer (the transaction a command
+log holds) last.
+
+=head2 reset_password_p
+
+L</reset_password> as a promise on the worker's pooled asynchronous connections,
+with an optional query context and call layer (the transaction a command
+log holds) last.
+
+=head2 change_password_p
+
+L</change_password> as a promise on the worker's pooled asynchronous connections,
+with an optional query context and call layer (the transaction a command
+log holds) last.
+
+=head2 request_email_change_p
+
+L</request_email_change> as a promise on the worker's pooled asynchronous connections,
+with an optional query context and call layer (the transaction a command
+log holds) last.
+
+=head2 confirm_email_change_p
+
+L</confirm_email_change> as a promise on the worker's pooled asynchronous connections,
+with an optional query context and call layer (the transaction a command
+log holds) last.
+
+=head2 request_email_verification_p
+
+L</request_email_verification> as a promise on the worker's pooled asynchronous connections,
+with an optional query context and call layer (the transaction a command
+log holds) last.
+
+=head2 confirm_email_verification_p
+
+L</confirm_email_verification> as a promise on the worker's pooled asynchronous connections,
+with an optional query context and call layer (the transaction a command
+log holds) last.
 
 =head2 live_session_ids
 

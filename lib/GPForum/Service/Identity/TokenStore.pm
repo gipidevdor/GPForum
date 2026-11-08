@@ -4,7 +4,7 @@
 package GPForum::Service::Identity::TokenStore;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -48,10 +48,7 @@ sub create_token ( $self, $input ) {
         return $created;
     }
 
-    my $conflict = GPForum::X::Conflict->caught($error);
-    if ( !$conflict ) {
-        GPForum::Infrastructure::UniqueConflict->rethrow($error);
-    }
+    my $conflict = GPForum::Infrastructure::UniqueConflict->conflict_of($error);
     if ( $conflict->on($ID_CONSTRAINT) ) {
         my $stored =
           $self->functions
@@ -62,29 +59,12 @@ sub create_token ( $self, $input ) {
           )
           : $self->_tokens->find( { token_id => $issued->{token_id} } );
         if ( $self->_same_issued_token( $stored, $issued ) ) {
-            return {
-                row        => $stored,
-                skipped    => 1,
-                token_hash => $self->support->column( $stored, 'token_hash' ),
-                token_id   => $self->support->column( $stored, 'token_id' ),
-            };
+            return $self->_reused_token($stored);
         }
-        my $token_id = $self->id_service->uuid;
-        $issued = {
-            %{$issued},
-            row      => { %{ $issued->{row} }, token_id => $token_id },
-            token_id => $token_id,
-        };
+        $issued = $self->_reissued_id($issued);
     }
     elsif ( $conflict->on($HASH_CONSTRAINT) ) {
-        my $raw_token  = $self->session_tokens->issue_token;
-        my $token_hash = $self->session_tokens->hash_token($raw_token);
-        $issued = {
-            %{$issued},
-            raw_token  => $raw_token,
-            row        => { %{ $issued->{row} }, token_hash => $token_hash },
-            token_hash => $token_hash,
-        };
+        $issued = $self->_reissued_hash($issued);
     }
     else {
         my $existing = $self->_unused_token( $issued->{row} );
@@ -94,14 +74,86 @@ sub create_token ( $self, $input ) {
         return $self->_rotate_token( $existing, $issued );
     }
 
-    my ( $retried, $retry_error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
+    return GPForum::Infrastructure::UniqueConflict->once_more( $self->schema,
         sub { return $self->_insert_issued($issued); } );
-    if ($retried) {
-        return $retried;
+}
+
+# create_token on $scope, the transaction the caller holds: each insert is
+# tried in a savepoint of it, and a conflict is answered as create_token
+# answers it.
+async sub create_token_p ( $self, $input, $context, $scope ) {
+    my $issued = $self->new_token_issue($input);
+    my $insert = sub ($savepoint) {
+        return $self->_insert_issued_p( $issued, $context, $savepoint );
+    };
+    my ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $scope,
+        $insert );
+    return $created if $created;
+
+    my $conflict = GPForum::Infrastructure::UniqueConflict->conflict_of($error);
+    if ( $conflict->on($ID_CONSTRAINT) ) {
+        my $stored = GPForum::Infrastructure::ResultRow->from(
+            await $scope->row_p(
+                'identity_token_by_id', { token_id => $issued->{token_id} },
+                $context
+            )
+        );
+        return $self->_reused_token($stored)
+          if $self->_same_issued_token( $stored, $issued );
+        $issued = $self->_reissued_id($issued);
+    }
+    elsif ( $conflict->on($HASH_CONSTRAINT) ) {
+        $issued = $self->_reissued_hash($issued);
+    }
+    else {
+        my $existing =
+          await $self->_unused_token_p( $issued->{row}, $context, $scope );
+        if ( !$existing ) {
+            GPForum::Infrastructure::UniqueConflict->rethrow($error);
+        }
+        return await $self->_rotate_token_p( $existing, $issued, $context,
+            $scope );
     }
 
+    my ( $retried, $retry_error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $scope,
+        $insert );
+    return $retried if $retried;
+
     GPForum::Infrastructure::UniqueConflict->rethrow($retry_error);
+}
+
+# A leftover of this very token, committed by an earlier attempt.
+sub _reused_token ( $self, $stored ) {
+    return {
+        row        => $stored,
+        skipped    => 1,
+        token_hash => $self->support->column( $stored, 'token_hash' ),
+        token_id   => $self->support->column( $stored, 'token_id' ),
+    };
+}
+
+# The issue under a new id, its row too.
+sub _reissued_id ( $self, $issued ) {
+    my $token_id = $self->id_service->uuid;
+    return {
+        %{$issued},
+        row      => { %{ $issued->{row} }, token_id => $token_id },
+        token_id => $token_id,
+    };
+}
+
+# The issue with a new raw token and its hash.
+sub _reissued_hash ( $self, $issued ) {
+    my $raw_token  = $self->session_tokens->issue_token;
+    my $token_hash = $self->session_tokens->hash_token($raw_token);
+    return {
+        %{$issued},
+        raw_token  => $raw_token,
+        row        => { %{ $issued->{row} }, token_hash => $token_hash },
+        token_hash => $token_hash,
+    };
 }
 
 # The member's open token of this type, if there is one, no longer does
@@ -120,7 +172,35 @@ sub withdraw_open_token ( $self, $user_id, $token_type ) {
         return 0;
     }
 
-    my $dead = $self->new_token_issue(
+    $self->_rotate_token( $open,
+        $self->_withdrawal( $open, $user_id, $token_type ) );
+
+    return 1;
+}
+
+# withdraw_open_token on $scope, the transaction the caller holds.
+async sub withdraw_open_token_p ( $self, $user_id, $token_type, $context,
+    $scope )
+{
+    my $open = await $self->_unused_token_p(
+        {
+            token_type => $token_type,
+            user_id    => $user_id,
+        },
+        $context, $scope
+    );
+    return 0 if !$open;
+
+    await $self->_rotate_token_p( $open,
+        $self->_withdrawal( $open, $user_id, $token_type ),
+        $context, $scope );
+
+    return 1;
+}
+
+# The dead token an open one is rotated to when it is withdrawn.
+sub _withdrawal ( $self, $open, $user_id, $token_type ) {
+    return $self->new_token_issue(
         {
             email_normalized =>
               $self->support->column( $open, 'email_normalized' ),
@@ -130,9 +210,6 @@ sub withdraw_open_token ( $self, $user_id, $token_type ) {
             user_id     => $user_id,
         }
     );
-    $self->_rotate_token( $open, $dead );
-
-    return 1;
 }
 
 sub _insert_issued ( $self, $issued ) {
@@ -145,6 +222,22 @@ sub _insert_issued ( $self, $issued ) {
       )
       : $self->_tokens->create( $issued->{row} );
 
+    return _inserted( $issued, $row );
+}
+
+async sub _insert_issued_p ( $self, $issued, $context, $scope ) {
+    return _inserted(
+        $issued,
+        GPForum::Infrastructure::ResultRow->from(
+            await $scope->row_p(
+                'identity_insert_token', { values => $issued->{row} },
+                $context
+            )
+        )
+    );
+}
+
+sub _inserted ( $issued, $row ) {
     return {
         expires_at => $issued->{expires_at},
         raw_token  => $issued->{raw_token},
@@ -184,11 +277,7 @@ sub _unused_token ( $self, $input ) {
     if ( $self->functions ) {
         return GPForum::Infrastructure::ResultRow->from(
             $self->functions->row(
-                'identity_unused_token',
-                {
-                    user_id    => $input->{user_id},
-                    token_type => $input->{token_type}
-                }
+                'identity_unused_token', _unused_values($input)
             )
         );
     }
@@ -203,15 +292,27 @@ sub _unused_token ( $self, $input ) {
     )->single;
 }
 
+async sub _unused_token_p ( $self, $input, $context, $scope ) {
+    return undef if !has_text( $input->{user_id} );
+
+    return GPForum::Infrastructure::ResultRow->from(
+        await $scope->row_p(
+            'identity_unused_token', _unused_values($input), $context
+        )
+    );
+}
+
+sub _unused_values ($input) {
+    return {
+        user_id    => $input->{user_id},
+        token_type => $input->{token_type}
+    };
+}
+
 sub _rotate_token ( $self, $row, $issued ) {
     if ( $self->functions ) {
-        my $stored = $self->functions->row(
-            'identity_rotate_token',
-            {
-                token_id => $self->support->column( $row, 'token_id' ),
-                values   => $issued->{row}
-            }
-        );
+        my $stored = $self->functions->row( 'identity_rotate_token',
+            $self->_rotate_values( $row, $issued ) );
         $row = GPForum::Infrastructure::ResultRow->from(
             { %{$stored}, expires_at => $issued->{expires_at} } );
     }
@@ -227,6 +328,28 @@ sub _rotate_token ( $self, $row, $issued ) {
         );
     }
 
+    return $self->_rotated( $row, $issued );
+}
+
+async sub _rotate_token_p ( $self, $row, $issued, $context, $scope ) {
+    my $stored = await $scope->row_p( 'identity_rotate_token',
+        $self->_rotate_values( $row, $issued ), $context );
+    return $self->_rotated(
+        GPForum::Infrastructure::ResultRow->from(
+            { %{$stored}, expires_at => $issued->{expires_at} }
+        ),
+        $issued
+    );
+}
+
+sub _rotate_values ( $self, $row, $issued ) {
+    return {
+        token_id => $self->support->column( $row, 'token_id' ),
+        values   => $issued->{row}
+    };
+}
+
+sub _rotated ( $self, $row, $issued ) {
     return {
         expires_at => $issued->{expires_at},
         raw_token  => $issued->{raw_token},
@@ -270,6 +393,21 @@ sub new_token_issue ( $self, $input ) {
 
 # The owner is read without a lock or a validity decision, so account
 # operations can lock the credential before consume_token locks the token.
+# token_user_id on $scope, the transaction the caller holds.
+async sub token_user_id_p ( $self, $token_type, $raw_token, $context, $scope ) {
+    my $row = await $scope->row_p(
+        'identity_token_user',
+        {
+            token_hash =>
+              $self->session_tokens->hash_token( trimmed($raw_token) ),
+            token_type => $token_type
+        },
+        $context
+    );
+
+    return $row ? $row->{user_id} : undef;
+}
+
 sub token_user_id ( $self, $token_type, $raw_token ) {
     my $token_hash = $self->session_tokens->hash_token( trimmed($raw_token) );
     my $row =
@@ -286,24 +424,12 @@ sub token_user_id ( $self, $token_type, $raw_token ) {
 sub consume_token ( $self, $token_type, $raw_token ) {
     my $token_hash = $self->session_tokens->hash_token( trimmed($raw_token) );
     if ( $self->functions ) {
-        my $result = $self->functions->row(
-            'identity_consume_token',
-            {
-                token_hash => $token_hash,
-                token_type => $token_type,
-                now        => $self->clock->now_iso8601,
-                now_epoch  => $self->clock->now_epoch
-            }
+        return $self->_consumed(
+            $self->functions->row(
+                'identity_consume_token',
+                $self->_consume_values( $token_type, $token_hash )
+            )
         );
-        return { ok => 0, error => $result->{result_code} }
-          if $result->{result_code} ne 'ok';
-        my $row = delete $result->{token_row};
-        $row->{used_at} = $self->clock->now_iso8601;
-        return {
-            ok  => 1,
-            row => GPForum::Infrastructure::ResultRow->from($row),
-            map { $_ => $row->{$_} } qw(email_normalized token_id user_id)
-        };
     }
     $self->_lock_token_hash($token_hash);
 
@@ -333,6 +459,39 @@ sub consume_token ( $self, $token_type, $raw_token ) {
         row              => $row,
         token_id         => $self->support->column( $row, 'token_id' ),
         user_id          => $self->support->column( $row, 'user_id' ),
+    };
+}
+
+# consume_token on $scope, the transaction the caller holds.
+async sub consume_token_p ( $self, $token_type, $raw_token, $context, $scope ) {
+    my $token_hash = $self->session_tokens->hash_token( trimmed($raw_token) );
+    return $self->_consumed(
+        await $scope->row_p(
+            'identity_consume_token',
+            $self->_consume_values( $token_type, $token_hash ), $context
+        )
+    );
+}
+
+sub _consume_values ( $self, $token_type, $token_hash ) {
+    return {
+        token_hash => $token_hash,
+        token_type => $token_type,
+        now        => $self->clock->now_iso8601,
+        now_epoch  => $self->clock->now_epoch
+    };
+}
+
+# What api.identity_consume_token answered, as consume_token answers it.
+sub _consumed ( $self, $result ) {
+    return { ok => 0, error => $result->{result_code} }
+      if $result->{result_code} ne 'ok';
+    my $row = delete $result->{token_row};
+    $row->{used_at} = $self->clock->now_iso8601;
+    return {
+        ok  => 1,
+        row => GPForum::Infrastructure::ResultRow->from($row),
+        map { $_ => $row->{$_} } qw(email_normalized token_id user_id)
     };
 }
 
@@ -413,15 +572,40 @@ that type, rotates it to a secret nobody was given, expiring a second from
 now, with C<withdrawn> as its metadata, and returns 1: the link mailed for
 it no longer works. Returns 0 when there is none.
 
+=head2 create_token_p
+
+Creates the token as L</create_token> does, on the call layer of the
+transaction the caller holds (the scope
+L<GPForum::Infrastructure::SqlFunction/transaction_p> hands its work), each
+insert in a savepoint of it. Takes the input, the query context and the
+scope; answers a promise of what L</create_token> returns.
+
+=head2 withdraw_open_token_p
+
+Withdraws the member's open token as L</withdraw_open_token> does, on the
+transaction's call layer given after the query context; answers a promise
+of 1 or 0.
+
 =head2 token_user_id
 
 Reads the owner of the token's hash and type without locking it or deciding
 whether it is usable. Account operations use this to lock the credential
 before calling C<consume_token>, which checks the token again under its lock.
 
+=head2 token_user_id_p
+
+Reads the token's owner as L</token_user_id> does, on the transaction's
+call layer given after the query context; answers a promise of the user id.
+
 =head2 consume_token
 
 Locks, validates, and marks a token as used.
+
+=head2 consume_token_p
+
+Consumes the token as L</consume_token> does, in one
+C<api.identity_consume_token> call on the transaction's call layer given
+after the query context; answers a promise of the same result.
 
 =head1 DIAGNOSTICS
 

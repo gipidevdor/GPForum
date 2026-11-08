@@ -43,7 +43,7 @@ async sub register ($self) {
     }
 
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_identity_workflow,
             'register',
             {
@@ -115,7 +115,7 @@ async sub login ($self) {
     }
 
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_identity_workflow,
             'login',
             {

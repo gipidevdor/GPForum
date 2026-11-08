@@ -104,6 +104,16 @@ sub readable_by ( $self, $reader, $source_type, $source_id ) {
     return @readers ? 1 : 0;
 }
 
+# The same answer on the worker's pooled asynchronous connections.
+async sub readable_by_p ( $self, $reader, $source_type, $source_id,
+    $context = undef )
+{
+    my $readers =
+      await $self->readers_list_p( $source_type, $source_id, $reader );
+
+    return @{$readers} ? 1 : 0;
+}
+
 # The readers, of those given, who may read a post or thread: one query for
 # where the source sits, and for a source that is not public, each reader's
 # viewer. A realtime broadcast filters its subscribers this way.
@@ -328,6 +338,11 @@ defaults to a L<GPForum::Service::Forum::ViewerResolver> on the same schema.
 =head2 readable_by
 
 True when a reader -- a Viewer or a user id -- may read the post or thread.
+
+=head2 readable_by_p
+
+L</readable_by> as a promise, with an optional query context last, read on
+the worker's pooled asynchronous connections.
 
 =head2 may_read
 

@@ -5,7 +5,7 @@ package GPForum::Infrastructure::EventRecorder;
 
 use Const::Fast;
 use JSON::MaybeXS;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Domain::EventEnvelope;
@@ -85,6 +85,16 @@ sub record_event ( $self, %input ) {
             return $self->_reuse_or_insert_event( $event, $outbox_payload );
         }
     );
+}
+
+# record_event on a pooled asynchronous connection: one api.ops_record_event
+# call, no child process. Without the function layer (a test double) the
+# blocking path answers.
+async sub record_event_p ( $self, $input, $context = undef ) {
+    return $self->record_event( %{$input} ) if !$self->functions;
+    my $row = await $self->functions->row_p( 'ops_record_event',
+        $self->event_call( %{$input} ), $context );
+    return $row->{event};
 }
 
 # ADR 0116. event_log_pkey is (event_id, created_at), so an event stored
@@ -356,6 +366,14 @@ sub record_audit ( $self, %input ) {
     };
 
     return $self->_in_transaction($work);
+}
+
+# record_audit on a pooled asynchronous connection, as record_event_p.
+async sub record_audit_p ( $self, $input, $context = undef ) {
+    return $self->record_audit( %{$input} ) if !$self->functions;
+    my $row = await $self->functions->row_p( 'ops_record_audit',
+        $self->audit_call( %{$input} ), $context );
+    return $row->{audit};
 }
 
 # pg_advisory_xact_lock is released at the end of the holding transaction, so
@@ -654,6 +672,11 @@ another idempotency key is written again under a new C<event_id>, which
 the returned event carries. Dies on any other database error, a unique
 conflict on any other key included.
 
+=head2 record_event_p
+
+Records an event as L</record_event> does, on a pooled asynchronous
+connection; takes the same input as a hash reference and answers a promise.
+
 =head2 event_recorded
 
 Takes an idempotency key. True when C<event_log> holds an event with it: a
@@ -669,6 +692,11 @@ C<created_at> (default now). Chains it to the newest record, writes it, and
 returns it as a hash reference with its C<previous_hash> and
 C<record_hash>. Its C<audit_id> is a new one when the caller's was already
 taken.
+
+=head2 record_audit_p
+
+Records an audit row as L</record_audit> does, on a pooled asynchronous
+connection; takes the same input as a hash reference and answers a promise.
 
 =head2 verify_audit_record
 

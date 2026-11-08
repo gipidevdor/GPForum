@@ -81,6 +81,21 @@ sub _picker_page ($row) {
 }
 
 sub change ( $self, $input ) {
+    my ( $refusal, @call ) = _change_values($input);
+    return $refusal // _transfer_result( $self->functions->row(@call) );
+}
+
+# The same move, merge or split on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own.
+async sub change_p ( $self, $input, $context = undef ) {
+    return $self->change($input) if !$self->functions;
+    my ( $refusal, @call ) = _change_values($input);
+    return $refusal
+      // _transfer_result( await $self->functions->row_p( @call, $context ) );
+}
+
+# A refusal, or undef and the transfer function's name and values.
+sub _change_values ($input) {
     return { status => 'invalid' }
       if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
     my $source  = _thread_id( $input->{source} );
@@ -90,7 +105,8 @@ sub change ( $self, $input ) {
     return { status => 'invalid' } if !$source || @invalid;
     return { status => 'invalid' }
       if ( $input->{operation} // q{} ) ne 'split' && !$target;
-    my $row = $self->functions->row(
+    return (
+        undef,
         'moderation_thread_transfer',
         {
             actor        => $input->{actor},
@@ -103,14 +119,28 @@ sub change ( $self, $input ) {
             reason       => $input->{reason},
         }
     );
-    return $row ? $row->{result} : { status => 'invalid' };
 }
 
 sub undo ( $self, $input ) {
+    my ( $refusal, @call ) = _undo_values($input);
+    return $refusal // _transfer_result( $self->functions->row(@call) );
+}
+
+# The same undo on the worker's pooled asynchronous connections.
+async sub undo_p ( $self, $input, $context = undef ) {
+    return $self->undo($input) if !$self->functions;
+    my ( $refusal, @call ) = _undo_values($input);
+    return $refusal
+      // _transfer_result( await $self->functions->row_p( @call, $context ) );
+}
+
+sub _undo_values ($input) {
     return { status => 'invalid' }
       if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
-    my $row =
-      $self->functions->row( 'moderation_thread_transfer_undo', $input );
+    return ( undef, 'moderation_thread_transfer_undo', $input );
+}
+
+sub _transfer_result ($row) {
     return $row ? $row->{result} : { status => 'invalid' };
 }
 
@@ -118,6 +148,13 @@ sub redirect ( $self, $actor, $thread_id ) {
     return undef if !$self->functions;
     my $row = $self->functions->row( 'forum_thread_redirect',
         { actor => $actor, thread_id => $thread_id } );
+    return $row ? $row->{target_id} : undef;
+}
+
+async sub redirect_p ( $self, $actor, $thread_id, $context = undef ) {
+    return undef if !$self->functions;
+    my $row = await $self->functions->row_p( 'forum_thread_redirect',
+        { actor => $actor, thread_id => $thread_id }, $context );
     return $row ? $row->{target_id} : undef;
 }
 
@@ -176,13 +213,28 @@ worker's pooled asynchronous connections.
 
 Move numbered posts, split them into a thread, or merge an entire thread.
 
+=head2 change_p
+
+L</change> as a promise, with an optional query context last, written on
+the worker's pooled asynchronous connections.
+
 =head2 undo
 
 Restores original placement when subsequent work permits safe reversal.
 
+=head2 undo_p
+
+L</undo> as a promise, with an optional query context last, written on the
+worker's pooled asynchronous connections.
+
 =head2 redirect
 
 A merged thread's readable destination, otherwise undef.
+
+=head2 redirect_p
+
+L</redirect> as a promise, with an optional query context last, read on the
+worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

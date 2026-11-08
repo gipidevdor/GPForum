@@ -14,7 +14,6 @@ use GPForum::Service::Operations::RateLimiter::DegradationPolicy;
 use GPForum::Service::Operations::RateLimiter::LocalMemoryStore;
 
 use Mojo::Promise;
-use GPForum::Infrastructure::AsyncWork;
 
 our $VERSION = '0.001';
 
@@ -64,8 +63,7 @@ async sub check_p ( $self, $input, $context = undef ) {
             $decision =
               $store->can('check_p')
               ? await $store->check_p( $input, $context )
-              : await GPForum::Infrastructure::AsyncWork->shared
-              ->service_result_p( $store, 'check', [$input], $context );
+              : $store->check($input);
         }
         catch ($error) { $decision = undef; };
         if ( !$decision ) {
@@ -90,13 +88,6 @@ async sub check_p ( $self, $input, $context = undef ) {
     }
     if (@audits) { await Mojo::Promise->all(@audits); }
     return $decision;
-}
-
-sub block_audit_result ( $self, $input, $decision ) {
-    local $self->{async_audits} = undef;    ## no critic (Variables::ProhibitLocalVars) -- the isolated audit must not reschedule itself
-    my $before = $self->stats->{audit_failures};
-    $self->_record_block_audit( $input, $decision );
-    return $self->stats->{audit_failures} - $before;
 }
 
 sub check ( $self, $input ) {
@@ -244,13 +235,12 @@ sub _record_block_audit ( $self, $input, $decision ) {
       && defined $decision->{limit}
       && $decision->{observed_count} > $decision->{limit} + 1;
 
+    my $audit = $self->_block_audit_input( $input, $decision );
     if ( my $pending = $self->{async_audits} ) {
-        my $operation =
-          GPForum::Infrastructure::AsyncWork->shared->service_result_p( $self,
-            'block_audit_result', [ $input, $decision ] );
-        push @{$pending}, $operation->then(
-            sub ($failures) {
-                $self->stats->{audit_failures} += $failures;
+        my $recorded = $self->recorder->record_audit_p($audit);
+        push @{$pending}, $recorded->then(
+            sub ($row) {
+                if ( !$row ) { $self->stats->{audit_failures}++; }
                 return;
             }
         )->catch( sub { $self->stats->{audit_failures}++; return; } );
@@ -258,25 +248,7 @@ sub _record_block_audit ( $self, $input, $decision ) {
     }
     my $created;
     try {
-        $created = $self->recorder->record_audit(
-            action     => 'rate_limit.blocked',
-            actor_id   => _uuid_or_undef( $input->{actor_id} ),
-            created_at => $self->clock->now_iso8601,
-            metadata   => {
-                action         => $input->{action},
-                actor_hash     => _actor_hash($input),
-                limit          => $decision->{limit},
-                observed_count => $decision->{observed_count},
-                scope          => $input->{scope},
-                store          => $decision->{store},
-                window_seconds => $decision->{window_seconds},
-            },
-            previous_hash  => undef,
-            record_hash    => q{},
-            schema_version => $SCHEMA_VERSION,
-            target_id      => undef,
-            target_type    => 'rate_limit',
-        );
+        $created = $self->recorder->record_audit( %{$audit} );
     }
     catch ($error) {
         $created = undef;
@@ -287,6 +259,28 @@ sub _record_block_audit ( $self, $input, $decision ) {
     }
 
     return undef;
+}
+
+sub _block_audit_input ( $self, $input, $decision ) {
+    return {
+        action     => 'rate_limit.blocked',
+        actor_id   => _uuid_or_undef( $input->{actor_id} ),
+        created_at => $self->clock->now_iso8601,
+        metadata   => {
+            action         => $input->{action},
+            actor_hash     => _actor_hash($input),
+            limit          => $decision->{limit},
+            observed_count => $decision->{observed_count},
+            scope          => $input->{scope},
+            store          => $decision->{store},
+            window_seconds => $decision->{window_seconds},
+        },
+        previous_hash  => undef,
+        record_hash    => q{},
+        schema_version => $SCHEMA_VERSION,
+        target_id      => undef,
+        target_type    => 'rate_limit',
+    };
 }
 
 sub _store_snapshot ($self) {
@@ -480,13 +474,9 @@ the local snapshot is returned with C<< status => 'degraded' >> and
 C<< fallback => 1 >> so the metrics endpoint cannot report a degraded limiter
 as healthy.
 
-=head2 block_audit_result
-
-Internal executor operation for a first-refusal audit. Returns the audit failure count to merge into the owning limiter; no service object or connection crosses IPC.
-
 =head2 check_p
 
-Awaits the primary store, keeps fallback windows, counters and telemetry in the parent, and isolates only the first-refusal audit. Accepts the request context last.
+Awaits the primary store, keeps fallback windows, counters and telemetry in process, and writes the first-refusal audit on a pooled asynchronous connection. Accepts the request context last.
 
 =head1 DIAGNOSTICS
 

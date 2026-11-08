@@ -41,19 +41,40 @@ sub normalise ( $, $text ) {
 # (the folder undef when it has none), or undef when the bookmark is not the
 # member's, is removed, is not an id, or the folder is too long.
 sub file_bookmark ( $self, $bookmark_id, $user_id, $text ) {
+    my $values = $self->_folder_values( $bookmark_id, $user_id, $text );
+    return undef if !$values;
+    return _filed(
+        $self->_functions->row( 'community_set_bookmark_folder', $values ) );
+}
+
+# The filing on the web worker's pooled connections.
+async sub file_bookmark_p ( $self, $bookmark_id, $user_id, $text,
+    $context = undef )
+{
+    my $values = $self->_folder_values( $bookmark_id, $user_id, $text );
+    return undef if !$values;
+    return _filed(
+        await $self->_functions->row_p(
+            'community_set_bookmark_folder',
+            $values, $context
+        )
+    );
+}
+
+sub _folder_values ( $self, $bookmark_id, $user_id, $text ) {
     return undef
       if !GPForum::Infrastructure::Id->is_uuid($bookmark_id)
       || !GPForum::Infrastructure::Id->is_uuid($user_id);
     my $folder = $self->normalise($text);
     return undef if !defined $folder;
-    my $row = $self->_functions->row(
-        'community_set_bookmark_folder',
-        {
-            bookmark_id => $bookmark_id,
-            folder      => $folder,
-            user_id     => $user_id,
-        }
-    );
+    return {
+        bookmark_id => $bookmark_id,
+        folder      => $folder,
+        user_id     => $user_id,
+    };
+}
+
+sub _filed ($row) {
     return undef if !$row;
 
     return { bookmark_id => $row->{bookmark_id}, folder => $row->{folder} };
@@ -159,6 +180,11 @@ when too long.
 
 Files the member's own bookmark in a folder, or takes it out of its folder;
 answers C<{ bookmark_id, folder }> or undef.
+
+=head2 file_bookmark_p
+
+L</file_bookmark> as a promise, with an optional query context last, on the
+worker's pooled asynchronous connections.
 
 =head2 list_folders
 

@@ -8,7 +8,6 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
-use GPForum::Infrastructure::AsyncWork;
 use GPForum::Log;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::WorkflowResult
@@ -236,10 +235,76 @@ sub revoke_subscription ( $self, $input ) {
 # A report needs a reason, and both its reason and its details have a
 # length limit.
 sub create_report ( $self, $input ) {
-    my $invalid = missing_command_id($input);
-    if ($invalid) {
-        return $invalid;
+    my $refused = _report_refusal($input);
+    return $refused if $refused;
+
+    return $self->_commanded_op(
+        {
+            %{ _report_job($input) },
+            run => sub {
+                return $self->report_store->create_report(
+                    _report_request($input) );
+            },
+        }
+    );
+}
+
+# The report on the worker's pooled asynchronous connections: the command
+# log's steps and the store's writes commit in one transaction.
+async sub create_report_p ( $self, $input, $context = undef ) {
+    my $refused = _report_refusal($input);
+    return $refused if $refused;
+    my $store = $self->report_store;
+    my $log   = $self->command_idempotency;
+    return $self->create_report($input)
+      if !$store->can('create_report_p')
+      || !_call_layer($store)
+      || ( $log && !_call_layer($log) );
+
+    my $job   = _report_job($input);
+    my $run_p = async sub ( $scope = undef ) {
+        my ( $value, $failure );
+        try {
+            $value =
+              await $store->create_report_p( _report_request($input), $context,
+                $scope );
+        }
+        catch ($error) { $failure = $error; };
+        return $self->_stored_answer( $job, $value, $failure );
+    };
+    return await $run_p->() if !$log;
+
+    my $log_context = GPForum::Log->request_context;
+    my $result;
+    try {
+        $result = await $log->result_of_p(
+            {
+                actor_id     => $job->{input}{user_id},
+                command_id   => $job->{input}{command_id},
+                command_type => $job->{command_type},
+                request      => $job->{request},
+                run_p        => $run_p,
+            },
+            $context
+        );
     }
+    catch ($error) {
+        GPForum::Log->in_context(
+            $log_context,
+            sub {
+                log_error( $self->logger,
+                    "community command log failed: $error" );
+                return;
+            }
+        );
+        return _failed_result();
+    };
+    return $result;
+}
+
+sub _report_refusal ($input) {
+    my $invalid = missing_command_id($input);
+    return $invalid if $invalid;
 
     my %errors;
     my $reason = trimmed( $input->{reason} );
@@ -252,29 +317,24 @@ sub create_report ( $self, $input ) {
     if ( length( trimmed( $input->{details} ) ) > $REPORT_DETAILS_MAX ) {
         $errors{details} = 'details are too long';
     }
-    if (%errors) {
-        return workflow_result(
-            error  => 'invalid report',
-            errors => \%errors,
-            status => 'invalid',
-        );
-    }
-
-    return $self->_commanded_op(
-        {
-            command_type => 'community.report',
-            input        => {
-                %{$input}, user_id => $input->{reporter_user_id},
-            },
-            kind      => 'report',
-            not_found => 'report not found',
-            request   => _report_request($input),
-            run       => sub {
-                return $self->report_store->create_report(
-                    _report_request($input) );
-            },
-        }
+    return undef if !%errors;
+    return workflow_result(
+        error  => 'invalid report',
+        errors => \%errors,
+        status => 'invalid',
     );
+}
+
+sub _report_job ($input) {
+    return {
+        command_type => 'community.report',
+        input        => {
+            %{$input}, user_id => $input->{reporter_user_id},
+        },
+        kind      => 'report',
+        not_found => 'report not found',
+        request   => _report_request($input),
+    };
 }
 
 # The store's answer under the command id: a store that dies fails the
@@ -293,26 +353,12 @@ sub _commanded_op ( $self, $job ) {
       && _call_layer( $self->command_idempotency );
 
     my $run = sub {
-        my $value;
+        my ( $value, $failure );
         try {
             $value = $job->{run}->();
         }
-        catch ($error) {
-            log_error( $self->logger, "community write failed: $error" );
-            return _failed_result();
-        };
-        my $answer = ref $value eq 'HASH' ? $value : {};
-        if ( !$value || ( exists $answer->{ok} && !$answer->{ok} ) ) {
-            return workflow_result(
-                error  => $answer->{error} || $job->{not_found},
-                status => 'not_found',
-            );
-        }
-
-        return workflow_result(
-            status => 'ok',
-            stored => _public_stored( $job->{kind}, $value ),
-        );
+        catch ($error) { $failure = $error; };
+        return $self->_stored_answer( $job, $value, $failure );
     };
     if ( !$self->command_idempotency ) {
         return $run->();
@@ -336,6 +382,27 @@ sub _commanded_op ( $self, $job ) {
     };
 
     return $result;
+}
+
+# The store's answer as the command records it: a store that died failed
+# and is logged; no answer, or ok => 0, is not found.
+sub _stored_answer ( $self, $job, $value, $failure ) {
+    if ( defined $failure ) {
+        log_error( $self->logger, "community write failed: $failure" );
+        return _failed_result();
+    }
+    my $answer = ref $value eq 'HASH' ? $value : {};
+    if ( !$value || ( exists $answer->{ok} && !$answer->{ok} ) ) {
+        return workflow_result(
+            error  => $answer->{error} || $job->{not_found},
+            status => 'not_found',
+        );
+    }
+
+    return workflow_result(
+        status => 'ok',
+        stored => _public_stored( $job->{kind}, $value ),
+    );
 }
 
 # The command as one call (ADR 0126, section 5): the command log's steps and
@@ -366,8 +433,11 @@ async sub async_call_p (
     $cancelled = undef
   )
 {
-    return await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
-        $self, $method, $arguments, $context, $cancelled )
+    return await $self->create_report_p( @{$arguments}, $context )
+      if $method eq 'create_report';
+
+    # The in-memory doubles hold no connection: they answer in the worker.
+    return $self->$method( @{$arguments} )
       if !exists $NATIVE_METHOD{$method}
       || @{$arguments} != 1
       || !$self->functions
@@ -565,8 +635,9 @@ unique-restore and persistence ownership.
 =head2 async_call_p
 
 Dispatch atomic bookmark, like, reaction and subscription commands through native
-PostgreSQL promises, preserving their command log and replay responses. Other
-operations retain the isolated workflow executor and cancellation checks.
+PostgreSQL promises, preserving their command log and replay responses. A
+report goes to L</create_report_p>; the in-memory doubles answer in the
+worker, which holds no connection for them.
 
 =head2 save_bookmark
 
@@ -610,6 +681,12 @@ Revokes an existing thread subscription.
 =head2 create_report
 
 Creates a member report for a thread, post, or profile.
+
+=head2 create_report_p
+
+L</create_report> as a promise, with an optional query context last: the
+command log's steps and the report store's writes commit in one transaction
+on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

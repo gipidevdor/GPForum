@@ -8,7 +8,6 @@ use Mojo::Base 'GPForum::Base', -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Text qw(trimmed);
-use GPForum::Infrastructure::AsyncWork;
 use GPForum::Log;
 use GPForum::Service::Operations::CommandIdempotency;
 use GPForum::Service::WorkflowResult
@@ -92,8 +91,8 @@ async sub async_call_p (
     $cancelled = undef
   )
 {
-    return await GPForum::Infrastructure::AsyncWork->shared->service_result_p(
-        $self, $method, $arguments, $context, $cancelled )
+    # The in-memory doubles hold no connection: they answer in the worker.
+    return $self->$method( @{$arguments} )
       if $method ne 'mark_thread_read'
       || @{$arguments} != 1
       || !$self->functions
@@ -283,8 +282,8 @@ optional.
 =head2 async_call_p
 
 Dispatch the atomic read-marker command through a native PostgreSQL promise,
-preserving idempotency and validation. Other operations retain the isolated
-workflow executor and cancellation checks.
+preserving idempotency and validation. The in-memory doubles answer in the
+worker, which holds no connection for them.
 
 =head2 mark_thread_read
 

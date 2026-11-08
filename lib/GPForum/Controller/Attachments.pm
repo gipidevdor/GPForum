@@ -13,7 +13,7 @@ async sub download ($self) {
     return $limited if $limited;
 
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_attachment_workflow,
             'download_metadata',
             {

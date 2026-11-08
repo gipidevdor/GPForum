@@ -136,14 +136,28 @@ sub reason ( $self, $value ) {
 # replayed, invalid or too_broad (with the field), covers_self, duplicate
 # (with the live ban's id) or conflict, and the ban's id.
 sub place ( $self, $input ) {
+    return _answered( $self->_place_call($input),
+        sub (@call) { return $self->_functions->row(@call); } );
+}
+
+# place on a pooled asynchronous connection: one api function call.
+async sub place_p ( $self, $input, $context = undef ) {
+    return await _answered_p( $self->_place_call($input),
+        sub (@call) { return $self->_functions->row_p( @call, $context ); } );
+}
+
+# The checks place makes, and the function call it ends in: an answer when
+# the input is refused, or { call => [ function, values ] }.
+sub _place_call ( $self, $input ) {
     my $range = $self->range( $input->{range} );
-    return { status => $range->{error}, field => 'range' } if $range->{error};
+    return { answer => { status => $range->{error}, field => 'range' } }
+      if $range->{error};
     my $scope = _scope( $input->{scope} );
-    return _invalid('scope') if !defined $scope;
+    return { answer => _invalid('scope') } if !defined $scope;
     my $reason = $self->reason( $input->{reason} );
-    return _invalid('reason') if !defined $reason;
+    return { answer => _invalid('reason') } if !defined $reason;
     my $seconds = _seconds( $input->{duration} );
-    return _invalid('duration') if !defined $seconds;
+    return { answer => _invalid('duration') } if !defined $seconds;
 
     my $ban_id =
       _is_uuid( $input->{command_id} )
@@ -151,91 +165,136 @@ sub place ( $self, $input ) {
       : $self->id_service->uuid;
     my $now        = $self->clock->now_iso8601;
     my $expires_at = $self->clock->epoch_plus_iso8601($seconds);
-    return $self->_functions->row(
-        'admin_address_ban_place',
-        {
-            ban_id        => $ban_id,
-            range         => $range->{range},
-            scope         => $scope,
-            reason        => $reason,
-            expires_at    => $expires_at,
-            actor_user_id => $input->{actor_user_id},
-            actor_address => $self->address( $input->{actor_address} ),
-            now           => $now,
-            audit         => $self->_audit(
-                'place',
-                $input->{actor_user_id},
-                $ban_id,
-                {
-                    range         => $range->{range},
-                    scope         => $scope,
-                    expires_at    => $expires_at,
-                    reason_length => length $reason,
-                },
-                $now
-            ),
-        }
-    ) // { status => 'invalid' };
+    return {
+        call => [
+            'admin_address_ban_place',
+            {
+                ban_id        => $ban_id,
+                range         => $range->{range},
+                scope         => $scope,
+                reason        => $reason,
+                expires_at    => $expires_at,
+                actor_user_id => $input->{actor_user_id},
+                actor_address => $self->address( $input->{actor_address} ),
+                now           => $now,
+                audit         => $self->_audit(
+                    'place',
+                    $input->{actor_user_id},
+                    $ban_id,
+                    {
+                        range         => $range->{range},
+                        scope         => $scope,
+                        expires_at    => $expires_at,
+                        reason_length => length $reason,
+                    },
+                    $now
+                ),
+            }
+        ]
+    };
 }
 
 # Changes a live ban's scope and reason, and its expiry when a duration is
 # given (counted from now; none keeps the expiry). Answers ok, unchanged,
 # invalid (with the field), not_found, ended or covers_self.
 sub edit ( $self, $input ) {
-    return { status => 'not_found' } if !_is_uuid( $input->{ban_id} );
+    return _answered( $self->_edit_call($input),
+        sub (@call) { return $self->_functions->row(@call); } );
+}
+
+# edit on a pooled asynchronous connection: one api function call.
+async sub edit_p ( $self, $input, $context = undef ) {
+    return await _answered_p( $self->_edit_call($input),
+        sub (@call) { return $self->_functions->row_p( @call, $context ); } );
+}
+
+sub _edit_call ( $self, $input ) {
+    return { answer => { status => 'not_found' } }
+      if !_is_uuid( $input->{ban_id} );
     my $scope = _scope( $input->{scope} );
-    return _invalid('scope') if !defined $scope;
+    return { answer => _invalid('scope') } if !defined $scope;
     my $reason = $self->reason( $input->{reason} );
-    return _invalid('reason') if !defined $reason;
+    return { answer => _invalid('reason') } if !defined $reason;
     my $duration = $input->{duration} // q{};
     my $seconds  = _seconds($duration);
-    return _invalid('duration') if length $duration && !defined $seconds;
+    return { answer => _invalid('duration') }
+      if length $duration && !defined $seconds;
 
     my $now = $self->clock->now_iso8601;
     my $expires_at =
       defined $seconds ? $self->clock->epoch_plus_iso8601($seconds) : undef;
-    return $self->_functions->row(
-        'admin_address_ban_edit',
-        {
-            ban_id        => $input->{ban_id},
-            scope         => $scope,
-            reason        => $reason,
-            expires_at    => $expires_at,
-            actor_user_id => $input->{actor_user_id},
-            actor_address => $self->address( $input->{actor_address} ),
-            now           => $now,
-            audit         => $self->_audit(
-                'edit',
-                $input->{actor_user_id},
-                $input->{ban_id},
-                {
-                    scope         => $scope,
-                    expires_at    => $expires_at,
-                    reason_length => length $reason,
-                },
-                $now
-            ),
-        }
-    ) // { status => 'invalid' };
+    return {
+        call => [
+            'admin_address_ban_edit',
+            {
+                ban_id        => $input->{ban_id},
+                scope         => $scope,
+                reason        => $reason,
+                expires_at    => $expires_at,
+                actor_user_id => $input->{actor_user_id},
+                actor_address => $self->address( $input->{actor_address} ),
+                now           => $now,
+                audit         => $self->_audit(
+                    'edit',
+                    $input->{actor_user_id},
+                    $input->{ban_id},
+                    {
+                        scope         => $scope,
+                        expires_at    => $expires_at,
+                        reason_length => length $reason,
+                    },
+                    $now
+                ),
+            }
+        ]
+    };
 }
 
 # Lifts a live ban now. Answers ok, not_found or ended.
 sub lift ( $self, $input ) {
-    return { status => 'not_found' } if !_is_uuid( $input->{ban_id} );
+    return _answered( $self->_lift_call($input),
+        sub (@call) { return $self->_functions->row(@call); } );
+}
+
+# lift on a pooled asynchronous connection: one api function call.
+async sub lift_p ( $self, $input, $context = undef ) {
+    return await _answered_p( $self->_lift_call($input),
+        sub (@call) { return $self->_functions->row_p( @call, $context ); } );
+}
+
+sub _lift_call ( $self, $input ) {
+    return { answer => { status => 'not_found' } }
+      if !_is_uuid( $input->{ban_id} );
 
     my $now = $self->clock->now_iso8601;
-    return $self->_functions->row(
-        'admin_address_ban_lift',
-        {
-            ban_id        => $input->{ban_id},
-            actor_user_id => $input->{actor_user_id},
-            now           => $now,
-            audit         => $self->_audit(
-                'lift',               $input->{actor_user_id},
-                $input->{ban_id}, {}, $now
-            ),
-        }
-    ) // { status => 'invalid' };
+    return {
+        call => [
+            'admin_address_ban_lift',
+            {
+                ban_id        => $input->{ban_id},
+                actor_user_id => $input->{actor_user_id},
+                now           => $now,
+                audit         => $self->_audit(
+                    'lift',               $input->{actor_user_id},
+                    $input->{ban_id}, {}, $now
+                ),
+            }
+        ]
+    };
+}
+
+# A write's answer: the refusal its checks gave, or what its function
+# answered, invalid when that was nothing.
+sub _answered ( $plan, $run ) {
+    return $plan->{answer} if $plan->{answer};
+
+    return $run->( @{ $plan->{call} } ) // { status => 'invalid' };
+}
+
+async sub _answered_p ( $plan, $run ) {
+    return $plan->{answer} if $plan->{answer};
+
+    return ( await $run->( @{ $plan->{call} } ) ) // { status => 'invalid' };
 }
 
 # The bans, live first, with who placed, edited and lifted each.
@@ -399,13 +458,28 @@ The reason as it is stored, or undef.
 
 Places a ban; the form's command id keys it.
 
+=head2 place_p
+
+Places a ban as L</place> does, on a pooled asynchronous connection, and
+answers a promise of the same answer.
+
 =head2 edit
 
 Changes a live ban's scope, reason and expiry.
 
+=head2 edit_p
+
+Edits a ban as L</edit> does, on a pooled asynchronous connection, and
+answers a promise of the same answer.
+
 =head2 lift
 
 Lifts a live ban.
+
+=head2 lift_p
+
+Lifts a ban as L</lift> does, on a pooled asynchronous connection, and
+answers a promise of the same answer.
 
 =head2 list
 

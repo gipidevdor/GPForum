@@ -72,20 +72,11 @@ sub set_preference ( $self, $input ) {
         return $refused;
     }
 
-    my $normalized = {
-        channel          => $input->{channel},
-        digest_frequency =>
-          _safe_digest_frequency( $input->{digest_frequency} ),
-        enabled => $input->{enabled} ? 1 : 0,
-        user_id => $input->{user_id},
-    };
+    my $normalized = _normalized_preference($input);
     if ( $self->functions ) {
         return $self->functions->row(
             'notification_set_preference',
-            {
-                row =>
-                  { %{$normalized}, updated_at => $self->clock->now_iso8601 }
-            }
+            $self->_preference_values($normalized)
         )->{result};
     }
     my $existing = $self->_existing_preference($normalized);
@@ -134,6 +125,21 @@ sub set_preference ( $self, $input ) {
     return $row;
 }
 
+sub _normalized_preference ($input) {
+    return {
+        channel          => $input->{channel},
+        digest_frequency =>
+          _safe_digest_frequency( $input->{digest_frequency} ),
+        enabled => $input->{enabled} ? 1 : 0,
+        user_id => $input->{user_id},
+    };
+}
+
+sub _preference_values ( $self, $normalized ) {
+    return {
+        row => { %{$normalized}, updated_at => $self->clock->now_iso8601 } };
+}
+
 sub _existing_preference ( $self, $normalized ) {
     return $self->schema->resultset('NotificationPreference')->find(
         {
@@ -147,12 +153,8 @@ sub _existing_preference ( $self, $normalized ) {
 # leaves the member's preferences as they were.
 sub set_preferences ( $self, $input ) {
     my @preferences = @{ $input->{preferences} || [] };
-    for my $preference (@preferences) {
-        my $refused = _refused_channel( $preference->{channel} );
-        if ($refused) {
-            return $refused;
-        }
-    }
+    my $refused     = _refused_channels( \@preferences );
+    return $refused if $refused;
 
     for my $preference (@preferences) {
         $self->set_preference(
@@ -163,6 +165,50 @@ sub set_preferences ( $self, $input ) {
     }
 
     return $self->preferences_for_user( $input->{user_id} );
+}
+
+# set_preferences on the worker's pooled asynchronous connections, or on
+# $scope: the transaction a command log runs it in.
+async sub set_preferences_p ( $self, $input, $context = undef, $scope = undef )
+{
+    $scope //= $self->functions;
+    return $self->set_preferences($input) if !$scope;
+    my @preferences = @{ $input->{preferences} || [] };
+    my $refused     = _refused_channels( \@preferences );
+    return $refused if $refused;
+
+    for my $preference (@preferences) {
+        await $scope->row_p(
+            'notification_set_preference',
+            $self->_preference_values(
+                _normalized_preference(
+                    { %{$preference}, user_id => $input->{user_id} }
+                )
+            ),
+            $context
+        );
+    }
+
+    return $self->_preferences_from_rows(
+        await $scope->rows_p(
+            'notification_list_preferences', { user_id => $input->{user_id} },
+            $context
+        )
+    );
+}
+
+sub _refused_channels ($preferences) {
+    for my $preference ( @{$preferences} ) {
+        my $refused = _refused_channel( $preference->{channel} );
+        return $refused if $refused;
+    }
+
+    return undef;
+}
+
+sub _preferences_from_rows ( $, $rows ) {
+    return _preferences(
+        [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ] );
 }
 
 sub preferences_for_user ( $self, $user_id ) {
@@ -326,22 +372,52 @@ sub set_type_preferences ( $self, $input ) {
     my $functions = $self->functions
       // GPForum::X::Unavailable->throw( message =>
           'notification type preferences need the PostgreSQL function layer' );
-    my $row = $functions->row(
-        'notification_set_type_preferences',
-        {
-            user_id     => $input->{user_id},
-            preferences => [
-                map {
-                    +{
-                        event_type => $_->{event_type},
-                        channel    => $_->{channel},
-                        enabled    => $_->{enabled} ? true : false,
-                    }
-                } @{$preferences}
-            ],
-            now => $self->clock->now_iso8601,
-        }
-    ) || { status => 'not_found' };
+
+    return _type_preferences_answer(
+        $functions->row(
+            'notification_set_type_preferences',
+            $self->_type_preference_values($input)
+        )
+    );
+}
+
+# set_type_preferences on the worker's pooled asynchronous connections, or
+# on $scope: the transaction a command log runs it in.
+async sub set_type_preferences_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    $scope //= $self->functions;
+    return $self->set_type_preferences($input) if !$scope;
+    my $refused = $self->refused_type_preferences( $input->{preferences} );
+    return $refused if $refused;
+
+    return _type_preferences_answer(
+        await $scope->row_p(
+            'notification_set_type_preferences',
+            $self->_type_preference_values($input),
+            $context
+        )
+    );
+}
+
+sub _type_preference_values ( $self, $input ) {
+    return {
+        user_id     => $input->{user_id},
+        preferences => [
+            map {
+                +{
+                    event_type => $_->{event_type},
+                    channel    => $_->{channel},
+                    enabled    => $_->{enabled} ? true : false,
+                }
+            } @{ $input->{preferences} }
+        ],
+        now => $self->clock->now_iso8601,
+    };
+}
+
+sub _type_preferences_answer ($row) {
+    $row ||= { status => 'not_found' };
     my $status = $row->{status} // 'not_found';
     return _invalid( 'preferences', 'type preferences were refused' )
       if $status eq 'invalid';
@@ -362,13 +438,37 @@ sub delivery_plan ( $self, $user_id, $notification_type ) {
             email  => 0,
         };
     }
-    my $row = $self->functions->row(
-        'notification_delivery_plan',
-        {
-            user_id           => $user_id,
-            notification_type => $notification_type,
-        }
+    return _delivery_plan(
+        $self->functions->row(
+            'notification_delivery_plan',
+            {
+                user_id           => $user_id,
+                notification_type => $notification_type,
+            }
+        )
     );
+}
+
+# The plan on the worker's pooled asynchronous connections, or on the call
+# layer of the transaction the store was joined to.
+async sub delivery_plan_p ( $self, $user_id, $notification_type,
+    $context = undef )
+{
+    return $self->delivery_plan( $user_id, $notification_type )
+      if !$self->functions;
+    return _delivery_plan(
+        await $self->functions->row_p(
+            'notification_delivery_plan',
+            {
+                user_id           => $user_id,
+                notification_type => $notification_type,
+            },
+            $context
+        )
+    );
+}
+
+sub _delivery_plan ($row) {
     return { in_app => 1, email => 0 } if !$row;
 
     return {
@@ -395,6 +495,26 @@ sub unsubscribe ( $self, $input ) {
 
     my $functions = $self->functions // GPForum::X::Unavailable->throw(
         message => 'unsubscribing needs the PostgreSQL function layer' );
+
+    return _unsubscribe_answer( $scope,
+        $functions->row( $self->_unsubscribe_call($input) ) );
+}
+
+# unsubscribe on the worker's pooled asynchronous connections.
+async sub unsubscribe_p ( $self, $input, $context = undef ) {
+    return $self->unsubscribe($input)
+      if !$self->functions
+      || !exists $IS_UNSUBSCRIBE_SCOPE{ $input->{scope} // q{} };
+
+    return _unsubscribe_answer( $input->{scope},
+        await $self->functions->row_p( $self->_unsubscribe_call($input),
+            $context ) );
+}
+
+# The function an unsubscribe calls and its values, the audit row built
+# here as every audited write builds it.
+sub _unsubscribe_call ( $self, $input ) {
+    my $scope = $input->{scope};
     my $audit = $self->recorder->audit_call(
         action      => $UNSUBSCRIBE_AUDIT_ACTION,
         actor_id    => $input->{user_id},
@@ -405,28 +525,28 @@ sub unsubscribe ( $self, $input ) {
             via   => $input->{via} // 'link',
         },
     )->{audit};
-    my $row = $functions->row(
-        $scope eq 'digest'
-        ? (
-            'notification_digest_unsubscribe',
-            {
-                user_id => $input->{user_id},
-                now     => $self->clock->now_iso8601,
-                audit   => $audit,
-            }
-          )
-        : (
-            'notification_unsubscribe',
-            {
-                user_id => $input->{user_id},
-                scope   => $scope,
-                now     => $self->clock->now_iso8601,
-                audit   => $audit,
-            }
-        )
+    return $scope eq 'digest'
+      ? (
+        'notification_digest_unsubscribe',
+        {
+            user_id => $input->{user_id},
+            now     => $self->clock->now_iso8601,
+            audit   => $audit,
+        }
       )
-      || { status => 'not_found' };
-    my $status = $row->{status} // 'not_found';
+      : (
+        'notification_unsubscribe',
+        {
+            user_id => $input->{user_id},
+            scope   => $scope,
+            now     => $self->clock->now_iso8601,
+            audit   => $audit,
+        }
+      );
+}
+
+sub _unsubscribe_answer ( $scope, $row ) {
+    my $status = ( $row || {} )->{status} // 'not_found';
     return { ok => 0, status => $status }
       if $status ne 'ok' && $status ne 'unchanged';
 
@@ -622,6 +742,12 @@ unknown channel, returns the refusal hash reference and writes none of
 them. Otherwise applies each in order and returns L</preferences_for_user>
 (an array reference) for that member.
 
+=head2 set_preferences_p
+
+L</set_preferences> as a promise, with an optional query context and an
+optional call layer last: the transaction a command log runs it in, or the
+worker's pooled asynchronous connections.
+
 =head2 preferences_for_user
 
 Takes a user id and returns an array reference with one hash per channel, in
@@ -684,6 +810,11 @@ C<api.notification_set_type_preferences>: C<< { ok => 1, status => 'ok' |
 'unchanged', changed } >>, the refusal, or C<< { ok => 0, status =>
 'not_found' } >> for a member who is gone.
 
+=head2 set_type_preferences_p
+
+L</set_type_preferences> as a promise, with an optional query context and
+an optional call layer last, as L</set_preferences_p> takes them.
+
 =head2 delivery_plan
 
 Takes a user id and a notification type and returns C<in_app> and C<email>
@@ -694,6 +825,12 @@ verified address. Without the function layer, C<in_app> follows the
 channel and C<email> is 0; a member the database does not hold gets the
 inbox only.
 
+=head2 delivery_plan_p
+
+L</delivery_plan> as a promise, with an optional query context last, read
+on the worker's pooled asynchronous connections, or on a transaction's call
+layer when the store was built with that layer as its C<functions>.
+
 =head2 unsubscribe
 
 Takes C<user_id>, C<scope> (a kind, C<all> for the email channel, or
@@ -701,6 +838,11 @@ C<digest> for the digest channel) and C<via> (C<link> or C<one_click>) and turns
 C<notification.email_unsubscribed>. Returns C<< { ok => 1, status => 'ok'
 | 'unchanged', scope } >> or C<< { ok => 0, status => 'invalid' |
 'not_found' } >>.
+
+=head2 unsubscribe_p
+
+L</unsubscribe> as a promise, with an optional query context last, written
+on the worker's pooled asynchronous connections.
 
 =head2 event_types
 

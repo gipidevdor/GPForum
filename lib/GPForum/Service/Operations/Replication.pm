@@ -4,7 +4,7 @@
 package GPForum::Service::Operations::Replication;
 
 use Const::Fast;
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunctionCatalogue;
@@ -110,7 +110,39 @@ sub slot_report ( $self, $snapshot ) {
     };
 }
 
+# The snapshot on a pooled asynchronous connection: the same four api.*
+# functions through GPForum::Infrastructure::SqlFunction, no handle held.
+async sub snapshot_p ( $self, $functions, $context = undef ) {
+    my $recovery =
+      await $functions->row_p( 'ops_replication_recovery', {}, $context );
+    my $in_recovery = $recovery && $recovery->{in_recovery} ? 1 : 0;
+    my $role        = $in_recovery ? 'standby'                  : 'primary';
+    my $snapshot =
+      $in_recovery
+      ? _position_from(
+        await $functions->row_p( 'ops_replication_position', {}, $context ) )
+      : _standbys_from(
+        await $functions->rows_p( 'ops_replication_standbys', {}, $context ) );
+    my $slots = await $functions->rows_p( 'ops_replication_slots',
+        { standby => $in_recovery }, $context );
+    return {
+        %{$snapshot},
+        role   => $role,
+        slots  => _slots_from($slots),
+        status => 'ok',
+    };
+}
+
 sub _standbys ($dbh) {
+    return _standbys_from(
+        $dbh->selectall_arrayref(
+            _function_sql( $dbh, 'ops_replication_standbys', $STANDBYS_SQL ),
+            { Slice => {} }
+        )
+    );
+}
+
+sub _standbys_from ($rows) {
     my @standbys = map {
         {
             application_name   => $_->{application_name},
@@ -119,11 +151,7 @@ sub _standbys ($dbh) {
             state              => $_->{state},
             sync_state         => $_->{sync_state},
         }
-      } @{
-        $dbh->selectall_arrayref(
-            _function_sql( $dbh, 'ops_replication_standbys', $STANDBYS_SQL ),
-            { Slice => {} } )
-      };
+    } @{$rows};
 
     return {
         standbys                => \@standbys,
@@ -134,10 +162,15 @@ sub _standbys ($dbh) {
 }
 
 sub _standby_position ($dbh) {
-    my $row = $dbh->selectrow_hashref(
-        _function_sql( $dbh, 'ops_replication_position', $STANDBY_SQL ) )
-      || {};
+    return _position_from(
+        $dbh->selectrow_hashref(
+            _function_sql( $dbh, 'ops_replication_position', $STANDBY_SQL )
+        )
+    );
+}
 
+sub _position_from ($row) {
+    $row ||= {};
     return {
         receiving            => $row->{receiving} ? 1 : 0,
         replay_age_seconds   => _number( $row->{replay_age_seconds} ),
@@ -152,6 +185,11 @@ sub _slots ( $dbh, $sql, $standby ) {
             'ops_replication_slots')->{sql};
         @bound = ($standby);
     }
+    return _slots_from(
+        $dbh->selectall_arrayref( $sql, { Slice => {} }, @bound ) );
+}
+
+sub _slots_from ($rows) {
     return [
         map {
             {
@@ -161,7 +199,7 @@ sub _slots ( $dbh, $sql, $standby ) {
                 slot_type      => $_->{slot_type},
                 wal_status     => $_->{wal_status},
             }
-        } @{ $dbh->selectall_arrayref( $sql, { Slice => {} }, @bound ) }
+        } @{$rows}
     ];
 }
 
@@ -226,6 +264,11 @@ C<bytes_behind>) and C<standby_details_visible>; a standby adds
 C<replay_age_seconds>, C<replay_pending_bytes> and C<receiving> (1 while its
 WAL receiver is connected, else 0). C<replay_lag_seconds> is
 null once a standby has caught up and the primary is idle.
+
+=head2 snapshot_p
+
+Takes a L<GPForum::Infrastructure::SqlFunction> and answers a promise of the
+snapshot L</snapshot> returns, read on pooled asynchronous connections.
 
 =head2 slot_report
 

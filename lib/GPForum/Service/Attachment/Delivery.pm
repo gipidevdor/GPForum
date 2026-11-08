@@ -7,7 +7,7 @@ use Carp                         qw(croak);
 use Digest::SHA                  qw(sha256_hex);
 use GPForum::Infrastructure::Row qw(column_of);
 use GPForum::Service::Attachment::ImagePreview;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 our $VERSION = '0.001';
@@ -32,20 +32,51 @@ sub download ( $self, $input ) {
     return { %{$decision}, %{ $self->_body( $decision->{object_key} ) } };
 }
 
+# The same download on the worker's pooled asynchronous connections: the
+# decision, the preview and a PostgreSQL object's size are read there.
+async sub download_p ( $self, $input, $context = undef ) {
+    my $store = $self->store;
+    return $self->download($input) if !$store->can('download_for_p');
+    my $decision = await $store->download_for_p( $input, $context );
+    return $decision if !$decision->{ok};
+
+    if ( ( $input->{preview} // q{} ) eq '1280' && _previewable($decision) ) {
+        $decision = _with_variant( $decision,
+            await $store->find_variant_p( _variant_query($decision), $context )
+        );
+    }
+    my $storage = $self->storage;
+    return { %{$decision},
+        object_asset =>
+          await $storage->asset_for_p( $decision->{object_key}, $context ) }
+      if $storage->can('asset_for_p');
+    return { %{$decision}, %{ $self->_body( $decision->{object_key} ) } };
+}
+
 # The original's complete access decision precedes the indexed variant lookup.
 # A missing preview uses the original, including for uploads made before this
 # feature. No transformation or source-sized allocation happens on a GET.
 sub _preview ( $self, $decision ) {
-    if ( ( $decision->{media_type} // q{} ) !~ m{\Aimage/(?:jpeg|png)\z}msx ) {
-        return $decision;
-    }
-    my $variant = $self->store->find_variant(
-        {
-            attachment_id => $decision->{attachment_id},
-            variant_type  =>
-              GPForum::Service::Attachment::ImagePreview->variant_type,
-        }
-    );
+    return $decision if !_previewable($decision);
+    return _with_variant( $decision,
+        $self->store->find_variant( _variant_query($decision) ) );
+}
+
+sub _previewable ($decision) {
+    return ( $decision->{media_type} // q{} ) =~ m{\Aimage/(?:jpeg|png)\z}msx
+      ? 1
+      : 0;
+}
+
+sub _variant_query ($decision) {
+    return {
+        attachment_id => $decision->{attachment_id},
+        variant_type  =>
+          GPForum::Service::Attachment::ImagePreview->variant_type,
+    };
+}
+
+sub _with_variant ( $decision, $variant ) {
     if ( !$variant ) { return $decision; }
     my $column = sub ($name) {
         return column_of( $variant, $name );
@@ -153,6 +184,12 @@ unchanged (C<< ok => 0 >> with C<error> set to C<not_found> or
 C<forbidden>). When it allows, returns the decision with C<object_path> added
 when the storage can name a path, or C<content> (the object's bytes)
 otherwise.
+
+=head2 download_p
+
+L</download> as a promise, with an optional query context last: the
+decision, the preview and the object are looked up on the worker's pooled
+asynchronous connections.
 
 =head1 DIAGNOSTICS
 

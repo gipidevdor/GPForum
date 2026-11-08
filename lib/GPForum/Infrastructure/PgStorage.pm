@@ -15,6 +15,10 @@ use Scalar::Util qw(weaken);
 
 our $VERSION = '0.001';
 our $HTTP_PID;
+
+# Set inside a CPU-only child (AsyncWork::cpu_p): such a child never opens
+# a PostgreSQL connection of its own.
+our $NO_DATABASE;
 const my $ATTRIBUTES_INDEX => 3;
 
 has notifications => undef, weak => 1;
@@ -123,6 +127,7 @@ sub _connected ( $self, $dbh ) {
 }
 
 sub database ($self) {
+    croak 'PostgreSQL access in a CPU-only child' if $NO_DATABASE;
     croak 'blocking PostgreSQL access on HTTP event loop'
       if defined $HTTP_PID && $HTTP_PID == $PROCESS_ID;
     croak 'Connection lost inside a transaction' if $self->{transaction_broken};
@@ -144,6 +149,7 @@ sub _get_dbh ($self) {
 }
 
 sub dbh ($self) {
+    croak 'PostgreSQL access in a CPU-only child' if $NO_DATABASE;
     croak 'blocking PostgreSQL access on HTTP event loop'
       if defined $HTTP_PID && $HTTP_PID == $PROCESS_ID;
     return $self->{connecting_dbh} if $self->{connecting_dbh};

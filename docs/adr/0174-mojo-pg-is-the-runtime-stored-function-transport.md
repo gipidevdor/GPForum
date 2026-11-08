@@ -115,3 +115,9 @@ invalidation, reconnect, result-type migrations and the restricted SQL API
 role. A silent TCP peer test verifies the connection deadline while unrelated
 reactor work progresses. Unit tests exercise asynchronous admission, context
 restoration, bounded queues and conditional/range file streaming.
+
+Amended by ADR 0176 (2026-11-08): the isolated executor no longer serves web
+requests. Automod rules, mention transactions and every other workflow run
+natively on the pooled leases; body composition, signing and hostname
+resolution run in a child that cannot open PostgreSQL. The web worker's
+budget is three connections.

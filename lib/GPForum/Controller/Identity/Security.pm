@@ -102,7 +102,7 @@ async sub _qr_code ( $self, $uri ) {
     try {
         my $label = $self->t('auth.second_factor_qr_label');
         $svg = await $self->await_p(
-            $self->async_work->run_p(
+            $self->async_work->cpu_p(
                 sub {
                     return GPForum::Web::QrCode->svg( $uri, $label );
                 }
@@ -193,7 +193,7 @@ async sub disable ($self) {
 }
 
 sub _service_p ( $self, $method, @arguments ) {
-    return $self->work_args_p( $self->gp_second_factor, $method, \@arguments )
+    return $self->call_p( $self->gp_second_factor, $method, @arguments )
       ->catch(
         sub ($error) {
             $self->app->log->error("second factor $method failed");

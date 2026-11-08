@@ -50,7 +50,7 @@ async sub summary ($self) {
 
     return $self->render(
         json => await $self->await_p(
-            $self->async_work->run_p(
+            $self->async_work->cpu_p(
                 sub {
                     return GPForum::Web::HealthPayload->summary(
                         config  => $self->gp_config,

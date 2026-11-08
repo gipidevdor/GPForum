@@ -16,7 +16,7 @@ use GPForum::Service::Privacy::Event;
 use GPForum::Service::Privacy::Record;
 use GPForum::X::Argument;
 use GPForum::X::Conflict;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -38,6 +38,32 @@ const my $OPEN_DELETION_CONSTRAINT =>
 const my $ERASURE_ID_CONSTRAINT      => 'erasure_jobs_pkey';
 const my $ERASURE_REQUEST_CONSTRAINT => 'idx_erasure_jobs_request_unique';
 const my $ACTION_ID_CONSTRAINT       => 'deletion_actions_pkey';
+
+# What an erasure revokes beyond the credentials, the account and its
+# sessions, in the order it revokes them (the function layer only).
+#
+# The member's single-use tokens go with the credentials: a reset, an email
+# change with the new address in it, a verification. They stayed until they
+# expired and the purge took them, the address in them too.
+const my @TOKEN_SOURCES => qw(IdentityToken);
+
+# After the sessions: drafts, likes, reactions, ballots and admission; every
+# ignore and block list (ADR 0130); their posts held for review (ADR 0134);
+# the staff notes about them (ADR 0138); the direct messages they wrote,
+# with their side of each conversation (ADR 0139); their two-step sign-in
+# secret, recovery codes and challenges (ADR 0142).
+const my @BEFORE_AVATAR_SOURCES => qw(ForumDraft PostLike PostReaction
+  PollBallot Admission MemberRelation HeldPost MemberNote DirectMessage
+  SecondFactor);
+
+# ADR 0144: their profile pictures, the stored files first and then these
+# rows; ADR 0146: their name from the address bans they placed, edited or
+# lifted; and what they followed, threads and categories alike, so no reply
+# notifies the erased account; their bookmarks, with their notes and
+# folders; their notification preferences and digests, and the
+# notifications they were sent.
+const my @AVATAR_AND_LATER_SOURCES => qw(Avatar AddressBan Subscription
+  Bookmark NotificationPreference Notification);
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub {
@@ -111,26 +137,10 @@ sub request_deletion ( $self, $input ) {
             }
 
             my $create = sub {
-                my $request = {
-                    completed_at        => undef,
-                    created_at          => $self->clock->now_iso8601,
-                    deletion_request_id => $self->id_service->uuid,
-                    reason              => $input->{reason} || q{},
-                    request_type        => $input->{request_type},
-                    requester_user_id   => $input->{requester_user_id},
-                    resource_id         => $input->{resource_id},
-                    resource_type       => $input->{resource_type},
-                    status              => $STATUS_PENDING,
-                };
+                my $request = $self->_new_request($input);
                 $self->_insert_privacy_row( 'DeletionRequest', $request );
                 $self->_record_privacy_event_and_audit(
-                    $self->events->requested(
-                        {
-                            actor_id => $input->{requester_user_id},
-                            request  => $request,
-                        }
-                    )
-                );
+                    $self->_requested($request) );
 
                 return $request;
             };
@@ -141,11 +151,10 @@ sub request_deletion ( $self, $input ) {
                 return $created;
             }
 
-            my $conflict = GPForum::X::Conflict->caught($error);
-            my $id_taken = $conflict && $conflict->on($DELETION_ID_CONSTRAINT);
-            if ( $id_taken
-                || ( $conflict && $conflict->on($OPEN_DELETION_CONSTRAINT) ) )
-            {
+            my ( $id_taken, $reread ) =
+              _lost_race( $error, $DELETION_ID_CONSTRAINT,
+                $OPEN_DELETION_CONSTRAINT );
+            if ($reread) {
                 $existing = $self->_open_deletion_hash($input);
                 if ($existing) {
                     return $self->_finish_leftover_deletion($existing);
@@ -180,13 +189,8 @@ sub approve_request ( $self, $request_id, $actor_id, $reason ) {
                 return undef;
             }
 
-            my $input = {
-                actor_id   => $actor_id,
-                reason     => $reason,
-                request    => $request,
-                request_id => $request_id,
-                timestamp  => $self->clock->now_iso8601,
-            };
+            my $input =
+              $self->_approval( $request_id, $actor_id, $reason, $request );
             my $existing = $self->_existing_job_for($request_id);
             if ($existing) {
                 return $self->_finish_leftover_approval( $input, $existing );
@@ -195,14 +199,7 @@ sub approve_request ( $self, $request_id, $actor_id, $reason ) {
             my $hold = $self->_active_hold_for_request($request);
             if ($hold) {
                 return $self->_hold_request(
-                    {
-                        actor_id  => $actor_id,
-                        hold      => $hold,
-                        reason    => $self->completion->hold_reason($reason),
-                        request   => $request,
-                        timestamp => $input->{timestamp},
-                    }
-                );
+                    $self->_approval_hold( $input, $hold ) );
             }
 
             $self->_set_request_status( $request, $STATUS_APPROVED );
@@ -239,12 +236,8 @@ sub complete_job ( $self, $erasure_job_id, $actor_id ) {
             my $job = $self->_find_privacy_row( 'ErasureJob', $erasure_job_id );
             if ( $self->completion->job_done($job) ) {
                 if ($request) {
-                    my $completed_at =
-                      $self->record->column( $job, 'completed_at' );
-                    if ( !defined $completed_at || !length $completed_at ) {
-                        $completed_at = $self->clock->now_iso8601;
-                    }
-                    $self->_complete_request_row( $request, $completed_at );
+                    $self->_complete_request_row( $request,
+                        $self->_job_completed_at($job) );
                 }
                 return $self->completion->completion_replay($erasure_job_id);
             }
@@ -252,13 +245,8 @@ sub complete_job ( $self, $erasure_job_id, $actor_id ) {
                 return undef;
             }
 
-            my $input = {
-                actor_id       => $actor_id,
-                erasure_job_id => $erasure_job_id,
-                job            => $job,
-                request        => $request,
-                timestamp      => $self->clock->now_iso8601,
-            };
+            my $input =
+              $self->_erasure( $erasure_job_id, $actor_id, $job, $request );
             my $hold = $self->_active_hold_for_request($request);
             if ($hold) {
                 $input->{hold} = $hold;
@@ -284,21 +272,13 @@ sub hold_request ( $self, $request_id, $actor_id, $reason, $make_hold ) {
                 return undef;
             }
             if ( !$self->_open_request($request) ) {
-                return {
-                    error      => 'deletion request is closed',
-                    ok         => 0,
-                    request_id => $request_id,
-                };
+                return _closed($request_id);
             }
 
             my $held = $self->_hold_request(
-                {
-                    actor_id  => $actor_id,
-                    hold      => $make_hold->($request),
-                    reason    => $reason || $LEGAL_HOLD,
-                    request   => $request,
-                    timestamp => $self->clock->now_iso8601,
-                }
+                $self->_held_input(
+                    $actor_id, $reason, $request, $make_hold->($request)
+                )
             );
 
             return { %{$held}, error => undef, ok => 1 };
@@ -322,113 +302,109 @@ sub release_hold ( $self, $hold_id, $actor_id, $reason ) {
         sub {
             my $timestamp = $self->clock->now_iso8601;
             my $released  = $self->functions->row( 'privacy_release_hold',
-                { hold_id => $hold_id, ended_at => $timestamp } );
+                _release_values( $hold_id, $timestamp ) );
             return undef if !$released;
 
             my $request = $released->{request};
-            return { error => undef, hold => $released->{hold}, ok => 1 }
-              if !$request;
+            return _released_alone($released) if !$request;
 
-            my $request_id = $request->{deletion_request_id};
-            my $status =
-                $self->_existing_job_for($request_id)
-              ? $STATUS_APPROVED
-              : $STATUS_PENDING;
-            $self->_set_request_status( $request, $status );
-            my $input = {
-                actor_id  => $actor_id,
-                hold      => $released->{hold},
-                reason    => $reason,
-                request   => $request,
-                status    => $status,
-                timestamp => $timestamp,
-            };
-            my $action = $self->_record_action(
-                $request_id,
+            my $input = _release(
                 {
-                    action_type => 'hold_ended',
-                    actor_id    => $actor_id,
-                    created_at  => $timestamp,
-                    metadata    => {
-                        reason            => $reason,
-                        retention_hold_id => $hold_id,
-                        status            => $status,
-                    },
+                    actor_id => $actor_id,
+                    hold_id  => $hold_id,
+                    job      => $self->_existing_job_for(
+                        $request->{deletion_request_id}
+                    ),
+                    reason    => $reason,
+                    released  => $released,
+                    timestamp => $timestamp,
                 }
             );
+            $self->_set_request_status( $request, $input->{status} );
+            my $action = $self->_record_action( $input->{request_id},
+                _hold_ended_action($input) );
             $self->_record_privacy_event_and_audit(
                 $self->events->hold_ended($input) );
 
-            return {
-                action     => $action,
-                error      => undef,
-                hold       => $released->{hold},
-                ok         => 1,
-                request_id => $request_id,
-                status     => $status,
-            };
+            return _released_answer( $input, $action );
         }
     );
 }
 
-# An earlier attempt may have committed the request without its event.
-sub _finish_leftover_deletion ( $self, $existing ) {
-    my $event_key = join q{:}, 'privacy.deletion_requested',
-      $existing->{deletion_request_id};
-    if ( !$self->recorder->event_recorded($event_key) ) {
-        $self->_record_privacy_event_and_audit(
-            $self->events->requested(
-                {
-                    actor_id => $existing->{requester_user_id},
-                    request  => $existing,
-                }
-            )
-        );
-    }
-
-    return $existing;
+sub _new_request ( $self, $input ) {
+    return {
+        completed_at        => undef,
+        created_at          => $self->clock->now_iso8601,
+        deletion_request_id => $self->id_service->uuid,
+        reason              => $input->{reason} || q{},
+        request_type        => $input->{request_type},
+        requester_user_id   => $input->{requester_user_id},
+        resource_id         => $input->{resource_id},
+        resource_type       => $input->{resource_type},
+        status              => $STATUS_PENDING,
+    };
 }
 
-sub _finish_leftover_approval ( $self, $input, $job ) {
-    my $released = $self->_latest_row(
-        'DeletionAction',
+sub _requested ( $self, $request ) {
+    return $self->events->requested(
         {
-            action_type         => 'released',
-            deletion_request_id => $input->{request_id},
+            actor_id => $request->{requester_user_id},
+            request  => $request,
+        }
+    );
+}
+
+sub _requested_key ($request) {
+    return join q{:}, 'privacy.deletion_requested',
+      $request->{deletion_request_id};
+}
+
+# Whether an insert lost its minted id, and whether a reread may find the
+# row that won the other constraint or the id.
+sub _lost_race ( $error, $id_constraint, $other_constraint = undef ) {
+    my $conflict = GPForum::X::Conflict->caught($error);
+    my $id_taken = $conflict && $conflict->on($id_constraint) ? 1 : 0;
+    my $other =
+         $conflict
+      && defined $other_constraint
+      && $conflict->on($other_constraint) ? 1 : 0;
+
+    return ( $id_taken, $id_taken || $other );
+}
+
+sub _approval ( $self, $request_id, $actor_id, $reason, $request ) {
+    return {
+        actor_id   => $actor_id,
+        reason     => $reason,
+        request    => $request,
+        request_id => $request_id,
+        timestamp  => $self->clock->now_iso8601,
+    };
+}
+
+sub _approval_hold ( $self, $input, $hold ) {
+    return {
+        actor_id  => $input->{actor_id},
+        hold      => $hold,
+        reason    => $self->completion->hold_reason( $input->{reason} ),
+        request   => $input->{request},
+        timestamp => $input->{timestamp},
+    };
+}
+
+sub _approval_action ($input) {
+    return {
+        action_type => 'released',
+        actor_id    => $input->{actor_id},
+        created_at  => $input->{timestamp},
+        metadata    => {
+            reason => $input->{reason} || q{},
+            status => $STATUS_APPROVED,
         },
-        'created_at',
-    );
-    if ($released) {
-        return $self->completion->approval_replay( $input->{request_id}, $job );
-    }
-
-    $self->_set_request_status( $input->{request}, $STATUS_APPROVED );
-    return $self->_emit_approval( $input, $job );
+    };
 }
 
-sub _emit_approval ( $self, $input, $job ) {
-    my $action = $self->_record_action(
-        $input->{request_id},
-        {
-            action_type => 'released',
-            actor_id    => $input->{actor_id},
-            created_at  => $input->{timestamp},
-            metadata    => {
-                reason => $input->{reason} || q{},
-                status => $STATUS_APPROVED,
-            },
-        }
-    );
-    $self->_record_privacy_event_and_audit(
-        $self->events->approved(
-            {
-                %{$input},
-                action => $action,
-                job    => $job,
-            }
-        )
-    );
-
+sub _approved ( $self, $input, $action, $job ) {
     return {
         action     => $action,
         job        => $self->record->job_hash($job),
@@ -437,19 +413,216 @@ sub _emit_approval ( $self, $input, $job ) {
     };
 }
 
+sub _new_job ( $self, $input ) {
+    return {
+        completed_at        => undef,
+        deletion_request_id => $input->{request_id},
+        erasure_job_id      => $self->id_service->uuid,
+        last_error          => undef,
+        scheduled_at        => $input->{timestamp},
+        status              => $JOB_PENDING,
+    };
+}
+
+# A job done by an earlier attempt completed its request at its own time,
+# or now when it kept none.
+sub _job_completed_at ( $self, $job ) {
+    my $completed_at = $self->record->column( $job, 'completed_at' );
+    if ( !defined $completed_at || !length $completed_at ) {
+        $completed_at = $self->clock->now_iso8601;
+    }
+
+    return $completed_at;
+}
+
+sub _erasure ( $self, $erasure_job_id, $actor_id, $job, $request ) {
+    return {
+        actor_id       => $actor_id,
+        erasure_job_id => $erasure_job_id,
+        job            => $job,
+        request        => $request,
+        timestamp      => $self->clock->now_iso8601,
+    };
+}
+
+sub _blocked_action ( $self, $input ) {
+    return {
+        action_type => 'held',
+        actor_id    => $input->{actor_id},
+        created_at  => $input->{timestamp},
+        metadata    => {
+            erasure_job_id    => $input->{erasure_job_id},
+            retention_hold_id =>
+              $self->record->column( $input->{hold}, 'retention_hold_id' ),
+        },
+    };
+}
+
+sub _done_job ($input) {
+    return {
+        completed_at => $input->{timestamp},
+        last_error   => undef,
+        status       => $JOB_DONE,
+    };
+}
+
+sub _anonymized_action ( $input, $anonymized ) {
+    return {
+        action_type => 'anonymized',
+        actor_id    => $input->{actor_id},
+        created_at  => $input->{timestamp},
+        metadata    => {
+            anonymized     => $anonymized,
+            erasure_job_id => $input->{erasure_job_id},
+        },
+    };
+}
+
+sub _erased ( $input, $action, $anonymized ) {
+    return {
+        action         => $action,
+        anonymized     => $anonymized,
+        erasure_job_id => $input->{erasure_job_id},
+        ok             => 1,
+    };
+}
+
+sub _closed ($request_id) {
+    return {
+        error      => 'deletion request is closed',
+        ok         => 0,
+        request_id => $request_id,
+    };
+}
+
+sub _held_input ( $self, $actor_id, $reason, $request, $hold ) {
+    return {
+        actor_id  => $actor_id,
+        hold      => $hold,
+        reason    => $reason || $LEGAL_HOLD,
+        request   => $request,
+        timestamp => $self->clock->now_iso8601,
+    };
+}
+
+sub _held_action ( $self, $input ) {
+    return {
+        action_type => 'held',
+        actor_id    => $input->{actor_id},
+        created_at  => $input->{timestamp},
+        metadata    => {
+            reason            => $input->{reason},
+            retention_hold_id =>
+              $self->record->column( $input->{hold}, 'retention_hold_id' ),
+        },
+    };
+}
+
+sub _held ( $request_id, $action ) {
+    return {
+        action     => $action,
+        error      => 'retention_hold_active',
+        ok         => 0,
+        request_id => $request_id,
+    };
+}
+
+sub _release_values ( $hold_id, $timestamp ) {
+    return { hold_id => $hold_id, ended_at => $timestamp };
+}
+
+sub _released_alone ($released) {
+    return { error => undef, hold => $released->{hold}, ok => 1 };
+}
+
+# The request a released hold held goes back to approved when its erasure
+# job waits, to pending otherwise.
+sub _release ($found) {
+    my $released = $found->{released};
+    return {
+        actor_id   => $found->{actor_id},
+        hold       => $released->{hold},
+        hold_id    => $found->{hold_id},
+        reason     => $found->{reason},
+        request    => $released->{request},
+        request_id => $released->{request}{deletion_request_id},
+        status     => $found->{job} ? $STATUS_APPROVED : $STATUS_PENDING,
+        timestamp  => $found->{timestamp},
+    };
+}
+
+sub _hold_ended_action ($input) {
+    return {
+        action_type => 'hold_ended',
+        actor_id    => $input->{actor_id},
+        created_at  => $input->{timestamp},
+        metadata    => {
+            reason            => $input->{reason},
+            retention_hold_id => $input->{hold_id},
+            status            => $input->{status},
+        },
+    };
+}
+
+sub _released_answer ( $input, $action ) {
+    return {
+        action     => $action,
+        error      => undef,
+        hold       => $input->{hold},
+        ok         => 1,
+        request_id => $input->{request_id},
+        status     => $input->{status},
+    };
+}
+
+# An earlier attempt may have committed the request without its event.
+sub _finish_leftover_deletion ( $self, $existing ) {
+    if ( !$self->recorder->event_recorded( _requested_key($existing) ) ) {
+        $self->_record_privacy_event_and_audit( $self->_requested($existing) );
+    }
+
+    return $existing;
+}
+
+sub _finish_leftover_approval ( $self, $input, $job ) {
+    my $released = $self->_latest_row( _released_query($input) );
+    if ($released) {
+        return $self->completion->approval_replay( $input->{request_id}, $job );
+    }
+
+    $self->_set_request_status( $input->{request}, $STATUS_APPROVED );
+    return $self->_emit_approval( $input, $job );
+}
+
+sub _released_query ($input) {
+    return (
+        'DeletionAction',
+        {
+            action_type         => 'released',
+            deletion_request_id => $input->{request_id},
+        },
+        'created_at',
+    );
+}
+
+sub _emit_approval ( $self, $input, $job ) {
+    my $action =
+      $self->_record_action( $input->{request_id}, _approval_action($input) );
+    $self->_record_privacy_event_and_audit(
+        $self->events->approved(
+            { %{$input}, action => $action, job => $job }
+        )
+    );
+
+    return $self->_approved( $input, $action, $job );
+}
+
 # A concurrent approval's job, or a minted id already stored, is answered by
 # the request's job then found; a minted id with no such job is minted once
 # more.
 sub _insert_or_reuse_job ( $self, $input ) {
     my $create = sub {
-        my $job = {
-            completed_at        => undef,
-            deletion_request_id => $input->{request_id},
-            erasure_job_id      => $self->id_service->uuid,
-            last_error          => undef,
-            scheduled_at        => $input->{timestamp},
-            status              => $JOB_PENDING,
-        };
+        my $job = $self->_new_job($input);
         $self->_insert_privacy_row( 'ErasureJob', $job );
 
         return $job;
@@ -461,11 +634,9 @@ sub _insert_or_reuse_job ( $self, $input ) {
         return { job => $created, reused => 0 };
     }
 
-    my $conflict = GPForum::X::Conflict->caught($error);
-    my $id_taken = $conflict && $conflict->on($ERASURE_ID_CONSTRAINT);
-    if ( $id_taken
-        || ( $conflict && $conflict->on($ERASURE_REQUEST_CONSTRAINT) ) )
-    {
+    my ( $id_taken, $reread ) =
+      _lost_race( $error, $ERASURE_ID_CONSTRAINT, $ERASURE_REQUEST_CONSTRAINT );
+    if ($reread) {
         my $existing = $self->_existing_job_for( $input->{request_id} );
         if ($existing) {
             return { job => $existing, reused => 1 };
@@ -482,10 +653,8 @@ sub _insert_or_reuse_job ( $self, $input ) {
 # replay. Otherwise both are marked; the action and the event are recorded
 # only by the attempt that found neither marked.
 sub _block_erasure ( $self, $input ) {
-    my $held = $self->_already_held( $input->{request} );
-    my $blocked =
-      ( $self->record->column( $input->{job}, 'last_error' ) || q{} ) eq
-      $self->events->block_error;
+    my $held    = $self->_already_held( $input->{request} );
+    my $blocked = $self->_job_blocked( $input->{job} );
     if ( $held && $blocked ) {
         return $self->completion->hold_block_replay( $input->{erasure_job_id} );
     }
@@ -499,23 +668,21 @@ sub _block_erasure ( $self, $input ) {
         return $self->_blocked_result($input);
     }
 
-    my $action = $self->_record_action(
-        $self->record->column( $input->{request}, 'deletion_request_id' ),
-        {
-            action_type => 'held',
-            actor_id    => $input->{actor_id},
-            created_at  => $input->{timestamp},
-            metadata    => {
-                erasure_job_id    => $input->{erasure_job_id},
-                retention_hold_id =>
-                  $self->record->column( $input->{hold}, 'retention_hold_id' ),
-            },
-        }
-    );
+    my $action = $self->_record_action( $self->_request_id_of($input),
+        $self->_blocked_action($input) );
     $self->_record_privacy_event_and_audit(
         $self->events->blocked( { %{$input}, action => $action } ) );
 
     return $self->_blocked_result( $input, $action );
+}
+
+sub _job_blocked ( $self, $job ) {
+    return ( $self->record->column( $job, 'last_error' ) || q{} ) eq
+      $self->events->block_error;
+}
+
+sub _request_id_of ( $self, $input ) {
+    return $self->record->column( $input->{request}, 'deletion_request_id' );
 }
 
 sub _blocked_result ( $self, $input, $action = undef ) {
@@ -538,49 +705,32 @@ sub _finish_erasure ( $self, $input ) {
       defined $anonymized->{user_id}
       ? $self->erased_exports->discard( $anonymized->{user_id} )
       : [];
-    $self->_update_privacy_row(
-        'ErasureJob',
-        $input->{job},
-        {
-            completed_at => $input->{timestamp},
-            last_error   => undef,
-            status       => $JOB_DONE,
-        }
-    );
+    $self->_update_privacy_row( 'ErasureJob', $input->{job},
+        _done_job($input) );
     $self->_complete_request_row( $input->{request}, $input->{timestamp} );
 
-    my $action = $self->_record_action(
-        $self->record->column( $input->{request}, 'deletion_request_id' ),
-        {
-            action_type => 'anonymized',
-            actor_id    => $input->{actor_id},
-            created_at  => $input->{timestamp},
-            metadata    => {
-                anonymized     => $anonymized,
-                erasure_job_id => $input->{erasure_job_id},
-            },
-        }
-    );
+    my $action = $self->_record_action( $self->_request_id_of($input),
+        _anonymized_action( $input, $anonymized ) );
     $self->_record_privacy_event_and_audit(
         $self->events->completed(
-            {
-                %{$input},
-                action     => $action,
-                anonymized => $anonymized,
-            }
+            { %{$input}, action => $action, anonymized => $anonymized }
         )
     );
 
-    return {
-        action         => $action,
-        anonymized     => $anonymized,
-        erasure_job_id => $input->{erasure_job_id},
-        ok             => 1,
-    };
+    return _erased( $input, $action, $anonymized );
 }
 
 sub _open_deletion_hash ( $self, $input ) {
-    my $row = $self->_latest_row(
+    my $row = $self->_latest_row( _open_deletion_query($input) );
+    if ( !$row ) {
+        return undef;
+    }
+
+    return $self->record->request_hash($row);
+}
+
+sub _open_deletion_query ($input) {
+    return (
         'DeletionRequest',
         {
             request_type  => $input->{request_type},
@@ -592,24 +742,23 @@ sub _open_deletion_hash ( $self, $input ) {
         },
         'created_at',
     );
-    if ( !$row ) {
-        return undef;
-    }
+}
 
-    return $self->record->request_hash($row);
+sub _new_action ( $self, $request_id, $input ) {
+    return {
+        action_type         => $input->{action_type},
+        actor_id            => $input->{actor_id},
+        created_at          => $input->{created_at},
+        deletion_action_id  => $self->id_service->uuid,
+        deletion_request_id => $request_id,
+        metadata            => $input->{metadata} || {},
+    };
 }
 
 # A minted action id already stored is minted once more.
 sub _record_action ( $self, $request_id, $input ) {
     my $create = sub {
-        my $action = {
-            action_type         => $input->{action_type},
-            actor_id            => $input->{actor_id},
-            created_at          => $input->{created_at},
-            deletion_action_id  => $self->id_service->uuid,
-            deletion_request_id => $request_id,
-            metadata            => $input->{metadata} || {},
-        };
+        my $action = $self->_new_action( $request_id, $input );
         $self->_insert_privacy_row( 'DeletionAction', $action );
 
         return $action;
@@ -621,8 +770,8 @@ sub _record_action ( $self, $request_id, $input ) {
         return $created;
     }
 
-    my $conflict = GPForum::X::Conflict->caught($error);
-    if ( $conflict && $conflict->on($ACTION_ID_CONSTRAINT) ) {
+    my ($id_taken) = _lost_race( $error, $ACTION_ID_CONSTRAINT );
+    if ($id_taken) {
         return $self->_once_more($create);
     }
 
@@ -645,33 +794,16 @@ sub _once_more ( $self, $create ) {
 # the action and the event are recorded.
 sub _hold_request ( $self, $input ) {
     my $request    = $input->{request};
-    my $request_id = $self->record->column( $request, 'deletion_request_id' );
+    my $request_id = $self->_request_id_of($input);
     my $action;
     if ( !$self->_already_held($request) ) {
         $self->_set_request_status( $request, $STATUS_HELD );
-        $action = $self->_record_action(
-            $request_id,
-            {
-                action_type => 'held',
-                actor_id    => $input->{actor_id},
-                created_at  => $input->{timestamp},
-                metadata    => {
-                    reason            => $input->{reason},
-                    retention_hold_id => $self->record->column(
-                        $input->{hold}, 'retention_hold_id'
-                    ),
-                },
-            }
-        );
+        $action =
+          $self->_record_action( $request_id, $self->_held_action($input) );
         $self->_record_privacy_event_and_audit( $self->events->held($input) );
     }
 
-    return {
-        action     => $action,
-        error      => 'retention_hold_active',
-        ok         => 0,
-        request_id => $request_id,
-    };
+    return _held( $request_id, $action );
 }
 
 sub _already_held ( $self, $request ) {
@@ -726,13 +858,20 @@ sub _complete_request_row ( $self, $request, $timestamp ) {
 }
 
 sub _existing_job_for ( $self, $request_id ) {
-    return $self->_latest_row( 'ErasureJob',
-        { deletion_request_id => $request_id },
-        'scheduled_at', );
+    return $self->_latest_row( _job_query($request_id) );
+}
+
+sub _job_query ($request_id) {
+    return ( 'ErasureJob', { deletion_request_id => $request_id },
+        'scheduled_at' );
 }
 
 sub _active_hold_for_request ( $self, $request ) {
-    return $self->_latest_row(
+    return $self->_latest_row( $self->_active_hold_query($request) );
+}
+
+sub _active_hold_query ( $self, $request ) {
+    return (
         'RetentionHold',
         {
             ends_at       => undef,
@@ -788,12 +927,8 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
     }
 
     $self->_revoke_user_rows( 'Credential', $user_id, $timestamp );
-
-    # The member's single-use tokens go with the credentials: a reset, an
-    # email change with the new address in it, a verification. They stayed
-    # until they expired and the purge took them, the address in them too.
     if ( $self->functions ) {
-        $self->_revoke_user_rows( 'IdentityToken', $user_id, $timestamp );
+        $self->_revoke_sources( $user_id, $timestamp, @TOKEN_SOURCES );
     }
     my $already = $self->erasure->already_deleted($user);
     if ( !$already ) {
@@ -802,52 +937,23 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
     }
     $self->_revoke_user_rows( 'Session', $user_id, $timestamp );
     if ( $self->functions ) {
-        $self->_revoke_user_rows( 'ForumDraft',   $user_id, $timestamp );
-        $self->_revoke_user_rows( 'PostLike',     $user_id, $timestamp );
-        $self->_revoke_user_rows( 'PostReaction', $user_id, $timestamp );
-        $self->_revoke_user_rows( 'PollBallot',   $user_id, $timestamp );
-        $self->_revoke_user_rows( 'Admission',    $user_id, $timestamp );
-
-        # ADR 0130: the erased member leaves every ignore and block list.
-        $self->_revoke_user_rows( 'MemberRelation', $user_id, $timestamp );
-
-        # ADR 0134: and their posts held for review.
-        $self->_revoke_user_rows( 'HeldPost', $user_id, $timestamp );
-
-        # ADR 0138: and the staff notes about them.
-        $self->_revoke_user_rows( 'MemberNote', $user_id, $timestamp );
-
-        # ADR 0139: and the direct messages they wrote, with their side of
-        # each conversation.
-        $self->_revoke_user_rows( 'DirectMessage', $user_id, $timestamp );
-
-        # ADR 0142: and their two-step sign-in secret, recovery codes and
-        # challenges.
-        $self->_revoke_user_rows( 'SecondFactor', $user_id, $timestamp );
-
-        # ADR 0144: and their profile pictures: the stored files first, then
-        # the rows.
+        $self->_revoke_sources( $user_id, $timestamp, @BEFORE_AVATAR_SOURCES );
         if ( $self->avatars ) {
             $self->avatars->erase_files($user_id);
         }
-        $self->_revoke_user_rows( 'Avatar', $user_id, $timestamp );
-
-        # ADR 0146: and their name from the address bans they placed,
-        # edited or lifted.
-        $self->_revoke_user_rows( 'AddressBan', $user_id, $timestamp );
-
-        # And what they followed, threads and categories alike, so no reply
-        # notifies the erased account; their bookmarks, with their notes and
-        # folders; their notification preferences and digests, and the
-        # notifications they were sent.
-        $self->_revoke_user_rows( 'Subscription', $user_id, $timestamp );
-        $self->_revoke_user_rows( 'Bookmark',     $user_id, $timestamp );
-        $self->_revoke_user_rows( 'NotificationPreference', $user_id,
-            $timestamp );
-        $self->_revoke_user_rows( 'Notification', $user_id, $timestamp );
+        $self->_revoke_sources( $user_id, $timestamp,
+            @AVATAR_AND_LATER_SOURCES );
     }
 
     return $self->erasure->result( $user_id, $already );
+}
+
+sub _revoke_sources ( $self, $user_id, $timestamp, @sources ) {
+    for my $source (@sources) {
+        $self->_revoke_user_rows( $source, $user_id, $timestamp );
+    }
+
+    return;
 }
 
 # A source that cannot be read fails the erasure, which rolls back and runs
@@ -855,14 +961,8 @@ sub _anonymize_request_subject ( $self, $request, $timestamp ) {
 # revoked while its sessions stayed signed in (t/339).
 sub _revoke_user_rows ( $self, $resultset_name, $user_id, $timestamp ) {
     if ( $self->functions ) {
-        $self->functions->row(
-            'privacy_revoke_user',
-            {
-                source  => $resultset_name,
-                user_id => $user_id,
-                at      => $timestamp
-            }
-        );
+        $self->functions->row( 'privacy_revoke_user',
+            _revoke_values( $resultset_name, $user_id, $timestamp ) );
         return undef;
     }
 
@@ -905,6 +1005,14 @@ sub _not_before_creation ( $timestamp, $created_at ) {
 }
 
 # Each branch is a fixed function; memory doubles retain their existing rows.
+sub _revoke_values ( $source, $user_id, $timestamp ) {
+    return {
+        source  => $source,
+        user_id => $user_id,
+        at      => $timestamp
+    };
+}
+
 sub _find_privacy_row ( $self, $source, $id, $lock = 0 ) {
     if ( $self->functions ) {
         my $row = $self->functions->row( 'privacy_find',
@@ -924,22 +1032,24 @@ sub _insert_privacy_row ( $self, $source, $row ) {
 
 sub _update_privacy_row ( $self, $source, $row, $changes ) {
     if ( $self->functions ) {
-        my $id_column =
-            $source eq 'User'       ? 'id'
-          : $source eq 'ErasureJob' ? 'erasure_job_id'
-          :                           'deletion_request_id';
-        $self->functions->row(
-            'privacy_update',
-            {
-                source  => $source,
-                id      => $row->{$id_column},
-                changes => $changes
-            }
-        );
+        $self->functions->row( 'privacy_update',
+            _update_values( $source, $row, $changes ) );
         @{$row}{ keys %{$changes} } = values %{$changes};
         return $row;
     }
     return $row->update($changes);
+}
+
+sub _update_values ( $source, $row, $changes ) {
+    my $id_column =
+        $source eq 'User'       ? 'id'
+      : $source eq 'ErasureJob' ? 'erasure_job_id'
+      :                           'deletion_request_id';
+    return {
+        source  => $source,
+        id      => $row->{$id_column},
+        changes => $changes
+    };
 }
 
 sub _record_privacy_event_and_audit ( $self, $input ) {
@@ -948,6 +1058,468 @@ sub _record_privacy_event_and_audit ( $self, $input ) {
         %{ $self->events->envelope( $input, $correlation_id ) } );
     $self->recorder->record_audit(
         %{ $self->events->audit( $input, $correlation_id ) } );
+
+    return;
+}
+
+# The promise twins. Each public step runs in one transaction on the
+# worker's pooled asynchronous connections -- the same steps, in the same
+# order, as its blocking twin, every statement on the transaction's call
+# layer ($db) -- and inserts in its savepoints. Without the function layer
+# (the in-memory doubles) the blocking step answers.
+
+async sub request_deletion_p ( $self, $input, $context = undef ) {
+    return $self->request_deletion($input) if !$self->functions;
+
+    return await $self->functions->transaction_p(
+        async sub ($db) {
+            my $existing =
+              await $self->_open_deletion_hash_p( $db, $input, $context );
+            return await $self->_finish_leftover_deletion_p( $db, $existing,
+                $context )
+              if $existing;
+
+            my $create = async sub ($savepoint) {
+                my $request = $self->_new_request($input);
+                await _insert_p( $savepoint, 'DeletionRequest', $request,
+                    $context );
+                await $self->_record_privacy_event_and_audit_p( $savepoint,
+                    $self->_requested($request), $context );
+
+                return $request;
+            };
+            my ( $created, $error ) =
+              await GPForum::Infrastructure::UniqueConflict->attempt_p( $db,
+                $create );
+            return $created if $created;
+
+            my ( $id_taken, $reread ) =
+              _lost_race( $error, $DELETION_ID_CONSTRAINT,
+                $OPEN_DELETION_CONSTRAINT );
+            if ($reread) {
+                $existing =
+                  await $self->_open_deletion_hash_p( $db, $input, $context );
+                return await $self->_finish_leftover_deletion_p( $db,
+                    $existing, $context )
+                  if $existing;
+                return await _once_more_p( $db, $create ) if $id_taken;
+            }
+
+            GPForum::Infrastructure::UniqueConflict->rethrow($error);
+        },
+        $context
+    );
+}
+
+async sub approve_request_p ( $self, $request_id, $actor_id, $reason,
+    $context = undef )
+{
+    return $self->approve_request( $request_id, $actor_id, $reason )
+      if !$self->functions;
+
+    return await $self->functions->transaction_p(
+        async sub ($db) {
+            my $request =
+              await _find_p( $db, 'DeletionRequest', $request_id, 1, $context );
+            return undef if !$request;
+
+            my $input =
+              $self->_approval( $request_id, $actor_id, $reason, $request );
+            my $existing =
+              await _latest_p( $db, $context, _job_query($request_id) );
+            return await $self->_finish_leftover_approval_p( $db, $input,
+                $existing, $context )
+              if $existing;
+
+            my $hold = await _latest_p( $db, $context,
+                $self->_active_hold_query($request) );
+            return await $self->_hold_request_p( $db,
+                $self->_approval_hold( $input, $hold ), $context )
+              if $hold;
+
+            await $self->_set_request_status_p( $db, $request,
+                $STATUS_APPROVED, $context );
+            my $inserted =
+              await $self->_insert_or_reuse_job_p( $db, $input, $context );
+            return await $self->_finish_leftover_approval_p( $db, $input,
+                $inserted->{job}, $context )
+              if $inserted->{reused};
+
+            return await $self->_emit_approval_p( $db, $input,
+                $inserted->{job}, $context );
+        },
+        $context
+    );
+}
+
+async sub complete_job_p ( $self, $erasure_job_id, $actor_id, $context = undef )
+{
+    return $self->complete_job( $erasure_job_id, $actor_id )
+      if !$self->functions;
+
+    return await $self->functions->transaction_p(
+        async sub ($db) {
+            my $found =
+              await _find_p( $db, 'ErasureJob', $erasure_job_id, 0, $context );
+            return undef if !$found;
+
+            my $request =
+              await _find_p( $db, 'DeletionRequest',
+                $self->record->column( $found, 'deletion_request_id' ),
+                1, $context );
+            my $job =
+              await _find_p( $db, 'ErasureJob', $erasure_job_id, 0, $context );
+            if ( $self->completion->job_done($job) ) {
+                if ($request) {
+                    await $self->_complete_request_row_p( $db, $request,
+                        $self->_job_completed_at($job), $context );
+                }
+                return $self->completion->completion_replay($erasure_job_id);
+            }
+            return undef if !$request;
+
+            my $input =
+              $self->_erasure( $erasure_job_id, $actor_id, $job, $request );
+            my $hold = await _latest_p( $db, $context,
+                $self->_active_hold_query($request) );
+            if ($hold) {
+                $input->{hold} = $hold;
+                return await $self->_block_erasure_p( $db, $input, $context );
+            }
+
+            return await $self->_finish_erasure_p( $db, $input, $context );
+        },
+        $context
+    );
+}
+
+# hold_request as a promise: $make_hold_p takes the locked request and the
+# transaction's call layer and answers a promise of the hold.
+async sub hold_request_p ( $self, $request_id, $actor_id, $reason,
+    $make_hold_p, $context = undef )
+{
+    return await $self->functions->transaction_p(
+        async sub ($db) {
+            my $request =
+              await _find_p( $db, 'DeletionRequest', $request_id, 1, $context );
+            return undef                if !$request;
+            return _closed($request_id) if !$self->_open_request($request);
+
+            my $hold = await $make_hold_p->( $request, $db );
+            my $held =
+              await $self->_hold_request_p( $db,
+                $self->_held_input( $actor_id, $reason, $request, $hold ),
+                $context );
+
+            return { %{$held}, error => undef, ok => 1 };
+        },
+        $context
+    );
+}
+
+async sub release_hold_p ( $self, $hold_id, $actor_id, $reason,
+    $context = undef )
+{
+    return $self->release_hold( $hold_id, $actor_id, $reason )
+      if !$self->functions;
+
+    return await $self->functions->transaction_p(
+        async sub ($db) {
+            my $timestamp = $self->clock->now_iso8601;
+            my $released  = await $db->row_p( 'privacy_release_hold',
+                _release_values( $hold_id, $timestamp ), $context );
+            return undef                      if !$released;
+            return _released_alone($released) if !$released->{request};
+
+            my $input = _release(
+                {
+                    actor_id => $actor_id,
+                    hold_id  => $hold_id,
+                    job      => await _latest_p(
+                        $db,
+                        $context,
+                        _job_query( $released->{request}{deletion_request_id} )
+                    ),
+                    reason    => $reason,
+                    released  => $released,
+                    timestamp => $timestamp,
+                }
+            );
+            await $self->_set_request_status_p( $db, $input->{request},
+                $input->{status}, $context );
+            my $action =
+              await $self->_record_action_p( $db, $input->{request_id},
+                _hold_ended_action($input), $context );
+            await $self->_record_privacy_event_and_audit_p( $db,
+                $self->events->hold_ended($input), $context );
+
+            return _released_answer( $input, $action );
+        },
+        $context
+    );
+}
+
+async sub _finish_leftover_deletion_p ( $self, $db, $existing, $context ) {
+    my $recorded = await $db->row_p( 'ops_event_recorded',
+        { key => _requested_key($existing) }, $context );
+    if ( !$recorded->{recorded} ) {
+        await $self->_record_privacy_event_and_audit_p( $db,
+            $self->_requested($existing), $context );
+    }
+
+    return $existing;
+}
+
+async sub _open_deletion_hash_p ( $self, $db, $input, $context ) {
+    my $row = await _latest_p( $db, $context, _open_deletion_query($input) );
+    return $row ? $self->record->request_hash($row) : undef;
+}
+
+async sub _finish_leftover_approval_p ( $self, $db, $input, $job, $context ) {
+    my $released = await _latest_p( $db, $context, _released_query($input) );
+    return $self->completion->approval_replay( $input->{request_id}, $job )
+      if $released;
+
+    await $self->_set_request_status_p( $db, $input->{request},
+        $STATUS_APPROVED, $context );
+    return await $self->_emit_approval_p( $db, $input, $job, $context );
+}
+
+async sub _emit_approval_p ( $self, $db, $input, $job, $context ) {
+    my $action = await $self->_record_action_p( $db, $input->{request_id},
+        _approval_action($input), $context );
+    await $self->_record_privacy_event_and_audit_p(
+        $db,
+        $self->events->approved(
+            { %{$input}, action => $action, job => $job }
+        ),
+        $context
+    );
+
+    return $self->_approved( $input, $action, $job );
+}
+
+async sub _insert_or_reuse_job_p ( $self, $db, $input, $context ) {
+    my $create = async sub ($savepoint) {
+        my $job = $self->_new_job($input);
+        await _insert_p( $savepoint, 'ErasureJob', $job, $context );
+
+        return $job;
+    };
+    my ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $db, $create );
+    return { job => $created, reused => 0 } if $created;
+
+    my ( $id_taken, $reread ) =
+      _lost_race( $error, $ERASURE_ID_CONSTRAINT, $ERASURE_REQUEST_CONSTRAINT );
+    if ($reread) {
+        my $existing =
+          await _latest_p( $db, $context, _job_query( $input->{request_id} ) );
+        return { job => $existing, reused => 1 } if $existing;
+        return { job => await _once_more_p( $db, $create ), reused => 0 }
+          if $id_taken;
+    }
+
+    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+}
+
+async sub _block_erasure_p ( $self, $db, $input, $context ) {
+    my $held    = $self->_already_held( $input->{request} );
+    my $blocked = $self->_job_blocked( $input->{job} );
+    return $self->completion->hold_block_replay( $input->{erasure_job_id} )
+      if $held && $blocked;
+
+    await $self->_set_request_status_p( $db, $input->{request}, $STATUS_HELD,
+        $context );
+    if ( !$blocked ) {
+        await _update_p( $db, 'ErasureJob', $input->{job},
+            { last_error => $self->events->block_error }, $context );
+    }
+    return $self->_blocked_result($input) if $held || $blocked;
+
+    my $action = await $self->_record_action_p(
+        $db,
+        $self->_request_id_of($input),
+        $self->_blocked_action($input), $context
+    );
+    await $self->_record_privacy_event_and_audit_p( $db,
+        $self->events->blocked( { %{$input}, action => $action } ), $context );
+
+    return $self->_blocked_result( $input, $action );
+}
+
+async sub _finish_erasure_p ( $self, $db, $input, $context ) {
+    my $anonymized =
+      await $self->_anonymize_request_subject_p( $db, $input->{request},
+        $input->{timestamp}, $context );
+    $input->{discarded_exports} =
+      defined $anonymized->{user_id}
+      ? await $self->erased_exports->discard_p( $anonymized->{user_id},
+        $context, $db )
+      : [];
+    await _update_p( $db, 'ErasureJob', $input->{job}, _done_job($input),
+        $context );
+    await $self->_complete_request_row_p( $db, $input->{request},
+        $input->{timestamp}, $context );
+
+    my $action = await $self->_record_action_p(
+        $db,
+        $self->_request_id_of($input),
+        _anonymized_action( $input, $anonymized ), $context
+    );
+    await $self->_record_privacy_event_and_audit_p(
+        $db,
+        $self->events->completed(
+            { %{$input}, action => $action, anonymized => $anonymized }
+        ),
+        $context
+    );
+
+    return _erased( $input, $action, $anonymized );
+}
+
+# As _anonymize_request_subject, every statement on the transaction's call
+# layer, the profile pictures' stored objects included.
+async sub _anonymize_request_subject_p ( $self, $db, $request, $timestamp,
+    $context )
+{
+    my $user_id = $self->record->column( $request, 'resource_id' );
+    my $user =
+      $self->erasure->is_user_resource($request)
+      ? await _find_p( $db, 'User', $user_id, 0, $context )
+      : undef;
+    my $skip = $self->erasure->skip_reason( $request, $user );
+    return $self->completion->skipped($skip) if $skip;
+
+    my $revoke = async sub (@sources) {
+        for my $source (@sources) {
+            await $db->row_p( 'privacy_revoke_user',
+                _revoke_values( $source, $user_id, $timestamp ), $context );
+        }
+        return;
+    };
+    await $revoke->( 'Credential', @TOKEN_SOURCES );
+    my $already = $self->erasure->already_deleted($user);
+    if ( !$already ) {
+        await _update_p( $db, 'User', $user,
+            $self->erasure->user_values( $user_id, $timestamp ), $context );
+    }
+    await $revoke->( 'Session', @BEFORE_AVATAR_SOURCES );
+    if ( my $avatars = $self->avatars ) {
+        if ( $avatars->can('erase_files_p') ) {
+            await $avatars->erase_files_p( $user_id, $context, $db );
+        }
+        else { $avatars->erase_files($user_id); }
+    }
+    await $revoke->(@AVATAR_AND_LATER_SOURCES);
+
+    return $self->erasure->result( $user_id, $already );
+}
+
+async sub _record_action_p ( $self, $db, $request_id, $input, $context ) {
+    my $create = async sub ($savepoint) {
+        my $action = $self->_new_action( $request_id, $input );
+        await _insert_p( $savepoint, 'DeletionAction', $action, $context );
+
+        return $action;
+    };
+    my ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $db, $create );
+    return $created if $created;
+
+    my ($id_taken) = _lost_race( $error, $ACTION_ID_CONSTRAINT );
+    return await _once_more_p( $db, $create ) if $id_taken;
+
+    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+}
+
+async sub _once_more_p ( $db, $create ) {
+    my ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $db, $create );
+    return $created if $created;
+
+    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+}
+
+async sub _hold_request_p ( $self, $db, $input, $context ) {
+    my $request_id = $self->_request_id_of($input);
+    my $action;
+    if ( !$self->_already_held( $input->{request} ) ) {
+        await $self->_set_request_status_p( $db, $input->{request},
+            $STATUS_HELD, $context );
+        $action = await $self->_record_action_p( $db, $request_id,
+            $self->_held_action($input), $context );
+        await $self->_record_privacy_event_and_audit_p( $db,
+            $self->events->held($input), $context );
+    }
+
+    return _held( $request_id, $action );
+}
+
+async sub _set_request_status_p ( $self, $db, $request, $status, $context ) {
+    return if $self->_same_request_status( $request, $status );
+
+    await _update_p( $db, 'DeletionRequest', $request, { status => $status },
+        $context );
+    return;
+}
+
+async sub _complete_request_row_p ( $self, $db, $request, $timestamp, $context )
+{
+    return if $self->_same_request_status( $request, $STATUS_COMPLETED );
+
+    await _update_p(
+        $db,
+        'DeletionRequest',
+        $request,
+        {
+            completed_at => $timestamp,
+            status       => $STATUS_COMPLETED,
+        },
+        $context
+    );
+    return;
+}
+
+async sub _latest_p ( $db, $context, $source, $query, $ ) {
+    my $row = await $db->row_p( 'privacy_latest',
+        { source => $source, query => $query }, $context );
+    return $row ? $row->{document} : undef;
+}
+
+async sub _find_p ( $db, $source, $id, $lock, $context ) {
+    my $row = await $db->row_p( 'privacy_find',
+        { source => $source, id => $id, lock_row => $lock }, $context );
+    return $row ? $row->{document} : undef;
+}
+
+async sub _insert_p ( $db, $source, $row, $context ) {
+    return (
+        await $db->row_p(
+            'privacy_insert', { source => $source, row => $row }, $context
+        )
+    )->{document};
+}
+
+async sub _update_p ( $db, $source, $row, $changes, $context ) {
+    await $db->row_p( 'privacy_update',
+        _update_values( $source, $row, $changes ), $context );
+    @{$row}{ keys %{$changes} } = values %{$changes};
+    return $row;
+}
+
+# The event and the audit entry on the transaction's own call layer.
+async sub _record_privacy_event_and_audit_p ( $self, $db, $input, $context ) {
+    my $correlation_id = $self->id_service->uuid;
+    my $recorder       = GPForum::Infrastructure::EventRecorder->new(
+        id_service => $self->id_service,
+        schema     => $self->schema,
+        functions  => $db,
+    );
+    await $recorder->record_event_p(
+        $self->events->envelope( $input, $correlation_id ), $context );
+    await $recorder->record_audit_p(
+        $self->events->audit( $input, $correlation_id ), $context );
 
     return;
 }
@@ -1121,6 +1693,38 @@ C<< { ok => 1, error => undef, hold, request_id, status, action } >>; for a
 hold that held no request, C<< { ok => 1, error => undef, hold } >>. The held
 request is locked before the hold ends, the order a hold takes them in.
 Without the SQL function layer it throws L<GPForum::X::Argument>.
+
+=head2 request_deletion_p
+
+L</request_deletion> as a promise, with an optional query context last: the
+same steps in one transaction on the worker's pooled asynchronous
+connections, its inserts in savepoints of it, no child process. Without the
+SQL function layer the blocking step answers, as for every promise twin
+here.
+
+=head2 approve_request_p
+
+L</approve_request> as a promise, with an optional query context last, in
+one transaction on the worker's pooled asynchronous connections.
+
+=head2 complete_job_p
+
+L</complete_job> as a promise, with an optional query context last: the
+whole erasure in one transaction on the worker's pooled asynchronous
+connections, the stored objects of the member's profile pictures deleted in
+it through L<GPForum::Service::Community::Avatars/erase_files_p>.
+
+=head2 hold_request_p
+
+L</hold_request> as a promise, with an optional query context last. The hold
+is made by a code reference that takes the locked request and the
+transaction's call layer and answers a promise of the hold, so it is made in
+the same transaction. Needs the SQL function layer.
+
+=head2 release_hold_p
+
+L</release_hold> as a promise, with an optional query context last, in one
+transaction on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

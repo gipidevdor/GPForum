@@ -18,10 +18,10 @@ use GPForum::Benchmark::SeedDataset qw(seed_id);
 use GPForum::Infrastructure::AsyncWork;
 use GPForum::Service::Community::Follows;
 use GPForum::Service::Password;
+use GPForum::Test::Forks qw(children_during);
 use GPForum::Test::GuiDriver;
 use GPForum::Test::PgDatabase;
-use GPForum::Test::Promise      qw(await_result);
-use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
+use GPForum::Test::Promise qw(await_result);
 
 our $VERSION = '0.001';
 const my $HTTP_OK    => 200;
@@ -225,16 +225,7 @@ subtest 'member pages never reach the fork fallback' => sub {
     my $gui = GPForum::Test::GuiDriver->new( test => $t );
     $gui->install_session;
     $gui->actor($member);
-    my @forked;
-    my $fallback = GPForum::Infrastructure::AsyncWork->can('service_result_p');
-    with_replaced_subs(
-        'GPForum::Infrastructure::AsyncWork',
-        {
-            service_result_p => sub {
-                push @forked, ref( $_[1] ) . "->$_[2]";
-                return $fallback->(@_);
-            },
-        },
+    my $children = children_during(
         sub {
             for my $path (
                 '/mentions',
@@ -261,27 +252,20 @@ subtest 'member pages never reach the fork fallback' => sub {
             }
         }
     );
-    is_deeply( \@forked, [], 'no member page forked a child to read' );
+    is_deeply( $children->{other}, [],
+        'no member page forked a child to read' );
 };
 
-# The sign-in still forks for the Argon2 check (Workflow::login) and the
-# audit row it writes; the account lookup for its rate limit and the
-# two-step check after it read on the pooled connections.
+# The sign-in runs natively: only the Argon2 check (Workflow::login) runs in
+# a child, on the CPU lane, which cannot reach PostgreSQL; the account
+# lookup for its rate limit, the audit row and the two-step check after it
+# go through the pooled connections.
 subtest 'signing in reads its lookups on pooled connections' => sub {
     my $guest = Test::Mojo->new;
     $guest->app( $t->app );
     $guest->get_ok('/login')->status_is($HTTP_OK);
-    my $form = $guest->tx->res->dom;
-    my @forked;
-    my $fallback = GPForum::Infrastructure::AsyncWork->can('service_result_p');
-    with_replaced_subs(
-        'GPForum::Infrastructure::AsyncWork',
-        {
-            service_result_p => sub {
-                push @forked, "$_[2]";
-                return $fallback->(@_);
-            },
-        },
+    my $form     = $guest->tx->res->dom;
+    my $children = children_during(
         sub {
             $guest->post_ok(
                 '/login' => form => {
@@ -297,8 +281,9 @@ subtest 'signing in reads its lookups on pooled connections' => sub {
               ->header_is( Location => q{/}, 'the member is signed in' );
         }
     );
-    is_deeply( [ grep { $_ eq 'account_id_for' || $_ eq 'status' } @forked ],
-        [], 'the account lookup and the two-step check fork no child' );
+    is_deeply( $children->{other}, [],
+        'the sign-in forks no child that reaches PostgreSQL' );
+    ok( $children->{cpu} > 0, 'the Argon2 check ran on the CPU lane' );
 };
 
 done_testing;

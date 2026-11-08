@@ -4,7 +4,7 @@
 package GPForum::Service::Outbox::DeadLetterReplay;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -69,25 +69,42 @@ sub replay ( $self, $input ) {
     }
 
     if ( $self->functions ) {
-        my $outbox_ids   = $self->builder->id_service;
-        my $audit_record = $self->recorder->audit_record;
-        my $audit_ids    = $audit_record->id_service;
-        return $self->functions->row(
-            'outbox_replay_dead_letter',
-            {
-                input => $input,
-                ids   => {
-                    outbox_id      => $outbox_ids->uuid,
-                    correlation_id => $self->id_service->uuid,
-                    audit_id       => $audit_ids->uuid
-                },
-                now => $self->clock->now_iso8601,
-            }
-        )->{result};
+        return $self->functions->row( $self->_replay_call($input) )->{result};
     }
 
     return $self->schema->txn_do(
         sub { return $self->_replay_locked( $dead_letter_id, $input ); } );
+}
+
+# replay on a pooled asynchronous connection, inside the caller's
+# transaction ($scope, the call layer transaction_p hands its work) or on
+# its own: the lock, the outbox message and the audit row are one api
+# function call.
+async sub replay_p ( $self, $input, $context = undef, $scope = undef ) {
+    return $self->replay($input) if !$self->functions;
+    return _refused( 'not_found', 'dead letter not found' )
+      if !GPForum::Infrastructure::Id->is_uuid( $input->{dead_letter_id} );
+    my $functions = $scope // $self->functions;
+    return ( await $functions->row_p( $self->_replay_call($input), $context ) )
+      ->{result};
+}
+
+sub _replay_call ( $self, $input ) {
+    my $outbox_ids   = $self->builder->id_service;
+    my $audit_record = $self->recorder->audit_record;
+    my $audit_ids    = $audit_record->id_service;
+    return (
+        'outbox_replay_dead_letter',
+        {
+            input => $input,
+            ids   => {
+                outbox_id      => $outbox_ids->uuid,
+                correlation_id => $self->id_service->uuid,
+                audit_id       => $audit_ids->uuid
+            },
+            now => $self->clock->now_iso8601,
+        }
+    );
 }
 
 # The dead letter's row lock serialises two operators replaying it at once;
@@ -229,6 +246,12 @@ C<not_found> when the id is not a uuid or there is no such dead letter,
 C<conflict> when it was already replayed (the message names when and as
 which outbox message), does not name its event, or is not an outbox dead
 letter.
+
+=head2 replay_p
+
+Replays as L</replay> does, in one api function call on a pooled
+asynchronous connection: inside the transaction of the call layer given as
+its last argument, or on its own.
 
 =head2 replay_key
 

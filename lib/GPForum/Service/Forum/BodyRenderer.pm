@@ -154,7 +154,7 @@ sub _start_batch ( $self, $missing ) {
         consumers    => 0,
         cancellation => GPForum::Infrastructure::Cancellation->new,
     };
-    $batch->{promise} = GPForum::Infrastructure::AsyncWork->rendering->run_p(
+    $batch->{promise} = GPForum::Infrastructure::AsyncWork->rendering->cpu_p(
         sub {
             return {
                 map { $_ => $self->_render_source( $missing->{$_} ) }

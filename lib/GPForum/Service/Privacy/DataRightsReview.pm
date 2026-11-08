@@ -104,7 +104,25 @@ sub _exports_of ( $user_id, $options ) {
 }
 
 sub completed_export_for_user ( $self, $user_id, $export_request_id ) {
-    my $rows = $self->_search(
+    my $rows =
+      $self->_search( _completed_export( $user_id, $export_request_id ) );
+
+    return $rows->[0];
+}
+
+# The download's lookup on the worker's pooled asynchronous connections.
+async sub completed_export_for_user_p ( $self, $user_id, $export_request_id,
+    $context = undef )
+{
+    my $rows =
+      await $self->_search_p( _completed_export( $user_id, $export_request_id ),
+        $context );
+
+    return $rows->[0];
+}
+
+sub _completed_export ( $user_id, $export_request_id ) {
+    return (
         'ExportRequest',
         {
             export_request_id => $export_request_id,
@@ -114,8 +132,6 @@ sub completed_export_for_user ( $self, $user_id, $export_request_id ) {
         },
         { rows => 1 },
     );
-
-    return $rows->[0];
 }
 
 sub pending_export_requests ( $self, $options ) {
@@ -329,6 +345,11 @@ functions it answers the blocking read.
 Takes a user id and an export request id. Returns that export request's row
 when it is completed and the user both made it and is its subject; undef
 otherwise.
+
+=head2 completed_export_for_user_p
+
+L</completed_export_for_user> as a promise, with an optional query context
+last, read on the worker's pooled asynchronous connections.
 
 =head2 pending_export_requests
 

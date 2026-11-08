@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::PermissionReview;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row qw(rows_in);
@@ -21,17 +21,8 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub roles_for_user ( $self, $user_id, $options ) {
     if ( $self->functions ) {
-        return [
-            map { GPForum::Infrastructure::ResultRow->from($_) } @{
-                $self->functions->rows(
-                    'admin_roles_for_user',
-                    {
-                        user_id   => $user_id,
-                        row_limit => $options->{limit} || $DEFAULT_LIMIT
-                    }
-                )
-            }
-        ];
+        return _result_rows(
+            $self->functions->rows( _roles_values( $user_id, $options ) ) );
     }
     my $search = $self->schema->resultset('RoleBinding')->search_rs(
         {
@@ -45,6 +36,30 @@ sub roles_for_user ( $self, $user_id, $options ) {
     );
 
     return [ rows_in($search) ];
+}
+
+# The user page's role read on the worker's pooled asynchronous connections.
+async sub roles_for_user_p ( $self, $user_id, $options, $context = undef ) {
+    return $self->roles_for_user( $user_id, $options ) if !$self->functions;
+    return _result_rows(
+        await $self->functions->rows_p(
+            _roles_values( $user_id, $options ), $context
+        )
+    );
+}
+
+sub _roles_values ( $user_id, $options ) {
+    return (
+        'admin_roles_for_user',
+        {
+            user_id   => $user_id,
+            row_limit => ( $options || {} )->{limit} || $DEFAULT_LIMIT
+        }
+    );
+}
+
+sub _result_rows ($rows) {
+    return [ map { GPForum::Infrastructure::ResultRow->from($_) } @{$rows} ];
 }
 
 1;
@@ -84,6 +99,11 @@ Takes a user id and a hash reference of options, of which only C<limit> is
 read. Returns an array reference of the member's C<RoleBinding> rows that
 have not been revoked (C<revoked_at> is null), ordered by C<resource_type>
 and then C<role_id>, at most C<limit> of them.
+
+=head2 roles_for_user_p
+
+Reads what L</roles_for_user> reads, on a pooled asynchronous connection,
+and answers a promise of the same rows.
 
 =head1 DIAGNOSTICS
 

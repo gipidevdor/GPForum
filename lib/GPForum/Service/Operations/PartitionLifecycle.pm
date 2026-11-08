@@ -441,6 +441,12 @@ sub horizon_report ( $self, $dbh, $now_epoch ) {
         $rows = $statement->fetchall_arrayref( {} );
     }
 
+    return $self->horizon_from_rows( $rows, $now_epoch );
+}
+
+# The report horizon_report builds, from the rows of api.ops_partition_horizon
+# a caller has already read (Readiness reads them on a pooled connection).
+sub horizon_from_rows ( $self, $rows, $now_epoch ) {
     return $self->evaluate_horizon(
         {
             now_epoch => $now_epoch,
@@ -1135,6 +1141,11 @@ Takes a database handle and the current epoch. Reads, through
 C<api.ops_partition_horizon>, the latest upper bound among each table's range
 partitions and whether each table's DEFAULT partition holds any row. Returns the result of
 L</evaluate_horizon> for those facts. Database errors propagate.
+
+=head2 horizon_from_rows
+
+Takes the rows of C<api.ops_partition_horizon> a caller has already read and
+the current epoch, and returns the report L</horizon_report> would.
 
 =head2 evaluate_horizon
 

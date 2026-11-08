@@ -4,7 +4,7 @@
 package GPForum::Service::Search::RebuildRun;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::CountedQuery;
@@ -42,21 +42,53 @@ has recorder => \&GPForum::Infrastructure::EventRecorder::for_service;
 # outbox message, in the caller's transaction.
 sub request ( $self, $input ) {
     my $run_id = $self->id_service->uuid;
-    $self->_record_once(
-        $REQUESTED,
-        {
-            entity_type => $input->{entity_type} || 'all',
-            run_id      => $run_id,
-            step        => 0,
-            totals      => { map { $_ => 0 } @COUNTS },
-        },
-        {
-            actor_id       => $input->{actor_id},
-            correlation_id => $input->{correlation_id},
-        },
+    $self->_record_once( $REQUESTED, _first_step( $input, $run_id ),
+        _cause($input) );
+
+    return { run_id => $run_id };
+}
+
+# request on a pooled asynchronous connection, inside the caller's
+# transaction ($scope, the call layer transaction_p hands its work) or in
+# one of its own.
+async sub request_p ( $self, $input, $context = undef, $scope = undef ) {
+    return $self->request($input) if !$self->functions;
+    my $run_id = $self->id_service->uuid;
+    my $work   = async sub ($functions) {
+        my ( $key, $event ) =
+          $self->_once_call( $REQUESTED, _first_step( $input, $run_id ),
+            _cause($input) );
+        my $recorded =
+          await $functions->row_p( 'ops_event_recorded', { key => $key },
+            $context );
+        return if $recorded->{recorded};
+        await $functions->row_p( 'ops_record_event',
+            $self->recorder->event_call( %{$event} ), $context );
+        return;
+    };
+    await(
+          $scope
+        ? $work->($scope)
+        : $self->functions->transaction_p( $work, $context )
     );
 
     return { run_id => $run_id };
+}
+
+sub _first_step ( $input, $run_id ) {
+    return {
+        entity_type => $input->{entity_type} || 'all',
+        run_id      => $run_id,
+        step        => 0,
+        totals      => { map { $_ => 0 } @COUNTS },
+    };
+}
+
+sub _cause ($input) {
+    return {
+        actor_id       => $input->{actor_id},
+        correlation_id => $input->{correlation_id},
+    };
 }
 
 # One step, for the outbox's search handler: a batch, then the next step's
@@ -104,6 +136,18 @@ sub latest ($self) {
       ? $self->functions->row( 'search_latest_rebuild', {} )
       : GPForum::Infrastructure::CountedQuery->select_row( $self->schema,
         $LATEST_SQL, $AGGREGATE, $AGGREGATE );
+    return $self->_latest($row);
+}
+
+# latest on a pooled asynchronous connection.
+async sub latest_p ( $self, $context = undef ) {
+    return $self->latest if !$self->functions;
+    return $self->_latest(
+        await $self->functions->row_p( 'search_latest_rebuild', {}, $context )
+    );
+}
+
+sub _latest ( $self, $row ) {
     return undef if !$row;
 
     my $payload = $self->recorder->json->decode( $row->{payload} // '{}' );
@@ -129,26 +173,35 @@ sub handles ( $, $event_type ) {
 # the run stopped there, with no message left to carry it on. Inside the
 # caller's transaction (request's) this is part of it.
 sub _record_once ( $self, $type, $payload, $cause ) {
-    my $key = join q{:}, $type, $payload->{run_id},
-      $payload->{stage} // 'start',
-      $payload->{after} // 'start';
+    my ( $key, $event ) = $self->_once_call( $type, $payload, $cause );
     my $recorder = $self->recorder;
 
     return $recorder->schema->txn_do(
         sub {
             return 0 if $recorder->event_recorded($key);
 
-            return $recorder->record_event(
-                actor_id       => $cause->{actor_id},
-                aggregate_id   => $payload->{run_id},
-                aggregate_type => $AGGREGATE,
-                causation_id   => $cause->{event_id},
-                correlation_id => $cause->{correlation_id}
-                  || $self->id_service->uuid,
-                event_type      => $type,
-                idempotency_key => $key,
-                payload         => $payload,
-            );
+            return $recorder->record_event( %{$event} );
+        }
+    );
+}
+
+# A step's idempotency key and the event recorded under it.
+sub _once_call ( $self, $type, $payload, $cause ) {
+    my $key = join q{:}, $type, $payload->{run_id},
+      $payload->{stage} // 'start',
+      $payload->{after} // 'start';
+    return (
+        $key,
+        {
+            actor_id       => $cause->{actor_id},
+            aggregate_id   => $payload->{run_id},
+            aggregate_type => $AGGREGATE,
+            causation_id   => $cause->{event_id},
+            correlation_id => $cause->{correlation_id}
+              || $self->id_service->uuid,
+            event_type      => $type,
+            idempotency_key => $key,
+            payload         => $payload,
         }
     );
 }
@@ -192,6 +245,12 @@ it whole.
 
 Starts a run; returns its id.
 
+=head2 request_p
+
+Starts a run as L</request> does, on a pooled asynchronous connection:
+inside the transaction of the call layer given as its last argument, or
+in one of its own.
+
 =head2 step
 
 Runs one step for an outbox event and records the next, or the completion.
@@ -199,6 +258,11 @@ Runs one step for an outbox event and records the next, or the completion.
 =head2 latest
 
 The latest run's state, or nothing.
+
+=head2 latest_p
+
+Answers a promise of L</latest>, read on a pooled asynchronous
+connection.
 
 =head2 handles
 

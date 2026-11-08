@@ -32,8 +32,8 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 sub authenticate_login ( $self, $input ) {
     my $user = $self->_user_by_identifier(
         $self->support->normalize_identifier( $input->{identifier} ) );
-    my $status = ( $user && $self->support->column( $user, q{status} ) ) || q{};
-    if ( !$user || $status eq 'deleted' ) {
+    my $status = $self->_login_status($user);
+    if ( !$status ) {
         return $self->_invalid_login_after_work( $input->{password} );
     }
     my $credential = $self->_verified_credential( $user, $input->{password} );
@@ -46,6 +46,48 @@ sub authenticate_login ( $self, $input ) {
 
     return $self->_second_step( $user, $credential )
       // $self->_signed_in( $user, $credential, $input );
+}
+
+# authenticate_login with every read and write on the worker's pooled
+# asynchronous connections and Argon2 in a child of the CPU lane: the
+# password is never checked in a child that holds a connection.
+async sub authenticate_login_p ( $self, $input, $context = undef ) {
+    return $self->authenticate_login($input) if !$self->functions;
+    my $identifier =
+      $self->support->normalize_identifier( $input->{identifier} );
+    my $user =
+      length $identifier
+      ? GPForum::Infrastructure::ResultRow::IdentityUser->from(
+        await $self->functions->row_p( _identifier_values($identifier),
+            $context ),
+        $self->functions
+      )
+      : undef;
+    my $status = $self->_login_status($user);
+    if ( !$status ) {
+        return await $self->_invalid_login_after_work_p( $input->{password} );
+    }
+    my $credential =
+      await $self->_verified_credential_p( $user, $input->{password},
+        $context );
+    if ( !$credential ) {
+        return _invalid_login();
+    }
+    if ( $status eq 'pending' ) {
+        return { error => 'unverified', ok => 0 };
+    }
+
+    return ( await $self->_second_step_p( $user, $credential, $context ) )
+      // ( await $self->_signed_in_p( $user, $credential, $input, $context ) );
+}
+
+# The account's status, or undef for none (or a deleted one): the login
+# then costs the decoy's work.
+sub _login_status ( $self, $user ) {
+    my $status = ( $user && $self->support->column( $user, q{status} ) ) || q{};
+    return undef if !$user || $status eq 'deleted';
+
+    return $status;
 }
 
 # The account an identifier names, by id, for the login's per-account rate
@@ -110,7 +152,16 @@ sub _identifier_values ($identifier) {
 # The session a verified password opens for a member without two-step
 # sign-in.
 sub _signed_in ( $self, $user, $credential, $input ) {
-    my $session = $self->_open_session( $user, $credential, $input );
+    return $self->_session_answer( $user,
+        $self->_open_session( $user, $credential, $input ) );
+}
+
+async sub _signed_in_p ( $self, $user, $credential, $input, $context ) {
+    return $self->_session_answer( $user,
+        await $self->_open_session_p( $user, $credential, $input, $context ) );
+}
+
+sub _session_answer ( $self, $user, $session ) {
     if ( !$session ) {
         return _invalid_login();
     }
@@ -130,8 +181,25 @@ sub _signed_in ( $self, $user, $credential, $input ) {
 # its hash to the store. Ten wrong answers in an hour refuse a new one.
 sub _second_step ( $self, $user, $credential ) {
     my $user_id = $self->support->column( $user, 'id' );
-    my $opened  = $self->second_factor->open_challenge( $user_id,
-        $self->support->column( $credential, 'id' ) );
+    return _challenge(
+        $user_id,
+        $self->second_factor->open_challenge(
+            $user_id, $self->support->column( $credential, 'id' )
+        )
+    );
+}
+
+async sub _second_step_p ( $self, $user, $credential, $context ) {
+    my $user_id = $self->support->column( $user, 'id' );
+    return _challenge(
+        $user_id,
+        await $self->second_factor->open_challenge_p(
+            $user_id, $self->support->column( $credential, 'id' ), $context
+        )
+    );
+}
+
+sub _challenge ( $user_id, $opened ) {
     my $status = $opened->{status};
     if ( $status eq 'none' ) {
         return undef;
@@ -168,29 +236,76 @@ sub complete_second_factor ( $self, $input ) {
     return $self->schema->txn_do(
         sub {
             my $answer = $two_step->answer($prepared);
-            if ( !$answer->{ok} ) {
-                return {
-                    attempts_left => $answer->{attempts_left},
-                    error         => $answer->{status},
-                    ok            => 0,
-                };
-            }
+            return _wrong_answer($answer) if !$answer->{ok};
 
-            my $user    = $self->_user_by_id( $answer->{user_id} );
-            my $session = $self->session_store->create_session( $user, $input );
-            return {
-                method        => $answer->{method},
-                ok            => 1,
-                recovery_left => $answer->{recovery_left},
-                session       => $session->{session},
-                session_id    =>
-                  $self->support->column( $session->{session}, 'session_id' ),
-                session_token => $session->{session_token},
-                user          => $user,
-                user_id       => $answer->{user_id},
-            };
+            my $user = $self->_user_by_id( $answer->{user_id} );
+            return $self->_second_step_session( $answer, $user,
+                $self->session_store->create_session( $user, $input ) );
         }
     );
+}
+
+# complete_second_factor with the challenge read, the answer and the
+# session in one transaction on the worker's pooled asynchronous
+# connections.
+async sub complete_second_factor_p ( $self, $input, $context = undef ) {
+    return $self->complete_second_factor($input) if !$self->functions;
+    my $two_step = $self->second_factor;
+    my $prepared = $two_step
+      && await $two_step->prepare_answer_p( $input->{challenge_token},
+        $input->{code}, $context );
+    if ( !$prepared ) {
+        return { error => 'expired', ok => 0 };
+    }
+
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $answer =
+              await $two_step->answer_p( $prepared, $context, $scope );
+            return _wrong_answer($answer) if !$answer->{ok};
+
+            my $user = _user_or_id(
+                await $scope->row_p(
+                    'identity_user_by_id', { user_id => $answer->{user_id} },
+                    $context
+                ),
+                $answer->{user_id}
+            );
+            return $self->_second_step_session(
+                $answer, $user,
+                await $self->session_store->create_session_p(
+                    $user, $input, $context, $scope
+                )
+            );
+        },
+        $context
+    );
+}
+
+sub _wrong_answer ($answer) {
+    return {
+        attempts_left => $answer->{attempts_left},
+        error         => $answer->{status},
+        ok            => 0,
+    };
+}
+
+sub _second_step_session ( $self, $answer, $user, $session ) {
+    return {
+        method        => $answer->{method},
+        ok            => 1,
+        recovery_left => $answer->{recovery_left},
+        session       => $session->{session},
+        session_id    =>
+          $self->support->column( $session->{session}, 'session_id' ),
+        session_token => $session->{session_token},
+        user          => $user,
+        user_id       => $answer->{user_id},
+    };
+}
+
+sub _user_or_id ( $row, $user_id ) {
+    return $row || { id => $user_id };
 }
 
 sub _user_by_id ( $self, $user_id ) {
@@ -198,9 +313,10 @@ sub _user_by_id ( $self, $user_id ) {
         return { id => $user_id };
     }
 
-    return $self->functions->row( 'identity_user_by_id',
-        { user_id => $user_id } )
-      || { id => $user_id };
+    return _user_or_id(
+        $self->functions->row( 'identity_user_by_id', { user_id => $user_id } ),
+        $user_id
+    );
 }
 
 # The member's active password credential, when the password verifies
@@ -222,6 +338,22 @@ sub _verified_credential ( $self, $user, $password ) {
     }
 
     return $credential;
+}
+
+# _verified_credential with the credential read on the worker's pooled
+# asynchronous connections and Argon2 in a child of the CPU lane.
+async sub _verified_credential_p ( $self, $user, $password, $context ) {
+    my $credential =
+      await $self->credential_store->active_password_credential_p(
+        $self->support->column( $user, 'id' ), $context );
+    if ( !$credential ) {
+        await $self->_invalid_login_after_work_p($password);
+        return undef;
+    }
+    my $verified = await $self->password->verify_password_p( $password,
+        $self->support->column( $credential, 'secret_hash' ) );
+
+    return $verified ? $credential : undef;
 }
 
 # Argon2 runs outside any transaction, so a reset or a password change can
@@ -250,11 +382,38 @@ sub _open_session ( $self, $user, $credential, $input ) {
     );
 }
 
+# _open_session in one transaction on the worker's pooled asynchronous
+# connections: the credential held FOR SHARE while the session is inserted.
+async sub _open_session_p ( $self, $user, $credential, $input, $context ) {
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $held =
+              await $self->credential_store->hold_active_password_credential_p(
+                $self->support->column( $user,       'id' ),
+                $self->support->column( $credential, 'id' ),
+                $context, $scope
+              );
+            return undef if !$held;
+
+            return await $self->session_store->create_session_p( $user, $input,
+                $context, $scope );
+        },
+        $context
+    );
+}
+
 # The same Argon2 work as a wrong password, then the same answer: with no
 # account to check, a login answered at once, and its speed said which
 # usernames and addresses exist.
 sub _invalid_login_after_work ( $self, $password ) {
     $self->password->verify_password( $password, $self->password->decoy_hash );
+
+    return _invalid_login();
+}
+
+async sub _invalid_login_after_work_p ( $self, $password ) {
+    await $self->password->verify_password_p( $password,
+        await $self->password->decoy_hash_p );
 
     return _invalid_login();
 }
@@ -317,6 +476,13 @@ A member with two-step sign-in on (ADR 0142) is answered C<second_factor>
 with the challenge's C<challenge_token> instead of a session, or
 C<second_factor_locked> after ten wrong answers in the hour.
 
+=head2 authenticate_login_p
+
+L</authenticate_login> as a promise, with an optional query context last:
+the reads and the session's transaction on the worker's pooled asynchronous
+connections, Argon2 in a child of the CPU lane on plain data, the decoy's
+work included.
+
 =head2 complete_second_factor
 
 Takes C<challenge_token>, C<code>, C<request_address> and C<user_agent>;
@@ -325,6 +491,12 @@ transaction, which holds the password credential that verified. Answers
 the session as L</authenticate_login> does, with C<method> and
 C<recovery_left>, or C<ok> 0 with C<error> C<expired>, C<wrong> (and
 C<attempts_left>) or C<locked>.
+
+=head2 complete_second_factor_p
+
+L</complete_second_factor> as a promise, with an optional query context
+last: the challenge read, then the answer and the session in one
+transaction on the worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

@@ -67,10 +67,7 @@ sub _search_results ( $self, $query, $filters, $limit ) {
                 $query,
                 { %{$filters}, limit => $self->_search_fetch_limit($limit) },
             ];
-            return $service->ranked_search_p( @{$arguments},
-                $self->stash('gp_db_query_stats_token') )
-              if $service->can('ranked_search_p');
-            return $self->work_args_p( $service, 'ranked_search', $arguments );
+            return $self->call_p( $service, 'ranked_search', @{$arguments} );
         }
     );
     return $self->respond_p(
@@ -196,10 +193,7 @@ sub _autocomplete_lookup ( $self, $query ) {
                     )
                 },
             ];
-            return $service->autocomplete_p( @{$arguments},
-                $self->stash('gp_db_query_stats_token') )
-              if $service->can('autocomplete_p');
-            return $self->work_args_p( $service, 'autocomplete', $arguments );
+            return $self->call_p( $service, 'autocomplete', @{$arguments} );
         }
     );
     return $self->respond_p(

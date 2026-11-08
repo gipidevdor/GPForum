@@ -3,7 +3,7 @@
 
 package GPForum::Service::Integration::Announcements;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 use Const::Fast;
 use Digest::SHA qw(sha256_hex);
@@ -68,6 +68,44 @@ sub _target ($self) {
 }
 
 sub request ( $self, $actor, $thread ) {
+    my $plan = $self->_request_plan( $actor, $thread );
+    return $self->schema->txn_do(
+        sub {
+            my $row =
+              $self->functions->row( @{ $plan->{call} } )->{result};
+            if ( $row->{status} eq 'queued' ) {
+                $self->recorder->record_event( %{ $plan->{event} } );
+                $self->recorder->record_audit( %{ $plan->{audit} } );
+            }
+            return $row;
+        }
+    );
+}
+
+# request on a pooled asynchronous connection: the request, its event and
+# its audit row commit in one transaction, no child process.
+async sub request_p ( $self, $actor, $thread, $context = undef ) {
+    my $plan = $self->_request_plan( $actor, $thread );
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $row =
+              ( await $scope->row_p( @{ $plan->{call} }, $context ) )->{result};
+            if ( $row->{status} eq 'queued' ) {
+                await $scope->row_p( 'ops_record_event',
+                    $self->recorder->event_call( %{ $plan->{event} } ),
+                    $context );
+                await $scope->row_p( 'ops_record_audit',
+                    $self->recorder->audit_call( %{ $plan->{audit} } ),
+                    $context );
+            }
+            return $row;
+        },
+        $context
+    );
+}
+
+# The checks a request makes, and its call, event and audit row.
+sub _request_plan ( $self, $actor, $thread ) {
     $self->_require_policy;
     if ( !$self->enabled ) {
         GPForum::X::Config->throw(
@@ -76,74 +114,112 @@ sub request ( $self, $actor, $thread ) {
 
     my $target = $self->_target;
     my $id     = GPForum::Infrastructure::Id->new->uuid;
+    return {
+        call => [
+            'integration_announcement_request',
+            {
+                actor        => $actor,
+                announcement => $id,
+                thread       => $thread,
+                target_hash  => sha256_hex($target)
+            }
+        ],
+        event => {
+            event_type     => 'integration.discord.requested',
+            aggregate_type => 'thread',
+            aggregate_id   => $thread,
+            actor_id       => $actor,
+            schema_version => 1,
+            payload        => { announcement_id => $id }
+        },
+        audit => {
+            action      => 'integration.discord.requested',
+            actor_id    => $actor,
+            target_type => 'thread',
+            target_id   => $thread,
+            metadata    => { announcement_id => $id }
+        },
+    };
+}
+
+sub retry_checked ( $self, $input ) {
+    my $refused = $self->_retry_refused($input);
+    return $refused if $refused;
     return $self->schema->txn_do(
         sub {
-            my $row = $self->functions->row(
-                'integration_announcement_request',
-                {
-                    actor        => $actor,
-                    announcement => $id,
-                    thread       => $thread,
-                    target_hash  => sha256_hex($target)
-                }
-            )->{result};
-            if ( $row->{status} eq 'queued' ) {
-                $self->recorder->record_event(
-                    event_type     => 'integration.discord.requested',
-                    aggregate_type => 'thread',
-                    aggregate_id   => $thread,
-                    actor_id       => $actor,
-                    schema_version => 1,
-                    payload        => { announcement_id => $id }
-                );
-                $self->recorder->record_audit(
-                    action      => 'integration.discord.requested',
-                    actor_id    => $actor,
-                    target_type => 'thread',
-                    target_id   => $thread,
-                    metadata    => { announcement_id => $id }
-                );
+            my $answer =
+              $self->functions->row( $self->_retry_call($input) )->{result};
+            if ( $answer->{status} eq 'queued' ) {
+                $self->recorder->record_event( _retry_event($input) );
+                $self->recorder->record_audit( _retry_audit($input) );
             }
-            return $row;
+            return $answer;
         }
     );
 }
 
-sub retry_checked ( $self, $input ) {
+# retry_checked on a pooled asynchronous connection: the retry, its event
+# and its audit row commit in one transaction, no child process.
+async sub retry_checked_p ( $self, $input, $context = undef ) {
+    my $refused = $self->_retry_refused($input);
+    return $refused if $refused;
+    return await $self->functions->transaction_p(
+        async sub ($scope) {
+            my $answer =
+              ( await $scope->row_p( $self->_retry_call($input), $context ) )
+              ->{result};
+            if ( $answer->{status} eq 'queued' ) {
+                await $scope->row_p( 'ops_record_event',
+                    $self->recorder->event_call( _retry_event($input) ),
+                    $context );
+                await $scope->row_p( 'ops_record_audit',
+                    $self->recorder->audit_call( _retry_audit($input) ),
+                    $context );
+            }
+            return $answer;
+        },
+        $context
+    );
+}
+
+sub _retry_refused ( $self, $input ) {
     $self->_require_policy;
     return { status => 'refused' }
       if ( $input->{checked} // q{} ) ne '1'
       || !length( $input->{reason} // q{} )
       || length( $input->{reason} ) > $REASON_LENGTH;
-    return $self->schema->txn_do(
-        sub {
-            my $answer = $self->functions->row(
-                'integration_announcement_retry',
-                {
-                    actor        => $input->{actor_user_id},
-                    announcement => $input->{announcement_id},
-                    target_hash  => sha256_hex( $self->_target )
-                }
-            )->{result};
-            if ( $answer->{status} eq 'queued' ) {
-                $self->recorder->record_event(
-                    event_type     => 'integration.discord.requested',
-                    aggregate_type => 'integration',
-                    aggregate_id   => $input->{announcement_id},
-                    actor_id       => $input->{actor_user_id},
-                    schema_version => 1,
-                    payload => { announcement_id => $input->{announcement_id} }
-                );
-                $self->recorder->record_audit(
-                    action      => 'integration.discord.retried',
-                    actor_id    => $input->{actor_user_id},
-                    target_type => 'integration',
-                    target_id   => $input->{announcement_id},
-                    metadata    => { reason => $input->{reason} }
-                );
-            }
-            return $answer;
+    return undef;
+}
+
+sub _retry_call ( $self, $input ) {
+    return (
+        'integration_announcement_retry',
+        {
+            actor        => $input->{actor_user_id},
+            announcement => $input->{announcement_id},
+            target_hash  => sha256_hex( $self->_target )
         }
+    );
+}
+
+sub _retry_event ($input) {
+    return (
+        event_type     => 'integration.discord.requested',
+        aggregate_type => 'integration',
+        aggregate_id   => $input->{announcement_id},
+        actor_id       => $input->{actor_user_id},
+        schema_version => 1,
+        payload        => { announcement_id => $input->{announcement_id} }
+    );
+}
+
+sub _retry_audit ($input) {
+    return (
+        action      => 'integration.discord.retried',
+        actor_id    => $input->{actor_user_id},
+        target_type => 'integration',
+        target_id   => $input->{announcement_id},
+        metadata    => { reason => $input->{reason} }
     );
 }
 
@@ -288,9 +364,19 @@ True only when an administrator configured a Discord webhook.
 
 Authorizes and queues one deduplicated topic/target announcement with its audit entry.
 
+=head2 request_p
+
+Queues an announcement as L</request> does, with the request, its event
+and its audit row in one transaction on a pooled asynchronous connection.
+
 =head2 retry_checked
 
 Queues a retry only after an administrator explicitly confirms remote inspection and supplies an audited reason.
+
+=head2 retry_checked_p
+
+Retries as L</retry_checked> does, with the retry, its event and its audit
+row in one transaction on a pooled asynchronous connection.
 
 =head2 deliver
 

@@ -263,6 +263,12 @@ sub fields ($self) {
     return \@fields;
 }
 
+# The fields are the configuration catalogue's, read in the worker: no
+# database, no child.
+async sub fields_p ( $self, $context = undef ) {
+    return $self->fields;
+}
+
 sub general_page ($self) {
     my $effective = $self->effective_config;
     my %groups;
@@ -297,13 +303,25 @@ sub general_page ($self) {
 # The page from the state the request already loaded, or from a state read
 # on the worker's pooled asynchronous connections: no forked child.
 async sub general_page_p ( $self, $context = undef ) {
-    if ( !exists $self->{state} ) {
-        $self->state( await $self->load_p($context) );
-    }
+    await $self->_loaded_p($context);
     return $self->general_page;
 }
 
 sub save_general ( $self, $input ) {
+    my ( $answer, $write ) = $self->_general_write($input);
+    return $answer // $self->_write($write);
+}
+
+# save_general on a pooled asynchronous connection: the state it starts
+# from and the change are each one api function call.
+async sub save_general_p ( $self, $input, $context = undef ) {
+    await $self->_loaded_p($context);
+    my ( $answer, $write ) = $self->_general_write($input);
+    return $answer // await $self->_write_p( $write, $context );
+}
+
+# The refusal of a general save, or the change it writes.
+sub _general_write ( $self, $input ) {
     my @invalid;
     my $prepared = $self->_general_values( $input, \@invalid );
     return { status => 'invalid', error_fields => \@invalid } if !$prepared;
@@ -320,7 +338,8 @@ sub save_general ( $self, $input ) {
     };
     my $sealed = $self->_seal_general( $prepared, $input );
     return { status => 'unavailable' } if !$sealed;
-    return $self->_write(
+    return (
+        undef,
         {
             %{$input},
             section      => 'general',
@@ -389,6 +408,17 @@ sub _seal_general ( $self, $saved, $input ) {
 }
 
 sub save_plugin ( $self, $input ) {
+    my ( $answer, $write ) = $self->_plugin_write($input);
+    return $answer // $self->_write($write);
+}
+
+# save_plugin on a pooled asynchronous connection: one api function call.
+async sub save_plugin_p ( $self, $input, $context = undef ) {
+    my ( $answer, $write ) = $self->_plugin_write($input);
+    return $answer // await $self->_write_p( $write, $context );
+}
+
+sub _plugin_write ( $self, $input ) {
     return { status => 'invalid' }
       if ( $input->{enabled} // q{} ) !~ /\A [01] \z/msx;
     return { status => 'invalid' }
@@ -400,7 +430,8 @@ sub save_plugin ( $self, $input ) {
         : $JSON->decode('false'),
         mode => $input->{mode}
     };
-    return $self->_write(
+    return (
+        undef,
         {
             %{$input},
             section      => 'plugins',
@@ -413,6 +444,19 @@ sub save_plugin ( $self, $input ) {
 }
 
 sub reset_general ( $self, $input ) {
+    my ( $answer, $write ) = $self->_reset_write($input);
+    return $answer // $self->_write($write);
+}
+
+# reset_general on a pooled asynchronous connection: the state it starts
+# from and the change are each one api function call.
+async sub reset_general_p ( $self, $input, $context = undef ) {
+    await $self->_loaded_p($context);
+    my ( $answer, $write ) = $self->_reset_write($input);
+    return $answer // await $self->_write_p( $write, $context );
+}
+
+sub _reset_write ( $self, $input ) {
     my %allowed = map { $_->{env} => 1 } @{ $self->fields };
     return { status => 'invalid' } if !exists $allowed{ $input->{key} // q{} };
     my %general = %{ $self->state->{settings}{general} // {} };
@@ -429,7 +473,8 @@ sub reset_general ( $self, $input ) {
         )->effective_config;
     }
     catch ($error) { return { status => 'invalid' }; };
-    return $self->_write(
+    return (
+        undef,
         {
             %{$input},
             section      => 'general',
@@ -451,6 +496,31 @@ sub _request_hash ( $self, $input ) {
 }
 
 sub _write ( $self, $input ) {
+    my ( $answer, $values ) = _change_values($input);
+    return $answer if $answer;
+    my $row;
+    try {
+        $row = $self->functions->row( 'admin_configuration_change', $values );
+    }
+    catch ($error) { return { status => 'unavailable' }; };
+    return $row ? $row->{result} : { status => 'unavailable' };
+}
+
+async sub _write_p ( $self, $input, $context ) {
+    my ( $answer, $values ) = _change_values($input);
+    return $answer if $answer;
+    my $row;
+    try {
+        $row =
+          await $self->functions->row_p( 'admin_configuration_change',
+            $values, $context );
+    }
+    catch ($error) { return { status => 'unavailable' }; };
+    return $row ? $row->{result} : { status => 'unavailable' };
+}
+
+# The change's refusal, or the values api.admin_configuration_change takes.
+sub _change_values ($input) {
     return { status => 'invalid' }
       if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
     return { status => 'invalid' }
@@ -459,12 +529,16 @@ sub _write ( $self, $input ) {
       qw(actor command expected section key operation request_hash);
     $values{value} =
       ref $input->{value} ? $input->{value} : $JSON->encode( $input->{value} );
-    my $row;
-    try {
-        $row = $self->functions->row( 'admin_configuration_change', \%values );
+    return ( undef, \%values );
+}
+
+# The state a save starts from, read on a pooled asynchronous connection
+# when the request has not loaded it yet.
+async sub _loaded_p ( $self, $context ) {
+    if ( !exists $self->{state} ) {
+        $self->state( await $self->load_p($context) );
     }
-    catch ($error) { return { status => 'unavailable' }; };
-    return $row ? $row->{result} : { status => 'unavailable' };
+    return;
 }
 
 1;
@@ -515,6 +589,11 @@ decryption and avoiding a long-lived plaintext copy in the worker.
 
 Returns the explicit editable forum settings catalogue, with types, secrecy and activation requirements.
 
+=head2 fields_p
+
+Answers a promise of L</fields>; the catalogue is read in the worker, with
+no database and no child.
+
 =head2 general_page
 
 Returns grouped, redacted presentation data; secret input values are always blank.
@@ -528,13 +607,28 @@ yet loaded is read with L</load_p> first.
 
 Validates related settings together, seals changed secrets and writes one revision-checked idempotent command.
 
+=head2 save_general_p
+
+Saves as L</save_general> does, reading the state it starts from and
+writing the change on pooled asynchronous connections.
+
 =head2 save_plugin
 
 Saves the enabled state and display mode of one independent plugin with a revision precondition.
 
+=head2 save_plugin_p
+
+Saves a plugin's setting as L</save_plugin> does, on a pooled
+asynchronous connection.
+
 =head2 reset_general
 
 Restores one setting to the installation value after checking the resulting complete configuration.
+
+=head2 reset_general_p
+
+Resets a setting as L</reset_general> does, reading the state it starts
+from and writing the change on pooled asynchronous connections.
 
 =head2 request_context_p
 

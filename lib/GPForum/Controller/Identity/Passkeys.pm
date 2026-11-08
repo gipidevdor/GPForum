@@ -138,7 +138,7 @@ async sub _finish ( $self, $purpose ) {
 async sub revoke ($self) {
     return if ( await $self->await_p( $self->_guard('register') ) );
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->_provider,
             'revoke',
             {

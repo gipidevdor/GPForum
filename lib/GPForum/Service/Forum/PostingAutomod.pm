@@ -4,7 +4,7 @@
 package GPForum::Service::Forum::PostingAutomod;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::Row qw(column_of);
@@ -47,18 +47,48 @@ has logger  => undef;    # optional: without it nothing is logged
 # rule's rewrite), a refusal when a rule blocks it (its decision already
 # audited), and whether the write has decisions to record with it.
 sub screen ( $self, $type, $input ) {
-    my $fields = exists $FIELDS{$type} ? $FIELDS{$type} : undef;
-    return { input => $input } if !$fields || _moderates( $input->{viewer} );
+    return { input => $input } if !_screened_type( $type, $input );
+    my $screen =
+      $self->_screen_by( $type, $input,
+        $self->store->rules_for( $input->{author_user_id} ) );
+    return $screen if !$screen->{refuses};
+    return { refusal => $self->_refuse( $type, $input, $screen->{verdict} ) };
+}
 
-    my $rules = $self->store->rules_for( $input->{author_user_id} );
+# The screen on the worker's pooled asynchronous connections: the rules
+# read, and a refusal's decision audited, there.
+async sub screen_p ( $self, $type, $input, $context = undef ) {
+    return { input => $input } if !_screened_type( $type, $input );
+    my $rules =
+      await $self->store->rules_for_p( $input->{author_user_id}, $context );
+    return await $self->screen_with_p( $type, $input, $rules, $context );
+}
+
+# The screen with the author's rules already read (undef for none).
+async sub screen_with_p ( $self, $type, $input, $rules, $context = undef ) {
+    return { input => $input } if !_screened_type( $type, $input );
+    my $screen = $self->_screen_by( $type, $input, $rules );
+    return $screen if !$screen->{refuses};
+    return { refusal =>
+          await $self->_refuse_p( $type, $input, $screen->{verdict}, $context )
+    };
+}
+
+sub _screened_type ( $type, $input ) {
+    return exists $FIELDS{$type} && !_moderates( $input->{viewer} ) ? 1 : 0;
+}
+
+# What the rules make of the text: the input to write, or a verdict that
+# refuses it (refuses, verdict).
+sub _screen_by ( $self, $type, $input, $rules ) {
     return { input => $input } if !$rules || _idle($rules);
 
     my %text =
-      map { $_ => $input->{$_} } grep { defined $input->{$_} } @{$fields};
+      map { $_ => $input->{$_} }
+      grep { defined $input->{$_} } @{ $FIELDS{$type} };
     my $verdict = $self->automod->screen( $rules, \%text );
-    if ( $self->automod->refuses($verdict) ) {
-        return { refusal => $self->_refuse( $type, $input, $verdict ) };
-    }
+    return { refuses => 1, verdict => $verdict }
+      if $self->automod->refuses($verdict);
 
     my $flags  = $self->automod->flags($verdict);
     my $settle = $flags || @{ $verdict->{replaced} };
@@ -115,22 +145,31 @@ sub settle ( $self, $type, $screen, $write ) {
     return $result;
 }
 
-sub _refuse ( $self, $type, $input, $verdict ) {
-    my %blocked = %{ $verdict->{blocked} };
-    my $field   = ( sort keys %blocked )[0] // 'body_source';
-    my @phrases = map { @{$_} } @blocked{ sort keys %blocked };
-    my $links   = !%blocked;
+# settle on the worker's pooled asynchronous connections: $write_p takes
+# the input and the transaction's call layer and answers a promise of the
+# written result; the decisions are recorded on the same transaction. Given
+# a caller's transaction scope, the write and its decisions take a savepoint
+# of it and commit or roll back with the caller.
+async sub settle_p (
+    $self, $type, $screen, $write_p,
+    $context = undef,
+    $scope = undef
+  )
+{
+    my $result;
+    my $functions = $scope // $self->store->functions;
     try {
-        $self->store->record_decisions(
-            {
-                audits => [
-                    $self->_decision(
-                        $BLOCKED,                 $type,
-                        $input,                   'user',
-                        $input->{author_user_id}, $verdict,
-                    )
-                ]
-            }
+        $result = await $functions->transaction_p(
+            async sub ($scope) {
+                my $written = await $write_p->( $screen->{input}, $scope );
+                if ( $written->{ok} && !$written->{idempotent} ) {
+                    await $self->store->record_decisions_p(
+                        $self->_record_input( $type, $screen, $written ),
+                        $context, $scope );
+                }
+                return $written;
+            },
+            $context
         );
     }
     catch ($error) {
@@ -138,6 +177,51 @@ sub _refuse ( $self, $type, $input, $verdict ) {
         return _failed();
     };
 
+    return $result;
+}
+
+sub _refuse ( $self, $type, $input, $verdict ) {
+    try {
+        $self->store->record_decisions(
+            $self->_blocked_decisions( $type, $input, $verdict ) );
+    }
+    catch ($error) {
+        $self->_log( error => "automod record failed: $error" );
+        return _failed();
+    };
+
+    return _refusal_answer( $input, $verdict );
+}
+
+async sub _refuse_p ( $self, $type, $input, $verdict, $context ) {
+    try {
+        await $self->store->record_decisions_p(
+            $self->_blocked_decisions( $type, $input, $verdict ), $context );
+    }
+    catch ($error) {
+        $self->_log( error => "automod record failed: $error" );
+        return _failed();
+    };
+
+    return _refusal_answer( $input, $verdict );
+}
+
+sub _blocked_decisions ( $self, $type, $input, $verdict ) {
+    return {
+        audits => [
+            $self->_decision(
+                $BLOCKED, $type,                    $input,
+                'user',   $input->{author_user_id}, $verdict,
+            )
+        ]
+    };
+}
+
+sub _refusal_answer ( $input, $verdict ) {
+    my %blocked = %{ $verdict->{blocked} };
+    my $field   = ( sort keys %blocked )[0] // 'body_source';
+    my @phrases = map { @{$_} } @blocked{ sort keys %blocked };
+    my $links   = !%blocked;
     my $message =
       $links
       ? "more than $verdict->{link_limit} links"
@@ -167,6 +251,11 @@ sub _refuse ( $self, $type, $input, $verdict ) {
 }
 
 sub _record ( $self, $type, $screen, $written ) {
+    return $self->store->record_decisions(
+        $self->_record_input( $type, $screen, $written ) );
+}
+
+sub _record_input ( $self, $type, $screen, $written ) {
     my $verdict = $screen->{verdict};
     my ( $kind, $column ) = @{ $TARGET{$type} };
     my $target_id = column_of( $written->{stored}{$kind}, $column );
@@ -202,8 +291,7 @@ sub _record ( $self, $type, $screen, $written ) {
         };
     }
 
-    return $self->store->record_decisions(
-        { report => $report, audits => \@audits } );
+    return { report => $report, audits => \@audits };
 }
 
 # The audit of one decision: the system decides (no actor); the author,
@@ -293,9 +381,27 @@ are not screened.
 Screens a command's input: answers the input to write, or a refusal, and
 whether decisions are to be recorded with the write.
 
+=head2 screen_p
+
+L</screen> as a promise, with an optional query context last: the rules are
+read, and a refusal audited, on the worker's pooled asynchronous connections.
+
+=head2 screen_with_p
+
+L</screen_p> with the author's rules already read (undef for none): takes
+the type, the input, the rules and an optional query context.
+
 =head2 settle
 
 Runs the write and records its decisions in one transaction.
+
+=head2 settle_p
+
+L</settle> as a promise: takes the type, the screen, a write that takes the
+input and the transaction's call layer and answers a promise, an optional
+query context and an optional transaction scope. The write and its
+decisions commit together on the worker's pooled asynchronous connections;
+given a scope, in a savepoint of it.
 
 =head1 DIAGNOSTICS
 

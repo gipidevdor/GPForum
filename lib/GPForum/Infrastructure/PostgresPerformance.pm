@@ -99,7 +99,7 @@ sub inspect ($self) {
 }
 
 sub inspect_p ( $self, $db ) {
-    my $profile = GPForum::Infrastructure::AsyncWork->shared->run_p(
+    my $profile = GPForum::Infrastructure::AsyncWork->shared->cpu_p(
         sub {
             return GPForum::Infrastructure::PostgresProfile->new(
                 config => $self->config )->recommendation;

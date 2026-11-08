@@ -4,7 +4,7 @@
 package GPForum::Service::Admin::Maintenance;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -47,29 +47,69 @@ sub search_status ($self) {
     };
 }
 
+# search_status on the worker's pooled asynchronous connections.
+async sub search_status_p ( $self, $context = undef ) {
+    return {
+        lag    => await $self->indexer->observe_lag_p($context),
+        latest => await $self->rebuild_run->latest_p($context),
+    };
+}
+
 # Starts a search rebuild through the outbox (Search::RebuildRun) and audits
 # who asked, in the caller's transaction.
 sub request_search_rebuild ( $self, $input ) {
     my $correlation_id = $self->id_service->uuid;
     my $run            = $self->rebuild_run->request(
-        {
-            actor_id       => $input->{actor_user_id},
-            correlation_id => $correlation_id,
-            entity_type    => 'all',
-        }
-    );
-    $self->_audit(
-        {
-            action         => 'admin.search_rebuild_requested',
-            actor_user_id  => $input->{actor_user_id},
-            correlation_id => $correlation_id,
-            metadata       => { run_id => $run->{run_id}, via => 'web' },
-            target_id      => $run->{run_id},
-            target_type    => 'search_rebuild',
-        }
-    );
+        _rebuild_request( $input, $correlation_id ) );
+    $self->_audit( _rebuild_audit( $input, $correlation_id, $run ) );
 
     return { run_id => $run->{run_id}, status => 'requested' };
+}
+
+# request_search_rebuild on a pooled asynchronous connection, inside the
+# caller's transaction ($scope, the call layer transaction_p hands its
+# work) or in one of its own.
+async sub request_search_rebuild_p (
+    $self, $input,
+    $context = undef,
+    $scope = undef
+  )
+{
+    my $functions = $self->recorder->functions;
+    return $self->request_search_rebuild($input) if !$functions;
+    my $work = async sub ($transaction) {
+        my $correlation_id = $self->id_service->uuid;
+        my $run            = await $self->rebuild_run->request_p(
+            _rebuild_request( $input, $correlation_id ),
+            $context, $transaction );
+        await $self->_audit_p( $transaction,
+            _rebuild_audit( $input, $correlation_id, $run ), $context );
+        return { run_id => $run->{run_id}, status => 'requested' };
+    };
+    return await(
+          $scope
+        ? $work->($scope)
+        : $functions->transaction_p( $work, $context )
+    );
+}
+
+sub _rebuild_request ( $input, $correlation_id ) {
+    return {
+        actor_id       => $input->{actor_user_id},
+        correlation_id => $correlation_id,
+        entity_type    => 'all',
+    };
+}
+
+sub _rebuild_audit ( $input, $correlation_id, $run ) {
+    return {
+        action         => 'admin.search_rebuild_requested',
+        actor_user_id  => $input->{actor_user_id},
+        correlation_id => $correlation_id,
+        metadata       => { run_id => $run->{run_id}, via => 'web' },
+        target_id      => $run->{run_id},
+        target_type    => 'search_rebuild',
+    };
 }
 
 # Drops every cached public page, in every web process (the cache's
@@ -83,39 +123,71 @@ sub request_search_rebuild ( $self, $input ) {
 # take a page down believed it was down. It is now "purged_locally", in the
 # answer and in the audit row, with the tags concerned.
 sub purge_public_cache ( $self, $input ) {
+    my $purge = $self->_purge;
+    $self->_audit( $self->_purge_audit( $input, $purge ) );
+
+    return $purge;
+}
+
+# purge_public_cache in the worker, whose cache it is, with its audit row
+# on a pooled asynchronous connection: inside the caller's transaction
+# ($scope) or on its own.
+async sub purge_public_cache_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    my $functions = $scope // $self->recorder->functions;
+    return $self->purge_public_cache($input) if !$functions;
+    my $purge = $self->_purge;
+    await $self->_audit_p( $functions, $self->_purge_audit( $input, $purge ),
+        $context );
+
+    return $purge;
+}
+
+# The public cache's tags dropped, with those its shared layer did not take.
+sub _purge ($self) {
     my @unreached;
     for my $tag (@PURGED_TAGS) {
         if ( !defined $self->cache->invalidate_tag($tag) ) {
             push @unreached, $tag;
         }
     }
-    my $status         = @unreached ? 'purged_locally' : 'purged';
-    my $correlation_id = $self->id_service->uuid;
-    $self->_audit(
-        {
-            action         => 'admin.cache_purged',
-            actor_user_id  => $input->{actor_user_id},
-            correlation_id => $correlation_id,
-            metadata       => {
-                status         => $status,
-                tags           => [@PURGED_TAGS],
-                unreached_tags => [@unreached],
-                via            => 'web',
-            },
-            target_id   => $correlation_id,
-            target_type => 'cache',
-        }
-    );
-
     return {
-        status         => $status,
+        status         => @unreached ? 'purged_locally' : 'purged',
         tags           => [@PURGED_TAGS],
         unreached_tags => [@unreached],
     };
 }
 
+sub _purge_audit ( $self, $input, $purge ) {
+    my $correlation_id = $self->id_service->uuid;
+    return {
+        action         => 'admin.cache_purged',
+        actor_user_id  => $input->{actor_user_id},
+        correlation_id => $correlation_id,
+        metadata       => {
+            status         => $purge->{status},
+            tags           => [ @{ $purge->{tags} } ],
+            unreached_tags => [ @{ $purge->{unreached_tags} } ],
+            via            => 'web',
+        },
+        target_id   => $correlation_id,
+        target_type => 'cache',
+    };
+}
+
 sub _audit ( $self, $input ) {
-    return $self->recorder->record_audit(
+    return $self->recorder->record_audit( %{ $self->_audit_row($input) } );
+}
+
+sub _audit_p ( $self, $functions, $input, $context ) {
+    return $functions->row_p( 'ops_record_audit',
+        $self->recorder->audit_call( %{ $self->_audit_row($input) } ),
+        $context );
+}
+
+sub _audit_row ( $self, $input ) {
+    return {
         action         => $input->{action},
         actor_id       => $input->{actor_user_id},
         correlation_id => $input->{correlation_id},
@@ -126,7 +198,7 @@ sub _audit ( $self, $input ) {
         schema_version => $SCHEMA_VERSION,
         target_id      => $input->{target_id},
         target_type    => $input->{target_type},
-    );
+    };
 }
 
 1;
@@ -163,9 +235,20 @@ the outbox, and a purge of the public page cache. Each write is audited.
 
 The search lag and the latest rebuild run.
 
+=head2 search_status_p
+
+Answers a promise of L</search_status>, read on pooled asynchronous
+connections.
+
 =head2 request_search_rebuild
 
 Starts a rebuild; returns its run id.
+
+=head2 request_search_rebuild_p
+
+Starts a rebuild as L</request_search_rebuild> does, on a pooled
+asynchronous connection: inside the transaction of the call layer given
+as its last argument, or in one of its own.
 
 =head2 purge_public_cache
 
@@ -180,6 +263,11 @@ C<purged_locally> when the shared cache was not reached for one of the tags
 the pages under those tags stay in the shared cache until their TTL. The
 audit row's metadata holds the same C<status>, C<tags> and
 C<unreached_tags>, and C<via> (C<web>).
+
+=head2 purge_public_cache_p
+
+Purges as L</purge_public_cache> does, in the worker whose cache it is,
+with its audit row on a pooled asynchronous connection.
 
 =head1 DIAGNOSTICS
 

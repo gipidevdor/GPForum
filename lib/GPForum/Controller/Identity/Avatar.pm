@@ -63,7 +63,7 @@ async sub upload ($self) {
     $self->res->headers->cache_control($NO_STORE);
 
     return $self->respond_p(
-        $self->work_p(
+        $self->call_p(
             $self->gp_avatars,
             'upload',
             {

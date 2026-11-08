@@ -13,9 +13,27 @@ __PACKAGE__->requires('schema');
 has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 
 sub change ( $self, $input ) {
-    return { status => 'invalid' }
-      if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
-    my $row = $self->functions->row( 'community_follow_change', $input );
+    return { status => 'invalid' } if !_valid_change($input);
+    return _change_answer(
+        $self->functions->row( 'community_follow_change', $input ) );
+}
+
+# A follow or unfollow on the worker's pooled asynchronous connections.
+async sub change_p ( $self, $input, $context = undef ) {
+    return $self->change($input)   if !$self->functions;
+    return { status => 'invalid' } if !_valid_change($input);
+    return _change_answer(
+        await $self->functions->row_p(
+            'community_follow_change', $input, $context
+        )
+    );
+}
+
+sub _valid_change ($input) {
+    return GPForum::Infrastructure::Id->is_uuid( $input->{command} );
+}
+
+sub _change_answer ($row) {
     return $row ? $row->{result} : { status => 'forbidden' };
 }
 
@@ -141,6 +159,11 @@ pagination and block/ignore checks before the limit, without notification fanout
 =head2 change
 
 Follows or removes a followed user through an authorized, idempotent command.
+
+=head2 change_p
+
+L</change> as a promise, with an optional query context last, written on
+the worker's pooled asynchronous connections.
 
 =head2 following
 

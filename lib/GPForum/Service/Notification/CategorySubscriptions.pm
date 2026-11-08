@@ -3,7 +3,7 @@
 
 package GPForum::Service::Notification::CategorySubscriptions;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::Id;
@@ -16,7 +16,23 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 sub change ( $self, $input ) {
     return { status => 'invalid' }
       if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
-    my $row = $self->functions->row( 'notification_category_follow', $input );
+    return _changed(
+        $self->functions->row( 'notification_category_follow', $input ) );
+}
+
+async sub change_p ( $self, $input, $context = undef ) {
+    return $self->change($input) if !$self->functions;
+    return { status => 'invalid' }
+      if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
+    return _changed(
+        await $self->functions->row_p(
+            'notification_category_follow',
+            $input, $context
+        )
+    );
+}
+
+sub _changed ($row) {
     return $row ? $row->{result} : { status => 'invalid' };
 }
 
@@ -46,6 +62,11 @@ The database authorizes the target and records each command atomically.
 =head2 change
 
 Follow, mute or remove an active member's category subscription.
+
+=head2 change_p
+
+L</change> as a promise, with an optional query context last, run on the
+worker's pooled asynchronous connections.
 
 =head1 DIAGNOSTICS
 

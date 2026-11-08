@@ -675,7 +675,9 @@ and the values as they would be bound.
 Exclusively leases a native connection through BEGIN and COMMIT or ROLLBACK.
 The callback receives a scoped function transport; nested transactions use
 savepoints. Query cancellation and swallowed statement failures reject the
-transaction. Ambiguous commits are never replayed.
+transaction. Ambiguous commits are never replayed. The last argument is a true
+value for a READ ONLY transaction, or a hash with C<read_only> and
+C<repeatable_read> flags.
 
 =head2 rows_p, row_p
 

@@ -225,19 +225,12 @@ sub revoke_user_sessions ( $self, $user_id, $revoked_at,
     $keep_session_id = undef )
 {
     if ( $self->functions ) {
-        my $kept =
-          GPForum::Infrastructure::Id->is_uuid($keep_session_id)
-          ? $keep_session_id
-          : undef;
-        my $row = $self->functions->row(
-            'session_revoke_user',
-            {
-                user_id         => $user_id,
-                revoked_at      => $revoked_at,
-                keep_session_id => $kept,
-            }
+        return _revoked_count(
+            $self->functions->row(
+                'session_revoke_user',
+                _revoke_user_values( $user_id, $revoked_at, $keep_session_id )
+            )
         );
-        return $row ? 0 + $row->{revoked_count} : 0;
     }
 
     my %live = (
@@ -249,6 +242,43 @@ sub revoke_user_sessions ( $self, $user_id, $revoked_at,
     }
 
     return $self->_revoke_sessions( \%live, $revoked_at );
+}
+
+# revoke_user_sessions on $scope, the transaction the caller holds, given
+# after the query context.
+async sub revoke_user_sessions_p (
+    $self, $user_id, $revoked_at, $keep_session_id,
+    $context = undef,
+    $scope = undef
+  )
+{
+    $scope //= $self->functions;
+    return $self->revoke_user_sessions( $user_id, $revoked_at,
+        $keep_session_id )
+      if !$scope;
+
+    return _revoked_count(
+        await $scope->row_p(
+            'session_revoke_user',
+            _revoke_user_values( $user_id, $revoked_at, $keep_session_id ),
+            $context
+        )
+    );
+}
+
+sub _revoke_user_values ( $user_id, $revoked_at, $keep_session_id ) {
+    return {
+        user_id         => $user_id,
+        revoked_at      => $revoked_at,
+        keep_session_id =>
+          GPForum::Infrastructure::Id->is_uuid($keep_session_id)
+        ? $keep_session_id
+        : undef,
+    };
+}
+
+sub _revoked_count ($row) {
+    return $row ? 0 + $row->{revoked_count} : 0;
 }
 
 # Revokes the sessions the condition selects, none earlier than it was
@@ -338,21 +368,55 @@ sub _create_session_by_function ( $self, $user, $input ) {
     my ( $raw_token, $values ) = $self->_session_values( $user, $input );
     my $row =
       $self->functions->row( 'session_create', { %{$values}, retry => 0 } );
-    my $code = $row->{result_code};
-    if ( $code eq 'retry_id' || $code eq 'retry_token' ) {
-        if ( $code eq 'retry_id' ) {
-            $values->{session_id} = $self->id_service->uuid;
-        }
-        else {
-            $raw_token = $self->session_tokens->issue_token;
-            $values->{session_hash} =
-              $self->session_tokens->hash_token($raw_token);
-        }
+    if ( _retry_session($row) ) {
+        $raw_token = $self->_redrawn_session( $row, $raw_token, $values );
         $row =
           $self->functions->row( 'session_create', { %{$values}, retry => 1 } );
-        $code = $row->{result_code};
     }
-    delete $row->{result_code};
+    return _created_session( $row, $raw_token );
+}
+
+# create_session on the worker's pooled asynchronous connections, or on
+# $scope: the transaction that holds the credential it opens for.
+async sub create_session_p (
+    $self, $user, $input,
+    $context = undef,
+    $scope = undef
+  )
+{
+    $scope //= $self->functions;
+    return $self->create_session( $user, $input ) if !$scope;
+
+    my ( $raw_token, $values ) = $self->_session_values( $user, $input );
+    my $row = await $scope->row_p( 'session_create', { %{$values}, retry => 0 },
+        $context );
+    if ( _retry_session($row) ) {
+        $raw_token = $self->_redrawn_session( $row, $raw_token, $values );
+        $row       = await $scope->row_p( 'session_create',
+            { %{$values}, retry => 1 }, $context );
+    }
+    return _created_session( $row, $raw_token );
+}
+
+sub _retry_session ($row) {
+    my $code = $row->{result_code};
+    return $code eq 'retry_id' || $code eq 'retry_token' ? 1 : 0;
+}
+
+# A new session id, or a new token, for the one already taken; answers the
+# raw token the session now has.
+sub _redrawn_session ( $self, $row, $raw_token, $values ) {
+    if ( $row->{result_code} eq 'retry_id' ) {
+        $values->{session_id} = $self->id_service->uuid;
+        return $raw_token;
+    }
+    $raw_token = $self->session_tokens->issue_token;
+    $values->{session_hash} = $self->session_tokens->hash_token($raw_token);
+    return $raw_token;
+}
+
+sub _created_session ( $row, $raw_token ) {
+    my $code = delete $row->{result_code};
     return {
         session       => GPForum::Infrastructure::ResultRow->from($row),
         session_token => $raw_token,
@@ -385,16 +449,36 @@ sub _validate_session_by_function ( $self, $input ) {
 }
 
 sub _revoke_session_by_function ( $self, $input ) {
-    my $row = $self->functions->row(
-        'session_revoke',
-        {
-            session_id => $input->{session_id},
-            user_id    => has_text( $input->{user_id} )
-            ? $input->{user_id}
-            : undef,
-            revoked_at => $self->clock->now_iso8601,
-        }
+    return _revoked_session(
+        $self->functions->row(
+            'session_revoke', $self->_revoke_values($input)
+        )
     );
+}
+
+# revoke_session on the worker's pooled asynchronous connections, or on
+# $scope: the transaction a command log runs it in.
+async sub revoke_session_p ( $self, $input, $context = undef, $scope = undef ) {
+    $scope //= $self->functions;
+    return $self->revoke_session($input)
+      if !$scope || !has_text( $input->{session_id} );
+
+    return _revoked_session(
+        await $scope->row_p(
+            'session_revoke', $self->_revoke_values($input), $context
+        )
+    );
+}
+
+sub _revoke_values ( $self, $input ) {
+    return {
+        session_id => $input->{session_id},
+        user_id    => has_text( $input->{user_id} ) ? $input->{user_id} : undef,
+        revoked_at => $self->clock->now_iso8601,
+    };
+}
+
+sub _revoked_session ($row) {
     return { ok => 0, error => 'not_found' } if !$row;
     my $code = delete $row->{result_code};
     return { ok => 0, error => 'not_found' } if $code eq 'not_found';
@@ -554,6 +638,12 @@ A unique C<session_id> collision remints the id once and does not return
 another user's session. A leftover unique C<session_id> with this user and
 hash reuses the session.
 
+=head2 create_session_p
+
+L</create_session> as a promise, with an optional query context and an
+optional call layer (the transaction that holds the verified credential)
+last, written on the worker's pooled asynchronous connections.
+
 =head2 revoke_session
 
 Revokes one session by id. Given a C<user_id>, the session must belong to
@@ -562,6 +652,12 @@ query, not after the row is fetched. A second revoke of the same session,
 or one a concurrent revocation beat, keeps the original timestamp and
 returns C<skipped>. The session is revoked at the store's clock, or at its
 own C<created_at> when that is later.
+
+=head2 revoke_session_p
+
+L</revoke_session> as a promise, with an optional query context and an
+optional call layer (the transaction a command log holds) last, written on
+the worker's pooled asynchronous connections.
 
 =head2 validate_session
 
@@ -589,6 +685,12 @@ where they are. Each session is revoked at the time given, or at its own
 C<created_at> when that is later, so a session a concurrent login committed
 after the caller read its clock is revoked rather than failing
 C<sessions_revoked_after_created_check>.
+
+=head2 revoke_user_sessions_p
+
+Revokes the sessions as L</revoke_user_sessions> does, with an optional
+query context and an optional call layer (a transaction the caller holds)
+last; answers a promise of how many it revoked.
 
 =head2 live_session_ids_p
 

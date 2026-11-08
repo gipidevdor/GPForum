@@ -3,7 +3,7 @@
 
 package GPForum::Service::Identity::Audit;
 
-use Mojo::Base -base, -signatures;
+use Mojo::Base -base, -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::EventRecorder;
@@ -76,6 +76,37 @@ sub record_mail ( $self, $input ) {
     return;
 }
 
+# record_action on a pooled asynchronous connection, or on $scope: the
+# transaction the caller holds, whose call layer the recorder takes.
+async sub record_action_p ( $self, $input, $context = undef, $scope = undef ) {
+    await $self->_recorder_on($scope)
+      ->record_audit_p( $self->events->action($input), $context );
+
+    return;
+}
+
+# record_mail as record_action_p records an action.
+async sub record_mail_p ( $self, $input, $context = undef, $scope = undef ) {
+    my $mail = $self->_sealed($input);
+    await $self->_recorder_on($scope)->record_event_p(
+        {
+            %{ $self->events->mail_envelope($mail) },
+            outbox_payload => $self->events->mail_outbox_payload($mail),
+        },
+        $context
+    );
+
+    return;
+}
+
+# The recorder, writing on $scope when one is given.
+sub _recorder_on ( $self, $scope ) {
+    my $recorder = $self->recorder;
+    return $recorder if !$scope;
+
+    return ref($recorder)->new( %{$recorder}, functions => $scope );
+}
+
 # The mail with its raw token replaced by the token sealed to its id.
 sub _sealed ( $self, $input ) {
     if ( !defined $input->{token} ) {
@@ -144,6 +175,17 @@ Writes a generic identity audit row.
 Writes C<identity.mail.requested> to EventLog and an outbox row whose
 payload includes the raw token under C<mail>. EventLog payload is
 C<kind> and C<token_id> only.
+
+=head2 record_action_p
+
+Writes the audit row L</record_action> writes, in one call on a pooled
+asynchronous connection; with an optional query context and an optional
+call layer (a transaction the caller holds) last. Answers a promise.
+
+=head2 record_mail_p
+
+Writes what L</record_mail> writes, in one call, as L</record_action_p>
+writes its row.
 
 =head1 DIAGNOSTICS
 

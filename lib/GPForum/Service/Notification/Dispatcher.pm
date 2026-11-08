@@ -131,17 +131,181 @@ sub create_notification ( $self, $input ) {
     );
 }
 
+# create_notification on the worker's pooled asynchronous connections. With
+# $scope -- the call layer of a transaction the caller holds, a mention's in
+# its post's -- every read and write joins that transaction, as the blocking
+# path joins an outer one: the source it screens is the post not committed
+# yet, and the badge's pg_notify goes out only when the post commits.
+# Without one, the delivery and its queued channels commit together, and
+# the badge is counted and sent once they have.
+async sub create_notification_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    return $self->create_notification($input) if !$self->functions;
+    my $reader   = $scope ? $self->_joined($scope) : $self;
+    my $screened = await $reader->_screened_p( $input, $context );
+    return $screened->{refused} if $screened->{refused};
+    my $plan = $screened->{plan};
+
+    my $delivered = await $self->_within_p(
+        $scope, $context,
+        async sub ($joined) {
+            return await $joined->_delivered_p( $input, $plan, $context );
+        },
+        $plan->{in_app} || ( $plan->{email} && $plan->{web_push} )
+    );
+    return $delivered
+      if !$plan->{in_app} || ref $delivered ne 'HASH' || !$delivered->{ok};
+
+    return await $self->_with_badge_p(
+        $input->{recipient_user_id},
+        $delivered, !$delivered->{duplicate},
+        $context,   $scope
+    );
+}
+
+# The work on the caller's transaction, or else on one of its own when it
+# writes more than one statement: a single API statement is atomic.
+async sub _within_p ( $self, $scope, $context, $work, $several = 1 ) {
+    return await $work->( $self->_joined($scope) ) if $scope;
+    return await $work->($self)                    if !$several;
+
+    return await $self->functions->transaction_p(
+        async sub ($layer) { return await $work->( $self->_joined($layer) ); },
+        $context
+    );
+}
+
+# The dispatcher with its reads and writes on a transaction's call layer,
+# and those of every collaborator that reads or writes.
+sub _joined ( $self, $layer ) {
+    return ref($self)->new(
+        %{$self},
+        functions => $layer,
+        map { $_ => _joined_store( $self->$_, $layer ) }
+          qw(event_recorder permission_engine preference_store relations
+          realtime_notifier)
+    );
+}
+
+sub _joined_store ( $store, $layer ) {
+    return $store if !blessed $store || !$store->can('functions');
+
+    return ref($store)->new( %{$store}, functions => $layer );
+}
+
+# _screened, each step read through its collaborator's twin when it has one.
+async sub _screened_p ( $self, $input, $context ) {
+    my $engine = $self->permission_engine;
+    my @source = (
+        $input->{recipient_user_id}, $input->{source_type},
+        $input->{source_id},         $input->{payload} || {},
+    );
+    my $permitted =
+       !$engine ? 1
+      : $engine->can('can_notify_p')
+      ? await $engine->can_notify_p( @source, $context )
+      : $engine->can_notify(@source);
+    return { refused => { ok => 0, skipped => 'permission_denied' } }
+      if !$permitted;
+    my $plan = await $self->_delivery_plan_p( $input, $context );
+    return { refused =>
+          { ok => 0, skipped => 'channel_disabled', channel => 'in_app' } }
+      if !$plan->{in_app} && !$plan->{email} && !$plan->{web_push};
+    my $relations = $self->relations;
+    my @relation  = (
+        $input->{recipient_user_id},
+        $input->{notification_type},
+        ( $input->{payload} || {} )->{actor_id},
+    );
+    my $silenced =
+       !$relations ? 0
+      : $relations->can('silences_p')
+      ? await $relations->silences_p( @relation, $context )
+      : $relations->silences(@relation);
+    return { refused => { ok => 0, skipped => 'member_relation' } }
+      if $silenced;
+
+    return { plan => $plan };
+}
+
+async sub _delivery_plan_p ( $self, $input, $context ) {
+    my $store     = $self->preference_store;
+    my $recipient = $input->{recipient_user_id};
+    return $self->_delivery_plan($input)
+      if !$store
+      || !defined $recipient
+      || !length $recipient
+      || !$store->can('delivery_plan_p');
+
+    my $plan;
+    try {
+        $plan =
+          await $store->delivery_plan_p( $recipient,
+            $input->{notification_type}, $context );
+    }
+    catch ($error) {
+        return { in_app => 1, email => 0 };
+    };
+
+    return $plan;
+}
+
+# The delivery and the channels queued with it, as create_notification
+# writes them: in the inbox, or only by mail or push.
+async sub _delivered_p ( $self, $input, $plan, $context ) {
+    if ( $plan->{in_app} ) {
+        my $delivered = (
+            await $self->functions->row_p(
+                'notification_deliver',
+                $self->delivery_call( $input, $self->clock->now_iso8601 ),
+                $context
+            )
+        )->{result};
+        return $delivered if ref $delivered ne 'HASH' || !$delivered->{ok};
+        await $self->_queue_channels_p( $input, $plan, $context );
+        return { %{$delivered}, _queued_flags($plan) };
+    }
+    await $self->_queue_channels_p( $input, $plan, $context );
+
+    return _external_answer($plan);
+}
+
+async sub _queue_channels_p ( $self, $input, $plan, $context ) {
+    if ( $plan->{email} ) {
+        await $self->event_recorder->record_event_p(
+            { $self->_email_event($input) }, $context );
+    }
+    if ( $plan->{web_push} ) {
+        my $call = $self->delivery_call( $input, $self->clock->now_iso8601 );
+        await $self->functions->row_p( 'notification_push_enqueue',
+            { notification => $call->{notification} }, $context );
+    }
+    return;
+}
+
+sub _queued_flags ($plan) {
+    return (
+        ( $plan->{email}    ? ( email_queued    => 1 ) : () ),
+        ( $plan->{web_push} ? ( web_push_queued => 1 ) : () ),
+    );
+}
+
+# The answer to a notification that goes only by mail or push.
+sub _external_answer ($plan) {
+    return {
+        ok      => 0,
+        skipped => 'channel_disabled',
+        channel => 'in_app',
+        _queued_flags($plan),
+    };
+}
+
 sub _queue_external_channels ( $self, $input, $plan ) {
     my $work = sub {
         if ( $plan->{email} )    { $self->_queue_email($input); }
         if ( $plan->{web_push} ) { $self->_queue_push($input); }
-        return {
-            ok      => 0,
-            skipped => 'channel_disabled',
-            channel => 'in_app',
-            ( $plan->{email}    ? ( email_queued    => 1 ) : () ),
-            ( $plan->{web_push} ? ( web_push_queued => 1 ) : () ),
-        };
+        return _external_answer($plan);
     };
 
     # A single API statement is already atomic. Only two independent
@@ -716,6 +880,88 @@ sub mark_all_read ( $self, $recipient_user_id ) {
     );
 }
 
+# The read on the worker's pooled asynchronous connections: one statement in
+# autocommit, then the badge -- the count and its NOTIFY -- as the blocking
+# path sends it once the read committed.
+async sub mark_read_p ( $self, $notification_id, $recipient_user_id,
+    $context = undef )
+{
+    return $self->mark_read( $notification_id, $recipient_user_id )
+      if !$self->functions;
+    return { ok => 0, error => 'not_found' }
+      if !GPForum::Infrastructure::Id->is_uuid($notification_id);
+    my $row = await $self->functions->row_p(
+        'notification_mark_read',
+        {
+            notification_id   => $notification_id,
+            recipient_user_id => $recipient_user_id,
+            read_at           => $self->clock->now_iso8601,
+        },
+        $context
+    );
+    return await $self->_with_badge_p( $recipient_user_id, $row->{result}, 1,
+        $context );
+}
+
+async sub mark_all_read_p ( $self, $recipient_user_id, $context = undef ) {
+    return $self->mark_all_read($recipient_user_id) if !$self->functions;
+    my $read_at = $self->clock->now_iso8601;
+    my $values =
+      await $self->_source_parameters_p( $recipient_user_id, undef, $context );
+    $values->{user_id} = delete $values->{recipient_user_id};
+    my $row = await $self->functions->row_p( 'notification_mark_all_read',
+        { %{$values}, read_at => $read_at }, $context );
+    return await $self->_with_badge_p( $recipient_user_id, $row->{result}, 1,
+        $context );
+}
+
+# _committed_with_badge's badge for a write already committed: a failure is
+# counted and logged, and the count is then undef. Under a caller's
+# transaction ($scope) the count and its NOTIFY run in a savepoint of it, as
+# _unread_count's do, so a statement that fails here does not abort the
+# transaction the caller still has to commit; the count already read is kept.
+async sub _with_badge_p ( $self, $recipient_user_id, $result, $notify,
+    $context, $scope = undef )
+{
+    return $result if ref $result ne 'HASH' || !$result->{ok};
+    my $count;
+    my $badge = async sub ($dispatcher) {
+        $count =
+          await $dispatcher->unread_count_for_user_p( $recipient_user_id,
+            undef, $context );
+        my $notifier = $dispatcher->realtime_notifier;
+        return 1 if !$notify || !$notifier;
+        my $event =
+          $dispatcher->event_contract->notification_badge( $recipient_user_id,
+            $count );
+        my $sent =
+          $notifier->can('notify_p')
+          ? await $notifier->notify_p( $event, $context )
+          : $notifier->notify($event);
+        if ( ref $sent eq 'HASH' && !$sent->{ok} ) {
+            GPForum::X::Unavailable->throw( message => 'badge NOTIFY failed: '
+                  . ( $sent->{reason} || 'unknown' ) );
+        }
+        return 1;
+    };
+    try {
+        if ($scope) {
+            await $scope->transaction_p(
+                async sub ($savepoint) {
+                    return await $badge->( $self->_joined($savepoint) );
+                },
+                $context
+            );
+        }
+        else { await $badge->($self); }
+    }
+    catch ($error) {
+        $self->_badge_failed($error);
+    };
+    $result->{unread_count} = $count;
+    return $result;
+}
+
 # The read row is keyed by recipient and notification: a conflict is a read
 # another request stored first, whose time this one takes.
 sub _persist_read ( $self, $inbox, $read ) {
@@ -1181,6 +1427,18 @@ already had this notification; then nothing is written and no badge is
 sent, though C<unread_count> is still read. C<unread_count> is undef when
 the count failed after the write (see L</DESCRIPTION>).
 
+=head2 create_notification_p
+
+L</create_notification> as a promise, on the worker's pooled asynchronous
+connections; takes the same hash reference, an optional query context and
+an optional transaction call layer (the scope a
+L<GPForum::Infrastructure::SqlFunction/transaction_p> work receives). With
+that layer the screening, the rows, the queued channels and the badge all
+join the caller's transaction, the badge in a savepoint of it, so a
+mention is screened against the post its write has not committed yet and
+its badge is sent only on commit. Without the function layer the blocking
+method answers.
+
 =head2 delivery_call
 
 Takes what C<create_notification> takes and the time to stamp the rows
@@ -1246,6 +1504,17 @@ C<< { ok => 1, duplicate, marked_count, read_at, recipient_user_id,
 unread_count } >>, C<duplicate> being 1 when there was nothing to mark,
 and sends a badge; C<unread_count> is undef when that count failed after
 the commit.
+
+=head2 mark_read_p
+
+L</mark_read> as a promise, with an optional query context last: the read is
+one statement on the worker's pooled asynchronous connections, followed by
+the badge.
+
+=head2 mark_all_read_p
+
+L</mark_all_read> as a promise, with an optional query context last, on the
+worker's pooled asynchronous connections, followed by the badge.
 
 =head2 snapshot
 

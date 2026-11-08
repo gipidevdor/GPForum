@@ -9,6 +9,7 @@ use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
 use GPForum::Infrastructure::ResultRow;
+use List::Util   qw(any);
 use Scalar::Util qw(blessed);
 
 use GPForum::Infrastructure::Row qw(column_of rows_in);
@@ -29,6 +30,12 @@ const my $PERMISSION_ACTION_CONSTRAINT => 'permissions_resource_action_key';
 const my $ROLE_PERMISSION_CONSTRAINT   => 'role_permissions_pkey';
 const my $ATTACHED_ACTION              => 'role_permission.attached';
 const my $UUID_DIGITS                  => 32;
+const my %LOOKUP => (
+    Role           => 'admin_lookup_role',
+    Permission     => 'admin_lookup_permission',
+    RolePermission => 'admin_lookup_role_permission',
+    AuditLog       => 'admin_lookup_audit',
+);
 
 has clock      => sub { return GPForum::Service::Clock->new; };
 has id_service => sub {
@@ -89,33 +96,39 @@ sub _once_more ( $self, $create ) {
 }
 
 sub _create_role_row ( $self, $input ) {
-    my $role = {
-        role_id     => $self->id_service->uuid,
-        name        => $input->{name},
-        description => $input->{description} || q{},
-        created_at  => $self->clock->now_iso8601,
-    };
+    my $role = $self->_new_role($input);
     if ( $self->functions ) {
         $self->functions->row( 'admin_insert_role', { values => $role } );
     }
     else {
         $self->schema->resultset('Role')->create($role);
     }
-    $self->_record_admin_audit(
-        {
-            action        => 'role.created',
-            actor_user_id => $input->{actor_user_id},
-            target_type   => 'role',
-            target_id     => $role->{role_id},
-            metadata      => {
-                description => $role->{description},
-                name        => $role->{name},
-            },
-            created_at => $role->{created_at},
-        }
-    );
+    $self->_record_admin_audit( _role_audit( $input, $role ) );
 
     return $role;
+}
+
+sub _new_role ( $self, $input ) {
+    return {
+        role_id     => $self->id_service->uuid,
+        name        => $input->{name},
+        description => $input->{description} || q{},
+        created_at  => $self->clock->now_iso8601,
+    };
+}
+
+sub _role_audit ( $input, $role ) {
+    return {
+        action        => 'role.created',
+        actor_user_id => $input->{actor_user_id},
+        target_type   => 'role',
+        target_id     => $role->{role_id},
+        metadata      => {
+            description => $role->{description},
+            name        => $role->{name},
+        },
+        created_at => $role->{created_at},
+    };
 }
 
 # A permission is one per resource type and action, whatever its name: a
@@ -162,13 +175,7 @@ sub create_permission ( $self, $input ) {
 }
 
 sub _create_permission_row ( $self, $input ) {
-    my $permission = {
-        permission_id => $self->id_service->uuid,
-        name          => $input->{name},
-        resource_type => $input->{resource_type},
-        action        => $input->{action},
-        created_at    => $self->clock->now_iso8601,
-    };
+    my $permission = $self->_new_permission($input);
     if ( $self->functions ) {
         $self->functions->row( 'admin_insert_permission',
             { values => $permission } );
@@ -176,22 +183,34 @@ sub _create_permission_row ( $self, $input ) {
     else {
         $self->schema->resultset('Permission')->create($permission);
     }
-    $self->_record_admin_audit(
-        {
-            action        => 'permission.created',
-            actor_user_id => $input->{actor_user_id},
-            target_type   => 'permission',
-            target_id     => $permission->{permission_id},
-            metadata      => {
-                action        => $permission->{action},
-                name          => $permission->{name},
-                resource_type => $permission->{resource_type},
-            },
-            created_at => $permission->{created_at},
-        }
-    );
+    $self->_record_admin_audit( _permission_audit( $input, $permission ) );
 
     return $permission;
+}
+
+sub _new_permission ( $self, $input ) {
+    return {
+        permission_id => $self->id_service->uuid,
+        name          => $input->{name},
+        resource_type => $input->{resource_type},
+        action        => $input->{action},
+        created_at    => $self->clock->now_iso8601,
+    };
+}
+
+sub _permission_audit ( $input, $permission ) {
+    return {
+        action        => 'permission.created',
+        actor_user_id => $input->{actor_user_id},
+        target_type   => 'permission',
+        target_id     => $permission->{permission_id},
+        metadata      => {
+            action        => $permission->{action},
+            name          => $permission->{name},
+            resource_type => $permission->{resource_type},
+        },
+        created_at => $permission->{created_at},
+    };
 }
 
 sub attach_permission ( $self, $input ) {
@@ -228,11 +247,7 @@ sub attach_permission ( $self, $input ) {
 }
 
 sub _attach_permission_row ( $self, $input ) {
-    my $role_permission = {
-        role_id       => $input->{role_id},
-        permission_id => $input->{permission_id},
-        created_at    => $self->clock->now_iso8601,
-    };
+    my $role_permission = $self->_new_attachment($input);
     if ( $self->functions ) {
         $self->functions->row( 'admin_insert_role_permission',
             { values => $role_permission } );
@@ -240,21 +255,232 @@ sub _attach_permission_row ( $self, $input ) {
     else {
         $self->schema->resultset('RolePermission')->create($role_permission);
     }
-    $self->_record_admin_audit(
-        {
-            action        => $ATTACHED_ACTION,
-            actor_user_id => $input->{actor_user_id},
-            target_type   => 'role',
-            target_id     => $role_permission->{role_id},
-            metadata      => {
-                permission_id => $role_permission->{permission_id},
-                role_id       => $role_permission->{role_id},
-            },
-            created_at => $role_permission->{created_at},
-        }
-    );
+    $self->_record_admin_audit( _attachment_audit( $input, $role_permission ) );
 
     return $role_permission;
+}
+
+sub _new_attachment ( $self, $input ) {
+    return {
+        role_id       => $input->{role_id},
+        permission_id => $input->{permission_id},
+        created_at    => $self->clock->now_iso8601,
+    };
+}
+
+sub _attachment_audit ( $input, $role_permission ) {
+    return {
+        action        => $ATTACHED_ACTION,
+        actor_user_id => $input->{actor_user_id},
+        target_type   => 'role',
+        target_id     => $role_permission->{role_id},
+        metadata      => {
+            permission_id => $role_permission->{permission_id},
+            role_id       => $role_permission->{role_id},
+        },
+        created_at => $role_permission->{created_at},
+    };
+}
+
+# The three catalog writes on a pooled asynchronous connection, inside the
+# caller's transaction ($scope, the call layer transaction_p hands its work)
+# or in one of their own. Each makes the blocking write's steps: the stored
+# row reused and its audit entry completed, else the row created in a
+# savepoint with its audit entry; a conflict on one of its keys is answered
+# by the row then stored, and a minted id that collided is minted once more.
+async sub create_role_p ( $self, $input, $context = undef, $scope = undef ) {
+    return $self->create_role($input) if !$self->functions;
+    return await $self->_catalog_write_p(
+        {
+            source   => 'Role',
+            query    => { name => $input->{name} },
+            id_key   => $ROLE_ID_CONSTRAINT,
+            keys     => [$ROLE_NAME_CONSTRAINT],
+            insert   => 'admin_insert_role',
+            row      => sub { return $self->_new_role($input); },
+            audit    => sub ($row) { return _role_audit( $input, $row ); },
+            leftover => sub ($row) {
+                return _leftover_role_audit( $row, $input );
+            },
+            columns => [ _role_columns() ],
+        },
+        $context,
+        $scope
+    );
+}
+
+async sub create_permission_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    return $self->create_permission($input) if !$self->functions;
+    return await $self->_catalog_write_p(
+        {
+            source => 'Permission',
+            query  => {
+                action        => $input->{action},
+                resource_type => $input->{resource_type},
+            },
+            id_key => $PERMISSION_ID_CONSTRAINT,
+            keys   =>
+              [ $PERMISSION_NAME_CONSTRAINT, $PERMISSION_ACTION_CONSTRAINT ],
+            insert => 'admin_insert_permission',
+            row    => sub { return $self->_new_permission($input); },
+            audit  => sub ($row) { return _permission_audit( $input, $row ); },
+            leftover => sub ($row) {
+                return _leftover_permission_audit( $row, $input );
+            },
+            columns => [ _permission_columns() ],
+        },
+        $context,
+        $scope
+    );
+}
+
+async sub attach_permission_p ( $self, $input, $context = undef,
+    $scope = undef )
+{
+    return $self->attach_permission($input) if !$self->functions;
+    return await $self->_catalog_write_p(
+        {
+            source => 'RolePermission',
+            query  => {
+                role_id       => $input->{role_id},
+                permission_id => $input->{permission_id},
+            },
+            keys   => [$ROLE_PERMISSION_CONSTRAINT],
+            insert => 'admin_insert_role_permission',
+            row    => sub { return $self->_new_attachment($input); },
+            audit  => sub ($row) { return _attachment_audit( $input, $row ); },
+            leftover => sub ($row) {
+                return _leftover_attachment_audit( $row, $input );
+            },
+            columns => [ _role_permission_columns() ],
+        },
+        $context,
+        $scope
+    );
+}
+
+async sub _catalog_write_p ( $self, $job, $context, $scope ) {
+    my $work = sub ($functions) {
+        return $self->_reuse_or_create_p( $functions, $job, $context );
+    };
+    return await(
+          $scope
+        ? $work->($scope)
+        : $self->functions->transaction_p( $work, $context )
+    );
+}
+
+async sub _reuse_or_create_p ( $self, $functions, $job, $context ) {
+    my $find = sub {
+        return $self->_single_row_p( $functions, $job->{source}, $job->{query},
+            $context );
+    };
+    my $existing = await $find->();
+    return await $self->_finish_leftover_p( $functions, $job, $existing,
+        $context )
+      if $existing;
+
+    my $create = async sub ($savepoint) {
+        my $row = $job->{row}->();
+        await $savepoint->row_p( $job->{insert}, { values => $row }, $context );
+        await $self->_record_admin_audit_p( $savepoint, $job->{audit}->($row),
+            $context );
+        return $row;
+    };
+    for my $retry ( 0, 1 ) {
+        my ( $created, $error ) =
+          await GPForum::Infrastructure::UniqueConflict->attempt_p( $functions,
+            $create );
+        return $created if $created;
+
+        my $on =
+          $retry
+          ? q{}
+          : _conflict_on( $error, $job->{id_key}, @{ $job->{keys} } );
+        if ( !$on ) {
+            GPForum::Infrastructure::UniqueConflict->rethrow($error);
+        }
+        $existing = await $find->();
+        return await $self->_finish_leftover_p( $functions, $job, $existing,
+            $context )
+          if $existing;
+        if ( $on ne 'id' ) {
+            GPForum::Infrastructure::UniqueConflict->rethrow($error);
+        }
+    }
+    return;
+}
+
+# Which key a unique conflict is on: the minted id's (id), another of the
+# row's keys (key), or none of them (an empty string).
+sub _conflict_on ( $error, $id_key, @keys ) {
+    my $conflict = GPForum::X::Conflict->caught($error);
+    return q{}  if !$conflict;
+    return 'id' if $id_key && $conflict->on($id_key);
+    return ( any { $conflict->on($_) } @keys ) ? 'key' : q{};
+}
+
+async sub _finish_leftover_p ( $self, $functions, $job, $existing, $context ) {
+    my $audit = $job->{leftover}->($existing);
+    my $recorded =
+      $audit->{action} eq $ATTACHED_ACTION
+      ? _attachment_audited(
+        await $functions->rows_p( _attachment_audits_call($audit), $context ),
+        $audit )
+      : await $self->_single_row_p( $functions, q{AuditLog},
+        { action => $audit->{action}, target_id => $audit->{target_id} },
+        $context );
+    if ( !$recorded ) {
+        await $self->_record_admin_audit_p( $functions,
+            $self->_missing_audit($audit), $context );
+    }
+
+    return _idempotent_hash( $existing, @{ $job->{columns} } );
+}
+
+async sub _single_row_p ( $self, $functions, $resultset_name, $query, $context )
+{
+    return GPForum::Infrastructure::ResultRow->from(
+        await $functions->row_p(
+            $LOOKUP{$resultset_name},
+            { query => $query }, $context
+        )
+    );
+}
+
+sub _record_admin_audit_p ( $self, $functions, $input, $context ) {
+    return $functions->row_p(
+        'ops_record_audit',
+        $self->recorder->audit_call(
+            %{ $self->events->catalog_audit($input) }
+        ),
+        $context
+    );
+}
+
+sub _attachment_audits_call ($job) {
+    return (
+        'admin_attachment_audits',
+        {
+            action      => $job->{action},
+            target_id   => $job->{target_id},
+            target_type => $job->{target_type}
+        }
+    );
+}
+
+# Whether one of the role's attachment entries names this permission.
+sub _attachment_audited ( $rows, $job ) {
+    my $wanted = $job->{metadata};
+    for my $audit ( @{$rows} ) {
+        return 1
+          if _same_id( $audit->{metadata}{role_id}, $wanted->{role_id} )
+          && _same_id( $audit->{metadata}{permission_id},
+            $wanted->{permission_id} );
+    }
+    return 0;
 }
 
 sub list_roles ( $self, $options ) {
@@ -333,58 +559,66 @@ sub _result_rows ($rows) {
 }
 
 sub _finish_leftover_role ( $self, $existing, $input ) {
-    $self->_ensure_catalog_audit(
-        {
-            action        => 'role.created',
-            actor_user_id => $input->{actor_user_id},
-            created_at    => column_of( $existing, 'created_at' ),
-            metadata      => {
-                description => column_of( $existing, 'description' ),
-                name        => column_of( $existing, 'name' ),
-            },
-            target_id   => column_of( $existing, 'role_id' ),
-            target_type => 'role',
-        }
-    );
+    $self->_ensure_catalog_audit( _leftover_role_audit( $existing, $input ) );
 
     return _idempotent_hash( $existing, _role_columns() );
 }
 
+sub _leftover_role_audit ( $existing, $input ) {
+    return {
+        action        => 'role.created',
+        actor_user_id => $input->{actor_user_id},
+        created_at    => column_of( $existing, 'created_at' ),
+        metadata      => {
+            description => column_of( $existing, 'description' ),
+            name        => column_of( $existing, 'name' ),
+        },
+        target_id   => column_of( $existing, 'role_id' ),
+        target_type => 'role',
+    };
+}
+
 sub _finish_leftover_permission ( $self, $existing, $input ) {
     $self->_ensure_catalog_audit(
-        {
-            action        => 'permission.created',
-            actor_user_id => $input->{actor_user_id},
-            created_at    => column_of( $existing, 'created_at' ),
-            metadata      => {
-                action        => column_of( $existing, 'action' ),
-                name          => column_of( $existing, 'name' ),
-                resource_type => column_of( $existing, 'resource_type' ),
-            },
-            target_id   => column_of( $existing, 'permission_id' ),
-            target_type => 'permission',
-        }
-    );
+        _leftover_permission_audit( $existing, $input ) );
 
     return _idempotent_hash( $existing, _permission_columns() );
 }
 
+sub _leftover_permission_audit ( $existing, $input ) {
+    return {
+        action        => 'permission.created',
+        actor_user_id => $input->{actor_user_id},
+        created_at    => column_of( $existing, 'created_at' ),
+        metadata      => {
+            action        => column_of( $existing, 'action' ),
+            name          => column_of( $existing, 'name' ),
+            resource_type => column_of( $existing, 'resource_type' ),
+        },
+        target_id   => column_of( $existing, 'permission_id' ),
+        target_type => 'permission',
+    };
+}
+
 sub _finish_leftover_attachment ( $self, $existing, $input ) {
     $self->_ensure_catalog_audit(
-        {
-            action        => $ATTACHED_ACTION,
-            actor_user_id => $input->{actor_user_id},
-            created_at    => column_of( $existing, 'created_at' ),
-            metadata      => {
-                permission_id => column_of( $existing, 'permission_id' ),
-                role_id       => column_of( $existing, 'role_id' ),
-            },
-            target_id   => column_of( $existing, 'role_id' ),
-            target_type => 'role',
-        }
-    );
+        _leftover_attachment_audit( $existing, $input ) );
 
     return _idempotent_hash( $existing, _role_permission_columns() );
+}
+
+sub _leftover_attachment_audit ( $existing, $input ) {
+    return {
+        action        => $ATTACHED_ACTION,
+        actor_user_id => $input->{actor_user_id},
+        created_at    => column_of( $existing, 'created_at' ),
+        metadata      => {
+            permission_id => column_of( $existing, 'permission_id' ),
+            role_id       => column_of( $existing, 'role_id' ),
+        },
+        target_id   => column_of( $existing, 'role_id' ),
+        target_type => 'role',
+    };
 }
 
 # An attachment's entry targets the role, as the entry of every other
@@ -403,42 +637,24 @@ sub _ensure_catalog_audit ( $self, $job ) {
         return undef;
     }
 
-    return $self->_record_admin_audit(
-        {
-            action        => $job->{action},
-            actor_user_id => $job->{actor_user_id},
-            created_at    => $job->{created_at} || $self->clock->now_iso8601,
-            metadata      => $job->{metadata},
-            target_id     => $job->{target_id},
-            target_type   => $job->{target_type},
-        }
-    );
+    return $self->_record_admin_audit( $self->_missing_audit($job) );
+}
+
+sub _missing_audit ( $self, $job ) {
+    return {
+        action        => $job->{action},
+        actor_user_id => $job->{actor_user_id},
+        created_at    => $job->{created_at} || $self->clock->now_iso8601,
+        metadata      => $job->{metadata},
+        target_id     => $job->{target_id},
+        target_type   => $job->{target_type},
+    };
 }
 
 sub _attachment_audit_exists ( $self, $job ) {
     if ( $self->functions ) {
-        my $rows = $self->functions->rows(
-            'admin_attachment_audits',
-            {
-                action      => $job->{action},
-                target_id   => $job->{target_id},
-                target_type => $job->{target_type}
-            }
-        );
-        my $wanted = $job->{metadata};
-        for my $audit ( @{$rows} ) {
-            if (
-                _same_id( $audit->{metadata}{role_id}, $wanted->{role_id} )
-                && _same_id(
-                    $audit->{metadata}{permission_id},
-                    $wanted->{permission_id}
-                )
-              )
-            {
-                return 1;
-            }
-        }
-        return 0;
+        return _attachment_audited(
+            $self->functions->rows( _attachment_audits_call($job) ), $job );
     }
     my $search = $self->schema->resultset('AuditLog')->search_rs(
         {
@@ -498,15 +714,9 @@ sub _audit_metadata ($audit) {
 
 sub _single_row ( $self, $resultset_name, $query ) {
     if ( $self->functions ) {
-        my %operation = (
-            Role           => 'admin_lookup_role',
-            Permission     => 'admin_lookup_permission',
-            RolePermission => 'admin_lookup_role_permission',
-            AuditLog       => 'admin_lookup_audit',
-        );
         return GPForum::Infrastructure::ResultRow->from(
             $self->functions->row(
-                $operation{$resultset_name},
+                $LOOKUP{$resultset_name},
                 { query => $query }
             )
         );
@@ -620,6 +830,12 @@ with C<role_id>, C<name>, C<description> and C<created_at>; for a role
 that already had that name, the existing row's values with
 C<< idempotent => 1 >>.
 
+=head2 create_role_p
+
+Creates a role as L</create_role> does, on a pooled asynchronous
+connection: inside the transaction of the call layer given as its last
+argument, or in one of its own.
+
 =head2 create_permission
 
 Takes a hash reference with C<name>, C<resource_type>, C<action> and the
@@ -627,6 +843,12 @@ C<actor_user_id> to audit. Returns a hash reference with
 C<permission_id>, C<name>, C<resource_type>, C<action> and C<created_at>;
 for a resource type and action that already had a permission, the
 existing row's values with C<< idempotent => 1 >>.
+
+=head2 create_permission_p
+
+Creates a permission as L</create_permission> does, on a pooled asynchronous
+connection: inside the transaction of the call layer given as its last
+argument, or in one of its own.
 
 =head2 attach_permission
 
@@ -641,6 +863,12 @@ C<role_permission.attached> entries and matches the role and permission
 pair; an entry for another permission of the same role does not count.
 The metadata keeps each id as the command spelled it, so ids are compared
 as PostgreSQL reads a uuid: whatever the case, braces or hyphens.
+
+=head2 attach_permission_p
+
+Attaches a permission as L</attach_permission> does, on a pooled asynchronous
+connection: inside the transaction of the call layer given as its last
+argument, or in one of its own.
 
 =head2 list_roles
 

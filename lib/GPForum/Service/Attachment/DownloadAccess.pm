@@ -176,6 +176,7 @@ sub _item_allows ( $self, $input, $item ) {
         {
             attachment     => $input->{attachment},
             link           => $item->{link},
+            readable       => $input->{readable},
             target         => $item->{target},
             viewer         => $input->{viewer},
             viewer_user_id => $input->{viewer_user_id},
@@ -196,10 +197,16 @@ sub _linked_target_allows ( $self, $input ) {
 
     # The uploader keeps their own file; anyone else reads it only through a
     # post or thread they can read.
-    return 1
-      if $self->readability->readable_by( $input->{viewer}
+    # A decision made on what was already read (Store::download_for_p)
+    # takes the answers it read, by target.
+    my $target_id = $self->record->column( $input->{link}, 'target_id' );
+    my $readable =
+        $input->{readable}
+      ? $input->{readable}{"$target_type:$target_id"}
+      : $self->readability->readable_by( $input->{viewer}
           // $input->{viewer_user_id},
-        $target_type, $self->record->column( $input->{link}, 'target_id' ) );
+        $target_type, $target_id );
+    return 1 if $readable;
 
     return $self->is_owner( $input->{attachment}, $input->{viewer_user_id} );
 }
@@ -373,7 +380,9 @@ Returns the download payload when the viewer owns an unlinked attachment.
 =head2 authorized
 
 Returns the download payload or a forbidden hash from preloaded links and
-targets. Empty link lists use the unlinked owner rule.
+targets. Empty link lists use the unlinked owner rule. An optional
+C<readable> hash, keyed C<type:id>, answers whether the reader may read each
+target, in place of asking the readability policy.
 
 =head2 is_owner
 

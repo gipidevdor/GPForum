@@ -4,7 +4,7 @@
 package GPForum::Service::Portability::ExportBundleBuilder;
 
 use Const::Fast;
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 
 use GPForum::Infrastructure::SqlFunction;
@@ -87,6 +87,23 @@ sub create_request ( $self, $input ) {
     );
 }
 
+# create_request in one transaction on the worker's pooled asynchronous
+# connections, or in a savepoint of the transaction $functions belongs to.
+async sub create_request_p ( $self, $input, $context = undef,
+    $functions = undef )
+{
+    $functions //= $self->functions;
+    return $self->create_request($input) if !$functions;
+
+    return await $functions->transaction_p(
+        async sub ($scope) {
+            return await $self->_create_or_reuse_request_p( $scope, $input,
+                $context );
+        },
+        $context
+    );
+}
+
 # A member has one pending export at a time: a request that finds one, or
 # loses the race to insert one, answers with it. A request id that collides
 # is drawn again, once.
@@ -99,6 +116,47 @@ sub _create_or_reuse_request ( $self, $input ) {
         sub { return $self->_insert_request($input); } );
     return $created if $created;
 
+    my $conflict = _request_conflict($error);
+    $existing = $self->_pending_request($input);
+    return $self->_finish_leftover_export($existing) if $existing;
+    _retry_only_a_taken_id( $conflict, $error );
+
+    ( $created, $error ) =
+      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
+        sub { return $self->_insert_request($input); } );
+    return $created if $created;
+
+    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+}
+
+async sub _create_or_reuse_request_p ( $self, $db, $input, $context ) {
+    my $existing = await $self->_pending_request_p( $db, $input, $context );
+    return await $self->_finish_leftover_export_p( $db, $existing, $context )
+      if $existing;
+
+    my $insert = async sub ($savepoint) {
+        return await $self->_insert_request_p( $savepoint, $input, $context );
+    };
+    my ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $db, $insert );
+    return $created if $created;
+
+    my $conflict = _request_conflict($error);
+    $existing = await $self->_pending_request_p( $db, $input, $context );
+    return await $self->_finish_leftover_export_p( $db, $existing, $context )
+      if $existing;
+    _retry_only_a_taken_id( $conflict, $error );
+
+    ( $created, $error ) =
+      await GPForum::Infrastructure::UniqueConflict->attempt_p( $db, $insert );
+    return $created if $created;
+
+    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+}
+
+# The conflict an insert lost to another pending request or a taken id;
+# any other error is rethrown.
+sub _request_conflict ($error) {
     my $conflict = GPForum::X::Conflict->caught($error);
     if (
         !$conflict
@@ -109,30 +167,24 @@ sub _create_or_reuse_request ( $self, $input ) {
     {
         GPForum::Infrastructure::UniqueConflict->rethrow($error);
     }
-    $existing = $self->_pending_request($input);
-    return $self->_finish_leftover_export($existing) if $existing;
+
+    return $conflict;
+}
+
+# A pending request that won the race and is no longer found is final; only
+# a minted id that collided is drawn again.
+sub _retry_only_a_taken_id ( $conflict, $error ) {
     if ( $conflict->on($PENDING_CONSTRAINT) ) {
         GPForum::Infrastructure::UniqueConflict->rethrow($error);
     }
 
-    ( $created, $error ) =
-      GPForum::Infrastructure::UniqueConflict->attempt( $self->schema,
-        sub { return $self->_insert_request($input); } );
-    return $created if $created;
-
-    GPForum::Infrastructure::UniqueConflict->rethrow($error);
+    return;
 }
 
 sub _pending_request ( $self, $input ) {
     if ( $self->functions ) {
-        my $row = $self->functions->row(
-            'privacy_latest',
-            {
-                source => 'ExportRequest',
-                query  =>
-                  { %{$input}, format => $input->{format} || $FORMAT_JSON }
-            }
-        );
+        my $row =
+          $self->functions->row( 'privacy_latest', _pending_query($input) );
         return $row ? $row->{document} : undef;
     }
 
@@ -158,8 +210,45 @@ sub _pending_request ( $self, $input ) {
     return _request_hash($row);
 }
 
+async sub _pending_request_p ( $self, $db, $input, $context ) {
+    my $row =
+      await $db->row_p( 'privacy_latest', _pending_query($input), $context );
+    return $row ? $row->{document} : undef;
+}
+
+sub _pending_query ($input) {
+    return {
+        source => 'ExportRequest',
+        query  => { %{$input}, format => $input->{format} || $FORMAT_JSON }
+    };
+}
+
 sub _insert_request ( $self, $input ) {
-    my $request = {
+    my $request = $self->_new_request($input);
+    if ( $self->functions ) {
+        $self->functions->row( 'privacy_insert',
+            { source => 'ExportRequest', row => $request } );
+    }
+    else {
+        $self->schema->resultset('ExportRequest')->create($request);
+    }
+    $self->_record_event_and_audit( _requested_record($request) );
+
+    return $request;
+}
+
+async sub _insert_request_p ( $self, $db, $input, $context ) {
+    my $request = $self->_new_request($input);
+    await $db->row_p( 'privacy_insert',
+        { source => 'ExportRequest', row => $request }, $context );
+    await $self->_record_event_and_audit_p( $db, _requested_record($request),
+        $context );
+
+    return $request;
+}
+
+sub _new_request ( $self, $input ) {
+    return {
         export_request_id => $self->id_service->uuid,
         requester_user_id => $input->{requester_user_id},
         subject_user_id   => $input->{subject_user_id},
@@ -170,60 +259,76 @@ sub _insert_request ( $self, $input ) {
         finished_at       => undef,
         manifest          => {},
     };
-    if ( $self->functions ) {
-        $self->functions->row( 'privacy_insert',
-            { source => 'ExportRequest', row => $request } );
-    }
-    else {
-        $self->schema->resultset('ExportRequest')->create($request);
-    }
-    $self->_record_event_and_audit(
-        {
-            action      => 'privacy.export_requested',
-            actor_id    => $request->{requester_user_id},
-            request     => $request,
-            payload     => _request_payload($request),
-            metadata    => {},
-            created_at  => $request->{created_at},
-            idempotency => $request->{export_request_id},
-        }
-    );
+}
 
-    return $request;
+sub _requested_record ($request) {
+    return {
+        action      => 'privacy.export_requested',
+        actor_id    => $request->{requester_user_id},
+        request     => $request,
+        payload     => _request_payload($request),
+        metadata    => {},
+        created_at  => $request->{created_at},
+        idempotency => $request->{export_request_id},
+    };
 }
 
 # A pending request left by a writer that stopped before its event: the
 # event and audit row are written now, once.
 sub _finish_leftover_export ( $self, $existing ) {
-    my $recorded = $self->recorder->event_recorded( join q{:},
-        'privacy.export_requested', $existing->{export_request_id} );
+    my $recorded = $self->recorder->event_recorded( _requested_key($existing) );
     if ( !$recorded ) {
-        $self->_record_event_and_audit(
-            {
-                action     => 'privacy.export_requested',
-                actor_id   => $existing->{requester_user_id},
-                created_at => $existing->{created_at}
-                  || $self->clock->now_iso8601,
-                idempotency => $existing->{export_request_id},
-                metadata    => {},
-                payload     => _request_payload($existing),
-                request     => $existing,
-            }
-        );
+        $self->_record_event_and_audit( $self->_leftover_record($existing) );
     }
 
     return $existing;
 }
 
+async sub _finish_leftover_export_p ( $self, $db, $existing, $context ) {
+    my $recorded = await $db->row_p( 'ops_event_recorded',
+        { key => _requested_key($existing) }, $context );
+    if ( !$recorded->{recorded} ) {
+        await $self->_record_event_and_audit_p( $db,
+            $self->_leftover_record($existing), $context );
+    }
+
+    return $existing;
+}
+
+sub _requested_key ($existing) {
+    return join q{:}, 'privacy.export_requested',
+      $existing->{export_request_id};
+}
+
+sub _leftover_record ( $self, $existing ) {
+    return {
+        %{ _requested_record($existing) },
+        created_at => $existing->{created_at} || $self->clock->now_iso8601,
+    };
+}
+
 sub request_user_export ( $self, $user_id ) {
-    return $self->create_request(
-        {
-            requester_user_id => $user_id,
-            subject_user_id   => $user_id,
-            export_type       => 'user_data',
-            format            => $FORMAT_JSON,
-        }
-    );
+    return $self->create_request( _user_export($user_id) );
+}
+
+# request_user_export on the worker's pooled asynchronous connections.
+async sub request_user_export_p (
+    $self, $user_id,
+    $context = undef,
+    $functions = undef
+  )
+{
+    return await $self->create_request_p( _user_export($user_id), $context,
+        $functions );
+}
+
+sub _user_export ($user_id) {
+    return {
+        requester_user_id => $user_id,
+        subject_user_id   => $user_id,
+        export_type       => 'user_data',
+        format            => $FORMAT_JSON,
+    };
 }
 
 sub complete_user_export ( $self, $export_request_id, $parts = undef ) {
@@ -234,17 +339,36 @@ sub complete_user_export ( $self, $export_request_id, $parts = undef ) {
     );
 }
 
+# complete_user_export in one transaction on the worker's pooled
+# asynchronous connections, or in a savepoint of the transaction $functions
+# belongs to: the request, its parts in one statement
+# (api.portability_export_parts), the stored bundle and its events.
+async sub complete_user_export_p (
+    $self, $export_request_id,
+    $parts     = undef,
+    $context   = undef,
+    $functions = undef
+  )
+{
+    $functions //= $self->functions;
+    return $self->complete_user_export( $export_request_id, $parts )
+      if !$functions;
+
+    return await $functions->transaction_p(
+        async sub ($scope) {
+            return await $self->_complete_request_p( $scope,
+                $export_request_id, $parts, $context );
+        },
+        $context
+    );
+}
+
 sub _complete_request ( $self, $export_request_id, $parts ) {
     my $request;
     if ( $self->functions ) {
-        my $row = $self->functions->row(
-            'privacy_find',
-            {
-                source   => 'ExportRequest',
-                id       => $export_request_id,
-                lock_row => 0
-            }
-        );
+        my $row =
+          $self->functions->row( 'privacy_find',
+            _find_request($export_request_id) );
         $request = $row ? $row->{document} : undef;
     }
     else {
@@ -254,63 +378,117 @@ sub _complete_request ( $self, $export_request_id, $parts ) {
     if ( !$request ) {
         return undef;
     }
-    if ( ( column_of( $request, 'status' ) || q{} ) eq $STATUS_COMPLETED ) {
+    if ( _is_completed($request) ) {
         return _request_hash($request);
     }
 
     my $subject_user_id = column_of( $request, 'subject_user_id' );
-    my $bundle =
-        $parts
-      ? $self->build_user_bundle( $subject_user_id, $parts )
-      : $self->_build_user_bundle_from_storage($subject_user_id);
+    my $done            = $self->_completion( $request,
+          $parts
+        ? $self->build_user_bundle( $subject_user_id, $parts )
+        : $self->_build_user_bundle_from_storage($subject_user_id) );
+    if ( $self->functions ) {
+        $self->functions->row( 'privacy_update',
+            _update_request( $export_request_id, $done->{changes} ) );
+        @{$request}{ keys %{ $done->{changes} } } =
+          values %{ $done->{changes} };
+    }
+    else { $request->update( $done->{changes} ); }
+    $self->_record_event_and_audit( _completed_record( $request, $done ) );
 
-    # The stored manifest is what the member downloads: the summary and every
-    # part. Six named parts were kept and the rest counted only, so an export
-    # said "5 direct messages" and held none of them.
+    return _completed_hash( $request, $done );
+}
+
+async sub _complete_request_p ( $self, $db, $export_request_id, $parts,
+    $context )
+{
+    my $row = await $db->row_p( 'privacy_find',
+        _find_request($export_request_id), $context );
+    my $request = $row ? $row->{document} : undef;
+    return undef                   if !$request;
+    return _request_hash($request) if _is_completed($request);
+
+    my $subject_user_id = column_of( $request, 'subject_user_id' );
+    $parts //= (
+        await $db->row_p(
+            'portability_export_parts', { user_id => $subject_user_id },
+            $context
+        )
+    )->{document};
+    my $done = $self->_completion( $request,
+        $self->build_user_bundle( $subject_user_id, $parts ) );
+    await $db->row_p( 'privacy_update',
+        _update_request( $export_request_id, $done->{changes} ), $context );
+    @{$request}{ keys %{ $done->{changes} } } = values %{ $done->{changes} };
+    await $self->_record_event_and_audit_p( $db,
+        _completed_record( $request, $done ), $context );
+
+    return _completed_hash( $request, $done );
+}
+
+sub _find_request ($export_request_id) {
+    return {
+        source   => 'ExportRequest',
+        id       => $export_request_id,
+        lock_row => 0
+    };
+}
+
+sub _update_request ( $export_request_id, $changes ) {
+    return {
+        source  => 'ExportRequest',
+        id      => $export_request_id,
+        changes => $changes
+    };
+}
+
+sub _is_completed ($request) {
+    return ( column_of( $request, 'status' ) || q{} ) eq $STATUS_COMPLETED;
+}
+
+# The stored manifest is what the member downloads: the summary and every
+# part. Six named parts were kept and the rest counted only, so an export
+# said "5 direct messages" and held none of them.
+sub _completion ( $self, $request, $bundle ) {
     my $summary  = $self->safe_manifest($bundle);
     my $stored   = { %{$bundle}, %{$summary} };
     my $finished = $self->clock->now_iso8601;
-    my $changes  = {
-        status      => $STATUS_COMPLETED,
-        finished_at => $finished,
-        manifest    => $stored
+    return {
+        changes => {
+            status      => $STATUS_COMPLETED,
+            finished_at => $finished,
+            manifest    => $stored
+        },
+        finished => $finished,
+        stored   => $stored,
+        summary  => $summary,
     };
-    if ( $self->functions ) {
-        $self->functions->row(
-            'privacy_update',
-            {
-                source  => 'ExportRequest',
-                id      => $export_request_id,
-                changes => $changes
-            }
-        );
-        @{$request}{ keys %{$changes} } = values %{$changes};
-    }
-    else { $request->update($changes); }
+}
 
+sub _completed_record ( $request, $done ) {
     my $request_id = column_of( $request, 'export_request_id' );
-    $self->_record_event_and_audit(
-        {
-            action   => 'privacy.export_completed',
-            actor_id => column_of( $request, 'requester_user_id' ),
-            request  => $request,
-            payload  => {
-                %{ _request_payload($request) }, manifest => $summary,
-            },
-            metadata => {
-                export_request_id => $request_id,
-                counts            => $summary->{counts},
-            },
-            created_at  => $finished,
-            idempotency => $request_id . q{:completed},
-        }
-    );
+    return {
+        action   => 'privacy.export_completed',
+        actor_id => column_of( $request, 'requester_user_id' ),
+        request  => $request,
+        payload  => {
+            %{ _request_payload($request) }, manifest => $done->{summary},
+        },
+        metadata => {
+            export_request_id => $request_id,
+            counts            => $done->{summary}{counts},
+        },
+        created_at  => $done->{finished},
+        idempotency => $request_id . q{:completed},
+    };
+}
 
+sub _completed_hash ( $request, $done ) {
     return {
         %{ _request_hash($request) },
         status      => $STATUS_COMPLETED,
-        finished_at => $finished,
-        manifest    => $stored,
+        finished_at => $done->{finished},
+        manifest    => $done->{stored},
     };
 }
 
@@ -476,9 +654,31 @@ sub _safe_profile ( $self, $subject_user_id ) {
 }
 
 sub _record_event_and_audit ( $self, $input ) {
+    my ( $event, $audit ) = $self->_event_and_audit($input);
+    $self->recorder->record_event( %{$event} );
+    $self->recorder->record_audit( %{$audit} );
+
+    return;
+}
+
+# The event and the audit entry on the transaction's own call layer.
+async sub _record_event_and_audit_p ( $self, $db, $input, $context ) {
+    my ( $event, $audit ) = $self->_event_and_audit($input);
+    my $recorder = GPForum::Infrastructure::EventRecorder->new(
+        id_service => $self->id_service,
+        schema     => $self->schema,
+        functions  => $db,
+    );
+    await $recorder->record_event_p( $event, $context );
+    await $recorder->record_audit_p( $audit, $context );
+
+    return;
+}
+
+sub _event_and_audit ( $self, $input ) {
     my $request        = $input->{request};
     my $correlation_id = $self->id_service->uuid;
-    $self->recorder->record_event(
+    my %event          = (
         event_type        => $input->{action},
         aggregate_type    => $USER_AGGREGATE,
         aggregate_id      => column_of( $request, 'subject_user_id' ),
@@ -491,8 +691,7 @@ sub _record_event_and_audit ( $self, $input ) {
         payload   => $input->{payload} || {},
         timestamp => $input->{created_at},
     );
-
-    $self->recorder->record_audit(
+    my %audit = (
         action         => $input->{action},
         schema_version => $SCHEMA_VERSION,
         actor_id       => $input->{actor_id},
@@ -508,7 +707,7 @@ sub _record_event_and_audit ( $self, $input ) {
         created_at => $input->{created_at},
     );
 
-    return;
+    return ( \%event, \%audit );
 }
 
 sub _request_payload ($request) {
@@ -602,6 +801,25 @@ format, C<status>, C<created_at>, C<finished_at>, C<manifest>): the pending
 one for the same requester, subject, type and format if there is one, a new
 one otherwise. A collision on the minted id is retried once; losing the race
 to another pending request returns that one.
+
+=head2 create_request_p
+
+L</create_request> as a promise, with an optional query context and an
+optional transaction call layer last: one transaction on the worker's
+pooled asynchronous connections, or a savepoint of the given one.
+
+=head2 request_user_export_p
+
+L</request_user_export> as a promise, with an optional query context and an
+optional transaction call layer last.
+
+=head2 complete_user_export_p
+
+L</complete_user_export> as a promise, with an optional query context and
+an optional transaction call layer last: the request, the parts read in one
+statement, the stored bundle and its event and audit entry commit together
+on the pooled asynchronous connections, in a savepoint of the given
+transaction when there is one.
 
 =head2 request_user_export
 

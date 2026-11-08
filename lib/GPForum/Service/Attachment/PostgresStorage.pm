@@ -3,7 +3,7 @@
 
 package GPForum::Service::Attachment::PostgresStorage;
 
-use Mojo::Base 'GPForum::Base', -signatures;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
 use v5.40;
 use GPForum::Infrastructure::FileAsset;
 
@@ -34,14 +34,8 @@ sub write_object ( $self, $key, $bytes ) {
 sub write_source ( $self, $key, $source, $checksum ) {
     return $self->schema->txn_do(
         sub {
-            my $created = $self->functions->row(
-                'attachment_object_create',
-                {
-                    object_key => $key,
-                    byte_size  => $source->size,
-                    checksum   => $checksum,
-                }
-            );
+            my $created = $self->functions->row( 'attachment_object_create',
+                _object_values( $key, $source, $checksum ) );
             if ( $created->{created} ) {
                 my $number = 0;
                 my $digest = Digest::SHA->new($SHA_BITS);
@@ -50,22 +44,96 @@ sub write_source ( $self, $key, $source, $checksum ) {
                         $digest->add($chunk);
                         $self->functions->row(
                             'attachment_object_chunk_insert',
-                            {
-                                object_key   => $key,
-                                chunk_number => $number++,
-                                data         => $chunk,
-                            }
+                            _chunk_values( $key, $number++, $chunk )
                         );
                     }
                 );
-                croak 'upload changed while being stored'
-                  if $digest->hexdigest ne $checksum;
+                _same_digest( $digest, $checksum );
                 $self->functions->row( 'attachment_object_finish',
                     { object_key => $key } );
             }
-            return { ok => 1, object_key => $key, byte_size => $source->size };
+            return _written( $key, $source );
         }
     );
+}
+
+# write_object on the worker's pooled asynchronous connections.
+async sub write_object_p (
+    $self, $key, $bytes,
+    $context = undef,
+    $functions = undef
+  )
+{
+    my $source =
+      GPForum::Service::Attachment::Source->from_input( { content => $bytes } );
+    return await $self->write_source_p( $key, $source, $source->checksum,
+        $context, $functions );
+}
+
+# write_source on the worker's pooled asynchronous connections: in the
+# transaction $functions belongs to when one is given, else in one of its
+# own. The chunks are read one at a time between the inserts.
+async sub write_source_p (
+    $self, $key, $source, $checksum,
+    $context = undef,
+    $functions = undef
+  )
+{
+    return await $self->_transaction_p(
+        $functions,
+        $context,
+        async sub ($scope) {
+            my $created =
+              await $scope->row_p( 'attachment_object_create',
+                _object_values( $key, $source, $checksum ), $context );
+            if ( $created->{created} ) {
+                my ( $number, $offset ) = ( 0, 0 );
+                my $digest = Digest::SHA->new($SHA_BITS);
+                while ( $offset < $source->size ) {
+                    my $chunk = $source->chunk($offset);
+                    $digest->add($chunk);
+                    await $scope->row_p( 'attachment_object_chunk_insert',
+                        _chunk_values( $key, $number++, $chunk ), $context );
+                    $offset += length $chunk;
+                }
+                _same_digest( $digest, $checksum );
+                await $scope->row_p( 'attachment_object_finish',
+                    { object_key => $key }, $context );
+            }
+            return _written( $key, $source );
+        }
+    );
+}
+
+sub _transaction_p ( $self, $functions, $context, $work ) {
+    return $work->($functions) if $functions;
+    return $self->functions->transaction_p( $work, $context );
+}
+
+sub _object_values ( $key, $source, $checksum ) {
+    return {
+        object_key => $key,
+        byte_size  => $source->size,
+        checksum   => $checksum,
+    };
+}
+
+sub _chunk_values ( $key, $number, $chunk ) {
+    return {
+        object_key   => $key,
+        chunk_number => $number,
+        data         => $chunk,
+    };
+}
+
+sub _same_digest ( $digest, $checksum ) {
+    croak 'upload changed while being stored'
+      if $digest->hexdigest ne $checksum;
+    return;
+}
+
+sub _written ( $key, $source ) {
+    return { ok => 1, object_key => $key, byte_size => $source->size };
 }
 
 sub object_info ( $self, $key ) {
@@ -75,6 +143,17 @@ sub object_info ( $self, $key ) {
 
 sub exists_object ( $self, $key ) {
     return 1 if $self->object_info($key);
+    return $self->legacy ? $self->legacy->exists_object($key) : 0;
+}
+
+# exists_object on the worker's pooled asynchronous connections, or on the
+# transaction $functions belongs to.
+async sub exists_object_p ( $self, $key, $context = undef, $functions = undef )
+{
+    $functions //= $self->functions;
+    return 1
+      if await $functions->row_p( 'attachment_object_info',
+        { object_key => $key }, $context );
     return $self->legacy ? $self->legacy->exists_object($key) : 0;
 }
 
@@ -131,7 +210,7 @@ sub read_object_p ( $self, $key, $maximum, $context = undef ) {
         { object_key => $key }, $context )->then(
         sub ($info) {
             if ( !$info ) {
-                return GPForum::Infrastructure::AsyncWork->shared->run_p(
+                return GPForum::Infrastructure::AsyncWork->shared->cpu_p(
                     sub {
                         my $bytes =
                             $self->legacy
@@ -188,9 +267,25 @@ sub read_chunk_p ( $self, $key, $number, $context = undef ) {
 sub delete_object ( $self, $key ) {
     my $result = $self->functions->row( 'attachment_object_delete',
         { object_key => $key } );
+    return $self->_deleted( $key, $result );
+}
 
-    # Explicit deletion/erasure also removes a retained legacy copy. Import
-    # itself never deletes files; a user deletion must not resurrect one.
+# delete_object on the worker's pooled asynchronous connections, or on the
+# transaction $functions belongs to.
+async sub delete_object_p ( $self, $key, $context = undef, $functions = undef )
+{
+    $functions //= $self->functions;
+    return $self->_deleted(
+        $key,
+        await $functions->row_p(
+            'attachment_object_delete', { object_key => $key }, $context
+        )
+    );
+}
+
+# Explicit deletion/erasure also removes a retained legacy copy. Import
+# itself never deletes files; a user deletion must not resurrect one.
+sub _deleted ( $self, $key, $result ) {
     if ( $self->legacy ) { $self->legacy->delete_object($key); }
     return { ok => 1, object_key => $key, deleted => $result->{deleted} };
 }
@@ -275,6 +370,31 @@ Returns a promise for one immutable database chunk on a separately leased connec
 =head2 asset_for_p
 
 Loads object metadata with native SQL and constructs the streaming asset in the caller. A legacy filesystem object uses asynchronous bounded file reads.
+
+=head2 write_object_p
+
+L</write_object> as a promise, with an optional query context and an
+optional transaction call layer last: the object's rows are written on the
+worker's pooled asynchronous connections, in that transaction when one is
+given.
+
+=head2 write_source_p
+
+L</write_source> as a promise, with an optional query context and an
+optional transaction call layer last. The source is read one chunk at a time
+between the inserts, and its digest is checked before the object is
+finished.
+
+=head2 exists_object_p
+
+L</exists_object> as a promise, with an optional query context and an
+optional transaction call layer last.
+
+=head2 delete_object_p
+
+L</delete_object> as a promise, with an optional query context and an
+optional transaction call layer last. A retained legacy copy is removed as
+well.
 
 =head1 DIAGNOSTICS
 

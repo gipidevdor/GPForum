@@ -728,10 +728,14 @@ to filesystem assets only.
 HTTP dispatch prepares configuration, validates the server session and resolves
 viewer state asynchronously. Controllers use Mojolicious async/await; native
 readers cover category and thread listings, search, thread extras, permission
-checks, rate limits and session reads. Other persistent service operations run
-as complete workflows in the bounded subprocess executor. A synchronous
-PostgreSQL checkout in the HTTP request context is rejected before it can
-block the reactor. CLI service interfaces remain synchronous.
+checks, rate limits and session reads, and every other service a request
+reaches answers the same way: reads and writes run on the worker's pooled
+connections, never in a forked child (ADR 0176). A service without an
+asynchronous twin fails its request instead of forking. CPU-bound work
+(Argon2, images, rendering, antivirus) runs in a child that cannot open
+PostgreSQL. A synchronous PostgreSQL checkout in the HTTP request context is
+rejected before it can block the reactor. CLI service interfaces remain
+synchronous.
 
 Native transactions own one leased connection through BEGIN, savepoints,
 COMMIT and rollback. They never borrow another workflow's transaction or
@@ -739,8 +743,8 @@ replay an ambiguous commit. Query cancellation (SQLSTATE 57014) rejects even
 when DBD::Pg reports a zero-row result. Prepared-plan retirement runs
 asynchronously; DBI statement destruction does not send synchronous DEALLOCATE.
 Connection handshakes use libpq asynchronous connect and reactor readiness
-watchers with a five-second deadline. OS hostname resolution runs in the
-bounded Mojolicious subprocess executor; numeric addresses are pinned while
+watchers with a five-second deadline. OS hostname resolution runs in a
+CPU-lane child that cannot open PostgreSQL; numeric addresses are pinned while
 retaining the configured hostname for TLS. A libpq service definition with a
 hidden hostname uses an isolated connection probe before the owned connection.
 
@@ -763,12 +767,12 @@ with the next read admitted only after the preceding write drains. Database
 media retains its existing one-chunk bound. HEAD, ranges and conditional
 responses keep their semantics.
 
-Each worker admits two concurrent native SQL operations, one subprocess and
-four outbound integration HTTP requests. Executor queues hold at most 256
+Each worker admits two concurrent native SQL operations, one CPU-lane child
+and four outbound integration HTTP requests. Executor queues hold at most 256
 additional operations for at most fifteen seconds. Saturation rejects work.
-The database budget remains four connections per web worker: two native query
-leases, one shared listener and one isolated workflow connection, plus the
-existing operational headroom. Worker startup warms the two query leases
+The database budget is three connections per web worker: two native query
+leases and one shared listener, plus the existing operational headroom. No
+child of a web worker opens a connection (ADR 0176). Worker startup warms the two query leases
 asynchronously after fork. No operator setting is required for this behavior.
 
 `Mojo::File` itself is synchronous. Small metadata operations and Mojolicious's

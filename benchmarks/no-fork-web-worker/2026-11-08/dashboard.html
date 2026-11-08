@@ -1,0 +1,454 @@
+<meta name="dash-one-writer">
+<style>
+  #dash-root .bx { display: flex; flex-direction: column; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); }
+  #dash-root .bx-head { display: flex; flex-direction: column; gap: var(--cds-gap-sm); max-width: 62rem; }
+  #dash-root .bx-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  #dash-root .bx-lede { font-size: var(--cds-font-size-body); color: var(--color-fg); margin: 0; max-width: 65ch; line-height: 1.55; }
+  #dash-root .bx-lede b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  #dash-root .bx-meta { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0; }
+  #dash-root .bx-meta code { font-size: inherit; }
+  #dash-root .bx-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--cds-gap-md); }
+  #dash-root .bx-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-xs); min-width: 0; }
+  #dash-root .bx-tile-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  #dash-root .bx-tile-value { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; min-height: 1.3em; }
+  #dash-root .bx-tile-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  #dash-root .bx-good { color: var(--color-ok); }
+  #dash-root .bx-flat { color: var(--color-fg); }
+  #dash-root .bx-section { display: flex; flex-direction: column; gap: var(--cds-gap-md); }
+  #dash-root .bx-h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  #dash-root .bx-p { margin: 0; max-width: 70ch; color: var(--color-fg-muted); line-height: 1.5; }
+  #dash-root .bx-p b { color: var(--color-fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #dash-root .bx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+  #dash-root .bx-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+  #dash-root .bx-card h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  #dash-root .bx-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0; }
+  #dash-root .bx-chart { position: relative; min-height: 220px; }
+  #dash-root .bx-chart.bx-tall { min-height: 300px; }
+  #dash-root .bx-chart.bx-small { min-height: 150px; }
+  #dash-root .bx-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  #dash-root .bx-legend span { display: inline-flex; align-items: center; gap: var(--cds-gap-xs); }
+  #dash-root .bx-sw { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
+  #dash-root .bx-sw-old { background: var(--cds-chart-muted); }
+  #dash-root .bx-sw-new { background: var(--bx-accent, currentColor); }
+  #dash-root .bx-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; font-variant-numeric: tabular-nums; z-index: 2; }
+  #dash-root .bx-tip .bx-tip-h { color: var(--cds-text-secondary); }
+  #dash-root .bx-tablebox { max-height: 28rem; overflow: auto; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+  #dash-root .bx-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  #dash-root .bx-table th, #dash-root .bx-table td { padding: var(--cds-pad-xs) var(--cds-pad-sm); text-align: right; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  #dash-root .bx-table th:first-child, #dash-root .bx-table td:first-child { text-align: left; }
+  #dash-root .bx-table th { position: sticky; top: 0; background: var(--color-panel); font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); }
+  #dash-root .bx-table th button { all: unset; cursor: pointer; }
+  #dash-root .bx-table th button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  #dash-root .bx-tools { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; }
+  #dash-root .bx-search { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); min-width: 0; flex: 1 1 12rem; max-width: 20rem; }
+  #dash-root .bx-details { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); max-width: 70ch; }
+  #dash-root .bx-details summary { cursor: pointer; color: var(--color-fg); font-size: var(--cds-font-size-body); }
+  #dash-root .bx-details dl { display: grid; grid-template-columns: minmax(7rem, max-content) 1fr; gap: var(--cds-gap-xs) var(--cds-gap-md); margin: var(--cds-gap-md) 0 0; }
+  #dash-root .bx-details dt { color: var(--color-fg); }
+  #dash-root .bx-details dd { margin: 0; line-height: 1.5; }
+  #dash-root svg text { fill: var(--color-fg-muted); font-size: var(--cds-font-size-caption); font-family: var(--font-anthropic-sans); }
+  #dash-root [data-dash-source-state=empty] { color: transparent; }
+  #dash-root [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  @media (max-width: 34rem) { #dash-root .bx-hide-narrow { display: none; } }
+</style>
+
+<div class="bx" lang="it">
+  <header class="bx-head">
+    <h1 class="bx-title" id="titolo">GPForum: il worker web non fa più fork per PostgreSQL</h1>
+    <p class="bx-lede">Con 1 client il p95 scende in media del <b data-draw="d-low1" data-source="summary_low" data-field="change_pct" data-where="clients=1">—</b>, con 10 client del <b data-draw="d-low10" data-source="summary_low" data-field="change_pct" data-where="clients=10">—</b>. Con 50 e 100 client le quattro pagine in lettura restano in pari: il tempo CPU per richiesta cambia del <b data-draw="d-cpu" data-source="cpu_summary" data-field="change_pct" data-where="page=tutte">—</b>, e la differenza di throughput che si vede segue l'ordine dei giri, non la versione.</p>
+    <p class="bx-meta">Confronto tra <code>bb8918e</code> (prima) e <code>70a3f7e</code> (dopo, commit “Never fork a web worker to reach PostgreSQL”). Misure dell'8 novembre 2026 su un Mac, con <code>script/benchmark-http-complete</code>: 2 worker Hypnotoad, PostgreSQL 18 temporaneo, 103 utenti, 240 thread, 4.800 post.</p>
+  </header>
+
+  <div class="bx-tiles">
+    <div class="bx-tile">
+      <span class="bx-tile-label">p95 con 1 client, media geometrica</span>
+      <span class="bx-tile-value bx-good" data-draw="d-tile-low1" data-source="summary_low" data-field="change_pct" data-where="clients=1">—</span>
+      <span class="bx-tile-note"><span data-draw="d-tile-low1-n" data-source="summary_low" data-field="scenarios" data-where="clients=1">—</span> scenari, <span data-draw="d-tile-low1-e" data-source="summary_low" data-field="errors" data-where="clients=1">—</span> errori</span>
+    </div>
+    <div class="bx-tile">
+      <span class="bx-tile-label">p95 con 10 client, media geometrica</span>
+      <span class="bx-tile-value bx-good" data-draw="d-tile-low10" data-source="summary_low" data-field="change_pct" data-where="clients=10">—</span>
+      <span class="bx-tile-note"><span data-draw="d-tile-low10-n" data-source="summary_low" data-field="scenarios" data-where="clients=10">—</span> scenari, <span data-draw="d-tile-low10-e" data-source="summary_low" data-field="errors" data-where="clients=10">—</span> errori</span>
+    </div>
+    <div class="bx-tile">
+      <span class="bx-tile-label">CPU per richiesta, quattro pagine in lettura</span>
+      <span class="bx-tile-value bx-flat" data-draw="d-tile-cpu" data-source="cpu_summary" data-field="change_pct" data-where="page=tutte">—</span>
+      <span class="bx-tile-note"><span data-draw="d-tile-cpu-old" data-source="cpu_summary" data-field="old_ms" data-where="page=tutte">—</span> ms prima, <span data-draw="d-tile-cpu-new" data-source="cpu_summary" data-field="new_ms" data-where="page=tutte">—</span> ms dopo</span>
+    </div>
+    <div class="bx-tile">
+      <span class="bx-tile-label">Sessioni PostgreSQL, pagina notifiche</span>
+      <span class="bx-tile-value bx-good"><span data-draw="d-tile-sess-old" data-source="sessions" data-field="sessions_old" data-where="page=/notifications">—</span> → <span data-draw="d-tile-sess-new" data-source="sessions" data-field="sessions_new" data-where="page=/notifications">—</span></span>
+      <span class="bx-tile-note">aperte durante il giro di prova della pagina</span>
+    </div>
+  </div>
+
+  <section class="bx-section" id="pochi-client">
+    <h2 class="bx-h2">Con 1 e 10 client quasi tutto accelera</h2>
+    <p class="bx-p">Ogni punto è uno scenario: il suo p95 dopo, diviso il p95 prima. A sinistra della linea è più veloce. I guadagni maggiori sono sulle pagine e i percorsi che prima passavano dal processo figlio: sicurezza dell'account, ruoli utente, firma, messaggi, bozze, impostazioni.</p>
+    <div class="bx-card">
+      <h3>p95 dopo / p95 prima, per scenario</h3>
+      <p class="bx-note">Scala logaritmica. Media di 2 ripetizioni per lato.</p>
+      <div class="bx-legend"><span><i class="bx-sw bx-sw-new"></i>più veloce</span><span><i class="bx-sw bx-sw-old"></i>più lento</span></div>
+      <div class="bx-chart" data-draw="c-ratio" data-source="low"></div>
+    </div>
+    <div class="bx-card">
+      <h3>Tutti gli scenari</h3>
+      <div class="bx-tools">
+        <input class="bx-search" id="cerca-scenario" type="search" placeholder="Cerca uno scenario" aria-label="Cerca uno scenario">
+      </div>
+      <div class="bx-tablebox">
+        <table class="bx-table" data-source="low" data-row-key="scenario,clients">
+          <thead>
+            <tr>
+              <th data-field="scenario"><button type="button" data-sort="scenario">Scenario</button></th>
+              <th data-field="clients"><button type="button" data-sort="clients">Client</button></th>
+              <th data-field="p95_old"><button type="button" data-sort="p95_old">p95 prima, ms</button></th>
+              <th data-field="p95_new"><button type="button" data-sort="p95_new">p95 dopo, ms</button></th>
+              <th data-field="ratio"><button type="button" data-sort="ratio">Dopo / prima</button></th>
+              <th class="bx-hide-narrow" data-field="requests_old"><button type="button" data-sort="requests_old">Richieste prima</button></th>
+              <th class="bx-hide-narrow" data-field="requests_new"><button type="button" data-sort="requests_new">Richieste dopo</button></th>
+            </tr>
+          </thead>
+          <tbody data-draw="t-low"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="bx-section" id="molti-client">
+    <h2 class="bx-h2">Con 50 e 100 client conta l'ordine dei giri</h2>
+    <p class="bx-p">A queste concorrenze il benchmark prova solo home, thread, ricerca e notifiche, tutte in lettura. Otto giri da 3 secondi, nell'ordine prima, dopo, dopo, prima, dopo, prima, dopo, prima. La stessa versione cambia da un giro all'altro più della differenza media tra le versioni (<b data-draw="d-high100" data-source="high_summary" data-field="change_pct" data-where="page=tutte&amp;clients=100">—</b> richieste con 100 client).</p>
+    <div class="bx-legend"><span><i class="bx-sw bx-sw-old"></i>bb8918e (prima)</span><span><i class="bx-sw bx-sw-new"></i>70a3f7e (dopo)</span></div>
+    <div class="bx-grid">
+      <div class="bx-card"><h3>Home, richieste completate per giro</h3><p class="bx-note">Barre piene: 100 client. Contorno: 50 client.</p><div class="bx-chart bx-small" data-draw="c-high" data-page="home" data-source="high"></div></div>
+      <div class="bx-card"><h3>Thread, richieste completate per giro</h3><p class="bx-note">Barre piene: 100 client. Contorno: 50 client.</p><div class="bx-chart bx-small" data-draw="c-high" data-page="thread" data-source="high"></div></div>
+      <div class="bx-card"><h3>Ricerca, richieste completate per giro</h3><p class="bx-note">Barre piene: 100 client. Contorno: 50 client.</p><div class="bx-chart bx-small" data-draw="c-high" data-page="search" data-source="high"></div></div>
+      <div class="bx-card"><h3>Notifiche, richieste completate per giro</h3><p class="bx-note">Barre piene: 100 client. Contorno: 50 client.</p><div class="bx-chart bx-small" data-draw="c-high" data-page="notifications" data-source="high"></div></div>
+    </div>
+  </section>
+
+  <section class="bx-section" id="cpu">
+    <h2 class="bx-h2">Il costo CPU di una richiesta non cambia</h2>
+    <p class="bx-p">Per separare il codice dal rumore della macchina ho misurato il tempo CPU del processo, figli compresi, su 200 richieste per pagina, due volte per versione in ordine alternato. Se la nuova versione fosse più lenta sotto carico, qui costerebbe di più: invece costa uguale o meno.</p>
+    <div class="bx-card">
+      <h3>Tempo CPU per richiesta, ms</h3>
+      <p class="bx-note">Barra: media dei 2 passaggi. Punti: i singoli passaggi.</p>
+      <div class="bx-chart" data-draw="c-cpu" data-source="cpu"></div>
+    </div>
+  </section>
+
+  <section class="bx-section" id="sessioni">
+    <h2 class="bx-h2">Meno connessioni aperte</h2>
+    <p class="bx-p">Sessioni PostgreSQL aperte durante login, 3 richieste di riscaldamento e 30 misurate, una pagina alla volta. Il numero non cresce più con le richieste: sono le due connessioni del pool, il listener e una all'avvio. La connessione in meno è quella del vecchio esecutore isolato.</p>
+    <div class="bx-grid">
+      <div class="bx-card">
+        <h3>Sessioni per pagina</h3>
+        <table class="bx-table" data-source="sessions" data-row-key="page">
+          <thead><tr><th data-field="page">Pagina</th><th data-field="sessions_old">Prima</th><th data-field="sessions_new">Dopo</th></tr></thead>
+          <tbody data-draw="t-sessions"></tbody>
+        </table>
+      </div>
+      <div class="bx-card">
+        <h3>Ripetizioni mirate</h3>
+        <p class="bx-note">Due scenari sembravano peggiorati nel primo giro. Ripetuti da soli, alternando le versioni, non lo sono.</p>
+        <table class="bx-table" data-source="repeat_summary" data-row-key="scenario,version">
+          <thead><tr><th data-field="scenario">Scenario</th><th data-field="version">Versione</th><th data-field="requests">Richieste medie</th><th data-field="p95">p95 medio, ms</th></tr></thead>
+          <tbody data-draw="t-repeats"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <details class="bx-details" id="metodo">
+    <summary>Come sono state fatte le misure</summary>
+    <dl>
+      <dt>p95</dt><dd>Il tempo entro cui risponde il 95% delle richieste di uno scenario.</dd>
+      <dt>Media geometrica</dt><dd>La media dei rapporti dopo/prima su tutti gli scenari, così uno scenario lento non pesa più di uno veloce.</dd>
+      <dt>1 e 10 client</dt><dd>Profilo full, 2 ripetizioni da 1 secondo per scenario, una versione dopo l'altra.</dd>
+      <dt>50 e 100 client</dt><dd>Profilo full, 8 giri da 3 secondi in ordine alternato.</dd>
+      <dt>CPU per richiesta</dt><dd>Applicazione caricata in processo con Test::Mojo, utente autenticato, tempo utente più sistema del processo e dei figli diviso per 200 richieste.</dd>
+      <dt>Sessioni</dt><dd>Il contatore <code>sessions</code> di <code>pg_stat_database</code>, azzerato prima di ogni pagina.</dd>
+      <dt>Non coperto</dt><dd>Scritture con 50 e 100 client, che il benchmark non prova. Un server Linux dedicato: il Mac eseguiva anche altre sessioni.</dd>
+    </dl>
+  </details>
+</div>
+
+<script>
+  window.bx = window.bx || {};
+  bx.pct = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + '%';
+  bx.ms = (v) => v.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  bx.int = (v) => v.toLocaleString('it-IT');
+  bx.ratio = (v) => v.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  bx.accent = () => dash.colors[0];
+  bx.tip = (box) => {
+    let t = box.querySelector('.bx-tip');
+    if (!t) { t = document.createElement('div'); t.className = 'bx-tip'; t.hidden = true; box.appendChild(t); }
+    return t;
+  };
+  bx.showTip = (box, tip, lines, x, y) => {
+    tip.replaceChildren(...lines.map((l, i) => { const d = document.createElement('div'); if (i === 0) d.className = 'bx-tip-h'; d.textContent = l; return d; }));
+    tip.hidden = false;
+    const w = tip.offsetWidth, h = tip.offsetHeight, bw = box.clientWidth;
+    tip.style.left = Math.max(0, Math.min(bw - w, x + 12)) + 'px';
+    tip.style.top = Math.max(0, y - h - 8) + 'px';
+  };
+  bx.clear = (el) => { el.replaceChildren(); };
+  bx.dashOrValue = (el, id, fn) => {
+    const d = dash.data(id);
+    if (d.status !== 'ok') { el.textContent = '—'; return; }
+    el.textContent = fn(d.data);
+  };
+  document.querySelectorAll('#dash-root .bx').forEach((r) => r.style.setProperty('--bx-accent', dash.colors[0]));
+</script>
+
+<script>
+  dash.calc('summary_low', {
+    inputs: ['low'],
+    title: 'p95 medio per numero di client',
+    description: 'Media geometrica del rapporto p95 dopo / prima per ogni livello di client, come variazione percentuale.',
+    fn: (low) => [1, 10].map((clients) => {
+      const rows = low.filter((r) => r.clients === clients);
+      const geo = Math.exp(rows.reduce((s, r) => s + Math.log(r.p95_new / r.p95_old), 0) / rows.length);
+      return { clients, scenarios: rows.length, errors: rows.reduce((s, r) => s + r.errors, 0), change_pct: Math.round((geo - 1) * 1000) / 10 };
+    }),
+  });
+  dash.calc('cpu_summary', {
+    inputs: ['cpu'],
+    title: 'CPU per richiesta, media',
+    description: 'Media dei passaggi per pagina e versione, e variazione dopo / prima; la riga tutte somma le quattro pagine.',
+    fn: (cpu) => {
+      const mean = (rows) => rows.reduce((s, r) => s + r.cpu_ms, 0) / rows.length;
+      const pages = [...new Set(cpu.map((r) => r.page))];
+      const out = pages.map((page) => {
+        const o = mean(cpu.filter((r) => r.page === page && r.version === 'bb8918e'));
+        const n = mean(cpu.filter((r) => r.page === page && r.version === '70a3f7e'));
+        return { page, old_ms: Math.round(o * 100) / 100, new_ms: Math.round(n * 100) / 100, change_pct: Math.round((n / o - 1) * 1000) / 10 };
+      });
+      const o = out.reduce((s, r) => s + r.old_ms, 0), n = out.reduce((s, r) => s + r.new_ms, 0);
+      out.push({ page: 'tutte', old_ms: Math.round(o * 100) / 100, new_ms: Math.round(n * 100) / 100, change_pct: Math.round((n / o - 1) * 1000) / 10 });
+      return out;
+    },
+  });
+  dash.calc('high_summary', {
+    inputs: ['high'],
+    title: 'Richieste medie a 50 e 100 client',
+    description: 'Media delle richieste completate per pagina e client sui 4 giri di ogni versione; la riga tutte è la media geometrica dei rapporti.',
+    fn: (high) => {
+      const out = [];
+      for (const clients of [50, 100]) {
+        const pages = [...new Set(high.map((r) => r.page))];
+        let logs = 0;
+        for (const page of pages) {
+          const pick = (v) => high.filter((r) => r.page === page && r.clients === clients && r.version === v);
+          const avg = (rows) => rows.reduce((s, r) => s + r.requests, 0) / rows.length;
+          const o = avg(pick('bb8918e')), n = avg(pick('70a3f7e'));
+          logs += Math.log(n / o);
+          out.push({ page, clients, old: Math.round(o), new: Math.round(n), change_pct: Math.round((n / o - 1) * 1000) / 10 });
+        }
+        out.push({ page: 'tutte', clients, old: null, new: null, change_pct: Math.round((Math.exp(logs / pages.length) - 1) * 1000) / 10 });
+      }
+      return out;
+    },
+  });
+  dash.calc('repeat_summary', {
+    inputs: ['repeats'],
+    title: 'Ripetizioni mirate, medie',
+    description: 'Media delle richieste e del p95 per scenario e versione nelle ripetizioni alternate.',
+    fn: (repeats) => {
+      const out = [];
+      for (const scenario of [...new Set(repeats.map((r) => r.scenario))]) {
+        for (const version of ['bb8918e', '70a3f7e']) {
+          const rows = repeats.filter((r) => r.scenario === scenario && r.version === version);
+          out.push({ scenario, version, requests: Math.round(rows.reduce((s, r) => s + r.requests, 0) / rows.length), p95: Math.round(rows.reduce((s, r) => s + r.p95, 0) / rows.length * 100) / 100 });
+        }
+      }
+      return out;
+    },
+  });
+</script>
+
+<script>
+  const pctFrom = (id, key, val) => (el) => bx.dashOrValue(el, id, (rows) => {
+    const r = rows.find((x) => String(x[key]) === String(val));
+    return r ? bx.pct(r.change_pct) : '—';
+  });
+  const fieldFrom = (id, key, val, field, fmt) => (el) => bx.dashOrValue(el, id, (rows) => {
+    const r = rows.find((x) => String(x[key]) === String(val));
+    return r ? fmt(r[field]) : '—';
+  });
+  dash.draw('d-low1', pctFrom('summary_low', 'clients', 1));
+  dash.draw('d-low10', pctFrom('summary_low', 'clients', 10));
+  dash.draw('d-tile-low1', pctFrom('summary_low', 'clients', 1));
+  dash.draw('d-tile-low10', pctFrom('summary_low', 'clients', 10));
+  dash.draw('d-tile-low1-n', fieldFrom('summary_low', 'clients', 1, 'scenarios', bx.int));
+  dash.draw('d-tile-low10-n', fieldFrom('summary_low', 'clients', 10, 'scenarios', bx.int));
+  dash.draw('d-tile-low1-e', fieldFrom('summary_low', 'clients', 1, 'errors', bx.int));
+  dash.draw('d-tile-low10-e', fieldFrom('summary_low', 'clients', 10, 'errors', bx.int));
+  dash.draw('d-cpu', pctFrom('cpu_summary', 'page', 'tutte'));
+  dash.draw('d-tile-cpu', pctFrom('cpu_summary', 'page', 'tutte'));
+  dash.draw('d-tile-cpu-old', fieldFrom('cpu_summary', 'page', 'tutte', 'old_ms', bx.ms));
+  dash.draw('d-tile-cpu-new', fieldFrom('cpu_summary', 'page', 'tutte', 'new_ms', bx.ms));
+  dash.draw('d-tile-sess-old', fieldFrom('sessions', 'page', '/notifications', 'sessions_old', bx.int));
+  dash.draw('d-tile-sess-new', fieldFrom('sessions', 'page', '/notifications', 'sessions_new', bx.int));
+  dash.draw('d-high100', (el) => bx.dashOrValue(el, 'high_summary', (rows) => {
+    const r = rows.find((x) => x.page === 'tutte' && x.clients === 100);
+    return r ? bx.pct(r.change_pct) : '—';
+  }));
+</script>
+
+<script>
+  // Ratio strip: one dot per scenario, two rows (1 and 10 clients), log scale around 1.
+  dash.draw('c-ratio', (el) => {
+    const d = dash.data('low');
+    el.replaceChildren();
+    if (d.status !== 'ok') return;
+    const rows = d.data;
+    const W = Math.max(280, el.clientWidth), H = 220;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Rapporto p95 dopo / prima per scenario');
+    const probe = svg.append('text').text('10 client');
+    const left = probe.node().getComputedTextLength() + 12; probe.remove();
+    const lo = Math.min(0.1, d3.min(rows, (r) => r.ratio)), hi = Math.max(3, d3.max(rows, (r) => r.ratio));
+    const x = d3.scaleLog([lo, hi], [left, W - 12]);
+    const y = d3.scaleBand([1, 10], [16, H - 32]).padding(0.25);
+    const ticks = [0.1, 0.2, 0.5, 1, 2].filter((t) => t >= lo && t <= hi);
+    svg.append('g').selectAll('line').data(ticks).join('line')
+      .attr('x1', (t) => x(t)).attr('x2', (t) => x(t)).attr('y1', 8).attr('y2', H - 28)
+      .attr('stroke', (t) => (t === 1 ? 'var(--cds-chart-reference)' : 'var(--cds-chart-grid)'))
+      .attr('stroke-width', (t) => (t === 1 ? 1.5 : 1));
+    svg.append('g').selectAll('text').data(ticks).join('text')
+      .attr('x', (t) => x(t)).attr('y', H - 10).attr('text-anchor', 'middle').text((t) => '×' + bx.ratio(t));
+    svg.append('g').selectAll('text').data([1, 10]).join('text')
+      .attr('x', 0).attr('y', (c) => y(c) + y.bandwidth() / 2).attr('dy', '0.35em').text((c) => `${c} client`);
+    const jitter = (s) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 997; return (h / 997 - 0.5) * y.bandwidth() * 0.8; };
+    const tip = bx.tip(el);
+    svg.append('g').selectAll('circle').data(rows).join('circle')
+      .attr('cx', (r) => x(r.ratio)).attr('cy', (r) => y(r.clients) + y.bandwidth() / 2 + jitter(r.scenario))
+      .attr('r', 4.5)
+      .attr('fill', (r) => (r.ratio <= 1 ? dash.colors[0] : 'var(--cds-chart-muted)'))
+      .attr('fill-opacity', 0.8)
+      .on('pointerenter pointermove', (ev, r) => {
+        const [px, py] = d3.pointer(ev, el);
+        bx.showTip(el, tip, [r.scenario + ', ' + r.clients + ' client', 'p95 ' + bx.ms(r.p95_old) + ' → ' + bx.ms(r.p95_new) + ' ms', 'dopo / prima ×' + bx.ratio(r.ratio)], px, py);
+      })
+      .on('pointerleave', () => { tip.hidden = true; });
+  });
+
+  // Scenario table with sort and search.
+  window.bxLowSort = window.bxLowSort || { key: 'ratio', dir: 1 };
+  dash.draw('t-low', (tbody) => {
+    const d = dash.data('low');
+    tbody.replaceChildren();
+    if (d.status !== 'ok') return;
+    const q = (document.getElementById('cerca-scenario')?.value || '').trim().toLowerCase();
+    const { key, dir } = window.bxLowSort;
+    const rows = d.data.filter((r) => !q || r.scenario.toLowerCase().includes(q))
+      .sort((a, b) => (typeof a[key] === 'number' ? a[key] - b[key] : String(a[key]).localeCompare(String(b[key]))) * dir);
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      const cells = [r.scenario, String(r.clients), bx.ms(r.p95_old), bx.ms(r.p95_new), '×' + bx.ratio(r.ratio), bx.int(r.requests_old), bx.int(r.requests_new)];
+      cells.forEach((c, i) => { const td = document.createElement('td'); td.textContent = c; if (i >= 5) td.className = 'bx-hide-narrow'; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    }
+  });
+  document.querySelectorAll('#dash-root #cerca-scenario').forEach((input) => input.addEventListener('input', () => dash.draw('t-low')));
+  document.querySelectorAll('#dash-root [data-sort]').forEach((btn) => btn.addEventListener('click', () => {
+    const key = btn.dataset.sort;
+    window.bxLowSort = { key, dir: window.bxLowSort.key === key ? -window.bxLowSort.dir : 1 };
+    document.querySelectorAll('#dash-root [data-sort]').forEach((b) => b.closest('th')?.setAttribute('aria-sort', b.dataset.sort === key ? (window.bxLowSort.dir > 0 ? 'ascending' : 'descending') : 'none'));
+    dash.draw('t-low');
+  }));
+
+  // Requests per run at 50 and 100 clients, one small chart per page.
+  dash.draw('c-high', (el) => {
+    const d = dash.data('high');
+    el.replaceChildren();
+    if (d.status !== 'ok') return;
+    const page = el.dataset.page;
+    const rows = d.data.filter((r) => r.page === page);
+    const W = Math.max(240, el.clientWidth), H = 150;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Richieste per giro, ' + page);
+    const ymax = d3.max(rows, (r) => r.requests) * 1.08;
+    const probe = svg.append('text').text(bx.int(Math.round(ymax)));
+    const left = probe.node().getComputedTextLength() + 8; probe.remove();
+    const x = d3.scaleBand([1, 2, 3, 4, 5, 6, 7, 8], [left, W - 4]).padding(0.22);
+    const sub = d3.scaleBand([50, 100], [0, x.bandwidth()]).padding(0.12);
+    const y = d3.scaleLinear([0, ymax], [H - 22, 6]);
+    const yt = y.ticks(3);
+    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', left).attr('x2', W - 4).attr('y1', (t) => y(t)).attr('y2', (t) => y(t)).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(yt).join('text').attr('x', left - 6).attr('y', (t) => y(t)).attr('dy', '0.35em').attr('text-anchor', 'end').text((t) => bx.int(t));
+    svg.append('g').selectAll('text').data(x.domain()).join('text').attr('x', (g) => x(g) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle').text((g) => g);
+    const tip = bx.tip(el);
+    const color = (r) => (r.version === '70a3f7e' ? dash.colors[0] : 'var(--cds-chart-muted)');
+    svg.append('g').selectAll('rect').data(rows).join('rect')
+      .attr('x', (r) => x(r.run) + sub(r.clients)).attr('width', sub.bandwidth())
+      .attr('y', (r) => y(r.requests)).attr('height', (r) => y(0) - y(r.requests)).attr('rx', 2)
+      .attr('fill', (r) => (r.clients === 100 ? color(r) : 'transparent'))
+      .attr('stroke', color).attr('stroke-width', 1.5)
+      .on('pointerenter pointermove', (ev, r) => {
+        const [px, py] = d3.pointer(ev, el);
+        bx.showTip(el, tip, ['Giro ' + r.run + ', ' + r.version, r.clients + ' client: ' + bx.int(r.requests) + ' richieste', 'p95 ' + bx.ms(r.p95) + ' ms'], px, py);
+      })
+      .on('pointerleave', () => { tip.hidden = true; });
+  });
+
+  // CPU per request: grouped bars with pass dots.
+  dash.draw('c-cpu', (el) => {
+    const d = dash.data('cpu');
+    el.replaceChildren();
+    if (d.status !== 'ok') return;
+    const rows = d.data;
+    const pages = [...new Set(rows.map((r) => r.page))];
+    const label = { home: 'Home', thread: 'Thread', search: 'Ricerca', notifications: 'Notifiche' };
+    const W = Math.max(280, el.clientWidth), H = 220;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Tempo CPU per richiesta');
+    const ymax = d3.max(rows, (r) => r.cpu_ms) * 1.1;
+    const y = d3.scaleLinear([0, ymax], [H - 24, 8]);
+    const probe = svg.append('text').text(bx.int(Math.round(ymax)) + ' ms');
+    const left = probe.node().getComputedTextLength() + 8; probe.remove();
+    const x = d3.scaleBand(pages, [left, W - 4]).padding(0.28);
+    const vx = d3.scaleBand(['bb8918e', '70a3f7e'], [0, x.bandwidth()]).padding(0.1);
+    const yt = y.ticks(4);
+    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', left).attr('x2', W - 4).attr('y1', (t) => y(t)).attr('y2', (t) => y(t)).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(yt).join('text').attr('x', left - 6).attr('y', (t) => y(t)).attr('dy', '0.35em').attr('text-anchor', 'end').text((t) => bx.int(t) + ' ms');
+    svg.append('g').selectAll('text').data(pages).join('text').attr('x', (p) => x(p) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle').text((p) => label[p] || p);
+    const groups = d3.groups(rows, (r) => r.page, (r) => r.version).flatMap(([page, vs]) => vs.map(([version, rs]) => ({ page, version, mean: d3.mean(rs, (r) => r.cpu_ms), rs })));
+    const color = (v) => (v === '70a3f7e' ? dash.colors[0] : 'var(--cds-chart-muted)');
+    const tip = bx.tip(el);
+    svg.append('g').selectAll('rect').data(groups).join('rect')
+      .attr('x', (g) => x(g.page) + vx(g.version)).attr('width', Math.min(32, vx.bandwidth()))
+      .attr('y', (g) => y(g.mean)).attr('height', (g) => y(0) - y(g.mean)).attr('rx', 2)
+      .attr('fill', (g) => color(g.version)).attr('fill-opacity', 0.85)
+      .on('pointerenter pointermove', (ev, g) => {
+        const [px, py] = d3.pointer(ev, el);
+        bx.showTip(el, tip, [(label[g.page] || g.page) + ', ' + g.version, 'media ' + bx.ms(g.mean) + ' ms', 'passaggi ' + g.rs.map((r) => bx.ms(r.cpu_ms)).join(' e ') + ' ms'], px, py);
+      })
+      .on('pointerleave', () => { tip.hidden = true; });
+    svg.append('g').selectAll('circle').data(rows).join('circle')
+      .attr('cx', (r) => x(r.page) + vx(r.version) + Math.min(32, vx.bandwidth()) / 2)
+      .attr('cy', (r) => y(r.cpu_ms)).attr('r', 3)
+      .attr('fill', 'var(--color-bg)').attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.2)
+      .attr('pointer-events', 'none');
+  });
+
+  dash.draw('t-sessions', (tbody) => {
+    const d = dash.data('sessions');
+    tbody.replaceChildren();
+    if (d.status !== 'ok') return;
+    for (const r of d.data) {
+      const tr = document.createElement('tr');
+      [r.page, bx.int(r.sessions_old), bx.int(r.sessions_new)].forEach((c) => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    }
+  });
+
+  dash.draw('t-repeats', (tbody) => {
+    const d = dash.data('repeat_summary');
+    tbody.replaceChildren();
+    if (d.status !== 'ok') return;
+    for (const r of d.data) {
+      const tr = document.createElement('tr');
+      [r.scenario, r.version, bx.int(r.requests), bx.ms(r.p95)].forEach((c) => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    }
+  });
+</script>

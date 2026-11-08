@@ -49,6 +49,11 @@ baseline. Archived timings retain their recorded source checkpoints and
 transport; they do not measure the Mojo::Pg migration. The historical ORM
 comparison harness and models now live in the maintainer fixture boundary.
 
+[No fork from web workers, 8 November 2026](no-fork-web-worker/2026-11-08/README.md)
+compares the commit that removed the subprocess fallback from `call_p` with its
+parent: p95 latency, CPU per request and PostgreSQL sessions, at 1 to 100
+clients.
+
 [Perl core review, sixth iteration, 6 November 2026](perl-review/2026-11-06-iteration-6/README.md)
 records a single scan for unread-post summaries and deferred mathematical state
 allocation on rendered-body cache hits. Its isolated final comparison covers

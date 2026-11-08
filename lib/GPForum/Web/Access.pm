@@ -118,6 +118,16 @@ sub safe_return_to ( $self, $return_to ) {
 
 # A write result's status, or the empty string: the access answers read
 # it one way.
+# The page size from the URL: a number from 1 to the ceiling, which is
+# also the default; anything else -- text, which PostgreSQL would refuse as
+# an integer, a negative, or a size past the ceiling -- is the default.
+sub page_limit_within ( $, $requested, $ceiling ) {
+    return $ceiling
+      if !defined $requested || $requested !~ /\A [1-9][[:digit:]]{0,5} \z/amsx;
+
+    return $requested > $ceiling ? $ceiling : 0 + $requested;
+}
+
 sub status_of ( $, $result ) {
     return $result->{status} || q{};
 }
@@ -190,6 +200,11 @@ Returns the cookie-session user id through L<GPForum::Web::Responder>.
 =head2 wants_json
 
 Returns true when the request prefers JSON.
+
+=head2 page_limit_within
+
+Takes a requested page size and a ceiling. Returns the size when it is a
+whole number from 1 to the ceiling, and the ceiling otherwise.
 
 =head2 status_of
 

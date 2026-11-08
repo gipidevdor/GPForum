@@ -296,6 +296,37 @@ subtest 'password reset web flow is csrf protected and rate limited' => sub {
         }
     );
     $limited->status_is($HTTP_TOO_MANY);
+
+    # Past the account's own budget the answer is the same 202 and nothing
+    # reaches the store: no token is rotated and no mail is queued.
+    my $quiet_store = GPForum::Test::IdentityStore->new;
+    my $quiet       = Test::Mojo->new('GPForum');
+    $quiet->app->helper( gp_identity_store => sub { return $quiet_store; } );
+    $quiet->app->helper(
+        gp_command_idempotency => sub {
+            return GPForum::Test::CommandIdempotency->new;
+        }
+    );
+    $quiet->app->helper(
+        gp_rate_limiter => sub {
+            return GPForum::Test::AccountResetLimiter->new;
+        }
+    );
+    $quiet->get_ok('/password/reset');
+    $quiet->post_ok(
+        '/password/reset' => form => {
+            command_id => _command_id($quiet),
+            csrf_token => _csrf_token($quiet),
+            identifier => 'gpforum_contributors@example.test',
+        }
+    );
+    $quiet->status_is($HTTP_ACCEPTED);
+    $quiet->text_is( 'h1' => 'Password reset requested' );
+    ok(
+        !grep( { $_->{method} eq 'request_password_reset' }
+            @{ $quiet_store->lifecycle_calls } ),
+        'an account past its reset budget is not sent another reset'
+    );
 };
 
 subtest 'authenticated password and email changes require csrf' => sub {
@@ -600,6 +631,19 @@ sub _install_session_state_routes {
     );
 
     return;
+}
+
+1;
+
+package GPForum::Test::AccountResetLimiter;
+
+use v5.40;
+
+sub new ($class) { return bless {}, $class; }
+
+sub check ( $, $input ) {
+    return {
+        ok => $input->{action} eq 'identity.password_reset_account' ? 0 : 1 };
 }
 
 1;

@@ -760,7 +760,7 @@ const my %FUNCTION => (
         json       => ['document']
     },
     privacy_revoke_user => {
-        version    => 32,
+        version    => 34,
         parameters => [ source => 'text', user_id => 'uuid', at => 'text' ]
     },
     privacy_may_export => { version => 2, parameters => [ user_id => 'uuid' ] },
@@ -782,7 +782,7 @@ const my %FUNCTION => (
         parameters => [ channel => 'text', payloads => 'text[]' ],
     },
     ops_retention_purge => {
-        version    => 4,
+        version    => 6,
         parameters =>
           [ source => 'text', cutoff => 'timestamptz', row_limit => 'integer' ]
     },
@@ -1617,7 +1617,7 @@ const my %FUNCTION => (
         json => ['result']
     },
     notification_mark_all_read => {
-        version    => 2,
+        version    => 4,
         parameters => [
             user_id        => 'uuid',
             filter_sources => 'boolean',

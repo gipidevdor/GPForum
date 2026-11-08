@@ -19,6 +19,7 @@ has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
 const my $DAY_SECONDS                => 86_400;
 const my $OUTBOX_RETENTION_DAYS      => 7;
 const my $DEAD_LETTER_RETENTION_DAYS => 30;
+const my $REPLAY_MARGIN_DAYS         => 7;
 const my $MAX_BATCHES                => 50;
 const my $LTE                        => q{<} . q{=};
 const my $NOT_EQ                     => q{!} . q{=};
@@ -83,8 +84,12 @@ sub purge_outbox_messages ( $self, $input ) {
     );
 }
 
+# Aged dead letters, then the handler claims no replay can need any more:
+# a completed claim outlives the dead-letter retention by a week, so a
+# replay still skips every handler that already ran. The claims are kept
+# by the function layer only; without it there are none to purge.
 sub purge_dead_letters ( $self, $input ) {
-    return $self->_purge(
+    my $letters = $self->_purge(
         {
             input        => $input,
             order_column => 'last_failed_at',
@@ -92,6 +97,11 @@ sub purge_dead_letters ( $self, $input ) {
             resultset    => 'DeadLetter',
         }
     );
+    return $letters if !$self->functions;
+
+    my $claims =
+      $self->_purge( { input => $input, resultset => 'EventIdempotencyKey' } );
+    return { %{$letters}, event_keys_deleted => $claims->{deleted} };
 }
 
 # The rows a spec selects, deleted in bounded batches until one comes back
@@ -125,6 +135,14 @@ sub _purge_batch ( $self, $spec ) {
             $cutoff =
               $self->_cutoff_iso( $spec->{input}, 'dead_letter_retention_days',
                 $DEAD_LETTER_RETENTION_DAYS );
+        }
+        if ( $spec->{resultset} eq 'EventIdempotencyKey' ) {
+            $cutoff = $self->_days_ago(
+                (
+                    ( $spec->{input} // {} )->{dead_letter_retention_days}
+                      || $DEAD_LETTER_RETENTION_DAYS
+                ) + $REPLAY_MARGIN_DAYS
+            );
         }
         return $self->functions->row(
             'ops_retention_purge',
@@ -173,11 +191,10 @@ sub _dead_letter_query ( $self, $input ) {
 }
 
 sub _cutoff_iso ( $self, $input, $field, $default_days ) {
-    my $days = $default_days;
-    if ( $input && $input->{$field} ) {
-        $days = $input->{$field};
-    }
+    return $self->_days_ago( ( $input && $input->{$field} ) || $default_days );
+}
 
+sub _days_ago ( $self, $days ) {
     return strftime '%Y-%m-%dT%H:%M:%SZ',
       gmtime( $self->clock->now_epoch - ( $days * $DAY_SECONDS ) );
 }
@@ -230,7 +247,9 @@ Deletes C<done> or C<cancelled> outbox rows older than the retention cutoff.
 
 =head2 purge_dead_letters
 
-Deletes dead-letter rows older than the retention cutoff.
+Deletes aged dead-letter rows, then, through the function layer, the
+completed handler claims older than the dead-letter retention and a week.
+Returns the dead-letter purge result with C<event_keys_deleted>.
 
 =head1 DIAGNOSTICS
 

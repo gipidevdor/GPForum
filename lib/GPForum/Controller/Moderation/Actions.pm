@@ -8,274 +8,67 @@ use v5.40;
 
 our $VERSION = '0.001';
 
-async sub hide_post ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
-        await $self->await_p(
-            $self->authorized_write_user_id(
-                $access->post_resource, $access->moderate_action
-            )
-        )
-    );
-    if ( !$user_id ) {
-        return;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'hide_post',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            post_id       => $self->param('post_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->post_hidden_status,
-            )
-        )
-    );
+sub hide_post ($self) {
+    return $self->_moderate( post => 'hide_post', 'post_hidden' );
 }
 
-async sub restore_post ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
-        await $self->await_p(
-            $self->authorized_write_user_id(
-                $access->post_resource, $access->moderate_action
-            )
-        )
-    );
-    if ( !$user_id ) {
-        return;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'restore_post',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            post_id       => $self->param('post_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->post_restored_status,
-            )
-        )
-    );
+sub restore_post ($self) {
+    return $self->_moderate( post => 'restore_post', 'post_restored' );
 }
 
-async sub lock_thread ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
-        await $self->await_p(
-            $self->authorized_write_user_id(
-                $access->thread_resource, $access->moderate_action
-            )
-        )
-    );
-    if ( !$user_id ) {
-        return;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'lock_thread',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            thread_id     => $self->param('thread_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->thread_locked_status,
-            )
-        )
-    );
+sub lock_thread ($self) {
+    return $self->_moderate( thread => 'lock_thread', 'thread_locked' );
 }
 
-async sub unlock_thread ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
-        await $self->await_p(
-            $self->authorized_write_user_id(
-                $access->thread_resource, $access->moderate_action
-            )
-        )
-    );
-    if ( !$user_id ) {
-        return;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'unlock_thread',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            thread_id     => $self->param('thread_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->thread_unlocked_status,
-            )
-        )
-    );
+sub unlock_thread ($self) {
+    return $self->_moderate( thread => 'unlock_thread', 'thread_unlocked' );
 }
 
-async sub pin_thread ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
-        await $self->await_p(
-            $self->authorized_write_user_id(
-                $access->thread_resource, $access->moderate_action
-            )
-        )
-    );
-    if ( !$user_id ) {
-        return;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'pin_thread',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            thread_id     => $self->param('thread_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->thread_pinned_status,
-            )
-        )
-    );
+sub pin_thread ($self) {
+    return $self->_moderate( thread => 'pin_thread', 'thread_pinned' );
 }
 
-async sub unpin_thread ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
-        await $self->await_p(
-            $self->authorized_write_user_id(
-                $access->thread_resource, $access->moderate_action
-            )
-        )
-    );
-    if ( !$user_id ) {
-        return;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'unpin_thread',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            thread_id     => $self->param('thread_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->thread_unpinned_status,
-            )
-        )
-    );
+sub unpin_thread ($self) {
+    return $self->_moderate( thread => 'unpin_thread', 'thread_unpinned' );
 }
 
-async sub hide_thread ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
-        await $self->await_p(
-            $self->authorized_write_user_id(
-                $access->thread_resource, $access->moderate_action
-            )
-        )
-    );
-    if ( !$user_id ) {
-        return;
-    }
-
-    return (
-        await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'hide_thread',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            thread_id     => $self->param('thread_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->thread_hidden_status,
-            )
-        )
-    );
+sub hide_thread ($self) {
+    return $self->_moderate( thread => 'hide_thread', 'thread_hidden' );
 }
 
-async sub restore_thread ($self) {
-    my $access  = $self->moderation_access;
-    my $user_id = (
+sub restore_thread ($self) {
+    return $self->_moderate( thread => 'restore_thread', 'thread_restored' );
+}
+
+# One moderation write on a post or a thread: the moderator's right on that
+# kind of resource, the workflow's method with the target's id from the
+# route, and the status a success answers.
+async sub _moderate ( $self, $kind, $method, $outcome ) {
+    my $access   = $self->moderation_access;
+    my $resource = "${kind}_resource";
+    my $status   = "${outcome}_status";
+    my $user_id  = (
         await $self->await_p(
             $self->authorized_write_user_id(
-                $access->thread_resource, $access->moderate_action
+                $access->$resource, $access->moderate_action
             )
         )
     );
-    if ( !$user_id ) {
-        return;
-    }
+    return if !$user_id;
 
+    my $result = await $self->call_p(
+        $self->gp_moderation_workflow,
+        $method,
+        {
+            actor_user_id => $user_id,
+            command_id    => $self->command_id_param,
+            "${kind}_id"  => $self->param("${kind}_id"),
+            reason        => $self->reason_param,
+        }
+    );
     return (
         await $self->await_p(
-            $self->moderation_write_response(
-                (
-                    await $self->call_p(
-                        $self->gp_moderation_workflow,
-                        'restore_thread',
-                        {
-                            actor_user_id => $user_id,
-                            command_id    => $self->command_id_param,
-                            thread_id     => $self->param('thread_id'),
-                            reason        => $self->reason_param,
-                        }
-                    )
-                ),
-                $access->thread_restored_status,
-            )
+            $self->moderation_write_response( $result, $access->$status )
         )
     );
 }

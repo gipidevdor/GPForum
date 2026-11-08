@@ -164,7 +164,10 @@ async sub confirm ($self) {
 async sub renew ($self) {
     my $user_id = ( await $self->await_p( $self->_writer ) ) or return;
     return $self->respond_p(
-        $self->_service_p( renew => $user_id, $self->param('code') ),
+        $self->_service_p(
+            renew => $user_id,
+            $self->param('password'), $self->param('code')
+        ),
         async sub ($result) {
             return (
                 await $self->await_p(
@@ -196,7 +199,7 @@ sub _service_p ( $self, $method, @arguments ) {
     return $self->call_p( $self->gp_second_factor, $method, @arguments )
       ->catch(
         sub ($error) {
-            $self->app->log->error("second factor $method failed");
+            $self->app->log->error("second factor $method failed: $error");
             return undef;
         }
       );
@@ -288,7 +291,7 @@ Version 0.001.
 ADR 0142. The page where a member sets up two-step sign-in: the password
 begins it, the QR code (drawn on the server) or the typed key adds it to an
 authenticator app, and the first code turns it on and shows ten recovery
-codes once. While it is on, a code renews the recovery codes, and the
+codes once. While it is on, the password with a code renews the recovery codes, and the
 password with a code or a recovery code turns it off. Every write takes the
 CSRF token and the C<identity.second_factor_settings> rate limit; no page
 is stored by a cache.
@@ -315,7 +318,7 @@ other sessions and shows the recovery codes.
 
 =head2 renew
 
-Takes a C<code> and shows ten new recovery codes.
+Takes C<password> and a C<code> and shows ten new recovery codes.
 
 =head2 disable
 

@@ -23,6 +23,8 @@ const my $LOGIN_LIMIT               => 10;
 const my $ACCOUNT_LOGIN_LIMIT       => 20;
 const my $LOGOUT_LIMIT              => 20;
 const my $PASSWORD_LIMIT            => 5;
+const my $ACCOUNT_RESET_LIMIT       => 3;
+const my $HOUR_WINDOW               => 3_600;
 const my $REGISTER_LIMIT            => 5;
 const my $SETTINGS_LIMIT            => 60;
 const my $SHORT_WINDOW              => 60;
@@ -42,7 +44,10 @@ const my %ACTION_LIMIT_FOR => (
     'identity.member_relation' => $SETTINGS_LIMIT,
     'identity.password_change' => $PASSWORD_LIMIT,
     'identity.password_reset'  => $PASSWORD_LIMIT,
-    'identity.register'        => $REGISTER_LIMIT,
+
+    # Per account, whichever address asks: three reset mails an hour.
+    'identity.password_reset_account' => $ACCOUNT_RESET_LIMIT,
+    'identity.register'               => $REGISTER_LIMIT,
 
     # ADR 0142: the second step of a sign-in, per address, and the
     # two-step settings, per member; the codes are counted in the database
@@ -77,6 +82,9 @@ sub write_window_for ( $, $action ) {
     }
     if ( $action eq 'identity.settings' ) {
         return $SHORT_WINDOW;
+    }
+    if ( $action eq 'identity.password_reset_account' ) {
+        return $HOUR_WINDOW;
     }
 
     return $LONG_WINDOW;

@@ -41,8 +41,11 @@ const my %WRITE_FLASH => (
     $STATUS_EXPORT_REQUESTED   => 'privacy.export_requested',
 );
 
+# Text or a negative reached PostgreSQL as the LIMIT and answered 500, and
+# a huge number listed every row: the size is bounded as the consoles' is.
 sub page_limit ( $, $requested ) {
-    return $requested || $DEFAULT_LIMIT;
+    return GPForum::Web::Access->page_limit_within( $requested,
+        $DEFAULT_LIMIT );
 }
 
 sub write_action {
@@ -204,7 +207,7 @@ Returns the C<privacy_http> rate-limit arguments.
 
 =head2 page_limit
 
-Returns a requested page size or the default of 25.
+Returns a requested page size from 1 to 25, or 25 for anything else.
 
 =head2 manage_action
 

@@ -40,6 +40,19 @@ const my $RESULT_TYPE_CHANGED =>
 my $PREPARED_NOW = { pg_prepare_now => 1 };
 const my $POSTGRESQL_DSN => qr/\A dbi:Pg:/imsx;
 
+# PostgreSQL ended the session before it ran the call: a FATAL terminating
+# it -- an administrator, a shutdown, the idle session timeout; DBD::Pg
+# reports these as 08000 with the server's message -- or there was no
+# connection to send it on, a lost one already known or none made at all.
+# A call is tried again on a new connection only then. A connection lost
+# while the call was running is not: an autocommit write may have committed
+# before its answer was lost, and would be made twice.
+const my $TERMINATED    => qr/FATAL: \s+ terminating \s+ connection/msx;
+const my $NO_CONNECTION => qr/no \s+ connection \s+ to \s+ the \s+ server/msx;
+const my $NOT_CONNECTED => qr/connection \s+ to \s+ server .*? failed/msx;
+const my $SESSION_ENDED_BEFORE_CALL =>
+  qr/$TERMINATED | $NO_CONNECTION | $NOT_CONNECTED/msx;
+
 # A uuid as PostgreSQL writes one and GPForum::Infrastructure::Id makes one.
 const my $WRITTEN_UUID => GPForum::Infrastructure::Id->uuid_pattern;
 
@@ -423,7 +436,8 @@ sub _on_pg ( $self, $storage, $entry, $bound, $attempt = 0 ) {
         return $self->_on_pg( $storage, $entry, $bound, 1 )
           if !$attempt && $db->dbh->{AutoCommit};
     }
-    if (  !$attempt
+    if (   !$attempt
+        && "$failure" =~ $SESSION_ENDED_BEFORE_CALL
         && $db->dbh->{AutoCommit}
         && !$storage->transaction_depth
         && !$storage->connected )
@@ -723,13 +737,12 @@ None known.
 The layer runs on DBIx::Class's connection until the last area has moved
 (ADR 0126, section 8); it owns no connection of its own yet.
 
-Outside a transaction, a call whose connection was lost is run once more on
-a new connection, as DBIx::Class's C<dbh_do> runs it. A function that
-writes in autocommit -- C<session_validate>'s touch, C<ops_rate_limit_check>'s
-increment, C<session_create> -- can so be written twice when the connection
-goes between the server's commit and the client's read of it. The commands
-are idempotent through C<command_log>; these are not, and the window is a
-connection lost at that instant. Kept for parity with C<dbh_do>.
+Outside a transaction, a call whose session PostgreSQL ended before running
+it -- an administrator, a shutdown, the idle session timeout -- is run once
+more on a new connection. A connection lost while the call ran is not: an
+autocommit write (C<session_create>, C<ops_rate_limit_check>'s increment)
+may have committed before its answer was lost, so the error is raised and
+the caller decides.
 
 =head1 AUTHOR
 

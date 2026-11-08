@@ -596,6 +596,21 @@ sub _assert_outbox_dispatch {
     ok( -s "$file", 'the line is written out as the batch ends' );
     close $handle or croak "close $file: $ERRNO";
 
+    # A single pass that gave a message up reports it to the timer's unit.
+    for my $dead ( 0, 1 ) {
+        my $gave_up = _run(
+            GPForum::Command::OutboxDispatch->new(
+                dispatcher => GPForum::Test::DeadLetteringDispatcher->new(
+                    dead_lettered => $dead
+                ),
+                sleeper => sub { return; },
+            ),
+            '--once', '--json'
+        );
+        is( $gave_up->{status}, $dead,
+            "--once exits $dead after $dead dead letters" );
+    }
+
     return;
 }
 
@@ -904,6 +919,25 @@ sub _partition_dbh {
             notifications_default => 1,
         }
     );
+}
+
+1;
+
+package GPForum::Test::DeadLetteringDispatcher;
+
+use v5.40;
+
+sub new ( $class, %fields ) { return bless {%fields}, $class; }
+
+sub dispatch_pending ( $self, $limit ) {
+    return {
+        acknowledged  => 0,
+        dead_lettered => $self->{dead_lettered},
+        dispatched    => 0,
+        failed        => 0,
+        lost          => 0,
+        selected      => $self->{dead_lettered},
+    };
 }
 
 1;

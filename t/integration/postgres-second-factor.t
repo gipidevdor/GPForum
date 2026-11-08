@@ -261,12 +261,19 @@ subtest 'ten wrong codes in an hour lock sign-in and tell the member' => sub {
 subtest 'the recovery codes are renewed with a fresh code' => sub {
     my $csrf = _csrf($browser);
     $browser->post_ok( '/settings/security/renew' => form =>
-          { csrf_token => $csrf, code => _spent_code() } )
-      ->status_is( $HTTP_FOUND, 'a spent code renews nothing' );
-    _rewind($member);
-    $browser->post_ok( '/settings/security/renew' => form =>
           { csrf_token => $csrf, code => _code( $secret, 0 ) } )
-      ->status_is($HTTP_OK);
+      ->status_is( $HTTP_FOUND, 'without the password nothing is renewed' );
+    $browser->post_ok( '/settings/security/renew' => form =>
+          { csrf_token => $csrf, password => $PASSWORD, code => _spent_code() }
+    )->status_is( $HTTP_FOUND, 'a spent code renews nothing' );
+    _rewind($member);
+    $browser->post_ok(
+        '/settings/security/renew' => form => {
+            csrf_token => $csrf,
+            password   => $PASSWORD,
+            code       => _code( $secret, 0 )
+        }
+    )->status_is($HTTP_OK);
     my @renewed = _codes_shown($browser);
     is( scalar @renewed,         $CODES, 'ten new codes' );
     is( _recovery_left($member), $CODES, 'the old ones are gone' );

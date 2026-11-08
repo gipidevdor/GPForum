@@ -34,6 +34,11 @@ sub gp_attachment_store ($self) {
     return $self;
 }
 
+# The store's storage, which scheduled_jobs hands it: unused here.
+sub storage ( $self, @ ) {
+    return $self;
+}
+
 sub gp_schema ($self) {
     return undef;
 }

@@ -105,3 +105,14 @@ out cannot free the claim another worker took over. `ops_event_claim_v2` stays
 for workers from the preceding release. `2051_suspension_rank.sql` adds the
 check of whom an actor may suspend: staff only by an administrator, never
 oneself. Refresh runtime API grants and restart the web service and workers.
+
+## Review follow-ups
+
+`2052_review_followups.sql` makes "mark all read" mark what the badge counts,
+direct-message notifications included, in one statement; deletes completed
+handler claims once a dead-letter replay can no longer need them (the
+dead-letter retention and a week), and `2053_event_claim_completed_index.sql`
+builds their completion-time index concurrently;
+and has erasure remove the account's OIDC links and passkey handles with its
+credentials. The versions these replace are dropped. Refresh runtime API
+grants and restart the web service and workers.

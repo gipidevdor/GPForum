@@ -105,9 +105,19 @@ async sub preview ($self) {
       )
       if GPForum::Service::Forum::BodyLength->too_long( $input->{body_source} );
     return if !( await $self->await_p( $self->_target_allowed($input) ) );
-    my $source = trimmed( $input->{body_source} );
-    my $html   = GPForum::Service::Forum::BodyRenderer->new(
-        math_plugins => $self->ui_integration_plugins )->render_safe($source);
+    my $source   = trimmed( $input->{body_source} );
+    my $renderer = GPForum::Service::Forum::BodyRenderer->new(
+        math_plugins => $self->ui_integration_plugins );
+
+    # Up to 50,000 characters of Markdown and math render off the event loop,
+    # on the rendering lane, as the thread page's posts do.
+    my $rendered = await $self->await_p(
+        $renderer->render_many_p(
+            [$source], $self->stash('gp_db_query_stats_token')
+        )
+    );
+    my $html = GPForum::Service::Forum::BodyRenderer->with_rendered( $rendered,
+        sub { return $renderer->render_safe($source); } );
     my $integrations = $self->ui_integration_plugins->for_source($source);
 
     if ( @{$integrations} ) {

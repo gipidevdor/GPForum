@@ -76,6 +76,11 @@ is_deeply(
     'bootstrap installs the Mojolicious signing secret chain'
 );
 
+# The scheduled orphan purge removes files as well as rows: built without a
+# storage it skipped every run and reported success.
+ok( $test->app->build_controller->gp_scheduled_jobs->attachment_store->storage,
+    'the scheduled attachment purge has the attachment storage' );
+
 done_testing();
 
 sub _route_names {

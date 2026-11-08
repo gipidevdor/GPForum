@@ -79,6 +79,8 @@
       <p id="security-renew-help"><%= t('auth.second_factor_renew_description') %></p>
       <form method="post" action="<%= ui_path('settings_security_renew') %>">
         <%= csrf_field %>
+        <label for="security-renew-password"><%= t('auth.current_password') %></label>
+        <input id="security-renew-password" name="password" type="password" autocomplete="current-password" required>
         <label for="security-renew-code"><%= t('auth.second_factor_app_code', { digits => $digits }) %></label>
         <input id="security-renew-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="64" required aria-describedby="security-renew-help">
         <button type="submit"><%= ui_icon('shield') %><%= t('auth.second_factor_renew') %></button>

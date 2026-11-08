@@ -101,7 +101,9 @@ sub callback ($self) {
     my $flow     = delete $self->session->{oidc_flow};
     my $provider = $self->_provider;
     return $self->respond_p(
-        $provider->complete_p(
+        $self->call_p(
+            $provider,
+            'complete',
             {
                 flow            => $flow,
                 code            => $self->param('code'),

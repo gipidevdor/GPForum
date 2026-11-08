@@ -72,7 +72,7 @@ has sleeper => sub {
 # unknown option used to die with status 255, since its text starts with the
 # complaint rather than the usage line. A failure of the dispatch itself --
 # the database gone -- exits 1 with its reason, and under --json still prints
-# a document.
+# a document. A --once pass that dead-lettered a message exits 1 too.
 sub run ( $self, @arguments ) {
     return GPForum::Command::Usage->help( $self->output, _usage() )
       if GPForum::Command::Usage->wants_help(@arguments);
@@ -119,13 +119,15 @@ sub _run ( $self, $options ) {
     }
 
     $self->concurrency( $options->{concurrency} );
-    my $iterations = 0;
+    my $iterations    = 0;
+    my $dead_lettered = 0;
 
     # A stop can interrupt the idle sleep too. Check before claiming, not
     # only after a batch, or that wakeup would take one more batch of work.
     while ( !$stop_requested ) {
         my $summary = $self->dispatch_once( $options->{limit} );
         $self->_report( $summary, $options );
+        $dead_lettered += $summary->{dead_lettered} // 0;
 
         $iterations++;
         last if $options->{once};
@@ -145,7 +147,10 @@ sub _run ( $self, $options ) {
         }
     }
 
-    return 0;
+    # A single pass run by a timer or cron reports a message it gave up on
+    # to the unit, as scheduled-jobs does with a failed job: a dead letter
+    # needs an operator. A retried failure is not one; its backoff handles it.
+    return $options->{once} && $dead_lettered ? 1 : 0;
 }
 
 sub dispatch_once ( $self, $limit ) {

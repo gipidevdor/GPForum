@@ -178,9 +178,14 @@ sub scheduled_jobs ( $class, $controller ) {
             storage   => $controller->gp_attachment_storage,
             store     => $controller->gp_attachment_store
         ),
-        attachment_store => $controller->gp_attachment_store,
-        clock            => $controller->gp_clock,
-        profile          => $config
+
+        # The orphan purge removes files as well as rows: without a storage
+        # it skipped every run and still reported success.
+        attachment_store => $controller->gp_attachment_store->storage(
+            $controller->gp_attachment_storage
+        ),
+        clock   => $controller->gp_clock,
+        profile => $config
         ? { event_retention_days => $config->event_retention_days }
         : undef,
         schema => $controller->gp_schema,

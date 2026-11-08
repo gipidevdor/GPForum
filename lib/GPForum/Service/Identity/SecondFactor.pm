@@ -324,10 +324,16 @@ sub _disable_values ( $self, $status, $user_id, $code ) {
     };
 }
 
-# Ten new recovery codes for the old ones, given a code from the app: ok
-# with the codes, or wrong, replayed, not_found.
-sub renew ( $self, $user_id, $code ) {
-    my $call = $self->_renew_call( $self->status($user_id), $user_id, $code );
+# Ten new recovery codes for the old ones, given the password and a code
+# from the app: ok with the codes, or password, wrong, replayed, not_found.
+# The password first: a wrong code here was refused before anything counted
+# it, so a session alone could guess codes at the settings rate limit.
+sub renew ( $self, $user_id, $password, $code ) {
+    my $status = $self->status($user_id);
+    return _refused('not_found') if $status->{state} ne 'active';
+    return _refused('password')  if !$self->_password_ok( $user_id, $password );
+
+    my $call = $self->_renew_call( $status, $user_id, $code );
     return $call->{refused} if $call->{refused};
 
     return _renewed(
@@ -339,11 +345,16 @@ sub renew ( $self, $user_id, $code ) {
     );
 }
 
-# renew on the worker's pooled asynchronous connections.
-async sub renew_p ( $self, $user_id, $code, $context = undef ) {
-    return $self->renew( $user_id, $code ) if !$self->functions;
-    my $call = $self->_renew_call( await $self->status_p( $user_id, $context ),
-        $user_id, $code );
+# renew on the worker's pooled asynchronous connections, the password
+# verified in a child of the CPU lane.
+async sub renew_p ( $self, $user_id, $password, $code, $context = undef ) {
+    return $self->renew( $user_id, $password, $code ) if !$self->functions;
+    my $status = await $self->status_p( $user_id, $context );
+    return _refused('not_found') if $status->{state} ne 'active';
+    return _refused('password')
+      if !await $self->_password_ok_p( $user_id, $password, $context );
+
+    my $call = $self->_renew_call( $status, $user_id, $code );
     return $call->{refused} if $call->{refused};
 
     return _renewed(
@@ -949,8 +960,8 @@ child of the CPU lane.
 
 =head2 renew
 
-Takes the member and a code; answers C<ok> with new C<recovery_codes>, or
-C<wrong>, C<replayed>, C<not_found>.
+Takes the member, their password and a code; answers C<ok> with new
+C<recovery_codes>, or C<password>, C<wrong>, C<replayed>, C<not_found>.
 
 =head2 renew_p
 

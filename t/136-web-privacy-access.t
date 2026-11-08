@@ -28,6 +28,13 @@ is( $access->page_limit(0), $DEFAULT_LIMIT, 'page_limit defaults a zero size' );
 is( $access->page_limit($REQUESTED_LIMIT),
     $REQUESTED_LIMIT, 'page_limit keeps an explicit size' );
 
+# Text and negatives reached PostgreSQL as the LIMIT and answered 500; a
+# huge size listed every row.
+for my $requested ( 'abc', '-1', '1e3', '100000000' ) {
+    is( $access->page_limit($requested),
+        $DEFAULT_LIMIT, "page_limit answers the default for $requested" );
+}
+
 is( $access->write_action, 'privacy.write',
     'write_action is the default write action' );
 is( $access->request_action,

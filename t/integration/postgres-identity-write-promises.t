@@ -414,7 +414,8 @@ sub two_step_sign_in {
     same_effect( $two_step, 'confirm',
         sub ($user) { return [ $user, '000000', undef ] },
         $a, $b, 'a wrong first code' );
-    same_effect( $two_step, 'renew', sub ($user) { return [ $user, '1' ] },
+    same_effect( $two_step, 'renew',
+        sub ($user) { return [ $user, $PASSWORD, '1' ] },
         $a, $b, 'renew while pending' );
     same_effect( $two_step, 'disable',
         sub ($user) { return [ $user, $PASSWORD, '1' ] },

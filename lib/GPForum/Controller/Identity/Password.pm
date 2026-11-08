@@ -7,6 +7,8 @@ use Const::Fast;
 use Mojo::Base 'GPForum::Controller::Identity::Base', -async_await;
 use v5.40;
 
+use GPForum::Infrastructure::Text qw(trimmed);
+
 our $VERSION = '0.001';
 
 const my $HTTP_ACCEPTED    => 202;
@@ -30,6 +32,18 @@ async sub request_password_reset ($self) {
         return $guard;
     }
 
+    # Past the account's own budget the request is answered as any other
+    # and nothing is sent: from many addresses, each reset rotated the
+    # member's open token -- the link they were about to use died -- and
+    # queued one more mail. The answer says nothing of whether the account
+    # exists; an identifier that names none is limited under its spelling.
+    if ( !( await $self->await_p( $self->_account_reset_allowed ) ) ) {
+        return $self->render(
+            template => 'identity/password_reset_requested',
+            status   => $HTTP_ACCEPTED,
+        );
+    }
+
     return $self->respond_p(
         $self->call_p(
             $self->gp_identity_workflow,
@@ -42,6 +56,29 @@ async sub request_password_reset ($self) {
         ),
         sub ($result) { return $self->_reset_requested_async($result); }
     );
+}
+
+async sub _account_reset_allowed ($self) {
+    my $identifier = lc trimmed( $self->param('identifier') );
+    return 1 if !length $identifier;
+
+    my $account = (
+        await $self->call_p(
+            $self->gp_identity_store, 'account_id_for', $identifier
+        )
+    ) // $identifier;
+    my $decision = await $self->call_p(
+        $self->gp_rate_limiter,
+        'check',
+        $self->identity_access->write_rate_input(
+            {
+                action   => 'identity.password_reset_account',
+                actor_id => "account:$account",
+            }
+        )
+    );
+
+    return $decision->{ok} ? 1 : 0;
 }
 
 sub _reset_requested_async ( $self, $result ) {

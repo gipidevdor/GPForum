@@ -504,9 +504,14 @@ sub _operations ( $schema, $path, $context = {} ) {
         schema => $schema,
         %perl,
     );
+
+    # SuspensionStore has one body per operation (ADR 0177) and no DBIx
+    # path: both paths measure its function, its call layer built here,
+    # before the dbic path hides the function routing.
     my $participation = GPForum::Service::Moderation::SuspensionStore->new(
-        schema => $schema,
-        %perl,
+        schema    => $schema,
+        functions => $context->{functions}
+          // GPForum::Infrastructure::SqlFunction->for_schema($schema),
     );
     my $permission = GPForum::Service::Admin::PermissionGate->new(
         schema => $schema,

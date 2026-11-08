@@ -5,7 +5,8 @@ package GPForum::OS::ServiceManager;
 
 use Mojo::Base 'Mojo::Server::Prefork', -signatures;
 use v5.40;
-use Carp       qw(croak);
+use Carp qw(croak);
+use GPForum::X::Io;
 use English    qw(-no_match_vars);
 use Errno      qw(EPERM);
 use Fcntl      qw(O_CREAT O_EXCL O_NOFOLLOW O_WRONLY :flock);
@@ -35,7 +36,9 @@ sub start ($self) {
 sub ioloop ( $self, @arguments ) {
     my $guard = $self->{gp_service_lock};
     if ( $guard && $guard->{owner} != $PROCESS_ID ) {
-        close $guard->{handle} or croak 'cannot close inherited service lock';
+        close $guard->{handle}
+          or GPForum::X::Io->throw(
+            message => 'cannot close inherited service lock' );
         delete $self->{gp_service_lock};
     }
     return $self->SUPER::ioloop(@arguments);
@@ -67,7 +70,8 @@ sub run ($self) {
     if ( -e $pid_file && $pid_file->slurp eq "$owner\n" ) {
         $pid_file->remove;
     }
-    close $lock or croak 'cannot close service lock';
+    close $lock
+      or GPForum::X::Io->throw( message => 'cannot close service lock' );
     croak $failure if defined $failure;
     croak 'service manager stopped without a graceful shutdown' if !$graceful;
     return;
@@ -104,7 +108,8 @@ sub _rotation_watch ( $self, $owner ) {
 
 sub _lock ($file) {
     sysopen my $handle, $file, O_WRONLY | O_CREAT | O_NOFOLLOW, $STATE_MODE
-      or croak "cannot open service lock $file: $OS_ERROR";
+      or GPForum::X::Io->throw(
+        message => "cannot open service lock $file: $OS_ERROR" );
     croak "service lock is not a regular file: $file" if !-f $handle;
     flock $handle, LOCK_EX | LOCK_NB
       or croak "another service manager holds $file";
@@ -124,9 +129,12 @@ sub _write_pid ($file) {
     }
     sysopen my $handle, "$file", O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW,
       $STATE_MODE
-      or croak "cannot create service PID file $file: $OS_ERROR";
-    print {$handle} "$PROCESS_ID\n" or croak 'cannot write service PID';
-    close $handle                   or croak 'cannot close service PID file';
+      or GPForum::X::Io->throw(
+        message => "cannot create service PID file $file: $OS_ERROR" );
+    print {$handle} "$PROCESS_ID\n"
+      or GPForum::X::Io->throw( message => 'cannot write service PID' );
+    close $handle
+      or GPForum::X::Io->throw( message => 'cannot close service PID file' );
     return;
 }
 

@@ -4508,6 +4508,11 @@ Migrations 2000–2025 install a fresh database only; use the current
   post signer's and the Push key ring's `cannot ...` failures use it; the key
   ring's unsafe directory is `X::Config` and its "keys already exist" is
   `X::Argument`. Messages are unchanged.
+- **Atomic file writes and the service lock fail as `X::Io`.** `OS::Filesystem`
+  (temporary file, write, sync, rename, directory sync) and the service
+  manager's lock and PID file operations throw it; messages are unchanged.
+  The refusals that need an operator (a symlinked PID file, a live PID, a
+  held lock) stay as they were.
 - **Eleven bare `croak` calls are typed exceptions (`t/887`).** The native
   supervisor probe's seven contract failures are `GPForum::X::Argument`; the
   post signer's four refusals of an unusable key are `GPForum::X::Config`.

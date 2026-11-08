@@ -3,7 +3,7 @@
 
 package GPForum::OS::Filesystem;
 
-use Carp qw(croak);
+use GPForum::X::Io;
 use Const::Fast;
 use English        qw(-no_match_vars);
 use File::Basename qw(dirname);
@@ -32,7 +32,8 @@ sub write_atomic ( $self, $path, $content ) {
         $temporary = tempfile( '.gpforum-XXXXXXXX', DIR => dirname($path) );
     }
     catch ($error) {
-        croak "failed to open temporary file beside $path: $error";
+        GPForum::X::Io->throw(
+            message => "failed to open temporary file beside $path: $error" );
     };
     my $temporary_path = $temporary->to_string;
     $self->_write_temporary_file( $temporary_path, $content );
@@ -54,7 +55,8 @@ sub write_atomic ( $self, $path, $content ) {
 sub _write_temporary_file ( $self, $temporary_path, $content ) {
     ## no critic (InputOutput::RequireBriefOpen) -- write, sync and close are one durability boundary
     open my $handle, '>', $temporary_path
-      or croak "failed to open temporary file $temporary_path: $ERRNO";
+      or GPForum::X::Io->throw(
+        message => "failed to open temporary file $temporary_path: $ERRNO" );
     binmode $handle
       or _cleanup_and_croak( $temporary_path,
         "failed to set binary mode for $temporary_path: $ERRNO" );
@@ -88,9 +90,14 @@ sub _write_temporary_file ( $self, $temporary_path, $content ) {
 
 sub sync_directory ( $, $directory ) {
     open my $handle, '<', $directory
-      or croak "failed to open directory $directory: $ERRNO";
-    $handle->sync or croak "failed to sync directory $directory: $ERRNO";
-    close $handle or croak "failed to close directory $directory: $ERRNO";
+      or GPForum::X::Io->throw(
+        message => "failed to open directory $directory: $ERRNO" );
+    $handle->sync
+      or GPForum::X::Io->throw(
+        message => "failed to sync directory $directory: $ERRNO" );
+    close $handle
+      or GPForum::X::Io->throw(
+        message => "failed to close directory $directory: $ERRNO" );
 
     return;
 }
@@ -99,7 +106,7 @@ sub _cleanup_and_croak ( $temporary_path, $message ) {
     if ( defined $temporary_path && -e $temporary_path ) {
         unlink $temporary_path;
     }
-    croak $message;
+    GPForum::X::Io->throw( message => $message );
 }
 
 1;

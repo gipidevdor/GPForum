@@ -304,10 +304,8 @@ subtest 'neither home HTML nor JSON probes the operating system' => sub {
             );
             $calls = 0;
             $test->get_ok(q{/})->status_is($HTTP_OK);
-            $test->get_ok('/?format=json')
-              ->status_is($HTTP_OK)
-              ->json_has('/home')
-              ->json_hasnt('/runtime');
+            $test->get_ok('/?format=json')->status_is($HTTP_OK);
+            $test->json_has('/home')->json_hasnt('/runtime');
             $test->get_ok( q{/} => { Accept => 'application/json' } )
               ->status_is($HTTP_OK)
               ->json_hasnt('/runtime');

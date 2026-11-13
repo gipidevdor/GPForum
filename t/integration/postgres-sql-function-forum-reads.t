@@ -121,8 +121,10 @@ sub _compare_categories {
                     "$visibility/$name: category list $limit"
                 );
             }
-            my %listed = map { $_->get_column('category_id') => 1 }
-              rows_in( $reader->categories_resultset( 100, $scope ) );
+            my %listed =
+              map { $_->get_column('category_id') => 1 }
+              rows_in(
+                $reader->categories_resultset( $CATEGORY_LIMITS[-1], $scope ) );
             for my $category (@categories) {
 
                 # A known disagreement: the list reads global_read as every

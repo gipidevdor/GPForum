@@ -353,10 +353,10 @@ sub _walk_category_pages {
 # The rows after the cursor, in the category order -- pinned, then activity,
 # then id, all descending -- up to the row limit.
 sub _keyset_page ( $rows, $values ) {
-    my @ordered = sort {
-             $b->{pinned}           <=> $a->{pinned}
-          || $b->{last_activity_at} cmp $a->{last_activity_at}
-          || $b->{thread_id}        cmp $a->{thread_id}
+    my @ordered = reverse sort {
+             $a->{pinned}           <=> $b->{pinned}
+          || $a->{last_activity_at} cmp $b->{last_activity_at}
+          || $a->{thread_id}        cmp $b->{thread_id}
     } @{$rows};
     if ( defined $values->{after_thread_id} ) {
         my $after =

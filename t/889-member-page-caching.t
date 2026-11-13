@@ -42,8 +42,8 @@ $routes->get(
 );
 
 $test->get_ok('/__member-page')
-  ->header_is( 'Cache-Control' => 'private, no-store' )
-  ->header_like( Vary => qr/\bAccept\b/msx )
+  ->header_is( 'Cache-Control' => 'private, no-store' );
+$test->header_like( Vary => qr/\bAccept\b/msx )
   ->header_like( Vary => qr/\bHX-Request\b/msx );
 $test->get_ok('/__guest-page')->header_is(
     'Cache-Control' => 'private, no-store',

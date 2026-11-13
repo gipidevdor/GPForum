@@ -38,6 +38,7 @@ use GPForum::Migration::Runner;
 use GPForum::Service::Operations::PartitionLifecycle;
 use GPForum::Service::Operations::QueryBudget;
 use GPForum::Test::DeadLetterReplayer;
+use GPForum::Test::DeadLetteringDispatcher;
 use GPForum::Test::DriftedMigrationDbh;
 use GPForum::Test::MigrationDbh;
 use GPForum::Test::MigrationSchema;
@@ -919,25 +920,6 @@ sub _partition_dbh {
             notifications_default => 1,
         }
     );
-}
-
-1;
-
-package GPForum::Test::DeadLetteringDispatcher;
-
-use v5.40;
-
-sub new ( $class, %fields ) { return bless {%fields}, $class; }
-
-sub dispatch_pending ( $self, $limit ) {
-    return {
-        acknowledged  => 0,
-        dead_lettered => $self->{dead_lettered},
-        dispatched    => 0,
-        failed        => 0,
-        lost          => 0,
-        selected      => $self->{dead_lettered},
-    };
 }
 
 1;

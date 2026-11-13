@@ -76,8 +76,9 @@ my %thread = (
         '2026-05-22',     deleted_at => '2026-05-23T12:00:00Z'
     ),
 );
-my @posts        = ( _post( 'post-1', 1 ), _post( 'post-2', 2 ) );
-my $private_post = _post( 'post-private', 3, visibility => 'members' );
+my @posts = ( _post( 'post-1', 1 ), _post( 'post-2', 2 ) );
+my $private_post =
+  _post( 'post-private', scalar @posts + 1, visibility => 'members' );
 
 my $functions = GPForum::Test::AnsweringFunctions->new(
     answers => {
@@ -166,13 +167,13 @@ subtest 'a cached category list asks once' => sub {
     );
     my $before = scalar @{ $functions->asked('forum_list_categories') };
     my $first  = $reader->list_categories( { limit => $CATEGORY_LIMIT } );
-    my $second = $reader->list_categories( { limit => $CATEGORY_LIMIT } );
+    my $cached = $reader->list_categories( { limit => $CATEGORY_LIMIT } );
     is(
         scalar @{ $functions->asked('forum_list_categories') },
         $before + 1,
         'the second list comes from the cache'
     );
-    is_deeply( $second, $first, 'and is the first' );
+    is_deeply( $cached, $first, 'and is the first' );
     is( ref $first->[0], 'HASH', 'as plain column hashes' );
 };
 

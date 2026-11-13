@@ -78,7 +78,8 @@ is_deeply(
 
 # The scheduled orphan purge removes files as well as rows: built without a
 # storage it skipped every run and reported success.
-ok( $test->app->build_controller->gp_scheduled_jobs->attachment_store->storage,
+my $scheduled = $test->app->build_controller->gp_scheduled_jobs;
+ok( $scheduled->attachment_store->storage,
     'the scheduled attachment purge has the attachment storage' );
 
 done_testing();

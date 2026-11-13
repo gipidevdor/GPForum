@@ -201,7 +201,7 @@ done_testing();
 
 # find_thread: the head the page shows, column for column, or none.
 sub _same_thread ( $thread_name, $viewer_name ) {
-    my $found = _columns( $reader{threads}
+    my $head = _columns( $reader{threads}
           ->find_thread( $thread{$thread_name}, $viewer{$viewer_name} ) );
     my $page = $reader{threads}->thread_page(
         {
@@ -210,7 +210,7 @@ sub _same_thread ( $thread_name, $viewer_name ) {
         }
     );
     is_deeply(
-        $found,
+        $head,
         $page->{ok} ? _columns( $page->{thread} ) : undef,
         "$thread_name as $viewer_name: the same thread"
     );

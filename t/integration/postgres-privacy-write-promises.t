@@ -382,6 +382,7 @@ q{SELECT status, completed_at IS NOT NULL FROM deletion_requests WHERE resource_
 q{SELECT j.status, j.last_error FROM erasure_jobs j JOIN deletion_requests r USING (deletion_request_id) WHERE r.resource_id = ?},
             $user_id
         ),
+
         # By type, not by time: created_at is the app clock at whole seconds, so
         # a release and an anonymize in the same second tie and the order flips.
         actions => $one->(

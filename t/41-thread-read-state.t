@@ -213,7 +213,7 @@ sub _read_state ($position) {
                 forum_read_state => sub ($values) {
                     return [] if !defined $position;
                     return [
-                        {
+                        +{
                             %{$values},
                             last_read_position => $position,
                             last_read_at       => 'recorded',

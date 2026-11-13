@@ -28,8 +28,9 @@ my $dbh = $database->dbh;
 my $functions =
   GPForum::Infrastructure::SqlFunction->new( schema => $database->schema );
 
-my ( $first, $second ) = sort map { _user($_) } qw(dm_author dm_reader);
-my $reader = $second;
+my ( $lower_user, $higher_user ) =
+  sort map { _user($_) } qw(dm_author dm_reader);
+my $reader = $higher_user;
 
 subtest 'mark all read marks the notification of a direct message' => sub {
     my $conversation = _uuid();
@@ -39,9 +40,11 @@ subtest 'mark all read marks the notification of a direct message' => sub {
         q{INSERT INTO direct_conversations (conversation_id, first_user_id,}
           . q{ second_user_id, started_by_user_id, created_at, last_message_at)}
           . q{ VALUES (?, ?, ?, ?, now(), now())},
-        undef, $conversation, $first, $second, $first
+        undef, $conversation, $lower_user, $higher_user, $lower_user
     );
-    for my $pair ( [ $first, $second ], [ $second, $first ] ) {
+    for
+      my $pair ( [ $lower_user, $higher_user ], [ $higher_user, $lower_user ] )
+    {
         $dbh->do(
             q{INSERT INTO direct_conversation_members (conversation_id,}
               . q{ user_id, other_user_id, last_message_at)}
@@ -53,7 +56,7 @@ subtest 'mark all read marks the notification of a direct message' => sub {
         q{INSERT INTO direct_messages (message_id, conversation_id,}
           . q{ author_user_id, body, created_at)}
           . q{ VALUES (?, ?, ?, 'hello', now())},
-        undef, $message, $conversation, $first
+        undef, $message, $conversation, $lower_user
     );
     my ($created_at) = $dbh->selectrow_array(
         q{INSERT INTO notifications (notification_id, recipient_user_id,}

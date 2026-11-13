@@ -216,14 +216,15 @@ sub _read_marker_race {
     local $ENV{GPFORUM_DATABASE_DSN} = $database->dsn;
     my @outcomes = GPForum::Test::PostgresHarness::race(
         sub ($slot) {
-            my $schema = GPForum::Test::PostgresHarness::connect_schema();
+            my $slot_schema = GPForum::Test::PostgresHarness::connect_schema();
             return GPForum::Service::Forum::ReadWorkflow->new(
                 command_idempotency =>
                   GPForum::Service::Operations::CommandIdempotency->new(
-                    schema => $schema
+                    schema => $slot_schema
                   ),
-                read_state =>
-                  GPForum::Service::Forum::ReadState->new( schema => $schema ),
+                read_state => GPForum::Service::Forum::ReadState->new(
+                    schema => $slot_schema
+                ),
             )->mark_thread_read(
                 {
                     command_id         => "read-marker-race-$slot",
